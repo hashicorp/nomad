@@ -23,13 +23,13 @@ export default class Evaluation extends Model {
   @attr('string') previousEval;
   @attr('string') nextEval;
   @attr('string') blockedEval;
-  @hasMany('evaluation-stub', { async: false }) relatedEvals;
+  @hasMany('evaluation-stub', { async: false, inverse: null }) relatedEvals;
 
   @bool('failedTGAllocs.length') hasPlacementFailures;
   @equal('status', 'blocked') isBlocked;
 
-  @belongsTo('job') job;
-  @belongsTo('node') node;
+  @belongsTo('job', { async: true, inverse: 'evaluations' }) job;
+  @belongsTo('node', { async: true, inverse: null }) node;
 
   @attr('number') modifyIndex;
   @attr('date') modifyTime;

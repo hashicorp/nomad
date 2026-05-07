@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { module, skip, test } from 'qunit';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -25,11 +25,11 @@ module('Acceptance | exec', function (hooks) {
 
     faker.seed(1);
 
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node');
 
-    this.job = server.create('job', {
+    this.job = this.server.create('job', {
       groupsCount: 2,
       groupAllocCount: 5,
       createAllocations: false,
@@ -37,14 +37,14 @@ module('Acceptance | exec', function (hooks) {
     });
 
     this.job.taskGroups.models.forEach((taskGroup) => {
-      const alloc = server.create('allocation', {
+      const alloc = this.server.create('allocation', {
         jobId: this.job.id,
         taskGroup: taskGroup.name,
         forceRunningClientStatus: true,
       });
-      server.db.taskStates.update(
+      this.server.db.taskStates.update(
         { allocationId: alloc.id },
-        { state: 'running' }
+        { state: 'running' },
       );
     });
   });
@@ -55,13 +55,13 @@ module('Acceptance | exec', function (hooks) {
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function (assert) {
-    server.create('namespace');
-    let namespace = server.create('namespace');
+    this.server.create('namespace');
+    let namespace = this.server.create('namespace');
 
-    server.create('region', { id: 'global' });
-    server.create('region', { id: 'region-2' });
+    this.server.create('region', { id: 'global' });
+    this.server.create('region', { id: 'region-2' });
 
-    this.job = server.create('job', {
+    this.job = this.server.create('job', {
       createAllocations: false,
       namespaceId: namespace.id,
       status: 'running',
@@ -73,11 +73,11 @@ module('Acceptance | exec', function (hooks) {
       region: 'region-2',
     });
 
-    assert.ok(document.title.includes('Exec - region-2'));
+    assert.ok(getPageTitle().includes('Exec - region-2'));
 
-    assert.equal(Exec.header.region.text, this.job.region);
-    assert.equal(Exec.header.namespace.text, this.job.namespace);
-    assert.equal(Exec.header.job, this.job.name);
+    assert.deepEqual(Exec.header.region.text, 'region-2');
+    assert.deepEqual(Exec.header.namespace.text, this.job.namespace);
+    assert.deepEqual(Exec.header.job, this.job.name);
 
     assert.notOk(Exec.jobDead.isPresent);
   });
@@ -93,30 +93,33 @@ module('Acceptance | exec', function (hooks) {
     const firstTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     await Exec.visitJob({ job: this.job.id });
 
-    assert.equal(Exec.taskGroups.length, this.job.taskGroups.length);
+    assert.deepEqual(Exec.taskGroups.length, this.job.taskGroups.length);
 
-    assert.equal(Exec.taskGroups[0].name, firstTaskGroup.name);
-    assert.equal(Exec.taskGroups[0].tasks.length, 0);
+    assert.deepEqual(Exec.taskGroups[0].name, firstTaskGroup.name);
+    assert.deepEqual(Exec.taskGroups[0].tasks.length, 0);
     assert.ok(Exec.taskGroups[0].chevron.isRight);
     assert.notOk(Exec.taskGroups[0].isLoading);
 
     await Exec.taskGroups[0].click();
-    assert.equal(Exec.taskGroups[0].tasks.length, firstTaskGroup.tasks.length);
+    assert.deepEqual(
+      Exec.taskGroups[0].tasks.length,
+      firstTaskGroup.tasks.length,
+    );
     assert.notOk(Exec.taskGroups[0].tasks[0].isActive);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
     await percySnapshot(assert);
 
     await Exec.taskGroups[0].click();
-    assert.equal(Exec.taskGroups[0].tasks.length, 0);
+    assert.deepEqual(Exec.taskGroups[0].tasks.length, 0);
   });
 
   test('/exec/:job should require selecting a task', async function (assert) {
     await Exec.visitJob({ job: this.job.id });
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(0).translateToString().trim(),
-      'Select a task to start your session.'
+      'Select a task to start your session.',
     );
   });
 
@@ -124,7 +127,7 @@ module('Acceptance | exec', function (hooks) {
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: taskGroup.name },
-      { clientStatus: 'pending' }
+      { clientStatus: 'pending' },
     );
 
     await Exec.visitJob({ job: this.job.id });
@@ -135,7 +138,7 @@ module('Acceptance | exec', function (hooks) {
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: taskGroup.name },
-      { clientStatus: 'failed' }
+      { clientStatus: 'failed' },
     );
 
     await Exec.visitJob({ job: this.job.id });
@@ -146,7 +149,7 @@ module('Acceptance | exec', function (hooks) {
     let notRunningTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
-      { clientStatus: 'failed' }
+      { clientStatus: 'failed' },
     );
 
     let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
@@ -161,14 +164,14 @@ module('Acceptance | exec', function (hooks) {
     await Exec.visitJob({ job: this.job.id });
     await Exec.taskGroups[0].click();
 
-    assert.equal(Exec.taskGroups[0].tasks.length, 1);
+    assert.deepEqual(Exec.taskGroups[0].tasks.length, 1);
   });
 
   test('a task that becomes active should appear', async function (assert) {
     let notRunningTaskGroup = this.job.taskGroups.models.sortBy('name')[0];
     this.server.db.allocations.update(
       { taskGroup: notRunningTaskGroup.name },
-      { clientStatus: 'failed' }
+      { clientStatus: 'failed' },
     );
 
     let runningTaskGroup = this.job.taskGroups.models.sortBy('name')[1];
@@ -188,7 +191,7 @@ module('Acceptance | exec', function (hooks) {
     await Exec.visitJob({ job: this.job.id });
     await Exec.taskGroups[0].click();
 
-    assert.equal(Exec.taskGroups[0].tasks.length, 1);
+    assert.deepEqual(Exec.taskGroups[0].tasks.length, 1);
 
     // Approximate new task arrival via polling by changing a finished task state to be not finished
     this.owner
@@ -197,7 +200,7 @@ module('Acceptance | exec', function (hooks) {
       .forEach((allocation) => {
         const changingTaskState = allocation.states.findBy(
           'name',
-          changingTaskStateName
+          changingTaskStateName,
         );
 
         if (changingTaskState) {
@@ -207,8 +210,8 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(Exec.taskGroups[0].tasks.length, 2);
-    assert.equal(Exec.taskGroups[0].tasks[1].name, changingTaskStateName);
+    assert.deepEqual(Exec.taskGroups[0].tasks.length, 2);
+    assert.deepEqual(Exec.taskGroups[0].tasks[1].name, changingTaskStateName);
   });
 
   test('a dead job has an inert window', async function (assert) {
@@ -227,9 +230,9 @@ module('Acceptance | exec', function (hooks) {
     });
 
     assert.ok(Exec.jobDead.isPresent);
-    assert.equal(
+    assert.deepEqual(
       Exec.jobDead.message,
-      `Job ${this.job.name} is dead and cannot host an exec session.`
+      `Job ${this.job.name} is dead and cannot host an exec session.`,
     );
   });
 
@@ -251,7 +254,7 @@ module('Acceptance | exec', function (hooks) {
     let taskGroup = this.job.taskGroups.models.sortBy('name')[0];
     await Exec.visitTaskGroup({ job: this.job.id, task_group: taskGroup.name });
 
-    assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
+    assert.deepEqual(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
     let task = taskGroup.tasks.models.sortBy('name')[0];
@@ -261,7 +264,7 @@ module('Acceptance | exec', function (hooks) {
       task_name: task.name,
     });
 
-    assert.equal(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
+    assert.deepEqual(Exec.taskGroups[0].tasks.length, taskGroup.tasks.length);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
   });
 
@@ -280,27 +283,27 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
-      `/exec/${this.job.id}/${taskGroup.name}/${task.name}?namespace=${this.job.namespaceId}`
+      `/exec/${this.job.id}/${taskGroup.name}/${task.name}?namespace=${this.job.namespaceId}`,
     );
     assert.ok(Exec.taskGroups[0].tasks[0].isActive);
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(2).translateToString().trim(),
-      'Multiple instances of this task are running. The allocation below was selected by random draw.'
+      'Multiple instances of this task are running. The allocation below was selected by random draw.',
     );
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
-      'Customize your command, then hit ‘return’ to run.'
+      'Customize your command, then hit ‘return’ to run.',
     );
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${
         allocationId.split('-')[0]
-      } /bin/bash`
+      } /bin/bash`,
     );
 
     const terminalTextRendered = assert.async();
@@ -321,7 +324,7 @@ module('Acceptance | exec', function (hooks) {
 
     this.server.db.taskStates.update(
       { name: task.name },
-      { name: 'spaced name!' }
+      { name: 'spaced name!' },
     );
 
     task.name = 'spaced name!';
@@ -337,20 +340,20 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
       `$ nomad alloc exec -i -t -task spaced\\ name\\! ${
         allocation.id.split('-')[0]
-      } /bin/bash`
+      } /bin/bash`,
     );
   });
 
   test('a namespace can be specified', async function (assert) {
-    server.create('namespace'); // default
-    let namespace = server.create('namespace', {
+    this.server.create('namespace'); // default
+    let namespace = this.server.create('namespace', {
       id: 'should-show-in-example-string',
     });
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       namespaceId: namespace.id,
       createAllocations: true,
       status: 'running',
@@ -374,11 +377,11 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
       `$ nomad alloc exec -i -t -namespace should-show-in-example-string -task ${
         task.name
-      } ${allocation.id.split('-')[0]} /bin/bash`
+      } ${allocation.id.split('-')[0]} /bin/bash`,
     );
   });
 
@@ -386,10 +389,10 @@ module('Acceptance | exec', function (hooks) {
     let mockSocket = new MockSocket();
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
-        assert.equal(taskState.name, task.name);
-        assert.equal(taskState.allocation.id, allocation.id);
+        assert.deepEqual(taskState.name, task.name);
+        assert.deepEqual(taskState.allocation.id, allocation.id);
 
-        assert.equal(command, '/bin/bash');
+        assert.deepEqual(command, '/bin/bash');
 
         assert.step('Socket built');
 
@@ -428,9 +431,9 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(5).translateToString().trim(),
-      'sh-3.2 🥳$'
+      'sh-3.2 🥳$',
     );
 
     await Exec.terminal.pressEnter();
@@ -445,14 +448,14 @@ module('Acceptance | exec', function (hooks) {
     await mockSocket.onclose();
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
-      'The connection has closed.'
+      'The connection has closed.',
     );
   });
 
   test('the opening message includes the token if it exists', async function (assert) {
-    const { secretId } = server.create('token');
+    const { secretId } = this.server.create('token');
     window.localStorage.nomadTokenSecret = secretId;
 
     let mockSocket = new MockSocket();
@@ -486,9 +489,9 @@ module('Acceptance | exec', function (hooks) {
     await Exec.terminal.pressEnter();
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       mockSocket.sent[0],
-      `{"version":1,"auth_token":"${secretId}"}`
+      `{"version":1,"auth_token":"${secretId}"}`,
     );
   });
 
@@ -522,7 +525,7 @@ module('Acceptance | exec', function (hooks) {
   test('the command can be customised', async function (assert) {
     let mockSockets = Service.extend({
       getTaskStateSocket(taskState, command) {
-        assert.equal(command, '/sh');
+        assert.deepEqual(command, '/sh');
         window.localStorage.getItem('nomadExecCommand', JSON.stringify('/sh'));
 
         assert.step('Socket built');
@@ -564,11 +567,11 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(6).translateToString().trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${
         allocation.id.split('-')[0]
-      }`
+      }`,
     );
 
     await window.execTerminal.simulateCommandDataEvent('/sh');
@@ -600,11 +603,11 @@ module('Acceptance | exec', function (hooks) {
 
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
       `$ nomad alloc exec -i -t -task ${task.name} ${
         allocation.id.split('-')[0]
-      } /bin/sh`
+      } /bin/sh`,
     );
   });
 
@@ -627,9 +630,9 @@ module('Acceptance | exec', function (hooks) {
     await Exec.terminal.pressEnter();
     await settled();
 
-    assert.equal(
+    assert.deepEqual(
       window.execTerminal.buffer.active.getLine(7).translateToString().trim(),
-      `Failed to open a socket because task ${task.name} is not active.`
+      `Failed to open a socket because task ${task.name} is not active.`,
     );
   });
 });

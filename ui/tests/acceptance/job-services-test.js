@@ -16,12 +16,11 @@ module('Acceptance | job services', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   hooks.beforeEach(async function () {
-    allScenarios.servicesTestCluster(server);
+    allScenarios.servicesTestCluster(this.server);
     await Services.visit({ id: 'service-haver@default' });
   });
 
   test('Visiting job services', async function (assert) {
-    assert.expect(3);
     assert.dom('.tabs.is-subnav a.is-active').hasText('Services');
     assert.dom('.service-list table').exists();
     await a11yAudit(assert);
@@ -36,26 +35,26 @@ module('Acceptance | job services', function (hooks) {
 
   test('Digging into a service', async function (assert) {
     const expectedNumAllocs = find(
-      '[data-test-service-level="group"]'
+      '[data-test-service-level="group"]',
     ).getAttribute('data-test-num-allocs');
     const serviceName = find(
-      '[data-test-service-level="group"][data-test-service-provider="nomad"]'
+      '[data-test-service-level="group"][data-test-service-provider="nomad"]',
     ).getAttribute('data-test-service-name');
 
     await find(
-      '[data-test-service-level="group"][data-test-service-provider="nomad"] a'
+      '[data-test-service-level="group"][data-test-service-provider="nomad"] a',
     ).click();
     await settled();
 
     assert.ok(
       currentURL().includes(`services/${serviceName}?level=group`),
-      'correctly traverses to a service instance list'
+      'correctly traverses to a service instance list',
     );
 
-    assert.equal(
+    assert.strictEqual(
       findAll('tr[data-test-service-row]').length,
-      expectedNumAllocs,
-      'Same number of alloc rows as the index shows'
+      Number(expectedNumAllocs),
+      'Same number of alloc rows as the index shows',
     );
   });
 });

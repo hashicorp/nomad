@@ -21,7 +21,7 @@
           <button
             data-test-inline-error-close
             class="button is-danger"
-            onclick={{action this.onDismiss}}
+            {{on "click" this.onDismiss}}
             type="button"
           >
             Okay
@@ -37,8 +37,8 @@
         <ProxyTag @class="bumper-left" />
       {{/if}}
       <span
-        class="{{unless this.model.isConnectProxy "bumper-left"}}
-           tag
+        class="{{unless this.model.isConnectProxy 'bumper-left'}}
+          tag
           {{this.model.stateClass}}"
         data-test-state
       >
@@ -79,30 +79,75 @@
     </PH.Actions>
   </Hds::PageHeader>
   {{#if this.model.task.schedule}}
-    <Hds::Alert @type="inline" @icon="delay" @color="highlight" class="time-based-alert" as |A|>
-      {{#if (eq this.model.paused '')}}
+    <Hds::Alert
+      @type="inline"
+      @icon="delay"
+      @color="highlight"
+      class="time-based-alert"
+      as |A|
+    >
+      {{#if (eq this.model.paused "")}}
         <A.Title>This task is currently running on schedule</A.Title>
         <A.Description>This task is running as per the defined schedule.</A.Description>
-        <A.Button @text="Force Pause" @color="secondary" {{on "click" (perform this.forcePause)}} />
-        <A.Button @text="Remove from Schedule" @color="secondary" {{on "click" (perform this.forceRun)}}  />
-      {{else if (eq this.model.paused 'scheduled_pause')}}
+        <A.Button
+          @text="Force Pause"
+          @color="secondary"
+          {{on "click" (perform this.forcePause)}}
+        />
+        <A.Button
+          @text="Remove from Schedule"
+          @color="secondary"
+          {{on "click" (perform this.forceRun)}}
+        />
+      {{else if (eq this.model.paused "scheduled_pause")}}
         <A.Title>This task is currently paused on schedule</A.Title>
-        <A.Description>This task is paused and will resume on the next scheduled run.</A.Description>
-        <A.Button @text="Force Run" @color="secondary" {{on "click" (perform this.forceRun)}} />
-        <A.Button @text="Remove from Schedule" @color="secondary" {{on "click" (perform this.forcePause)}} />
-      {{else if (eq this.model.paused 'force_pause')}}
+        <A.Description>This task is paused and will resume on the next scheduled
+          run.</A.Description>
+        <A.Button
+          @text="Force Run"
+          @color="secondary"
+          {{on "click" (perform this.forceRun)}}
+        />
+        <A.Button
+          @text="Remove from Schedule"
+          @color="secondary"
+          {{on "click" (perform this.forcePause)}}
+        />
+      {{else if (eq this.model.paused "force_pause")}}
         <A.Title>This task is manually paused</A.Title>
-        <A.Description>This task has been paused manually and is not following the schedule.</A.Description>
-        <A.Button @text="Force Run" @color="secondary" {{on "click" (perform this.forceRun)}} />
-        <A.Button @text="Put Back on Schedule" @color="secondary" {{on "click" (perform this.reEnableSchedule)}} />
-      {{else if (eq this.model.paused 'force_run')}}
+        <A.Description>This task has been paused manually and is not following
+          the schedule.</A.Description>
+        <A.Button
+          @text="Force Run"
+          @color="secondary"
+          {{on "click" (perform this.forceRun)}}
+        />
+        <A.Button
+          @text="Put Back on Schedule"
+          @color="secondary"
+          {{on "click" (perform this.reEnableSchedule)}}
+        />
+      {{else if (eq this.model.paused "force_run")}}
         <A.Title>This task is manually running</A.Title>
-        <A.Description>This task is running manually and is not following the schedule.</A.Description>
-        <A.Button @text="Force Pause" @color="secondary" {{on "click" (perform this.forcePause)}} />
-        <A.Button @text="Put Back on Schedule" @color="secondary" {{on "click" (perform this.reEnableSchedule)}} />
+        <A.Description>This task is running manually and is not following the
+          schedule.</A.Description>
+        <A.Button
+          @text="Force Pause"
+          @color="secondary"
+          {{on "click" (perform this.forcePause)}}
+        />
+        <A.Button
+          @text="Put Back on Schedule"
+          @color="secondary"
+          {{on "click" (perform this.reEnableSchedule)}}
+        />
       {{/if}}
       <A.Generic>
-        <Hds::CodeBlock @value={{stringify-object this.model.task.schedule.cron}} @hasLineNumbers={{false}} @language="hcl" />
+        <Hds::CodeBlock
+          @value={{stringify-object this.model.task.schedule.cron}}
+          @hasLineNumbers={{false}}
+          @language="hcl"
+        />
       </A.Generic>
     </Hds::Alert>
     <Hds::Separator />
@@ -151,7 +196,10 @@
 
       {{#if (and (can "list variables") this.model.task.pathLinkedVariable)}}
         <span class="pair" data-test-task-stat="variables">
-          <LinkTo @route="variables.variable" @model={{this.model.task.pathLinkedVariable.id}}>Variables</LinkTo>
+          <LinkTo
+            @route="variables.variable"
+            @model={{this.model.task.pathLinkedVariable.id}}
+          >Variables</LinkTo>
         </span>
       {{/if}}
 
@@ -222,18 +270,20 @@
                   <LinkTo
                     @route="storage.volumes.volume"
                     @model={{concat
-                    (format-volume-name
-                      source=row.model.source
-                      isPerAlloc=row.model.volumeDeclaration.perAlloc
-                      volumeExtension=this.model.allocation.volumeExtension)
-                    "@"
-                    row.model.namespace.id
+                      (format-volume-name
+                        source=row.model.source
+                        isPerAlloc=row.model.volumeDeclaration.perAlloc
+                        volumeExtension=this.model.allocation.volumeExtension
+                      )
+                      "@"
+                      row.model.namespace.id
                     }}
                   >
-                  {{format-volume-name
-                    source=row.model.source
-                    isPerAlloc=row.model.volumeDeclaration.perAlloc
-                    volumeExtension=this.model.allocation.volumeExtension}}
+                    {{format-volume-name
+                      source=row.model.source
+                      isPerAlloc=row.model.volumeDeclaration.perAlloc
+                      volumeExtension=this.model.allocation.volumeExtension
+                    }}
                   </LinkTo>
                 {{else}}
                   {{row.model.source}}
@@ -252,7 +302,8 @@
     <div class="boxed-section-body is-full-bleed">
       <ListTable
         @source={{reverse this.model.events}}
-        @class="is-striped recent-events-table" as |t|
+        @class="is-striped recent-events-table"
+        as |t|
       >
         <t.head>
           <th class="is-3">
@@ -288,8 +339,6 @@
     </div>
   </div>
   {{#if this.model.task.meta}}
-    <JobPage::Parts::Meta
-      @meta={{this.model.task.meta}}
-    />
+    <JobPage::Parts::Meta @meta={{this.model.task.meta}} />
   {{/if}}
 </section>

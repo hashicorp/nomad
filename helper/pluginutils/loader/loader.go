@@ -174,6 +174,7 @@ func (l *PluginLoader) Dispense(name, pluginType string, config *base.AgentConfi
 	// Cast to the base type and set the config
 	b, ok := instance.Plugin().(base.BasePlugin)
 	if !ok {
+		instance.Kill() // Ensure plugin is not left running
 		return nil, fmt.Errorf("plugin %s doesn't implement base plugin interface", id)
 	}
 
@@ -184,6 +185,7 @@ func (l *PluginLoader) Dispense(name, pluginType string, config *base.AgentConfi
 	}
 
 	if err := b.SetConfig(c); err != nil {
+		instance.Kill() // ensure plugin is not left running
 		return nil, fmt.Errorf("setting config for plugin %s failed: %v", id, err)
 	}
 

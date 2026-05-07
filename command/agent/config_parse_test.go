@@ -868,6 +868,8 @@ var sample1 = &Config{
 		StreamOpenTimeoutHCL:      "75s",
 		StreamCloseTimeout:        5 * time.Minute,
 		StreamCloseTimeoutHCL:     "5m",
+		DialTimeout:               15 * time.Second,
+		DialTimeoutHCL:            "15s",
 	},
 	Audit: &config.AuditConfig{
 		Enabled: pointer.Of(true),

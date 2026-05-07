@@ -6,7 +6,7 @@
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, find, findAll, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import moment from 'moment';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -57,21 +57,17 @@ module('Integration | Component | scale-events-chart', function (hooks) {
   ];
 
   test('each event is rendered as an annotation', async function (assert) {
-    assert.expect(2);
-
     this.set('events', events);
     await render(hbs`<ScaleEventsChart @events={{this.events}} />`);
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-annotation]').length,
-      events.filter((ev) => ev.count == null).length
+      events.filter((ev) => ev.count == null).length,
     );
     await componentA11yAudit(this.element, assert);
   });
 
   test('clicking an annotation presents details for the event', async function (assert) {
-    assert.expect(6);
-
     const annotation = events.rejectBy('hasCount').sortBy('time').reverse()[0];
 
     this.set('events', events);
@@ -81,14 +77,17 @@ module('Integration | Component | scale-events-chart', function (hooks) {
     await click('[data-test-annotation] button');
 
     assert.ok(find('[data-test-event-details]'));
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-timestamp]').textContent,
-      moment(annotation.time).format('MMM DD HH:mm:ss ZZ')
+      moment(annotation.time).format('MMM DD HH:mm:ss ZZ'),
     );
-    assert.equal(find('[data-test-message]').textContent, annotation.message);
-    assert.equal(
-      getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
-      JSON.stringify(annotation.meta, null, 2)
+    assert.deepEqual(
+      find('[data-test-message]').textContent,
+      annotation.message,
+    );
+    assert.deepEqual(
+      this.getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
+      JSON.stringify(annotation.meta, null, 2),
     );
 
     await componentA11yAudit(this.element, assert);

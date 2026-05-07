@@ -4,7 +4,7 @@
  */
 
 import { Ability } from 'ember-can';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { computed, get } from '@ember/object';
 import { equal, not } from '@ember/object/computed';
 import classic from 'ember-classic-decorator';
@@ -30,41 +30,43 @@ export default class Abstract extends Ability {
   @computed('_namespace', 'token.selfTokenPolicies.[]')
   get rulesForNamespace() {
     let namespace = this._namespace;
+    const policies = this.get('token.selfTokenPolicies') || [];
+    const policyList =
+      typeof policies.toArray === 'function' ? policies.toArray() : policies;
 
-    return (this.get('token.selfTokenPolicies') || [])
-      .toArray()
-      .reduce((rules, policy) => {
-        let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
+    return policyList.reduce((rules, policy) => {
+      let policyNamespaces = get(policy, 'rulesJSON.Namespaces') || [];
 
-        let matchingNamespace = this._findMatchingNamespace(
-          policyNamespaces,
-          namespace
+      let matchingNamespace = this._findMatchingNamespace(
+        policyNamespaces,
+        namespace,
+      );
+
+      if (matchingNamespace) {
+        rules.push(
+          policyNamespaces.find(
+            (namespace) => namespace.Name === matchingNamespace,
+          ),
         );
-
-        if (matchingNamespace) {
-          rules.push(
-            policyNamespaces.find(
-              (namespace) => namespace.Name === matchingNamespace
-            )
-          );
-        }
-
-        return rules;
-      }, []);
+      }
+      return rules;
+    }, []);
   }
 
   @computed('token.selfTokenPolicies.[]')
   get capabilitiesForAllNamespaces() {
-    return (this.get('token.selfTokenPolicies') || [])
-      .toArray()
-      .reduce((allCapabilities, policy) => {
-        (get(policy, 'rulesJSON.Namespaces') || []).forEach(
-          ({ Capabilities }) => {
-            allCapabilities = allCapabilities.concat(Capabilities);
-          }
-        );
-        return allCapabilities;
-      }, []);
+    const policies = this.get('token.selfTokenPolicies') || [];
+    const policyList =
+      typeof policies.toArray === 'function' ? policies.toArray() : policies;
+
+    return policyList.reduce((allCapabilities, policy) => {
+      (get(policy, 'rulesJSON.Namespaces') || []).forEach(
+        ({ Capabilities }) => {
+          allCapabilities = allCapabilities.concat(Capabilities);
+        },
+      );
+      return allCapabilities;
+    }, []);
   }
 
   namespaceIncludesCapability(capability) {
@@ -87,21 +89,23 @@ export default class Abstract extends Ability {
   // Chooses the closest namespace as described at the bottom here:
   // https://learn.hashicorp.com/tutorials/nomad/access-control-policies?in=nomad/access-control#namespace-rules
   _findMatchingNamespace(policyNamespaces, namespace) {
-    let namespaceNames = policyNamespaces.mapBy('Name');
+    let namespaceNames = policyNamespaces.map(
+      (policyNamespace) => policyNamespace.Name,
+    );
 
     if (namespaceNames.includes(namespace)) {
       return namespace;
     }
 
     let globNamespaceNames = namespaceNames.filter((namespaceName) =>
-      namespaceName.includes('*')
+      namespaceName.includes('*'),
     );
 
     let matchingNamespaceName = globNamespaceNames.reduce(
       (mostMatching, namespaceName) => {
         // Convert * wildcards to .* for regex matching
         let namespaceNameRegExp = new RegExp(
-          namespaceName.replace(/\*/g, '.*')
+          namespaceName.replace(/\*/g, '.*'),
         );
         let characterDifference = namespace.length - namespaceName.length;
 
@@ -120,7 +124,7 @@ export default class Abstract extends Ability {
       {
         mostMatchingNamespaceName: null,
         mostMatchingCharacterDifference: Number.MAX_SAFE_INTEGER,
-      }
+      },
     ).mostMatchingNamespaceName;
 
     if (matchingNamespaceName) {

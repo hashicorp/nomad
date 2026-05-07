@@ -573,6 +573,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		if agentConfig.RPC.StreamOpenTimeout > 0 {
 			conf.RPCSessionConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
 		}
+		if agentConfig.RPC.DialTimeout > 0 {
+			conf.RPCDialTimeout = agentConfig.RPC.DialTimeout
+		}
 	}
 
 	// Set the TLS config
@@ -945,6 +948,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		}
 		if agentConfig.RPC.StreamOpenTimeout > 0 {
 			conf.RPCSessionConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
+		}
+		if agentConfig.RPC.DialTimeout > 0 {
+			conf.RPCDialTimeout = agentConfig.RPC.DialTimeout
 		}
 	}
 

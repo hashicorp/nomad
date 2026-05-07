@@ -4,10 +4,9 @@
  */
 
 import Component from '@ember/component';
-import { inject as service } from '@ember/service';
-import { computed, action } from '@ember/object';
-import { alias, oneWay } from '@ember/object/computed';
-import { debounce } from '@ember/runloop';
+import { service } from '@ember/service';
+import { action } from '@ember/object';
+import { debounce, join } from '@ember/runloop';
 import {
   classNames,
   tagName,
@@ -21,21 +20,51 @@ import { lazyClick } from '../helpers/lazy-click';
 @classNames('task-group-row', 'is-interactive')
 @attributeBindings('data-test-task-group')
 export default class TaskGroupRow extends Component {
-  @service can;
+  @service abilities;
 
   taskGroup = null;
+  count = 0;
   debounce = 500;
 
-  @oneWay('taskGroup.count') count;
-  @alias('taskGroup.job.runningDeployment') runningDeployment;
-
-  get namespace() {
-    return this.get('taskGroup.job.namespace.name');
+  didReceiveAttrs() {
+    super.didReceiveAttrs(...arguments);
+    this.set('count', Number(this.taskGroup?.count ?? 0));
   }
 
-  @computed('runningDeployment', 'namespace')
+  get runningDeployment() {
+    return this.taskGroup?.job?.runningDeployment;
+  }
+
+  get namespace() {
+    const job = this.taskGroup?.job;
+
+    const namespaceId =
+      (typeof job?.get === 'function' ? job.get('namespaceId') : undefined) ||
+      job?.namespaceId;
+    if (namespaceId) {
+      return namespaceId;
+    }
+
+    const jobId =
+      (typeof job?.get === 'function' ? job.get('id') : undefined) || job?.id;
+    if (jobId) {
+      try {
+        const [, parsedNamespace] = JSON.parse(jobId);
+        return parsedNamespace || 'default';
+      } catch {
+        // Fall through to final default.
+      }
+    }
+
+    if (typeof job?.namespace === 'string') {
+      return job.namespace;
+    }
+
+    return 'default';
+  }
+
   get tooltipText() {
-    if (this.can.cannot('scale job', null, { namespace: this.namespace }))
+    if (this.abilities.cannot('scale job', null, { namespace: this.namespace }))
       return "You aren't allowed to scale task groups";
     if (this.runningDeployment)
       return 'You cannot scale task groups during a deployment';
@@ -48,14 +77,12 @@ export default class TaskGroupRow extends Component {
     lazyClick([this.onClick, event]);
   }
 
-  @computed('count', 'taskGroup.scaling.min')
   get isMinimum() {
     const scaling = this.taskGroup.scaling;
     if (!scaling || scaling.min == null) return false;
     return this.count <= scaling.min;
   }
 
-  @computed('count', 'taskGroup.scaling.max')
   get isMaximum() {
     const scaling = this.taskGroup.scaling;
     if (!scaling || scaling.max == null) return false;
@@ -64,20 +91,28 @@ export default class TaskGroupRow extends Component {
 
   @action
   countUp() {
-    const scaling = this.taskGroup.scaling;
-    if (!scaling || scaling.max == null || this.count < scaling.max) {
-      this.incrementProperty('count');
-      this.scale(this.count);
-    }
+    join(this, () => {
+      const scaling = this.taskGroup.scaling;
+      if (!scaling || scaling.max == null || this.count < scaling.max) {
+        const nextCount = this.count + 1;
+        this.set('count', nextCount);
+        this.taskGroup.set('count', nextCount);
+        this.scale(nextCount);
+      }
+    });
   }
 
   @action
   countDown() {
-    const scaling = this.taskGroup.scaling;
-    if (!scaling || scaling.min == null || this.count > scaling.min) {
-      this.decrementProperty('count');
-      this.scale(this.count);
-    }
+    join(this, () => {
+      const scaling = this.taskGroup.scaling;
+      if (!scaling || scaling.min == null || this.count > scaling.min) {
+        const nextCount = this.count - 1;
+        this.set('count', nextCount);
+        this.taskGroup.set('count', nextCount);
+        this.scale(nextCount);
+      }
+    });
   }
 
   scale(count) {

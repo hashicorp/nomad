@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 // eslint-disable-next-line no-unused-vars
 import VariableModel from '../models/variable';
 // eslint-disable-next-line no-unused-vars
@@ -27,7 +26,7 @@ import Helper from '@ember/component/helper';
  */
 export function editableVariableLink(
   [path],
-  { existingPaths, namespace = 'default' }
+  { existingPaths, namespace = 'default' },
 ) {
   if (existingPaths.findBy('path', path)) {
     return {

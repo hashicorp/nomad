@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/acl"
@@ -28,6 +27,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 type Member struct {

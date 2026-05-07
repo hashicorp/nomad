@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-@use 'sass:math';
+@use "sass:math";
 
 .table {
   color: $text;
@@ -218,11 +218,11 @@
 
       &.is-active {
         &.desc a::after {
-          content: '⬆';
+          content: "⬆";
         }
 
         &.asc a::after {
-          content: '⬇';
+          content: "⬇";
         }
 
         &.has-text-right {
@@ -231,11 +231,11 @@
           }
 
           &.desc a::before {
-            content: '⬆';
+            content: "⬆";
           }
 
           &.asc a::before {
-            content: '⬇';
+            content: "⬇";
           }
         }
       }
@@ -261,7 +261,7 @@
 
           &::after {
             position: absolute;
-            content: '';
+            content: "";
             width: 3px;
             top: 0;
             bottom: 0;
@@ -333,9 +333,7 @@
     .label,
     .field-label {
       color: $grey;
-      flex-basis: 0;
-      flex-grow: 1;
-      flex-shrink: 0;
+      flex: 1 0 0;
       text-align: right;
 
       &.is-small {
@@ -345,9 +343,7 @@
 
     .field-body {
       display: flex;
-      flex-basis: 0;
-      flex-grow: 5;
-      flex-shrink: 1;
+      flex: 5 1 0;
     }
   }
 }

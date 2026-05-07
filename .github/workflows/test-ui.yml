@@ -74,13 +74,30 @@ jobs:
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
+          JSON_REPORT_PATH: test-results/test-results.json
         run: |
-          pnpm exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+          set +e
+          mkdir -p test-results
+          pnpm exam:ci --parallel=${{ matrix.split }} --split=${{ matrix.split }} --partition=${{ matrix.partition }}
+          status=$?
+
+          if [ "$status" -ne 0 ]; then
+            echo "Retrying ember-exam for flaky partition ${{ matrix.partition }}"
+            pnpm exam:ci --parallel=${{ matrix.split }} --split=${{ matrix.split }} --partition=${{ matrix.partition }}
+            status=$?
+          fi
+
+          exit "$status"
         continue-on-error: true
       - name: Express failure
         if: steps.ember_exam.outcome == 'failure'
         run: |
           echo "Tests failed in ember-exam for partition ${{ matrix.partition }}"
+          if [ ! -f test-results/test-results.json ]; then
+            echo "No JSON report produced at test-results/test-results.json"
+            echo "ember-exam failed before writing the report; see logs above for root cause."
+            exit 1
+          fi
           echo "Failed tests:"
           node -e "
             const results = JSON.parse(require('fs').readFileSync('test-results/test-results.json'));

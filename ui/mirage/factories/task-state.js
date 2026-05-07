@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 
 const TASK_STATUSES = ['pending', 'running', 'finished', 'failed'];
@@ -29,12 +29,12 @@ export default Factory.extend({
       {
         taskStateId: state.id,
       },
-    ].compact();
+    ].filter(Boolean);
 
     const events = server.createList(...props);
 
     state.update({
-      eventIds: events.mapBy('id'),
+      eventIds: events.map((event) => event.id),
     });
   },
 });

@@ -83,6 +83,7 @@ func TestTaskConfigRoundTrip(t *testing.T) {
 		},
 		Mounts: []*MountConfig{
 			{
+				RequestName:     "volume",
 				TaskPath:        "task",
 				HostPath:        "host",
 				Readonly:        true,

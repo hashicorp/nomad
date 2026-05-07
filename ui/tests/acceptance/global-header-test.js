@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember-a11y-testing/a11y-audit-called */
 import { module, test } from 'qunit';
 import { click, visit, currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -17,7 +16,7 @@ module('Acceptance | global header', function (hooks) {
   setupMirage(hooks);
 
   test('it diplays no links', async function (assert) {
-    server.create('agent');
+    this.server.create('agent');
 
     await visit('/');
 
@@ -26,7 +25,7 @@ module('Acceptance | global header', function (hooks) {
   });
 
   test('it diplays both links', async function (assert) {
-    server.create('agent', 'withConsulLink', 'withVaultLink');
+    this.server.create('agent', 'withConsulLink', 'withVaultLink');
 
     await visit('/');
 
@@ -35,27 +34,33 @@ module('Acceptance | global header', function (hooks) {
   });
 
   test('it diplays Consul link', async function (assert) {
-    server.create('agent', 'withConsulLink');
+    this.server.create('agent', 'withConsulLink');
 
     await visit('/');
 
     assert.true(Layout.navbar.end.consulLink.isVisible);
-    assert.equal(Layout.navbar.end.consulLink.text, 'Consul');
-    assert.equal(Layout.navbar.end.consulLink.link, 'http://localhost:8500/ui');
+    assert.deepEqual(Layout.navbar.end.consulLink.text, 'Consul');
+    assert.deepEqual(
+      Layout.navbar.end.consulLink.link,
+      'http://localhost:8500/ui',
+    );
   });
 
   test('it diplays Vault link', async function (assert) {
-    server.create('agent', 'withVaultLink');
+    this.server.create('agent', 'withVaultLink');
 
     await visit('/');
 
     assert.true(Layout.navbar.end.vaultLink.isVisible);
-    assert.equal(Layout.navbar.end.vaultLink.text, 'Vault');
-    assert.equal(Layout.navbar.end.vaultLink.link, 'http://localhost:8200/ui');
+    assert.deepEqual(Layout.navbar.end.vaultLink.text, 'Vault');
+    assert.deepEqual(
+      Layout.navbar.end.vaultLink.link,
+      'http://localhost:8200/ui',
+    );
   });
 
   test('it diplays SignIn', async function (assert) {
-    managementToken = server.create('token');
+    managementToken = this.server.create('token');
 
     window.localStorage.clear();
 
@@ -65,7 +70,7 @@ module('Acceptance | global header', function (hooks) {
   });
 
   test('it diplays a Profile dropdown', async function (assert) {
-    managementToken = server.create('token');
+    managementToken = this.server.create('token');
 
     window.localStorage.nomadTokenSecret = managementToken.secretId;
 
@@ -75,15 +80,23 @@ module('Acceptance | global header', function (hooks) {
     await Layout.navbar.end.profileDropdown.open();
 
     await click('[data-test-profile-dropdown-profile-link]');
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       '/settings/tokens',
-      'Authroization link takes you to the tokens page'
+      'Authroization link takes you to the tokens page',
     );
 
     await Layout.navbar.end.profileDropdown.open();
     await click('[data-test-profile-dropdown-sign-out-link]');
-    assert.equal(window.localStorage.nomadTokenSecret, null, 'Token is wiped');
-    assert.equal(currentURL(), '/jobs', 'After signout, back on the jobs page');
+    assert.strictEqual(
+      window.localStorage.getItem('nomadTokenSecret'),
+      null,
+      'Token is wiped',
+    );
+    assert.deepEqual(
+      currentURL(),
+      '/jobs',
+      'After signout, back on the jobs page',
+    );
   });
 });

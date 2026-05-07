@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import formatDuration from 'nomad-ui/utils/format-duration';
 
 /**

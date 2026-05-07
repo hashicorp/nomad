@@ -12,7 +12,7 @@ import {
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import sinon from 'sinon';
 import moment from 'moment';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
@@ -23,8 +23,6 @@ module('Integration | Component | line-chart', function (hooks) {
   setupRenderingTest(hooks);
 
   test('when a chart has annotations, they are rendered in order', async function (assert) {
-    assert.expect(4);
-
     const annotations = [
       { x: 2, type: 'info' },
       { x: 1, type: 'error' },
@@ -52,9 +50,9 @@ module('Integration | Component | line-chart', function (hooks) {
     const sortedAnnotations = annotations.sortBy('x');
     findAll('[data-test-annotation]').forEach((annotation, idx) => {
       const datum = sortedAnnotations[idx];
-      assert.equal(
+      assert.deepEqual(
         annotation.querySelector('button').getAttribute('title'),
-        `${datum.type} event at ${datum.x}`
+        `${datum.type} event at ${datum.x}`,
       );
     });
 
@@ -62,8 +60,6 @@ module('Integration | Component | line-chart', function (hooks) {
   });
 
   test('when a chart has annotations and is timeseries, annotations are sorted reverse-chronologically', async function (assert) {
-    assert.expect(3);
-
     const annotations = [
       {
         x: moment(REF_DATE).add(2, 'd').toDate(),
@@ -101,9 +97,9 @@ module('Integration | Component | line-chart', function (hooks) {
     const sortedAnnotations = annotations.sortBy('x').reverse();
     findAll('[data-test-annotation]').forEach((annotation, idx) => {
       const datum = sortedAnnotations[idx];
-      assert.equal(
+      assert.deepEqual(
         annotation.querySelector('button').getAttribute('title'),
-        `${datum.type} event at ${moment(datum.x).format('MMM DD, HH:mm')}`
+        `${datum.type} event at ${moment(datum.x).format('MMM DD, HH:mm')}`,
       );
     });
   });
@@ -135,8 +131,6 @@ module('Integration | Component | line-chart', function (hooks) {
   });
 
   test('annotations will have staggered heights when too close to be positioned side-by-side', async function (assert) {
-    assert.expect(4);
-
     const annotations = [
       { x: 2, type: 'info' },
       { x: 2.4, type: 'error' },
@@ -173,8 +167,6 @@ module('Integration | Component | line-chart', function (hooks) {
   });
 
   test('horizontal annotations render in order', async function (assert) {
-    assert.expect(3);
-
     const annotations = [
       { y: 2, label: 'label one' },
       { y: 9, label: 'label three' },
@@ -204,13 +196,14 @@ module('Integration | Component | line-chart', function (hooks) {
       .sortBy('y')
       .reverse()
       .forEach((annotation, index) => {
-        assert.equal(annotationEls[index].textContent.trim(), annotation.label);
+        assert.deepEqual(
+          annotationEls[index].textContent.trim(),
+          annotation.label,
+        );
       });
   });
 
   test('the tooltip includes information on the data closest to the mouse', async function (assert) {
-    assert.expect(8);
-
     const series1 = [
       { x: 1, y: 2 },
       { x: 3, y: 3 },
@@ -269,14 +262,14 @@ module('Integration | Component | line-chart', function (hooks) {
     await triggerEvent(hoverTarget, 'mousemove', {
       clientX: xOffset + interval * 1 + 5,
     });
-    assert.equal(findAll('[data-test-chart-tooltip] li').length, 1);
-    assert.equal(
+    assert.deepEqual(findAll('[data-test-chart-tooltip] li').length, 1);
+    assert.deepEqual(
       find('[data-test-chart-tooltip] .label').textContent.trim(),
-      this.data[1].series
+      this.data[1].series,
     );
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-chart-tooltip] .value').textContent.trim(),
-      series2.find((d) => d.x === 2).y
+      String(series2.find((d) => d.x === 2).y),
     );
 
     // When the mouse falls between points and each series has points with different x values,
@@ -290,15 +283,15 @@ module('Integration | Component | line-chart', function (hooks) {
     await triggerEvent(hoverTarget, 'mousemove', {
       clientX: xOffset + interval * 1.5 + 5,
     });
-    assert.equal(findAll('[data-test-chart-tooltip] li').length, 2);
+    assert.deepEqual(findAll('[data-test-chart-tooltip] li').length, 2);
     findAll('[data-test-chart-tooltip] li').forEach((tooltipEntry, index) => {
-      assert.equal(
+      assert.deepEqual(
         tooltipEntry.querySelector('.label').textContent.trim(),
-        expected[index].label
+        expected[index].label,
       );
-      assert.equal(
+      assert.deepEqual(
         tooltipEntry.querySelector('.value').textContent.trim(),
-        expected[index].value
+        String(expected[index].value),
       );
     });
   });

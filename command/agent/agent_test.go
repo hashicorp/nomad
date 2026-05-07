@@ -817,6 +817,21 @@ func TestConvertClientConfig(t *testing.T) {
 				must.True(t, cc.DisableAllocationHookMetrics)
 			},
 		},
+		{
+			name: "rpc dial timeout default",
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, 10*time.Second, cc.RPCDialTimeout)
+			},
+		},
+		{
+			name: "rpc dial timeout override",
+			modConfig: func(c *Config) {
+				c.RPC.DialTimeout = 25 * time.Second
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, 25*time.Second, cc.RPCDialTimeout)
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -838,6 +853,46 @@ func TestConvertClientConfig(t *testing.T) {
 			if tc.assert != nil {
 				tc.assert(t, cc)
 			}
+		})
+	}
+}
+
+// TestAgent_ServerConfig_RPCDialTimeout verifies that rpc.dial_timeout is
+// plumbed through to the nomad server config, falling back to the default
+// when unset.
+func TestAgent_ServerConfig_RPCDialTimeout(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name       string
+		modConfig  func(*Config)
+		expectedTO time.Duration
+	}{
+		{
+			name:       "default",
+			expectedTO: 10 * time.Second,
+		},
+		{
+			name: "override",
+			modConfig: func(c *Config) {
+				c.RPC.DialTimeout = 25 * time.Second
+			},
+			expectedTO: 25 * time.Second,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+			if tc.modConfig != nil {
+				tc.modConfig(conf)
+			}
+
+			nc, err := convertServerConfig(conf)
+			must.NoError(t, err)
+			must.NotNil(t, nc)
+			must.Eq(t, tc.expectedTO, nc.RPCDialTimeout)
 		})
 	}
 }
@@ -969,10 +1024,10 @@ func TestAgent_HTTPCheck(t *testing.T) {
 			t.Errorf("expected normalized addr not %q", check.PortLabel)
 		}
 		if expected := 2; check.FailuresBeforeCritical != expected {
-			t.Errorf("expected failured before critical count not: %q", expected)
+			t.Errorf("expected failured before critical count not: %d", expected)
 		}
 		if expected := 1; check.FailuresBeforeWarning != expected {
-			t.Errorf("expected failured before warning count not: %q", expected)
+			t.Errorf("expected failured before warning count not: %d", expected)
 		}
 	})
 
@@ -1043,10 +1098,10 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 	// ensure server failures before critical and warning are set
 	if expected := 4; check.FailuresBeforeCritical != expected {
-		t.Errorf("expected failured before critical count not: %q", expected)
+		t.Errorf("expected failured before critical count not: %d", expected)
 	}
 	if expected := 3; check.FailuresBeforeWarning != expected {
-		t.Errorf("expected failured before warning count not: %q", expected)
+		t.Errorf("expected failured before warning count not: %d", expected)
 	}
 
 	// Assert client check uses /v1/agent/health?type=client

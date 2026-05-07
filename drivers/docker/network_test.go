@@ -6,9 +6,9 @@ package docker
 import (
 	"testing"
 
-	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	containerapi "github.com/moby/moby/api/types/container"
 	"github.com/shoenig/test/must"
 )
 

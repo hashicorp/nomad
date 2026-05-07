@@ -231,6 +231,13 @@ func (c *JobPlanCommand) Run(args []string) int {
 		runArgs.WriteString(fmt.Sprintf("-namespace=%q ", c.namespace))
 	}
 
+	// -hcl2-strict defaults to true. If the user opted out for plan, the
+	// follow-up `nomad job run -check-index ...` invocation needs the same
+	// flag or the parser will reject the file again.
+	if !c.JobGetter.Strict {
+		runArgs.WriteString("-hcl2-strict=false ")
+	}
+
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
 	c.Ui.Output(c.Colorize().Color(formatJobModifyIndex(resp.JobModifyIndex, runArgs.String(), path)))
 	return exitCode

@@ -21,7 +21,7 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.JobDeregisterRequestType:                     structs.TypeJobDeregistered,
 	structs.JobBatchDeregisterRequestType:                structs.TypeJobBatchDeregistered,
 	structs.AllocUpdateDesiredTransitionRequestType:      structs.TypeAllocationUpdateDesiredStatus,
-	structs.NodeUpdateEligibilityRequestType:             structs.TypeNodeDrain,
+	structs.NodeUpdateEligibilityRequestType:             structs.TypeNodeEligibilityUpdate,
 	structs.NodeUpdateDrainRequestType:                   structs.TypeNodeDrain,
 	structs.BatchNodeUpdateDrainRequestType:              structs.TypeNodeDrain,
 	structs.DeploymentStatusUpdateRequestType:            structs.TypeDeploymentUpdate,

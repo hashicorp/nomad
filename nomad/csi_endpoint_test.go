@@ -15,7 +15,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/acl"
@@ -501,6 +500,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.Equal(t, id0, volGetResp.Volume.ID)
 	require.Len(t, volGetResp.Volume.ReadAllocs, 2)
 	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
+
 }
 
 // TestCSIVolumeEndpoint_ClaimWithController exercises the VolumeClaim RPC
@@ -753,13 +753,18 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			// test: unpublish and check the results
 			claim.State = tc.startingState
+			authToken := accessToken.SecretID
+			if tc.name == "success" {
+				authToken = node.SecretID
+			}
+
 			req := &structs.CSIVolumeUnpublishRequest{
 				VolumeID: volID,
 				Claim:    claim,
 				WriteRequest: structs.WriteRequest{
 					Region:    "global",
 					Namespace: ns,
-					AuthToken: accessToken.SecretID,
+					AuthToken: authToken,
 				},
 			}
 
@@ -781,10 +786,10 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			if tc.expectedErrMsg == "" {
 				must.NoError(t, err)
-				assert.Len(t, vol.ReadAllocs, 1)
+				must.Eq(t, 1, len(vol.ReadAllocs))
 			} else {
 				must.Error(t, err)
-				assert.Len(t, vol.ReadAllocs, 2)
+				must.Eq(t, 2, len(vol.ReadAllocs))
 				test.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
 					test.Sprintf("error %v did not contain %q", err, tc.expectedErrMsg))
 				claim = vol.PastClaims[alloc.ID]

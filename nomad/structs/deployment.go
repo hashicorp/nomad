@@ -246,6 +246,12 @@ func (d *Deployment) GetNamespace() string {
 	return d.Namespace
 }
 
+func (d *Deployment) IsTerminal() bool {
+	return d.Status == DeploymentStatusCancelled ||
+		d.Status == DeploymentStatusFailed ||
+		d.Status == DeploymentStatusSuccessful
+}
+
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
 	// AutoRevert marks whether the task group has indicated the job should be

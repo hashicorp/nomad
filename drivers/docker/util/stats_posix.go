@@ -6,9 +6,9 @@
 package util
 
 import (
-	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	containerapi "github.com/moby/moby/api/types/container"
 )
 
 var (

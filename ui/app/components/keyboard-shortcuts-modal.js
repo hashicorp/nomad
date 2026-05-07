@@ -5,7 +5,7 @@
 
 import { set } from '@ember/object';
 import Component from '@glimmer/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { action } from '@ember/object';
 import Tether from 'tether';
@@ -59,7 +59,7 @@ export default class KeyboardShortcutsModalComponent extends Component {
   get hints() {
     if (this.keyboard.displayHints) {
       let elementBoundKeyCommands = this.keyboard.keyCommands.filter(
-        (c) => c.element
+        (c) => c.element,
       );
       // Some element-bound key commands have pairs can be re-bound by the user.
       // For each of them, check to see if any other key command has its pattern
@@ -68,7 +68,7 @@ export default class KeyboardShortcutsModalComponent extends Component {
       elementBoundKeyCommands.forEach((c) => {
         let pair = this.keyboard.keyCommands.find(
           (kc) =>
-            JSON.stringify(kc.defaultPattern) === JSON.stringify(c.pattern)
+            JSON.stringify(kc.defaultPattern) === JSON.stringify(c.pattern),
         );
         if (pair) {
           elementBoundKeyCommandsWithRebinds.push({
@@ -104,6 +104,11 @@ export default class KeyboardShortcutsModalComponent extends Component {
     if (!this.config.isTest) {
       hint.binder.destroy();
     }
+  }
+
+  @action
+  closeShortcuts() {
+    this.keyboard.shortcutsVisible = false;
   }
 
   @action toggleListener() {

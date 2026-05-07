@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
-import { inject as service } from '@ember/service';
+import { macroCondition, isTesting } from '@embroider/macros';
+import { service } from '@ember/service';
 import Component from '@ember/component';
 import { action, computed } from '@ember/object';
 import { equal, gt } from '@ember/object/computed';
@@ -71,8 +71,10 @@ export default class File extends Component {
   @computed('catUrlWithoutRegion', 'system.{activeRegion,shouldIncludeRegion}')
   get catUrl() {
     let apiPath = this.catUrlWithoutRegion;
-    if (this.system.shouldIncludeRegion) {
-      apiPath += `&region=${this.system.activeRegion}`;
+    const activeRegion = this.system.activeRegion;
+
+    if (this.system.shouldIncludeRegion && activeRegion) {
+      apiPath += `&region=${activeRegion}`;
     }
     return apiPath;
   }
@@ -123,7 +125,7 @@ export default class File extends Component {
     'fileUrl',
     'mode',
     'serverTimeout',
-    'useServer'
+    'useServer',
   )
   get logger() {
     // The cat and readat APIs are in plainText while the stream API is always encoded.
@@ -140,7 +142,7 @@ export default class File extends Component {
           }
           return response;
         },
-        (error) => this.nextErrorState(error)
+        (error) => this.nextErrorState(error),
       );
 
     return Log.create({
@@ -189,7 +191,7 @@ export default class File extends Component {
 
     try {
       const response = await RSVP.race([
-        this.token.authorizedRequest(this.catUrlWithoutRegion),
+        this.token.authorizedRequest(this.catUrl),
         timeout(timing),
       ]);
 
@@ -198,7 +200,7 @@ export default class File extends Component {
       // Don't download in tests. Unfortunately, since the download is triggered
       // by the download attribute of the ephemeral anchor element, there's no
       // way to stub this in tests.
-      if (Ember.testing) return;
+      if (macroCondition(isTesting())) return;
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);

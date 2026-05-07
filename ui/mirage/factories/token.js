@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 
 export default Factory.extend({
@@ -27,7 +27,7 @@ export default Factory.extend({
       const policyIds = Array(faker.random.number({ min: 1, max: 5 }))
         .fill(0)
         .map(() => faker.hacker.verb().replace(/\s/g, '-'))
-        .uniq();
+        .filter((value, index, values) => values.indexOf(value) === index);
 
       policyIds.forEach((policy) => {
         const dbPolicy = server.db.policies.find(policy);

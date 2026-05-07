@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { test } from 'qunit';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, visit } from '@ember/test-helpers';
 
 import { filesForPath } from 'nomad-ui/mirage/config';
 import { formatBytes } from 'nomad-ui/utils/units';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
-import Response from 'ember-cli-mirage/response';
+import { Response } from 'miragejs';
 import moment from 'moment';
 
 import FS from 'nomad-ui/tests/pages/allocations/fs';
@@ -41,14 +41,14 @@ export default function browseFilesystem({
 }) {
   test('it passes an accessibility audit', async function (assert) {
     await FS[pageObjectVisitFunctionName](
-      visitSegments({ allocation: this.allocation, task: this.task })
+      visitSegments({ allocation: this.allocation, task: this.task }),
     );
     await a11yAudit(assert);
   });
 
   test('visiting filesystem root', async function (assert) {
     await FS[pageObjectVisitFunctionName](
-      visitSegments({ allocation: this.allocation, task: this.task })
+      visitSegments({ allocation: this.allocation, task: this.task }),
     );
 
     const pathBaseWithTrailingSlash = getExpectedPathBase({
@@ -57,7 +57,7 @@ export default function browseFilesystem({
     });
     const pathBaseWithoutTrailingSlash = pathBaseWithTrailingSlash.slice(0, -1);
 
-    assert.equal(currentURL(), pathBaseWithoutTrailingSlash, 'No redirect');
+    assert.deepEqual(currentURL(), pathBaseWithoutTrailingSlash, 'No redirect');
   });
 
   test('visiting filesystem paths', async function (assert) {
@@ -79,28 +79,28 @@ export default function browseFilesystem({
         ...visitSegments({ allocation: this.allocation, task: this.task }),
         path: filePath,
       });
-      assert.equal(
+      assert.deepEqual(
         currentURL(),
         `${getExpectedPathBase({
           allocation: this.allocation,
           task: this.task,
         })}${encodeURIComponent(filePath)}`,
-        'No redirect'
+        'No redirect',
       );
       assert.ok(
-        document.title.includes(
+        getPageTitle().includes(
           `${pathWithLeadingSlash} - ${getTitleComponent({
             allocation: this.allocation,
             task: this.task,
-          })}`
-        )
+          })}`,
+        ),
       );
-      assert.equal(
+      assert.deepEqual(
         FS.breadcrumbsText,
         `${getBreadcrumbComponent({
           allocation: this.allocation,
           task: this.task,
-        })} ${filePath.replace(/\//g, ' ')}`.trim()
+        })} ${filePath.replace(/\//g, ' ')}`.trim(),
       );
     };
 
@@ -120,93 +120,93 @@ export default function browseFilesystem({
     const sortedFiles = fileSort(
       'name',
       filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects))
-        .models
+        .models,
     );
 
     assert.ok(FS.fileViewer.isHidden);
 
-    assert.equal(FS.directoryEntries.length, 4);
+    assert.deepEqual(FS.directoryEntries.length, 4);
 
-    assert.equal(FS.breadcrumbsText, getBreadcrumbComponent(objects));
+    assert.deepEqual(FS.breadcrumbsText, getBreadcrumbComponent(objects));
 
-    assert.equal(FS.breadcrumbs.length, 1);
+    assert.deepEqual(FS.breadcrumbs.length, 1);
     assert.ok(FS.breadcrumbs[0].isActive);
-    assert.equal(FS.breadcrumbs[0].text, getBreadcrumbComponent(objects));
+    assert.deepEqual(FS.breadcrumbs[0].text, getBreadcrumbComponent(objects));
 
     FS.directoryEntries[0].as((directory) => {
       const fileRecord = sortedFiles[0];
-      assert.equal(
+      assert.deepEqual(
         directory.name,
         fileRecord.name,
-        'directories should come first'
+        'directories should come first',
       );
       assert.ok(directory.isDirectory);
-      assert.equal(directory.size, '', 'directory sizes are hidden');
-      assert.equal(
+      assert.deepEqual(directory.size, '', 'directory sizes are hidden');
+      assert.deepEqual(
         directory.lastModified,
-        moment(fileRecord.modTime).fromNow()
+        moment(fileRecord.modTime).fromNow(),
       );
       assert.notOk(
         directory.path.includes('//'),
-        'paths shouldn’t have redundant separators'
+        'paths shouldn’t have redundant separators',
       );
     });
 
     FS.directoryEntries[2].as((file) => {
       const fileRecord = sortedFiles[2];
-      assert.equal(file.name, fileRecord.name);
+      assert.deepEqual(file.name, fileRecord.name);
       assert.ok(file.isFile);
-      assert.equal(file.size, formatBytes(fileRecord.size));
-      assert.equal(file.lastModified, moment(fileRecord.modTime).fromNow());
+      assert.deepEqual(file.size, formatBytes(fileRecord.size));
+      assert.deepEqual(file.lastModified, moment(fileRecord.modTime).fromNow());
     });
 
     await FS.directoryEntries[0].visit();
 
-    assert.equal(FS.directoryEntries.length, 1);
+    assert.deepEqual(FS.directoryEntries.length, 1);
 
-    assert.equal(FS.breadcrumbs.length, 2);
-    assert.equal(
+    assert.deepEqual(FS.breadcrumbs.length, 2);
+    assert.deepEqual(
       FS.breadcrumbsText,
-      `${getBreadcrumbComponent(objects)} ${this.directory.name}`
+      `${getBreadcrumbComponent(objects)} ${this.directory.name}`,
     );
 
     assert.notOk(FS.breadcrumbs[0].isActive);
 
-    assert.equal(FS.breadcrumbs[1].text, this.directory.name);
+    assert.deepEqual(FS.breadcrumbs[1].text, this.directory.name);
     assert.ok(FS.breadcrumbs[1].isActive);
 
     await FS.directoryEntries[0].visit();
 
-    assert.equal(FS.directoryEntries.length, 1);
+    assert.deepEqual(FS.directoryEntries.length, 1);
     assert.notOk(
       FS.directoryEntries[0].path.includes('//'),
-      'paths shouldn’t have redundant separators'
+      'paths shouldn’t have redundant separators',
     );
 
-    assert.equal(FS.breadcrumbs.length, 3);
-    assert.equal(
+    assert.deepEqual(FS.breadcrumbs.length, 3);
+    assert.deepEqual(
       FS.breadcrumbsText,
       `${getBreadcrumbComponent(objects)} ${this.directory.name} ${
         this.nestedDirectory.name
-      }`
+      }`,
     );
-    assert.equal(FS.breadcrumbs[2].text, this.nestedDirectory.name);
+    assert.deepEqual(FS.breadcrumbs[2].text, this.nestedDirectory.name);
 
     assert.notOk(
       FS.breadcrumbs[0].path.includes('//'),
-      'paths shouldn’t have redundant separators'
+      'paths shouldn’t have redundant separators',
     );
     assert.notOk(
       FS.breadcrumbs[1].path.includes('//'),
-      'paths shouldn’t have redundant separators'
+      'paths shouldn’t have redundant separators',
     );
 
     await FS.breadcrumbs[1].visit();
-    assert.equal(
+    assert.deepEqual(
       FS.breadcrumbsText,
-      `${getBreadcrumbComponent(objects)} ${this.directory.name}`
+      `${getBreadcrumbComponent(objects)} ${this.directory.name}`,
     );
-    assert.equal(FS.breadcrumbs.length, 2);
+    assert.deepEqual(FS.breadcrumbs.length, 2);
   });
 
   test('sorting allocation filesystem directory', async function (assert) {
@@ -310,7 +310,7 @@ export default function browseFilesystem({
         'mmm-small-mid-directory',
         'aaa-big-old-directory',
       ],
-      'expected files to be sorted by descending size and directories to be sorted by descending name'
+      'expected files to be sorted by descending size and directories to be sorted by descending name',
     );
 
     await FS.sortBy('Size');
@@ -325,19 +325,19 @@ export default function browseFilesystem({
         'zzz-med-new-file',
         'aaa-big-old-file',
       ],
-      'expected directories to be sorted by name and files to be sorted by ascending size'
+      'expected directories to be sorted by name and files to be sorted by ascending size',
     );
   });
 
   test('viewing a file', async function (assert) {
     const objects = { allocation: this.allocation, task: this.task };
-    const node = server.db.nodes.find(this.allocation.nodeId);
+    const node = this.server.db.nodes.find(this.allocation.nodeId);
 
-    server.get(
+    this.server.get(
       `http://${node.httpAddr}/v1/client/fs/readat/:allocation_id`,
       function () {
         return new Response(500);
-      }
+      },
     );
 
     await FS[pageObjectVisitPathFunctionName]({
@@ -348,34 +348,38 @@ export default function browseFilesystem({
     const sortedFiles = fileSort(
       'name',
       filesForPath(this.server.schema.allocFiles, getFilesystemRoot(objects))
-        .models
+        .models,
     );
     const fileRecord = sortedFiles.find((f) => !f.isDir);
     const fileIndex = sortedFiles.indexOf(fileRecord);
 
     await FS.directoryEntries[fileIndex].visit();
 
-    assert.equal(
+    assert.deepEqual(
       FS.breadcrumbsText,
-      `${getBreadcrumbComponent(objects)} ${fileRecord.name}`
+      `${getBreadcrumbComponent(objects)} ${fileRecord.name}`,
     );
 
     assert.ok(FS.fileViewer.isPresent);
 
-    const requests = this.server.pretender.handledRequests;
-    const secondAttempt = requests.pop();
-    const firstAttempt = requests.pop();
+    const readAtRequests = this.server.pretender.handledRequests.filter((req) =>
+      req.url.includes(`/v1/client/fs/readat/${this.allocation.id}`),
+    );
+    const firstAttempt = readAtRequests[0];
+    const secondAttempt = readAtRequests[1];
 
-    assert.equal(
+    assert.deepEqual(readAtRequests.length, 2, 'Two readat attempts were made');
+
+    assert.deepEqual(
       firstAttempt.url.split('?')[0],
       `//${node.httpAddr}/v1/client/fs/readat/${this.allocation.id}`,
-      'Client is hit first'
+      'Client is hit first',
     );
-    assert.equal(firstAttempt.status, 500, 'Client request fails');
-    assert.equal(
+    assert.deepEqual(firstAttempt.status, 500, 'Client request fails');
+    assert.deepEqual(
       secondAttempt.url.split('?')[0],
       `/v1/client/fs/readat/${this.allocation.id}`,
-      'Server is hit second'
+      'Server is hit second',
     );
   });
 
@@ -400,12 +404,12 @@ export default function browseFilesystem({
     assert.notEqual(
       FS.error.title,
       'Not Found',
-      '500 is not interpreted as 404'
+      '500 is not interpreted as 404',
     );
-    assert.equal(
+    assert.deepEqual(
       FS.error.title,
       'Server Error',
-      '500 is not interpreted as 500'
+      '500 is not interpreted as 500',
     );
 
     await visit('/');
@@ -418,7 +422,11 @@ export default function browseFilesystem({
       ...visitSegments({ allocation: this.allocation, task: this.task }),
       path: '/what-is-this',
     });
-    assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
+    assert.deepEqual(
+      FS.error.title,
+      'Error',
+      'other statuses are passed through',
+    );
   });
 
   test('viewing paths that produce ls API errors', async function (assert) {
@@ -433,12 +441,12 @@ export default function browseFilesystem({
     assert.notEqual(
       FS.error.title,
       'Not Found',
-      '500 is not interpreted as 404'
+      '500 is not interpreted as 404',
     );
-    assert.equal(
+    assert.deepEqual(
       FS.error.title,
       'Server Error',
-      '500 is not interpreted as 404'
+      '500 is not interpreted as 404',
     );
 
     await visit('/');
@@ -451,6 +459,10 @@ export default function browseFilesystem({
       ...visitSegments({ allocation: this.allocation, task: this.task }),
       path: this.directory.name,
     });
-    assert.equal(FS.error.title, 'Error', 'other statuses are passed through');
+    assert.deepEqual(
+      FS.error.title,
+      'Error',
+      'other statuses are passed through',
+    );
   });
 }

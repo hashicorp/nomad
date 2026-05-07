@@ -13,7 +13,7 @@ export default class JobPlan extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     hash.PreemptionIDs = (get(hash, 'Annotations.PreemptedAllocs') || []).mapBy(
-      'ID'
+      'ID',
     );
     return super.normalize(...arguments);
   }

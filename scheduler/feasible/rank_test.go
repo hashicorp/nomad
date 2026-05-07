@@ -2066,6 +2066,119 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 	must.Eq(t, 1, ctx.metrics.DimensionExhausted["devices: no devices match request"])
 }
 
+func TestBinPackIterator_Device_Preemption_MultipleDeviceRequests(t *testing.T) {
+	_, ctx := MockContext(t)
+
+	lowPriorityJob := mock.Job()
+	lowPriorityJob.Priority = 50
+
+	node := &RankedNode{
+		Node: &structs.Node{
+			ID: uuid.Generate(),
+			NodeResources: &structs.NodeResources{
+				Processors: processorResources4096,
+				Cpu:        legacyCpuResources4096,
+				Memory: structs.NodeMemoryResources{
+					MemoryMB: 4096,
+				},
+				Networks: []*structs.NetworkResource{},
+				Devices: []*structs.NodeDeviceResource{
+					{
+						Vendor: "nvidia",
+						Type:   "gpu",
+						Name:   "SOME-GPU",
+						Instances: []*structs.NodeDevice{
+							{
+								ID:                "1",
+								Healthy:           true,
+								HealthDescription: "healthy",
+								Locality:          &structs.NodeDeviceLocality{},
+							},
+							{
+								ID:                "2",
+								Healthy:           true,
+								HealthDescription: "healthy",
+								Locality:          &structs.NodeDeviceLocality{},
+							},
+						},
+					},
+				},
+			},
+			ReservedResources: &structs.NodeReservedResources{},
+		},
+	}
+
+	existingAlloc := &structs.Allocation{
+		ID:     uuid.Generate(),
+		JobID:  lowPriorityJob.ID,
+		Job:    lowPriorityJob,
+		NodeID: node.Node.ID,
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Devices: []*structs.AllocatedDeviceResource{
+						{
+							Vendor:    "nvidia",
+							Type:      "gpu",
+							Name:      "SOME-GPU",
+							DeviceIDs: []string{"1", "2"},
+						},
+					},
+				},
+			},
+		},
+	}
+	ctx.Plan().NodeAllocation[node.Node.ID] = []*structs.Allocation{existingAlloc}
+
+	highPriorityJob := mock.Job()
+	highPriorityJob.Priority = 100
+
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "trainer",
+				Resources: &structs.Resources{
+					CPU:      1000,
+					MemoryMB: 512,
+					Networks: []*structs.NetworkResource{},
+					Devices: structs.ResourceDevices{
+						{
+							Name:  "nvidia/gpu",
+							Count: 1,
+						},
+						{
+							Name:  "nvidia/gpu",
+							Count: 1,
+						},
+					},
+					NUMA: &structs.NUMA{Affinity: structs.NoneNUMA},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{},
+	}
+
+	static := NewStaticRankIterator(ctx, []*RankedNode{node})
+	binp := NewBinPackIterator(ctx, static, true, 0)
+	binp.SetJob(highPriorityJob)
+	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+	out := collectRanked(scoreNorm)
+
+	must.Len(t, 1, out)
+	must.Len(t, 1, out[0].PreemptedAllocs)
+	must.Eq(t, existingAlloc.ID, out[0].PreemptedAllocs[0].ID)
+
+	tr, ok := out[0].TaskResources["trainer"]
+	must.True(t, ok)
+	must.Len(t, 2, tr.Devices)
+	must.Eq(t, 1, len(tr.Devices[0].DeviceIDs))
+	must.Eq(t, 1, len(tr.Devices[1].DeviceIDs))
+}
+
 // Tests that bin packing iterator will not place workloads on nodes
 // that would go over a designated MaxAlloc value
 func TestBinPackIterator_MaxAlloc(t *testing.T) {

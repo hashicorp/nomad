@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/no-conditional-assertions */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { set } from '@ember/object';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
@@ -50,17 +49,15 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
   setupRenderingTest(hooks);
 
   test('it renders stateless phases and lifecycle- and name-sorted tasks', async function (assert) {
-    assert.expect(32);
-
     this.set('tasks', tasks);
 
-    await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
+    await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
     assert.ok(Chart.isPresent);
 
-    assert.equal(Chart.phases[0].name, 'Prestart');
-    assert.equal(Chart.phases[1].name, 'Main');
-    assert.equal(Chart.phases[2].name, 'Poststart');
-    assert.equal(Chart.phases[3].name, 'Poststop');
+    assert.deepEqual(Chart.phases[0].name, 'Prestart');
+    assert.deepEqual(Chart.phases[1].name, 'Main');
+    assert.deepEqual(Chart.phases[2].name, 'Poststart');
+    assert.deepEqual(Chart.phases[3].name, 'Poststop');
 
     Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
 
@@ -105,28 +102,26 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       },
     ]);
 
-    await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
+    await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
     assert.notOk(Chart.isPresent);
   });
 
   test('it renders all phases when there are any non-main tasks', async function (assert) {
     this.set('tasks', [tasks[0], tasks[6]]);
 
-    await render(hbs`<LifecycleChart @tasks={{tasks}} />`);
-    assert.equal(Chart.phases.length, 4);
+    await render(hbs`<LifecycleChart @tasks={{this.tasks}} />`);
+    assert.deepEqual(Chart.phases.length, 4);
   });
 
   test('it reflects phase and task states when states are passed in', async function (assert) {
-    assert.expect(26);
-
     this.set(
       'taskStates',
       tasks.map((task) => {
         return { task };
-      })
+      }),
     );
 
-    await render(hbs`<LifecycleChart @taskStates={{taskStates}} />`);
+    await render(hbs`<LifecycleChart @taskStates={{this.taskStates}} />`);
     assert.ok(Chart.isPresent);
 
     Chart.phases.forEach((phase) => assert.notOk(phase.isActive));
@@ -147,7 +142,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     assert.ok(Chart.phases[1].isActive);
     assert.notOk(
       Chart.phases[2].isActive,
-      'the poststart phase is nested within main and should never have the active class'
+      'the poststart phase is nested within main and should never have the active class',
     );
 
     this.set('taskStates.4.finishedAt', new Date());
@@ -180,18 +175,16 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     },
   ].forEach(async ({ testName, runningTaskNames, activePhaseNames }) => {
     test(testName, async function (assert) {
-      assert.expect(4);
-
       this.set(
         'taskStates',
-        tasks.map((task) => ({ task }))
+        tasks.map((task) => ({ task })),
       );
 
-      await render(hbs`<LifecycleChart @taskStates={{taskStates}} />`);
+      await render(hbs`<LifecycleChart @taskStates={{this.taskStates}} />`);
 
       runningTaskNames.forEach((taskName) => {
         const taskState = this.taskStates.find((taskState) =>
-          taskState.task.name.includes(taskName)
+          taskState.task.name.includes(taskName),
         );
         set(taskState, 'state', 'running');
       });
@@ -204,7 +197,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
         } else {
           assert.notOk(
             Phase.isActive,
-            `expected ${Phase.name} phase not to be active`
+            `expected ${Phase.name} phase not to be active`,
           );
         }
       });

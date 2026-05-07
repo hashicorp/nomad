@@ -4,13 +4,14 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default class VolumeController extends Controller {
   // Used in the template
   @service system;
+  @service router;
 
   queryParams = [
     {
@@ -54,6 +55,6 @@ export default class VolumeController extends Controller {
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 }

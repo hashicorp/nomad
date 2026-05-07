@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { default as ApplicationAdapter, namespace } from './application';
 import OTTExchangeError from '../utils/ott-exchange-error';
 import classic from 'ember-classic-decorator';
@@ -85,7 +85,7 @@ export default class TokenAdapter extends ApplicationAdapter {
 
         return store.peekRecord(
           'token',
-          store.normalize('token', token).data.id
+          store.normalize('token', token).data.id,
         );
       })
       .catch(() => {

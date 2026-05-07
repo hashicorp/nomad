@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { trimPath } from '../helpers/trim-path';
 import { copy } from 'ember-copy';
 import EmberObject, { set } from '@ember/object';
@@ -17,7 +15,7 @@ import MutableArray from '@ember/array/mutable';
 import { A } from '@ember/array';
 import { stringifyObject } from 'nomad-ui/helpers/stringify-object';
 import notifyConflict from 'nomad-ui/utils/notify-conflict';
-import isEqual from 'lodash.isequal';
+import isEqual from 'fast-deep-equal';
 
 const EMPTY_KV = {
   key: '',
@@ -32,7 +30,7 @@ export default class VariableFormComponent extends Component {
   @service notifications;
   @service router;
   @service store;
-  @service can;
+  @service abilities;
 
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
@@ -143,7 +141,7 @@ export default class VariableFormComponent extends Component {
       .find(
         (v) =>
           v.path === pathValue &&
-          (v.namespace === this.variableNamespace || !this.variableNamespace)
+          (v.namespace === this.variableNamespace || !this.variableNamespace),
       );
     if (existingVariable) {
       return {
@@ -170,7 +168,7 @@ export default class VariableFormComponent extends Component {
         .map((c) => `'${c}'`);
       entry.warnings.set(
         'dottedKeyError',
-        `${value} contains characters [${invalidCharsOuput}] that require the "index" function for direct access in templates.`
+        `${value} contains characters [${invalidCharsOuput}] that require the "index" function for direct access in templates.`,
       );
     } else {
       delete entry.warnings.dottedKeyError;
@@ -236,7 +234,7 @@ export default class VariableFormComponent extends Component {
     }
     try {
       const nonEmptyItems = A(
-        this.keyValues.filter((item) => item.key.trim() && item.value)
+        this.keyValues.filter((item) => item.key.trim() && item.value),
       );
       if (!nonEmptyItems.length) {
         throw new Error('Please provide at least one key/value pair.');
@@ -265,7 +263,7 @@ export default class VariableFormComponent extends Component {
       });
 
       if (
-        this.can.can('read job', null, {
+        this.abilities.can('read job', null, {
           namespace: this.variableNamespace || 'default',
         })
       ) {
@@ -353,7 +351,7 @@ export default class VariableFormComponent extends Component {
               acc[key] = value;
               return acc;
             }, {}),
-        ])
+        ]),
       );
 
       // Give the user a foothold if they're transitioning an empty K/V form into JSON
@@ -372,8 +370,8 @@ export default class VariableFormComponent extends Component {
               value: typeof value === 'string' ? value : JSON.stringify(value),
               warnings: EmberObject.create(),
             };
-          })
-        )
+          }),
+        ),
       );
 
       // If the JSON object is empty at switch time, add an empty KV in to give the user a foothold
@@ -429,14 +427,14 @@ export default class VariableFormComponent extends Component {
   @computed(
     'args.model.{keyValues,path}',
     'keyValues.@each.{key,value}',
-    'path'
+    'path',
   )
   get hasUserModifiedAttributes() {
     const compactedBasicKVs = this.keyValues
       .map((kv) => ({ key: kv.key, value: kv.value }))
       .filter((kv) => kv.key || kv.value);
     const compactedPassedKVs = this.args.model.keyValues.filter(
-      (kv) => kv.key || kv.value
+      (kv) => kv.key || kv.value,
     );
     const unequal =
       !isEqual(compactedBasicKVs, compactedPassedKVs) ||
@@ -461,7 +459,7 @@ export default class VariableFormComponent extends Component {
     if (this.hasUserModifiedAttributes) {
       if (
         !confirm(
-          'Your variable has unsaved changes. Are you sure you want to leave?'
+          'Your variable has unsaved changes. Are you sure you want to leave?',
         )
       ) {
         transition.abort();

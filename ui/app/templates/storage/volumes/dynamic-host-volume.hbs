@@ -1,12 +1,12 @@
 {{!
   Copyright IBM Corp. 2015, 2025
   SPDX-License-Identifier: BUSL-1.1
-~}}
+}}
 
 {{#each this.breadcrumbs as |crumb|}}
   <Breadcrumb @crumb={{crumb}} />
 {{/each}}
-{{page-title "Dynamic Host Volume " this.model.name}}
+{{page-title "Dynamic Host Volume " (if this.model this.model.name "")}}
 <section class="section with-headspace">
   <h1 class="title" data-test-title>{{this.model.name}}</h1>
 
@@ -33,13 +33,19 @@
       </span>
       <span class="pair" data-test-volume-create-time>
         <span class="term">Create Time</span>
-        <span class="tooltip" aria-label="{{format-month-ts this.model.createTime}}">
+        <span
+          class="tooltip"
+          aria-label="{{format-month-ts this.model.createTime}}"
+        >
           {{moment-from-now this.model.createTime}}
         </span>
       </span>
       <span class="pair" data-test-volume-modify-time>
         <span class="term">Modify Time</span>
-        <span class="tooltip" aria-label="{{format-month-ts this.model.modifyTime}}">
+        <span
+          class="tooltip"
+          aria-label="{{format-month-ts this.model.modifyTime}}"
+        >
           {{moment-from-now this.model.modifyTime}}
         </span>
       </span>
@@ -56,13 +62,15 @@
     <div class="boxed-section-head">
       Allocations
     </div>
-    <div class="boxed-section-body {{if this.model.allocations.length "is-full-bleed"}}">
+    <div
+      class="boxed-section-body
+        {{if this.sortedAllocations.length 'is-full-bleed'}}"
+    >
       {{#if this.sortedAllocations.length}}
-        <ListTable
-          @source={{this.sortedAllocations}}
-          @class="with-foot" as |t|>
+        <ListTable @source={{this.sortedAllocations}} @class="with-foot" as |t|>
           <t.head>
-            <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                Scheduling, and Preemption</span></th>
             <th>ID</th>
             <th>Created</th>
             <th>Modified</th>
@@ -77,18 +85,23 @@
             <AllocationRow
               {{keyboard-shortcut
                 enumerated=true
-                action=(action "gotoAllocation" row.model)
+                action=(fn this.gotoAllocation row.model)
               }}
               @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"
-              @onClick={{action "gotoAllocation" row.model}} />
+              @onClick={{fn this.gotoAllocation row.model}}
+            />
           </t.body>
         </ListTable>
       {{else}}
         <div class="empty-message" data-test-empty-allocations>
-          <h3 class="empty-message-headline" data-test-empty-allocations-headline>No Allocations</h3>
-          <p class="empty-message-body" data-test-empty-allocations-message>No allocations are making use of this volume.</p>
+          <h3
+            class="empty-message-headline"
+            data-test-empty-allocations-headline
+          >No Allocations</h3>
+          <p class="empty-message-body" data-test-empty-allocations-message>No
+            allocations are making use of this volume.</p>
         </div>
       {{/if}}
     </div>
@@ -107,8 +120,12 @@
         <tbody>
           {{#each this.model.capabilities as |capability|}}
             <tr data-test-capability-row>
-              <td data-test-capability-access-mode>{{capability.access_mode}}</td>
-              <td data-test-capability-attachment-mode>{{capability.attachment_mode}}</td>
+              <td
+                data-test-capability-access-mode
+              >{{capability.access_mode}}</td>
+              <td
+                data-test-capability-attachment-mode
+              >{{capability.attachment_mode}}</td>
             </tr>
           {{/each}}
         </tbody>

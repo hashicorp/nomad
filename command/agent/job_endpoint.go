@@ -435,6 +435,7 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 	rpcArgs := structs.JobApplyTagRequest{
 		JobID:   jobID,
 		Version: args.Version,
+		Latest:  args.Latest,
 		Name:    name,
 		Tag: &structs.JobVersionTag{
 			Name:        name,

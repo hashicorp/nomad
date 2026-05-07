@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/containerd/errdefs"
-	containerapi "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/client"
+	mclient "github.com/moby/moby/client"
 
 	"github.com/hashicorp/nomad/client/lib/fifo"
 )
@@ -96,7 +96,7 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 		backoff := 0.0
 
 		for {
-			logOpts := containerapi.LogsOptions{
+			logOpts := mclient.ContainerLogsOptions{
 				Since:      sinceTime.Format(time.RFC3339),
 				Follow:     true,
 				ShowStdout: true,
@@ -134,12 +134,12 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 			sinceTime = time.Now()
 
-			container, err := client.ContainerInspect(ctx, opts.ContainerID)
+			container, err := client.ContainerInspect(ctx, opts.ContainerID, mclient.ContainerInspectOptions{})
 			if err != nil {
 				if !errdefs.IsNotFound(err) {
 					return
 				}
-			} else if !container.State.Running {
+			} else if !container.Container.State.Running {
 				return
 			}
 		}
@@ -223,27 +223,23 @@ func (d *dockerLogger) getDockerClient(opts *StartOpts) (*client.Client, error) 
 	if opts.Endpoint != "" {
 		if opts.TLSCert+opts.TLSKey+opts.TLSCA != "" {
 			d.logger.Debug("using TLS client connection to docker", "endpoint", opts.Endpoint)
-			newClient, err = client.NewClientWithOpts(
+			newClient, err = client.New(
 				client.WithHost(opts.Endpoint),
 				client.WithTLSClientConfig(opts.TLSCA, opts.TLSCert, opts.TLSKey),
-				client.WithAPIVersionNegotiation(),
 			)
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
 		} else {
 			d.logger.Debug("using plaintext client connection to docker", "endpoint", opts.Endpoint)
-			newClient, err = client.NewClientWithOpts(
-				client.WithHost(opts.Endpoint),
-				client.WithAPIVersionNegotiation(),
-			)
+			newClient, err = client.New(client.WithHost(opts.Endpoint))
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
 		}
 	} else {
 		d.logger.Debug("using client connection initialized from environment")
-		newClient, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		newClient, err = client.New(client.FromEnv)
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}

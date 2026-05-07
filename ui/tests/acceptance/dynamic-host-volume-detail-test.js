@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 import { module, test } from 'qunit';
 import { currentURL } from '@ember/test-helpers';
+import { getPageTitle } from 'ember-page-title/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
+import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import moment from 'moment';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/dynamic-host-volumes/detail';
@@ -24,18 +25,19 @@ const assignAlloc = (volume, alloc) => {
 module('Acceptance | dynamic host volume detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+  setupAuthenticatedAcceptance(hooks);
 
   let volume;
 
   hooks.beforeEach(function () {
     faker.seed(1);
-    server.create('node-pool');
-    server.create('node');
-    server.create('job', {
+    this.server.create('node-pool');
+    this.server.create('node');
+    this.server.create('job', {
       name: 'dhv-job',
     });
-    volume = server.create('dynamic-host-volume', {
-      nodeId: server.db.nodes[0].id,
+    volume = this.server.create('dynamic-host-volume', {
+      nodeId: this.server.db.nodes[0].id,
     });
   });
 
@@ -47,18 +49,25 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   test('/storage/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
-    assert.equal(
+    assert.deepEqual(Layout.breadcrumbFor('storage.index').text, 'Storage');
+    assert.deepEqual(
       Layout.breadcrumbFor('storage.volumes.dynamic-host-volume').text,
-      volume.name
+      volume.name,
     );
   });
 
   test('/storage/volumes/:id should show the volume name in the title', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.equal(document.title, `Dynamic Host Volume ${volume.name} - Nomad`);
-    assert.equal(VolumeDetail.title, volume.name);
+    assert.ok(
+      getPageTitle().startsWith(`Dynamic Host Volume ${volume.name} - `),
+      `title starts with the dynamic host volume name: ${getPageTitle()}`,
+    );
+    assert.ok(
+      getPageTitle().endsWith(' - Nomad'),
+      `title ends with Nomad branding: ${getPageTitle()}`,
+    );
+    assert.deepEqual(VolumeDetail.title, volume.name);
   });
 
   test('/storage/volumes/:id should list additional details for the volume below the title', async function (assert) {
@@ -67,9 +76,9 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     assert.ok(VolumeDetail.plugin.includes(volume.pluginID));
     assert.notOk(
       VolumeDetail.hasNamespace,
-      'Namespace is omitted when there is only one namespace'
+      'Namespace is omitted when there is only one namespace',
     );
-    assert.equal(VolumeDetail.capacity, 'Capacity 9.54 MiB');
+    assert.deepEqual(VolumeDetail.capacity, 'Capacity 9.54 MiB');
   });
 
   test('/storage/volumes/:id should list all allocations the volume is attached to', async function (assert) {
@@ -79,15 +88,15 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     const pinnedNs = pinned.getTime() * 1e6; // nanoseconds
 
     const allocations = [
-      server.create('allocation', {
+      this.server.create('allocation', {
         createTime: pinnedNs - 9 * 3600e9,
         modifyTime: pinnedNs - 9 * 3600e9,
       }),
-      server.create('allocation', {
+      this.server.create('allocation', {
         createTime: pinnedNs - 15 * 3600e9,
         modifyTime: pinnedNs - 15 * 3600e9,
       }),
-      server.create('allocation', {
+      this.server.create('allocation', {
         createTime: pinnedNs - 1 * 3600e9,
         modifyTime: pinnedNs - 1 * 3600e9,
       }),
@@ -102,14 +111,14 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
     try {
       await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-      assert.equal(VolumeDetail.allocations.length, allocations.length);
+      assert.deepEqual(VolumeDetail.allocations.length, allocations.length);
       allocations
         .sortBy('modifyIndex')
         .reverse()
         .forEach((allocation, idx) => {
-          assert.equal(
+          assert.deepEqual(
             allocation.id,
-            VolumeDetail.allocations.objectAt(idx).id
+            VolumeDetail.allocations.objectAt(idx).id,
           );
         });
       await percySnapshot(assert);
@@ -119,123 +128,128 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {
-    const allocation = server.create('allocation', { clientStatus: 'running' });
+    const allocation = this.server.create('allocation', {
+      clientStatus: 'running',
+    });
     assignAlloc(volume, allocation);
 
-    const allocStats = server.db.clientAllocationStats.find(allocation.id);
-    const taskGroup = server.db.taskGroups.findBy({
+    const allocStats = this.server.db.clientAllocationStats.find(allocation.id);
+    const taskGroup = this.server.db.taskGroups.findBy({
       name: allocation.taskGroup,
       jobId: allocation.jobId,
     });
 
-    const tasks = taskGroup.taskIds.map((id) => server.db.tasks.find(id));
+    const tasks = taskGroup.taskIds.map((id) => this.server.db.tasks.find(id));
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0
+      0,
     );
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
     VolumeDetail.allocations.objectAt(0).as((allocationRow) => {
-      assert.equal(
+      assert.deepEqual(
         allocationRow.shortId,
         allocation.id.split('-')[0],
-        'Allocation short ID'
+        'Allocation short ID',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.createTime,
         moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-        'Allocation create time'
+        'Allocation create time',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.modifyTime,
         moment(allocation.modifyTime / 1000000).fromNow(),
-        'Allocation modify time'
+        'Allocation modify time',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.status,
         allocation.clientStatus,
-        'Client status'
+        'Client status',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.job,
-        server.db.jobs.find(allocation.jobId).name,
-        'Job name'
+        this.server.db.jobs.find(allocation.jobId).name,
+        'Job name',
       );
       assert.ok(allocationRow.taskGroup, 'Task group name');
       assert.ok(allocationRow.jobVersion, 'Job Version');
-      assert.equal(
+      assert.deepEqual(
         allocationRow.client,
-        server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-        'Node ID'
+        this.server.db.nodes.find(allocation.nodeId).id.split('-')[0],
+        'Node ID',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.clientTooltip.substr(0, 15),
-        server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
-        'Node Name'
+        this.server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
+        'Node Name',
       );
-      assert.equal(
-        allocationRow.cpu,
+      assert.strictEqual(
+        Number(allocationRow.cpu),
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-        'CPU %'
+        'CPU %',
       );
       const roundedTicks = Math.floor(
-        allocStats.resourceUsage.CpuStats.TotalTicks
+        allocStats.resourceUsage.CpuStats.TotalTicks,
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.cpuTooltip,
         `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-        'Detailed CPU information is in a tooltip'
+        'Detailed CPU information is in a tooltip',
       );
-      assert.equal(
-        allocationRow.mem,
+      assert.strictEqual(
+        Number(allocationRow.mem),
         allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-        'Memory used'
+        'Memory used',
       );
-      assert.equal(
+      assert.deepEqual(
         allocationRow.memTooltip,
         `${formatBytes(
-          allocStats.resourceUsage.MemoryStats.RSS
+          allocStats.resourceUsage.MemoryStats.RSS,
         )} / ${formatBytes(memoryUsed, 'MiB')}`,
-        'Detailed memory information is in a tooltip'
+        'Detailed memory information is in a tooltip',
       );
     });
   });
 
   test('each allocation should link to the allocation detail page', async function (assert) {
-    const allocation = server.create('allocation');
+    const allocation = this.server.create('allocation');
     assignAlloc(volume, allocation);
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
     await VolumeDetail.allocations.objectAt(0).visit();
 
-    assert.equal(currentURL(), `/allocations/${allocation.id}`);
+    assert.deepEqual(currentURL(), `/allocations/${allocation.id}`);
   });
 
   test('when there are no allocations, the table presents an empty state', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(VolumeDetail.allocationsTableIsEmpty);
-    assert.equal(VolumeDetail.allocationsEmptyState.headline, 'No Allocations');
+    assert.deepEqual(
+      VolumeDetail.allocationsEmptyState.headline,
+      'No Allocations',
+    );
   });
 
   test('Capabilities table shows access mode and attachment mode', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    assert.equal(
+    assert.deepEqual(
       VolumeDetail.capabilities.objectAt(0).accessMode,
-      'single-node-writer'
+      'single-node-writer',
     );
-    assert.equal(
+    assert.deepEqual(
       VolumeDetail.capabilities.objectAt(0).attachmentMode,
-      'file-system'
+      'file-system',
     );
-    assert.equal(
+    assert.deepEqual(
       VolumeDetail.capabilities.objectAt(1).accessMode,
-      'single-node-reader-only'
+      'single-node-reader-only',
     );
-    assert.equal(
+    assert.deepEqual(
       VolumeDetail.capabilities.objectAt(1).attachmentMode,
-      'block-device'
+      'block-device',
     );
   });
 });
@@ -246,14 +260,15 @@ module(
   function (hooks) {
     setupApplicationTest(hooks);
     setupMirage(hooks);
+    setupAuthenticatedAcceptance(hooks);
 
     let volume;
 
     hooks.beforeEach(function () {
-      server.createList('namespace', 2);
-      server.create('node-pool');
-      server.create('node');
-      volume = server.create('dynamic-host-volume');
+      this.server.createList('namespace', 2);
+      this.server.create('node-pool');
+      this.server.create('node');
+      volume = this.server.create('dynamic-host-volume');
     });
 
     test('/storage/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
@@ -261,8 +276,8 @@ module(
 
       assert.ok(VolumeDetail.hasNamespace);
       assert.ok(
-        VolumeDetail.namespace.includes(volume.namespaceId || 'default')
+        VolumeDetail.namespace.includes(volume.namespaceId || 'default'),
       );
     });
-  }
+  },
 );

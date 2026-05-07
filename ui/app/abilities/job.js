@@ -15,7 +15,7 @@ export default class Job extends AbstractAbility {
     'bypassAuthorization',
     'selfTokenIsManagement',
     'specificNamespaceSupportsRunning',
-    'policiesSupportScaling'
+    'policiesSupportScaling',
   )
   canScale;
 
@@ -23,7 +23,7 @@ export default class Job extends AbstractAbility {
     'bypassAuthorization',
     'selfTokenIsManagement',
     'specificNamespaceSupportsReading',
-    'policiesSupportReading'
+    'policiesSupportReading',
   )
   canRead;
 
@@ -36,35 +36,35 @@ export default class Job extends AbstractAbility {
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'policiesSupportDispatching'
+    'policiesSupportDispatching',
   )
   canDispatch;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'specificNamespaceSupportsStopping'
+    'specificNamespaceSupportsStopping',
   )
   canStop;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'specificNamespaceSupportsPurging'
+    'specificNamespaceSupportsPurging',
   )
   canPurge;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'specificNamespaceSupportsReverting'
+    'specificNamespaceSupportsReverting',
   )
   canRevert;
 
   @or(
     'bypassAuthorization',
     'selfTokenIsManagement',
-    'specificNamespaceSupportsRunning'
+    'specificNamespaceSupportsRunning',
   )
   canStart;
 
@@ -91,7 +91,7 @@ export default class Job extends AbstractAbility {
   get policiesSupportRunning() {
     return this.policyNamespacesIncludePermissions(
       this.token.selfTokenPolicies,
-      ['submit-job', 'register-job']
+      ['submit-job', 'register-job'],
     );
   }
 
@@ -99,7 +99,7 @@ export default class Job extends AbstractAbility {
   get policiesSupportReading() {
     return this.policyNamespacesIncludePermissions(
       this.token.selfTokenPolicies,
-      ['read-job']
+      ['read-job'],
     );
   }
 

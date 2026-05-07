@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Route from '@ember/routing/route';
 
 export default class PolicyRoute extends Route {
@@ -15,7 +15,7 @@ export default class PolicyRoute extends Route {
       decodeURIComponent(params.id),
       {
         reload: true,
-      }
+      },
     );
   }
 }

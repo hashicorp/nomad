@@ -5,14 +5,14 @@
 
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import { alias } from '@ember/object/computed';
 import { computed } from '@ember/object';
 import { union } from '@ember/object/computed';
 
 export default class JobsJobServicesIndexController extends Controller.extend(
   WithNamespaceResetting,
-  Sortable
+  SortableFactory(['name', 'level']),
 ) {
   @alias('model') job;
   @alias('job.taskGroups') taskGroups;
@@ -67,12 +67,12 @@ export default class JobsJobServicesIndexController extends Controller.extend(
   @computed(
     'job.services.@each.{name,allocation}',
     'job.services.length',
-    'serviceFragments'
+    'serviceFragments',
   )
   get services() {
     return this.serviceFragments.map((fragment) => {
       fragment.instances = this.job.services.filter(
-        (s) => s.name === fragment.name && s.derivedLevel === fragment.level
+        (s) => s.name === fragment.name && s.derivedLevel === fragment.level,
       );
       return fragment;
     });

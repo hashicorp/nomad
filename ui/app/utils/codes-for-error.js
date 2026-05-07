@@ -13,8 +13,5 @@ export default function codesForError(error) {
     });
   }
 
-  return codes
-    .compact()
-    .uniq()
-    .map((code) => '' + code);
+  return [...new Set(codes.filter(Boolean))].map((code) => '' + code);
 }

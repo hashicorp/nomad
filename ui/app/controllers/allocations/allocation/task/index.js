@@ -4,11 +4,12 @@
  */
 
 import Controller from '@ember/controller';
+import { action } from '@ember/object';
 import { computed as overridable } from 'ember-overridable-computed';
 import { task } from 'ember-concurrency';
 import classic from 'ember-classic-decorator';
 import messageForError from 'nomad-ui/utils/message-from-adapter-error';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 @classic
 export default class IndexController extends Controller {
@@ -20,6 +21,7 @@ export default class IndexController extends Controller {
   })
   error;
 
+  @action
   onDismiss() {
     this.set('error', null);
   }
@@ -52,7 +54,7 @@ export default class IndexController extends Controller {
         message: 'Task has been force paused',
         color: 'success',
       });
-    } catch (err) {
+    } catch {
       this.set('error', {
         title: 'Could Not Force Pause Task',
       });
@@ -68,7 +70,7 @@ export default class IndexController extends Controller {
         message: 'Task has been force run',
         color: 'success',
       });
-    } catch (err) {
+    } catch {
       this.set('error', {
         title: 'Could Not Force Run Task',
       });
@@ -84,7 +86,7 @@ export default class IndexController extends Controller {
         message: 'Task has been put back on its configured schedule',
         color: 'success',
       });
-    } catch (err) {
+    } catch {
       this.set('error', {
         title: 'Could Not put back on schedule',
       });

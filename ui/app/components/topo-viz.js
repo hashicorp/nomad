@@ -6,7 +6,7 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
 import { action, set } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { next } from '@ember/runloop';
 import { scaleLinear } from 'd3-scale';
 import { extent, deviation, mean } from 'd3-array';
@@ -38,7 +38,7 @@ export default class TopoViz extends Component {
     // Compute the coefficient of variance to determine if it would be
     // better to stack datacenters or place them in columns
     const nodeCounts = this.topology.datacenters.map(
-      (datacenter) => datacenter.nodes.length
+      (datacenter) => datacenter.nodes.length,
     );
     const variationCoefficient = deviation(nodeCounts) / mean(nodeCounts);
 
@@ -124,7 +124,7 @@ export default class TopoViz extends Component {
 
       const allocationContainer = this.dataForAllocation(
         allocation,
-        nodeContainer
+        nodeContainer,
       );
       nodeContainer.allocations.push(allocationContainer);
 
@@ -141,7 +141,7 @@ export default class TopoViz extends Component {
         datacenters[nodeContainer.datacenter].push(nodeContainer);
         return datacenters;
       },
-      {}
+      {},
     );
 
     // Turn hash of datacenters into a sorted array
@@ -266,7 +266,7 @@ export default class TopoViz extends Component {
     }
     if (this.args.onAllocationSelect)
       this.args.onAllocationSelect(
-        this.activeAllocation && this.activeAllocation.allocation
+        this.activeAllocation && this.activeAllocation.allocation,
       );
     if (this.args.onNodeSelect) this.args.onNodeSelect(this.activeNode);
   }
@@ -291,13 +291,13 @@ export default class TopoViz extends Component {
       // 1. Get the active element
       const allocation = this.activeAllocation.allocation;
       const activeEl = this.element.querySelector(
-        `[data-allocation-id="${allocation.id}"]`
+        `[data-allocation-id="${allocation.id}"]`,
       );
       const activePoint = centerOfBBox(activeEl.getBoundingClientRect());
 
       // 2. Collect the mem and cpu pairs for all selected allocs
       const selectedMem = Array.from(
-        this.element.querySelectorAll('.memory .bar.is-selected')
+        this.element.querySelectorAll('.memory .bar.is-selected'),
       );
       const selectedPairs = selectedMem.map((mem) => {
         const id = mem.closest('[data-allocation-id]').dataset.allocationId;
@@ -328,12 +328,12 @@ export default class TopoViz extends Component {
         curves.push(
           curveFromPoints(
             ...pointsAlongPath(activePoint, points[2], stepsMain),
-            points[0]
+            points[0],
           ),
           curveFromPoints(
             ...pointsAlongPath(activePoint, points[2], stepsSecondary),
-            points[1]
-          )
+            points[1],
+          ),
         );
       });
 

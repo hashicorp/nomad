@@ -47,7 +47,7 @@ export default class FsRoute extends Route {
 
   setupController(
     controller,
-    { path, taskState, directoryEntries, isFile, stat } = {}
+    { path, taskState, directoryEntries, isFile, stat } = {},
   ) {
     super.setupController(...arguments);
     controller.setProperties({

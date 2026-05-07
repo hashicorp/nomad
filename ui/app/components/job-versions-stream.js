@@ -30,9 +30,9 @@ export default class JobVersionsStream extends Component {
       if (index === 0) {
         meta.showDate = true;
       } else {
-        const previousVersion = versions.objectAt(index - 1);
+        const previousVersion = versions[index - 1];
         const previousStart = moment(previousVersion.get('submitTime')).startOf(
-          'day'
+          'day',
         );
         const currentStart = moment(version.get('submitTime')).startOf('day');
         if (previousStart.diff(currentStart, 'days') > 0) {
@@ -40,7 +40,7 @@ export default class JobVersionsStream extends Component {
         }
       }
 
-      const diff = this.diffs.objectAt(index);
+      const diff = this.diffs[index];
       return { version, meta, diff };
     });
   }

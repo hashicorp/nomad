@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory, trait } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
-import { provide, pickOne } from '../utils';
+import { pickOne } from '../utils';
 
 export default Factory.extend({
   name: () => pickOne(['vault', 'auth0', 'github', 'cognito', 'okta']),

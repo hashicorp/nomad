@@ -67,7 +67,7 @@ export default function jobClientStatus(nodesKey, jobKey) {
       });
       result.byStatus = canonicalizeStatus(result.byStatus);
       return result;
-    }
+    },
   );
 }
 

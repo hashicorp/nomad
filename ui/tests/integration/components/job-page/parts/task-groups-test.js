@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { setupRenderingTest } from 'ember-qunit';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import {
@@ -33,18 +32,16 @@ module(
     });
 
     const props = (job, options = {}) =>
-      assign(
+      Object.assign(
         {
           job,
           sortProperty: 'name',
           sortDescending: true,
         },
-        options
+        options,
       );
 
     test('the job detail page should list all task groups', async function (assert) {
-      assert.expect(2);
-
       this.server.create('job', {
         createAllocations: false,
       });
@@ -64,10 +61,10 @@ module(
       />
     `);
 
-      assert.equal(
+      assert.deepEqual(
         findAll('[data-test-task-group]').length,
         job.get('taskGroups.length'),
-        'One row per task group'
+        'One row per task group',
       );
 
       await componentA11yAudit(this.element, assert);
@@ -97,51 +94,53 @@ module(
 
       const taskGroupRow = find('[data-test-task-group]');
 
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-name]')
           .textContent.trim(),
         taskGroup.get('name'),
-        'Name'
+        'Name',
       );
-      assert.equal(
-        taskGroupRow
-          .querySelector('[data-test-task-group-count]')
-          .textContent.trim(),
+      assert.strictEqual(
+        Number(
+          taskGroupRow
+            .querySelector('[data-test-task-group-count]')
+            .textContent.trim(),
+        ),
         taskGroup.get('count'),
-        'Count'
+        'Count',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-volume]')
           .textContent.trim(),
         taskGroup.get('volumes.length') ? 'Yes' : '',
-        'Volumes'
+        'Volumes',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-cpu]')
           .textContent.trim(),
         `${formatScheduledHertz(taskGroup.get('reservedCPU'), 'MHz')}`,
-        'Reserved CPU'
+        'Reserved CPU',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-mem]')
           .textContent.trim(),
         `${formatScheduledBytes(taskGroup.get('reservedMemory'), 'MiB')}`,
-        'Reserved Memory'
+        'Reserved Memory',
       );
-      assert.equal(
+      assert.strictEqual(
         taskGroupRow
           .querySelector('[data-test-task-group-disk]')
           .textContent.trim(),
         `${formatScheduledBytes(
           taskGroup.get('reservedEphemeralDisk'),
-          'MiB'
+          'MiB',
         )}`,
-        'Reserved Disk'
+        'Reserved Disk',
       );
     });
-  }
+  },
 );

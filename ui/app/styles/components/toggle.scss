@@ -35,7 +35,6 @@ $size: 12px;
 
   .toggler {
     display: inline-block;
-    position: relative;
     vertical-align: baseline;
     position: relative;
     top: 1px;
@@ -46,7 +45,7 @@ $size: 12px;
     transition: background 0.3s ease-in-out;
 
     &::after {
-      content: ' ';
+      content: " ";
       display: block;
       position: absolute;
       width: calc(#{$size} - 4px);

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import Ember from 'ember';
-import { Factory, trait } from 'ember-cli-mirage';
+import { assert } from '@ember/debug';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { provide, pickOne } from '../utils';
 import { DATACENTERS } from '../common';
@@ -25,10 +25,13 @@ const EVAL_TRIGGERED_BY = [
 const REF_TIME = new Date();
 
 const generateCountMap = (keysCount, list) => () => {
-  const sample = Array(keysCount)
-    .fill(null)
-    .map(() => pickOne(list))
-    .uniq();
+  const sample = [
+    ...new Set(
+      Array(keysCount)
+        .fill(null)
+        .map(() => pickOne(list)),
+    ),
+  ];
   return sample.reduce((hash, key) => {
     hash[key] = faker.random.number({ min: 1, max: 5 });
     return hash;
@@ -38,7 +41,7 @@ const generateCountMap = (keysCount, list) => () => {
 const generateNodesAvailable = generateCountMap(5, DATACENTERS);
 const generateClassFiltered = generateCountMap(
   3,
-  provide(10, faker.hacker.abbreviation)
+  provide(10, faker.hacker.abbreviation),
 );
 const generateClassExhausted = generateClassFiltered;
 const generateDimensionExhausted = generateCountMap(1, [
@@ -87,7 +90,7 @@ export default Factory.extend({
         jobId: evaluation.jobId,
       });
 
-      const taskGroupNames = taskGroups.mapBy('name');
+      const taskGroupNames = taskGroups.map((taskGroup) => taskGroup.name);
       const failedTaskGroupsCount = faker.random.number({
         min: 1,
         max: taskGroupNames.length,
@@ -97,8 +100,8 @@ export default Factory.extend({
         failedTaskGroupNames.push(
           ...taskGroupNames.splice(
             faker.random.number(taskGroupNames.length - 1),
-            1
-          )
+            1,
+          ),
         );
       }
 
@@ -121,9 +124,9 @@ export default Factory.extend({
 });
 
 function assignJob(evaluation, server) {
-  Ember.assert(
+  assert(
     '[Mirage] No jobs! make sure jobs are created before evaluations',
-    server.db.jobs.length
+    server.db.jobs.length,
   );
 
   const job = evaluation.jobId

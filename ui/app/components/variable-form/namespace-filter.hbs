@@ -3,19 +3,32 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Trigger @do={{this.fetchNamespaces}} @onSuccess={{this.formatAndSetNamespaces}} as |trigger|>
-  {{did-insert trigger.fns.do}}
+<Trigger
+  @do={{this.fetchNamespaces}}
+  @onSuccess={{this.formatAndSetNamespaces}}
+  as |trigger|
+>
+  {{did-insert-helper trigger.fns.do}}
   {{! No-op on Error}}
   {{! No Loading Behavior }}
   {{#if trigger.data.isSuccess}}
     {{#if trigger.data.result}}
       {{#if @data.namespaceOptions}}
-        <Hds::Dropdown class="namespace-dropdown" data-test-variable-namespace-filter as |dd|>
-          <dd.ToggleButton @text="{{@data.selection}}" @color="secondary" disabled={{@data.disabled}} @isFullWidth={{true}} />
+        <Hds::Dropdown
+          class="namespace-dropdown"
+          data-test-variable-namespace-filter
+          as |dd|
+        >
+          <dd.ToggleButton
+            @text="{{@data.selection}}"
+            @color="secondary"
+            disabled={{@data.disabled}}
+            @isFullWidth={{true}}
+          />
           {{#each @data.namespaceOptions as |option|}}
             <dd.Radio
               name={{option.key}}
-              {{on "change" (action @fns.onSelect option.key)}}
+              {{on "change" (fn @fns.onSelect option.key)}}
               checked={{eq @data.selection option.key}}
             >
               {{option.label}}

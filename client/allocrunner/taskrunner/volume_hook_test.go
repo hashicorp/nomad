@@ -91,6 +91,7 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 
 	volumes := map[string]*structs.VolumeRequest{
 		"foo": {
+			Name:   "foo",
 			Type:   "csi",
 			Source: "my-test-volume",
 		},
@@ -113,8 +114,9 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 			},
 			Expected: []*drivers.MountConfig{
 				{
-					HostPath: "/mnt/my-test-volume",
-					TaskPath: "/bar",
+					RequestName: "foo",
+					HostPath:    "/mnt/my-test-volume",
+					TaskPath:    "/bar",
 				},
 			},
 		},

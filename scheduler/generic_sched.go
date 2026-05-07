@@ -274,6 +274,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	if len(s.followUpEvals) > 0 && s.eval.WaitUntil.IsZero() {
 		for _, eval := range s.followUpEvals {
 			eval.PreviousEval = s.eval.ID
+			s.eval.NextEval = eval.ID
 			// TODO(preetha) this should be batching evals before inserting them
 			if err := s.planner.CreateEval(eval); err != nil {
 				s.logger.Error("failed to make next eval for rescheduling", "error", err)

@@ -28,7 +28,7 @@
                 @label="Namespace"
                 @options={{this.optionsNamespaces}}
                 @selection={{this.qpNamespace}}
-                @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
+                @onSelect={{fn this.setFacetQueryParam "qpNamespace"}}
               />
             {{/if}}
             <MultiSelectDropdown
@@ -36,28 +36,28 @@
               @label="Type"
               @options={{this.optionsType}}
               @selection={{this.selectionType}}
-              @onSelect={{action this.setFacetQueryParam "qpType"}}
+              @onSelect={{fn this.setFacetQueryParam "qpType"}}
             />
             <MultiSelectDropdown
               data-test-status-facet
               @label="Status"
               @options={{this.optionsStatus}}
               @selection={{this.selectionStatus}}
-              @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+              @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
             />
             <MultiSelectDropdown
               data-test-datacenter-facet
               @label="Datacenter"
               @options={{this.optionsDatacenter}}
               @selection={{this.selectionDatacenter}}
-              @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+              @onSelect={{fn this.setFacetQueryParam "qpDatacenter"}}
             />
             <MultiSelectDropdown
               data-test-prefix-facet
               @label="Prefix"
               @options={{this.optionsPrefix}}
               @selection={{this.selectionPrefix}}
-              @onSelect={{action this.setFacetQueryParam "qpPrefix"}}
+              @onSelect={{fn this.setFacetQueryParam "qpPrefix"}}
             />
           </div>
         </div>

@@ -2,7 +2,12 @@
   Copyright IBM Corp. 2015, 2025
   SPDX-License-Identifier: BUSL-1.1
 ~}}
-<Breadcrumb @crumb={{hash label=this.activeToken.name args=(array "administration.tokens.token" this.activeToken.id)}} />
+<Breadcrumb
+  @crumb={{hash
+    label=this.activeToken.name
+    args=(array "administration.tokens.token" this.activeToken.id)
+  }}
+/>
 {{page-title "Token"}}
 <section class="section">
   <Hds::PageHeader as |PH|>

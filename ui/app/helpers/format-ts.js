@@ -10,8 +10,8 @@ export function formatTs([date], options = {}) {
   const format = options.short
     ? 'MMM D'
     : options.timeOnly
-    ? 'HH:mm:ss'
-    : "MMM DD, 'YY HH:mm:ss ZZ";
+      ? 'HH:mm:ss'
+      : "MMM DD, 'YY HH:mm:ss ZZ";
   return moment(date).format(format);
 }
 

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import faker from 'nomad-ui/mirage/faker';
 import { generateNetworks, generatePorts } from '../common';
 
 const genResources = (CPU, Memory) => ({

@@ -3,119 +3,149 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
-	<label>
+<form class="acl-form" autocomplete="off" {{on "submit" this.save.perform}}>
+  <label>
     <Hds::Form::Label>
       Token Name
     </Hds::Form::Label>
-		<Input
-			data-test-token-name-input
-			@type="text"
-			@value={{@token.name}}
-			class="input"
+    <Input
+      data-test-token-name-input
+      @type="text"
+      @value={{@token.name}}
+      class="input"
       {{autofocus ignore=(not @token.isNew)}}
-		/>
-	</label>
+    />
+  </label>
 
-<div class="expiration-time">
-  {{#if @token.isNew}}
-    <Hds::Form::Label>
-      Expiration time
-    </Hds::Form::Label>
+  <div class="expiration-time">
+    {{#if @token.isNew}}
+      <Hds::Form::Label>
+        Expiration time
+      </Hds::Form::Label>
 
-    {{!-- Radio to select between 1, 4, 8, 24, or never --}}
-    <Hds::Form::Radio::Group @layout="horizontal" @name="expiration-time" {{on "change" this.updateTokenExpirationTTL}} as |G|>
-      <G.RadioField
-        @id="10m"
-        @value="10m"
-      as |F|>
-        <F.Label>10 minutes</F.Label>
-      </G.RadioField>
-      <G.RadioField
-        @id="8h"
-        @value="8h"
-      as |F|>
-        <F.Label>8 hours</F.Label>
-      </G.RadioField>
-      <G.RadioField
-        @id="24h"
-        @value="24h"
-      as |F|>
-        <F.Label>24 hours</F.Label>
-      </G.RadioField>
-      <G.RadioField
-        @id="never"
-        @value="never"
-        checked={{eq @token.expirationTTL "never"}}
-      as |F|>
-        <F.Label>Never</F.Label>
-      </G.RadioField>
-      <G.RadioField
-        @id="custom"
-        @value="custom"
-      as |F|>
-        <F.Label>Custom</F.Label>
-      </G.RadioField>
-    </Hds::Form::Radio::Group>
+      {{! Radio to select between 1, 4, 8, 24, or never }}
+      <Hds::Form::Radio::Group
+        @layout="horizontal"
+        @name="expiration-time"
+        {{on "change" this.updateTokenExpirationTTL}}
+        as |G|
+      >
+        <G.RadioField @id="10m" @value="10m" as |F|>
+          <F.Label>10 minutes</F.Label>
+        </G.RadioField>
+        <G.RadioField @id="8h" @value="8h" as |F|>
+          <F.Label>8 hours</F.Label>
+        </G.RadioField>
+        <G.RadioField @id="24h" @value="24h" as |F|>
+          <F.Label>24 hours</F.Label>
+        </G.RadioField>
+        <G.RadioField
+          @id="never"
+          @value="never"
+          checked={{eq @token.expirationTTL "never"}}
+          as |F|
+        >
+          <F.Label>Never</F.Label>
+        </G.RadioField>
+        <G.RadioField @id="custom" @value="custom" as |F|>
+          <F.Label>Custom</F.Label>
+        </G.RadioField>
+      </Hds::Form::Radio::Group>
 
-    {{#if @token.expirationTime}}
-      <Hds::Form::TextInput::Field
-        data-test-token-expiration-time-input
-        @type="datetime-local"
-        @id="token-expiration-time"
-        {{on "change" this.updateTokenExpirationTime}}>
-      </Hds::Form::TextInput::Field>
-    {{/if}}
-
-  {{else}}
-    <Hds::Form::Label>
       {{#if @token.expirationTime}}
-      Token {{#if @token.isExpired}}expired{{else}}expires{{/if}}
-      <Tooltip @text={{@token.expirationTime}}  @isFullText={{true}}>
-        <span data-test-token-expiration-time class="{{if @token.isExpired "has-text-danger"}}">{{moment-from-now @token.expirationTime interval=1000}}</span>
-      </Tooltip>
-      {{else}}
-      Token never expires
+        <input
+          data-test-token-expiration-time-input
+          type="datetime-local"
+          id="token-expiration-time"
+          step="any"
+          class="input token-expiration-datetime-input"
+          {{on "change" this.updateTokenExpirationTime}}
+        />
       {{/if}}
-    </Hds::Form::Label>
-  {{/if}}
-</div>
+
+    {{else}}
+      <Hds::Form::Label>
+        {{#if @token.expirationTime}}
+          Token
+          {{#if @token.isExpired}}expired{{else}}expires{{/if}}
+          <Tooltip @text={{@token.expirationTime}} @isFullText={{true}}>
+            <span
+              data-test-token-expiration-time
+              class="{{if @token.isExpired 'has-text-danger'}}"
+            >{{moment-from-now @token.expirationTime interval=1000}}</span>
+          </Tooltip>
+        {{else}}
+          Token never expires
+        {{/if}}
+      </Hds::Form::Label>
+    {{/if}}
+  </div>
 
   {{#unless @token.isNew}}
-  <div>
-    <Hds::Form::MaskedInput::Field @isContentMasked={{false}} @hasCopyButton={{true}} @value={{@token.accessor}} readonly data-test-token-accessor as |F|>
-      <F.Label>Token Accessor</F.Label>
-    </Hds::Form::MaskedInput::Field>
-  </div>
+    <div>
+      <Hds::Form::MaskedInput::Field
+        @isContentMasked={{false}}
+        @hasCopyButton={{true}}
+        @value={{@token.accessor}}
+        readonly
+        data-test-token-accessor
+        as |F|
+      >
+        <F.Label>Token Accessor</F.Label>
+      </Hds::Form::MaskedInput::Field>
+    </div>
 
-  <div>
-    <Hds::Form::MaskedInput::Field @hasCopyButton={{true}} @value={{@token.secret}} readonly data-test-token-secret as |F|>
-      <F.Label>Token Secret</F.Label>
-    </Hds::Form::MaskedInput::Field>
-  </div>
+    <div>
+      <Hds::Form::MaskedInput::Field
+        @hasCopyButton={{true}}
+        @value={{@token.secret}}
+        readonly
+        data-test-token-secret
+        as |F|
+      >
+        <F.Label>Token Secret</F.Label>
+      </Hds::Form::MaskedInput::Field>
+    </div>
   {{/unless}}
 
   {{#if @token.isNew}}
     {{#if this.system.shouldShowRegions}}
-      <Hds::Form::Radio::Group data-test-global-token-group @layout="horizontal" @name="regional-or-global" {{on "change" this.updateTokenLocality}} as |G|>
+      <Hds::Form::Radio::Group
+        data-test-global-token-group
+        @layout="horizontal"
+        @name="regional-or-global"
+        {{on "change" this.updateTokenLocality}}
+        as |G|
+      >
         <G.Legend>Token Region</G.Legend>
-        <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/secure/acl/tokens#token-replication-settings">ACL token fundamentals: Token replication settings</Hds::Link::Inline> for more information.</G.HelperText>
+        <G.HelperText>See
+          <Hds::Link::Inline
+            @href="https://developer.hashicorp.com/nomad/docs/secure/acl/tokens#token-replication-settings"
+          >ACL token fundamentals: Token replication settings</Hds::Link::Inline>
+          for more information.</G.HelperText>
         <G.RadioField
           @id={{this.system.activeRegion}}
           checked={{eq this.tokenRegion this.system.activeRegion}}
           data-test-locality="active-region"
-        as |F|>
-          <F.Label data-test-active-region-label>{{this.system.activeRegion}}</F.Label>
+          as |F|
+        >
+          <F.Label
+            data-test-active-region-label
+          >{{this.system.activeRegion}}</F.Label>
         </G.RadioField>
         {{#if this.system.defaultRegion.region}}
-          {{!-- template-lint-disable simple-unless --}}
-          {{#unless (eq this.system.activeRegion this.system.defaultRegion.region)}}
+          {{! template-lint-disable simple-unless }}
+          {{#unless
+            (eq this.system.activeRegion this.system.defaultRegion.region)
+          }}
             <G.RadioField
               @id={{this.system.defaultRegion.region}}
               checked={{eq this.tokenRegion this.system.defaultRegion.region}}
               data-test-locality="default-region"
-            as |F|>
-              <F.Label>{{this.system.defaultRegion.region}} (authoritative region)</F.Label>
+              as |F|
+            >
+              <F.Label>{{this.system.defaultRegion.region}}
+                (authoritative region)</F.Label>
             </G.RadioField>
           {{/unless}}
         {{/if}}
@@ -123,7 +153,8 @@
           @id="global"
           checked={{eq this.tokenRegion "global"}}
           data-test-locality="global"
-        as |F|>
+          as |F|
+        >
           <F.Label>global</F.Label>
         </G.RadioField>
       </Hds::Form::Radio::Group>
@@ -131,21 +162,32 @@
   {{/if}}
 
   <div>
-    <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>
+    <Hds::Form::Radio::Group
+      @layout="horizontal"
+      @name="method-demo1"
+      {{on "change" this.updateTokenType}}
+      as |G|
+    >
       <G.Legend>Client or Management token?</G.Legend>
-      <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/secure/acl/tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText>
+      <G.HelperText>See
+        <Hds::Link::Inline
+          @href="https://developer.hashicorp.com/nomad/docs/secure/acl/tokens#token-types"
+        >Token types documentation</Hds::Link::Inline>
+        for more information.</G.HelperText>
       <G.RadioField
         @id="client"
         checked={{eq @token.type "client"}}
         data-test-token-type="client"
-      as |F|>
+        as |F|
+      >
         <F.Label>Client</F.Label>
       </G.RadioField>
       <G.RadioField
         @id="management"
         checked={{eq @token.type "management"}}
         data-test-token-type="management"
-      as |F|>
+        as |F|
+      >
         <F.Label>Management</F.Label>
       </G.RadioField>
     </Hds::Form::Radio::Group>
@@ -157,7 +199,9 @@
         Policies
       </label>
       {{#if @policies.length}}
-        <Hds::Table @caption="A list of policies available to this token" class="acl-table"
+        <Hds::Table
+          @caption="A list of policies available to this token"
+          class="acl-table"
           @model={{@policies}}
           @columns={{array
             (hash key="selected" width="80px")
@@ -171,16 +215,20 @@
             <B.Tr>
               <B.Td class="selection-checkbox">
                 <label>
-                  <input type="checkbox"
+                  <input
+                    type="checkbox"
                     checked={{find-by "name" B.data.name @token.policies}}
-                    {{on "change" (action this.updateTokenPolicies B.data)}}
+                    {{on "change" (fn this.updateTokenPolicies B.data)}}
                   />
                 </label>
               </B.Td>
               <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>
-                <LinkTo @route="administration.policies.policy" @model={{B.data.name}}>
+                <LinkTo
+                  @route="administration.policies.policy"
+                  @model={{B.data.name}}
+                >
                   View Policy Definition
                 </LinkTo>
               </B.Td>
@@ -193,7 +241,8 @@
             No Policies
           </h3>
           <p class="empty-message-body">
-            Get started by <LinkTo @route="administration.policies.new">creating a new policy</LinkTo>
+            Get started by
+            <LinkTo @route="administration.policies.new">creating a new policy</LinkTo>
           </p>
         </div>
       {{/if}}
@@ -204,7 +253,9 @@
         Roles
       </label>
       {{#if @roles.length}}
-        <Hds::Table @caption="A list of roles available to this token" class="acl-table"
+        <Hds::Table
+          @caption="A list of roles available to this token"
+          class="acl-table"
           @model={{@roles}}
           @columns={{array
             (hash key="selected" width="80px")
@@ -219,9 +270,10 @@
             <B.Tr>
               <B.Td class="selection-checkbox">
                 <label>
-                  <input type="checkbox"
+                  <input
+                    type="checkbox"
                     checked={{find-by "name" B.data.name @token.roles}}
-                    {{on "change" (action this.updateTokenRoles B.data)}}
+                    {{on "change" (fn this.updateTokenRoles B.data)}}
                   />
                 </label>
               </B.Td>
@@ -231,7 +283,12 @@
                 <div class="tag-group">
                   {{#each B.data.policies as |policy|}}
                     {{#if policy.name}}
-                      <Hds::Tag @color="primary" @text="{{policy.name}}" @route="administration.policies.policy" @model="{{policy.name}}" />
+                      <Hds::Tag
+                        @color="primary"
+                        @text="{{policy.name}}"
+                        @route="administration.policies.policy"
+                        @model="{{policy.name}}"
+                      />
                     {{/if}}
                   {{else}}
                     Role contains no policies
@@ -252,23 +309,25 @@
             No Roles
           </h3>
           <p class="empty-message-body">
-            Get started by <LinkTo @route="administration.roles.new">creating a new role</LinkTo>
+            Get started by
+            <LinkTo @route="administration.roles.new">creating a new role</LinkTo>
           </p>
         </div>
       {{/if}}
     </div>
 
-
   {{else}}
-  <p>Management-type tokens have access to all permissions.</p>
+    <p>Management-type tokens have access to all permissions.</p>
   {{/if}}
 
-	<footer>
-		{{#if (can "update token")}}
-      <Hds::Button @text="Save Token" @color="primary"
+  <footer>
+    {{#if (can "update token")}}
+      <Hds::Button
+        @text="Save Token"
+        @color="primary"
+        type="submit"
         data-test-token-save
-        {{on "click" this.save}}
       />
-		{{/if}}
-	</footer>
+    {{/if}}
+  </footer>
 </form>

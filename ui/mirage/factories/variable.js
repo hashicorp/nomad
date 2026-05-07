@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
-import { provide, pickOne } from '../utils';
+import { pickOne } from '../utils';
 
 export default Factory.extend({
   id: () => faker.random.words(3).split(' ').join('/').toLowerCase(),

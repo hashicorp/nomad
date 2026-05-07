@@ -285,6 +285,10 @@ type Config struct {
 	// RPCSessionConfig configures yamux multiplex
 	RPCSessionConfig *yamux.Config
 
+	// RPCDialTimeout is the timeout used when establishing new outbound RPC
+	// connections to servers. Defaults to 10s.
+	RPCDialTimeout time.Duration
+
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
 
@@ -925,6 +929,7 @@ func DefaultConfig() *Config {
 		TemplateConfig:          DefaultTemplateConfig(),
 		RPCHoldTimeout:          5 * time.Second,
 		RPCSessionConfig:        yamux.DefaultConfig(),
+		RPCDialTimeout:          10 * time.Second,
 		CNIPath:                 DefaultCNIPath,
 		CNIConfigDir:            "/opt/cni/config",
 		CNIInterfacePrefix:      "eth",

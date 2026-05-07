@@ -10,7 +10,9 @@
   <div class="boxed-section-body is-full-bleed">
     <ListTable
       @source={{@deployment.taskGroupSummaries}}
-      @class="task-groups" as |t|>
+      @class="task-groups"
+      as |t|
+    >
       <t.head>
         <th>Name</th>
         <th>Needs Promotion?</th>
@@ -31,17 +33,33 @@
               N/A
             {{/if}}
           </td>
-          <td data-test-deployment-task-group-auto-revert>{{if row.model.autoRevert "Yes" "No"}}</td>
-          <td data-test-deployment-task-group-canaries>{{or row.model.placedCanaries 0}} / {{row.model.desiredCanaries}}</td>
-          <td data-test-deployment-task-group-allocs>{{row.model.placedAllocs}} / {{row.model.desiredTotal}}</td>
-          <td data-test-deployment-task-group-healthy>{{row.model.healthyAllocs}}</td>
-          <td data-test-deployment-task-group-unhealthy>{{row.model.unhealthyAllocs}}</td>
+          <td data-test-deployment-task-group-auto-revert>{{if
+              row.model.autoRevert
+              "Yes"
+              "No"
+            }}</td>
+          <td data-test-deployment-task-group-canaries>{{or
+              row.model.placedCanaries
+              0
+            }}
+            /
+            {{row.model.desiredCanaries}}</td>
+          <td data-test-deployment-task-group-allocs>{{row.model.placedAllocs}}
+            /
+            {{row.model.desiredTotal}}</td>
+          <td
+            data-test-deployment-task-group-healthy
+          >{{row.model.healthyAllocs}}</td>
+          <td
+            data-test-deployment-task-group-unhealthy
+          >{{row.model.unhealthyAllocs}}</td>
           <td data-test-deployment-task-group-progress-deadline>
-            <span class="nowrap">{{format-ts row.model.requireProgressBy}}</span>
+            <span class="nowrap">{{format-ts
+                row.model.requireProgressBy
+              }}</span>
           </td>
         </tr>
       </t.body>
     </ListTable>
   </div>
 </div>
-

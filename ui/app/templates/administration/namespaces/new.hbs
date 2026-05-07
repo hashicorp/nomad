@@ -3,11 +3,13 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<Breadcrumb @crumb={{hash label="New" args=(array "administration.namespaces.new")}} />
+<Breadcrumb
+  @crumb={{hash label="New" args=(array "administration.namespaces.new")}}
+/>
 {{page-title "Create Namespace"}}
 <section class="section">
   <Hds::PageHeader as |PH|>
     <PH.Title>Create Namespace</PH.Title>
   </Hds::PageHeader>
-  <NamespaceEditor @namespace={{this.model}}/>
+  <NamespaceEditor @namespace={{this.model}} />
 </section>

@@ -24,6 +24,7 @@ rpc {
   max_stream_window_size   = 262144
   stream_open_timeout      = "75s"
   stream_close_timeout     = "5m"
+  dial_timeout             = "15s"
 }
 
 vault = {

@@ -12,7 +12,7 @@
         <SearchBox
           data-test-clients-search
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
+          @onChange={{this.resetPagination}}
           @placeholder="Search clients..."
         />
       </div>
@@ -23,21 +23,21 @@
             @label="Job Status"
             @options={{this.optionsJobStatus}}
             @selection={{this.selectionStatus}}
-            @onSelect={{action this.setFacetQueryParam "qpStatus"}}
+            @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
           />
           <MultiSelectDropdown
             data-test-datacenter-facet
             @label="Datacenter"
             @options={{this.optionsDatacenter}}
             @selection={{this.selectionDatacenter}}
-            @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
+            @onSelect={{fn this.setFacetQueryParam "qpDatacenter"}}
           />
           <MultiSelectDropdown
             data-test-client-class-facet
             @label="Client Class"
             @options={{this.optionsClientClass}}
             @selection={{this.selectionClientClass}}
-            @onSelect={{action this.setFacetQueryParam "qpClientClass"}}
+            @onSelect={{fn this.setFacetQueryParam "qpClientClass"}}
           />
         </div>
       </div>
@@ -47,33 +47,41 @@
         @source={{this.sortedClients}}
         @size={{this.pageSize}}
         @page={{this.currentPage}}
-        @class="clients" as |p|
+        @class="clients"
+        as |p|
       >
         <ListTable
           @source={{p.list}}
           @sortProperty={{this.sortProperty}}
           @sortDescending={{this.sortDescending}}
-          @class="with-foot" as |t|
+          @class="with-foot"
+          as |t|
         >
           <t.head>
             <t.sort-by @prop="node.id">Client ID</t.sort-by>
-            <t.sort-by @prop="node.name" class="is-200px is-truncatable">Client Name</t.sort-by>
-            <t.sort-by @prop="createTime" @title="Create Time">Created</t.sort-by>
-            <t.sort-by @prop="modifyTime" @title="Modify Time">Modified</t.sort-by>
+            <t.sort-by @prop="node.name" class="is-200px is-truncatable">Client
+              Name</t.sort-by>
+            <t.sort-by
+              @prop="createTime"
+              @title="Create Time"
+            >Created</t.sort-by>
+            <t.sort-by
+              @prop="modifyTime"
+              @title="Modify Time"
+            >Modified</t.sort-by>
             <t.sort-by @prop="jobStatus">Job Status</t.sort-by>
             <th class="is-3">Allocation Summary</th>
           </t.head>
           <t.body as |row|>
-            <JobClientStatusRow
-              @row={{row}}
-              @onClick={{this.gotoClient}}
-            />
+            <JobClientStatusRow @row={{row}} @onClick={{this.gotoClient}} />
           </t.body>
         </ListTable>
         <div class="table-foot">
           <nav class="pagination">
             <div class="pagination-numbers">
-              {{p.startsAt}}&ndash;{{p.endsAt}} of {{this.sortedClients.length}}
+              {{p.startsAt}}&ndash;{{p.endsAt}}
+              of
+              {{this.sortedClients.length}}
             </div>
             <p.prev @class="pagination-previous"> &lt; </p.prev>
             <p.next @class="pagination-next"> &gt; </p.next>
@@ -84,7 +92,10 @@
     {{else}}
       <div class="boxed-section-body">
         <div class="empty-message" data-test-empty-clients-list>
-          <h3 class="empty-message-headline" data-test-empty-clients-list-headline>
+          <h3
+            class="empty-message-headline"
+            data-test-empty-clients-list-headline
+          >
             No Matches
           </h3>
           <p class="empty-message-body">
@@ -99,7 +110,10 @@
   {{else}}
     <div class="boxed-section-body">
       <div class="empty-message" data-test-empty-clients-list>
-        <h3 class="empty-message-headline" data-test-empty-clients-list-headline>
+        <h3
+          class="empty-message-headline"
+          data-test-empty-clients-list-headline
+        >
           No Clients
         </h3>
         <p class="empty-message-body">

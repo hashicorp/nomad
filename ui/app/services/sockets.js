@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Service from '@ember/service';
 import config from 'nomad-ui/config/environment';
-import { getOwner } from '@ember/application';
-import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/owner';
+import { service } from '@ember/service';
 
 export default class SocketsService extends Service {
   @service system;
@@ -27,7 +26,7 @@ export default class SocketsService extends Service {
             this.messageDisplayed = true;
             this.onmessage({
               data: `{"stdout":{"data":"${btoa(
-                'unsupported in Mirage\n\r'
+                'unsupported in Mirage\n\r',
               )}"}}`,
             });
           } else {
@@ -47,7 +46,7 @@ export default class SocketsService extends Service {
         `${protocol}//${prefix}/client/allocation/${taskState.allocation.id}` +
           `/exec?task=${taskState.name}&tty=true&ws_handshake=true` +
           (region ? `&region=${region}` : '') +
-          `&command=${encodeURIComponent(`["${command}"]`)}`
+          `&command=${encodeURIComponent(`["${command}"]`)}`,
       );
     }
   }

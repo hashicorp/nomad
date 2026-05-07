@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { action } from '@ember/object';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 
 export default class VariablesNewController extends Controller {
@@ -23,6 +22,7 @@ export default class VariablesNewController extends Controller {
   @tracked
   view = 'table';
 
+  @action
   toggleView() {
     if (this.view === 'table') {
       this.view = 'json';

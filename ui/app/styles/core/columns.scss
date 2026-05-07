@@ -6,8 +6,7 @@
 .columns {
   .column {
     &.is-centered {
-      align-self: center;
-      justify-self: center;
+      place-self: center center;
       text-align: center;
     }
 

@@ -28,12 +28,12 @@
     display: flex;
     text-align: center;
     font-weight: bold;
-    -moz-appearance: textfield;
+    appearance: textfield;
     width: 3em;
 
     &::-webkit-outer-spin-button,
     &::-webkit-inner-spin-button {
-      -webkit-appearance: none;
+      appearance: none;
       margin: 0;
     }
 

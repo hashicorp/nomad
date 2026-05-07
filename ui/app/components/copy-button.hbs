@@ -3,39 +3,63 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="copy-button {{if @inset "inset"}}">
-{{#if (eq this.state 'success')}}
-  <div data-test-copy-success class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
-    {{#if @inset}}
-      <span aria-label="Copied!"><Hds::Icon @name="clipboard-checked" /></span>
-    {{else}}
-      <span class="tooltip text-center always-active" role="tooltip" aria-label="Copied!">
-        <Hds::Icon @name="clipboard-checked" />
-      </span>
-    {{/if}}
-    {{yield}}
-  </div>
-{{else if (eq this.state 'error')}}
-  <div class='button is-small is-static {{if @compact "is-compact"}} {{unless @border "is-borderless"}}'>
-    {{#if @inset}}
-      <span aria-label="Error copying"><Hds::Icon @name="clipboard-x" /></span>
-    {{else}}
-      <span class="tooltip text-center" role="tooltip" aria-label="Error copying">
-        <Hds::Icon @name="clipboard-x" />
-      </span>
-    {{/if}}
-    {{yield}}
-  </div>
-{{else}}
-  <AddonCopyButton
-    title="Copy"
-    class="button is-small {{if @compact "is-compact"}} {{unless @border "is-borderless"}} {{if @inset "is-inset"}}"
-    @text={{this.text}}
-    @onSuccess={{perform this.indicateSuccess}}
-    @onError={{action (mut this.state) "error"}}
-  >
-    <Hds::Icon @name="clipboard-copy" />
-    {{yield}}
-  </AddonCopyButton>
-{{/if}}
+<div class="copy-button {{if @inset 'inset'}}">
+  {{#if (eq this.state "success")}}
+    <div
+      data-test-copy-success
+      class="button is-small is-static
+        {{if @compact 'is-compact'}}
+        {{unless @border 'is-borderless'}}"
+    >
+      {{#if @inset}}
+        <span aria-label="Copied!"><Hds::Icon
+            @name="clipboard-checked"
+          /></span>
+      {{else}}
+        <span
+          class="tooltip text-center always-active"
+          role="tooltip"
+          aria-label="Copied!"
+        >
+          <Hds::Icon @name="clipboard-checked" />
+        </span>
+      {{/if}}
+      {{yield}}
+    </div>
+  {{else if (eq this.state "error")}}
+    <div
+      class="button is-small is-static
+        {{if @compact 'is-compact'}}
+        {{unless @border 'is-borderless'}}"
+    >
+      {{#if @inset}}
+        <span aria-label="Error copying"><Hds::Icon
+            @name="clipboard-x"
+          /></span>
+      {{else}}
+        <span
+          class="tooltip text-center"
+          role="tooltip"
+          aria-label="Error copying"
+        >
+          <Hds::Icon @name="clipboard-x" />
+        </span>
+      {{/if}}
+      {{yield}}
+    </div>
+  {{else}}
+    <AddonCopyButton
+      title="Copy"
+      class="button is-small
+        {{if @compact 'is-compact'}}
+        {{unless @border 'is-borderless'}}
+        {{if @inset 'is-inset'}}"
+      @text={{this.text}}
+      @onSuccess={{perform this.indicateSuccess}}
+      @onError={{fn (mut this.state) "error"}}
+    >
+      <Hds::Icon @name="clipboard-copy" />
+      {{yield}}
+    </AddonCopyButton>
+  {{/if}}
 </div>

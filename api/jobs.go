@@ -1701,18 +1701,22 @@ type JobStatusesRequest struct {
 }
 
 type TagVersionRequest struct {
-	Version     uint64
-	Description string
+	Version     uint64 // numeric version of the job to tag
+	Latest      bool   // tag the latest version of the job, if Version if zero/unset
+	Description string // description to add to the tag
 	WriteRequest
 }
 
+func (j *Jobs) TagVersionOpts(jobID, name string, req *TagVersionRequest, q *WriteOptions) (*WriteMeta, error) {
+	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", req, nil, q)
+}
+
 func (j *Jobs) TagVersion(jobID string, version uint64, name string, description string, q *WriteOptions) (*WriteMeta, error) {
-	var tagRequest = &TagVersionRequest{
+	var req = &TagVersionRequest{
 		Version:     version,
 		Description: description,
 	}
-
-	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", tagRequest, nil, q)
+	return j.TagVersionOpts(jobID, name, req, q)
 }
 
 func (j *Jobs) UntagVersion(jobID string, name string, q *WriteOptions) (*WriteMeta, error) {

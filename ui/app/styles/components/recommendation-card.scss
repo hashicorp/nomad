@@ -7,7 +7,6 @@
   display: grid;
   grid-template-columns: [overview] 55% [active-task] 45%;
   grid-template-rows: [top] auto [headings] auto [diffs] auto [narrative] auto [main] auto [actions];
-
   border: 1px solid $ui-gray-200;
   margin-bottom: 1.5em;
 
@@ -79,8 +78,8 @@
       color: $cool-gray-500;
       font-weight: $weight-normal;
 
-      &:before {
-        content: '/';
+      &::before {
+        content: "/";
         padding: 0 0.25em 0 0.1em;
       }
     }
@@ -142,7 +141,9 @@
 
   .task-toggles {
     table {
-      width: calc(100% + 1px); // To remove a mysterious 1px gap between this and the pane border
+      width: calc(
+        100% + 1px
+      ); // To remove a mysterious 1px gap between this and the pane border
     }
 
     th {

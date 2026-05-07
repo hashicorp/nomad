@@ -27,10 +27,10 @@ const testCases = [
 module('Unit | Util | addToPath', function () {
   testCases.forEach((testCase) => {
     test(testCase.name, function (assert) {
-      assert.equal(
+      assert.deepEqual(
         addToPath.apply(null, testCase.in),
         testCase.out,
-        `[${testCase.in.join(', ')}] => ${testCase.out}`
+        `[${testCase.in.join(', ')}] => ${testCase.out}`,
       );
     });
   });

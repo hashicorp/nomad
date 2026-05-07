@@ -84,6 +84,7 @@ type ACL struct {
 	// The attributes below detail a virtual policy that we never expose
 	// directly to the end user.
 	client       string
+	pool         string
 	server       string
 	isLeader     bool
 	aclsDisabled bool
@@ -1002,13 +1003,21 @@ func (a *ACL) AllowServerOp() bool {
 	return a.server != PolicyDeny || a.isLeader
 }
 
-// AllowClientOp checks if client-only operations are allowed, or ACLs are
-// disabled
-func (a *ACL) AllowClientOp() bool {
-	if a == nil {
+// AllowClientOp checks if client-only operations are allowed for the given node
+// pool
+func (a *ACL) AllowClientOp(pool string) bool {
+	if a == nil || pool == "" {
 		return false
 	}
-	return a.client != PolicyDeny || a.aclsDisabled
+
+	// return early if ACLs are disabled
+	if a.aclsDisabled {
+		return true
+	}
+	if a.client == PolicyDeny {
+		return false
+	}
+	return pool == a.pool
 }
 
 // IsManagement checks if this represents a management token

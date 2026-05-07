@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-
 import { action } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
@@ -48,7 +46,7 @@ export default class RoleEditorComponent extends Component {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.role.name?.match(nameRegex)) {
         throw new Error(
-          `Role name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
+          `Role name must be 1-128 characters long and can only contain letters, numbers, and dashes.`,
         );
       }
 

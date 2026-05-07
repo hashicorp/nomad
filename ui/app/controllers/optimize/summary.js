@@ -11,7 +11,7 @@ export default class OptimizeSummaryController extends Controller {
 
   queryParams = [
     {
-      jobNamespace: 'namespace',
+      namespace: 'namespace',
     },
   ];
 

@@ -15,7 +15,8 @@ job "countdash" {
     }
 
     task "web" {
-      driver = "docker"
+      driver         = "docker"
+      shutdown_delay = "10s"
 
       config {
         image          = "hashicorpdev/counter-api:v3"
@@ -51,7 +52,8 @@ job "countdash" {
     }
 
     task "dashboard" {
-      driver = "docker"
+      driver         = "docker"
+      shutdown_delay = "10s"
 
       env {
         COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"

@@ -3,9 +3,17 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<tr data-test-client={{this.row.node.id}} class="job-client-status-row is-interactive" {{on "click" (fn @onClick this.row.node)}}>
+<tr
+  data-test-client={{this.row.node.id}}
+  class="job-client-status-row is-interactive"
+  {{on "click" (fn @onClick this.row.node)}}
+>
   <td data-test-short-id>
-    <LinkTo @route="allocations.allocation" @model={{this.allocation}} class="is-primary">
+    <LinkTo
+      @route="allocations.allocation"
+      @model={{this.allocation}}
+      class="is-primary"
+    >
       {{this.row.node.shortId}}
     </LinkTo>
   </td>
@@ -14,7 +22,11 @@
   </td>
   <td data-test-create-time>
     {{#if this.row.createTime}}
-      <span class="tooltip" role="tooltip" aria-label="{{format-month-ts this.row.createTime}}">
+      <span
+        class="tooltip"
+        role="tooltip"
+        aria-label="{{format-month-ts this.row.createTime}}"
+      >
         {{moment-from-now this.row.createTime}}
       </span>
     {{else}}
@@ -23,7 +35,11 @@
   </td>
   <td data-test-modify-time>
     {{#if this.row.modifyTime}}
-      <span class="tooltip" role="tooltip" aria-label="{{format-month-ts this.row.modifyTime}}">
+      <span
+        class="tooltip"
+        role="tooltip"
+        aria-label="{{format-month-ts this.row.modifyTime}}"
+      >
         {{moment-from-now this.row.modifyTime}}
       </span>
     {{else}}
@@ -37,7 +53,10 @@
   <td data-test-job-alloc-summary class="allocation-summary is-one-line">
     {{#if this.shouldDisplayAllocationSummary}}
       <div class="inline-chart">
-        <AllocationStatusBar @allocationContainer={{this.allocationContainer}} @isNarrow={{true}} />
+        <AllocationStatusBar
+          @allocationContainer={{this.allocationContainer}}
+          @isNarrow={{true}}
+        />
       </div>
     {{else}}
       <div class="is-faded">{{this.allocationSummaryPlaceholder}}</div>

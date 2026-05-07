@@ -9,9 +9,10 @@ import Controller from '@ember/controller';
 import { action, computed } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
+import { service } from '@ember/service';
 import {
   serialize,
   deserializedQueryParam as selection,
@@ -20,10 +21,19 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
-  Sortable,
+  SortableFactory([
+    'modifyIndex',
+    'name',
+    'shortId',
+    'taskGroupName',
+    'clientStatus',
+    'jobVersion',
+  ]),
   Searchable,
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
+  @service router;
+
   queryParams = [
     {
       currentPage: 'page',
@@ -85,7 +95,7 @@ export default class AllocationsController extends Controller.extend(
     'selectionClient',
     'selectionTaskGroup',
     'selectionVersion',
-    'selectionScheduling'
+    'selectionScheduling',
   )
   get filteredAllocations() {
     const {
@@ -105,7 +115,7 @@ export default class AllocationsController extends Controller.extend(
       }
       if (
         selectionClient.length &&
-        !selectionClient.includes(alloc.get('node.shortId'))
+        !selectionClient.includes(this.clientKeyForAllocation(alloc))
       ) {
         return false;
       }
@@ -164,9 +174,13 @@ export default class AllocationsController extends Controller.extend(
   @selection('qpVersion') selectionVersion;
   @selection('qpScheduling') selectionScheduling;
 
+  clientKeyForAllocation(allocation) {
+    return allocation?.nodeID?.split('-')?.[0] || null;
+  }
+
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 
   get optionsAllocationStatus() {
@@ -183,15 +197,19 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionClient')
   get optionsClients() {
     const clients = Array.from(
-      new Set(this.model.allocations.mapBy('node.shortId'))
+      new Set(
+        this.model.allocations
+          .map((allocation) => this.clientKeyForAllocation(allocation))
+          .filter(Boolean),
+      ),
     ).compact();
 
     // Update query param when the list of clients changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpClient',
-        serialize(intersection(clients, this.selectionClient))
+        serialize(intersection(clients, this.selectionClient)),
       );
     });
 
@@ -201,15 +219,15 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionTaskGroup')
   get optionsTaskGroups() {
     const taskGroups = Array.from(
-      new Set(this.model.allocations.mapBy('taskGroupName'))
+      new Set(this.model.allocations.mapBy('taskGroupName')),
     ).compact();
 
     // Update query param when the list of task groups changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpTaskGroup',
-        serialize(intersection(taskGroups, this.selectionTaskGroup))
+        serialize(intersection(taskGroups, this.selectionTaskGroup)),
       );
     });
 
@@ -219,15 +237,15 @@ export default class AllocationsController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionVersion')
   get optionsVersions() {
     const versions = Array.from(
-      new Set(this.model.allocations.mapBy('jobVersion'))
+      new Set(this.model.allocations.mapBy('jobVersion')),
     ).compact();
 
     // Update query param when the list of versions changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpVersion',
-        serialize(intersection(versions, this.selectionVersion))
+        serialize(intersection(versions, this.selectionVersion)),
       );
     });
 
@@ -256,6 +274,7 @@ export default class AllocationsController extends Controller.extend(
     ];
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

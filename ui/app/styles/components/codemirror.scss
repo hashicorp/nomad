@@ -44,13 +44,13 @@ $dark-bright: lighten($dark, 15%);
   }
 
   &.CodeMirror-focused div.CodeMirror-selected {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(255 255 255 / 10%);
   }
 
   .CodeMirror-line::selection,
   .CodeMirror-line > span::selection,
   .CodeMirror-line > span > span::selection {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(255 255 255 / 10%);
   }
 
   span.cm-comment {
@@ -81,6 +81,7 @@ $dark-bright: lighten($dark, 15%);
   span.cm-operator {
     color: $grey;
   }
+
   span.cm-keyword {
     color: $yellow;
   }
@@ -147,6 +148,7 @@ header.run-job-header {
   margin-bottom: 2rem;
   gap: 0 1rem;
   align-items: end;
+
   & > h1 {
     grid-column: -1 / 1;
   }
@@ -156,6 +158,7 @@ header.run-job-header {
   .button {
     cursor: pointer;
   }
+
   input {
     width: 100%;
     height: 100%;
@@ -182,13 +185,13 @@ header.run-job-header {
 
 .job-definition-select {
   border: 1px solid $grey-blue;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgb(0 0 0 / 5%);
   border-radius: 2px;
   display: grid;
   gap: 0.5rem;
   grid-template-columns: 1fr 1fr;
   padding: 0.25rem 0.5rem;
-  margin: 0rem 1rem;
+  margin: 0 1rem;
 
   &.disabled {
     opacity: 0.5;
@@ -202,7 +205,7 @@ header.run-job-header {
     transition: 0.1s;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.5);
+      background: rgb(255 255 255 / 50%);
     }
 
     &.is-active {

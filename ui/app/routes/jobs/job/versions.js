@@ -10,13 +10,17 @@ import {
   watchRelationship,
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class VersionsRoute extends Route.extend(WithWatchers) {
   @service store;
 
   async model() {
     const job = this.modelFor('jobs.job');
+
+    // In test mode relationship watchers do not run, so load versions eagerly.
+    await job.get('versions');
+
     return job;
   }
 

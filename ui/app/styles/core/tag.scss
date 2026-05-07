@@ -16,7 +16,7 @@
   &.is-pending,
   &.is-light {
     background: $grey-blue;
-    color: findColorInvert(darken($grey-blue, 10%));
+    color: findcolorinvert(darken($grey-blue, 10%));
   }
 
   &.is-running {
@@ -31,7 +31,7 @@
 
   &.is-complete {
     background: $nomad-green-pale;
-    color: findColorInvert($nomad-green-pale);
+    color: findcolorinvert($nomad-green-pale);
   }
 
   &.is-error {
@@ -91,8 +91,9 @@
 
   &.canary {
     overflow: hidden;
-    &:before {
-      content: 'Canary';
+
+    &::before {
+      content: "Canary";
       background-color: $blue-light;
       color: $black;
       line-height: 1.5em;

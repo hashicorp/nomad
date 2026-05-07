@@ -3,16 +3,15 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Service from '@ember/service';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tracked } from '@glimmer/tracking';
 import { action } from '@ember/object';
 import { base64DecodeString } from '../utils/encode';
 import config from 'nomad-ui/config/environment';
 
 export default class NomadActionsService extends Service {
-  @service can;
+  @service abilities;
   @service store;
   @service token;
 
@@ -20,7 +19,7 @@ export default class NomadActionsService extends Service {
   // will require this to be a computed property that depends on the current user's permissions.
   // For now, we simply check alloc exec privileges.
   get hasActionPermissions() {
-    return this.can.can('exec allocation');
+    return this.abilities.can('exec allocation');
   }
 
   @tracked flyoutActive = false;
@@ -48,7 +47,7 @@ export default class NomadActionsService extends Service {
 
   get finishedActions() {
     return this.actionsQueue.filter(
-      (a) => a.state === 'complete' || a.state === 'error'
+      (a) => a.state === 'complete' || a.state === 'error',
     );
   }
 
@@ -119,13 +118,13 @@ export default class NomadActionsService extends Service {
       actionInstance.socket.close();
     }
     this.actionsQueue = this.actionsQueue.filter(
-      (a) => a.id !== actionInstance.id
+      (a) => a.id !== actionInstance.id,
     );
 
     // If action had peers, clear them out as well
     if (actionInstance.peerID) {
       this.actionsQueue = this.actionsQueue.filter(
-        (a) => a.peerID !== actionInstance.peerID
+        (a) => a.peerID !== actionInstance.peerID,
       );
     }
     this.updateQueue();
@@ -215,16 +214,16 @@ export default class NomadActionsService extends Service {
     actionInstance.set('socket', socket);
 
     socket.addEventListener('open', () =>
-      this.handleSocketOpen(actionInstance, socket)
+      this.handleSocketOpen(actionInstance, socket),
     );
     socket.addEventListener('message', (event) =>
-      this.handleSocketMessage(actionInstance, event)
+      this.handleSocketMessage(actionInstance, event),
     );
     socket.addEventListener('close', () =>
-      this.handleSocketClose(actionInstance)
+      this.handleSocketClose(actionInstance),
     );
     socket.addEventListener('error', () =>
-      this.handleSocketError(actionInstance)
+      this.handleSocketError(actionInstance),
     );
 
     // Open,
@@ -255,7 +254,7 @@ export default class NomadActionsService extends Service {
     actionInstance.createdAt = new Date();
 
     socket.send(
-      JSON.stringify({ version: 1, auth_token: this.token?.secret || '' })
+      JSON.stringify({ version: 1, auth_token: this.token?.secret || '' }),
     );
     socket.send(JSON.stringify({ tty_size: { width: 250, height: 100 } }));
   }
@@ -271,8 +270,9 @@ export default class NomadActionsService extends Service {
       let jsonData = JSON.parse(event.data);
       if (jsonData.stdout && jsonData.stdout.data) {
         const message = base64DecodeString(jsonData.stdout.data).replace(
+          // eslint-disable-next-line no-control-regex
           /\x1b\[[0-9;]*[a-zA-Z]/g,
-          ''
+          '',
         );
         actionInstance.messages += '\n' + message;
       } else if (jsonData.stderr && jsonData.stderr.data) {

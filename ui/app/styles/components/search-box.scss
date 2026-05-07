@@ -7,7 +7,6 @@
   width: 100%;
   max-width: 400px;
   min-width: 200px;
-
   position: relative;
 
   @include mobile {
@@ -63,6 +62,7 @@
 
     &:focus {
       outline: none;
+
       path {
         fill: $grey-light;
       }

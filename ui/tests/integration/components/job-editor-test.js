@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { render, waitUntil } from '@ember/test-helpers';
+import { hbs } from 'ember-cli-htmlbars';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import jobEditor from 'nomad-ui/tests/pages/components/job-editor';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
@@ -44,7 +43,7 @@ module('Integration | Component | job-editor', function (hooks) {
   const newJobTaskGroupName = 'redis';
   const jsonJob = (overrides) => {
     return JSON.stringify(
-      assign(
+      Object.assign(
         {},
         {
           Name: newJobName,
@@ -63,10 +62,10 @@ module('Integration | Component | job-editor', function (hooks) {
             },
           ],
         },
-        overrides
+        overrides,
       ),
       null,
-      2
+      2,
     );
   };
 
@@ -83,10 +82,10 @@ module('Integration | Component | job-editor', function (hooks) {
 
   const commonTemplate = hbs`
     <JobEditor
-      @job={{job}}
-      @context={{context}}
-      @onSubmit={{onSubmit}}
-      @handleSaveAsTemplate={{handleSaveAsTemplate}}
+      @job={{this.job}}
+      @context={{this.context}}
+      @onSubmit={{this.onSubmit}}
+      @handleSaveAsTemplate={{this.handleSaveAsTemplate}}
     />
   `;
 
@@ -101,14 +100,15 @@ module('Integration | Component | job-editor', function (hooks) {
   };
 
   const planJob = async (spec) => {
-    const cm = getCodeMirrorInstance(['data-test-editor']);
-    cm.setValue(spec);
+    Editor.editor.fillIn(spec);
     await Editor.plan();
   };
 
-  test('the default state is an editor with an explanation popup', async function (assert) {
-    assert.expect(2);
+  const waitForReviewStage = async () => {
+    await waitUntil(() => Editor.runIsPresent);
+  };
 
+  test('the default state is an editor with an explanation popup', async function (assert) {
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
@@ -123,18 +123,18 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
 
-    const cm = getCodeMirrorInstance(['data-test-editor']);
+    const cm = this.getCodeMirrorInstance(['data-test-editor']);
     cm.setValue(spec);
     await Editor.plan();
 
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.notOk(
       requests.includes('/v1/jobs/parse'),
-      'JSON job spec is not parsed'
+      'JSON job spec is not parsed',
     );
     assert.ok(
       requests.includes(`/v1/job/${newJobName}/plan`),
-      'JSON job spec is still planned'
+      'JSON job spec is still planned',
     );
   });
 
@@ -148,32 +148,31 @@ module('Integration | Component | job-editor', function (hooks) {
     const requests = this.server.pretender.handledRequests.mapBy('url');
     assert.ok(
       requests.includes('/v1/jobs/parse?namespace=*'),
-      'HCL job spec is parsed first'
+      'HCL job spec is parsed first',
     );
     assert.ok(
       requests.includes(`/v1/job/${newJobName}/plan`),
-      'HCL job spec is planned'
+      'HCL job spec is planned',
     );
     assert.ok(
       requests.indexOf('/v1/jobs/parse') <
         requests.indexOf(`/v1/job/${newJobName}/plan`),
-      'Parse comes before Plan'
+      'Parse comes before Plan',
     );
   });
 
   test('when a job is successfully parsed and planned, the plan is shown to the user', async function (assert) {
-    assert.expect(4);
-
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(Editor.planOutput, 'The plan is outputted');
     assert.notOk(
       Editor.editor.isPresent,
-      'The editor is replaced with the plan output'
+      'The editor is replaced with the plan output',
     );
     assert
       .dom('[data-test-plan-help-title]')
@@ -189,18 +188,17 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.cancel();
     assert.ok(Editor.editor.isPresent, 'The editor is shown again');
-    assert.equal(
+    assert.deepEqual(
       Editor.editor.contents,
       spec,
-      'The spec that was planned is still in the editor'
+      'The spec that was planned is still in the editor',
     );
   });
 
   test('when parse fails, the parse error message is shown', async function (assert) {
-    assert.expect(5);
-
     const spec = hclJob();
     const errorMessage = 'Parse Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -218,18 +216,16 @@ module('Integration | Component | job-editor', function (hooks) {
       .doesNotExist('Run error is not shown');
 
     assert.ok(Editor.parseError.isPresent, 'Parse error is shown');
-    assert.equal(
+    assert.deepEqual(
       Editor.parseError.message,
       errorMessage,
-      'The error message from the server is shown in the error in the UI'
+      'The error message from the server is shown in the error in the UI',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('when plan fails, the plan error message is shown', async function (assert) {
-    assert.expect(5);
-
     const spec = hclJob();
     const errorMessage = 'Plan Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -243,6 +239,7 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitUntil(() => Editor.planError.isPresent);
     assert
       .dom('[data-test-error="parse"]')
       .doesNotExist('Parse error is not shown');
@@ -251,18 +248,16 @@ module('Integration | Component | job-editor', function (hooks) {
       .doesNotExist('Run error is not shown');
 
     assert.ok(Editor.planError.isPresent, 'Plan error is shown');
-    assert.equal(
+    assert.deepEqual(
       Editor.planError.message,
       errorMessage,
-      'The error message from the server is shown in the error in the UI'
+      'The error message from the server is shown in the error in the UI',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('when run fails, the run error message is shown', async function (assert) {
-    assert.expect(5);
-
     const spec = hclJob();
     const errorMessage = 'Run Failed!! :o';
     const job = await this.store.createRecord('job');
@@ -272,7 +267,9 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
+    await waitUntil(() => !!Editor.runError.isPresent);
 
     assert
       .dom('[data-test-error="plan"]')
@@ -282,40 +279,39 @@ module('Integration | Component | job-editor', function (hooks) {
       .doesNotExist('Parse error is not shown');
 
     assert.dom('[data-test-error="run"]').exists('Run error is shown');
-    assert.equal(
+    assert.deepEqual(
       Editor.runError.message,
       errorMessage,
-      'The error message from the server is shown in the error in the UI'
+      'The error message from the server is shown in the error in the UI',
     );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('when the scheduler dry-run has errors, the errors are shown to the user', async function (assert) {
-    assert.expect(5);
-
     const spec = jsonJob({ Unschedulable: true });
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(
       Editor.dryRunMessage.errored,
-      'The scheduler dry-run message is in the warning state'
+      'The scheduler dry-run message is in the warning state',
     );
     assert.notOk(
       Editor.dryRunMessage.succeeded,
-      'The success message is not shown in addition to the warning message'
+      'The success message is not shown in addition to the warning message',
     );
     assert.ok(
       Editor.dryRunMessage.body.includes(newJobTaskGroupName),
-      'The scheduler dry-run message includes the warning from send back by the API'
+      'The scheduler dry-run message includes the warning from send back by the API',
     );
 
     assert.notOk(
       Editor.warningMessage.isPresent,
-      'The scheduler dry-run warning block is not present when there is an error but no warnings'
+      'The scheduler dry-run warning block is not present when there is an error but no warnings',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -324,34 +320,33 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('When the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {
-    assert.expect(1);
     const spec = jsonJob({ WithWarnings: true });
     const job = await this.store.createRecord('job');
     await renderNewJob(this, job);
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(
       Editor.warningMessage.isPresent,
-      'The scheduler dry-run warning block is shown to the user'
+      'The scheduler dry-run warning block is shown to the user',
     );
     await percySnapshot(assert);
   });
 
   test('when the scheduler dry-run has no warnings, a success message is shown to the user', async function (assert) {
-    assert.expect(3);
-
     const spec = hclJob();
     const job = await this.store.createRecord('job');
 
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     assert.ok(
       Editor.dryRunMessage.succeeded,
-      'The scheduler dry-run message is in the success state'
+      'The scheduler dry-run message is in the success state',
     );
     assert.notOk(
       Editor.dryRunMessage.errored,
-      'The warning message is not shown in addition to the success message'
+      'The warning message is not shown in addition to the success message',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -380,17 +375,18 @@ module('Integration | Component | job-editor', function (hooks) {
     `);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
       .filterBy('method', 'POST')
       .mapBy('url');
     assert.ok(
       requests.includes(`/v1/job/${newJobName}`),
-      'A request was made to job update'
+      'A request was made to job update',
     );
     assert.notOk(
       requests.includes('/v1/jobs'),
-      'A request was not made to job create'
+      'A request was not made to job create',
     );
   });
 
@@ -401,17 +397,18 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
     const requests = this.server.pretender.handledRequests
       .filterBy('method', 'POST')
       .mapBy('url');
     assert.ok(
       requests.includes('/v1/jobs'),
-      'A request was made to job create'
+      'A request was made to job create',
     );
     assert.notOk(
       requests.includes(`/v1/job/${newJobName}`),
-      'A request was not made to job update'
+      'A request was not made to job update',
     );
   });
 
@@ -422,10 +419,12 @@ module('Integration | Component | job-editor', function (hooks) {
     await renderNewJob(this, job);
 
     await planJob(spec);
+    await waitForReviewStage();
     await Editor.run();
+    await waitUntil(() => this.onSubmit.called);
     assert.ok(
       this.onSubmit.calledWith(newJobName, 'default'),
-      'The onSubmit hook was called with the correct arguments'
+      'The onSubmit hook was called with the correct arguments',
     );
   });
 
@@ -437,8 +436,6 @@ module('Integration | Component | job-editor', function (hooks) {
   });
 
   test('when the job-editor cancelable flag is true, there is a cancel button in the header', async function (assert) {
-    assert.expect(2);
-
     const job = await this.store.createRecord('job');
 
     this.set('job', job);
@@ -492,7 +489,11 @@ module('Integration | Component | job-editor', function (hooks) {
       @onSelect={{this.onSelect}} />`);
 
     // Check if the definition is set on the model
-    assert.equal(job._newDefinition, 'pablo', 'Definition is set on the model');
+    assert.deepEqual(
+      job._newDefinition,
+      'pablo',
+      'Definition is set on the model',
+    );
 
     // Check if the newDefinitionVariables are set on the model
     function jsonToHcl(obj) {
@@ -507,12 +508,12 @@ module('Integration | Component | job-editor', function (hooks) {
       return hclLines.join('\n');
     }
     const expectedVariables = jsonToHcl(this.variables.flags).concat(
-      this.variables.literal
+      this.variables.literal,
     );
     assert.deepEqual(
       job._newDefinitionVariables,
       expectedVariables,
-      'Variables are set on the model'
+      'Variables are set on the model',
     );
   });
 });

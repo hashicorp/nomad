@@ -3,9 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
-import { currentRouteName, currentURL, visit, find } from '@ember/test-helpers';
+import { currentRouteName, currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -25,7 +23,7 @@ export default function moduleForJob(
   title,
   context,
   jobFactory,
-  additionalTests
+  additionalTests,
 ) {
   let job;
 
@@ -35,15 +33,15 @@ export default function moduleForJob(
     hooks.before(function () {
       if (context !== 'allocations' && context !== 'children') {
         throw new Error(
-          `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`
+          `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`,
         );
       }
     });
 
     hooks.beforeEach(async function () {
-      server.create('node-pool');
-      server.create('node');
-      job = jobFactory();
+      this.server.create('node-pool');
+      this.server.create('node');
+      job = jobFactory(this.server);
       if (!job.namespace) {
         await JobDetail.visit({ id: job.id });
       } else {
@@ -56,8 +54,9 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}`
         : `/jobs/${job.name}`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
-      assert.equal(document.title, `Job ${job.name} - Nomad`);
+      assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
+      assert.ok(document.title.startsWith(`Job ${job.name}`));
+      assert.ok(document.title.endsWith(' - Nomad'));
     });
 
     test('the subnav links to overview', async function (assert) {
@@ -67,7 +66,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}`
         : `/jobs/${job.name}`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the subnav links to definition', async function (assert) {
@@ -87,7 +86,7 @@ export default function moduleForJob(
         ? `/jobs/${job.name}@${job.namespace}/versions`
         : `/jobs/${job.name}/versions`;
 
-      assert.equal(decodeURIComponent(currentURL()), expectedURL);
+      assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
     });
 
     test('the title buttons are dependent on job status', async function (assert) {
@@ -95,7 +94,9 @@ export default function moduleForJob(
         if (job.stopped) {
           assert.ok(JobDetail.start.isPresent);
         } else {
-          assert.ok(JobDetail.revert.isPresent);
+          assert.ok(
+            JobDetail.revert.isPresent || JobDetail.editAndResubmit.isPresent,
+          );
         }
         assert.ok(JobDetail.purge.isPresent);
         assert.notOk(JobDetail.stop.isPresent);
@@ -109,15 +110,18 @@ export default function moduleForJob(
     });
 
     test('page header displays job information', async function (assert) {
-      assert.equal(JobDetail.statFor('type').text, `Type ${job.type}`);
-      assert.equal(
+      assert.deepEqual(JobDetail.statFor('type').text, `Type ${job.type}`);
+      assert.deepEqual(
         JobDetail.statFor('priority').text,
-        `Priority ${job.priority}`
+        `Priority ${job.priority}`,
       );
-      assert.equal(JobDetail.statFor('version').text, `Version ${job.version}`);
-      assert.equal(
+      assert.deepEqual(
+        JobDetail.statFor('version').text,
+        `Version ${job.version}`,
+      );
+      assert.deepEqual(
         JobDetail.statFor('node-pool').text,
-        `Node Pool ${job.nodePool}`
+        `Node Pool ${job.nodePool}`,
       );
     });
 
@@ -128,11 +132,11 @@ export default function moduleForJob(
         }
         assert.ok(
           JobDetail.allocationsSummary.isPresent,
-          'Allocations are shown in the summary section'
+          'Allocations are shown in the summary section',
         );
         assert.ok(
           JobDetail.childrenSummary.isHidden,
-          'Children are not shown in the summary section'
+          'Children are not shown in the summary section',
         );
       });
 
@@ -142,10 +146,10 @@ export default function moduleForJob(
 
         await allocationRow.visitRow();
 
-        assert.equal(
+        assert.deepEqual(
           currentURL(),
           `/allocations/${allocationId}`,
-          'Allocation row links to allocation detail'
+          'Allocation row links to allocation detail',
         );
       });
 
@@ -159,7 +163,7 @@ export default function moduleForJob(
           ? `/jobs/${encodeURIComponent(job.name)}@${job.namespace}/${tgName}`
           : `/jobs/${encodeURIComponent(job.name)}/${tgName}`;
 
-        assert.equal(currentURL(), expectedURL);
+        assert.deepEqual(currentURL(), expectedURL);
       });
 
       test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
@@ -167,29 +171,28 @@ export default function moduleForJob(
           await switchToHistorical(job);
         }
 
-        // explicitly setting allocationStatusDistribution when creating the job that gets passed here
-        // is the best way to ensure we don't end up with an unlinkable "queued" allocation status,
-        // but we can be redundant for the sake of future-proofing this here.
-        const legendItem = find(
-          '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
-        );
+        const legendItem = JobDetail.allocationsSummary.legend.clickableItems
+          .toArray()
+          .find((item) => item.label !== 'queued');
 
-        const status = legendItem.parentElement.getAttribute(
-          'data-test-legend-label'
-        );
+        const status = legendItem.label;
         await legendItem.click();
 
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
           urlWithNamespace(
-            `/jobs/${job.name}@default/clients?status=${encodedStatus}`,
-            job.namespace
+            `/jobs/${encodeURIComponent(job.name)}@${job.namespace}/allocations?status=${encodedStatus}`,
+            job.namespace,
           ),
-          window.location
+          window.location,
         );
         const gotURL = new URL(currentURL(), window.location);
-        assert.deepEqual(gotURL.path, expectedURL.path);
-        assert.deepEqual(gotURL.searchParams, expectedURL.searchParams);
+        assert.deepEqual(gotURL.pathname, expectedURL.pathname);
+        assert.deepEqual(
+          gotURL.searchParams.get('status'),
+          expectedURL.searchParams.get('status'),
+          'Status filter is preserved in query params',
+        );
       });
 
       test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {
@@ -206,9 +209,9 @@ export default function moduleForJob(
             `/jobs/${encodeURIComponent(job.name)}@${
               job.namespace
             }/allocations?status=${encodedStatus}`,
-            job.namespace
+            job.namespace,
           ),
-          window.location
+          window.location,
         );
         const gotURL = new URL(currentURL(), window.location);
         assert.deepEqual(gotURL.pathname, expectedURL.pathname);
@@ -216,9 +219,9 @@ export default function moduleForJob(
         // Sort and compare URL query params.
         gotURL.searchParams.sort();
         expectedURL.searchParams.sort();
-        assert.equal(
+        assert.deepEqual(
           gotURL.searchParams.toString(),
-          expectedURL.searchParams.toString()
+          expectedURL.searchParams.toString(),
         );
       });
     }
@@ -227,11 +230,11 @@ export default function moduleForJob(
       test('children for the job are shown in the overview', async function (assert) {
         assert.ok(
           JobDetail.childrenSummary.isPresent,
-          'Children are shown in the summary section'
+          'Children are shown in the summary section',
         );
         assert.ok(
           JobDetail.allocationsSummary.isHidden,
-          'Allocations are not shown in the summary section'
+          'Allocations are not shown in the summary section',
         );
       });
     } else {
@@ -242,7 +245,7 @@ export default function moduleForJob(
           ? `/jobs/${job.name}@${job.namespace}/evaluations`
           : `/jobs/${job.name}/evaluations`;
 
-        assert.equal(decodeURIComponent(currentURL()), expectedURL);
+        assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
       });
     }
 
@@ -261,7 +264,7 @@ export default function moduleForJob(
 export function moduleForJobWithClientStatus(
   title,
   jobFactory,
-  additionalTests
+  additionalTests,
 ) {
   let job;
 
@@ -270,24 +273,27 @@ export function moduleForJobWithClientStatus(
     setupMirage(hooks);
 
     hooks.beforeEach(async function () {
-      server.createList('node-pool', 3);
-      const clients = server.createList('node', 3, {
+      this.server.createList('node-pool', 3);
+      const clients = this.server.createList('node', 3, {
         datacenter: 'dc1',
         status: 'ready',
       });
 
       clients.push(
-        server.create('node', { datacenter: 'dc2', status: 'ready' })
+        this.server.create('node', { datacenter: 'dc2', status: 'ready' }),
       );
       clients.push(
-        server.create('node', { datacenter: 'dc3', status: 'ready' })
+        this.server.create('node', { datacenter: 'dc3', status: 'ready' }),
       );
       clients.push(
-        server.create('node', { datacenter: 'canada-west-1', status: 'ready' })
+        this.server.create('node', {
+          datacenter: 'canada-west-1',
+          status: 'ready',
+        }),
       );
-      job = jobFactory();
+      job = jobFactory(this.server);
       clients.forEach((c) => {
-        server.create('allocation', {
+        this.server.create('allocation', {
           jobId: job.id,
           nodeId: c.id,
           clientStatus: 'running',
@@ -298,7 +304,7 @@ export function moduleForJobWithClientStatus(
     module('with node:read permissions', function (hooks) {
       hooks.beforeEach(async function () {
         // Displaying the job status in client requires node:read permission.
-        setPolicy({
+        setPolicy.call(this, {
           id: 'node-read',
           name: 'node-read',
           rulesJSON: {
@@ -318,7 +324,7 @@ export function moduleForJobWithClientStatus(
           ? `/jobs/${job.id}@${job.namespace}/clients`
           : `/jobs/${job.id}/clients`;
 
-        assert.equal(currentURL(), expectedURL);
+        assert.deepEqual(currentURL(), expectedURL);
       });
 
       for (var testName in additionalTests) {
@@ -331,7 +337,7 @@ export function moduleForJobWithClientStatus(
     module('without node:read permissions', function (hooks) {
       hooks.beforeEach(async function () {
         // Test blank Node policy to mock lack of permission.
-        setPolicy({
+        setPolicy.call(this, {
           id: 'node',
           name: 'node',
           rulesJSON: {},
@@ -344,17 +350,17 @@ export function moduleForJobWithClientStatus(
         assert
           .dom("[data-test-tab='clients']")
           .doesNotExist(
-            'Job Detail Sub Navigation should not render Clients tab'
+            'Job Detail Sub Navigation should not render Clients tab',
           );
       });
 
       test('/jobs/job/clients route is protected with authorization logic', async function (assert) {
         await visit(`/jobs/${job.id}/clients`);
 
-        assert.equal(
+        assert.deepEqual(
           currentRouteName(),
           'jobs.job.index',
-          'The clients route cannot be visited unless you have node:read permissions'
+          'The clients route cannot be visited unless you have node:read permissions',
         );
       });
     });

@@ -9,15 +9,11 @@
 
   .lifecycle-phases {
     position: absolute;
-    top: 1.5em;
-    bottom: 1.5em;
-    right: 1.5em;
-    left: 1.5em;
+    inset: 1.5em;
 
     .divider {
       position: absolute;
       height: 100%;
-
       stroke: $ui-gray-200;
       stroke-width: 3px;
       stroke-dasharray: 1, 7;
@@ -38,7 +34,6 @@
     position: absolute;
     bottom: 0;
     top: 0;
-
     border-top: 2px solid transparent;
 
     .name {
@@ -86,7 +81,8 @@
     position: relative;
     padding: 0.25rem 0.5rem;
 
-    $pending-mid: rgba(255, 255, 255, 0.5);
+    $pending-mid: rgb(255 255 255 / 50%);
+
     .hds-alert {
       padding: 4px 8px;
 
@@ -95,8 +91,8 @@
         overflow: hidden;
         border-style: dashed;
 
-        &:before {
-          content: '';
+        &::before {
+          content: "";
           position: absolute;
           top: 0;
           left: 0;

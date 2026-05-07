@@ -3,16 +3,25 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{did-update this.onViewChange @view}}
-{{did-insert this.establishKeyValues}}
+{{did-update-helper this.onViewChange @view}}
+{{did-insert-helper this.establishKeyValues}}
 <form class="new-variables" autocomplete="off" {{on "submit" this.save}}>
 
   {{#if @model.isNew}}
     {{#unless this.isJobTemplateVariable}}
       <div class="related-entities related-entities-hint">
-        <p>Prefix your path with <code>nomad/jobs</code> to automatically make your variable accessible to all jobs. <br />
-        Adding job name, group name, or task name will make your variable available to that specific job, group, or task. <br />
-        Format: <code>nomad/jobs/&lt;jobname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>, <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
+        <p>Prefix your path with
+          <code>nomad/jobs</code>
+          to automatically make your variable accessible to all jobs.
+          <br />
+          Adding job name, group name, or task name will make your variable
+          available to that specific job, group, or task.
+          <br />
+          Format:
+          <code>nomad/jobs/&lt;jobname&gt;</code>,
+          <code>nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;</code>,
+          <code
+          >nomad/jobs/&lt;jobname&gt;/&lt;groupname&gt;/&lt;taskname&gt;</code></p>
       </div>
     {{/unless}}
 
@@ -31,38 +40,60 @@
   {{#if this.hasConflict}}
     <div class="notification conflict is-danger">
       <h3 class="title is-4">Heads up! Your variable has a conflict.</h3>
-      <p>This might be because someone else tried saving in the time since you've had it open.</p>
+      <p>This might be because someone else tried saving in the time since
+        you've had it open.</p>
       {{#if this.conflictingVariable.modifyTime}}
-        <span class="tooltip" aria-label="{{format-ts this.conflictingVariable.modifyTime}}">
+        <span
+          class="tooltip"
+          aria-label="{{format-ts this.conflictingVariable.modifyTime}}"
+        >
           {{moment-from-now this.conflictingVariable.modifyTime}}
         </span>
       {{/if}}
       {{#if this.conflictingVariable.items}}
-        <pre><code>{{stringify-object this.conflictingVariable.items whitespace=2}}</code></pre>
+        <pre><code>{{stringify-object
+              this.conflictingVariable.items
+              whitespace=2
+            }}</code></pre>
       {{else}}
-        <p>Your ACL token limits your ability to see further details about the conflicting variable.</p>
+        <p>Your ACL token limits your ability to see further details about the
+          conflicting variable.</p>
       {{/if}}
       <div class="options">
-        <button data-test-refresh-button type="button" class="button" {{on "click" this.refresh}}>Refresh your browser</button>
-        <button data-test-overwrite-button type="button" class="button is-danger" {{on "click" this.saveWithOverwrite}}>Overwrite anyway</button>
+        <button
+          data-test-refresh-button
+          type="button"
+          class="button"
+          {{on "click" this.refresh}}
+        >Refresh your browser</button>
+        <button
+          data-test-overwrite-button
+          type="button"
+          class="button is-danger"
+          {{on "click" this.saveWithOverwrite}}
+        >Overwrite anyway</button>
       </div>
     </div>
   {{/if}}
 
   <div class={{if this.namespaceOptions "path-namespace"}}>
 
-		<Hds::Form::TextInput::Field
-			@isRequired={{true}}
-			@value={{this.path}}
-			placeholder="nomad/jobs/my-job/my-group/my-task"
-      @isInvalid={{or this.duplicatePathWarning (and @model.isNew this.hasInvalidPath)}}
-      {{on "input" (action this.setModelPath)}}
+    <Hds::Form::TextInput::Field
+      @isRequired={{true}}
+      @value={{this.path}}
+      placeholder="nomad/jobs/my-job/my-group/my-task"
+      @isInvalid={{or
+        this.duplicatePathWarning
+        (and @model.isNew this.hasInvalidPath)
+      }}
+      {{on "input" this.setModelPath}}
       disabled={{not @model.isNew}}
-			{{autofocus}}
+      {{autofocus}}
       data-test-path-input
-		as |F|>
-			<F.Label>Path</F.Label>
-      
+      as |F|
+    >
+      <F.Label>Path</F.Label>
+
       {{#if this.duplicatePathWarning}}
         <F.Error data-test-duplicate-variable-error>
           There is already a variable located at
@@ -72,7 +103,11 @@
           Please choose a different path, or
           <LinkTo
             @route="variables.variable.edit"
-            @model={{concat this.duplicatePathWarning.path "@" (or this.variableNamespace "default")}}
+            @model={{concat
+              this.duplicatePathWarning.path
+              "@"
+              (or this.variableNamespace "default")
+            }}
           >
             edit the existing variable
           </LinkTo>
@@ -82,20 +117,23 @@
       {{#if @model.isNew}}
         {{#if this.hasInvalidPath}}
           <F.Error data-test-invalid-path-error>
-            Path must contain only alphanumeric or "-", "_", "~", or "/" characters, and be fewer than 128 characters in length.
+            Path must contain only alphanumeric or "-", "_", "~", or "/"
+            characters, and be fewer than 128 characters in length.
           </F.Error>
         {{/if}}
       {{/if}}
       {{#if this.isJobTemplateVariable}}
         <F.HelperText data-test-job-template-hint>
-          Use this variable to generate job templates with <Hds::Copy::Snippet @textToCopy="nomad job init -template={{this.jobTemplateName}}" />
+          Use this variable to generate job templates with
+          <Hds::Copy::Snippet
+            @textToCopy="nomad job init -template={{this.jobTemplateName}}"
+          />
         </F.HelperText>
       {{/if}}
-		</Hds::Form::TextInput::Field>
+    </Hds::Form::TextInput::Field>
 
-
-    <VariableForm::NamespaceFilter 
-      @data={{hash 
+    <VariableForm::NamespaceFilter
+      @data={{hash
         disabled=(not @model.isNew)
         selection=this.variableNamespace
         namespaceOptions=this.namespaceOptions
@@ -122,7 +160,7 @@
           {{code-mirror
             content=this.JSONItems
             onUpdate=this.updateCode
-            extraKeys=(hash Cmd-Enter=(action "save"))
+            extraKeys=(hash Cmd-Enter=this.save)
           }}
         ></div>
         {{#if this.JSONError}}
@@ -139,14 +177,18 @@
             data-test-var-key
             class="input"
             {{autofocus ignore=(eq iter 0)}}
-            {{on "input" (action this.validateKey entry)}}
-          as |F|>
+            {{on "input" (fn this.validateKey entry)}}
+            as |F|
+          >
             <F.Label>Key</F.Label>
           </Hds::Form::TextInput::Field>
           <VariableForm::InputGroup @entry={{entry}} />
-          <Hds::Button @text="Delete" @color="critical" class="delete-entry-button"
+          <Hds::Button
+            @text="Delete"
+            @color="critical"
+            class="delete-entry-button"
             disabled={{eq this.keyValues.length 1}}
-            {{on "click" (action this.deleteRow entry)}}
+            {{on "click" (fn this.deleteRow entry)}}
           />
           {{#each-in entry.warnings as |k v|}}
             <span class="key-value-error help is-danger">
@@ -166,14 +208,17 @@
           @color="secondary"
           @size="medium"
           @icon="plus"
-          {{!-- only enable if the last entry isn't empty --}}
-          disabled={{not (and this.keyValues.lastObject.key this.keyValues.lastObject.value)}} {{on "click" this.appendRow}}
+          {{! only enable if the last entry isn't empty }}
+          disabled={{not
+            (and this.keyValues.lastObject.key this.keyValues.lastObject.value)
+          }}
+          {{on "click" this.appendRow}}
           data-test-add-kv
         />
       {{/unless}}
     {{/unless}}
     <Hds::Button
-      @text="Save {{pluralize "Variable" this.keyValues.length}}"
+      @text="Save {{pluralize 'Variable' this.keyValues.length}}"
       @color="primary"
       type="submit"
       disabled={{this.shouldDisableSave}}

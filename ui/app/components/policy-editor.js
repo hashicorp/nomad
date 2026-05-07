@@ -5,7 +5,7 @@
 
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
@@ -32,7 +32,7 @@ export default class PolicyEditorComponent extends Component {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.policy.name?.match(nameRegex)) {
         throw new Error(
-          `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
+          `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`,
         );
       }
       const shouldRedirectAfterSave = this.policy.isNew;
@@ -47,7 +47,7 @@ export default class PolicyEditorComponent extends Component {
           .findBy('name', this.policy.name)
       ) {
         throw new Error(
-          `A policy with name ${this.policy.name} already exists.`
+          `A policy with name ${this.policy.name} already exists.`,
         );
       }
       this.policy.set('id', this.policy.name);
@@ -61,7 +61,7 @@ export default class PolicyEditorComponent extends Component {
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
           'administration.policies.policy',
-          this.policy.id
+          this.policy.id,
         );
       }
     } catch (err) {

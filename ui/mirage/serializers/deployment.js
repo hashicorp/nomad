@@ -22,5 +22,8 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeDeployment(deployment) {
-  deployment.TaskGroups = deployment.DeploymentTaskGroupSummaries.reduce(arrToObj('Name'), {});
+  deployment.TaskGroups = deployment.DeploymentTaskGroupSummaries.reduce(
+    arrToObj('Name'),
+    {},
+  );
 }

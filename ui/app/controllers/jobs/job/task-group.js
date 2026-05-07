@@ -4,13 +4,13 @@
  */
 
 /* eslint-disable ember/no-incorrect-calls-with-inline-anonymous-functions */
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { alias, readOnly } from '@ember/object/computed';
 import Controller from '@ember/controller';
 import { action, computed, get } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import intersection from 'lodash.intersection';
-import Sortable from 'nomad-ui/mixins/sortable';
+import SortableFactory from 'nomad-ui/mixins/sortable-factory';
 import Searchable from 'nomad-ui/mixins/searchable';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import {
@@ -22,12 +22,13 @@ import localStorageProperty from 'nomad-ui/utils/properties/local-storage';
 
 @classic
 export default class TaskGroupController extends Controller.extend(
-  Sortable,
+  SortableFactory(['modifyIndex', 'name', 'shortId', 'clientStatus']),
   Searchable,
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   @service userSettings;
-  @service can;
+  @service abilities;
+  @service router;
 
   queryParams = [
     {
@@ -91,7 +92,7 @@ export default class TaskGroupController extends Controller.extend(
       }
       if (
         selectionClient.length &&
-        !selectionClient.includes(alloc.get('node.shortId'))
+        !selectionClient.includes(this.clientKeyForAllocation(alloc))
       ) {
         return false;
       }
@@ -100,6 +101,9 @@ export default class TaskGroupController extends Controller.extend(
     });
   }
 
+  clientKeyForAllocation(allocation) {
+    return allocation?.nodeID?.split('-')?.[0] || null;
+  }
   @alias('filteredAllocations') listToSort;
   @alias('listSorted') listToSearch;
   @alias('listSearched') sortedAllocations;
@@ -128,7 +132,7 @@ export default class TaskGroupController extends Controller.extend(
   @computed('model.job.{namespace,runningDeployment}')
   get tooltipText() {
     if (
-      this.can.cannot('scale job', null, {
+      this.abilities.cannot('scale job', null, {
         namespace: this.model.job.namespace.get('name'),
       })
     )
@@ -140,7 +144,7 @@ export default class TaskGroupController extends Controller.extend(
 
   @action
   gotoAllocation(allocation) {
-    this.transitionToRoute('allocations.allocation', allocation.id);
+    this.router.transitionTo('allocations.allocation', allocation.id);
   }
 
   @action
@@ -162,21 +166,26 @@ export default class TaskGroupController extends Controller.extend(
   @computed('model.allocations.[]', 'selectionClient')
   get optionsClients() {
     const clients = Array.from(
-      new Set(this.model.allocations.mapBy('node.shortId'))
+      new Set(
+        this.model.allocations
+          .map((allocation) => this.clientKeyForAllocation(allocation))
+          .filter(Boolean),
+      ),
     ).compact();
 
     // Update query param when the list of clients changes.
-    scheduleOnce('actions', () => {
+    scheduleOnce('actions', this, () => {
       // eslint-disable-next-line ember/no-side-effects
       this.set(
         'qpClient',
-        serialize(intersection(clients, this.selectionClient))
+        serialize(intersection(clients, this.selectionClient)),
       );
     });
 
     return clients.sort().map((dc) => ({ key: dc, label: dc }));
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }

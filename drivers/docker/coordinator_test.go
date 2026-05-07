@@ -7,17 +7,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"iter"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/image"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/jsonstream"
+	mclient "github.com/moby/moby/client"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +28,7 @@ type mockImageClient struct {
 	idToName   map[string]string
 	removed    map[string]int
 	pullDelay  time.Duration
-	pullReader io.ReadCloser
+	pullReader mclient.ImagePullResponse
 	lock       sync.Mutex
 }
 
@@ -40,7 +41,7 @@ func newMockImageClient(idToName map[string]string, pullDelay time.Duration) *mo
 	}
 }
 
-func (m *mockImageClient) ImagePull(ctx context.Context, refStr string, opts image.PullOptions) (io.ReadCloser, error) {
+func (m *mockImageClient) ImagePull(ctx context.Context, refStr string, opts mclient.ImagePullOptions) (mclient.ImagePullResponse, error) {
 	select {
 	case <-ctx.Done():
 		return nil, fmt.Errorf("mockImageClient.ImagePull aborted: %w", ctx.Err())
@@ -52,19 +53,21 @@ func (m *mockImageClient) ImagePull(ctx context.Context, refStr string, opts ima
 	return m.pullReader, nil
 }
 
-func (m *mockImageClient) ImageInspectWithRaw(ctx context.Context, id string) (types.ImageInspect, []byte, error) {
+func (m *mockImageClient) ImageInspect(ctx context.Context, id string, inspectOpts ...mclient.ImageInspectOption) (mclient.ImageInspectResult, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return types.ImageInspect{
-		ID: m.idToName[id],
-	}, []byte{}, nil
+	return mclient.ImageInspectResult{
+		InspectResponse: image.InspectResponse{
+			ID: m.idToName[id],
+		},
+	}, nil
 }
 
-func (m *mockImageClient) ImageRemove(ctx context.Context, id string, opts image.RemoveOptions) ([]image.DeleteResponse, error) {
+func (m *mockImageClient) ImageRemove(ctx context.Context, id string, opts mclient.ImageRemoveOptions) (mclient.ImageRemoveResult, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.removed[id]++
-	return []image.DeleteResponse{}, nil
+	return mclient.ImageRemoveResult{}, nil
 }
 
 type readErrorer struct {
@@ -72,7 +75,7 @@ type readErrorer struct {
 	closeError error
 }
 
-var _ io.ReadCloser = &readErrorer{}
+var _ mclient.ImagePullResponse = &readErrorer{}
 
 func (r *readErrorer) Read(p []byte) (n int, err error) {
 	return len(p), r.readErr
@@ -80,6 +83,14 @@ func (r *readErrorer) Read(p []byte) (n int, err error) {
 
 func (r *readErrorer) Close() error {
 	return r.closeError
+}
+
+func (r *readErrorer) JSONMessages(ctx context.Context) iter.Seq2[jsonstream.Message, error] {
+	return func(yield func(jsonstream.Message, error) bool) {}
+}
+
+func (r *readErrorer) Wait(ctx context.Context) error {
+	return nil
 }
 
 func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {

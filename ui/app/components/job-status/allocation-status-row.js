@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
@@ -22,7 +21,7 @@ export default class JobStatusAllocationStatusRowComponent extends Component {
       .reduce(
         (totalSlots, allocsByCanary) =>
           totalSlots + (allocsByCanary ? allocsByCanary.length : 0),
-        0
+        0,
       );
   }
 
@@ -46,6 +45,7 @@ export default class JobStatusAllocationStatusRowComponent extends Component {
       .filter((allocs) => allocs.length > 0).length;
   }
 
+  @action
   calcPerc(count) {
     if (this.args.compact) {
       const totalGaps =

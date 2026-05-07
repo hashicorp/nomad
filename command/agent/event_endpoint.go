@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/moby/moby/v2/pkg/ioutils"
 	"golang.org/x/sync/errgroup"
 )
 

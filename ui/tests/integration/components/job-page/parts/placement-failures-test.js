@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
 /* Mirage fixtures are random so we can't expect a set number of assertions */
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -45,10 +44,10 @@ module(
       this.set('job', job);
 
       await render(hbs`
-      <JobPage::Parts::PlacementFailures @job={{job}} />)
+      <JobPage::Parts::PlacementFailures @job={{this.job}} />)
     `);
 
-      const failedEvaluation = this.get('job.evaluations')
+      const failedEvaluation = this.job.evaluations
         .filterBy('hasPlacementFailures')
         .sortBy('modifyIndex')
         .reverse()
@@ -57,24 +56,24 @@ module(
 
       assert.ok(
         find('[data-test-placement-failures]'),
-        'Placement failures section found'
+        'Placement failures section found',
       );
 
       const taskGroupLabels = findAll(
-        '[data-test-placement-failure-task-group]'
+        '[data-test-placement-failure-task-group]',
       ).map((title) => title.textContent.trim());
 
       failedTGAllocs.forEach((alloc) => {
         const name = alloc.get('name');
         assert.ok(
           taskGroupLabels.find((label) => label.includes(name)),
-          `${name} included in placement failures list`
+          `${name} included in placement failures list`,
         );
         assert.ok(
           taskGroupLabels.find((label) =>
-            label.includes(alloc.get('coalescedFailures') + 1)
+            label.includes(alloc.get('coalescedFailures') + 1),
           ),
-          'The number of unplaced allocs = CoalescedFailures + 1'
+          'The number of unplaced allocs = CoalescedFailures + 1',
         );
       });
 
@@ -94,13 +93,13 @@ module(
       this.set('job', job);
 
       await render(hbs`
-      <JobPage::Parts::PlacementFailures @job={{job}} />)
+      <JobPage::Parts::PlacementFailures @job={{this.job}} />)
     `);
 
       assert.notOk(
         find('[data-test-placement-failures]'),
-        'Placement failures section not found'
+        'Placement failures section not found',
       );
     });
-  }
+  },
 );

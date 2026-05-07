@@ -1518,7 +1518,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 	// Fetch the response
 	var resp structs.JobRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), structs.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -1570,7 +1570,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), structs.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -1587,7 +1587,7 @@ func TestJobEndpoint_Register_EnforceIndex(t *testing.T) {
 
 	// Fetch the response
 	err = msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-	if err == nil || !strings.Contains(err.Error(), RegisterEnforceIndexErrPrefix) {
+	if err == nil || !strings.Contains(err.Error(), structs.RegisterEnforceIndexErrPrefix) {
 		t.Fatalf("expected enforcement error")
 	}
 
@@ -1975,6 +1975,7 @@ func TestJobEndpoint_Register_ValidateMemoryMax(t *testing.T) {
 	submitNewJob := func() *structs.JobRegisterResponse {
 		job := mock.Job()
 		job.TaskGroups[0].Tasks[0].Resources.MemoryMaxMB = 2000
+		job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		req := &structs.JobRegisterRequest{
 			Job: job,
@@ -1987,20 +1988,20 @@ func TestJobEndpoint_Register_ValidateMemoryMax(t *testing.T) {
 		// Fetch the response
 		var resp structs.JobRegisterResponse
 		err := msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		return &resp
 	}
 
 	// try default case: Memory oversubscription is disabled
 	resp := submitNewJob()
-	require.Contains(t, resp.Warnings, "Memory oversubscription is not enabled")
+	must.StrContains(t, resp.Warnings, "Memory oversubscription is not enabled")
 
 	// enable now and try again
 	s1.State().SchedulerSetConfig(100, &structs.SchedulerConfiguration{
 		MemoryOversubscriptionEnabled: true,
 	})
 	resp = submitNewJob()
-	require.Empty(t, resp.Warnings)
+	must.Eq(t, "", resp.Warnings)
 }
 
 func TestJobEndpoint_Register_ValidateMemoryMax_NodePool(t *testing.T) {
@@ -2083,6 +2084,7 @@ func TestJobEndpoint_Register_ValidateMemoryMax_NodePool(t *testing.T) {
 			// Create job with node_pool and memory_max.
 			job := mock.Job()
 			job.TaskGroups[0].Tasks[0].Resources.MemoryMaxMB = 2000
+			job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 			job.NodePool = tc.pool
 
 			req := &structs.JobRegisterRequest{
@@ -6496,21 +6498,24 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 	t.Run("plain job", func(t *testing.T) {
 		j := mock.Job()
-		require.NoError(t, validateJob(j))
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
+		must.NoError(t, validateJob(j))
 	})
 	t.Run("valid consul connect", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
 		tg.Networks[0].Mode = "bridge"
 
 		err := validateJob(j)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("valid consul connect with cni", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6522,6 +6527,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 	t.Run("consul connect but missing network", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6533,6 +6539,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 
 	t.Run("consul connect but non bridge network", func(t *testing.T) {
 		j := mock.Job()
+		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6657,7 +6664,6 @@ func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
 
 func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
@@ -6667,6 +6673,7 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 	req := &structs.JobValidateRequest{
 		Job: job,
@@ -6679,16 +6686,16 @@ func TestJobEndpoint_ValidateJobUpdate_ACL(t *testing.T) {
 	// Attempt to update without providing a valid token
 	var resp structs.JobValidateResponse
 	err := msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &resp)
-	require.NotNil(err)
+	must.NotNil(t, err)
 
 	// Update with a valid token
 	req.AuthToken = root.SecretID
 	var validResp structs.JobValidateResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.Validate", req, &validResp)
-	require.Nil(err)
+	must.Nil(t, err)
 
-	require.Equal("", validResp.Error)
-	require.Equal("", validResp.Warnings)
+	must.Eq(t, "", validResp.Error)
+	must.Eq(t, "", validResp.Warnings)
 }
 
 func TestJobEndpoint_ValidateJob_PriorityNotOk(t *testing.T) {
@@ -7252,7 +7259,11 @@ func TestJobEndpoint_Dispatch_JobChildrenSummary(t *testing.T) {
 		require.NoError(t, err)
 		nalloc = nalloc.Copy()
 		nalloc.ClientStatus = status
-		err = s1.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIdx, []*structs.Allocation{nalloc})
+
+		updateReq := structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{nalloc},
+		}
+		err = s1.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIdx, updateReq)
 		require.NoError(t, err)
 	}
 
@@ -8147,6 +8158,70 @@ func TestJobEndpoint_InvalidCount(t *testing.T) {
 	require.Error(err)
 }
 
+// Regression test to make sure the Job.Scale endpoint doesn't accidentally
+// cause a job to revert to a previous version.
+func TestJobEndpoint_Scale_StaleSnapshotClobbersDeployment(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+	state := s1.fsm.State()
+
+	// This is the initial job. Set `meta.version` to a known value to later
+	// check whether it was incorrectly reverted.
+	job := mock.Job()
+	job.Meta["version"] = "v0"
+
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job:          job,
+		WriteRequest: structs.WriteRequest{Region: "global", Namespace: job.Namespace},
+	}, &structs.JobRegisterResponse{}))
+
+	jobV0, err := state.JobByID(nil, job.Namespace, job.ID)
+	must.NoError(t, err)
+	must.Eq(t, 0, jobV0.Version)
+	must.Eq(t, 10, jobV0.TaskGroups[0].Count)
+	v0ModifyIndex := jobV0.ModifyIndex
+
+	// The autoscaler calls Job.Scale via the public API. Internally, the
+	// Job.Scale handler snapshots the current job, modifies the count, and
+	// commits the full job spec via raftApply. Capture what that stale commit
+	// would look like: a copy of v0 with a new count.
+	staleScaledJob := jobV0.Copy()
+	staleScaledJob.TaskGroups[0].Count = 15
+
+	// Before the Job.Scale handler's raftApply commits, someone deploys a new
+	// version of the service via Job.Register.
+	jobV1Spec := jobV0.Copy()
+	jobV1Spec.Meta["version"] = "v1"
+
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", &structs.JobRegisterRequest{
+		Job:          jobV1Spec,
+		WriteRequest: structs.WriteRequest{Region: "global", Namespace: job.Namespace},
+	}, &structs.JobRegisterResponse{}))
+
+	jobV1, err := state.JobByID(nil, job.Namespace, job.ID)
+	must.NoError(t, err)
+	must.Eq(t, 1, jobV1.Version)
+	must.Eq(t, 10, jobV1.TaskGroups[0].Count)
+	must.Eq(t, "v1", jobV1.Meta["version"])
+
+	// Showing the race via goroutines would be flaky. Instead, replay exactly
+	// what the Job.Scale handler does internally: commit the stale job spec via
+	// raftApply with EnforceIndex=true and the ModifyIndex from the snapshot.
+	// This must be rejected because v1 has since superseded v0.
+	_, _, raftErr := s1.raftApply(structs.JobRegisterRequestType, structs.JobRegisterRequest{
+		Job:            staleScaledJob,
+		EnforceIndex:   true,
+		JobModifyIndex: v0ModifyIndex, // stale: v1 has a higher ModifyIndex
+		WriteRequest:   structs.WriteRequest{Region: "global", Namespace: job.Namespace},
+	})
+
+	must.Error(t, raftErr, must.Sprint("expected stale scale to be rejected but it overwrote a later deployment"))
+}
+
 func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
@@ -8634,11 +8709,11 @@ func TestJob_TagVersion(t *testing.T) {
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
-	state := s1.fsm.State()
+	store := s1.fsm.State()
 
 	job := mock.Job()
-	err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
-	must.Nil(t, err)
+	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
+	must.NoError(t, err)
 
 	// Tag the job version
 	tagVersionReq := &structs.JobApplyTagRequest{
@@ -8654,40 +8729,59 @@ func TestJob_TagVersion(t *testing.T) {
 	}
 
 	// Expect failure for request with an invalid token
-	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
+	invalidToken := mock.CreatePolicyAndToken(t, store, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob}))
 
 	tagVersionReq.AuthToken = invalidToken.SecretID
 	var invalidResp structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &invalidResp)
-	must.NotNil(t, err)
-	must.StrContains(t, err.Error(), "Permission denied")
+	must.ErrorContains(t, err, "Permission denied")
 
 	// Tagging a job with a management token should succeed
 	tagVersionReq.AuthToken = root.SecretID
 	var resp structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
-	// Looking up the job with a valid token should succeed
-	validToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	// Tagging the job with a valid token should succeed
+	validToken := mock.CreatePolicyAndToken(t, store, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilitySubmitJob}))
 	tagVersionReq.AuthToken = validToken.SecretID
 	var resp2 structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp2)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
-	// Looking up the job with a valid fine-grain token should succeed
-	validFineGrainToken := mock.CreatePolicyAndToken(t, state, 1005, "test-valid",
+	// Tagging the job with a valid fine-grain token should succeed
+	validFineGrainToken := mock.CreatePolicyAndToken(t, store, 1005, "test-valid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityTagJobVersion}))
 	tagVersionReq.AuthToken = validFineGrainToken.SecretID
 	var resp3 structs.JobTagResponse
 	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp3)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	must.Eq(t, "release", resp3.Name)
 	must.Eq(t, "Release version tag", resp3.Description)
 	must.NotNil(t, resp3.TaggedTime)
+
+	// update the job
+	job, _ = store.JobByID(nil, job.Namespace, job.ID)
+	job = job.Copy()
+	job.TaskGroups[0].Tasks[0].Resources.CPU++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1100, nil, job))
+
+	// Tag again, this time for the latest version
+	tagVersionReq.Latest = true
+	tagVersionReq.Tag.Name = "next release"
+
+	var resp4 structs.JobTagResponse
+	err = msgpackrpc.CallWithCodec(codec, "Job.TagVersion", tagVersionReq, &resp4)
+	must.NoError(t, err)
+	must.Eq(t, "next release", resp4.Name)
+	must.Eq(t, "Release version tag", resp4.Description)
+	must.NotNil(t, resp4.TaggedTime)
+
+	job, _ = store.JobVersionByTagName(nil, job.Namespace, job.ID, resp4.Name)
+	must.Eq(t, uint64(1), job.Version)
 }
 
 func TestIntegration_SystemDeploymentHealth(t *testing.T) {

@@ -15,7 +15,7 @@ import { helper } from '@ember/component/helper';
  */
 export function formatVolumeName(
   _,
-  { source = '', isPerAlloc, volumeExtension }
+  { source = '', isPerAlloc, volumeExtension },
 ) {
   return `${source}${isPerAlloc ? volumeExtension : ''}`;
 }

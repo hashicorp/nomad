@@ -3,11 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember-a11y-testing/a11y-audit-called */
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { findAll, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 
 module('Integration | Component | app breadcrumbs', function (hooks) {
   setupRenderingTest(hooks);
@@ -18,7 +17,6 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
   ];
 
   test('every breadcrumb is rendered correctly', async function (assert) {
-    assert.expect(3);
     this.set('commonCrumbs', commonCrumbs);
     await render(hbs`
       <AppBreadcrumbs />
@@ -30,16 +28,16 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
     assert
       .dom('[data-test-breadcrumb-default]')
       .exists(
-        'We register the default breadcrumb component if no type is specified on the crumb'
+        'We register the default breadcrumb component if no type is specified on the crumb',
       );
 
     const renderedCrumbs = findAll('[data-test-breadcrumb]');
 
     renderedCrumbs.forEach((crumb, index) => {
-      assert.equal(
+      assert.deepEqual(
         crumb.textContent.trim(),
         commonCrumbs[index].label,
-        `Crumb ${index} is ${commonCrumbs[index].label}`
+        `Crumb ${index} is ${commonCrumbs[index].label}`,
       );
     });
   });
@@ -61,7 +59,7 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
       .dom('[data-test-breadcrumb-default]')
       .exists(
         { count: 2 },
-        'All crumbs without a type render as default breadcrumbs'
+        'All crumbs without a type render as default breadcrumbs',
       );
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { alias, readOnly } from '@ember/object/computed';
 import SortableFactory from 'nomad-ui/mixins/sortable-factory';
@@ -17,9 +17,10 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class AllocationsController extends Controller.extend(
-  SortableFactory(['updateTime', 'healthy'])
+  SortableFactory(['updateTime', 'healthy']),
 ) {
   @service userSettings;
+  @service router;
 
   queryParams = [
     {
@@ -76,7 +77,7 @@ export default class AllocationsController extends Controller.extend(
     'combinedAllocations.[]',
     'model.{controllers.[],nodes.[]}',
     'selectionType',
-    'selectionHealth'
+    'selectionHealth',
   )
   get filteredAllocations() {
     const { selectionType: types, selectionHealth: healths } = this;
@@ -100,12 +101,14 @@ export default class AllocationsController extends Controller.extend(
   @alias('filteredAllocations') listToSort;
   @alias('listSorted') sortedAllocations;
 
+  @action
   resetPagination() {
     if (this.currentPage != null) {
       this.set('currentPage', 1);
     }
   }
 
+  @action
   setFacetQueryParam(queryParam, selection) {
     this.set(queryParam, serialize(selection));
   }
@@ -113,7 +116,7 @@ export default class AllocationsController extends Controller.extend(
   @action
   gotoAllocation(allocation, event) {
     lazyClick([
-      () => this.transitionToRoute('allocations.allocation', allocation.id),
+      () => this.router.transitionTo('allocations.allocation', allocation.id),
       event,
     ]);
   }
