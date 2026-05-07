@@ -101,7 +101,7 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 	setDisconnect := func(alloc *structs.Allocation, lostAfter time.Duration, replace bool) {
 		alloc.Job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 			LostAfter: lostAfter,
-			Replace:   pointer.Of(replace),
+			Replace:   &replace,
 		}
 	}
 
@@ -127,7 +127,6 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 	testCases := []struct {
 		name     string
 		alloc    *structs.Allocation
-		nodeMap  map[string]*structs.Node
 		expected string
 	}{
 		{
@@ -151,7 +150,7 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 			alloc: func() *structs.Allocation {
 				a := makeAlloc("c3", "ready", structs.AllocClientStatusComplete, structs.AllocDesiredStatusRun)
 				a.DeploymentStatus = &structs.AllocDeploymentStatus{Canary: true}
-				a.DesiredTransition = structs.DesiredTransition{Migrate: pointer.Of(true)}
+				a.DesiredTransition = structs.DesiredTransition{Migrate: new(true)}
 				return a
 			}(),
 			nodeMap:  nodes,
@@ -216,7 +215,7 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 			name: "migrate flag",
 			alloc: func() *structs.Allocation {
 				a := makeAlloc("c11", "ready", structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-				a.DesiredTransition = structs.DesiredTransition{Migrate: pointer.Of(true)}
+				a.DesiredTransition = structs.DesiredTransition{Migrate: new(true)}
 				return a
 			}(),
 			nodeMap:  nodes,
@@ -281,7 +280,7 @@ func TestAllocSet_filterByTainted_ClassificationRules(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			all := allocSet{tc.alloc.ID: tc.alloc}
-			state := ClusterState{Now: now, TaintedNodes: tc.nodeMap}
+			state := ClusterState{Now: now, TaintedNodes: nodes}
 
 			untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(state)
 
