@@ -88,7 +88,7 @@ func (c *JobQueueCommand) Run(args []string) int {
 	qo := &api.QueryOptions{}
 
 	if limit > 0 {
-		qo.Params["limit"] = fmt.Sprintf("%d", limit)
+		qo.PerPage = int32(limit)
 	}
 
 	// Submit the request
