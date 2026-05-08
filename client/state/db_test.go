@@ -30,6 +30,7 @@ var (
 	_ StateDB = (*MemDB)(nil)
 	_ StateDB = (*NoopDB)(nil)
 	_ StateDB = (*ErrDB)(nil)
+	_ StateDB = (*SQLiteStateDB)(nil)
 )
 
 func setupBoltStateDB(t *testing.T) *BoltStateDB {
@@ -52,10 +53,29 @@ func setupBoltStateDB(t *testing.T) *BoltStateDB {
 	return db.(*BoltStateDB)
 }
 
+func setupSQLiteStateDB(t *testing.T) *SQLiteStateDB {
+	t.Helper()
+	dir := t.TempDir()
+
+	db, err := NewSQLiteStateDB(testlog.HCLogger(t), dir)
+	if err != nil {
+		t.Fatalf("error creating sqlite state db: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Errorf("error closing sqlite state db: %v", closeErr)
+		}
+	})
+
+	return db.(*SQLiteStateDB)
+}
+
 func testDB(t *testing.T, f func(*testing.T, StateDB)) {
 	dbs := []StateDB{
 		setupBoltStateDB(t),
 		NewMemDB(testlog.HCLogger(t)),
+		setupSQLiteStateDB(t),
 	}
 
 	for _, db := range dbs {
