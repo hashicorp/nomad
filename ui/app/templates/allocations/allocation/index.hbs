@@ -144,9 +144,9 @@
           </span>
           <span
             class="tooltip"
-            aria-label="{{moment-from-now this.model.maxRunDeadline}}"
+            aria-label="{{format-ts this.model.maxRunDeadline}}"
           >
-            {{format-ts this.model.maxRunDeadline}}
+            {{moment-from-now this.model.maxRunDeadline}}
           </span>
         </span>
       {{/if}}
