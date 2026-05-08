@@ -5,9 +5,7 @@ package taskrunner
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
