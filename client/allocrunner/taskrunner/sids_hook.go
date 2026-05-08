@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -21,11 +20,6 @@ import (
 const (
 	// the name of this hook, used in logs
 	sidsHookName = "consul_si_token"
-
-	// sidsDerivationTimeout limits the amount of time we may spend trying to
-	// derive a SI token. If the hook does not get a token within this amount of
-	// time, the result is a failure.
-	sidsDerivationTimeout = 5 * time.Minute
 
 	// sidsTokenFile is the name of the file holding the Consul SI token inside
 	// the task's secret directory
@@ -92,12 +86,6 @@ func (h *sidsHook) Prestart(
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	// do nothing if we have already done things
-	if h.earlyExit() {
-		resp.Done = true
-		return nil
-	}
-
 	// if we're using Workload Identities then this Connect task should already
 	// have a token stored under the cluster + service ID.
 	tokens := h.allocHookResources.GetConsulTokens()
@@ -119,25 +107,11 @@ func (h *sidsHook) Prestart(
 			if err := h.writeToken(req.TaskDir.SecretsDir, token.SecretID); err != nil {
 				return err
 			}
-			resp.Done = true
 			return nil
 		}
 	}
 
-	resp.Done = true
 	return nil
-}
-
-// earlyExit returns true if the Prestart hook has already been executed during
-// the instantiation of this task runner.
-//
-// assumes h is locked
-func (h *sidsHook) earlyExit() bool {
-	if h.firstRun {
-		h.firstRun = false
-		return false
-	}
-	return true
 }
 
 // writeToken writes token into the secrets directory for the task.
@@ -147,32 +121,4 @@ func (h *sidsHook) writeToken(dir string, token string) error {
 		return fmt.Errorf("failed to write SI token: %w", err)
 	}
 	return nil
-}
-
-// recoverToken returns the token saved to disk in the secrets directory for the
-// task if it exists, or the empty string if the file does not exist. an error
-// is returned only for some other (e.g. disk IO) error.
-func (h *sidsHook) recoverToken(dir string) (string, error) {
-	tokenPath := filepath.Join(dir, sidsTokenFile)
-	token, err := os.ReadFile(tokenPath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			h.logger.Error("failed to recover SI token", "error", err)
-			return "", fmt.Errorf("failed to recover SI token: %w", err)
-		}
-		h.logger.Trace("no pre-existing SI token to recover", "task", h.task.Name)
-		return "", nil // token file does not exist yet
-	}
-	h.logger.Trace("recovered pre-existing SI token", "task", h.task.Name)
-	return string(token), nil
-}
-
-func (h *sidsHook) kill(ctx context.Context, reason error) {
-	if err := h.lifecycle.Kill(ctx,
-		structs.NewTaskEvent(structs.TaskKilling).
-			SetFailsTask().
-			SetDisplayMessage(reason.Error()),
-	); err != nil {
-		h.logger.Error("failed to kill task", "kill_reason", reason, "error", err)
-	}
 }
