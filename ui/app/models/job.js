@@ -456,7 +456,7 @@ export default class Job extends Model {
     );
   }
 
-  @computed('allocations.@each.maxRunDeadline')
+  @computed('allocations.[]')
   get hasAllocationMaxRunDeadline() {
     try {
       return (this.allocations?.toArray?.() || this.allocations || []).some(
