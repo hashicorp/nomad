@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -201,6 +202,65 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 
 	// make sure nsd checks status output is elided if none exist
 	must.StrNotContains(t, out, `Nomad Service Checks:`)
+}
+
+func TestFormatAllocBasicInfo_MaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	version := uint64(1)
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	startedAt := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := startedAt.Add(maxRunDuration)
+
+	alloc := &api.Allocation{
+		ID:                 "alloc-id",
+		EvalID:             "eval-id",
+		Name:               "alloc-name",
+		NodeID:             "node-id",
+		NodeName:           "node-name",
+		JobID:              "job-id",
+		Job:                &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
+		TaskGroup:          groupName,
+		ClientStatus:       "running",
+		ClientDescription:  "running",
+		DesiredStatus:      "run",
+		DesiredDescription: "run",
+		TaskStates: map[string]*api.TaskState{
+			"task-a": {State: "running", StartedAt: startedAt.Add(-1 * time.Minute)},
+			"task-b": {State: "dead", StartedAt: startedAt},
+		},
+		Metrics: &api.AllocationMetric{},
+	}
+
+	out, err := formatAllocBasicInfo(alloc, nil, fullId, true)
+	must.NoError(t, err)
+	must.StrContains(t, out, "Max Run Deadline")
+	must.StrContains(t, out, formatTime(deadline))
+}
+
+func TestFormatAllocShortInfo_MaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	version := uint64(1)
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	startedAt := time.Now().Add(-5 * time.Minute)
+
+	alloc := &api.Allocation{
+		ID:        "alloc-id",
+		Name:      "alloc-name",
+		Job:       &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
+		TaskGroup: groupName,
+		TaskStates: map[string]*api.TaskState{
+			"task-a": {State: "running", StartedAt: startedAt},
+		},
+	}
+
+	out := formatAllocShortInfo(alloc)
+	must.StrContains(t, out, "Max Run Deadline")
 }
 
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
