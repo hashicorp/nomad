@@ -3,13 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
-/* eslint-disable qunit/no-conditional-assertions */
 import {
   currentRouteName,
   currentURL,
   visit,
-  find,
   waitUntil,
 } from "@ember/test-helpers";
 import { module, test } from "qunit";

@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { module, test } from 'qunit';
-import { getPageTitle } from 'ember-page-title/test-support';
-import { currentURL } from '@ember/test-helpers';
-import { setupApplicationTest } from 'ember-qunit';
-import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
-import moment from 'moment';
-import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
-import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
-import Layout from 'nomad-ui/tests/pages/layout';
+import { module, test } from "qunit";
+import { getPageTitle } from "ember-page-title/test-support";
+import { currentURL } from "@ember/test-helpers";
+import { setupApplicationTest } from "ember-qunit";
+import { setupMirage } from "ember-cli-mirage/test-support";
+import a11yAudit from "nomad-ui/tests/helpers/a11y-audit";
+import setupAuthenticatedAcceptance from "nomad-ui/tests/helpers/setup-authenticated-acceptance";
+import moment from "moment";
+import { formatBytes, formatHertz } from "nomad-ui/utils/units";
+import VolumeDetail from "nomad-ui/tests/pages/storage/volumes/detail";
+import Layout from "nomad-ui/tests/pages/layout";
 
 const assignWriteAlloc = (volume, alloc) => {
   volume.writeAllocs.add(alloc);
@@ -27,7 +27,7 @@ const assignReadAlloc = (volume, alloc) => {
   volume.save();
 };
 
-module('Acceptance | volume detail', function (hooks) {
+module("Acceptance | volume detail", function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
   setupAuthenticatedAcceptance(hooks);
@@ -35,55 +35,55 @@ module('Acceptance | volume detail', function (hooks) {
   let volume;
 
   hooks.beforeEach(function () {
-    this.server.create('node-pool');
-    this.server.create('node');
-    this.server.create('csi-plugin', { createVolumes: false });
-    volume = this.server.create('csi-volume');
+    this.server.create("node-pool");
+    this.server.create("node");
+    this.server.create("csi-plugin", { createVolumes: false });
+    volume = this.server.create("csi-volume");
   });
 
-  test('it passes an accessibility audit', async function (assert) {
+  test("it passes an accessibility audit", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
     await a11yAudit(assert);
   });
 
-  test('/storage/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function (assert) {
+  test("/storage/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.deepEqual(Layout.breadcrumbFor('storage.index').text, 'Storage');
+    assert.deepEqual(Layout.breadcrumbFor("storage.index").text, "Storage");
     assert.deepEqual(
-      Layout.breadcrumbFor('storage.volumes.volume').text,
-      volume.name,
+      Layout.breadcrumbFor("storage.volumes.volume").text,
+      volume.name
     );
   });
 
-  test('/storage/volumes/:id should show the volume name in the title', async function (assert) {
+  test("/storage/volumes/:id should show the volume name in the title", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     const pageTitle = getPageTitle();
     assert.ok(pageTitle.startsWith(`CSI Volume ${volume.name}`));
-    assert.ok(pageTitle.endsWith(' - Nomad'));
+    assert.ok(pageTitle.endsWith(" - Nomad"));
     assert.deepEqual(VolumeDetail.title, volume.name);
   });
 
-  test('/storage/volumes/:id should list additional details for the volume below the title', async function (assert) {
+  test("/storage/volumes/:id should list additional details for the volume below the title", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(
       VolumeDetail.health.includes(
-        volume.schedulable ? 'Schedulable' : 'Unschedulable',
-      ),
+        volume.schedulable ? "Schedulable" : "Unschedulable"
+      )
     );
     assert.ok(VolumeDetail.provider.includes(volume.provider));
     assert.ok(VolumeDetail.externalId.includes(volume.externalId));
     assert.notOk(
       VolumeDetail.hasNamespace,
-      'Namespace is omitted when there is only one namespace',
+      "Namespace is omitted when there is only one namespace"
     );
   });
 
-  test('/storage/volumes/:id should list all write allocations the volume is attached to', async function (assert) {
-    const writeAllocations = this.server.createList('allocation', 2);
-    const readAllocations = this.server.createList('allocation', 3);
+  test("/storage/volumes/:id should list all write allocations the volume is attached to", async function (assert) {
+    const writeAllocations = this.server.createList("allocation", 2);
+    const readAllocations = this.server.createList("allocation", 3);
     writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
     readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
 
@@ -91,22 +91,22 @@ module('Acceptance | volume detail', function (hooks) {
 
     assert.deepEqual(
       VolumeDetail.writeAllocations.length,
-      writeAllocations.length,
+      writeAllocations.length
     );
     writeAllocations
-      .sortBy('modifyIndex')
+      .sortBy("modifyIndex")
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
           allocation.id,
-          VolumeDetail.writeAllocations.objectAt(idx).id,
+          VolumeDetail.writeAllocations.objectAt(idx).id
         );
       });
   });
 
-  test('/storage/volumes/:id should list all read allocations the volume is attached to', async function (assert) {
-    const writeAllocations = this.server.createList('allocation', 2);
-    const readAllocations = this.server.createList('allocation', 3);
+  test("/storage/volumes/:id should list all read allocations the volume is attached to", async function (assert) {
+    const writeAllocations = this.server.createList("allocation", 2);
+    const readAllocations = this.server.createList("allocation", 3);
     writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
     readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
 
@@ -114,46 +114,46 @@ module('Acceptance | volume detail', function (hooks) {
 
     assert.deepEqual(
       VolumeDetail.readAllocations.length,
-      readAllocations.length,
+      readAllocations.length
     );
     readAllocations
-      .sortBy('modifyIndex')
+      .sortBy("modifyIndex")
       .reverse()
       .forEach((allocation, idx) => {
         assert.deepEqual(
           allocation.id,
-          VolumeDetail.readAllocations.objectAt(idx).id,
+          VolumeDetail.readAllocations.objectAt(idx).id
         );
       });
   });
 
-  test('write allocations show max run deadline when configured', async function (assert) {
+  test("write allocations show max run deadline when configured", async function (assert) {
     const maxRunDuration = 10 * 60 * 1000000000;
-    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const startedAt = new Date("2025-01-02T03:04:05Z");
     const expectedDeadline = new Date(
       startedAt.getTime() + maxRunDuration / 1000000
     );
 
-    const batchJob = server.create('job', {
-      type: 'batch',
+    const batchJob = this.server.create("job", {
+      type: "batch",
       createAllocations: false,
     });
-    const taskGroup = server.db.taskGroups.findBy({ jobId: batchJob.id });
-    server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+    const taskGroup = this.server.db.taskGroups.findBy({ jobId: batchJob.id });
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
 
-    const allocation = server.create('allocation', {
-      clientStatus: 'running',
+    const allocation = this.server.create("allocation", {
+      clientStatus: "running",
       jobId: batchJob.id,
       taskGroup: taskGroup.name,
       modifyIndex: 999999,
     });
     assignWriteAlloc(volume, allocation);
 
-    server.db.taskStates
+    this.server.db.taskStates
       .where({ allocationId: allocation.id })
       .forEach((taskState) => {
-        server.db.taskStates.update(taskState.id, {
-          state: 'running',
+        this.server.db.taskStates.update(taskState.id, {
+          state: "running",
           startedAt,
         });
       });
@@ -163,13 +163,13 @@ module('Acceptance | volume detail', function (hooks) {
     assert.equal(
       VolumeDetail.writeAllocationFor(allocation.id).maxRunDeadlineTooltip,
       moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'The write allocations table shows the computed max run deadline'
+      "The write allocations table shows the computed max run deadline"
     );
   });
 
-  test('each allocation should have high-level details for the allocation', async function (assert) {
-    const allocation = this.server.create('allocation', {
-      clientStatus: 'running',
+  test("each allocation should have high-level details for the allocation", async function (assert) {
+    const allocation = this.server.create("allocation", {
+      clientStatus: "running",
     });
     assignWriteAlloc(volume, allocation);
 
@@ -183,7 +183,7 @@ module('Acceptance | volume detail', function (hooks) {
     const cpuUsed = tasks.reduce((sum, task) => sum + task.resources.CPU, 0);
     const memoryUsed = tasks.reduce(
       (sum, task) => sum + task.resources.MemoryMB,
-      0,
+      0
     );
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
@@ -191,71 +191,71 @@ module('Acceptance | volume detail', function (hooks) {
     VolumeDetail.writeAllocations.objectAt(0).as((allocationRow) => {
       assert.deepEqual(
         allocationRow.shortId,
-        allocation.id.split('-')[0],
-        'Allocation short ID',
+        allocation.id.split("-")[0],
+        "Allocation short ID"
       );
       assert.deepEqual(
         allocationRow.createTime,
-        moment(allocation.createTime / 1000000).format('MMM DD HH:mm:ss ZZ'),
-        'Allocation create time',
+        moment(allocation.createTime / 1000000).format("MMM DD HH:mm:ss ZZ"),
+        "Allocation create time"
       );
       assert.deepEqual(
         allocationRow.modifyTime,
         moment(allocation.modifyTime / 1000000).fromNow(),
-        'Allocation modify time',
+        "Allocation modify time"
       );
       assert.deepEqual(
         allocationRow.status,
         allocation.clientStatus,
-        'Client status',
+        "Client status"
       );
       assert.deepEqual(
         allocationRow.job,
         this.server.db.jobs.find(allocation.jobId).name,
-        'Job name',
+        "Job name"
       );
-      assert.ok(allocationRow.taskGroup, 'Task group name');
-      assert.ok(allocationRow.jobVersion, 'Job Version');
+      assert.ok(allocationRow.taskGroup, "Task group name");
+      assert.ok(allocationRow.jobVersion, "Job Version");
       assert.deepEqual(
         allocationRow.client,
-        this.server.db.nodes.find(allocation.nodeId).id.split('-')[0],
-        'Node ID',
+        this.server.db.nodes.find(allocation.nodeId).id.split("-")[0],
+        "Node ID"
       );
       assert.deepEqual(
         allocationRow.clientTooltip.substr(0, 15),
         this.server.db.nodes.find(allocation.nodeId).name.substr(0, 15),
-        'Node Name',
+        "Node Name"
       );
       assert.strictEqual(
         Number(allocationRow.cpu),
         Math.floor(allocStats.resourceUsage.CpuStats.TotalTicks) / cpuUsed,
-        'CPU %',
+        "CPU %"
       );
       const roundedTicks = Math.floor(
-        allocStats.resourceUsage.CpuStats.TotalTicks,
+        allocStats.resourceUsage.CpuStats.TotalTicks
       );
       assert.deepEqual(
         allocationRow.cpuTooltip,
-        `${formatHertz(roundedTicks, 'MHz')} / ${formatHertz(cpuUsed, 'MHz')}`,
-        'Detailed CPU information is in a tooltip',
+        `${formatHertz(roundedTicks, "MHz")} / ${formatHertz(cpuUsed, "MHz")}`,
+        "Detailed CPU information is in a tooltip"
       );
       assert.strictEqual(
         Number(allocationRow.mem),
         allocStats.resourceUsage.MemoryStats.RSS / 1024 / 1024 / memoryUsed,
-        'Memory used',
+        "Memory used"
       );
       assert.deepEqual(
         allocationRow.memTooltip,
         `${formatBytes(
-          allocStats.resourceUsage.MemoryStats.RSS,
-        )} / ${formatBytes(memoryUsed, 'MiB')}`,
-        'Detailed memory information is in a tooltip',
+          allocStats.resourceUsage.MemoryStats.RSS
+        )} / ${formatBytes(memoryUsed, "MiB")}`,
+        "Detailed memory information is in a tooltip"
       );
     });
   });
 
-  test('each allocation should link to the allocation detail page', async function (assert) {
-    const allocation = this.server.create('allocation');
+  test("each allocation should link to the allocation detail page", async function (assert) {
+    const allocation = this.server.create("allocation");
     assignWriteAlloc(volume, allocation);
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
@@ -264,56 +264,56 @@ module('Acceptance | volume detail', function (hooks) {
     assert.deepEqual(currentURL(), `/allocations/${allocation.id}`);
   });
 
-  test('when there are no write allocations, the table presents an empty state', async function (assert) {
+  test("when there are no write allocations, the table presents an empty state", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(VolumeDetail.writeTableIsEmpty);
     assert.deepEqual(
       VolumeDetail.writeEmptyState.headline,
-      'No Write Allocations',
+      "No Write Allocations"
     );
   });
 
-  test('when there are no read allocations, the table presents an empty state', async function (assert) {
+  test("when there are no read allocations, the table presents an empty state", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(VolumeDetail.readTableIsEmpty);
     assert.deepEqual(
       VolumeDetail.readEmptyState.headline,
-      'No Read Allocations',
+      "No Read Allocations"
     );
   });
 
-  test('the constraints table shows access mode and attachment mode', async function (assert) {
+  test("the constraints table shows access mode and attachment mode", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.deepEqual(VolumeDetail.constraints.accessMode, volume.accessMode);
     assert.deepEqual(
       VolumeDetail.constraints.attachmentMode,
-      volume.attachmentMode,
+      volume.attachmentMode
     );
   });
 });
 
 // Namespace test: details shows the namespace
-module('Acceptance | volume detail (with namespaces)', function (hooks) {
+module("Acceptance | volume detail (with namespaces)", function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   let volume;
 
   hooks.beforeEach(function () {
-    this.server.createList('namespace', 2);
-    this.server.create('node-pool');
-    this.server.create('node');
-    this.server.create('csi-plugin', { createVolumes: false });
-    volume = this.server.create('csi-volume');
+    this.server.createList("namespace", 2);
+    this.server.create("node-pool");
+    this.server.create("node");
+    this.server.create("csi-plugin", { createVolumes: false });
+    volume = this.server.create("csi-volume");
   });
 
-  test('/storage/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
+  test("/storage/volumes/:id detail ribbon includes the namespace of the volume", async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@${volume.namespaceId}` });
 
     assert.ok(VolumeDetail.hasNamespace);
-    assert.ok(VolumeDetail.namespace.includes(volume.namespaceId || 'default'));
+    assert.ok(VolumeDetail.namespace.includes(volume.namespaceId || "default"));
   });
 });
