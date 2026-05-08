@@ -141,6 +141,7 @@ require (
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
+	modernc.org/sqlite v1.50.0
 	oss.indeed.com/go/libtime v1.6.0
 	pgregory.net/rapid v1.2.0
 )
@@ -359,5 +360,4 @@ require (
 	modernc.org/libc v1.72.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.50.0 // indirect
 )
