@@ -310,6 +310,13 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if !allowVolume(aclObj, vol.Namespace) {
 			return structs.ErrPermissionDenied
 		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+				return structs.ErrPermissionDenied
+			}
+		}
+
 		if err = vol.Validate(); err != nil {
 			return err
 		}
@@ -1153,6 +1160,13 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		if !allowVolume(aclObj, vol.Namespace) {
 			return structs.ErrPermissionDenied
 		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+				return structs.ErrPermissionDenied
+			}
+		}
+
 		if err = vol.Validate(); err != nil {
 			return err
 		}
