@@ -4,41 +4,41 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { alias, equal, or, and, mapBy } from "@ember/object/computed";
-import { computed } from "@ember/object";
-import Model from "@ember-data/model";
-import { attr, belongsTo, hasMany } from "@ember-data/model";
-import { fragment, fragmentArray } from "ember-data-model-fragments/attributes";
-import RSVP from "rsvp";
-import { assert } from "@ember/debug";
-import classic from "ember-classic-decorator";
-import { jobAllocStatuses } from "../utils/allocation-client-statuses";
+import { alias, equal, or, and, mapBy } from '@ember/object/computed';
+import { computed } from '@ember/object';
+import Model from '@ember-data/model';
+import { attr, belongsTo, hasMany } from '@ember-data/model';
+import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
+import RSVP from 'rsvp';
+import { assert } from '@ember/debug';
+import classic from 'ember-classic-decorator';
+import { jobAllocStatuses } from '../utils/allocation-client-statuses';
 
-const JOB_TYPES = ["service", "batch", "system", "sysbatch"];
+const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
 @classic
 export default class Job extends Model {
-  @attr("string") region;
-  @attr("string") name;
-  @attr("string") plainId;
-  @attr("string") type;
-  @attr("number") priority;
-  @attr("boolean") allAtOnce;
+  @attr('string') region;
+  @attr('string') name;
+  @attr('string') plainId;
+  @attr('string') type;
+  @attr('number') priority;
+  @attr('boolean') allAtOnce;
 
-  @attr("string") status;
-  @attr("string") statusDescription;
-  @attr("number") createIndex;
-  @attr("number") modifyIndex;
-  @attr("date") submitTime;
-  @attr("string") nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
-  @attr("boolean") stopped;
+  @attr('string') status;
+  @attr('string') statusDescription;
+  @attr('number') createIndex;
+  @attr('number') modifyIndex;
+  @attr('date') submitTime;
+  @attr('string') nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
+  @attr('boolean') stopped;
   @attr() ui;
 
-  @attr("number") groupCountSum;
+  @attr('number') groupCountSum;
   // if it's a system/sysbatch job, groupCountSum is allocs uniqued by nodeID
   get expectedRunningAllocCount() {
-    if (this.type === "system" || this.type === "sysbatch") {
-      return this.allocations.filterBy("nodeID").uniqBy("nodeID").length;
+    if (this.type === 'system' || this.type === 'sysbatch') {
+      return this.allocations.filterBy('nodeID').uniqBy('nodeID').length;
     } else {
       return this.groupCountSum;
     }
@@ -77,7 +77,7 @@ export default class Job extends Model {
   // When we detect the deletion/purge of a job from within that job page, we kick the user out to the jobs index.
   // But what about when that purge is detected from the jobs index?
   // We set this flag to true to let the user know that the job has been removed without simply nixing it from view.
-  @attr("boolean", { defaultValue: false }) assumeGC;
+  @attr('boolean', { defaultValue: false }) assumeGC;
 
   get allocTypes() {
     return jobAllocStatuses[this.type].map((type) => {
@@ -136,12 +136,12 @@ export default class Job extends Model {
         accumulator[type.label] = { healthy: { nonCanary: [] } };
         return accumulator;
       },
-      {}
+      {},
     );
 
     // First accumulate the Running/Pending allocations
     for (const alloc of this.allocations.filter(
-      (a) => a.clientStatus === "running" || a.clientStatus === "pending"
+      (a) => a.clientStatus === 'running' || a.clientStatus === 'pending',
     )) {
       if (availableSlotsToFill === 0) {
         break;
@@ -155,7 +155,7 @@ export default class Job extends Model {
     // Sort all allocs by jobVersion in descending order
     const sortedAllocs = this.allocations
       .filter(
-        (a) => a.clientStatus !== "running" && a.clientStatus !== "pending"
+        (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending',
       )
       .sort((a, b) => {
         // First sort by jobVersion
@@ -199,12 +199,12 @@ export default class Job extends Model {
     // Handle unplaced allocs
     if (availableSlotsToFill > 0) {
       // TODO: JSDoc types for unhealty and health unknown aren't optional, but should be.
-      allocationsOfShowableType["unplaced"] = {
+      allocationsOfShowableType['unplaced'] = {
         healthy: {
           nonCanary: Array(availableSlotsToFill)
             .fill()
             .map(() => {
-              return { clientStatus: "unplaced" };
+              return { clientStatus: 'unplaced' };
             }),
         },
       };
@@ -237,14 +237,14 @@ export default class Job extends Model {
 
     // If deploying:
     if (this.latestDeploymentSummary?.IsActive) {
-      return { label: "Deploying", state: "highlight" };
+      return { label: 'Deploying', state: 'highlight' };
     }
 
     // if manually stopped by a user:
-    if (this.status === "dead" && this.stopped) {
+    if (this.status === 'dead' && this.stopped) {
       return {
-        label: "Stopped",
-        state: "neutral",
+        label: 'Stopped',
+        state: 'neutral',
       };
     }
 
@@ -255,35 +255,35 @@ export default class Job extends Model {
     // because they've been GC'd, we don't know if they were deliberately scaled down or failed.
     // Safer in this case to show as failed rather than imply a deliberate scale-down.
     if (totalAllocs === 0 && !this.hasClientStatus) {
-      return { label: "Scaled Down", state: "neutral" };
+      return { label: 'Scaled Down', state: 'neutral' };
     }
 
     // If the job was requested initially, but a subsequent request for it was
     // not found, we can remove links to it but maintain its presence in the list
     // until the user specifies they want a refresh
     if (this.assumeGC) {
-      return { label: "Removed", state: "neutral" };
+      return { label: 'Removed', state: 'neutral' };
     }
 
-    if (this.type === "batch" || this.type === "sysbatch") {
+    if (this.type === 'batch' || this.type === 'sysbatch') {
       // TODO: showing as failed when long-complete
       // If all the allocs are complete, the job is Complete
       const completeAllocs = this.allocBlocks.complete?.healthy?.nonCanary;
       if (completeAllocs?.length === totalAllocs) {
-        return { label: "Complete", state: "success" };
+        return { label: 'Complete', state: 'success' };
       }
 
       // If any allocations are running the job is "Running"
       const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
       if (healthyAllocs?.length + completeAllocs?.length === totalAllocs) {
-        return { label: "Running", state: "success" };
+        return { label: 'Running', state: 'success' };
       }
     }
 
     // All the exepected allocs are running and healthy? Congratulations!
     const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
     if (totalAllocs && healthyAllocs?.length === totalAllocs) {
-      return { label: "Healthy", state: "success" };
+      return { label: 'Healthy', state: 'success' };
     }
 
     // If any allocations are pending the job is "Recovering"
@@ -293,7 +293,7 @@ export default class Job extends Model {
     // of correct?
     const pendingAllocs = this.allocBlocks.pending?.healthy?.nonCanary;
     if (pendingAllocs?.length > 0) {
-      return { label: "Recovering", state: "highlight" };
+      return { label: 'Recovering', state: 'highlight' };
     }
 
     // If any allocations are failed, lost, or unplaced in a steady state,
@@ -305,14 +305,14 @@ export default class Job extends Model {
     ];
 
     if (failedOrLostAllocs.length >= totalAllocs) {
-      return { label: "Failed", state: "critical" };
+      return { label: 'Failed', state: 'critical' };
     } else {
-      return { label: "Degraded", state: "warning" };
+      return { label: 'Degraded', state: 'warning' };
     }
   }
-  @fragment("structured-attributes") meta;
+  @fragment('structured-attributes') meta;
 
-  @attr("boolean") isPack;
+  @attr('boolean') isPack;
 
   /**
    * A task with a schedule block can have execution paused at specific
@@ -328,28 +328,28 @@ export default class Job extends Model {
     }
     const pendingAllocs =
       this.allocations
-        .filter((alloc) => alloc.clientStatus === "pending")
+        .filter((alloc) => alloc.clientStatus === 'pending')
         .toArray?.() ||
-      this.allocations.filter((alloc) => alloc.clientStatus === "pending");
+      this.allocations.filter((alloc) => alloc.clientStatus === 'pending');
 
     return pendingAllocs.some((alloc) => alloc.hasPausedTask);
   }
 
   // True when the job is the parent periodic or parameterized jobs
   // Instances of periodic or parameterized jobs are false for both properties
-  @attr("boolean") periodic;
-  @attr("boolean") parameterized;
-  @attr("boolean") dispatched;
+  @attr('boolean') periodic;
+  @attr('boolean') parameterized;
+  @attr('boolean') dispatched;
 
   @attr() periodicDetails;
   @attr() parameterizedDetails;
 
-  @computed("id", "plainId")
+  @computed('id', 'plainId')
   get idWithNamespace() {
-    let namespace = "default";
+    let namespace = 'default';
 
     try {
-      const [, parsedNamespace] = JSON.parse(this.id || "[]");
+      const [, parsedNamespace] = JSON.parse(this.id || '[]');
       namespace = parsedNamespace || namespace;
     } catch {
       // Fall back to default namespace for malformed/empty ids.
@@ -358,10 +358,10 @@ export default class Job extends Model {
     return `${this.plainId}@${namespace}`;
   }
 
-  @computed("id")
+  @computed('id')
   get namespaceId() {
     try {
-      const [, parsedNamespace] = JSON.parse(this.id || "[]");
+      const [, parsedNamespace] = JSON.parse(this.id || '[]');
       if (parsedNamespace) {
         return parsedNamespace;
       }
@@ -369,51 +369,51 @@ export default class Job extends Model {
       // Fall through to relationship id fallback.
     }
 
-    return this.belongsTo("namespace").id() || "default";
+    return this.belongsTo('namespace').id() || 'default';
   }
 
-  @computed("periodic", "parameterized", "dispatched")
+  @computed('periodic', 'parameterized', 'dispatched')
   get hasChildren() {
     return this.periodic || (this.parameterized && !this.dispatched);
   }
 
-  @computed("type")
+  @computed('type')
   get hasClientStatus() {
-    return this.type === "system" || this.type === "sysbatch";
+    return this.type === 'system' || this.type === 'sysbatch';
   }
 
   // version.Stable is determined by having an associated healthy deployment
   // but System, Sysbatch, and Batch jobs do not have deployments.
   // Use this as a boolean to determine if we should show the version stability badge
-  @computed("type")
+  @computed('type')
   get hasVersionStability() {
     return (
-      this.type !== "system" &&
-      this.type !== "sysbatch" &&
-      this.type !== "batch"
+      this.type !== 'system' &&
+      this.type !== 'sysbatch' &&
+      this.type !== 'batch'
     );
   }
 
-  @belongsTo("job", { async: true, inverse: "children" }) parent;
-  @hasMany("job", { async: true, inverse: "parent" }) children;
+  @belongsTo('job', { async: true, inverse: 'children' }) parent;
+  @hasMany('job', { async: true, inverse: 'parent' }) children;
 
   // The parent job name is prepended to child launch job names
-  @computed("name", "parent.content")
+  @computed('name', 'parent.content')
   get trimmedName() {
-    return this.get("parent.content")
-      ? this.name.replace(/.+?\//, "")
+    return this.get('parent.content')
+      ? this.name.replace(/.+?\//, '')
       : this.name;
   }
 
   // A composite of type and other job attributes to determine
   // a better type descriptor for human interpretation rather
   // than for scheduling.
-  @computed("isPack", "type", "periodic", "parameterized")
+  @computed('isPack', 'type', 'periodic', 'parameterized')
   get displayType() {
     if (this.periodic) {
-      return { type: "periodic", isPack: this.isPack };
+      return { type: 'periodic', isPack: this.isPack };
     } else if (this.parameterized) {
-      return { type: "parameterized", isPack: this.isPack };
+      return { type: 'parameterized', isPack: this.isPack };
     }
     return { type: this.type, isPack: this.isPack };
   }
@@ -421,22 +421,22 @@ export default class Job extends Model {
   // A composite of type and other job attributes to determine
   // type for templating rather than scheduling
   @computed(
-    "type",
-    "periodic",
-    "parameterized",
-    "parent.{periodic,parameterized}"
+    'type',
+    'periodic',
+    'parameterized',
+    'parent.{periodic,parameterized}',
   )
   get templateType() {
     const type = this.type;
 
-    if (this.get("parent.periodic")) {
-      return "periodic-child";
-    } else if (this.get("parent.parameterized")) {
-      return "parameterized-child";
+    if (this.get('parent.periodic')) {
+      return 'periodic-child';
+    } else if (this.get('parent.parameterized')) {
+      return 'parameterized-child';
     } else if (this.periodic) {
-      return "periodic";
+      return 'periodic';
     } else if (this.parameterized) {
-      return "parameterized";
+      return 'parameterized';
     } else if (JOB_TYPES.includes(type)) {
       // Guard against the API introducing a new type before the UI
       // is prepared to handle it.
@@ -444,20 +444,19 @@ export default class Job extends Model {
     }
 
     // A fail-safe in the event the API introduces a new type.
-    return "service";
+    return 'service';
   }
 
   @attr() datacenters;
-  @fragmentArray("task-group", { defaultValue: () => [] }) taskGroups;
-
-  @computed("taskGroups.@each.hasMaxRunDeadline")
+  @fragmentArray('task-group', { defaultValue: () => [] }) taskGroups;
+  @computed('taskGroups.@each.hasMaxRunDeadline')
   get hasMaxRunDeadline() {
     return (this.taskGroups?.toArray?.() || this.taskGroups || []).some(
       (taskGroup) => taskGroup.hasMaxRunDeadline
     );
   }
 
-  @computed("allocations.@each.maxRunDeadline")
+  @computed('allocations.@each.maxRunDeadline')
   get hasAllocationMaxRunDeadline() {
     try {
       return (this.allocations?.toArray?.() || this.allocations || []).some(
@@ -470,74 +469,74 @@ export default class Job extends Model {
     }
   }
 
-  @belongsTo("job-summary", { async: true, inverse: "job" }) summary;
+  @belongsTo('job-summary', { async: true, inverse: 'job' }) summary;
 
   // A job model created from the jobs list response will be lacking
   // task groups. This is an indicator that it needs to be reloaded
   // if task group information is important.
-  @equal("taskGroups.length", 0) isPartial;
+  @equal('taskGroups.length', 0) isPartial;
 
   // If a job has only been loaded through the list request, the task groups
   // are still unknown. However, the count of task groups is available through
   // the job-summary model which is embedded in the jobs list response.
-  @or("taskGroups.length", "taskGroupSummaries.length") taskGroupCount;
+  @or('taskGroups.length', 'taskGroupSummaries.length') taskGroupCount;
 
   // Alias through to the summary, as if there was no relationship
-  @alias("summary.taskGroupSummaries") taskGroupSummaries;
-  @alias("summary.queuedAllocs") queuedAllocs;
-  @alias("summary.startingAllocs") startingAllocs;
-  @alias("summary.runningAllocs") runningAllocs;
-  @alias("summary.completeAllocs") completeAllocs;
-  @alias("summary.failedAllocs") failedAllocs;
-  @alias("summary.lostAllocs") lostAllocs;
-  @alias("summary.unknownAllocs") unknownAllocs;
-  @alias("summary.totalAllocs") totalAllocs;
-  @alias("summary.pendingChildren") pendingChildren;
-  @alias("summary.runningChildren") runningChildren;
-  @alias("summary.deadChildren") deadChildren;
-  @alias("summary.totalChildren") totalChildren;
+  @alias('summary.taskGroupSummaries') taskGroupSummaries;
+  @alias('summary.queuedAllocs') queuedAllocs;
+  @alias('summary.startingAllocs') startingAllocs;
+  @alias('summary.runningAllocs') runningAllocs;
+  @alias('summary.completeAllocs') completeAllocs;
+  @alias('summary.failedAllocs') failedAllocs;
+  @alias('summary.lostAllocs') lostAllocs;
+  @alias('summary.unknownAllocs') unknownAllocs;
+  @alias('summary.totalAllocs') totalAllocs;
+  @alias('summary.pendingChildren') pendingChildren;
+  @alias('summary.runningChildren') runningChildren;
+  @alias('summary.deadChildren') deadChildren;
+  @alias('summary.totalChildren') totalChildren;
 
-  @attr("number") version;
+  @attr('number') version;
 
-  @hasMany("job-versions", { async: true, inverse: "job" }) versions;
-  @hasMany("allocations", { async: true, inverse: "job" }) allocations;
-  @hasMany("deployments", { async: true, inverse: "job" }) deployments;
-  @hasMany("evaluations", { async: true, inverse: "job" }) evaluations;
-  @hasMany("variables", { async: true, inverse: null }) variables;
-  @belongsTo("namespace", { async: true, inverse: null }) namespace;
-  @belongsTo("job-scale", { async: true, inverse: "job" }) scaleState;
-  @hasMany("services", { async: true, inverse: "job" }) services;
+  @hasMany('job-versions', { async: true, inverse: 'job' }) versions;
+  @hasMany('allocations', { async: true, inverse: 'job' }) allocations;
+  @hasMany('deployments', { async: true, inverse: 'job' }) deployments;
+  @hasMany('evaluations', { async: true, inverse: 'job' }) evaluations;
+  @hasMany('variables', { async: true, inverse: null }) variables;
+  @belongsTo('namespace', { async: true, inverse: null }) namespace;
+  @belongsTo('job-scale', { async: true, inverse: 'job' }) scaleState;
+  @hasMany('services', { async: true, inverse: 'job' }) services;
 
-  @hasMany("recommendation-summary", {
+  @hasMany('recommendation-summary', {
     async: true,
-    inverse: "job",
+    inverse: 'job',
   })
   recommendationSummaries;
 
-  @computed("versions.@each.stable")
+  @computed('versions.@each.stable')
   get hasStableNonCurrentVersion() {
     const nonCurrentVersions = this.versions
-      .sortBy("number")
+      .sortBy('number')
       .reverse()
       .slice(1);
 
     const versions =
       nonCurrentVersions?.toArray?.() || nonCurrentVersions || [];
-    return versions.some((version) => version.get("stable"));
+    return versions.some((version) => version.get('stable'));
   }
 
-  @computed("versions.@each.stable", "aggregateAllocStatus.label")
+  @computed('versions.@each.stable', 'aggregateAllocStatus.label')
   get latestStableVersion() {
     return this.versions
-      .filterBy("stable")
-      .sortBy("number")
+      .filterBy('stable')
+      .sortBy('number')
       .reverse()
       .slice(1)[0];
   }
 
-  @computed("versions.[]", "aggregateAllocStatus.label")
+  @computed('versions.[]', 'aggregateAllocStatus.label')
   get latestVersion() {
-    return this.versions.sortBy("number").reverse().slice(1)[0];
+    return this.versions.sortBy('number').reverse().slice(1)[0];
   }
 
   get actions() {
@@ -545,9 +544,9 @@ export default class Job extends Model {
       return acc.concat(
         taskGroup.tasks
           .map((task) => {
-            return task.get("actions")?.toArray() || [];
+            return task.get('actions')?.toArray() || [];
           })
-          .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), [])
+          .reduce((taskAcc, taskActions) => taskAcc.concat(taskActions), []),
       );
     }, []);
   }
@@ -561,14 +560,14 @@ export default class Job extends Model {
    */
   getActionSocketUrl(action, allocID, actionInstance) {
     return this.store
-      .adapterFor("job")
+      .adapterFor('job')
       .getActionSocketUrl(this, action, allocID, actionInstance);
   }
 
-  @computed("taskGroups.@each.drivers")
+  @computed('taskGroups.@each.drivers')
   get drivers() {
     return this.taskGroups
-      .mapBy("drivers")
+      .mapBy('drivers')
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;
@@ -576,14 +575,14 @@ export default class Job extends Model {
       .uniq();
   }
 
-  @mapBy("allocations", "unhealthyDrivers") allocationsUnhealthyDrivers;
+  @mapBy('allocations', 'unhealthyDrivers') allocationsUnhealthyDrivers;
 
   // Getting all unhealthy drivers for a job can be incredibly expensive if the job
   // has many allocations. This can lead to making an API request for many nodes.
-  @computed("allocations", "allocationsUnhealthyDrivers.[]")
+  @computed('allocations', 'allocationsUnhealthyDrivers.[]')
   get unhealthyDrivers() {
     return this.allocations
-      .mapBy("unhealthyDrivers")
+      .mapBy('unhealthyDrivers')
       .reduce((all, drivers) => {
         all.push(...drivers);
         return all;
@@ -591,96 +590,96 @@ export default class Job extends Model {
       .uniq();
   }
 
-  @computed("evaluations.@each.isBlocked")
+  @computed('evaluations.@each.isBlocked')
   get hasBlockedEvaluation() {
     return this.evaluations
       .toArray()
-      .some((evaluation) => evaluation.get("isBlocked"));
+      .some((evaluation) => evaluation.get('isBlocked'));
   }
 
-  @and("latestFailureEvaluation", "hasBlockedEvaluation") hasPlacementFailures;
+  @and('latestFailureEvaluation', 'hasBlockedEvaluation') hasPlacementFailures;
 
-  @computed("evaluations.{@each.modifyIndex,isPending}")
+  @computed('evaluations.{@each.modifyIndex,isPending}')
   get latestEvaluation() {
     const evaluations = this.evaluations;
-    if (!evaluations || evaluations.get("isPending")) {
+    if (!evaluations || evaluations.get('isPending')) {
       return null;
     }
-    const sortedEvaluations = evaluations.sortBy("modifyIndex");
+    const sortedEvaluations = evaluations.sortBy('modifyIndex');
     return sortedEvaluations[sortedEvaluations.length - 1];
   }
 
-  @computed("evaluations.{@each.modifyIndex,isPending}")
+  @computed('evaluations.{@each.modifyIndex,isPending}')
   get latestFailureEvaluation() {
     const evaluations = this.evaluations;
-    if (!evaluations || evaluations.get("isPending")) {
+    if (!evaluations || evaluations.get('isPending')) {
       return null;
     }
 
-    const failureEvaluations = evaluations.filterBy("hasPlacementFailures");
+    const failureEvaluations = evaluations.filterBy('hasPlacementFailures');
     if (failureEvaluations) {
-      const sortedFailureEvaluations = failureEvaluations.sortBy("modifyIndex");
+      const sortedFailureEvaluations = failureEvaluations.sortBy('modifyIndex');
       return sortedFailureEvaluations[sortedFailureEvaluations.length - 1];
     }
 
     return undefined;
   }
 
-  @computed("type")
+  @computed('type')
   get supportsDeployments() {
     const { type } = this;
-    if (type === "service" || type === "system") return true;
+    if (type === 'service' || type === 'system') return true;
     return false;
   }
 
-  @belongsTo("deployment", { async: true, inverse: "jobForLatest" })
+  @belongsTo('deployment', { async: true, inverse: 'jobForLatest' })
   latestDeployment;
 
-  @computed("latestDeployment", "latestDeployment.isRunning")
+  @computed('latestDeployment', 'latestDeployment.isRunning')
   get runningDeployment() {
     const latest = this.latestDeployment;
-    if (latest.get("isRunning")) return latest;
+    if (latest.get('isRunning')) return latest;
     return undefined;
   }
 
   fetchRawDefinition(version) {
-    return this.store.adapterFor("job").fetchRawDefinition(this, version);
+    return this.store.adapterFor('job').fetchRawDefinition(this, version);
   }
 
   fetchRawSpecification(version) {
-    return this.store.adapterFor("job").fetchRawSpecification(this, version);
+    return this.store.adapterFor('job').fetchRawSpecification(this, version);
   }
 
   forcePeriodic() {
-    return this.store.adapterFor("job").forcePeriodic(this);
+    return this.store.adapterFor('job').forcePeriodic(this);
   }
 
   stop() {
-    return this.store.adapterFor("job").stop(this);
+    return this.store.adapterFor('job').stop(this);
   }
 
   purge() {
-    return this.store.adapterFor("job").purge(this);
+    return this.store.adapterFor('job').purge(this);
   }
 
   plan() {
-    assert("A job must be parsed before planned", this._newDefinitionJSON);
-    return this.store.adapterFor("job").plan(this);
+    assert('A job must be parsed before planned', this._newDefinitionJSON);
+    return this.store.adapterFor('job').plan(this);
   }
 
   run() {
-    assert("A job must be parsed before ran", this._newDefinitionJSON);
-    return this.store.adapterFor("job").run(this);
+    assert('A job must be parsed before ran', this._newDefinitionJSON);
+    return this.store.adapterFor('job').run(this);
   }
 
   update() {
-    assert("A job must be parsed before updated", this._newDefinitionJSON);
+    assert('A job must be parsed before updated', this._newDefinitionJSON);
 
-    return this.store.adapterFor("job").update(this);
+    return this.store.adapterFor('job').update(this);
   }
 
   getVersions(diffVersion) {
-    return this.store.adapterFor("job").getVersions(this, diffVersion);
+    return this.store.adapterFor('job').getVersions(this, diffVersion);
   }
   parse() {
     const definition = this._newDefinition;
@@ -690,7 +689,7 @@ export default class Job extends Model {
     try {
       // If the definition is already JSON then it doesn't need to be parsed.
       const json = JSON.parse(definition);
-      this.set("_newDefinitionJSON", json);
+      this.set('_newDefinitionJSON', json);
 
       // You can't set the ID of a record that already exists
       if (this.isNew) {
@@ -703,10 +702,10 @@ export default class Job extends Model {
       // in anyway, the parse endpoint will throw an error.
 
       promise = this.store
-        .adapterFor("job")
+        .adapterFor('job')
         .parse(this._newDefinition, variables)
         .then((response) => {
-          this.set("_newDefinitionJSON", response);
+          this.set('_newDefinitionJSON', response);
           this.setIdByPayload(response);
         });
     }
@@ -717,87 +716,87 @@ export default class Job extends Model {
   scale(group, count, message) {
     if (message == null)
       message = `Manually scaled to ${count} from the Nomad UI`;
-    return this.store.adapterFor("job").scale(this, group, count, message);
+    return this.store.adapterFor('job').scale(this, group, count, message);
   }
 
   dispatch(meta, payload) {
-    return this.store.adapterFor("job").dispatch(this, meta, payload);
+    return this.store.adapterFor('job').dispatch(this, meta, payload);
   }
 
   setIdByPayload(payload) {
-    const namespace = payload.Namespace || "default";
+    const namespace = payload.Namespace || 'default';
     const id = payload.Name;
 
-    this.set("plainId", id);
-    this.set("_idBeforeSaving", JSON.stringify([id, namespace]));
+    this.set('plainId', id);
+    this.set('_idBeforeSaving', JSON.stringify([id, namespace]));
 
-    const namespaceRecord = this.store.peekRecord("namespace", namespace);
+    const namespaceRecord = this.store.peekRecord('namespace', namespace);
     if (namespaceRecord) {
-      this.set("namespace", namespaceRecord);
+      this.set('namespace', namespaceRecord);
     }
   }
 
   resetId() {
     this.set(
-      "id",
-      JSON.stringify([this.plainId, this.get("namespace.name") || "default"])
+      'id',
+      JSON.stringify([this.plainId, this.get('namespace.name') || 'default']),
     );
   }
 
-  @computed("status")
+  @computed('status')
   get statusClass() {
     const classMap = {
-      pending: "is-pending",
-      running: "is-primary",
-      dead: "is-light",
+      pending: 'is-pending',
+      running: 'is-primary',
+      dead: 'is-light',
     };
 
-    return classMap[this.status] || "is-dark";
+    return classMap[this.status] || 'is-dark';
   }
 
-  @attr("string") payload;
+  @attr('string') payload;
 
-  @computed("payload")
+  @computed('payload')
   get decodedPayload() {
     // Lazily decode the base64 encoded payload
-    return window.atob(this.payload || "");
+    return window.atob(this.payload || '');
   }
 
   // An arbitrary HCL or JSON string that is used by the serializer to plan
   // and run this job. Used for both new job models and saved job models.
-  @attr("string") _newDefinition;
+  @attr('string') _newDefinition;
 
   // An arbitrary JSON string that is used by the adapter to plan
   // and run this job. Used for both new job models and saved job models.
-  @attr("string") _newDefinitionVariables;
+  @attr('string') _newDefinitionVariables;
 
   // The new definition may be HCL, in which case the API will need to parse the
   // spec first. In order to preserve both the original HCL and the parsed response
   // that will be submitted to the create job endpoint, another prop is necessary.
-  @attr("string") _newDefinitionJSON;
+  @attr('string') _newDefinitionJSON;
 
-  @computed("variables.[]", "parent", "plainId")
+  @computed('variables.[]', 'parent', 'plainId')
   get pathLinkedVariable() {
-    if (this.parent.get("id")) {
+    if (this.parent.get('id')) {
       return this.variables?.findBy(
-        "path",
-        `nomad/jobs/${JSON.parse(this.parent.get("id"))[0]}`
+        'path',
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
       );
     } else {
-      return this.variables?.findBy("path", `nomad/jobs/${this.plainId}`);
+      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
     }
   }
 
   // TODO: This async fetcher seems like a better fit for most of our use-cases than the above getter (which cannot do async/await)
   async getPathLinkedVariable() {
     await this.variables;
-    if (this.parent.get("id")) {
+    if (this.parent.get('id')) {
       return this.variables?.findBy(
-        "path",
-        `nomad/jobs/${JSON.parse(this.parent.get("id"))[0]}`
+        'path',
+        `nomad/jobs/${JSON.parse(this.parent.get('id'))[0]}`,
       );
     } else {
-      return this.variables?.findBy("path", `nomad/jobs/${this.plainId}`);
+      return this.variables?.findBy('path', `nomad/jobs/${this.plainId}`);
     }
   }
 }
