@@ -5070,7 +5070,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 
 // Tests the reconciler handles a failed deployment with allocs on tainted
 // nodes
-func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
+func TestReconciler_FailedDeployment_GetTaintedNodes(t *testing.T) {
 	ci.Parallel(t)
 
 	job := mock.Job()
