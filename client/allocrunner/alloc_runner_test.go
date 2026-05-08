@@ -1327,6 +1327,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	must.NoError(t, err)
 	defer destroy(ar2)
 
+	must.NoError(t, ar2.(*allocRunner).allocDir.Build())
 	if err := ar2.Restore(); err != nil {
 		t.Fatalf("error restoring state: %v", err)
 	}
@@ -1403,6 +1404,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	arIface2, err := NewAllocRunner(conf)
 	must.NoError(t, err)
 	ar2 := arIface2.(*allocRunner)
+	must.NoError(t, ar2.allocDir.Build())
 	must.NoError(t, ar2.Restore())
 
 	go ar2.Run()
