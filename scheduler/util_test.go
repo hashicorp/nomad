@@ -613,26 +613,17 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, nil, nil, status, desc, nil, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, nil, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval := h.Evals[0]
 	must.True(t, newEval.ID == eval.ID && newEval.Status == status && newEval.StatusDescription == desc,
 		must.Sprintf("setStatus() submited invalid eval: %v", newEval))
 
-	// Test next evals
-	h = tests.NewHarness(t)
-	next := mock.Eval()
-	must.NoError(t, setStatus(logger, h, eval, next, nil, nil, nil, status, desc, nil, ""))
-	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
-
-	newEval = h.Evals[0]
-	must.Eq(t, next.ID, newEval.NextEval, must.Sprintf("setStatus() didn't set nextEval correctly: %v", newEval))
-
 	// Test blocked evals
 	h = tests.NewHarness(t)
 	blocked := mock.Eval()
-	must.NoError(t, setStatus(logger, h, eval, nil, blocked, nil, nil, status, desc, nil, ""))
+	must.NoError(t, setStatus(logger, h, eval, blocked, nil, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
@@ -641,7 +632,7 @@ func TestSetStatus(t *testing.T) {
 	// Test metrics
 	h = tests.NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, nil, status, desc, nil, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
@@ -652,7 +643,7 @@ func TestSetStatus(t *testing.T) {
 	h = tests.NewHarness(t)
 	queuedAllocs := map[string]int{"web": 1}
 
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, nil, status, desc, queuedAllocs, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, nil, status, desc, queuedAllocs, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	// Test annotations
@@ -662,7 +653,7 @@ func TestSetStatus(t *testing.T) {
 		PreemptedAllocs:  []*structs.AllocListStub{{ID: uuid.Generate()}},
 	}
 
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, annotations, status, desc, queuedAllocs, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, annotations, status, desc, queuedAllocs, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
@@ -670,7 +661,7 @@ func TestSetStatus(t *testing.T) {
 
 	h = tests.NewHarness(t)
 	dID := uuid.Generate()
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, nil, status, desc, queuedAllocs, dID))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, nil, status, desc, queuedAllocs, dID))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
