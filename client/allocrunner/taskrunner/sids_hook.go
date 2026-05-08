@@ -116,9 +116,16 @@ func (h *sidsHook) Prestart(
 
 // writeToken writes token into the secrets directory for the task.
 func (h *sidsHook) writeToken(dir string, token string) error {
-	tokenPath := filepath.Join(dir, sidsTokenFile)
-	if err := os.WriteFile(tokenPath, []byte(token), sidsTokenFilePerms); err != nil {
-		return fmt.Errorf("failed to write SI token: %w", err)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	file, err := root.OpenFile(sidsTokenFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0440)
+	if err != nil {
+		return err
+	}
+	if _, err = file.WriteString(token); err != nil {
+		return err
 	}
 	return nil
 }
