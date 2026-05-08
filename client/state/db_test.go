@@ -216,7 +216,7 @@ func TestStateDB_Batch(t *testing.T) {
 			numTransactions := getTxID() - prevTxID
 			writeTime := time.Since(startTime)
 			expectedNumTransactions := ceilDiv(2*numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
-			must.LessEq(t, numTransactions, expectedNumTransactions)
+			must.LessEq(t, expectedNumTransactions, numTransactions)
 			prevTxID = getTxID()
 		}
 
@@ -259,7 +259,7 @@ func TestStateDB_Batch(t *testing.T) {
 			numTransactions := getTxID() - prevTxID
 			writeTime := time.Since(startTime)
 			expectedNumTransactions := ceilDiv(numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
-			must.LessEq(t, numTransactions, expectedNumTransactions)
+			must.LessEq(t, expectedNumTransactions, numTransactions)
 			prevTxID = getTxID()
 		}
 
