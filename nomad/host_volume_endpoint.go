@@ -220,6 +220,12 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	if !allowVolume(aclObj, vol.Namespace) {
 		return structs.ErrPermissionDenied
 	}
+	// Check if override is set and we do not have permissions
+	if args.PolicyOverride {
+		if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+			return structs.ErrPermissionDenied
+		}
+	}
 
 	// ensure we only try to create a valid volume or make valid updates to a
 	// volume
@@ -328,6 +334,12 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	}
 	if !allowVolume(aclObj, vol.Namespace) {
 		return structs.ErrPermissionDenied
+	}
+	// Check if override is set and we do not have permissions
+	if args.PolicyOverride {
+		if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	snap, err := v.srv.State().Snapshot()
