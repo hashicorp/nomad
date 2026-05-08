@@ -107,11 +107,6 @@ export default class TaskGroup extends Fragment {
     );
   }
 
-  @computed('allocations.@each.maxRunDeadline')
-  get hasAllocationMaxRunDeadline() {
-    return this.allocations.some((allocation) => allocation.maxRunDeadline);
-  }
-
   @sumAggregation('tasks', 'reservedCPU') reservedCPU;
   @sumAggregation('tasks', 'reservedMemory') reservedMemory;
   @sumAggregation('tasks', 'reservedDisk') reservedDisk;

@@ -67,9 +67,7 @@
           <th>Task Group</th>
           <th>Created</th>
           <th>Modified</th>
-          {{#if
-            (allocations-have-max-run-deadline @data.planOutput.preemptions)
-          }}
+          {{#if @data.job.isBatchOrSysbatch}}
             <th>Max Run Deadline</th>
           {{/if}}
           <th>Status</th>
@@ -83,9 +81,7 @@
           <AllocationRow
             @allocation={{row.model}}
             @context="job"
-            @showMaxRunDeadline={{allocations-have-max-run-deadline
-              @data.planOutput.preemptions
-            }}
+            @showMaxRunDeadline={{@data.job.isBatchOrSysbatch}}
           />
         </t.body>
       </ListTable>

@@ -569,11 +569,9 @@
               <t.sort-by @prop="modifyIndex" @title="Modify Index">
                 Modified
               </t.sort-by>
-              {{#if (allocations-have-max-run-deadline this.sortedAllocations)}}
-                <t.sort-by @prop="maxRunDeadline">
-                  Max Run Deadline
-                </t.sort-by>
-              {{/if}}
+              <t.sort-by @prop="maxRunDeadline">
+                Max Run Deadline
+              </t.sort-by>
               <t.sort-by @prop="statusIndex">
                 Status
               </t.sort-by>
@@ -604,16 +602,11 @@
                 @context="node"
                 @onClick={{fn this.gotoAllocation row.model}}
                 @data-test-allocation={{row.model.id}}
-                @showMaxRunDeadline={{allocations-have-max-run-deadline
-                  this.sortedAllocations
-                }}
+                @showMaxRunDeadline={{true}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  {{#if
-                    (allocations-have-max-run-deadline this.sortedAllocations)
-                  }}
-                    <TaskSubRow
+                  <TaskSubRow
                       @namespan="9"
                       @taskState={{task}}
                       @active={{eq
@@ -623,18 +616,6 @@
                       @onSetActiveTask={{this.setActiveTaskQueryParam}}
                       @jobHasActions={{true}}
                     />
-                  {{else}}
-                    <TaskSubRow
-                      @namespan="8"
-                      @taskState={{task}}
-                      @active={{eq
-                        this.activeTask
-                        (concat task.allocation.id "-" task.name)
-                      }}
-                      @onSetActiveTask={{this.setActiveTaskQueryParam}}
-                      @jobHasActions={{true}}
-                    />
-                  {{/if}}
                 {{/each}}
               {{/if}}
             </t.body>

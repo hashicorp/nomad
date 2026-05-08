@@ -509,11 +509,7 @@
             <th>
               Modified
             </th>
-            {{#if
-              (allocations-have-max-run-deadline
-                this.model.preemptedAllocations
-              )
-            }}
+            {{#if this.model.job.isBatchOrSysbatch}}
               <th>
                 Max Run Deadline
               </th>
@@ -539,9 +535,7 @@
               @allocation={{row.model}}
               @context="job"
               @data-test-allocation={{row.model.id}}
-              @showMaxRunDeadline={{allocations-have-max-run-deadline
-                this.model.preemptedAllocations
-              }}
+              @showMaxRunDeadline={{this.model.job.isBatchOrSysbatch}}
             />
           </t.body>
         </ListTable>

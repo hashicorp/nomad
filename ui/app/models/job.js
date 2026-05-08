@@ -456,17 +456,8 @@ export default class Job extends Model {
     );
   }
 
-  @computed('allocations.[]')
-  get hasAllocationMaxRunDeadline() {
-    try {
-      return (this.allocations?.toArray?.() || this.allocations || []).some(
-        (allocation) => allocation.maxRunDeadline,
-      );
-    } catch {
-      // Some allocation identifiers may exist in the relationship without
-      // resource data (e.g. during store updates). Return false safely.
-      return false;
-    }
+  get isBatchOrSysbatch() {
+    return this.type === 'batch' || this.type === 'sysbatch';
   }
 
   @belongsTo('job-summary', { async: true, inverse: 'job' }) summary;

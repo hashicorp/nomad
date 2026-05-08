@@ -41,7 +41,7 @@
           <th>
             Modified
           </th>
-          {{#if this.job.hasAllocationMaxRunDeadline}}
+          {{#if this.job.isBatchOrSysbatch}}
             <th>
               Max Run Deadline
             </th>
@@ -74,7 +74,7 @@
             @allocation={{row.model}}
             @context="job"
             @onClick={{fn this.gotoAllocation row.model}}
-            @showMaxRunDeadline={{this.job.hasAllocationMaxRunDeadline}}
+            @showMaxRunDeadline={{this.job.isBatchOrSysbatch}}
             @showSubTasks={{this.showSubTasks}}
             {{keyboard-shortcut
               enumerated=true
@@ -84,7 +84,7 @@
 
           {{#if this.showSubTasks}}
             {{#each row.model.states as |task|}}
-              {{#if this.job.hasAllocationMaxRunDeadline}}
+              {{#if this.job.isBatchOrSysbatch}}
                 <TaskSubRow
                   @namespan="10"
                   @taskState={{task}}
