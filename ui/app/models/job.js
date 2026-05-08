@@ -459,9 +459,15 @@ export default class Job extends Model {
 
   @computed("allocations.@each.maxRunDeadline")
   get hasAllocationMaxRunDeadline() {
-    return (this.allocations?.toArray?.() || this.allocations || []).some(
-      (allocation) => allocation.maxRunDeadline
-    );
+    try {
+      return (this.allocations?.toArray?.() || this.allocations || []).some(
+        (allocation) => allocation.maxRunDeadline
+      );
+    } catch (e) {
+      // Some allocation identifiers may exist in the relationship without
+      // resource data (e.g. during store updates). Return false safely.
+      return false;
+    }
   }
 
   @belongsTo("job-summary", { async: true, inverse: "job" }) summary;
