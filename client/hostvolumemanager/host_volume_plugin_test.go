@@ -218,6 +218,14 @@ func TestNewHostVolumePluginExternal(t *testing.T) {
 	_, err = NewHostVolumePluginExternal(log, ".", "non-existent", "target", "")
 	must.ErrorIs(t, err, ErrPluginNotExists)
 
+	// OpenRoot fails
+	_, err = NewHostVolumePluginExternal(log, "/xxxxxxxxxxxxxxxxx", "non-existent", "target", "")
+	must.ErrorIs(t, err, ErrPluginNotExists)
+
+	// tries to escape root
+	_, err = NewHostVolumePluginExternal(log, ".", "../non-existent", "target", "")
+	must.ErrorIs(t, err, ErrPluginNotExists)
+
 	_, err = NewHostVolumePluginExternal(log, ".", "host_volume_plugin_test.go", "target", "")
 	must.ErrorIs(t, err, ErrPluginNotExecutable)
 

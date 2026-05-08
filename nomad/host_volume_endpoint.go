@@ -521,6 +521,18 @@ func (v *HostVolume) registerVolume(vol *structs.HostVolume) error {
 // by that name. It returns the node (for testing) and an error indicating
 // placement failed.
 func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.HostVolume) (*structs.Node, error) {
+	ctx := &placementContext{
+		regexpCache:  make(map[string]*regexp.Regexp),
+		versionCache: make(map[string]feasible.VerConstraints),
+		semverCache:  make(map[string]feasible.VerConstraints),
+	}
+	constraints := []*structs.Constraint{{
+		LTarget: fmt.Sprintf("${attr.plugins.host_volume.%s.version}", vol.PluginID),
+		Operand: "is_set",
+	}}
+	constraints = append(constraints, vol.Constraints...)
+	checker := feasible.NewConstraintChecker(ctx, constraints)
+
 	if vol.NodeID != "" {
 		node, err := snap.NodeByID(nil, vol.NodeID)
 		if err != nil {
@@ -529,6 +541,10 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		if node == nil {
 			return nil, fmt.Errorf("no such node %s", vol.NodeID)
 		}
+		if ok := checker.Feasible(node); !ok {
+			return nil, fmt.Errorf("node %s is not feasible for volume", vol.NodeID)
+		}
+
 		vol.NodePool = node.NodePool
 		return node, nil
 	}
@@ -551,19 +567,6 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 	if err != nil {
 		return nil, err
 	}
-
-	var checker *feasible.ConstraintChecker
-	ctx := &placementContext{
-		regexpCache:  make(map[string]*regexp.Regexp),
-		versionCache: make(map[string]feasible.VerConstraints),
-		semverCache:  make(map[string]feasible.VerConstraints),
-	}
-	constraints := []*structs.Constraint{{
-		LTarget: fmt.Sprintf("${attr.plugins.host_volume.%s.version}", vol.PluginID),
-		Operand: "is_set",
-	}}
-	constraints = append(constraints, vol.Constraints...)
-	checker = feasible.NewConstraintChecker(ctx, constraints)
 
 	var (
 		filteredByExisting    int
