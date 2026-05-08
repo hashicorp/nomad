@@ -3,19 +3,14 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import {
-  currentRouteName,
-  currentURL,
-  visit,
-  waitUntil,
-} from "@ember/test-helpers";
-import { module, test } from "qunit";
-import { setupApplicationTest } from "ember-qunit";
-import { setupMirage } from "ember-cli-mirage/test-support";
-import JobDetail from "nomad-ui/tests/pages/jobs/detail";
-import setPolicy from "nomad-ui/tests/utils/set-policy";
+import { currentRouteName, currentURL, visit, waitUntil } from '@ember/test-helpers';
+import { module, test } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+import { setupMirage } from 'ember-cli-mirage/test-support';
+import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
+import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
-const jobTypesWithStatusPanel = ["service", "system", "batch", "sysbatch"];
+const jobTypesWithStatusPanel = ['service', 'system', 'batch', 'sysbatch'];
 async function switchToHistorical() {
   await JobDetail.statusModes.historical.click();
 }
@@ -28,7 +23,7 @@ export default function moduleForJob(
   title,
   context,
   jobFactory,
-  additionalTests
+  additionalTests,
 ) {
   let job;
 
@@ -36,16 +31,16 @@ export default function moduleForJob(
     setupApplicationTest(hooks);
     setupMirage(hooks);
     hooks.before(function () {
-      if (context !== "allocations" && context !== "children") {
+      if (context !== 'allocations' && context !== 'children') {
         throw new Error(
-          `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`
+          `Invalid context provided to moduleForJob, expected either "allocations" or "children", got ${context}`,
         );
       }
     });
 
     hooks.beforeEach(async function () {
-      this.server.create("node-pool");
-      this.server.create("node");
+      this.server.create('node-pool');
+      this.server.create('node');
       job = jobFactory(this.server);
       if (!job.namespace) {
         await JobDetail.visit({ id: job.id });
@@ -54,18 +49,18 @@ export default function moduleForJob(
       }
     });
 
-    test("visiting /jobs/:job_id", async function (assert) {
+    test('visiting /jobs/:job_id', async function (assert) {
       const expectedURL = job.namespace
         ? `/jobs/${job.name}@${job.namespace}`
         : `/jobs/${job.name}`;
 
       assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
       assert.ok(document.title.startsWith(`Job ${job.name}`));
-      assert.ok(document.title.endsWith(" - Nomad"));
+      assert.ok(document.title.endsWith(' - Nomad'));
     });
 
-    test("the subnav links to overview", async function (assert) {
-      await JobDetail.tabFor("overview").visit();
+    test('the subnav links to overview', async function (assert) {
+      await JobDetail.tabFor('overview').visit();
 
       const expectedURL = job.namespace
         ? `/jobs/${job.name}@${job.namespace}`
@@ -74,8 +69,8 @@ export default function moduleForJob(
       assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
     });
 
-    test("the subnav links to definition", async function (assert) {
-      await JobDetail.tabFor("definition").visit();
+    test('the subnav links to definition', async function (assert) {
+      await JobDetail.tabFor('definition').visit();
 
       const expectedURL = job.namespace
         ? `/jobs/${job.name}@${job.namespace}/definition`
@@ -84,8 +79,8 @@ export default function moduleForJob(
       assert.ok(decodeURIComponent(currentURL()).startsWith(expectedURL));
     });
 
-    test("the subnav links to versions", async function (assert) {
-      await JobDetail.tabFor("versions").visit();
+    test('the subnav links to versions', async function (assert) {
+      await JobDetail.tabFor('versions').visit();
 
       const expectedURL = job.namespace
         ? `/jobs/${job.name}@${job.namespace}/versions`
@@ -94,7 +89,7 @@ export default function moduleForJob(
       assert.deepEqual(decodeURIComponent(currentURL()), expectedURL);
     });
 
-    test("the title buttons are dependent on job status", async function (assert) {
+    test('the title buttons are dependent on job status', async function (assert) {
       await waitUntil(
         () =>
           JobDetail.stop.isPresent ||
@@ -103,12 +98,12 @@ export default function moduleForJob(
           JobDetail.revert.isPresent
       );
 
-      if (job.status === "dead") {
+      if (job.status === 'dead') {
         if (job.stopped) {
           assert.ok(JobDetail.start.isPresent);
         } else {
           assert.ok(
-            JobDetail.revert.isPresent || JobDetail.editAndResubmit.isPresent
+            JobDetail.revert.isPresent || JobDetail.editAndResubmit.isPresent,
           );
         }
         assert.ok(JobDetail.purge.isPresent);
@@ -122,38 +117,38 @@ export default function moduleForJob(
       }
     });
 
-    test("page header displays job information", async function (assert) {
-      assert.deepEqual(JobDetail.statFor("type").text, `Type ${job.type}`);
+    test('page header displays job information', async function (assert) {
+      assert.deepEqual(JobDetail.statFor('type').text, `Type ${job.type}`);
       assert.deepEqual(
-        JobDetail.statFor("priority").text,
-        `Priority ${job.priority}`
+        JobDetail.statFor('priority').text,
+        `Priority ${job.priority}`,
       );
       assert.deepEqual(
-        JobDetail.statFor("version").text,
-        `Version ${job.version}`
+        JobDetail.statFor('version').text,
+        `Version ${job.version}`,
       );
       assert.deepEqual(
-        JobDetail.statFor("node-pool").text,
-        `Node Pool ${job.nodePool}`
+        JobDetail.statFor('node-pool').text,
+        `Node Pool ${job.nodePool}`,
       );
     });
 
-    if (context === "allocations") {
-      test("allocations for the job are shown in the overview", async function (assert) {
+    if (context === 'allocations') {
+      test('allocations for the job are shown in the overview', async function (assert) {
         if (jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
         assert.ok(
           JobDetail.allocationsSummary.isPresent,
-          "Allocations are shown in the summary section"
+          'Allocations are shown in the summary section',
         );
         assert.ok(
           JobDetail.childrenSummary.isHidden,
-          "Children are not shown in the summary section"
+          'Children are not shown in the summary section',
         );
       });
 
-      test("clicking in an allocation row navigates to that allocation", async function (assert) {
+      test('clicking in an allocation row navigates to that allocation', async function (assert) {
         const allocationRow = JobDetail.allocations[0];
         const allocationId = allocationRow.id;
 
@@ -162,11 +157,11 @@ export default function moduleForJob(
         assert.deepEqual(
           currentURL(),
           `/allocations/${allocationId}`,
-          "Allocation row links to allocation detail"
+          'Allocation row links to allocation detail',
         );
       });
 
-      test("clicking in a task group row navigates to that task group", async function (assert) {
+      test('clicking in a task group row navigates to that task group', async function (assert) {
         const tgRow = JobDetail.taskGroups[0];
         const tgName = tgRow.name;
 
@@ -179,14 +174,14 @@ export default function moduleForJob(
         assert.deepEqual(currentURL(), expectedURL);
       });
 
-      test("clicking legend item navigates to a pre-filtered allocations table", async function (assert) {
+      test('clicking legend item navigates to a pre-filtered allocations table', async function (assert) {
         if (jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
 
         const legendItem = JobDetail.allocationsSummary.legend.clickableItems
           .toArray()
-          .find((item) => item.label !== "queued");
+          .find((item) => item.label !== 'queued');
 
         const status = legendItem.label;
         await legendItem.click();
@@ -194,23 +189,21 @@ export default function moduleForJob(
         const encodedStatus = encodeURIComponent(JSON.stringify([status]));
         const expectedURL = new URL(
           urlWithNamespace(
-            `/jobs/${encodeURIComponent(job.name)}@${
-              job.namespace
-            }/allocations?status=${encodedStatus}`,
-            job.namespace
+            `/jobs/${encodeURIComponent(job.name)}@${job.namespace}/allocations?status=${encodedStatus}`,
+            job.namespace,
           ),
-          window.location
+          window.location,
         );
         const gotURL = new URL(currentURL(), window.location);
         assert.deepEqual(gotURL.pathname, expectedURL.pathname);
         assert.deepEqual(
-          gotURL.searchParams.get("status"),
-          expectedURL.searchParams.get("status"),
-          "Status filter is preserved in query params"
+          gotURL.searchParams.get('status'),
+          expectedURL.searchParams.get('status'),
+          'Status filter is preserved in query params',
         );
       });
 
-      test("clicking in a slice takes you to a pre-filtered allocations table", async function (assert) {
+      test('clicking in a slice takes you to a pre-filtered allocations table', async function (assert) {
         if (jobTypesWithStatusPanel.includes(job.type)) {
           await switchToHistorical(job);
         }
@@ -224,9 +217,9 @@ export default function moduleForJob(
             `/jobs/${encodeURIComponent(job.name)}@${
               job.namespace
             }/allocations?status=${encodedStatus}`,
-            job.namespace
+            job.namespace,
           ),
-          window.location
+          window.location,
         );
         const gotURL = new URL(currentURL(), window.location);
         assert.deepEqual(gotURL.pathname, expectedURL.pathname);
@@ -236,25 +229,25 @@ export default function moduleForJob(
         expectedURL.searchParams.sort();
         assert.deepEqual(
           gotURL.searchParams.toString(),
-          expectedURL.searchParams.toString()
+          expectedURL.searchParams.toString(),
         );
       });
     }
 
-    if (context === "children") {
-      test("children for the job are shown in the overview", async function (assert) {
+    if (context === 'children') {
+      test('children for the job are shown in the overview', async function (assert) {
         assert.ok(
           JobDetail.childrenSummary.isPresent,
-          "Children are shown in the summary section"
+          'Children are shown in the summary section',
         );
         assert.ok(
           JobDetail.allocationsSummary.isHidden,
-          "Allocations are not shown in the summary section"
+          'Allocations are not shown in the summary section',
         );
       });
     } else {
-      test("the subnav links to evaluations", async function (assert) {
-        await JobDetail.tabFor("evaluations").visit();
+      test('the subnav links to evaluations', async function (assert) {
+        await JobDetail.tabFor('evaluations').visit();
 
         const expectedURL = job.namespace
           ? `/jobs/${job.name}@${job.namespace}/evaluations`
@@ -279,7 +272,7 @@ export default function moduleForJob(
 export function moduleForJobWithClientStatus(
   title,
   jobFactory,
-  additionalTests
+  additionalTests,
 ) {
   let job;
 
@@ -288,43 +281,43 @@ export function moduleForJobWithClientStatus(
     setupMirage(hooks);
 
     hooks.beforeEach(async function () {
-      this.server.createList("node-pool", 3);
-      const clients = this.server.createList("node", 3, {
-        datacenter: "dc1",
-        status: "ready",
+      this.server.createList('node-pool', 3);
+      const clients = this.server.createList('node', 3, {
+        datacenter: 'dc1',
+        status: 'ready',
       });
 
       clients.push(
-        this.server.create("node", { datacenter: "dc2", status: "ready" })
+        this.server.create('node', { datacenter: 'dc2', status: 'ready' }),
       );
       clients.push(
-        this.server.create("node", { datacenter: "dc3", status: "ready" })
+        this.server.create('node', { datacenter: 'dc3', status: 'ready' }),
       );
       clients.push(
-        this.server.create("node", {
-          datacenter: "canada-west-1",
-          status: "ready",
-        })
+        this.server.create('node', {
+          datacenter: 'canada-west-1',
+          status: 'ready',
+        }),
       );
       job = jobFactory(this.server);
       clients.forEach((c) => {
-        this.server.create("allocation", {
+        this.server.create('allocation', {
           jobId: job.id,
           nodeId: c.id,
-          clientStatus: "running",
+          clientStatus: 'running',
         });
       });
     });
 
-    module("with node:read permissions", function (hooks) {
+    module('with node:read permissions', function (hooks) {
       hooks.beforeEach(async function () {
         // Displaying the job status in client requires node:read permission.
         setPolicy.call(this, {
-          id: "node-read",
-          name: "node-read",
+          id: 'node-read',
+          name: 'node-read',
           rulesJSON: {
             Node: {
-              Policy: "read",
+              Policy: 'read',
             },
           },
         });
@@ -332,8 +325,8 @@ export function moduleForJobWithClientStatus(
         await visitJobDetailPage(job);
       });
 
-      test("the subnav links to clients", async function (assert) {
-        await JobDetail.tabFor("clients").visit();
+      test('the subnav links to clients', async function (assert) {
+        await JobDetail.tabFor('clients').visit();
 
         const expectedURL = job.namespace
           ? `/jobs/${job.id}@${job.namespace}/clients`
@@ -349,33 +342,33 @@ export function moduleForJobWithClientStatus(
       }
     });
 
-    module("without node:read permissions", function (hooks) {
+    module('without node:read permissions', function (hooks) {
       hooks.beforeEach(async function () {
         // Test blank Node policy to mock lack of permission.
         setPolicy.call(this, {
-          id: "node",
-          name: "node",
+          id: 'node',
+          name: 'node',
           rulesJSON: {},
         });
 
         await visitJobDetailPage(job);
       });
 
-      test("the page handles presentations concerns regarding the user not having node:read permissions", async function (assert) {
+      test('the page handles presentations concerns regarding the user not having node:read permissions', async function (assert) {
         assert
           .dom("[data-test-tab='clients']")
           .doesNotExist(
-            "Job Detail Sub Navigation should not render Clients tab"
+            'Job Detail Sub Navigation should not render Clients tab',
           );
       });
 
-      test("/jobs/job/clients route is protected with authorization logic", async function (assert) {
+      test('/jobs/job/clients route is protected with authorization logic', async function (assert) {
         await visit(`/jobs/${job.id}/clients`);
 
         assert.deepEqual(
           currentRouteName(),
-          "jobs.job.index",
-          "The clients route cannot be visited unless you have node:read permissions"
+          'jobs.job.index',
+          'The clients route cannot be visited unless you have node:read permissions',
         );
       });
     });
@@ -383,19 +376,19 @@ export function moduleForJobWithClientStatus(
 }
 
 function urlWithNamespace(url, namespace) {
-  if (!namespace || namespace === "default") {
+  if (!namespace || namespace === 'default') {
     return url;
   }
 
-  const parts = url.split("?");
+  const parts = url.split('?');
   const params = new URLSearchParams(parts[1]);
-  params.set("namespace", namespace);
+  params.set('namespace', namespace);
 
   return `${parts[0]}?${params.toString()}`;
 }
 
 async function visitJobDetailPage({ id, namespace }) {
-  if (!namespace || namespace === "default") {
+  if (!namespace || namespace === 'default') {
     await JobDetail.visit({ id });
   } else {
     await JobDetail.visit({ id: `${id}@${namespace}` });
