@@ -452,7 +452,7 @@ export default class Job extends Model {
   @computed('taskGroups.@each.hasMaxRunDeadline')
   get hasMaxRunDeadline() {
     return (this.taskGroups?.toArray?.() || this.taskGroups || []).some(
-      (taskGroup) => taskGroup.hasMaxRunDeadline
+      (taskGroup) => taskGroup.hasMaxRunDeadline,
     );
   }
 
@@ -460,9 +460,9 @@ export default class Job extends Model {
   get hasAllocationMaxRunDeadline() {
     try {
       return (this.allocations?.toArray?.() || this.allocations || []).some(
-        (allocation) => allocation.maxRunDeadline
+        (allocation) => allocation.maxRunDeadline,
       );
-    } catch (e) {
+    } catch {
       // Some allocation identifiers may exist in the relationship without
       // resource data (e.g. during store updates). Return false safely.
       return false;
