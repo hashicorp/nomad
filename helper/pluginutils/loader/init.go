@@ -160,7 +160,7 @@ func (l *PluginLoader) initInternal(plugins map[PluginID]*InternalPluginConfig, 
 	return fingerprinted, nil
 }
 
-// selectApiVersion takes in PluginInfo and returns the highest compatable
+// selectApiVersion takes in PluginInfo and returns the highest compatible
 // version or an error if the plugins response is malformed. If there is no
 // overlap, an empty string is returned.
 func (l *PluginLoader) selectApiVersion(i *base.PluginInfoResponse) (string, error) {
