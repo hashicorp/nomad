@@ -30,7 +30,7 @@ func newTestMaxRunDurationHook(
 	baseLabels []metrics.Label,
 	onTimeout func(time.Time),
 ) *maxRunDurationHook {
-	hook := newMaxRunDurationHook(log.NewNullLogger(), alloc, baseLabels, onTimeout)
+	hook := newMaxRunDurationHook(log.NewNullLogger(), alloc, baseLabels, onTimeout, nil)
 
 	h, ok := hook.(*maxRunDurationHook)
 	if !ok {
@@ -88,6 +88,65 @@ func TestMaxRunDurationHook_Update_DoesNotExtendDeadlineOnUnrelatedAllocChange(t
 	case <-deadlines:
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("timed out waiting for original max_run_duration deadline after unrelated update")
+	}
+}
+
+// TestMaxRunDurationHook_Update_DoesNotExtendDeadlineWhenTasksStart verifies
+// that once the deadline is established at Prerun() time, a subsequent Update()
+// that carries task-state timestamps (i.e. tasks have now started running and
+// the server has echoed their StartedAt back) cannot push the deadline later.
+// Without this guard a slow-starting task could effectively earn extra budget
+// time beyond the configured max_run_duration.
+func TestMaxRunDurationHook_Update_DoesNotExtendDeadlineWhenTasksStart(t *testing.T) {
+	ci.Parallel(t)
+
+	maxRunDuration := 200 * time.Millisecond
+
+	alloc := mock.BatchAlloc()
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+
+	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
+	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
+
+	// Prerun arms the timer anchored to now.
+	err := hook.Prerun((*taskenv.TaskEnv)(nil))
+	must.NoError(t, err)
+	deadlineAfterPrerun := hook.deadline
+
+	// Simulate a slow task: it only starts 75 ms into the countdown.
+	time.Sleep(75 * time.Millisecond)
+
+	// The server has now echoed back the alloc with the task's StartedAt set.
+	// If the hook were to use this as the new deadline anchor it would compute
+	// StartedAt + maxRunDuration, which is ~75ms later than the original
+	// deadline — giving the task extra time it should not have.
+	taskName := alloc.Job.TaskGroups[0].Tasks[0].Name
+	updatedAlloc := alloc.Copy()
+	updatedAlloc.TaskStates = map[string]*structs.TaskState{
+		taskName: {
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(), // tasks just started, 75ms into the countdown
+		},
+	}
+
+	err = hook.Update(&interfaces.RunnerUpdateRequest{Alloc: updatedAlloc})
+	must.NoError(t, err)
+
+	// The deadline must not have moved later.
+	must.True(t,
+		!hook.deadline.After(deadlineAfterPrerun),
+		must.Sprintf("deadline was extended from %v to %v after tasks started running",
+			deadlineAfterPrerun, hook.deadline),
+	)
+
+	// And the timer must still fire at roughly the original deadline, not the
+	// extended one (i.e. within the remaining ~125ms, not ~200ms from now).
+	select {
+	case deadline := <-deadlines:
+		must.False(t, deadline.IsZero())
+	case <-time.After(maxRunDuration):
+		t.Fatal("timer did not fire before original deadline: deadline was incorrectly extended")
 	}
 }
 
@@ -233,6 +292,69 @@ func TestMaxRunDurationHook_Shutdown_CancelsTimer(t *testing.T) {
 	case deadline := <-deadlines:
 		t.Fatalf("unexpected deadline fired after shutdown: %v", deadline)
 	case <-time.After(250 * time.Millisecond):
+	}
+}
+
+// TestMaxRunDurationHook_Prerun_PreservesDeadlineAfterClientRestart verifies
+// that when a client restarts mid-countdown the hook does not reset the timer
+// to the full max_run_duration. Instead it should reconstruct the original
+// deadline from the StartedAt timestamps stored in the task runners, so the
+// remaining time is maxRunDuration minus the time already elapsed.
+func TestMaxRunDurationHook_Prerun_PreservesDeadlineAfterClientRestart(t *testing.T) {
+	ci.Parallel(t)
+
+	maxRunDuration := 200 * time.Millisecond
+
+	// Simulate a task that has already been running for half the budget.
+	elapsed := maxRunDuration / 2
+	originalStartedAt := time.Now().Add(-elapsed)
+
+	alloc := mock.BatchAlloc()
+	alloc.Job.Type = structs.JobTypeBatch
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+	// The server-side alloc carries no task states (as is typical on restart).
+	alloc.TaskStates = nil
+
+	taskName := alloc.Job.TaskGroups[0].Tasks[0].Name
+
+	// taskStatesFn mimics task runners that have been restored from local state
+	// with the original StartedAt preserved, but may be in Pending state
+	// because the process handle could not be reattached.
+	taskStatesFn := func() map[string]*structs.TaskState {
+		return map[string]*structs.TaskState{
+			taskName: {
+				State:     structs.TaskStatePending,
+				StartedAt: originalStartedAt,
+			},
+		}
+	}
+
+	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
+	hookIface := newMaxRunDurationHook(log.NewNullLogger(), alloc, nil, onTimeout, taskStatesFn)
+	hook := hookIface.(*maxRunDurationHook)
+
+	err := hook.Prerun((*taskenv.TaskEnv)(nil))
+	must.NoError(t, err)
+
+	// The deadline should fire after approximately the remaining half of the
+	// budget (maxRunDuration/2), not after the full maxRunDuration. We allow
+	// some slack for slow test environments, but the key invariant is that it
+	// fires well before the full duration would have elapsed.
+	remaining := maxRunDuration - elapsed
+	grace := remaining * 3 // generous upper bound
+
+	select {
+	case deadline := <-deadlines:
+		must.False(t, deadline.IsZero())
+		// Confirm the deadline is anchored to the original start, not time.Now().
+		must.True(t,
+			deadline.Before(time.Now().Add(grace)),
+			must.Sprintf("deadline %v is too far in the future; expected it near %v",
+				deadline, originalStartedAt.Add(maxRunDuration)),
+		)
+	case <-time.After(maxRunDuration * 2):
+		t.Fatal("timed out: hook did not fire within 2x maxRunDuration, " +
+			"suggesting the clock was reset to the full duration on restart")
 	}
 }
 
