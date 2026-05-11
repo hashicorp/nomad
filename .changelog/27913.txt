@@ -1,3 +1,0 @@
-```release-note:improvement
-cli: display job deadline if present
-```
