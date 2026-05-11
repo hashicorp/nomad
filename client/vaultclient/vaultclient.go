@@ -409,6 +409,12 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			strings.Contains(errMsg, "token not found") {
 			fatal = true
 		} else {
+			// In the event of a non fatal error, retry in a minute.
+			// TODO: mismithhisler - This is a temporary fix until a subsequant
+			// refactor of the vault client is merged that contains proper
+			// exponential backoffs.
+			next = time.Now().Add(time.Minute)
+
 			c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
 			c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
 				"error", renewalErr, "period", next)
