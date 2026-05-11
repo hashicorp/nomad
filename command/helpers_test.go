@@ -463,6 +463,64 @@ func TestJobGetter_Validate(t *testing.T) {
 	}
 }
 
+func TestJobTaskGroupMaxRunDeadline_NoRestarts(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	startedAt := time.Now().Add(-5 * time.Minute).Round(time.Second)
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+	taskStates := map[string]*api.TaskState{
+		"task-a": {StartedAt: startedAt, Restarts: 0},
+	}
+
+	deadline, ok := jobTaskGroupMaxRunDeadline(job, groupName, taskStates, 0)
+	must.True(t, ok)
+	must.Eq(t, startedAt.Add(maxRunDuration).UTC(), deadline.UTC())
+}
+
+// TestJobTaskGroupMaxRunDeadline_AfterRestart verifies that when a task has
+// restarted, the CLI anchors the deadline to the alloc's CreateTime rather than
+// the (updated) StartedAt. Using StartedAt after a restart would produce a
+// deadline later than what the client actually enforces, because StartedAt is
+// overwritten with the restart timestamp while the client holds the original
+// Prerun()-time deadline.
+func TestJobTaskGroupMaxRunDeadline_AfterRestart(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+
+	// The alloc was created (and Prerun() called) 20 minutes ago.
+	createTime := time.Now().Add(-20 * time.Minute).Round(time.Second)
+	expectedDeadline := createTime.Add(maxRunDuration) // already exceeded
+
+	// The task restarted 2 minutes ago — its StartedAt was overwritten.
+	// Using this as the anchor would give a deadline 8 minutes in the future,
+	// which is wrong.
+	restartedAt := time.Now().Add(-2 * time.Minute)
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+	taskStates := map[string]*api.TaskState{
+		"task-a": {StartedAt: restartedAt, Restarts: 1},
+	}
+
+	deadline, ok := jobTaskGroupMaxRunDeadline(job, groupName, taskStates, createTime.UnixNano())
+	must.True(t, ok)
+	must.Eq(t, expectedDeadline.UTC(), deadline.UTC())
+	// Confirm it is NOT anchored to the restart time.
+	must.NotEq(t, restartedAt.Add(maxRunDuration).UTC(), deadline.UTC())
+}
+
 func TestPrettyTimeDiff(t *testing.T) {
 	// Grab the time and truncate to the nearest second. This allows our tests
 	// to be deterministic since we don't have to worry about rounding.
