@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 )
@@ -36,6 +37,9 @@ type MockVaultClient struct {
 	// deriveTokenWithJWTFn allows the caller to control the DeriveTokenWithJWT
 	// function.
 	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest) (string, bool, int, error)
+
+	// renewTokenFn allows the caller to control the Renew function.
+	renewTokenFn func(context.Context, string, int) (time.Duration, time.Time, error)
 
 	// renewable determines if the tokens returned should be marked as renewable
 	renewable bool
@@ -70,61 +74,21 @@ func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginR
 	return token, vc.renewable, vc.duration, nil
 }
 
-func (vc *MockVaultClient) SetDeriveTokenError(allocID string, tasks []string, err error) {
+func (vc *MockVaultClient) Renew(ctx context.Context, token string, lease int) (time.Duration, time.Time, error) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 
-	if vc.deriveTokenErrors == nil {
-		vc.deriveTokenErrors = make(map[string]map[string]error, 10)
+	if vc.renewTokenFn != nil {
+		return vc.renewTokenFn(ctx, token, lease)
 	}
 
-	if _, ok := vc.deriveTokenErrors[allocID]; !ok {
-		vc.deriveTokenErrors[allocID] = make(map[string]error, 10)
+	if vc.jwtTokens == nil {
+		vc.jwtTokens = make(map[string]string)
 	}
 
-	for _, task := range tasks {
-		vc.deriveTokenErrors[allocID][task] = err
-	}
+	vc.jwtTokens[token] = token
+	return time.Duration(lease), time.Now().Add(time.Duration(lease)), nil
 }
-
-func (vc *MockVaultClient) RenewToken(token string, interval int) (<-chan error, error) {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
-	if err, ok := vc.renewTokenErrors[token]; ok {
-		return nil, err
-	}
-
-	renewCh := make(chan error)
-	if vc.renewTokens == nil {
-		vc.renewTokens = make(map[string]chan error, 10)
-	}
-	vc.renewTokens[token] = renewCh
-	return renewCh, nil
-}
-
-func (vc *MockVaultClient) SetRenewTokenError(token string, err error) {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
-	if vc.renewTokenErrors == nil {
-		vc.renewTokenErrors = make(map[string]error, 10)
-	}
-
-	vc.renewTokenErrors[token] = err
-}
-
-func (vc *MockVaultClient) StopRenewToken(token string) error {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
-	vc.stoppedTokens = append(vc.stoppedTokens, token)
-	return nil
-}
-
-func (vc *MockVaultClient) Start() {}
-
-func (vc *MockVaultClient) Stop() {}
 
 func (vc *MockVaultClient) SetRenewable(renewable bool) {
 	vc.mu.Lock()

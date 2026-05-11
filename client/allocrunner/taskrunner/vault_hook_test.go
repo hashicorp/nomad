@@ -108,7 +108,7 @@ func setupTestVaultHook(t *testing.T, config *vaultHookConfig) *vaultHook {
 	return newVaultHook(config)
 }
 
-func TestTaskRunner_VaultHook(t *testing.T) {
+func TestTaskRunner_VaultHook_Prestart(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
@@ -316,14 +316,6 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 				must.ErrorIs(t, err, os.ErrNotExist)
 			}
 
-			// Token must be set for renewal.
-			if tc.expectNoRenew {
-				must.MapEmpty(t, client.RenewTokens())
-			} else {
-				must.MapLen(t, 1, client.RenewTokens())
-				must.NotNil(t, client.RenewTokens()[updater.currentToken])
-			}
-
 			// PrestartDone must be false so we can recover tokens.
 			// firstRun is used to prevent multiple executions.
 			must.False(t, resp.Done)
@@ -332,30 +324,6 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			// Stop renewal when hook stops.
 			err = hook.Stop(ctx, nil, nil)
 			must.NoError(t, err)
-			must.Wait(t, wait.InitialSuccess(
-				wait.ErrorFunc(func() error {
-					tokens := client.StoppedTokens()
-
-					if tc.expectNoRenew {
-						if len(tokens) != 0 {
-							return fmt.Errorf("expected no stopped tokens when renewal is disabled, got %d", len(tokens))
-						}
-						return nil
-					}
-
-					if len(tokens) != 1 {
-						return fmt.Errorf("expected stopped tokens to be %d, got %d", 1, len(tokens))
-					}
-					got := tokens[0]
-					expect := updater.currentToken
-					if got != expect {
-						return fmt.Errorf("expected stopped token to be %s, got %s", expect, got)
-					}
-					return nil
-				}),
-				wait.Timeout(5*time.Second),
-				wait.Gap(100*time.Millisecond),
-			))
 		})
 	}
 }
@@ -441,6 +409,9 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
 
 		hook := setupTestVaultHook(t, &vaultHookConfig{
+			vaultBlock: &structs.Vault{
+				ChangeMode: structs.VaultChangeModeNoop,
+			},
 			clientFunc: func(string) (vaultclient.VaultClient, error) {
 				return mockVaultClient, nil
 			},
@@ -467,22 +438,7 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 			})
 
 		err := hook.Prestart(ctx, req, &resp)
-		must.NoError(t, err)
-
-		// Verify task is killed because of unrecoverable error.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				killEv := (hook.lifecycle.(*trtesting.MockTaskHooks)).KillEvent()
-				if killEv == nil {
-					return errors.New("missing kill event")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
-		killEv := (hook.lifecycle.(*trtesting.MockTaskHooks)).KillEvent()
-		must.StrContains(t, killEv.DisplayMessage, "unrecoverable test error")
+		must.Error(t, err)
 	})
 
 	t.Run("recoverable error", func(t *testing.T) {
@@ -490,6 +446,9 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
 
 		hook := setupTestVaultHook(t, &vaultHookConfig{
+			vaultBlock: &structs.Vault{
+				ChangeMode: structs.VaultChangeModeNoop,
+			},
 			clientFunc: func(string) (vaultclient.VaultClient, error) {
 				return mockVaultClient, nil
 			},
@@ -530,53 +489,9 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 		updater := (hook.updater).(*vaultTokenUpdaterMock)
 		must.Eq(t, "secret", updater.currentToken)
 	})
-
-	t.Run("renew request failed", func(t *testing.T) {
-		vaultClient, _ := vaultclient.NewMockVaultClient("")
-		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
-
-		hook := setupTestVaultHook(t, &vaultHookConfig{
-			clientFunc: func(string) (vaultclient.VaultClient, error) {
-				return mockVaultClient, nil
-			},
-		})
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
-			},
-			Task: hook.task,
-		}
-		var resp interfaces.TaskPrestartResponse
-
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		t.Cleanup(cancel)
-
-		// Derive predictable token and fail renew request.
-		mockVaultClient.SetDeriveTokenWithJWTFn(
-			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
-				return "secret", true, 30, nil
-			})
-		mockVaultClient.SetRenewTokenError("secret", errors.New("test error"))
-
-		go func() {
-			// Wait a bit for the renew error then fix token renewal.
-			time.Sleep(10 * time.Millisecond)
-			mockVaultClient.SetRenewTokenError("secret", nil)
-
-		}()
-		err := hook.Prestart(ctx, req, &resp)
-		must.NoError(t, err)
-		must.NoError(t, ctx.Err())
-
-		// Verify retry happened and token was derived.
-		updater := (hook.updater).(*vaultTokenUpdaterMock)
-		must.Eq(t, "secret", updater.currentToken)
-	})
 }
 
-func TestTaskRunner_VaultHook_tokenRenewalFail(t *testing.T) {
+func TestTaskRunner_VaultHook_handleRenewal(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
@@ -650,34 +565,19 @@ func TestTaskRunner_VaultHook_tokenRenewalFail(t *testing.T) {
 				},
 			})
 
-			req := &interfaces.TaskPrestartRequest{
-				TaskEnv: taskenv.NewEmptyTaskEnv(),
-				TaskDir: &allocdir.TaskDir{
-					SecretsDir: t.TempDir(),
-					PrivateDir: t.TempDir(),
-				},
-				Task: hook.task,
-			}
-			var resp interfaces.TaskPrestartResponse
-
-			// Ensure Prestart() returns within a reasonable time.
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			t.Cleanup(cancel)
+			mockVaultClient.SetDeriveTokenWithJWTFn(
+				func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+					return "secret", true, 0, nil
+				})
 
-			err := hook.Prestart(ctx, req, &resp)
-			must.NoError(t, err)
+			hook.handleRenewal(ctx, "secret")
 
 			// Fetch derived token.
 			updater := (hook.updater).(*vaultTokenUpdaterMock)
 			token := updater.currentToken
 			must.NotEq(t, "", token)
-
-			// Fetch renewal token error channel.
-			renewErrCh := mockVaultClient.RenewTokenErrCh(token)
-			must.NotNil(t, renewErrCh)
-
-			// Emit renewal error.
-			renewErrCh <- errors.New("renew error")
 
 			// Verify expected lifecycle events happen.
 			must.Wait(t, wait.InitialSuccess(
@@ -685,7 +585,7 @@ func TestTaskRunner_VaultHook_tokenRenewalFail(t *testing.T) {
 					return tc.verifyTaskLifecycle((hook.lifecycle).(*trtesting.MockTaskHooks))
 				}),
 				wait.Timeout(3*time.Second),
-				wait.Gap(100*time.Millisecond),
+				wait.Gap(1000*time.Millisecond),
 			))
 		})
 	}
