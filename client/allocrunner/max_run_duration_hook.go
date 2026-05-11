@@ -96,6 +96,7 @@ func (h *maxRunDurationHook) resetTimer() {
 		return
 	}
 
+	// Only reset timer if the max run duration has changed
 	if h.hasMaxRunDuration && h.maxRunDuration == maxRunDuration && h.deadline.Equal(deadline) {
 		return
 	}
