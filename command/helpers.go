@@ -130,10 +130,21 @@ func formatMaxRunDeadline(deadline time.Time, verbose bool) string {
 	return prettyTimeDiff(deadline, time.Now())
 }
 
-func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, taskStates map[string]*api.TaskState) (time.Time, bool) {
+func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, taskStates map[string]*api.TaskState, createTime int64) (time.Time, bool) {
 	maxRunDuration, ok := jobTaskGroupMaxRunDuration(job, taskGroupName)
 	if !ok {
 		return time.Time{}, false
+	}
+
+	// If any task has restarted, its StartedAt reflects the most recent
+	// restart time rather than the original start. The client anchors the
+	// deadline to Prerun() time (which is close to alloc creation), so fall
+	// back to CreateTime as the best available proxy.
+	if anyTaskRestarted(taskStates) {
+		if createTime == 0 {
+			return time.Time{}, false
+		}
+		return time.Unix(0, createTime).Add(maxRunDuration), true
 	}
 
 	startedAt, ok := taskStatesFullyStartedSince(taskStates)
@@ -142,6 +153,15 @@ func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, taskStates m
 	}
 
 	return startedAt.Add(maxRunDuration), true
+}
+
+func anyTaskRestarted(taskStates map[string]*api.TaskState) bool {
+	for _, ts := range taskStates {
+		if ts != nil && ts.Restarts > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func jobTaskGroupMaxRunDuration(job *api.Job, taskGroupName string) (time.Duration, bool) {
