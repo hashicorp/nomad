@@ -234,7 +234,7 @@ var classificationRules = []classificationRule{
 	// GC'd (tainted map entry with nil node) nodes are lost.
 	{
 		condition: func(ctx allocContext) bool {
-			return ctx.taintedNode == nil
+			return ctx.nodeIsTainted && ctx.taintedNode == nil
 		},
 		category: categoryLost,
 	},
@@ -247,7 +247,7 @@ var classificationRules = []classificationRule{
 		},
 		category: categoryUntainted,
 	},
-	// Terminal node allocations that cant be replaced but still need to be updated to unknown.
+	// Terminal node allocations that can't be replaced but still need to be updated to unknown.
 	{
 		condition: func(ctx allocContext) bool {
 			return ctx.taintedNode.TerminalStatus() &&
@@ -269,11 +269,11 @@ var classificationRules = []classificationRule{
 // into the following groups:
 // 1. untainted: allocs on working nodes, which are in the correct state and don't need to be changed or updated
 // 2. migrate: allocs on nodes that are draining or need to be moved
-// 3. lost: allocs on lost nodes or have expired and need to be replaced
-// 4. disconnect: allocs on nodes that are disconnected, and need to be updated and maybe rescheduled
+// 3. lost: allocs on lost nodes and need to be replaced
+// 4. disconnecting: allocs on nodes that are disconnected, and need to be updated and maybe rescheduled
 // 5. reconnecting: allocs on a node that has reconnected and need to go through the reconnect flow
 // 6. ignore: allocs in a state that results in a noop that only need to be counted
-// 7. expiring: allocs on disconnected nodes and need to be marked lost (and possibly replaced)
+// 7. expiring: allocs that have expired and need to be marked lost (and possibly replaced)
 
 func (set allocSet) classifyAllocs(state ClusterState) (untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring allocSet) {
 	untainted = make(allocSet)
