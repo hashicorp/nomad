@@ -30,6 +30,11 @@ export default function (
         '[data-test-create-time] .tooltip',
       ),
       modifyTime: text('[data-test-modify-time]'),
+      maxRunDeadline: text('[data-test-max-run-deadline]'),
+      maxRunDeadlineTooltip: attribute(
+        'aria-label',
+        '[data-test-max-run-deadline] .tooltip'
+      ),
       health: text('[data-test-health]'),
       status: text('[data-test-client-status]'),
       job: text('[data-test-job]'),

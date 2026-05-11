@@ -24,6 +24,9 @@
           <th>Task Group</th>
           <th>Created</th>
           <th>Modified</th>
+          {{#if @deployment.job.isBatchOrSysbatch}}
+            <th>Max Run Deadline</th>
+          {{/if}}
           <th>Status</th>
           <th>Version</th>
           <th>Node</th>
@@ -36,6 +39,7 @@
             data-test-deployment-allocation
             @allocation={{row.model}}
             @context="job"
+            @showMaxRunDeadline={{@deployment.job.isBatchOrSysbatch}}
           />
         </t.body>
       </ListTable>

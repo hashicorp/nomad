@@ -569,6 +569,9 @@
               <t.sort-by @prop="modifyIndex" @title="Modify Index">
                 Modified
               </t.sort-by>
+              <t.sort-by @prop="maxRunDeadline">
+                Max Run Deadline
+              </t.sort-by>
               <t.sort-by @prop="statusIndex">
                 Status
               </t.sort-by>
@@ -599,19 +602,20 @@
                 @context="node"
                 @onClick={{fn this.gotoAllocation row.model}}
                 @data-test-allocation={{row.model.id}}
+                @showMaxRunDeadline={{true}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
                   <TaskSubRow
-                    @namespan="8"
-                    @taskState={{task}}
-                    @active={{eq
-                      this.activeTask
-                      (concat task.allocation.id "-" task.name)
-                    }}
-                    @onSetActiveTask={{this.setActiveTaskQueryParam}}
-                    @jobHasActions={{true}}
-                  />
+                      @namespan="9"
+                      @taskState={{task}}
+                      @active={{eq
+                        this.activeTask
+                        (concat task.allocation.id "-" task.name)
+                      }}
+                      @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                      @jobHasActions={{true}}
+                    />
                 {{/each}}
               {{/if}}
             </t.body>
