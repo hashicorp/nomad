@@ -983,7 +983,7 @@ func (ar *allocRunner) AllocState() *state.State {
 	// If TaskStateUpdated has not been called yet, ar.state.TaskStates
 	// won't be set as it is not the canonical source of TaskStates.
 	if len(state.TaskStates) == 0 {
-		ar.state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
+		state.TaskStates = make(map[string]*structs.TaskState, len(ar.tasks))
 		for k, tr := range ar.tasks {
 			state.TaskStates[k] = tr.TaskState()
 		}
