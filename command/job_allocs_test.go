@@ -112,8 +112,8 @@ func TestJobAllocsCommand_MaxRunDeadline(t *testing.T) {
 	job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
-	startedAt := time.Now().Add(-5 * time.Minute).Round(time.Second)
-	deadline := startedAt.Add(maxRunDuration)
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
 
 	a := mock.Alloc()
 	a.Job = job
@@ -122,9 +122,7 @@ func TestJobAllocsCommand_MaxRunDeadline(t *testing.T) {
 	a.Metrics = &structs.AllocMetric{}
 	a.DesiredStatus = structs.AllocDesiredStatusRun
 	a.ClientStatus = structs.AllocClientStatusRunning
-	a.TaskStates = map[string]*structs.TaskState{
-		"web": {State: "running", StartedAt: startedAt},
-	}
+	a.CreateTime = createtime.UnixNano()
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{a}))
 
 	code := cmd.Run([]string{"-address=" + url, "-verbose", job.ID})

@@ -501,6 +501,7 @@ func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.LifecycleAlloc()
+	alloc.CreateTime = time.Now().UnixNano()
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 
 	alloc.Job.Type = structs.JobTypeBatch
@@ -2769,6 +2770,7 @@ func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
+	alloc.CreateTime = time.Now().UnixNano()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
@@ -2813,6 +2815,7 @@ func TestAllocRunner_MaxRunDuration_UpdateExtendsRunningAlloc(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
+	alloc.CreateTime = time.Now().UnixNano()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
 	task.Config = map[string]interface{}{
@@ -2820,7 +2823,11 @@ func TestAllocRunner_MaxRunDuration_UpdateExtendsRunningAlloc(t *testing.T) {
 	}
 	task.KillTimeout = 10 * time.Millisecond
 
-	initialMaxRunDuration := 75 * time.Millisecond
+	// Scale timings with TestMultiplier so the test is reliable on slow CI
+	// environments. The deadline is anchored to CreateTime (set above), so we
+	// need the update to land well before the initial deadline fires.
+	m := time.Duration(testutil.TestMultiplier())
+	initialMaxRunDuration := m * 250 * time.Millisecond
 	alloc.Job.TaskGroups[0].MaxRunDuration = &initialMaxRunDuration
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc)
@@ -2847,15 +2854,18 @@ func TestAllocRunner_MaxRunDuration_UpdateExtendsRunningAlloc(t *testing.T) {
 		t.Fatalf("timed out waiting for alloc runner to start: %v; state=%#v", err, state)
 	})
 
-	time.Sleep(40 * time.Millisecond)
+	// Apply the update well before initialMaxRunDuration elapses from CreateTime.
+	time.Sleep(m * 100 * time.Millisecond)
 
 	updatedAlloc := ar.Alloc().Copy()
 	updatedAlloc.AllocModifyIndex++
-	updatedMaxRunDuration := 200 * time.Millisecond
+	updatedMaxRunDuration := initialMaxRunDuration * 4
 	updatedAlloc.Job.TaskGroups[0].MaxRunDuration = &updatedMaxRunDuration
 	ar.Update(updatedAlloc)
 
-	time.Sleep(60 * time.Millisecond)
+	// Sleep past the original deadline. The alloc should still be running
+	// because the update extended the deadline to initialMaxRunDuration*4.
+	time.Sleep(initialMaxRunDuration)
 
 	state := ar.AllocState()
 	must.NotNil(t, state)
