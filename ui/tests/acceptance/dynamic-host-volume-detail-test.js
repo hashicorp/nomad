@@ -14,7 +14,6 @@ import moment from 'moment';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/dynamic-host-volumes/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const assignAlloc = (volume, alloc) => {
@@ -121,7 +120,6 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
             VolumeDetail.allocations.objectAt(idx).id,
           );
         });
-      await percySnapshot(assert);
     } finally {
       moment.now = originalMomentNow;
     }

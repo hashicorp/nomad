@@ -10,7 +10,6 @@ const searchIncludesSeed = window.location.search.includes('faker-seed');
 
 if (
   config.environment !== 'test' ||
-  config.percy.enabled ||
   searchIncludesSeed
 ) {
   if (searchIncludesSeed) {

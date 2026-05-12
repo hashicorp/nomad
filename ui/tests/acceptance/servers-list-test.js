@@ -12,7 +12,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { findLeader } from '../../mirage/config';
 import ServersList from 'nomad-ui/tests/pages/servers/list';
 import formatHost from 'nomad-ui/utils/format-host';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const minimumSetup = (server) => {
@@ -57,7 +56,6 @@ module('Acceptance | servers list', function (hooks) {
       .reverse();
 
     await ServersList.visit();
-    await percySnapshot(assert);
 
     assert.deepEqual(
       ServersList.servers.length,
