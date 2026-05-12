@@ -834,7 +834,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	// always attempt upsert eval even if job deregister fail
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
-		if err := n.upsertEvals(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
+		if err := n.upsertEvalsWithEnqueue(msgType, index, []*structs.Evaluation{req.Eval}); err != nil {
 			return err
 		}
 	}
@@ -944,12 +944,19 @@ func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, inde
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	return n.upsertEvals(msgType, index, req.Evals)
+	return n.upsertEvalsWithEnqueue(msgType, index, req.Evals)
 }
 
 func (n *nomadFSM) upsertEvals(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
 	if err := n.state.UpsertEvals(msgType, index, evals); err != nil {
 		n.logger.Error("UpsertEvals failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) upsertEvalsWithEnqueue(msgType structs.MessageType, index uint64, evals []*structs.Evaluation) error {
+	if err := n.upsertEvals(msgType, index, evals); err != nil {
 		return err
 	}
 

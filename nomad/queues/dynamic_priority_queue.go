@@ -49,23 +49,20 @@ type DynamicPriorityQueue struct {
 	// totalUsage is the sum of all tenant usages
 	totalUsage int
 
+	// todo: replace with tenant type and metdata key
+	qconf *structs.BatchQueue
+
 	// conf contains user configurations for tuning the behavior of the queue
-	conf *DynamicPriorityConfig
+	conf *structs.DynamicQueueConfig
 
 	// evalBroker is the injected broker for passing an evaluation
 	// on to be scheduled by Nomad
-	evalBroker Queue
+	evalBroker Broker
 
 	// state is the in-memory state store used for both reconciling tenant
 	// workload usages, and polling submitted evaluations for placement
 	state  *state.StateStore
 	logger hclog.Logger
-}
-
-type DynamicPriorityConfig struct {
-	TenantType   string
-	MetadataKey  string
-	CalcInterval time.Duration
 }
 
 type Tenant struct {
@@ -87,22 +84,27 @@ func (w *Workload) calculatePriority(_ int64) {
 	// unimplemented
 }
 
-func NewDynamicPriorityQueue(state *state.StateStore, broker Queue, conf *DynamicPriorityConfig, logger hclog.Logger) *DynamicPriorityQueue {
+func NewDynamicPriorityQueue(state *state.StateStore, broker Broker, sconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
 		tenants:    map[TenantID]Tenant{},
 		queue:      WorkloadQueue{},
+		enqueueCh:  make(chan *Workload, 8192),
 		state:      state,
-		enqueueCh:  make(chan *Workload, 8096),
 		evalBroker: broker,
 		qMux:       sync.Mutex{},
 		qNotify:    make(chan struct{}, 1),
+		qconf:      sconf,
 		conf:       conf,
 		logger:     logger.Named("Dynamic Priority Queue"),
+		totalUsage: 0,
 	}
 }
 
 func (d *DynamicPriorityQueue) Start(ctx context.Context) {
 	// rebuild internal state from statestore, unimplemented
+	if d.state == nil {
+		return
+	}
 
 	go d.runProducer(ctx)
 	go d.runConsumer(ctx)
@@ -199,11 +201,11 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 	}
 
 	tid := ""
-	switch d.conf.TenantType {
+	switch d.qconf.TenantType {
 	case "namespace":
 		tid = job.Namespace
 	case "metadata":
-		tenantID, ok := job.Meta[d.conf.MetadataKey]
+		tenantID, ok := job.Meta[d.qconf.MetadataKey]
 		if !ok {
 			return nil
 		}
