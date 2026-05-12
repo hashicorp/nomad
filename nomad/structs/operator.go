@@ -9,9 +9,9 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/raft"
-	"github.com/mitchellh/mapstructure"
 )
 
 // RaftServer has information about a server in the Raft configuration.
