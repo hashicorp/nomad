@@ -2336,6 +2336,15 @@ func (s *Server) isSingleServerCluster() bool {
 	return s.config.BootstrapExpect == 1
 }
 
+func (s *Server) routeJobRegisterEval(e *structs.Evaluation) {
+	switch e.Type {
+	case structs.JobTypeBatch:
+		s.batchJobQueue.Enqueue(e)
+	default:
+		s.evalBroker.Enqueue(e)
+	}
+}
+
 // peersInfoContent is used to help operators understand what happened to the
 // peers.json file. This is written to a file called peers.info in the same
 // location.

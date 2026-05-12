@@ -77,6 +77,8 @@ func (s *Server) DispatchJob(job *structs.Job) (*structs.Evaluation, error) {
 		return nil, err
 	}
 
+	s.routeJobRegisterEval(eval)
+
 	eval.CreateIndex = index
 	eval.ModifyIndex = index
 
