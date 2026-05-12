@@ -28,7 +28,7 @@ func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 }
 
 // The windows version does nothing currently.
-func linkDir(src, dst string) error {
+func linkDir(src, dst string, _ bool) error {
 	return nil
 }
 

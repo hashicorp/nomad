@@ -363,7 +363,7 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 		}
 		must.NoError(t, state.PutDynamicHostVolume(vol))
 
-		hvm := NewHostVolumeManager(log, Config{StateMgr: state})
+		hvm := NewHostVolumeManager(log, Config{StateMgr: state, PluginDir: t.TempDir()})
 		vols, err := hvm.restoreFromState(timeout(t))
 		must.ErrorIs(t, err, ErrPluginNotExists)
 		must.MapEmpty(t, vols)
