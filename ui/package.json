@@ -117,6 +117,7 @@
     "ember-concurrency": "^4.0.6",
     "ember-copy": "^2.0.1",
     "ember-data": "~4.12.8",
+    "@ember-data/store": "~4.12.8",
     "ember-data-model-fragments": "7.0.3",
     "ember-decorators": "^6.1.1",
     "ember-exam": "10.1.0",
