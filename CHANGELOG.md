@@ -1,3 +1,33 @@
+## 1.10.11 Enterprise (May 12, 2026)
+
+BREAKING CHANGES:
+
+* logging: The allocation logs directory is bind-mounted read-only for task drivers that support with filesystem isolation [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+
+SECURITY:
+
+* dynamic host volumes: Prevent unintended code execution outside the plugin directory (CVE-2026-7474) [[GH-27919](https://github.com/hashicorp/nomad/issues/27919)]
+* logging: Protect logging FIFO from symlink swap attacks (CVE-2026-6959) [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+* sentinel: require sentinel-override ACL capability for overriding soft-mandatory policies on volumes
+* ui: Upgraded Ember to 6.10 [[GH-27674](https://github.com/hashicorp/nomad/issues/27674)]
+
+IMPROVEMENTS:
+
+* build: Update Go toolchain to 1.26.3 [[GH-27924](https://github.com/hashicorp/nomad/issues/27924)]
+* drivers: include volume RequestName within mount config information if available [[GH-27710](https://github.com/hashicorp/nomad/issues/27710)]
+* server: RPC dial timeout is configurable [[GH-27862](https://github.com/hashicorp/nomad/issues/27862)]
+* services: warn on job submit when job has services but no shutdown_delay [[GH-27782](https://github.com/hashicorp/nomad/issues/27782)]
+
+BUG FIXES:
+
+* api: Fix a bug where the Create Job, Update Job, and Scale Job APIs could fail to respect EnforceIndex under concurrent requests [[GH-27832](https://github.com/hashicorp/nomad/issues/27832)]
+* csi: improve check of StagePublishBaseDir being subdirectory of MountDir [[GH-27717](https://github.com/hashicorp/nomad/issues/27717)]
+* deployments: reset ProgressDeadline after pausing and do not fail while paused [[GH-27804](https://github.com/hashicorp/nomad/issues/27804)]
+* drivers: kill plugin instance on dispense failure [[GH-27711](https://github.com/hashicorp/nomad/issues/27711)]
+* job: renabled use of multiple vault namespaces in a single job [[GH-4002](https://github.com/hashicorp/nomad/issues/4002)]
+* plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted [[GH-27885](https://github.com/hashicorp/nomad/issues/27885)]
+* scheduler: Fixed a bug where preemption of allocations by tasks that require devices could incorrectly fail placement [[GH-27880](https://github.com/hashicorp/nomad/issues/27880)]
+
 ## 1.10.10 Enterprise (April 21, 2026)
 
 FEATURES:
