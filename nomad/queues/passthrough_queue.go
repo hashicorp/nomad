@@ -22,4 +22,4 @@ func NewPassthroughQueue(b Broker) *PassthroughQueue {
 // Start is a noop for the passthrough implementation
 func (p *PassthroughQueue) Start(context.Context) {}
 
-func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.Enqueue(e) }
+func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.broker.Enqueue(e) }
