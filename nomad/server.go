@@ -501,6 +501,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		evalBroker,
 		logger,
 	)
+	if err != nil {
+		s.Shutdown()
+		s.logger.Error("failed to create batch job queue", "error", err)
+		return nil, fmt.Errorf("Failed to create batch jo queue: %v", err)
+	}
 
 	// start the batch queue after setting up raft
 	s.batchJobQueue.Start(s.shutdownCtx)
