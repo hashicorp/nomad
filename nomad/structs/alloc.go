@@ -381,37 +381,10 @@ func (a *Allocation) MaxRunDuration() (time.Duration, bool) {
 	}
 }
 
-// FullyStartedSince returns the latest StartedAt timestamp across all task
-// states, but only when every known task state has a non-zero StartedAt time,
-// meaning each task has started at least once. Unlike a stricter check that
-// also requires State == Running, this works correctly both during normal
-// operation and after a client restart when tasks may be temporarily Pending
-// while re-attaching to (or restarting) their processes.
-func FullyStartedSince(taskStates map[string]*TaskState) (time.Time, bool) {
-	if len(taskStates) == 0 {
-		return time.Time{}, false
-	}
-
-	var latest time.Time
-
-	for _, ts := range taskStates {
-		if ts == nil || ts.StartedAt.IsZero() {
-			return time.Time{}, false
-		}
-		if ts.StartedAt.After(latest) {
-			latest = ts.StartedAt
-		}
-	}
-
-	if latest.IsZero() {
-		return time.Time{}, false
-	}
-
-	return latest, true
-}
-
 // MaxRunDurationDeadline returns the deadline at which the allocation should be
-// considered timed out based on max_run_duration.
+// considered timed out based on max_run_duration. The deadline is always
+// anchored to the allocation's CreateTime, which is stable across restarts and
+// task-level events such as retries that update individual task StartedAt times.
 func (a *Allocation) MaxRunDurationDeadline() (time.Time, bool) {
 	if a == nil {
 		return time.Time{}, false
@@ -422,12 +395,11 @@ func (a *Allocation) MaxRunDurationDeadline() (time.Time, bool) {
 		return time.Time{}, false
 	}
 
-	startedAt, ok := FullyStartedSince(a.TaskStates)
-	if !ok {
+	if a.CreateTime == 0 {
 		return time.Time{}, false
 	}
 
-	return startedAt.Add(maxRunDuration), true
+	return time.Unix(0, a.CreateTime).Add(maxRunDuration), true
 }
 
 // MaxRunDurationExpired returns whether the allocation has exceeded its

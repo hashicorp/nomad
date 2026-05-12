@@ -35,12 +35,6 @@ type maxRunDurationHook struct {
 	logger    hclog.Logger
 
 	baseLabels []metrics.Label
-
-	// taskStatesFn returns task states directly from the task runners.
-	// It is used to reconstruct the countdown deadline after a client restart,
-	// when the server-side allocation's TaskStates may be absent or stale but
-	// each task runner's persisted state still holds the original StartedAt.
-	taskStatesFn func() map[string]*structs.TaskState
 }
 
 func newMaxRunDurationHook(
@@ -48,14 +42,12 @@ func newMaxRunDurationHook(
 	alloc *structs.Allocation,
 	baseLabels []metrics.Label,
 	onTimeout func(time.Time),
-	taskStatesFn func() map[string]*structs.TaskState,
 ) interfaces.RunnerHook {
 	return &maxRunDurationHook{
-		alloc:        alloc,
-		onTimeout:    onTimeout,
-		logger:       logger.Named("max_run_duration"),
-		baseLabels:   baseLabels,
-		taskStatesFn: taskStatesFn,
+		alloc:      alloc,
+		onTimeout:  onTimeout,
+		logger:     logger.Named("max_run_duration"),
+		baseLabels: baseLabels,
 	}
 }
 
@@ -106,8 +98,8 @@ func (h *maxRunDurationHook) resetTimer() {
 	}
 
 	// if the duration hasn't changed the timer is already correctly armed —
-	// skip it. The deadline can never move earlier with the same duration
-	// (StartedAt only advances, and time.Now() only advances).
+	// skip it. The deadline is deterministically CreateTime + duration, so it
+	// cannot change as long as the configured duration hasn't changed.
 	if h.hasMaxRunDuration && h.maxRunDuration == maxRunDuration {
 		return
 	}
@@ -217,19 +209,12 @@ func (h *maxRunDurationHook) currentDeadline() (time.Time, time.Duration, bool) 
 		return time.Time{}, 0, false
 	}
 
-	// if task runners report that every task has started at least once, use
-	// their StartedAt timestamps to reconstruct the original deadline.
-	//
-	// Note: the resetTimer guard above ensures this can never *extend* a
-	// deadline that was already established, so a slow-starting task cannot
-	// gain extra time by eventually setting StartedAt.
-	if h.taskStatesFn != nil {
-		if startedAt, ok := structs.FullyStartedSince(h.taskStatesFn()); ok {
-			return startedAt.Add(maxRunDuration), maxRunDuration, true
-		}
+	// The deadline is always anchored to the allocation's CreateTime. This is
+	// stable across client restarts, task retries, and any other events that
+	// would change individual task-level timestamps such as StartedAt.
+	if h.alloc.CreateTime == 0 {
+		return time.Time{}, 0, false
 	}
 
-	// No task has started yet (fresh alloc). Anchor the deadline to now so
-	// that pre-start time counts against the budget.
-	return time.Now().Add(maxRunDuration), maxRunDuration, true
+	return time.Unix(0, h.alloc.CreateTime).Add(maxRunDuration), maxRunDuration, true
 }
