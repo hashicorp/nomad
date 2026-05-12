@@ -17,6 +17,7 @@ const isTest = environment === 'test';
 export default function (defaults) {
   const app = new EmberApp(defaults, {
     emberData: {
+      polyfillUUID: true,
       deprecations: {
         // New projects can safely leave this deprecation disabled.
         // If upgrading, to opt-into the deprecated behavior, set this to true and then follow:
