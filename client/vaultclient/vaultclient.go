@@ -410,7 +410,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			fatal = true
 		} else {
 			// In the event of a non fatal error, retry in a minute.
-			// TODO: mismithhisler - This is a temporary fix until a subsequant
+			// TODO: mismithhisler - This is a temporary fix until a followup
 			// refactor of the vault client is merged that contains proper
 			// exponential backoffs.
 			next = time.Now().Add(time.Minute)
