@@ -130,38 +130,17 @@ func formatMaxRunDeadline(deadline time.Time, verbose bool) string {
 	return prettyTimeDiff(deadline, time.Now())
 }
 
-func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, taskStates map[string]*api.TaskState, createTime int64) (time.Time, bool) {
+func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, createTime int64) (time.Time, bool) {
 	maxRunDuration, ok := jobTaskGroupMaxRunDuration(job, taskGroupName)
 	if !ok {
 		return time.Time{}, false
 	}
 
-	// If any task has restarted, its StartedAt reflects the most recent
-	// restart time rather than the original start. The client anchors the
-	// deadline to Prerun() time (which is close to alloc creation), so fall
-	// back to CreateTime as the best available proxy.
-	if anyTaskRestarted(taskStates) {
-		if createTime == 0 {
-			return time.Time{}, false
-		}
-		return time.Unix(0, createTime).Add(maxRunDuration), true
-	}
-
-	startedAt, ok := taskStatesFullyStartedSince(taskStates)
-	if !ok {
+	if createTime == 0 {
 		return time.Time{}, false
 	}
 
-	return startedAt.Add(maxRunDuration), true
-}
-
-func anyTaskRestarted(taskStates map[string]*api.TaskState) bool {
-	for _, ts := range taskStates {
-		if ts != nil && ts.Restarts > 0 {
-			return true
-		}
-	}
-	return false
+	return time.Unix(0, createTime).Add(maxRunDuration), true
 }
 
 func jobTaskGroupMaxRunDuration(job *api.Job, taskGroupName string) (time.Duration, bool) {
@@ -180,28 +159,6 @@ func jobTaskGroupMaxRunDuration(job *api.Job, taskGroupName string) (time.Durati
 	default:
 		return 0, false
 	}
-}
-
-func taskStatesFullyStartedSince(taskStates map[string]*api.TaskState) (time.Time, bool) {
-	if len(taskStates) == 0 {
-		return time.Time{}, false
-	}
-
-	var latest time.Time
-	for _, ts := range taskStates {
-		if ts == nil || ts.StartedAt.IsZero() {
-			return time.Time{}, false
-		}
-		if ts.StartedAt.After(latest) {
-			latest = ts.StartedAt
-		}
-	}
-
-	if latest.IsZero() {
-		return time.Time{}, false
-	}
-
-	return latest.Local(), true
 }
 
 // fmtInt formats v into the tail of buf.

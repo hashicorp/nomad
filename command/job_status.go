@@ -577,7 +577,7 @@ func formatJobActions(actions []map[string]string) string {
 func formatJobAllocListStubs(stubs []*api.AllocationListStub, job *api.Job, verbose bool, uuidLength int) string {
 	deadlines := make([]string, len(stubs))
 	for i, alloc := range stubs {
-		deadline, ok := jobTaskGroupMaxRunDeadline(job, alloc.TaskGroup, alloc.TaskStates, alloc.CreateTime)
+		deadline, ok := jobTaskGroupMaxRunDeadline(job, alloc.TaskGroup, alloc.CreateTime)
 		if !ok {
 			continue
 		}
@@ -666,7 +666,7 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 
 	deadlines := make([]string, len(allocations))
 	for i, alloc := range allocations {
-		deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.TaskStates, alloc.CreateTime)
+		deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.CreateTime)
 		if !ok {
 			continue
 		}

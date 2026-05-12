@@ -267,7 +267,7 @@ func formatAllocShortInfo(alloc *api.Allocation) string {
 		fmt.Sprintf("Modified|%s", formattedModifyTime),
 	}
 
-	if deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.TaskStates, alloc.CreateTime); ok {
+	if deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.CreateTime); ok {
 		basic = append(basic, fmt.Sprintf("Max Run Deadline|%s", formatMaxRunDeadline(deadline, false)))
 	}
 
@@ -301,7 +301,7 @@ func formatAllocBasicInfo(alloc *api.Allocation, client *api.Client, uuidLength 
 		fmt.Sprintf("Modified|%s", formattedModifyTime),
 	}
 
-	if deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.TaskStates, alloc.CreateTime); ok {
+	if deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.CreateTime); ok {
 		basic = append(basic, fmt.Sprintf("Max Run Deadline|%s", formatMaxRunDeadline(deadline, verbose)))
 	}
 
