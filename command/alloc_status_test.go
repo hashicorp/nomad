@@ -211,8 +211,8 @@ func TestFormatAllocBasicInfo_MaxRunDeadline(t *testing.T) {
 	version := uint64(1)
 	groupName := "group"
 	maxRunDuration := 10 * time.Minute
-	startedAt := time.Now().Add(-5 * time.Minute).Round(time.Second)
-	deadline := startedAt.Add(maxRunDuration)
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
 
 	alloc := &api.Allocation{
 		ID:                 "alloc-id",
@@ -223,13 +223,14 @@ func TestFormatAllocBasicInfo_MaxRunDeadline(t *testing.T) {
 		JobID:              "job-id",
 		Job:                &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
 		TaskGroup:          groupName,
+		CreateTime:         createtime.UnixNano(),
 		ClientStatus:       "running",
 		ClientDescription:  "running",
 		DesiredStatus:      "run",
 		DesiredDescription: "run",
 		TaskStates: map[string]*api.TaskState{
-			"task-a": {State: "running", StartedAt: startedAt.Add(-1 * time.Minute)},
-			"task-b": {State: "dead", StartedAt: startedAt},
+			"task-a": {State: "running", StartedAt: createtime.Add(-1 * time.Minute)},
+			"task-b": {State: "dead", StartedAt: createtime},
 		},
 		Metrics: &api.AllocationMetric{},
 	}
@@ -247,16 +248,14 @@ func TestFormatAllocShortInfo_MaxRunDeadline(t *testing.T) {
 	version := uint64(1)
 	groupName := "group"
 	maxRunDuration := 10 * time.Minute
-	startedAt := time.Now().Add(-5 * time.Minute)
+	createtime := time.Now().Add(-5 * time.Minute).UnixNano()
 
 	alloc := &api.Allocation{
-		ID:        "alloc-id",
-		Name:      "alloc-name",
-		Job:       &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
-		TaskGroup: groupName,
-		TaskStates: map[string]*api.TaskState{
-			"task-a": {State: "running", StartedAt: startedAt},
-		},
+		ID:         "alloc-id",
+		Name:       "alloc-name",
+		Job:        &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
+		TaskGroup:  groupName,
+		CreateTime: createtime,
 	}
 
 	out := formatAllocShortInfo(alloc)

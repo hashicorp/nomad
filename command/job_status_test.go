@@ -256,8 +256,8 @@ func TestFormatJobAllocListStubs_MaxRunDeadline(t *testing.T) {
 	jobType := api.JobTypeBatch
 	groupName := "group"
 	maxRunDuration := 10 * time.Minute
-	startedAt := time.Now().Add(-5 * time.Minute).Round(time.Second)
-	deadline := startedAt.Add(maxRunDuration)
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
 
 	job := &api.Job{
 		Type: &jobType,
@@ -276,10 +276,7 @@ func TestFormatJobAllocListStubs_MaxRunDeadline(t *testing.T) {
 		JobVersion:    1,
 		DesiredStatus: "run",
 		ClientStatus:  "running",
-		TaskStates: map[string]*api.TaskState{
-			"task-a": {State: "running", StartedAt: startedAt.Add(-1 * time.Minute)},
-			"task-b": {State: "complete", StartedAt: startedAt},
-		},
+		CreateTime:    createtime.UnixNano(),
 	}}
 
 	out := formatJobAllocListStubs(allocs, job, true, fullId)
@@ -326,8 +323,8 @@ func TestFormatAllocList_MaxRunDeadline(t *testing.T) {
 	version := uint64(1)
 	groupName := "group"
 	maxRunDuration := 10 * time.Minute
-	startedAt := time.Now().Add(-5 * time.Minute).Round(time.Second)
-	deadline := startedAt.Add(maxRunDuration)
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
 
 	allocs := []*api.Allocation{{
 		ID:            "alloc-id",
@@ -337,10 +334,7 @@ func TestFormatAllocList_MaxRunDeadline(t *testing.T) {
 		Job:           &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
 		DesiredStatus: "run",
 		ClientStatus:  "running",
-		TaskStates: map[string]*api.TaskState{
-			"task-a": {State: "running", StartedAt: startedAt.Add(-1 * time.Minute)},
-			"task-b": {State: "complete", StartedAt: startedAt},
-		},
+		CreateTime:    createtime.UnixNano(),
 	}}
 
 	out := formatAllocList(allocs, true, fullId)
