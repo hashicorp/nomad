@@ -49,8 +49,9 @@ type DynamicPriorityQueue struct {
 	// totalUsage is the sum of all tenant usages
 	totalUsage int
 
-	// todo: replace with tenant type and metdata key
-	qconf *structs.BatchQueue
+	tenantType structs.BatchQueueTenant
+
+	metadataKey string
 
 	// conf contains user configurations for tuning the behavior of the queue
 	conf *structs.DynamicQueueConfig
@@ -84,19 +85,20 @@ func (w *Workload) calculatePriority(_ int64) {
 	// unimplemented
 }
 
-func NewDynamicPriorityQueue(state *state.StateStore, broker Broker, sconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
+func NewDynamicPriorityQueue(state *state.StateStore, broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
-		tenants:    map[TenantID]Tenant{},
-		queue:      WorkloadQueue{},
-		enqueueCh:  make(chan *Workload, 8192),
-		state:      state,
-		evalBroker: broker,
-		qMux:       sync.Mutex{},
-		qNotify:    make(chan struct{}, 1),
-		qconf:      sconf,
-		conf:       conf,
-		logger:     logger.Named("Dynamic Priority Queue"),
-		totalUsage: 0,
+		tenants:     map[TenantID]Tenant{},
+		queue:       WorkloadQueue{},
+		enqueueCh:   make(chan *Workload, 8192),
+		state:       state,
+		evalBroker:  broker,
+		qMux:        sync.Mutex{},
+		qNotify:     make(chan struct{}, 1),
+		tenantType:  qconf.TenantType,
+		metadataKey: qconf.MetadataKey,
+		conf:        conf,
+		logger:      logger.Named("Dynamic Priority Queue"),
+		totalUsage:  0,
 	}
 }
 
@@ -201,11 +203,11 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 	}
 
 	tid := ""
-	switch d.qconf.TenantType {
+	switch d.tenantType {
 	case "namespace":
 		tid = job.Namespace
 	case "metadata":
-		tenantID, ok := job.Meta[d.qconf.MetadataKey]
+		tenantID, ok := job.Meta[d.metadataKey]
 		if !ok {
 			return nil
 		}
