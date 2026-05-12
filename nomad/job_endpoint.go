@@ -362,7 +362,9 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 		return err
 	}
 
-	j.routeJobRegisterEval(args.Eval)
+	if args.Eval != nil {
+		j.routeJobRegisterEval(args.Eval)
+	}
 
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
