@@ -251,11 +251,22 @@ export default class Job extends Model {
     // If the job is scaled down to 0 desired allocations, we shouldn't call it "failed";
     // we should indicate that it is deliberately set to not have any running parts.
     // System/Sysbatch jobs (hasClientStatus) get their totalAllocs from expectedRunningAllocCount,
-    // which is a best-guess-based-on-whats-running number. This means that if there are no current allocs,
-    // because they've been GC'd, we don't know if they were deliberately scaled down or failed.
-    // Safer in this case to show as failed rather than imply a deliberate scale-down.
-    if (totalAllocs === 0 && !this.hasClientStatus) {
-      return { label: 'Scaled Down', state: 'neutral' };
+    // which is a best-guess-based-on-whats-running number. For these jobs, if there are no
+    // current allocs AND no failed/lost/unplaced allocs to inspect, we treat the job as
+    // "Scaled Down" rather than "Failed" — the most common cause is that all eligible nodes
+    // (e.g. a node pool) have been intentionally scaled to zero. See GH-26155.
+    if (totalAllocs === 0) {
+      if (!this.hasClientStatus) {
+        return { label: 'Scaled Down', state: 'neutral' };
+      }
+      const hasFailureSignal =
+        (this.allocBlocks.failed?.healthy?.nonCanary?.length || 0) +
+          (this.allocBlocks.lost?.healthy?.nonCanary?.length || 0) +
+          (this.allocBlocks.unplaced?.healthy?.nonCanary?.length || 0) >
+        0;
+      if (!hasFailureSignal) {
+        return { label: 'Scaled Down', state: 'neutral' };
+      }
     }
 
     // If the job was requested initially, but a subsequent request for it was
@@ -304,11 +315,14 @@ export default class Job extends Model {
       ...this.allocBlocks.unplaced?.healthy?.nonCanary,
     ];
 
-    if (failedOrLostAllocs.length >= totalAllocs) {
+    if (totalAllocs > 0 && failedOrLostAllocs.length >= totalAllocs) {
       return { label: 'Failed', state: 'critical' };
-    } else {
+    } else if (failedOrLostAllocs.length > 0) {
       return { label: 'Degraded', state: 'warning' };
     }
+
+    // If no allocations and no failures, show as scaled down
+    return { label: 'Scaled Down', state: 'neutral' };
   }
   @fragment('structured-attributes') meta;
 
