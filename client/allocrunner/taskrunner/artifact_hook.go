@@ -10,6 +10,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	ci "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -57,7 +58,7 @@ func (h *artifactHook) doWork(
 				fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err),
 				true,
 			)
-			herr := NewHookError(wrapped, structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
+			herr := te.NewHookError(wrapped, structs.NewTaskEvent(structs.TaskArtifactDownloadFailed).SetDownloadError(wrapped))
 
 			errorChannel <- herr
 			continue

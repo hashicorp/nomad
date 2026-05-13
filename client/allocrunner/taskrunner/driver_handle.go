@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -67,7 +68,7 @@ func (h *DriverHandle) Signal(s string) error {
 // Exec is the handled used by client endpoint handler to invoke the appropriate task driver exec.
 func (h *DriverHandle) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
 	if h == nil {
-		return nil, 0, ErrTaskNotRunning
+		return nil, 0, te.ErrTaskNotRunning
 	}
 	command := append([]string{cmd}, args...)
 	res, err := h.driver.ExecTask(h.taskID, command, timeout)
@@ -84,7 +85,7 @@ func (h *DriverHandle) ExecStreaming(ctx context.Context,
 	tty bool,
 	stream drivers.ExecTaskStream) error {
 	if h == nil {
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 	}
 
 	if impl, ok := h.driver.(drivers.ExecTaskStreamingRawDriver); ok {

@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -756,7 +757,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		taskEvent := taskEventFn(tr)
 
 		err := tr.Kill(context.TODO(), taskEvent)
-		if err != nil && err != taskrunner.ErrTaskNotRunning {
+		if err != nil && err != te.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
 		}
 
@@ -779,7 +780,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			taskEvent := taskEventFn(tr)
 
 			err := tr.Kill(context.TODO(), taskEvent)
-			if err != nil && err != taskrunner.ErrTaskNotRunning {
+			if err != nil && err != te.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
 			}
 
@@ -803,7 +804,7 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			taskEvent := taskEventFn(tr)
 
 			err := tr.Kill(context.TODO(), taskEvent)
-			if err != nil && err != taskrunner.ErrTaskNotRunning {
+			if err != nil && err != te.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping sidecar task", "error", err, "task_name", name)
 			}
 
@@ -1448,7 +1449,7 @@ func (ar *allocRunner) restartTasks(ctx context.Context, event *structs.TaskEven
 
 				// Ignore ErrTaskNotRunning errors since tasks that are not
 				// running are expected to not be restarted.
-				if e != nil && e != taskrunner.ErrTaskNotRunning {
+				if e != nil && e != te.ErrTaskNotRunning {
 					errMutex.Lock()
 					defer errMutex.Unlock()
 					err = multierror.Append(err, fmt.Errorf("failed to restart task %s: %v", taskName, e))
