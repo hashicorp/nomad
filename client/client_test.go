@@ -2304,6 +2304,7 @@ func TestClient_DefaultIneligible(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 
 	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.DevMode = false
 		c.DefaultIneligible = true
 		c.RPCHandler = s1
 	})
@@ -2328,6 +2329,74 @@ func TestClient_DefaultIneligible(t *testing.T) {
 		}
 		must.Eq(t, structs.NodeSchedulingIneligible, out.Node.SchedulingEligibility)
 		return out.Node.ID == req.NodeID, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	req2 := structs.NodeUpdateEligibilityRequest{
+		NodeID:       c1.Node().ID,
+		Eligibility:  structs.NodeSchedulingEligible,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var out2 structs.NodeEligibilityUpdateResponse
+
+	// Set node as eligible and restart, should return as eligible
+
+	// Update eligibility should succeed
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.RPC("Node.UpdateEligibility", &req2, &out2)
+		if err != nil {
+			return false, err
+		}
+		return out2.NodeModifyIndex != 0, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	// Query node to confirm eligibility was toggled on
+	var out3 structs.SingleNodeResponse
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.RPC("Node.GetNode", &req, &out3)
+		if err != nil {
+			return false, err
+		}
+		if out.Node == nil {
+			return false, fmt.Errorf("missing reg")
+		}
+		must.Eq(t, structs.NodeSchedulingEligible, out3.Node.SchedulingEligibility)
+		return out3.Node.ID == req.NodeID, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	// Restart Client
+	c1Config := c1.config.Copy()
+	must.NoError(t, c1.Shutdown())
+
+	// actually make and start the client
+	c2, err := NewClient(c1Config, c1.consulCatalog, nil, c1.consulServices, nil)
+	must.NoError(t, err)
+	t.Cleanup(func() {
+		test.NoError(t, c2.Shutdown())
+	})
+
+	req4 := structs.NodeSpecificRequest{
+		NodeID:       c2.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out4 structs.SingleNodeResponse
+
+	// Should still be eligible
+	testutil.WaitForResult(func() (bool, error) {
+		err := s1.RPC("Node.GetNode", &req4, &out4)
+		if err != nil {
+			return false, err
+		}
+		if out.Node == nil {
+			return false, fmt.Errorf("missing reg")
+		}
+		must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
+		return out4.Node.ID == req.NodeID, nil
 	}, func(err error) {
 		must.NoError(t, err)
 	})
