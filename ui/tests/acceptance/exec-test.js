@@ -12,7 +12,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 import KEYS from 'nomad-ui/utils/keys';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | exec', function (hooks) {
@@ -108,7 +107,6 @@ module('Acceptance | exec', function (hooks) {
     assert.notOk(Exec.taskGroups[0].tasks[0].isActive);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
-    await percySnapshot(assert);
 
     await Exec.taskGroups[0].click();
     assert.deepEqual(Exec.taskGroups[0].tasks.length, 0);
@@ -308,7 +306,6 @@ module('Acceptance | exec', function (hooks) {
 
     const terminalTextRendered = assert.async();
     setTimeout(async () => {
-      await percySnapshot(assert);
       terminalTextRendered();
     }, 1000);
   });

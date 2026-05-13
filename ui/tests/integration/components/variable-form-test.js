@@ -11,7 +11,6 @@ import { click, typeIn, find, findAll, render } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
-import percySnapshot from '@percy/ember';
 import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 
 import faker from 'nomad-ui/mirage/faker';
@@ -138,7 +137,6 @@ module('Integration | Component | variable-form', function (hooks) {
         secondRow.classList.contains('hds-form-masked-input--is-masked'),
         'Rows that are not clicked remain obscured',
       );
-      await percySnapshot(assert);
     });
   });
 
@@ -442,7 +440,6 @@ module('Integration | Component | variable-form', function (hooks) {
         hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`,
       );
 
-      await percySnapshot(assert);
 
       const keyValuesAsJSON = keyValues.reduce((acc, { key, value }) => {
         acc[key] = value;
