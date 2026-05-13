@@ -10,7 +10,7 @@ import (
 )
 
 // ErrTaskNotRunning is returned when the underlying task is not currently
-// running. It's defined here in the template package to avoid import cycles.
+// running. It's defined here to avoid import cycles.
 var ErrTaskNotRunning = errors.New("Task not running")
 
 // NewHookError contains an underlying err and a pre-formatted task event.
