@@ -23,6 +23,7 @@ import (
 	envparse "github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -559,6 +560,17 @@ func (tm *TaskTemplateManager) handleChangeModeSignal(signals map[string]struct{
 		s := tm.signals[signal]
 		event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
 		if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
+			// If the task is not running (e.g. it is mid-restart) do not
+			// permanently fail the allocation. When the task comes back up it
+			// will already have the latest rendered template data.
+			if errors.Is(err, te.ErrTaskNotRunning) {
+				tm.config.Events.EmitEvent(
+					structs.NewTaskEvent(structs.TaskHookMessage).
+						SetDisplayMessage(fmt.Sprintf(
+							"Template skipped signal %v: task is not running", s)),
+				)
+				continue
+			}
 			_ = multierror.Append(&mErr, err)
 		}
 	}
