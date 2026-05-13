@@ -19,7 +19,6 @@ import { module, test } from 'qunit';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import cleanWhitespace from '../utils/clean-whitespace';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 import Variables from 'nomad-ui/tests/pages/variables';
@@ -58,7 +57,6 @@ module('Acceptance | variables', function (hooks) {
     await Variables.visit();
     assert.deepEqual(currentURL(), '/variables');
     assert.ok(Layout.gutter.variables.isVisible);
-    await percySnapshot(assert);
   });
 
   test('it correctly traverses to and deletes a variable', async function (assert) {
@@ -102,7 +100,6 @@ module('Acceptance | variables', function (hooks) {
 
     assert.ok(fooLink, 'foo0 file is present');
 
-    await percySnapshot(assert);
 
     await click(fooLink);
     assert.ok(
@@ -112,7 +109,6 @@ module('Acceptance | variables', function (hooks) {
     const deleteButton = find('[data-test-delete-button] button');
     assert.dom(deleteButton).exists('delete button is present');
 
-    await percySnapshot('deeply nested variable');
 
     await click(deleteButton);
     assert
@@ -213,7 +209,6 @@ module('Acceptance | variables', function (hooks) {
       'Related Entities box is job-oriented',
     );
 
-    await percySnapshot('related entities box for job variable');
 
     let relatedJobLink = find('.related-entities a');
     await click(relatedJobLink);
@@ -249,7 +244,6 @@ module('Acceptance | variables', function (hooks) {
       'Related Entities box is group-oriented',
     );
 
-    await percySnapshot('related entities box for group variable');
 
     let relatedGroupLink = find('.related-entities a');
     await click(relatedGroupLink);
@@ -287,7 +281,6 @@ module('Acceptance | variables', function (hooks) {
       'Related Entities box is task-oriented',
     );
 
-    await percySnapshot('related entities box for task variable');
 
     let relatedTaskLink = find('.related-entities a');
     await click(relatedTaskLink);
@@ -366,7 +359,6 @@ module('Acceptance | variables', function (hooks) {
     await typeIn('[data-test-var-key]', 'myKey');
     await typeIn('[data-test-var-value]', 'superSecret');
 
-    await percySnapshot(assert);
 
     await click('button[type="submit"]');
 
@@ -588,7 +580,6 @@ module('Acceptance | variables', function (hooks) {
         'Clicking the button navigates you to editing view.',
       );
 
-      await percySnapshot(assert);
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
 
@@ -1023,7 +1014,6 @@ module('Acceptance | variables', function (hooks) {
       assert.dom('[data-test-no-auto-vars-message]').exists();
       assert.dom('[data-test-create-variable-button]').exists();
 
-      await percySnapshot(assert);
       window.localStorage.nomadTokenSecret = null; // Reset Token
     });
 

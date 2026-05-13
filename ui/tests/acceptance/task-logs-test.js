@@ -16,7 +16,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import TaskLogs from 'nomad-ui/tests/pages/allocations/task/logs';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 let allocation;
@@ -46,7 +45,6 @@ module.skip('Acceptance | task logs', function (hooks) {
   test('it passes an accessibility audit', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
     await a11yAudit(assert);
-    await percySnapshot(assert);
   });
 
   test('/allocation/:id/:task_name/logs should have a log component', async function (assert) {
@@ -155,12 +153,6 @@ module.skip('Acceptance | task logs', function (hooks) {
     assert
       .dom('.task-context-sidebar h1.title')
       .includesText(task.state, 'Task state is correctly displayed');
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-        .task-events table td:nth-child(1) { color: transparent; }
-      `,
-    });
 
     await click('.sidebar button.close');
     assert.notOk(TaskLogs.sidebarIsPresent, 'Sidebar is not present');
