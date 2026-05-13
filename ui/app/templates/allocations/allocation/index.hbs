@@ -137,6 +137,19 @@
           {{this.model.job.namespace.name}}
         </span>
       </span>
+      {{#if this.model.maxRunDeadline}}
+        <span class="pair" data-test-max-run-deadline>
+          <span class="term">
+            Max Run Deadline
+          </span>
+          <span
+            class="tooltip"
+            aria-label="{{format-ts this.model.maxRunDeadline}}"
+          >
+            {{moment-from-now this.model.maxRunDeadline}}
+          </span>
+        </span>
+      {{/if}}
     </div>
   </div>
   <div class="boxed-section">
@@ -496,6 +509,11 @@
             <th>
               Modified
             </th>
+            {{#if this.model.job.isBatchOrSysbatch}}
+              <th>
+                Max Run Deadline
+              </th>
+            {{/if}}
             <th>
               Status
             </th>
@@ -517,6 +535,7 @@
               @allocation={{row.model}}
               @context="job"
               @data-test-allocation={{row.model.id}}
+              @showMaxRunDeadline={{this.model.job.isBatchOrSysbatch}}
             />
           </t.body>
         </ListTable>

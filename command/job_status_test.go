@@ -250,6 +250,98 @@ func TestJobStatusCommand_Fails(t *testing.T) {
 	}
 }
 
+func TestFormatJobAllocListStubs_MaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
+
+	job := &api.Job{
+		Type: &jobType,
+		TaskGroups: []*api.TaskGroup{{
+			Name:           &groupName,
+			MaxRunDuration: &maxRunDuration,
+		}},
+	}
+
+	allocs := []*api.AllocationListStub{{
+		ID:            "alloc-id",
+		EvalID:        "eval-id",
+		NodeID:        "node-id",
+		NodeName:      "node-name",
+		TaskGroup:     groupName,
+		JobVersion:    1,
+		DesiredStatus: "run",
+		ClientStatus:  "running",
+		CreateTime:    createtime.UnixNano(),
+	}}
+
+	out := formatJobAllocListStubs(allocs, job, true, fullId)
+	must.StrContains(t, out, "Max Run Deadline")
+	must.StrContains(t, out, formatTime(deadline))
+}
+
+func TestFormatJobAllocListStubs_NoMaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeService
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	startedAt := time.Now().Add(-5 * time.Minute)
+
+	job := &api.Job{
+		Type: &jobType,
+		TaskGroups: []*api.TaskGroup{{
+			Name:           &groupName,
+			MaxRunDuration: &maxRunDuration,
+		}},
+	}
+
+	allocs := []*api.AllocationListStub{{
+		ID:            "alloc-id",
+		NodeID:        "node-id",
+		TaskGroup:     groupName,
+		JobVersion:    1,
+		DesiredStatus: "run",
+		ClientStatus:  "running",
+		TaskStates: map[string]*api.TaskState{
+			"task-a": {State: "running", StartedAt: startedAt},
+		},
+	}}
+
+	out := formatJobAllocListStubs(allocs, job, false, fullId)
+	must.StrNotContains(t, out, "Max Run Deadline")
+}
+
+func TestFormatAllocList_MaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	version := uint64(1)
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
+
+	allocs := []*api.Allocation{{
+		ID:            "alloc-id",
+		EvalID:        "eval-id",
+		NodeID:        "node-id",
+		TaskGroup:     groupName,
+		Job:           &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
+		DesiredStatus: "run",
+		ClientStatus:  "running",
+		CreateTime:    createtime.UnixNano(),
+	}}
+
+	out := formatAllocList(allocs, true, fullId)
+	must.StrContains(t, out, "Max Run Deadline")
+	must.StrContains(t, out, formatTime(deadline))
+}
+
 func TestJobStatusCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 

@@ -10,6 +10,7 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Allocations from 'nomad-ui/tests/pages/jobs/job/allocations';
+import moment from 'moment';
 
 let job;
 let allocations;
@@ -79,6 +80,42 @@ module('Acceptance | job allocations', function (hooks) {
     });
 
     assert.deepEqual(getPageTitle(), `Job ${job.name} allocations - Nomad`);
+  });
+
+
+  test('allocations show max run deadline for batch jobs that have one configured', async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const taskGroup = this.server.db.taskGroups.where({ jobId: job.id })[0];
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000
+    );
+
+    job.update({ type: 'batch' });
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    const allocation = this.server.create('allocation', {
+      jobId: job.id,
+      taskGroup: taskGroup.name,
+      clientStatus: 'running',
+    });
+
+    this.server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .forEach((taskState) => {
+        this.server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
+      });
+
+    await Allocations.visit({ id: job.id });
+
+    assert.equal(
+      Allocations.allocations[0].maxRunDeadlineTooltip,
+      moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'The allocations table shows the computed max run deadline',
+    );
   });
 
   test('clicking an allocation results in the correct endpoint being hit', async function (assert) {
