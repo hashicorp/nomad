@@ -2343,63 +2343,67 @@ func TestClient_DefaultIneligible(t *testing.T) {
 	// Set node as eligible and restart, should return as eligible
 
 	// Update eligibility should succeed
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Node.UpdateEligibility", &req2, &out2)
-		if err != nil {
-			return false, err
-		}
-		return out2.NodeModifyIndex != 0, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			err := s1.RPC("Node.UpdateEligibility", &req2, &out2)
+			if err != nil {
+				return err
+			}
+			must.NotEq(t, out2.NodeModifyIndex, out.Index)
+			return nil
+		}),
+	))
 
 	// Query node to confirm eligibility was toggled on
+	req3 := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
 	var out3 structs.SingleNodeResponse
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Node.GetNode", &req, &out3)
-		if err != nil {
-			return false, err
-		}
-		if out.Node == nil {
-			return false, fmt.Errorf("missing reg")
-		}
-		must.Eq(t, structs.NodeSchedulingEligible, out3.Node.SchedulingEligibility)
-		return out3.Node.ID == req.NodeID, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			err := s1.RPC("Node.GetNode", &req3, &out3)
+			if err != nil {
+				return err
+			}
+			must.Eq(t, structs.NodeSchedulingEligible, out3.Node.SchedulingEligibility)
+			return nil
+		}),
+		wait.Timeout(time.Second*1),
+		wait.Gap(time.Millisecond*30),
+	))
 
-	// Restart Client
+	// Save client config, shutdown and start new client
 	c1Config := c1.config.Copy()
 	must.NoError(t, c1.Shutdown())
-
-	// actually make and start the client
 	c2, err := NewClient(c1Config, c1.consulCatalog, nil, c1.consulServices, nil)
 	must.NoError(t, err)
 	t.Cleanup(func() {
 		test.NoError(t, c2.Shutdown())
 	})
 
+	// Assert new client and old client are same node
+	must.Eq(t, c1.NodeID(), c2.NodeID())
+
+	// Query to confirm restarted node is still be eligible
 	req4 := structs.NodeSpecificRequest{
 		NodeID:       c2.Node().ID,
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out4 structs.SingleNodeResponse
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			err := s1.RPC("Node.GetNode", &req4, &out4)
+			if err != nil {
+				return err
+			}
+			must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
+			return nil
+		}),
+		wait.Timeout(time.Second*1),
+		wait.Gap(time.Millisecond*30),
+	))
 
-	// Should still be eligible
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Node.GetNode", &req4, &out4)
-		if err != nil {
-			return false, err
-		}
-		if out.Node == nil {
-			return false, fmt.Errorf("missing reg")
-		}
-		must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
-		return out4.Node.ID == req.NodeID, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
 }
 
 // TestClient_AllocPrerunErrorDuringRestore ensures that a running allocation,
