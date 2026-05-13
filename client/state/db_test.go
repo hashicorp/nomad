@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 // assert each implementation satisfies StateDB interface
@@ -30,6 +29,7 @@ var (
 	_ StateDB = (*MemDB)(nil)
 	_ StateDB = (*NoopDB)(nil)
 	_ StateDB = (*ErrDB)(nil)
+	_ StateDB = (*SQLiteStateDB)(nil)
 )
 
 func setupBoltStateDB(t *testing.T) *BoltStateDB {
@@ -52,10 +52,27 @@ func setupBoltStateDB(t *testing.T) *BoltStateDB {
 	return db.(*BoltStateDB)
 }
 
+func setupSQLiteStateDB(t *testing.T) *SQLiteStateDB {
+	t.Helper()
+	dir := t.TempDir()
+
+	db, err := NewSQLiteStateDB(testlog.HCLogger(t), dir)
+	must.Nil(t, err)
+
+	t.Cleanup(func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Errorf("error closing sqlite state db: %v", closeErr)
+		}
+	})
+
+	return db.(*SQLiteStateDB)
+}
+
 func testDB(t *testing.T, f func(*testing.T, StateDB)) {
 	dbs := []StateDB{
 		setupBoltStateDB(t),
 		NewMemDB(testlog.HCLogger(t)),
+		setupSQLiteStateDB(t),
 	}
 
 	for _, db := range dbs {
@@ -71,28 +88,26 @@ func TestStateDB_Allocations(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
-		require := require.New(t)
-
 		// Empty database should return empty non-nil results
 		allocs, errs, err := db.GetAllAllocations()
-		require.NoError(err)
-		require.NotNil(allocs)
-		require.Empty(allocs)
-		require.NotNil(errs)
-		require.Empty(errs)
+		must.NoError(t, err)
+		must.NotNil(t, allocs)
+		must.SliceEmpty(t, allocs)
+		must.NotNil(t, errs)
+		must.MapEmpty(t, errs)
 
 		// Put allocations
 		alloc1 := mock.Alloc()
 		alloc2 := mock.BatchAlloc()
 
-		require.NoError(db.PutAllocation(alloc1))
-		require.NoError(db.PutAllocation(alloc2))
+		must.NoError(t, db.PutAllocation(alloc1))
+		must.NoError(t, db.PutAllocation(alloc2))
 
 		// Retrieve them
 		allocs, errs, err = db.GetAllAllocations()
-		require.NoError(err)
-		require.NotNil(allocs)
-		require.Len(allocs, 2)
+		must.NoError(t, err)
+		must.NotNil(t, allocs)
+		must.Len(t, 2, allocs)
 		for _, a := range allocs {
 			switch a.ID {
 			case alloc1.ID:
@@ -109,39 +124,39 @@ func TestStateDB_Allocations(t *testing.T) {
 				t.Fatalf("unexpected alloc id %q", a.ID)
 			}
 		}
-		require.NotNil(errs)
-		require.Empty(errs)
+		must.NotNil(t, errs)
+		must.MapEmpty(t, errs)
 
 		// Add another
 		alloc3 := mock.SystemAlloc()
-		require.NoError(db.PutAllocation(alloc3))
+		must.NoError(t, db.PutAllocation(alloc3))
 		allocs, errs, err = db.GetAllAllocations()
-		require.NoError(err)
-		require.NotNil(allocs)
-		require.Len(allocs, 3)
-		require.Contains(allocs, alloc1)
-		require.Contains(allocs, alloc2)
-		require.Contains(allocs, alloc3)
-		require.NotNil(errs)
-		require.Empty(errs)
+		must.NoError(t, err)
+		must.NotNil(t, allocs)
+		must.Len(t, 3, allocs)
+		must.SliceContainsFunc(t, allocs, alloc1, func(a, b *structs.Allocation) bool { return reflect.DeepEqual(a, b) })
+		must.SliceContainsFunc(t, allocs, alloc2, func(a, b *structs.Allocation) bool { return reflect.DeepEqual(a, b) })
+		must.SliceContainsFunc(t, allocs, alloc3, func(a, b *structs.Allocation) bool { return reflect.DeepEqual(a, b) })
+		must.NotNil(t, errs)
+		must.MapEmpty(t, errs)
 
 		// Deleting a nonexistent alloc is a noop
-		require.NoError(db.DeleteAllocationBucket("asdf"))
+		must.NoError(t, db.DeleteAllocationBucket("asdf"))
 		allocs, _, err = db.GetAllAllocations()
-		require.NoError(err)
-		require.NotNil(allocs)
-		require.Len(allocs, 3)
+		must.NoError(t, err)
+		must.NotNil(t, allocs)
+		must.Len(t, 3, allocs)
 
 		// Delete alloc1
-		require.NoError(db.DeleteAllocationBucket(alloc1.ID))
+		must.NoError(t, db.DeleteAllocationBucket(alloc1.ID))
 		allocs, errs, err = db.GetAllAllocations()
-		require.NoError(err)
-		require.NotNil(allocs)
-		require.Len(allocs, 2)
-		require.Contains(allocs, alloc2)
-		require.Contains(allocs, alloc3)
-		require.NotNil(errs)
-		require.Empty(errs)
+		must.NoError(t, err)
+		must.NotNil(t, allocs)
+		must.Len(t, 2, allocs)
+		must.SliceContainsFunc(t, allocs, alloc2, func(a, b *structs.Allocation) bool { return reflect.DeepEqual(a, b) })
+		must.SliceContainsFunc(t, allocs, alloc3, func(a, b *structs.Allocation) bool { return reflect.DeepEqual(a, b) })
+		must.NotNil(t, errs)
+		must.MapEmpty(t, errs)
 	})
 }
 
@@ -156,8 +171,6 @@ func TestStateDB_Batch(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
-		require := require.New(t)
-
 		// For BoltDB, get initial tx_id
 		var getTxID func() int
 		var prevTxID int
@@ -167,7 +180,7 @@ func TestStateDB_Batch(t *testing.T) {
 			boltdb := boltStateDB.DB().BoltDB()
 			getTxID = func() int {
 				tx, err := boltdb.Begin(true)
-				require.NoError(err)
+				must.NoError(t, err)
 				defer tx.Rollback()
 				return tx.ID()
 			}
@@ -187,8 +200,8 @@ func TestStateDB_Batch(t *testing.T) {
 		for _, alloc := range allocs {
 			wg.Add(1)
 			go func(alloc *structs.Allocation) {
-				require.NoError(db.PutNetworkStatus(alloc.ID, mock.AllocNetworkStatus(), WithBatchMode()))
-				require.NoError(db.PutAllocation(alloc, WithBatchMode()))
+				must.NoError(t, db.PutNetworkStatus(alloc.ID, mock.AllocNetworkStatus(), WithBatchMode()))
+				must.NoError(t, db.PutAllocation(alloc, WithBatchMode()))
 				wg.Done()
 			}(alloc)
 		}
@@ -201,19 +214,19 @@ func TestStateDB_Batch(t *testing.T) {
 		// See boltdb MaxBatchDelay and MaxBatchSize parameters for more details.
 		if getTxID != nil {
 			numTransactions := getTxID() - prevTxID
-			writeTime := time.Now().Sub(startTime)
+			writeTime := time.Since(startTime)
 			expectedNumTransactions := ceilDiv(2*numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
-			require.LessOrEqual(numTransactions, expectedNumTransactions)
+			must.LessEq(t, expectedNumTransactions, numTransactions)
 			prevTxID = getTxID()
 		}
 
 		// Retrieve allocs and make sure they are the same (order can differ)
 		readAllocs, errs, err := db.GetAllAllocations()
-		require.NoError(err)
-		require.NotNil(readAllocs)
-		require.Len(readAllocs, len(allocs))
-		require.NotNil(errs)
-		require.Empty(errs)
+		must.NoError(t, err)
+		must.NotNil(t, readAllocs)
+		must.Len(t, len(allocs), readAllocs)
+		must.NotNil(t, errs)
+		must.MapEmpty(t, errs)
 
 		readAllocsById := make(map[string]*structs.Allocation)
 		for _, readAlloc := range readAllocs {
@@ -235,7 +248,7 @@ func TestStateDB_Batch(t *testing.T) {
 		for _, alloc := range allocs {
 			wg.Add(1)
 			go func(alloc *structs.Allocation) {
-				require.NoError(db.DeleteAllocationBucket(alloc.ID, WithBatchMode()))
+				must.NoError(t, db.DeleteAllocationBucket(alloc.ID, WithBatchMode()))
 				wg.Done()
 			}(alloc)
 		}
@@ -244,17 +257,17 @@ func TestStateDB_Batch(t *testing.T) {
 		// Check BoltDB combined DeleteAllocationBucket calls into much fewer transactions.
 		if getTxID != nil {
 			numTransactions := getTxID() - prevTxID
-			writeTime := time.Now().Sub(startTime)
+			writeTime := time.Since(startTime)
 			expectedNumTransactions := ceilDiv(numAllocs, batchSize) + ceilDiv(int(writeTime), int(batchDelay))
-			require.LessOrEqual(numTransactions, expectedNumTransactions)
+			must.LessEq(t, expectedNumTransactions, numTransactions)
 			prevTxID = getTxID()
 		}
 
 		// Check all allocs were deleted.
 		readAllocs, errs, err = db.GetAllAllocations()
-		require.NoError(err)
-		require.Empty(readAllocs)
-		require.Empty(errs)
+		must.NoError(t, err)
+		must.SliceEmpty(t, readAllocs)
+		must.MapEmpty(t, errs)
 	})
 }
 
@@ -264,49 +277,47 @@ func TestStateDB_TaskState(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
-		require := require.New(t)
-
 		// Getting nonexistent state should return nils
 		ls, ts, err := db.GetTaskRunnerState("allocid", "taskname")
-		require.NoError(err)
-		require.Nil(ls)
-		require.Nil(ts)
+		must.NoError(t, err)
+		must.Nil(t, ls)
+		must.Nil(t, ts)
 
 		// Putting TaskState without first putting the allocation should work
 		state := structs.NewTaskState()
 		state.Failed = true // set a non-default value
-		require.NoError(db.PutTaskState("allocid", "taskname", state))
+		must.NoError(t, db.PutTaskState("allocid", "taskname", state))
 
 		// Getting should return the available state
 		ls, ts, err = db.GetTaskRunnerState("allocid", "taskname")
-		require.NoError(err)
-		require.Nil(ls)
-		require.Equal(state, ts)
+		must.NoError(t, err)
+		must.Nil(t, ls)
+		must.Eq(t, state, ts)
 
 		// Deleting a nonexistent task should not error
-		require.NoError(db.DeleteTaskBucket("adsf", "asdf"))
-		require.NoError(db.DeleteTaskBucket("asllocid", "asdf"))
+		must.NoError(t, db.DeleteTaskBucket("adsf", "asdf"))
+		must.NoError(t, db.DeleteTaskBucket("asllocid", "asdf"))
 
 		// Data should be untouched
 		ls, ts, err = db.GetTaskRunnerState("allocid", "taskname")
-		require.NoError(err)
-		require.Nil(ls)
-		require.Equal(state, ts)
+		must.NoError(t, err)
+		must.Nil(t, ls)
+		must.Eq(t, state, ts)
 
 		// Deleting the task should remove the state
-		require.NoError(db.DeleteTaskBucket("allocid", "taskname"))
+		must.NoError(t, db.DeleteTaskBucket("allocid", "taskname"))
 		ls, ts, err = db.GetTaskRunnerState("allocid", "taskname")
-		require.NoError(err)
-		require.Nil(ls)
-		require.Nil(ts)
+		must.NoError(t, err)
+		must.Nil(t, ls)
+		must.Nil(t, ts)
 
 		// Putting LocalState should work just like TaskState
 		origLocalState := trstate.NewLocalState()
-		require.NoError(db.PutTaskRunnerLocalState("allocid", "taskname", origLocalState))
+		must.NoError(t, db.PutTaskRunnerLocalState("allocid", "taskname", origLocalState))
 		ls, ts, err = db.GetTaskRunnerState("allocid", "taskname")
-		require.NoError(err)
-		require.Equal(origLocalState, ls)
-		require.Nil(ts)
+		must.NoError(t, err)
+		must.Eq(t, origLocalState, ls)
+		must.Nil(t, ts)
 	})
 }
 
@@ -316,22 +327,20 @@ func TestStateDB_DeviceManager(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
-		require := require.New(t)
-
 		// Getting nonexistent state should return nils
 		ps, err := db.GetDevicePluginState()
-		require.NoError(err)
-		require.Nil(ps)
+		must.NoError(t, err)
+		must.Nil(t, ps)
 
 		// Putting PluginState should work
 		state := &dmstate.PluginState{}
-		require.NoError(db.PutDevicePluginState(state))
+		must.NoError(t, db.PutDevicePluginState(state))
 
 		// Getting should return the available state
 		ps, err = db.GetDevicePluginState()
-		require.NoError(err)
-		require.NotNil(ps)
-		require.Equal(state, ps)
+		must.NoError(t, err)
+		must.NotNil(t, ps)
+		must.Eq(t, state, ps)
 	})
 }
 
@@ -341,22 +350,20 @@ func TestStateDB_DriverManager(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
-		require := require.New(t)
-
 		// Getting nonexistent state should return nils
 		ps, err := db.GetDriverPluginState()
-		require.NoError(err)
-		require.Nil(ps)
+		must.NoError(t, err)
+		must.Nil(t, ps)
 
 		// Putting PluginState should work
 		state := &driverstate.PluginState{}
-		require.NoError(db.PutDriverPluginState(state))
+		must.NoError(t, db.PutDriverPluginState(state))
 
 		// Getting should return the available state
 		ps, err = db.GetDriverPluginState()
-		require.NoError(err)
-		require.NotNil(ps)
-		require.Equal(state, ps)
+		must.NoError(t, err)
+		must.NotNil(t, ps)
+		must.Eq(t, state, ps)
 	})
 }
 
@@ -366,22 +373,20 @@ func TestStateDB_DynamicRegistry(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
-		require := require.New(t)
-
 		// Getting nonexistent state should return nils
 		ps, err := db.GetDynamicPluginRegistryState()
-		require.NoError(err)
-		require.Nil(ps)
+		must.NoError(t, err)
+		must.Nil(t, ps)
 
 		// Putting PluginState should work
 		state := &dynamicplugins.RegistryState{}
-		require.NoError(db.PutDynamicPluginRegistryState(state))
+		must.NoError(t, db.PutDynamicPluginRegistryState(state))
 
 		// Getting should return the available state
 		ps, err = db.GetDynamicPluginRegistryState()
-		require.NoError(err)
-		require.NotNil(ps)
-		require.Equal(state, ps)
+		must.NoError(t, err)
+		must.NotNil(t, ps)
+		must.Eq(t, state, ps)
 	})
 }
 
@@ -543,6 +548,6 @@ func TestStateDB_Upgrade(t *testing.T) {
 	ci.Parallel(t)
 
 	testDB(t, func(t *testing.T, db StateDB) {
-		require.NoError(t, db.Upgrade())
+		must.NoError(t, db.Upgrade())
 	})
 }
