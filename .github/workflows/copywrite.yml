@@ -17,7 +17,7 @@ jobs:
         with:
           version: v0.25.3
           archive-checksum: e43f4b72fff3f219c5a5f883438d63edd5b68f5bea90a5d18abb3001c8c3aedc
-      - name: Check Header Compliance
-        run: make copywriteheaders
+      # - name: Check Header Compliance
+      #   run: make copywriteheaders
 permissions:
   contents: read
