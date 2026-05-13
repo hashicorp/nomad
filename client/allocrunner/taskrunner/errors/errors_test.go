@@ -13,7 +13,7 @@ import (
 )
 
 // Statically assert error implements the expected interfaces
-var _ structs.Recoverable = (*hookError)(nil)
+var _ structs.Recoverable = (*HookError)(nil)
 
 // TestHookError_Recoverable asserts that a NewHookError is recoverable if
 // passed a recoverable error.
@@ -31,7 +31,7 @@ func TestHookError_Recoverable(t *testing.T) {
 
 	herr := NewHookError(recov, ev)
 
-	must.Eq(t, ev, herr.(*hookError).taskEvent)
+	must.Eq(t, ev, herr.(*HookError).TaskEvent)
 	must.True(t, structs.IsRecoverable(herr))
 	must.Eq(t, root.Error(), herr.Error())
 	must.Eq(t, recov.Error(), herr.Error())
@@ -50,7 +50,7 @@ func TestHookError_Unrecoverable(t *testing.T) {
 
 	herr := NewHookError(err, ev)
 
-	must.Eq(t, ev, herr.(*hookError).taskEvent)
+	must.Eq(t, ev, herr.(*HookError).TaskEvent)
 	must.False(t, structs.IsRecoverable(herr))
 	must.Eq(t, err.Error(), herr.Error())
 }
