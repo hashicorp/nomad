@@ -356,6 +356,59 @@ moduleForJob(
   },
 );
 
+module('Acceptance | job detail max run deadline', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  let job;
+
+  hooks.beforeEach(async function () {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    this.server.create('node-pool');
+    this.server.create('node');
+
+    job = this.server.create('job', {
+      type: 'batch',
+      createAllocations: false,
+      noActiveDeployment: true,
+      withPreviousStableVersion: true,
+    });
+
+    const taskGroup = this.server.db.taskGroups.where({ jobId: job.id })[0];
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    const allocation = this.server.create('allocation', {
+      jobId: job.id,
+      taskGroup: taskGroup.name,
+      clientStatus: 'running',
+    });
+
+    this.server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .forEach((taskState) => {
+        this.server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
+      });
+
+    await JobDetail.visit({ id: job.id });
+  });
+
+  test('recent allocations show max run deadline when configured', async function (assert) {
+    const expectedDeadline = moment('2025-01-02T03:14:05Z').format(
+      "MMM DD, 'YY HH:mm:ss ZZ"
+    );
+
+    assert.equal(
+      JobDetail.allocations[0].maxRunDeadlineTooltip,
+      expectedDeadline,
+      'The recent allocations table shows the computed max run deadline'
+    );
+  });
+});
+
 module('Acceptance | ui block', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);

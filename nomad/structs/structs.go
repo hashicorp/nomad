@@ -6937,6 +6937,11 @@ type TaskGroup struct {
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
 
+	// MaxRunDuration is the maximum amount of time a batch or sysbatch task
+	// group allocation may run after entering the running state before Nomad
+	// stops it.
+	MaxRunDuration *time.Duration
+
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
 	// To be deprecated after 1.8.0 infavor of Disconnect.StopOnClientAfter
@@ -7003,6 +7008,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	if tg.ShutdownDelay != nil {
 		ntg.ShutdownDelay = tg.ShutdownDelay
+	}
+
+	if tg.MaxRunDuration != nil {
+		ntg.MaxRunDuration = tg.MaxRunDuration
 	}
 
 	return ntg
@@ -7121,6 +7130,18 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	if tg.Disconnect != nil {
 		if err := tg.Disconnect.Validate(j); err != nil {
 			mErr = multierror.Append(mErr, err)
+		}
+	}
+
+	if tg.MaxRunDuration != nil {
+		if *tg.MaxRunDuration <= 0 {
+			mErr = multierror.Append(mErr, errors.New("MaxRunDuration must be greater than zero"))
+		}
+
+		switch j.Type {
+		case JobTypeBatch, JobTypeSysBatch:
+		default:
+			mErr = multierror.Append(mErr, fmt.Errorf("Job type %q does not allow max_run_duration", j.Type))
 		}
 	}
 

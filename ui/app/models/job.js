@@ -449,6 +449,17 @@ export default class Job extends Model {
 
   @attr() datacenters;
   @fragmentArray('task-group', { defaultValue: () => [] }) taskGroups;
+  @computed('taskGroups.@each.hasMaxRunDeadline')
+  get hasMaxRunDeadline() {
+    return (this.taskGroups?.toArray?.() || this.taskGroups || []).some(
+      (taskGroup) => taskGroup.hasMaxRunDeadline,
+    );
+  }
+
+  get isBatchOrSysbatch() {
+    return this.type === 'batch' || this.type === 'sysbatch';
+  }
+
   @belongsTo('job-summary', { async: true, inverse: 'job' }) summary;
 
   // A job model created from the jobs list response will be lacking

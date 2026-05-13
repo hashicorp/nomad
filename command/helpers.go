@@ -122,6 +122,45 @@ func formatTimeDifference(first, second time.Time, d time.Duration) string {
 	return second.Truncate(d).Sub(first.Truncate(d)).String()
 }
 
+func formatMaxRunDeadline(deadline time.Time, verbose bool) string {
+	if verbose {
+		return formatTime(deadline)
+	}
+
+	return prettyTimeDiff(deadline, time.Now())
+}
+
+func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, createTime int64) (time.Time, bool) {
+	maxRunDuration, ok := jobTaskGroupMaxRunDuration(job, taskGroupName)
+	if !ok {
+		return time.Time{}, false
+	}
+
+	if createTime == 0 {
+		return time.Time{}, false
+	}
+
+	return time.Unix(0, createTime).Add(maxRunDuration), true
+}
+
+func jobTaskGroupMaxRunDuration(job *api.Job, taskGroupName string) (time.Duration, bool) {
+	if job == nil || job.Type == nil {
+		return 0, false
+	}
+
+	tg := job.LookupTaskGroup(taskGroupName)
+	if tg == nil || tg.MaxRunDuration == nil || *tg.MaxRunDuration <= 0 {
+		return 0, false
+	}
+
+	switch *job.Type {
+	case api.JobTypeBatch, api.JobTypeSysbatch:
+		return *tg.MaxRunDuration, true
+	default:
+		return 0, false
+	}
+}
+
 // fmtInt formats v into the tail of buf.
 // It returns the index where the output begins.
 func fmtInt(buf []byte, v uint64) int {

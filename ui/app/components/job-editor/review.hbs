@@ -67,6 +67,9 @@
           <th>Task Group</th>
           <th>Created</th>
           <th>Modified</th>
+          {{#if @data.job.isBatchOrSysbatch}}
+            <th>Max Run Deadline</th>
+          {{/if}}
           <th>Status</th>
           <th>Version</th>
           <th>Node</th>
@@ -75,7 +78,11 @@
           <th>Memory</th>
         </t.head>
         <t.body as |row|>
-          <AllocationRow @allocation={{row.model}} @context="job" />
+          <AllocationRow
+            @allocation={{row.model}}
+            @context="job"
+            @showMaxRunDeadline={{@data.job.isBatchOrSysbatch}}
+          />
         </t.body>
       </ListTable>
     </div>
