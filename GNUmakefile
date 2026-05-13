@@ -475,7 +475,7 @@ test: test-nomad
 
 .PHONY: copywriteheaders
 copywriteheaders:
-	copywrite headers --plan
+	copywrite headers #--plan
 	# Special case for MPL headers in /api, /drivers/shared, /plugins, /jobspec, /jobspec2, and /demo
 	cd api && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd drivers/shared && $(CURDIR)/scripts/copywrite-exceptions.sh

@@ -1,0 +1,16 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
+
+version: 2
+snapshot:
+  percy-css: |
+    .topo-viz { 
+      display: none;
+    }
+    .related-evaluations path,
+    .related-evaluations circle,
+    .dashboard-metric {
+      visibility: hidden;
+    }
+discovery:
+  disable-cache: true
