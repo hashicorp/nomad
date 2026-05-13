@@ -266,6 +266,8 @@ func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
 	must.ErrorContains(t, err, `role "test" could not be found`)
 }
 
+// TODO: Renew Test
+
 // TestVaultClient_NamespaceSupport tests that the Vault namespace Config, if
 // present, will result in the namespace header being set on the created Vault
 // client.

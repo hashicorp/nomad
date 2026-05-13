@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"path"
 	"path/filepath"
@@ -230,19 +231,18 @@ func (h *vaultHook) Shutdown() {
 }
 
 func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) {
-	var (
-		err        error
-		expiration time.Time
-	)
+	var err error
 	renewCh := make(chan struct{}, 1)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(lease / 2):
-			lease, expiration, err = h.renewWithBackoff(ctx, token, expiration)
+		case <-time.After(renewalTime(rand.IntN, lease)):
+			lease, err = h.renewWithBackoff(ctx, token)
 			if err != nil {
+				// failing to renew results in a triggering the change_mode
+				h.handleRenewal(ctx, "")
 				return
 			}
 
@@ -293,14 +293,14 @@ func (h *vaultHook) handleRenewal(ctx context.Context, token string) {
 	h.updater.updatedVaultToken(token)
 }
 
-func (h *vaultHook) renewWithBackoff(ctx context.Context, token string, expiration time.Time) (time.Duration, time.Time, error) {
+func (h *vaultHook) renewWithBackoff(ctx context.Context, token string) (time.Duration, error) {
 	var attempts uint64
 
 	for {
 		// Renewing with a duration of 0 renews with the default TTL configured
-		duration, newExp, err := h.client.Renew(ctx, token, 0)
+		duration, err := h.client.Renew(ctx, token, 0)
 		if err == nil {
-			return duration, newExp, nil
+			return duration, nil
 		}
 
 		metrics.IncrCounter([]string{"client", "vault", "renew_token_error"}, 1)
@@ -312,19 +312,15 @@ func (h *vaultHook) renewWithBackoff(ctx context.Context, token string, expirati
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Vault: failed to renew vault token: %v", err)))
-			return 0, time.Time{}, err
+			return 0, err
 		}
 
 		backoff := helper.Backoff(vaultBackoffBaseline, vaultBackoffLimit, attempts)
 		attempts++
 
-		if time.Now().After(expiration) {
-			return 0, time.Time{}, errors.New("Vault: token expired while trying to renew")
-		}
-
 		select {
 		case <-ctx.Done():
-			return 0, time.Time{}, ctx.Err()
+			return 0, ctx.Err()
 		case <-time.After(backoff):
 		}
 	}
@@ -442,4 +438,30 @@ func (h *vaultHook) writeToken(token string) error {
 	}
 
 	return nil
+}
+
+// randIntn is the function in math/rand needed by renewalTime. A type is used
+// to ease deterministic testing.
+type randIntn func(int) int
+
+// renewalTime returns when a token should be renewed given its leaseDuration
+// and a randomizer to provide jitter.
+//
+// Leases < 1m will be not jitter.
+func renewalTime(dice randIntn, leaseDuration time.Duration) time.Duration {
+	// Start trying to renew at half the lease duration to allow ample time
+	// for latency and retries.
+	renew := leaseDuration / 2
+
+	// Don't bother about introducing randomness if the
+	// leaseDuration is too small.
+	const cutoff = 30
+	if renew < cutoff {
+		return renew
+	}
+
+	// jitter is the +/- amount to vary the renewal time
+	var jitter int = 10
+	offset := time.Duration(dice(jitter*2) - jitter)
+	return renew + (offset * time.Second)
 }

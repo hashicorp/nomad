@@ -7,11 +7,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/useragent"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 )
@@ -45,7 +47,7 @@ type VaultClient interface {
 	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, bool, int, error)
 
 	// Renew returns a tokens renewed lease duration and expiration
-	Renew(context.Context, string, int) (time.Duration, time.Time, error)
+	Renew(context.Context, string, int) (time.Duration, error)
 }
 
 // Implementation of VaultClient interface to interact with vault and perform
@@ -159,19 +161,34 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 	return s.Auth.ClientToken, s.Auth.Renewable, s.Auth.LeaseDuration, nil
 }
 
-func (c *vaultClient) Renew(ctx context.Context, token string, lease int) (duration time.Duration, exp time.Time, err error) {
+func (c *vaultClient) Renew(ctx context.Context, token string, lease int) (duration time.Duration, err error) {
 	cc, err := c.client.Clone()
 	if err != nil {
-		return 0, time.Time{}, err
+		return 0, err
 	}
 	cc.SetToken(token)
 
 	res, err := cc.Auth().Token().RenewSelfWithContext(ctx, lease)
 	if err != nil {
-		return 0, time.Time{}, err
+		return 0, wrapRenewErr(err)
 	}
 
 	duration = time.Duration(res.Auth.LeaseDuration * int(time.Second))
 
-	return duration, time.Now().Add(duration), nil
+	return duration, nil
+}
+
+func wrapRenewErr(err error) error {
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "no namespace") ||
+		strings.Contains(errMsg, "cannot renew a token across namespaces") ||
+		strings.Contains(errMsg, "invalid lease ID") ||
+		strings.Contains(errMsg, "lease expired") ||
+		strings.Contains(errMsg, "lease is not renewable") ||
+		strings.Contains(errMsg, "lease not found") ||
+		strings.Contains(errMsg, "permission denied") ||
+		strings.Contains(errMsg, "token not found") {
+		return err
+	}
+	return structs.NewRecoverableError(err, true)
 }
