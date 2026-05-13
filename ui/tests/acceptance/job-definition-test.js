@@ -5,7 +5,6 @@
 
 import { click, currentURL, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -87,7 +86,6 @@ module('Acceptance | job definition', function (hooks) {
     const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
     await Definition.edit();
-    await percySnapshot(assert);
 
     assert.deepEqual(
       Definition.editor.editor.contents,
@@ -115,7 +113,6 @@ module('Acceptance | job definition', function (hooks) {
 
   test('when the job for the definition is not found, an error message is shown, but the URL persists', async function (assert) {
     await Definition.visit({ id: 'not-a-real-job' });
-    await percySnapshot(assert);
 
     assert.deepEqual(
       this.server.pretender.handledRequests
@@ -167,7 +164,6 @@ module('Acceptance | job definition | full specification', function (hooks) {
     this.server.get('/job/:id/submission', () => specification_response);
 
     await Definition.visit({ id: job.id });
-    await percySnapshot(assert);
 
     assert
       .dom('[data-test-select="job-spec"]')

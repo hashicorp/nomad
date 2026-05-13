@@ -10,9 +10,8 @@
   },
   "scripts": {
     "build": "ember build --environment=production",
-    "exam": "percy exec -- ember exam --split=4 --parallel",
-    "exam:ci": "percy exec --parallel -- ember exam --load-balance --random=false",
-    "exam:parallel": "percy exec --parallel -- ember exam",
+    "exam": "ember exam --split=4 --parallel",
+    "exam:ci": "ember exam --load-balance --random=false",
     "format": "prettier . --cache --write",
     "lint": "concurrently \"pnpm:lint:*(!fix)\" --names \"lint:\" --prefixColors auto",
     "lint:css": "stylelint \"**/*.scss\"",
@@ -26,13 +25,11 @@
     "lint:types": "tsc --noEmit",
     "local:exam": "ember exam --server --load-balance --parallel=4",
     "local:test": "ember test --server",
-    "percy": "percy",
     "precommit": "lint-staged",
-    "seedless-test": "USE_PERCY=false ember test",
     "start": "ember server",
     "start:proxy": "USE_MIRAGE=false ember server --port 4646 --proxy http://127.0.0.1:4646",
     "test": "concurrently \"pnpm:lint\" \"pnpm:test:*\" --names \"lint,test:\" --prefixColors auto",
-    "test:ember": "percy exec -- ember test"
+    "test:ember": "ember test"
   },
   "husky": {
     "hooks": {
@@ -67,8 +64,7 @@
     "@hashicorp/design-system-components": "4.13.0",
     "@nullvoxpopuli/ember-composable-helpers": "^5.3.1",
     "@nullvoxpopuli/legacy-prototype-extensions": "^0.1.0",
-    "@percy/cli": "^1.31.13",
-    "@percy/ember": "^5.0.1",
+
     "@tsconfig/ember": "^3.0.12",
     "@types/qunit": "^2.19.13",
     "@types/rsvp": "^4.0.9",

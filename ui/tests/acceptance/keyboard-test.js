@@ -15,7 +15,6 @@ import {
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Layout from 'nomad-ui/tests/pages/layout';
-import percySnapshot from '@percy/ember';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import faker from 'nomad-ui/mirage/faker';
 
@@ -30,7 +29,6 @@ module('Acceptance | keyboard', function (hooks) {
       assert.notOk(Layout.keyboard.modalShown);
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
       assert.ok(Layout.keyboard.modalShown);
-      await percySnapshot(assert);
       await a11yAudit(assert);
       await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
       assert.notOk(Layout.keyboard.modalShown);
