@@ -455,13 +455,13 @@ func renewalTime(dice randIntn, leaseDuration time.Duration) time.Duration {
 
 	// Don't bother about introducing randomness if the
 	// leaseDuration is too small.
-	const cutoff = 30
+	const cutoff = 30 * time.Second
 	if renew < cutoff {
 		return renew
 	}
 
 	// jitter is the +/- amount to vary the renewal time
 	var jitter int = 10
-	offset := time.Duration(dice(jitter*2) - jitter)
-	return renew + (offset * time.Second)
+	offset := dice(jitter*2) - jitter
+	return renew + time.Duration(offset)*time.Second
 }
