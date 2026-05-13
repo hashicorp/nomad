@@ -30,7 +30,7 @@ func (h *HookError) Error() string {
 	return h.Err.Error()
 }
 
-// Recoverable is true if the underlying error is recoverable.
+// IsRecoverable is true if the underlying error is recoverable.
 func (h *HookError) IsRecoverable() bool {
 	return structs.IsRecoverable(h.Err)
 }
