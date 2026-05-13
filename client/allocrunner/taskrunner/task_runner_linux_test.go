@@ -28,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/hookstats"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
@@ -447,7 +448,7 @@ func TestTaskRunner_Restore_Dead(t *testing.T) {
 
 	ev := &structs.TaskEvent{Type: structs.TaskRestartSignal}
 	err = newTR2.ForceRestart(context.Background(), ev, false)
-	require.Equal(t, err, ErrTaskNotRunning)
+	require.Equal(t, err, te.ErrTaskNotRunning)
 }
 
 // setupRestoreFailureTest starts a service, shuts down the task runner, and
@@ -2106,11 +2107,11 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 
 	// Send a signal and restart
 	err = tr.Signal(structs.NewTaskEvent("don't panic"), "QUIT")
-	require.EqualError(t, err, ErrTaskNotRunning.Error())
+	require.EqualError(t, err, te.ErrTaskNotRunning.Error())
 
 	// Send a restart
 	err = tr.Restart(context.Background(), structs.NewTaskEvent("don't panic"), false)
-	require.EqualError(t, err, ErrTaskNotRunning.Error())
+	require.EqualError(t, err, te.ErrTaskNotRunning.Error())
 
 	// Unblock and let it finish
 	waitCh <- struct{}{}

@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,12 +19,12 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 
 	taskState := tr.TaskState()
 	if taskState == nil {
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 	}
 
 	switch taskState.State {
 	case structs.TaskStatePending, structs.TaskStateDead:
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 	}
 
 	return tr.restartImpl(ctx, event, failure)
@@ -40,7 +41,7 @@ func (tr *TaskRunner) ForceRestart(ctx context.Context, event *structs.TaskEvent
 
 	taskState := tr.TaskState()
 	if taskState == nil {
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 	}
 
 	tr.stateLock.Lock()
@@ -48,18 +49,18 @@ func (tr *TaskRunner) ForceRestart(ctx context.Context, event *structs.TaskEvent
 	tr.stateLock.Unlock()
 
 	if localState == nil {
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 	}
 
 	switch taskState.State {
 	case structs.TaskStatePending:
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 
 	case structs.TaskStateDead:
 		// Tasks that are in the "dead" state are only allowed to restart if
 		// their Run() method is still active.
 		if localState.RunComplete {
-			return ErrTaskNotRunning
+			return te.ErrTaskNotRunning
 		}
 	}
 
@@ -76,7 +77,7 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 	// restart event that was triggered.
 	taskState := tr.TaskState()
 	if taskState == nil {
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 	}
 
 	// Emit the event since it may take a long time to kill
@@ -132,7 +133,7 @@ func (tr *TaskRunner) Exec(timeout time.Duration, cmd string, args []string) ([]
 
 	handle := tr.getDriverHandle()
 	if handle == nil {
-		return nil, 0, ErrTaskNotRunning
+		return nil, 0, te.ErrTaskNotRunning
 	}
 
 	out, code, err := handle.Exec(timeout, cmd, args)
@@ -147,7 +148,7 @@ func (tr *TaskRunner) Signal(event *structs.TaskEvent, s string) error {
 
 	// Check it is running
 	if handle == nil {
-		return ErrTaskNotRunning
+		return te.ErrTaskNotRunning
 	}
 
 	// Emit the event

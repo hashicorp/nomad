@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render
+```
