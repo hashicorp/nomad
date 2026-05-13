@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2024, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: MPL-2.0
 
 # This job deploys Ceph as a Docker container in "demo mode"; it runs all its

@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2024, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: MPL-2.0
 
 # Unfortunately 'variable' interpolation isn't supported in volume spec
