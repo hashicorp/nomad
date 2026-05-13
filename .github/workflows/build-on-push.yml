@@ -17,6 +17,12 @@ on:
       # to build.yml directly during a release).
       - 'release/[0-9].[0-9]+.x*'
 
+# Caller scopes for the reusable build.yml (which declares the same set
+# at its job level).
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build:
     uses: ./.github/workflows/build.yml

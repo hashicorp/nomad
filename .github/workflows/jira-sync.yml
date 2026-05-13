@@ -15,6 +15,11 @@ env:
   JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
   JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
 
+# Jira mirror only reads issue/comment metadata; writes go to Jira.
+permissions:
+  contents: read
+  issues: read
+
 jobs:
   sync:
     runs-on: ubuntu-latest
