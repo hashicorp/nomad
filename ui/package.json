@@ -12,7 +12,6 @@
     "build": "ember build --environment=production",
     "exam": "ember exam --split=4 --parallel",
     "exam:ci": "ember exam --load-balance --random=false",
-    "exam:parallel": "ember exam",
     "format": "prettier . --cache --write",
     "lint": "concurrently \"pnpm:lint:*(!fix)\" --names \"lint:\" --prefixColors auto",
     "lint:css": "stylelint \"**/*.scss\"",
