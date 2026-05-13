@@ -106,6 +106,35 @@ func TestVaultHook_Prestart(t *testing.T) {
 		must.True(t, hook.allowTokenExpiration)
 	})
 
+	t.Run("overrides role with task vault block role", func(t *testing.T) {
+		widMgr := widmgr.NewMockIdentityManager()
+		widMgr.SetIdentity(
+			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
+			&structs.SignedWorkloadIdentity{},
+		)
+
+		client := vaultclient.NewMockVaultClient()
+		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{Role: "test-role"}).Return(
+			"testToken", false, 0, nil,
+		)
+
+		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
+		hook.task.Vault.Role = "test-role"
+
+		var resp interfaces.TaskPrestartResponse
+		req := &interfaces.TaskPrestartRequest{
+			TaskEnv: taskenv.NewEmptyTaskEnv(),
+			TaskDir: &allocdir.TaskDir{
+				SecretsDir: t.TempDir(),
+				PrivateDir: t.TempDir(),
+			},
+			Task: hook.task,
+		}
+
+		err := hook.Prestart(t.Context(), req, &resp)
+		must.NoError(t, err)
+	})
+
 	t.Run("reads existing token from private dir", func(t *testing.T) {
 		widMgr := widmgr.NewMockIdentityManager()
 		widMgr.SetIdentity(
