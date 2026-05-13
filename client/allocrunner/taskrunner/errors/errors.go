@@ -1,7 +1,7 @@
 // Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
-package taskrunner
+package errors
 
 import (
 	"errors"
@@ -9,13 +9,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const (
-	errTaskNotRunning = "Task not running"
-)
-
-var (
-	ErrTaskNotRunning = errors.New(errTaskNotRunning)
-)
+// ErrTaskNotRunning is returned when the underlying task is not currently
+// running. It's defined here in the template package to avoid import cycles.
+var ErrTaskNotRunning = errors.New("Task not running")
 
 // NewHookError contains an underlying err and a pre-formatted task event.
 func NewHookError(err error, taskEvent *structs.TaskEvent) error {

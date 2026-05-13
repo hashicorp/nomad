@@ -24,6 +24,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -1261,6 +1262,62 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 
 	must.NotNil(t, harness.mockHooks.KillEvent)
 	must.StrContains(t, harness.mockHooks.KillEvent().DisplayMessage, "failed to send signals")
+}
+
+// TestTaskTemplateManager_Rerender_Signal_TaskNotRunning checks that when
+// template re-render fires a signal and the task is not currently running
+// (e.g. it is mid-restart), the template manager does not permanently fail
+// the allocation.
+func TestTaskTemplateManager_Rerender_Signal_TaskNotRunning(t *testing.T) {
+	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
+	key := "foo"
+	content1 := "bar"
+	content2 := "baz"
+	embedded := fmt.Sprintf(`{{key "%s"}}`, key)
+	file := "my.tmpl"
+	tmpl := &structs.Template{
+		EmbeddedTmpl: embedded,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeSignal,
+		ChangeSignal: "SIGHUP",
+	}
+
+	harness := newTestHarness(t, []*structs.Template{tmpl}, true, false)
+	harness.start(t)
+	defer harness.stop()
+
+	// Write the initial value so the template renders and the task is unblocked.
+	harness.consul.SetKV(t, key, []byte(content1))
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("task should have been unblocked after initial render")
+	}
+
+	// Simulate the task being mid-restart: signal delivery returns
+	// ErrTaskNotRunning because the driver handle is temporarily nil.
+	harness.mockHooks.SignalError = te.ErrTaskNotRunning
+
+	// Update the Consul key to trigger a template re-render and signal attempt.
+	harness.consul.SetKV(t, key, []byte(content2))
+
+	// Wait for the signal to be attempted.
+	select {
+	case <-harness.mockHooks.SignalCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("expected signal to be attempted after re-render")
+	}
+
+	// We don't expect the alloc to be killed, this should be treated as a transient
+	// error.
+	select {
+	case event := <-harness.mockHooks.KillCh:
+		t.Fatalf("allocation must not be killed when signal fails with ErrTaskNotRunning; got kill event: %v", event)
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		// no kill was triggered.
+	}
 }
 
 func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
