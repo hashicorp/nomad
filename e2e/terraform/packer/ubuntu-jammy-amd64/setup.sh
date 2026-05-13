@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright IBM Corp. 2015, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
