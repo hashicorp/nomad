@@ -11,12 +11,6 @@ import { inject as service } from '@ember/service';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
   @service store;
-
-  deactivate() {
-    this.cancelAllWatchers();
-    super.deactivate(...arguments);
-  }
-
   startWatchers(controller) {
     controller.set('watcher', this.watch.perform());
   }
