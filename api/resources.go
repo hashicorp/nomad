@@ -292,13 +292,19 @@ func (a Attribute) String() string {
 	}
 }
 
-type DeviceSharing string
+// DeviceSharing mirrors the plugin.DeviceSharing struct found
+// on Devices.DetectedDevice. It holds a string that some
+// devices use to report the status and presence of sharing
+// subsystems
+type DeviceSharing struct {
+	Shared string
+}
 
 const (
-	DeviceSharingIneligible DeviceSharing = "ineligible"
-	DeviceSharingUnset      DeviceSharing = ""
-	DeviceSharingActive     DeviceSharing = "active"
-	DeviceSharingInactive   DeviceSharing = "inactive"
+	DeviceSharingUnset      string = ""
+	DeviceSharingIneligible string = "ineligible"
+	DeviceSharingActive     string = "active"
+	DeviceSharingInactive   string = "inactive"
 )
 
 // NodeDeviceLocality stores information about the devices hardware locality on
@@ -339,7 +345,7 @@ type RequestedDevice struct {
 	Affinities []*Affinity `hcl:"affinity,block"`
 
 	// ShareDevices reports whether the task should be placed on a shared device
-	ShareDevices *ShareDevices `hcl:"will_share,block"`
+	ShareDevices *ShareDevices `hcl:"share_devices,block"`
 }
 
 func (d *RequestedDevice) Canonicalize() {
