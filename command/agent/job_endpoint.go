@@ -2336,8 +2336,8 @@ func ApiSharingToStructs(in *api.ShareDevices) *structs.ShareDevices {
 		return nil
 	}
 	return &structs.ShareDevices{
-		Enabled: in.Enabled,
-		GpuId:   in.GpuId,
+		Enabled:        in.Enabled,
+		SharedDeviceId: in.SharedDeviceId,
 	}
 
 }

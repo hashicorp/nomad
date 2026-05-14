@@ -266,8 +266,8 @@ func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.Shar
 	}
 	// if the device and task are sharable and we're targeting a specific GPU
 	// confirm it's the one we want
-	if len(sharing.GpuId) != 0 {
-		if sharing.GpuId != id {
+	if len(sharing.SharedDeviceId) != 0 {
+		if sharing.SharedDeviceId != id {
 			canShare = false
 		}
 	}

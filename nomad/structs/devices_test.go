@@ -200,10 +200,10 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 	ci.Parallel(t)
 
-	nvidiaNode, nvidiaGpuId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharing{DeviceSharingUnset})
-	sharedNvidiaNode, sharedNvidiaGpuId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharing{DeviceSharingActive})
-	sharedIntelNode, sharedIntelNodeGpuId := sharedNodeWithDeviceID(MockIntelNode(), DeviceSharing{DeviceSharingActive})
-	genNvidiaOrIntelAllocs := func(isNvidia bool, willShare bool, count int, sharedGpuId string) []*Allocation {
+	nvidiaNode, nvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharing{DeviceSharingUnset})
+	sharedNvidiaNode, sharedNvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharing{DeviceSharingActive})
+	sharedIntelNode, sharedIntelNodeSharedDeviceId := sharedNodeWithDeviceID(MockIntelNode(), DeviceSharing{DeviceSharingActive})
+	genNvidiaOrIntelAllocs := func(isNvidia bool, willShare bool, count int, sharedSharedDeviceId string) []*Allocation {
 		var (
 			allocs    []*Allocation
 			allocated *AllocatedDeviceResource
@@ -223,14 +223,14 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 		}
 		// function to generate a single intel or nvidia allocation
 		genAlloc := func(ID string, allocated *AllocatedDeviceResource, willShare bool) *Allocation {
-			var gpuID string
+			var SharedDeviceId string
 			if len(ID) == 0 {
-				gpuID = uuid.Generate()
+				SharedDeviceId = uuid.Generate()
 			} else {
-				gpuID = ID
+				SharedDeviceId = ID
 			}
-			allocated.DeviceIDs = []string{gpuID}
-			allocated.WillShare = map[string]bool{gpuID: willShare}
+			allocated.DeviceIDs = []string{SharedDeviceId}
+			allocated.WillShare = map[string]bool{SharedDeviceId: willShare}
 
 			a := MockAlloc()
 			a.AllocatedResources.Tasks["web"].Devices = []*AllocatedDeviceResource{allocated}
@@ -240,7 +240,7 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 
 		// build []*Allocation
 		for range count {
-			allocs = append(allocs, genAlloc(sharedGpuId, allocated, willShare))
+			allocs = append(allocs, genAlloc(sharedSharedDeviceId, allocated, willShare))
 		}
 
 		return allocs
@@ -249,7 +249,7 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 	for _, tc := range []struct {
 		name               string
 		node               *Node
-		gpuID              string
+		SharedDeviceId     string
 		allocs             []*Allocation
 		allocWillCollide   bool
 		reserveWillCollide bool
@@ -258,8 +258,8 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 		{
 			name:               "shared device- alloc passes, willing request- reservation passes",
 			node:               sharedNvidiaNode,
-			allocs:             genNvidiaOrIntelAllocs(true, true, 2, sharedNvidiaGpuId),
-			gpuID:              sharedNvidiaGpuId,
+			allocs:             genNvidiaOrIntelAllocs(true, true, 2, sharedNvidiaSharedDeviceId),
+			SharedDeviceId:     sharedNvidiaSharedDeviceId,
 			allocWillCollide:   false,
 			reserveWillCollide: false,
 			expectedCount:      3,
@@ -267,8 +267,8 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 		{
 			name:               "intel , reservation passes",
 			node:               sharedIntelNode,
-			allocs:             genNvidiaOrIntelAllocs(false, true, 2, sharedIntelNodeGpuId),
-			gpuID:              sharedIntelNodeGpuId,
+			allocs:             genNvidiaOrIntelAllocs(false, true, 2, sharedIntelNodeSharedDeviceId),
+			SharedDeviceId:     sharedIntelNodeSharedDeviceId,
 			allocWillCollide:   false,
 			reserveWillCollide: false,
 			expectedCount:      3,
@@ -276,8 +276,8 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 		{
 			name:               "unshared device- alloc collides, unsharing request- reservation collides",
 			node:               nvidiaNode,
-			allocs:             genNvidiaOrIntelAllocs(true, false, 2, nvidiaGpuId),
-			gpuID:              nvidiaGpuId,
+			allocs:             genNvidiaOrIntelAllocs(true, false, 2, nvidiaSharedDeviceId),
+			SharedDeviceId:     nvidiaSharedDeviceId,
 			allocWillCollide:   true,
 			reserveWillCollide: true,
 			expectedCount:      3,
@@ -285,8 +285,8 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 		{
 			name:               "shared device- alloc passes, unsharing request - reservation collides",
 			node:               sharedNvidiaNode,
-			allocs:             genNvidiaOrIntelAllocs(true, false, 2, sharedNvidiaGpuId),
-			gpuID:              sharedNvidiaGpuId,
+			allocs:             genNvidiaOrIntelAllocs(true, false, 2, sharedNvidiaSharedDeviceId),
+			SharedDeviceId:     sharedNvidiaSharedDeviceId,
 			allocWillCollide:   false,
 			reserveWillCollide: true,
 			expectedCount:      3,
@@ -304,7 +304,7 @@ func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 			deviceName := DeviceIdTuple{device.Vendor, device.Type, device.Name}
 			must.Eq(t, tc.reserveWillCollide, d.AddReserved(device))
 			//demonstrate the Instance counter was incremented at each attempt
-			must.Eq(t, tc.expectedCount, d.Devices[deviceName].Instances[tc.gpuID])
+			must.Eq(t, tc.expectedCount, d.Devices[deviceName].Instances[tc.SharedDeviceId])
 		})
 	}
 

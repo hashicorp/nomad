@@ -634,8 +634,8 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 
 	n := mock.SharedNvidiaNode()
 	nvidia0 := n.NodeResources.Devices[0]
-	gpuID0 := n.NodeResources.Devices[0].Instances[0]
-	gpuID1 := n.NodeResources.Devices[0].Instances[1]
+	SharedDeviceId0 := n.NodeResources.Devices[0].Instances[0]
+	SharedDeviceId1 := n.NodeResources.Devices[0].Instances[1]
 	_, ctx := MockContext(t)
 	d := newDeviceAllocator(ctx, n)
 	must.NotNil(t, d)
@@ -654,21 +654,21 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 		{
 			name:         "happy path",
 			deviceName:   "nvidia/gpu",
-			deviceID:     gpuID0.ID,
+			deviceID:     SharedDeviceId0.ID,
 			shareDevices: &structs.ShareDevices{Enabled: true},
 			count:        1,
 		},
 		{
 			name:         "structs.ShareDevices can be nil",
 			deviceName:   "nvidia/gpu",
-			deviceID:     gpuID0.ID,
+			deviceID:     SharedDeviceId0.ID,
 			shareDevices: nil,
 			count:        1,
 		},
 		{
 			name:         "if present, shareDevices must match device",
 			deviceName:   "nvidia/gpu",
-			deviceID:     gpuID0.ID,
+			deviceID:     SharedDeviceId0.ID,
 			shareDevices: &structs.ShareDevices{Enabled: false},
 			count:        1,
 			expectedErr:  "no devices match request",
@@ -676,8 +676,8 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 		{
 			name:         "if present, gpu_id must match device",
 			deviceName:   "nvidia/gpu",
-			deviceID:     gpuID0.ID,
-			shareDevices: &structs.ShareDevices{Enabled: false, GpuId: gpuID1.ID},
+			deviceID:     SharedDeviceId0.ID,
+			shareDevices: &structs.ShareDevices{Enabled: false, SharedDeviceId: SharedDeviceId1.ID},
 			count:        1,
 			expectedErr:  "no devices match request",
 		},

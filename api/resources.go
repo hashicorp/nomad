@@ -322,7 +322,7 @@ type ShareDevices struct {
 	// multiple shared devices, to make the shared device ID available to
 	// the plugin. If in use alongside the device.id constraint, the two must
 	// match or the job will not be placed.
-	SharedDeviceID string `hcl:"shared_device_id,optional"`
+	SharedDeviceId string `hcl:"shared_device_id,optional"`
 }
 
 // RequestedDevice is used to request a device for a task.
