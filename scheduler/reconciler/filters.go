@@ -61,6 +61,17 @@ func (set allocSet) filterByTerminal() (nonTerminal allocSet) {
 	return
 }
 
+// filterByServerTerminal returns a new allocSet without any server-terminal allocations.
+func (set allocSet) filterByServerTerminal() (nonTerminal allocSet) {
+	nonTerminal = make(allocSet)
+	for id, alloc := range set {
+		if !alloc.ServerTerminalStatus() {
+			nonTerminal[id] = alloc
+		}
+	}
+	return
+}
+
 // filterByDeployment returns two new allocSets: those allocations that match the
 // given deployment ID and those that don't.
 func (set allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
