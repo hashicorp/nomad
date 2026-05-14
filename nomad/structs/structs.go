@@ -3041,7 +3041,11 @@ func (ns Networks) Modes() *set.Set[string] {
 // ShareDevices indicates whether the task should be placed on a shared device
 type ShareDevices struct {
 	Enabled bool
-	GpuId   string
+	// SharedDeviceID is an optional field for use in environments with
+	// multiple shared devices, to make the shared device ID available to
+	// the plugin. If in use alongside the device.id constraint, the two must
+	// match or the job will not be placed.
+	SharedDeviceId string
 }
 
 // RequestedDevice is used to request a device for a task.

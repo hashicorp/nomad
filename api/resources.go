@@ -316,8 +316,13 @@ type NodeDeviceLocality struct {
 
 // ShareDevices indicates whether the task should be placed on a shared device
 type ShareDevices struct {
-	Enabled bool   `hcl:"enabled"`
-	GpuId   string `hcl:"gpu_id,optional"`
+	// Enabled
+	Enabled bool `hcl:"enabled"`
+	// SharedDeviceID is an optional field for use in environments with
+	// multiple shared devices, to make the shared device ID available to
+	// the plugin. If in use alongside the device.id constraint, the two must
+	// match or the job will not be placed.
+	SharedDeviceID string `hcl:"shared_device_id,optional"`
 }
 
 // RequestedDevice is used to request a device for a task.
