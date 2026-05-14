@@ -1017,7 +1017,8 @@ func (a *ACL) AllowClientOp(pool string) bool {
 	if a.client == PolicyDeny {
 		return false
 	}
-	return pool == a.pool
+	// hardcode "all" until we can use node.IsInPool
+	return pool == a.pool || pool == "all"
 }
 
 // IsManagement checks if this represents a management token
