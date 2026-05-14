@@ -103,6 +103,14 @@ func TestACLManagement(t *testing.T) {
 	must.False(t, acl.AllowClientOp("my-pool"))
 }
 
+func TestClientACL(t *testing.T) {
+	acl := NewClientACL("test-pool")
+
+	must.True(t, acl.AllowClientOp("test-pool"))
+	must.True(t, acl.AllowClientOp("all")) // tests node_pool = "all"
+	must.False(t, acl.AllowClientOp("test-not-my-pool"))
+}
+
 func TestACLMerge(t *testing.T) {
 	ci.Parallel(t)
 
