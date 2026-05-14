@@ -3585,22 +3585,17 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	return true
 }
 
-// Shared is an enum string that parallels device.DeviceSharing.Shared
-// and reports on the presence and state of sharing subsystems on a
-// device
-type Shared string
-
 // DeviceSharing mirrors the plugin.DeviceSharing struct found
 // on Devices.DetectedDevice. It holds a string enum that some
-// devices use to report the status and presenes of sharing
+// devices use to report the status and presence of sharing
 // subsystems
 type DeviceSharing struct {
 	Shared string
 }
 
 const (
-	DeviceSharingIneligible string = "ineligible"
 	DeviceSharingUnset      string = ""
+	DeviceSharingIneligible string = "ineligible"
 	DeviceSharingActive     string = "active"
 	DeviceSharingInactive   string = "inactive"
 )
