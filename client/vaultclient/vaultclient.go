@@ -413,7 +413,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			// TODO: mismithhisler - This is a temporary fix until a followup
 			// refactor of the vault client is merged that contains proper
 			// exponential backoffs.
-			next = time.Now().Add(time.Minute)
+			next = min(time.Now().Add(time.Minute), next)
 
 			c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
 			c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
