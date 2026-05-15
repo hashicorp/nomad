@@ -56,6 +56,7 @@ import (
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
+	tmock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1713,10 +1714,11 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	}
 
 	// Control when we get a Vault token
-	waitCh := make(chan struct{}, 1)
+	waitCh := make(chan time.Time)
 	defer close(waitCh)
 
 	vc := vaultclient.NewMockVaultClient()
+	vc.On("DeriveTokenWithJWT", tmock.Anything, tmock.Anything).Return("", false, 0, nil).WaitUntil(waitCh)
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vc)
 	defer cleanup()
@@ -1761,7 +1763,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	require.EqualError(t, err, te.ErrTaskNotRunning.Error())
 
 	// Unblock and let it finish
-	waitCh <- struct{}{}
+	waitCh <- time.Now()
 	testWaitForTaskToDie(t, tr)
 
 	// Assert the task ran and never restarted
