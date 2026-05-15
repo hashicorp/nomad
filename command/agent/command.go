@@ -1186,6 +1186,12 @@ func (c *Command) handleReload() error {
 		return nil
 	}
 
+	oldConf := c.agent.GetConfig().Copy()
+	newFiles := checkNewConfigFiles(oldConf.Files, newConf.Files)
+	if len(newFiles) > 0 {
+		c.agent.logger.Info("detected new config files before reload", "files", strings.Join(newFiles, ", "))
+	}
+
 	// Change the log level
 	minLevel := strings.ToUpper(newConf.LogLevel)
 
@@ -1256,7 +1262,39 @@ func (c *Command) handleReload() error {
 			c.agent.httpLogger.Error("reloading config failed", "error", err)
 		}
 	}
+
+	// Keep runtime metadata in sync with the latest discovered config files and
+	// config paths so API responses reflect updates from config directories.
+	c.agent.configLock.Lock()
+	c.agent.config.Files = append([]string(nil), newConf.Files...)
+	c.agent.config.ConfigPaths = append([]string(nil), newConf.ConfigPaths...)
+	c.agent.configLock.Unlock()
+
 	return nil
+}
+
+// checkNewConfigFiles is used to compare the previous and current config files
+// return any new files that were added.
+func checkNewConfigFiles(previous, current []string) []string {
+	if len(current) == 0 {
+		return nil
+	}
+
+	known := make(map[string]struct{}, len(previous))
+	for _, f := range previous {
+		known[f] = struct{}{}
+	}
+
+	newFiles := make([]string, 0)
+	for _, f := range current {
+		if _, ok := known[f]; ok {
+			continue
+		}
+		known[f] = struct{}{}
+		newFiles = append(newFiles, f)
+	}
+
+	return newFiles
 }
 
 // setupTelemetry is used to set up the telemetry sub-systems.
