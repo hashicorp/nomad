@@ -48,7 +48,7 @@ func testSystemJobAllNodePools(t *testing.T) {
 	must.NotNil(t, deployment)
 
 	// wait for the deployment to become healthy
-	timeout, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	timeout, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 
 	job.WaitForDeploymentFunc(timeout, deployment.ID, func(d *api.Deployment) bool {
