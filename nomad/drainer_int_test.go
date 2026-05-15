@@ -308,7 +308,7 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 	waitForNodeDrainComplete(t, store, n1.ID, nil, 3, "")
 }
 
-func TestDrainer_AllTypes_Deadline(t *testing.T) {
+func TestDrainer_AllTypes_Deadline_NoGCNode(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, cleanupSrv := TestServer(t, nil)
@@ -394,7 +394,7 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n2.SecretID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
 	// Wait for allocs to be replaced
@@ -549,7 +549,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	waitForNodeDrainComplete(t, store, n1.ID, errCh, 3, "")
 }
 
-func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
+func TestDrainer_AllTypes_Deadline_GCNode(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, cleanupSrv := TestServer(t, nil)
