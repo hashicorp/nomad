@@ -21,7 +21,7 @@ func TestWaitForPlacement(t *testing.T) {
 
 	t.Run("returns if eval complete", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
 
 		testEval := mock.Eval()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
@@ -43,7 +43,7 @@ func TestWaitForPlacement(t *testing.T) {
 
 	t.Run("continues watching blocked evals", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -88,7 +88,7 @@ func TestWaitForPlacement(t *testing.T) {
 
 	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
 
 		testEval := mock.Eval()
 		next := mock.Eval()

@@ -487,16 +487,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		Encrypter:      s.encrypter,
 	})
 
-	// Initialize the Raft server
-	if err := s.setupRaft(); err != nil {
-		s.Shutdown()
-		s.logger.Error("failed to start Raft", "error", err)
-		return nil, fmt.Errorf("Failed to start Raft: %v", err)
-	}
-
 	// Creates the batch job queue
 	s.batchJobQueue, err = queues.NewQueue(
-		s.fsm.State(),
 		&s.config.DefaultSchedulerConfig.BatchQueue,
 		evalBroker,
 		logger,
@@ -507,8 +499,18 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		return nil, fmt.Errorf("Failed to create batch jo queue: %v", err)
 	}
 
-	// start the batch queue after setting up raft
-	s.batchJobQueue.Start(s.shutdownCtx)
+	// Initialize the Raft server
+	if err := s.setupRaft(); err != nil {
+		s.Shutdown()
+		s.logger.Error("failed to start Raft", "error", err)
+		return nil, fmt.Errorf("Failed to start Raft: %v", err)
+	}
+
+	if err := s.batchJobQueue.Start(s.shutdownCtx, s.State()); err != nil {
+		s.Shutdown()
+		s.logger.Error("failed to start batch job queue", "error", err)
+		return nil, fmt.Errorf("Failed to start batcj job queue: %v", err)
+	}
 
 	// Initialize the wan Serf
 	s.serf, err = s.setupSerf(config.SerfConfig, s.eventCh, serfSnapshot)
@@ -1377,6 +1379,7 @@ func (s *Server) setupRaft() error {
 	// Create the FSM
 	fsmConfig := &FSMConfig{
 		EvalBroker:         s.evalBroker,
+		BatchQueue:         s.batchJobQueue,
 		Periodic:           s.periodicDispatcher,
 		Blocked:            s.blockedEvals,
 		Encrypter:          s.encrypter,
@@ -2334,15 +2337,6 @@ func (s *Server) ClusterMetadata() (structs.ClusterMetadata, error) {
 
 func (s *Server) isSingleServerCluster() bool {
 	return s.config.BootstrapExpect == 1
-}
-
-func (s *Server) routeJobRegisterEval(e *structs.Evaluation) {
-	switch e.Type {
-	case structs.JobTypeBatch:
-		s.batchJobQueue.Enqueue(e)
-	default:
-		s.evalBroker.Enqueue(e)
-	}
 }
 
 // peersInfoContent is used to help operators understand what happened to the

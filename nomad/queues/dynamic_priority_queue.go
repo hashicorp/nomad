@@ -85,12 +85,11 @@ func (w *Workload) calculatePriority(_ int64) {
 	// unimplemented
 }
 
-func NewDynamicPriorityQueue(state *state.StateStore, broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
+func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
 		tenants:     map[TenantID]Tenant{},
 		queue:       WorkloadQueue{},
 		enqueueCh:   make(chan *Workload, 8192),
-		state:       state,
 		evalBroker:  broker,
 		qMux:        sync.Mutex{},
 		qNotify:     make(chan struct{}, 1),
@@ -102,14 +101,14 @@ func NewDynamicPriorityQueue(state *state.StateStore, broker Broker, qconf *stru
 	}
 }
 
-func (d *DynamicPriorityQueue) Start(ctx context.Context) {
+func (d *DynamicPriorityQueue) Start(ctx context.Context, state *state.StateStore) error {
 	// rebuild internal state from statestore, unimplemented
-	if d.state == nil {
-		return
-	}
+	d.state = state
 
 	go d.runProducer(ctx)
 	go d.runConsumer(ctx)
+
+	return nil
 }
 
 // Enqueue is the method used to put evaluations on the queue.

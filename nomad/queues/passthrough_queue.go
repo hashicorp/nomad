@@ -6,6 +6,7 @@ package queues
 import (
 	"context"
 
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -20,6 +21,6 @@ func NewPassthroughQueue(b Broker) *PassthroughQueue {
 }
 
 // Start is a noop for the passthrough implementation
-func (p *PassthroughQueue) Start(context.Context) {}
+func (p *PassthroughQueue) Start(context.Context, *state.StateStore) error { return nil }
 
 func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.broker.Enqueue(e) }

@@ -6,12 +6,13 @@ package queues
 import (
 	"context"
 
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type Queue interface {
 	Enqueue(*structs.Evaluation)
-	Start(context.Context)
+	Start(context.Context, *state.StateStore) error
 }
 
 // Broker is the interface for an evaluation broker

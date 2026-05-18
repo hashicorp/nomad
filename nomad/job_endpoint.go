@@ -2132,10 +2132,6 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		return err
 	}
 
-	if eval != nil {
-		j.srv.routeJobRegisterEval(eval)
-	}
-
 	reply.JobCreateIndex = jobCreateIndex
 	reply.DispatchedJobID = dispatchJob.ID
 	reply.Index = jobCreateIndex
