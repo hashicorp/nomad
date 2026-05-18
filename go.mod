@@ -106,7 +106,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1
-	github.com/moby/moby/v2 v2.0.0-beta.13
+	github.com/moby/moby/v2 v2.0.0-beta.14
 	github.com/moby/sys/atomicwriter v0.1.0
 	github.com/moby/sys/capability v0.4.0
 	github.com/moby/sys/mount v0.3.4
