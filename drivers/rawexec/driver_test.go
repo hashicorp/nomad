@@ -509,15 +509,31 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	_, _, err := harness.StartTask(task)
 	require.NoError(err)
 
+	// Wait for the task to be running before attempting exec calls.
+	require.NoError(harness.WaitUntilStarted(task.ID, 5*time.Second))
+
 	if runtime.GOOS == "windows" {
+		// Use a generous timeout: on Windows CI the deadline is an absolute
+		// timestamp serialised across two gRPC hops. Process-creation overhead
+		// (cmd.exe + child) on a loaded runner can easily consume the whole
+		// 1-second window, causing the process to be killed before writing any
+		// output and leaving res.Stdout empty with a non-zero exit code.
+		const windowsExecTimeout = 30 * time.Second
+
 		// Exec a command that should work
-		res, err := harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "echo", "hello"}, 1*time.Second)
+		res, err := harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "echo", "hello"}, windowsExecTimeout)
 		require.NoError(err)
 		require.True(res.ExitResult.Successful())
 		require.Equal(string(res.Stdout), "hello\r\n")
 
-		// Exec a command that should fail
-		res, err = harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "stat", "notarealfile123abc"}, 1*time.Second)
+		// Exec a command that should fail.
+		// Use PowerShell rather than "stat" (which requires Git-for-Windows in
+		// PATH and spawns an extra process) so the failure is deterministic on
+		// all Windows CI environments.
+		res, err = harness.ExecTask(task.ID,
+			[]string{"powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+				`if (-not (Test-Path notarealfile123abc)) { Write-Output "No such file or directory"; exit 1 }`},
+			windowsExecTimeout)
 		require.NoError(err)
 		require.False(res.ExitResult.Successful())
 		require.Contains(string(res.Stdout), "No such file or directory")
