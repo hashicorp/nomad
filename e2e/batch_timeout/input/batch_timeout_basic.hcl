@@ -23,8 +23,9 @@ job "batch-timeout-basic" {
       unlimited = false
     }
 
+    # Set restart on failure to check that it doesn't get triggered
     restart {
-      attempts = 0
+      attempts = 3
       mode     = "fail"
     }
 
