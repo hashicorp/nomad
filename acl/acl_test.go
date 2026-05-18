@@ -222,6 +222,14 @@ func TestACLMerge(t *testing.T) {
 func TestACLAllowClientOp_NodePoolScoped(t *testing.T) {
 	ci.Parallel(t)
 
+	t.Run("client acl works with node pool 'all'", func(t *testing.T) {
+		acl := NewClientACL("test-pool")
+
+		must.True(t, acl.AllowClientOp("test-pool"))
+		must.True(t, acl.AllowClientOp("all")) // tests node_pool = "all"
+		must.False(t, acl.AllowClientOp("test-not-my-pool"))
+	})
+
 	t.Run("management", func(t *testing.T) {
 		acl, err := NewACL(true, nil)
 		must.NoError(t, err)
