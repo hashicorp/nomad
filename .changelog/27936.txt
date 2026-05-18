@@ -1,0 +1,3 @@
+```release-note:bug
+consul: re-write consul service identity token when reattaching to task
+```
