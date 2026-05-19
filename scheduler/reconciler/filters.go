@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package reconciler
@@ -130,12 +130,12 @@ type classificationRule struct {
 var classificationRules = []classificationRule{
 	// Failed allocs that need to reconnect and are still desired to run.
 	{
-		category: categoryReconnecting,
 		condition: func(ctx allocContext) bool {
 			return ctx.shouldReconnect &&
 				ctx.alloc.DesiredStatus == structs.AllocDesiredStatusRun &&
 				ctx.alloc.ClientStatus == structs.AllocClientStatusFailed
 		},
+		category: categoryReconnecting,
 	},
 	// Server-terminal allocs should be ignored when they are not reconnecting.
 	{
@@ -177,12 +177,13 @@ var classificationRules = []classificationRule{
 	},
 	// Disconnected node, but alloc already marked unknown, so no changes needed.
 	{
-		category: categoryUntainted,
+
 		condition: func(ctx allocContext) bool {
 			return ctx.taintedNode != nil &&
 				ctx.taintedNode.Status == structs.NodeStatusDisconnected &&
 				ctx.alloc.ClientStatus == structs.AllocClientStatusUnknown
 		},
+		category: categoryUntainted,
 	},
 	// Disconnected pending allocs should be replaced immediately.
 	{
