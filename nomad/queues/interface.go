@@ -12,7 +12,8 @@ import (
 
 type Queue interface {
 	Enqueue(*structs.Evaluation)
-	Start(context.Context, *state.StateStore) error
+	Start(context.Context) error
+	SetEnabled(bool, *state.StateStore)
 }
 
 // Broker is the interface for an evaluation broker

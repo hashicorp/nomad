@@ -24,7 +24,7 @@ type DynamicPriorityQueue struct {
 	// tenants is used to keep track of cluster usage for this queue.
 	// When workloads are placed or the  configured interval is passed,
 	// cluster usage is updated for the workloads of each tenant.
-	tenants map[TenantID]Tenant
+	tenants map[TenantID]*Tenant
 
 	// queue is the main datastructure that contains all pending workloads
 	//
@@ -60,6 +60,10 @@ type DynamicPriorityQueue struct {
 	// on to be scheduled by Nomad
 	evalBroker Broker
 
+	// enabled tracks whether the server running the batch job queue is the leader
+	// so should process evaluations
+	enabled atomic.Bool
+
 	// state is the in-memory state store used for both reconciling tenant
 	// workload usages, and polling submitted evaluations for placement
 	state  *state.StateStore
@@ -87,7 +91,7 @@ func (w *Workload) calculatePriority(_ int64) {
 
 func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
-		tenants:     map[TenantID]Tenant{},
+		tenants:     make(map[TenantID]*Tenant),
 		queue:       WorkloadQueue{},
 		enqueueCh:   make(chan *Workload, 8192),
 		evalBroker:  broker,
@@ -101,14 +105,17 @@ func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *str
 	}
 }
 
-func (d *DynamicPriorityQueue) Start(ctx context.Context, state *state.StateStore) error {
-	// rebuild internal state from statestore, unimplemented
-	d.state = state
-
+func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
 	go d.runProducer(ctx)
 	go d.runConsumer(ctx)
 
 	return nil
+}
+
+func (d *DynamicPriorityQueue) SetEnabled(val bool, state *state.StateStore) {
+	// rebuild internal state from statestore, unimplemented
+	d.state = state
+	d.enabled.Store(val)
 }
 
 // Enqueue is the method used to put evaluations on the queue.
@@ -116,7 +123,12 @@ func (d *DynamicPriorityQueue) Start(ctx context.Context, state *state.StateStor
 // to an internal channel to be processed and added to the actual
 // heap container.
 func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
+	if !d.enabled.Load() {
+		return
+	}
+
 	w := d.generateWorkload(e)
+
 	// in the event of an empty workload, just pass eval to eval broker
 	if w == nil {
 		d.evalBroker.Enqueue(e)
@@ -146,6 +158,10 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			default:
 			}
 		case <-time.After(d.conf.CalcInterval):
+			if !d.enabled.Load() {
+				continue
+			}
+
 			d.qMux.Lock()
 			d.calculatePriorities(time.Now().UnixNano())
 			heap.Init(&d.queue)
