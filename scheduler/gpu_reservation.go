@@ -137,13 +137,7 @@ func gpuReservationCannotCompute(
 	if cfg.IsZero() || remainingHealthyGPUCount(node, finalAllocs) == 0 {
 		return false, ""
 	}
-	if node == nil || node.NodeResources == nil ||
-		node.NodeResources.Processors.Topology == nil {
-		if cfg.CPUCores > 0 {
-			return true, gpuReservedCPUExhaustion
-		}
-		return true, gpuReservedMemoryExhaustion
-	}
+
 	if cfg.CPUCores > 0 {
 		available := gpuReservationAvailableComparable(node)
 		if gpuReservationCPUShares(node, available, cfg.CPUCores, 1) < 0 {

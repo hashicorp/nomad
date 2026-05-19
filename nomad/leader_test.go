@@ -1812,18 +1812,26 @@ func TestServer_getOrCreateSchedulerConfig_GPUResourceReservationVersionGate(t *
 
 	testServer, cleanupFn := TestServer(t, func(c *Config) {
 		c.Build = "1.9.0+unittest"
+		c.DefaultSchedulerConfig.SchedulerAlgorithm = structs.SchedulerAlgorithmSpread
+		c.DefaultSchedulerConfig.MemoryOversubscriptionEnabled = true
+		c.DefaultSchedulerConfig.PauseEvalBroker = true
 		c.DefaultSchedulerConfig.GPUResourceReservation = structs.SchedulerGPUResourceReservation{
 			CPUCores: 1,
+			MemoryMB: 1024,
 		}
 	})
 	defer cleanupFn()
 	testutil.WaitForLeader(t, testServer.RPC)
 
-	require.Nil(t, testServer.getOrCreateSchedulerConfig())
+	require.NotNil(t, testServer.getOrCreateSchedulerConfig())
 
 	_, config, err := testServer.State().SchedulerConfig()
 	require.NoError(t, err)
-	require.Nil(t, config)
+	require.NotNil(t, config)
+	require.Equal(t, structs.SchedulerAlgorithmSpread, config.SchedulerAlgorithm)
+	require.True(t, config.MemoryOversubscriptionEnabled)
+	require.True(t, config.PauseEvalBroker)
+	require.True(t, config.GPUResourceReservation.IsZero())
 }
 
 func TestServer_handleEvalBrokerStateChange(t *testing.T) {

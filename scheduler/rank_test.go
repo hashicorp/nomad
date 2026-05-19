@@ -2246,6 +2246,28 @@ func TestBinPackIterator_GPUResourceReservation(t *testing.T) {
 	}
 }
 
+func TestGPUResourceReservation_MemoryOnlyDoesNotRequireTopology(t *testing.T) {
+	node := gpuReservationNode(2, 4000, 1)
+	node.NodeResources.Processors.Topology = nil
+	reservation := structs.SchedulerGPUResourceReservation{
+		MemoryMB: 2000,
+	}
+
+	exhausted, dim := gpuReservationCannotCompute(node, nil, reservation)
+	require.False(t, exhausted)
+	require.Empty(t, dim)
+
+	alloc := gpuReservationAllocation(node, 1, 1000, nil, 50)
+	violated, dim := gpuReservationViolated(node, []*structs.Allocation{alloc}, reservation)
+	require.False(t, violated)
+	require.Empty(t, dim)
+
+	alloc = gpuReservationAllocation(node, 1, 3000, nil, 50)
+	violated, dim = gpuReservationViolated(node, []*structs.Allocation{alloc}, reservation)
+	require.True(t, violated)
+	require.Equal(t, gpuReservedMemoryExhaustion, dim)
+}
+
 func TestBinPackIterator_GPUResourceReservation_Preemption(t *testing.T) {
 	testCases := []struct {
 		name             string
