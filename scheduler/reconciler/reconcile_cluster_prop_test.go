@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package reconciler
@@ -257,7 +257,7 @@ func TestAllocReconciler_cancelUnneededCanaries(t *testing.T) {
 			}
 		}
 		canarySet := all.fromKeys(expectedCanaries)
-		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := canarySet.filterByTainted(clusterState)
+		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := canarySet.classifyAllocs(clusterState)
 
 		stopSet = stopSet.union(migrate, lost)
 
