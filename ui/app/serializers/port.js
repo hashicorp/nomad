@@ -16,7 +16,7 @@ export default class PortSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     const ip = hash.HostIP;
 
-    if (isIPv6(ip)) {
+    if (ip && isIPv6(ip)) {
       hash.HostIP = `[${ip}]`;
     }
 
