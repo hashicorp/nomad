@@ -1,3 +1,3 @@
 ```release-note:improvement
-template: Add `run_on_first_render` option to `change_script` block
+template: added `RunOnFirstRender` option to `change_script` allowing scripts to execute immediately upon first render.
 ```
