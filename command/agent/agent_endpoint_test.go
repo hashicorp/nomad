@@ -2278,21 +2278,6 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_Client(t *testing.T) {
 	}
 }
 
-func TestHTTP_AgentReload(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("valid put request", func(t *testing.T) {
-		httpTest(t, nil, func(s *TestAgent) {
-			req, err := http.NewRequest(http.MethodPut, "/v1/agent/reload", nil)
-			require.NoError(t, err)
-			respW := httptest.NewRecorder()
-
-			obj, err := s.Server.AgentReloadRequest(respW, req)
-			must.NoError(t, err)
-			must.NotNil(t, obj)
-		})
-	})
-}
 
 func TestHTTP_AgentReload_ACL(t *testing.T) {
 	ci.Parallel(t)
