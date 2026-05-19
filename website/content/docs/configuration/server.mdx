@@ -134,7 +134,9 @@ server {
   bootstrapping cluster. The parameter is ignored once the cluster is
   bootstrapped or value is updated through the [API
   endpoint][update-scheduler-config]. Refer to [the example
-  section](#configuring-scheduler-config) for more details.
+  section](#configuring-scheduler-config) for more details. The
+  `gpu_resource_reservation` nested block may be used to reserve CPU cores and
+  memory MB for each healthy unallocated GPU when placing CPU-only jobs.
 
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given
   beyond the heartbeat TTL of Clients to account for network and processing
@@ -423,6 +425,11 @@ server {
       system_scheduler_enabled   = true
       service_scheduler_enabled  = true
       sysbatch_scheduler_enabled = true
+    }
+
+    gpu_resource_reservation {
+      cpu_cores = 1
+      memory_mb = 16384
     }
   }
 }

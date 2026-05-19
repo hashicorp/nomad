@@ -63,6 +63,15 @@ capability.
   is enabled. Note that if this is set to true, then system jobs can preempt any
   other jobs. Must be one of `[true|false]`.
 
+- `-gpu-reserved-cpu-cores` - Specifies the CPU cores to reserve for each
+  healthy unallocated GPU on a node. CPU-only jobs are not placed if they would
+  consume this reserved CPU capacity. Set to `0` to disable CPU reservation.
+
+- `-gpu-reserved-memory-mb` - Specifies the memory, in MB, to reserve for each
+  healthy unallocated GPU on a node. CPU-only jobs are not placed if they would
+  consume this reserved memory capacity. Set to `0` to disable memory
+  reservation.
+
 ## Examples
 
 Modify the scheduler algorithm to spread:
@@ -76,6 +85,14 @@ Modify the scheduler algorithm to spread using the check index flag:
 
 ```shell-session
 $ nomad operator scheduler set-config -scheduler-algorithm=spread -check-index=5
+Scheduler configuration updated!
+```
+
+Reserve one CPU core and 16 GiB of memory for each healthy unallocated GPU on
+GPU nodes:
+
+```shell-session
+$ nomad operator scheduler set-config -gpu-reserved-cpu-cores=1 -gpu-reserved-memory-mb=16384
 Scheduler configuration updated!
 ```
 

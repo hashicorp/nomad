@@ -487,6 +487,13 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	if !ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minSchedulerConfigVersion, false) {
 		return fmt.Errorf("All servers should be running version %v to update scheduler config", minSchedulerConfigVersion)
 	}
+	if err := args.Config.Validate(); err != nil {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, err.Error())
+	}
+	if !args.Config.GPUResourceReservation.IsZero() &&
+		!ServersMeetMinimumVersion(op.srv.Members(), op.srv.Region(), minGPUResourceReservationVersion, false) {
+		return fmt.Errorf("All servers should be running version %v to update scheduler config with GPU resource reservation", minGPUResourceReservationVersion)
+	}
 
 	// Apply the update
 	resp, index, err := op.srv.raftApply(structs.SchedulerConfigRequestType, args)

@@ -43,6 +43,10 @@ $ curl \
   "NextToken": "",
   "SchedulerConfig": {
     "CreateIndex": 5,
+    "GPUResourceReservation": {
+      "CPUCores": 0,
+      "MemoryMB": 0
+    },
     "MemoryOversubscriptionEnabled": false,
     "ModifyIndex": 5,
     "PauseEvalBroker": false,
@@ -77,6 +81,19 @@ $ curl \
     to take advantage of memory oversubscription. Node pools may set their own
     [`MemoryOversubscriptionEnabled`][np_mem_oversubs] value that takes
     precedence over this global value.
+
+  - `GPUResourceReservation` `(GPUResourceReservation)` - Specifies CPU and
+    memory capacity to reserve for each healthy unallocated GPU on a node.
+    CPU-only task groups are not placed on a GPU node if the placement would
+    leave less than this reservation for the remaining free GPUs. GPU-using task
+    groups may consume this reserved capacity if they otherwise fit.
+
+    - `CPUCores` `(int: 0)` - CPU cores to reserve per healthy unallocated GPU.
+      Nomad converts cores to CPU shares for each node by using the node's
+      available CPU shares and usable core count.
+
+    - `MemoryMB` `(int: 0)` - Memory, in MB, to reserve per healthy unallocated
+      GPU.
 
   - `RejectJobRegistration` `(bool: false)` - When `true`, the server will return
     permission denied errors for job registration, job dispatch, and job scale APIs,
@@ -139,6 +156,10 @@ server state is authoritative.
 {
   "SchedulerAlgorithm": "spread",
   "MemoryOversubscriptionEnabled": false,
+  "GPUResourceReservation": {
+    "CPUCores": 1,
+    "MemoryMB": 16384
+  },
   "RejectJobRegistration": false,
   "PauseEvalBroker": false,
   "PreemptionConfig": {
@@ -160,6 +181,19 @@ server state is authoritative.
   Tasks must specify [`memory_max`](/nomad/docs/job-specification/resources#memory_max)
   to take advantage of memory oversubscription. This value may also be set per
   [node pool][np_mem_oversubs].
+
+- `GPUResourceReservation` `(GPUResourceReservation)` - Specifies CPU and memory
+  capacity to reserve for each healthy unallocated GPU on a node. CPU-only task
+  groups are not placed on a GPU node if the placement would leave less than
+  this reservation for the remaining free GPUs. Omit the object or set both
+  fields to `0` to disable the policy.
+
+  - `CPUCores` `(int: 0)` - CPU cores to reserve per healthy unallocated GPU.
+    Nomad converts cores to CPU shares for each node by using the node's
+    available CPU shares and usable core count.
+
+  - `MemoryMB` `(int: 0)` - Memory, in MB, to reserve per healthy unallocated
+    GPU.
 
 - `RejectJobRegistration` `(bool: false)` - When `true`, the server will return
   permission denied errors for job registration, job dispatch, and job scale APIs,

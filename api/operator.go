@@ -169,6 +169,10 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig
 
+	// GPUResourceReservation protects CPU and memory capacity for future GPU
+	// placements on nodes with free GPU devices.
+	GPUResourceReservation SchedulerGPUResourceReservation
+
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool
 
@@ -219,6 +223,13 @@ type PreemptionConfig struct {
 	SysBatchSchedulerEnabled bool
 	BatchSchedulerEnabled    bool
 	ServiceSchedulerEnabled  bool
+}
+
+// SchedulerGPUResourceReservation configures how much CPU and memory capacity
+// the scheduler protects for each healthy unallocated GPU on a node.
+type SchedulerGPUResourceReservation struct {
+	CPUCores int
+	MemoryMB int
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.

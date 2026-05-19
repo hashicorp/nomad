@@ -80,6 +80,8 @@ func (o *OperatorSchedulerGetConfig) Run(args []string) int {
 	o.Ui.Output(formatKV([]string{
 		fmt.Sprintf("Scheduler Algorithm|%s", schedConfig.SchedulerAlgorithm),
 		fmt.Sprintf("Memory Oversubscription|%v", schedConfig.MemoryOversubscriptionEnabled),
+		fmt.Sprintf("GPU Reserved CPU Cores|%d", schedConfig.GPUResourceReservation.CPUCores),
+		fmt.Sprintf("GPU Reserved Memory MB|%d", schedConfig.GPUResourceReservation.MemoryMB),
 		fmt.Sprintf("Reject Job Registration|%v", schedConfig.RejectJobRegistration),
 		fmt.Sprintf("Pause Eval Broker|%v", schedConfig.PauseEvalBroker),
 		fmt.Sprintf("Preemption System Scheduler|%v", schedConfig.PreemptionConfig.SystemSchedulerEnabled),

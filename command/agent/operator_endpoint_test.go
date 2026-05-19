@@ -513,6 +513,10 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		body := bytes.NewBuffer([]byte(`
 {
+  "GPUResourceReservation": {
+    "CPUCores": 2,
+    "MemoryMB": 16384
+  },
   "MemoryOversubscriptionEnabled": true,
   "PauseEvalBroker": true,
   "PreemptionConfig": {
@@ -542,8 +546,31 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		require.False(t, reply.SchedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 		require.False(t, reply.SchedulerConfig.PreemptionConfig.BatchSchedulerEnabled)
 		require.True(t, reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
+		require.Equal(t, structs.SchedulerGPUResourceReservation{
+			CPUCores: 2,
+			MemoryMB: 16384,
+		}, reply.SchedulerConfig.GPUResourceReservation)
 		require.True(t, reply.SchedulerConfig.MemoryOversubscriptionEnabled)
 		require.True(t, reply.SchedulerConfig.PauseEvalBroker)
+	})
+}
+
+func TestOperator_SchedulerSetConfiguration_GPUResourceReservationValidation(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		body := bytes.NewBuffer([]byte(`
+{
+  "GPUResourceReservation": {
+    "CPUCores": -1
+  }
+}`))
+		req, _ := http.NewRequest(http.MethodPut, "/v1/operator/scheduler/configuration", body)
+		resp := httptest.NewRecorder()
+		_, err := s.Server.OperatorSchedulerConfiguration(resp, req)
+		require.NotNil(t, err)
+		coded, ok := err.(HTTPCodedError)
+		require.True(t, ok)
+		require.Equal(t, 400, coded.Code())
 	})
 }
 

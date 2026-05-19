@@ -26,6 +26,8 @@ func TestOperatorSchedulerGetConfig_Run(t *testing.T) {
 	must.Zero(t, c.Run([]string{"-address=" + addr}))
 	s := ui.OutputWriter.String()
 	must.StrContains(t, s, "Scheduler Algorithm           = binpack")
+	must.StrContains(t, s, "GPU Reserved CPU Cores")
+	must.StrContains(t, s, "GPU Reserved Memory MB")
 	must.StrContains(t, s, "Preemption SysBatch Scheduler = false")
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()

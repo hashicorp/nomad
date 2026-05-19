@@ -164,6 +164,11 @@ server {
       system_scheduler_enabled  = true
       service_scheduler_enabled = true
     }
+
+    gpu_resource_reservation {
+      cpu_cores = 2
+      memory_mb = 16384
+    }
   }
 
   license_path = "/tmp/nomad.hclic"

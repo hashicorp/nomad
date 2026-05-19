@@ -1807,6 +1807,25 @@ func TestServer_getLatestIndex(t *testing.T) {
 	must.Eq(t, 1013, idx)
 }
 
+func TestServer_getOrCreateSchedulerConfig_GPUResourceReservationVersionGate(t *testing.T) {
+	ci.Parallel(t)
+
+	testServer, cleanupFn := TestServer(t, func(c *Config) {
+		c.Build = "1.9.0+unittest"
+		c.DefaultSchedulerConfig.GPUResourceReservation = structs.SchedulerGPUResourceReservation{
+			CPUCores: 1,
+		}
+	})
+	defer cleanupFn()
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	require.Nil(t, testServer.getOrCreateSchedulerConfig())
+
+	_, config, err := testServer.State().SchedulerConfig()
+	require.NoError(t, err)
+	require.Nil(t, config)
+}
+
 func TestServer_handleEvalBrokerStateChange(t *testing.T) {
 	ci.Parallel(t)
 

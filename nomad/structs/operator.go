@@ -220,6 +220,10 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
+	// GPUResourceReservation protects CPU and memory capacity for future GPU
+	// placements on nodes with free GPU devices.
+	GPUResourceReservation SchedulerGPUResourceReservation `hcl:"gpu_resource_reservation"`
+
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool `hcl:"memory_oversubscription_enabled"`
 
@@ -292,6 +296,31 @@ func (s *SchedulerConfiguration) Validate() error {
 		return fmt.Errorf("invalid scheduler algorithm: %v", s.SchedulerAlgorithm)
 	}
 
+	if err := s.GPUResourceReservation.Validate(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SchedulerGPUResourceReservation configures how much CPU and memory capacity
+// the scheduler protects for each healthy unallocated GPU on a node.
+type SchedulerGPUResourceReservation struct {
+	CPUCores int `hcl:"cpu_cores"`
+	MemoryMB int `hcl:"memory_mb"`
+}
+
+func (r SchedulerGPUResourceReservation) IsZero() bool {
+	return r.CPUCores == 0 && r.MemoryMB == 0
+}
+
+func (r SchedulerGPUResourceReservation) Validate() error {
+	if r.CPUCores < 0 {
+		return fmt.Errorf("gpu resource reservation cpu cores must be greater than or equal to zero")
+	}
+	if r.MemoryMB < 0 {
+		return fmt.Errorf("gpu resource reservation memory MB must be greater than or equal to zero")
+	}
 	return nil
 }
 

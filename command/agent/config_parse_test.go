@@ -153,6 +153,10 @@ var basicConfig = &Config{
 				BatchSchedulerEnabled:   true,
 				ServiceSchedulerEnabled: true,
 			},
+			GPUResourceReservation: structs.SchedulerGPUResourceReservation{
+				CPUCores: 2,
+				MemoryMB: 16384,
+			},
 		},
 		LicensePath:        "/tmp/nomad.hclic",
 		JobDefaultPriority: pointer.Of(100),

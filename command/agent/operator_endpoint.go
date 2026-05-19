@@ -318,7 +318,11 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 	}
 
 	args.Config = structs.SchedulerConfiguration{
-		SchedulerAlgorithm:            structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
+		SchedulerAlgorithm: structs.SchedulerAlgorithm(conf.SchedulerAlgorithm),
+		GPUResourceReservation: structs.SchedulerGPUResourceReservation{
+			CPUCores: conf.GPUResourceReservation.CPUCores,
+			MemoryMB: conf.GPUResourceReservation.MemoryMB,
+		},
 		MemoryOversubscriptionEnabled: conf.MemoryOversubscriptionEnabled,
 		RejectJobRegistration:         conf.RejectJobRegistration,
 		PauseEvalBroker:               conf.PauseEvalBroker,

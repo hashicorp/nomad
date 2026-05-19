@@ -743,6 +743,92 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	require.False(t, s1.blockedEvals.Enabled())
 }
 
+func TestOperator_SchedulerSetConfiguration_GPUResourceReservation(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	rpcCodec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	arg := structs.SchedulerSetConfigRequest{
+		Config: structs.SchedulerConfiguration{
+			GPUResourceReservation: structs.SchedulerGPUResourceReservation{
+				CPUCores: 1,
+				MemoryMB: 16384,
+			},
+		},
+	}
+	arg.Region = s1.config.Region
+
+	var setResponse structs.SchedulerSetConfigurationResponse
+	err := msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
+	require.NoError(t, err)
+	require.NotZero(t, setResponse.Index)
+
+	readConfig := structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{
+			Region: s1.config.Region,
+		},
+	}
+	var reply structs.SchedulerConfigurationResponse
+	err = msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerGetConfiguration", &readConfig, &reply)
+	require.NoError(t, err)
+	require.Equal(t, arg.Config.GPUResourceReservation, reply.SchedulerConfig.GPUResourceReservation)
+}
+
+func TestOperator_SchedulerSetConfiguration_GPUResourceReservationValidation(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	rpcCodec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	arg := structs.SchedulerSetConfigRequest{
+		Config: structs.SchedulerConfiguration{
+			GPUResourceReservation: structs.SchedulerGPUResourceReservation{
+				MemoryMB: -1,
+			},
+		},
+	}
+	arg.Region = s1.config.Region
+
+	var setResponse structs.SchedulerSetConfigurationResponse
+	err := msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "gpu resource reservation memory MB")
+}
+
+func TestOperator_SchedulerSetConfiguration_GPUResourceReservationVersionGate(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.Build = "1.9.0+unittest"
+	})
+	defer cleanupS1()
+	rpcCodec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	arg := structs.SchedulerSetConfigRequest{
+		Config: structs.SchedulerConfiguration{
+			GPUResourceReservation: structs.SchedulerGPUResourceReservation{
+				CPUCores: 1,
+			},
+		},
+	}
+	arg.Region = s1.config.Region
+
+	var setResponse structs.SchedulerSetConfigurationResponse
+	err := msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), minGPUResourceReservationVersion.String())
+
+	arg.Config.GPUResourceReservation = structs.SchedulerGPUResourceReservation{}
+	err = msgpackrpc.CallWithCodec(rpcCodec, "Operator.SchedulerSetConfiguration", &arg, &setResponse)
+	require.NoError(t, err)
+}
+
 func TestOperator_SchedulerGetConfiguration_ACL(t *testing.T) {
 	ci.Parallel(t)
 
