@@ -434,7 +434,7 @@ func (c *JobDispatchCommand) monitorDispatchedJob(
 
 		if *job.Status == "dead" {
 			for _, state := range summary.Summary {
-				if state.Failed >= 0 {
+				if state.Failed > 0 {
 					return 2
 				}
 			}
