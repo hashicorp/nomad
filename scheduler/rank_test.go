@@ -2251,6 +2251,7 @@ func TestBinPackIterator_GPUResourceReservation_Preemption(t *testing.T) {
 		name             string
 		node             *structs.Node
 		taskGroup        *structs.TaskGroup
+		reservation      structs.SchedulerGPUResourceReservation
 		existing         []*structs.Allocation
 		wantPlace        bool
 		wantPreemptions  int
@@ -2260,6 +2261,9 @@ func TestBinPackIterator_GPUResourceReservation_Preemption(t *testing.T) {
 			name:      "resource preemption cannot violate GPU reservation",
 			node:      gpuReservationNode(4, 4000, 4),
 			taskGroup: gpuReservationTaskGroup(2000, 100, false),
+			reservation: structs.SchedulerGPUResourceReservation{
+				CPUCores: 1,
+			},
 			existing: []*structs.Allocation{
 				gpuReservationAllocation(gpuReservationNode(4, 4000, 4), 2500, 100, nil, 10),
 			},
@@ -2269,8 +2273,36 @@ func TestBinPackIterator_GPUResourceReservation_Preemption(t *testing.T) {
 			name:      "resource preemption allowed when reservation remains",
 			node:      gpuReservationNode(8, 8000, 4),
 			taskGroup: gpuReservationTaskGroup(3000, 100, false),
+			reservation: structs.SchedulerGPUResourceReservation{
+				CPUCores: 1,
+			},
 			existing: []*structs.Allocation{
 				gpuReservationAllocation(gpuReservationNode(8, 8000, 4), 7000, 100, nil, 10),
+			},
+			wantPlace:       true,
+			wantPreemptions: 1,
+		},
+		{
+			name:      "memory resource preemption cannot violate GPU reservation",
+			node:      gpuReservationNode(8, 16000, 4),
+			taskGroup: gpuReservationTaskGroup(100, 9000, false),
+			reservation: structs.SchedulerGPUResourceReservation{
+				MemoryMB: 2000,
+			},
+			existing: []*structs.Allocation{
+				gpuReservationAllocation(gpuReservationNode(8, 16000, 4), 100, 10000, nil, 10),
+			},
+			wantExhaustedDim: gpuReservedMemoryExhaustion,
+		},
+		{
+			name:      "memory resource preemption allowed when reservation remains",
+			node:      gpuReservationNode(8, 16000, 4),
+			taskGroup: gpuReservationTaskGroup(100, 8000, false),
+			reservation: structs.SchedulerGPUResourceReservation{
+				MemoryMB: 2000,
+			},
+			existing: []*structs.Allocation{
+				gpuReservationAllocation(gpuReservationNode(8, 16000, 4), 100, 10000, nil, 10),
 			},
 			wantPlace:       true,
 			wantPreemptions: 1,
@@ -2280,8 +2312,7 @@ func TestBinPackIterator_GPUResourceReservation_Preemption(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			option, ctx := runGPUReservationBinPack(t, tc.node, tc.taskGroup,
-				structs.SchedulerGPUResourceReservation{CPUCores: 1},
-				tc.existing, nil, true, 100)
+				tc.reservation, tc.existing, nil, true, 100)
 			if tc.wantPlace {
 				require.NotNil(t, option)
 				require.Len(t, option.PreemptedAllocs, tc.wantPreemptions)

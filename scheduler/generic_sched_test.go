@@ -1094,6 +1094,64 @@ func TestServiceSched_JobRegister_NodePool_Downgrade(t *testing.T) {
 	}
 }
 
+func TestServiceSched_GPUResourceReservationAvoidsGPUNode(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+
+	gpuNode := mock.Node()
+	gpuResources := gpuReservationNode(4, 4000, 4).NodeResources
+	gpuNode.NodeResources.Processors = gpuResources.Processors
+	gpuNode.NodeResources.Cpu = gpuResources.Cpu
+	gpuNode.NodeResources.Memory = gpuResources.Memory
+	gpuNode.NodeResources.Devices = gpuResources.Devices
+	gpuNode.Reserved = &structs.Resources{}
+	gpuNode.ReservedResources = &structs.NodeReservedResources{}
+	gpuNode.NodeResources.Compatibility()
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), gpuNode))
+
+	cpuNode := mock.Node()
+	cpuResources := gpuReservationNode(4, 4000, 0).NodeResources
+	cpuNode.NodeResources.Processors = cpuResources.Processors
+	cpuNode.NodeResources.Cpu = cpuResources.Cpu
+	cpuNode.NodeResources.Memory = cpuResources.Memory
+	cpuNode.NodeResources.Devices = nil
+	cpuNode.Reserved = &structs.Resources{}
+	cpuNode.ReservedResources = &structs.NodeReservedResources{}
+	cpuNode.NodeResources.Compatibility()
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), cpuNode))
+
+	require.NoError(t, h.State.SchedulerSetConfig(h.NextIndex(), &structs.SchedulerConfiguration{
+		SchedulerAlgorithm: structs.SchedulerAlgorithmBinpack,
+		GPUResourceReservation: structs.SchedulerGPUResourceReservation{
+			CPUCores: 1,
+		},
+	}))
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Tasks[0].Resources = &structs.Resources{
+		CPU:      1,
+		MemoryMB: 100,
+	}
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:   job.Namespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	require.NoError(t, h.Process(NewServiceScheduler, eval))
+	require.Len(t, h.Plans, 1)
+	require.NotContains(t, h.Plans[0].NodeAllocation, gpuNode.ID)
+	require.Len(t, h.Plans[0].NodeAllocation[cpuNode.ID], 1)
+}
+
 // Test job registration with even spread across dc
 func TestServiceSched_EvenSpread(t *testing.T) {
 	ci.Parallel(t)
