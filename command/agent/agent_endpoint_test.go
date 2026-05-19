@@ -2323,13 +2323,31 @@ func TestHTTP_AgentReload_ACL(t *testing.T) {
 		}
 
 		// Try request with a valid write token
+		// Update from trace to warn log levels
+		// Warn makes a pretty noticeable change
 		{
 			respW := httptest.NewRecorder()
 			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
 			setToken(req, token)
+
+			// Grab the initial log level.
+			initalLogLevel := s.Agent.logger.GetLevel().String()
+			reloadedLogLevel := "WARN"
+
+			reloadCalls := 0
+			s.Agent.configReloader = func() error {
+				reloadCalls++
+				newConfig := s.Agent.GetConfig().Copy()
+				newConfig.LogLevel = reloadedLogLevel
+				return s.Agent.Reload(newConfig)
+			}
+
 			obj, err := s.Server.AgentReloadRequest(respW, req)
 			must.NoError(t, err)
-			must.NotNil(t, obj)
+			must.Nil(t, obj)                                            // this will need changed if the API ever returns something other than nil
+			must.Eq(t, 1, reloadCalls)                                  // confirm that the reloader was called
+			must.NotEq(t, initalLogLevel, s.Agent.GetConfig().LogLevel) // confirm that the log level was actually changed
+			must.Eq(t, reloadedLogLevel, s.Agent.GetConfig().LogLevel)  // confirm that the log level was updated in the agent's config
 		}
 	})
 }
