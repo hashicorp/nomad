@@ -1449,7 +1449,7 @@ func (s *Server) revokeLeadership() error {
 	// Disable the deployment watcher as it is only useful as a leader.
 	s.deploymentWatcher.SetEnabled(false, nil)
 
-	s.batchJobQueue.SetEnabled(false)
+	s.batchJobQueue.SetEnabled(false, nil)
 
 	// Disable the node drainer
 	s.nodeDrainer.SetEnabled(false, nil)

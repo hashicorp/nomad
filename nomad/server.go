@@ -506,7 +506,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
 	}
 
-	if err := s.batchJobQueue.Start(s.shutdownCtx, s.State()); err != nil {
+	if err := s.batchJobQueue.Start(s.shutdownCtx); err != nil {
 		s.Shutdown()
 		s.logger.Error("failed to start batch job queue", "error", err)
 		return nil, fmt.Errorf("Failed to start batcj job queue: %v", err)
