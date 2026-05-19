@@ -2278,7 +2278,6 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_Client(t *testing.T) {
 	}
 }
 
-
 func TestHTTP_AgentReload_ACL(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2287,24 +2286,22 @@ func TestHTTP_AgentReload_ACL(t *testing.T) {
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodPut, "/v1/agent/reload", nil)
-		must.Nil(t, err)
+		must.NoError(t, err)
 
 		// Try request with an invalid method
 		{
 			req, err := http.NewRequest(http.MethodGet, "/v1/agent/reload", nil)
-			must.Nil(t, err)
+			must.NoError(t, err)
 			respW := httptest.NewRecorder()
 			_, err = s.Server.AgentReloadRequest(respW, req)
-			must.NotNil(t, err)
-			must.Eq(t, ErrInvalidMethod, err.Error())
+			must.EqError(t, err, ErrInvalidMethod)
 		}
 
 		// Try request without a token and expect failure
 		{
 			respW := httptest.NewRecorder()
 			_, err := s.Server.AgentReloadRequest(respW, req)
-			must.NotNil(t, err)
-			must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+			must.EqError(t, err, structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with an invalid token and expect failure
@@ -2322,8 +2319,7 @@ func TestHTTP_AgentReload_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1006, "read", mock.AgentPolicy(acl.PolicyRead))
 			setToken(req, token)
 			_, err := s.Server.AgentReloadRequest(respW, req)
-			must.NotNil(t, err)
-			must.Eq(t, structs.ErrPermissionDenied.Error(), err.Error())
+			must.EqError(t, err, structs.ErrPermissionDenied.Error())
 		}
 
 		// Try request with a valid write token
@@ -2332,7 +2328,7 @@ func TestHTTP_AgentReload_ACL(t *testing.T) {
 			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
 			setToken(req, token)
 			obj, err := s.Server.AgentReloadRequest(respW, req)
-			must.Nil(t, err)
+			must.NoError(t, err)
 			must.NotNil(t, obj)
 		}
 	})
