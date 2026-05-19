@@ -159,7 +159,7 @@ func setupVaultForWorkloadIdentity(v *testutil.TestVault, jwksURL string) error 
 	return nil
 }
 
-func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
+func TestVaultClient_DerivesAndRenewsToken(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create signer and signed identities.
@@ -230,6 +230,11 @@ func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
 	s, err := v.Client.Logical().Read("auth/token/lookup-self")
 	must.NoError(t, err)
 
+	// Verify it can renew the token
+	renewedLease, err := c.Renew(t.Context(), token, 0)
+	must.Nil(t, err)
+	must.Eq(t, 72*60*60*time.Second, renewedLease)
+
 	jwt, err := josejwt.ParseSigned(jwtStr)
 	must.NoError(t, err)
 
@@ -264,77 +269,6 @@ func TestVaultClient_DeriveTokenWithJWT(t *testing.T) {
 		Namespace: "default",
 	})
 	must.ErrorContains(t, err, `role "test" could not be found`)
-}
-
-func TestVaultClient_Renew(t *testing.T) {
-	ci.Parallel(t)
-
-	// Create signer and signed identities.
-	alloc := mock.MinAlloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Identities = []*structs.WorkloadIdentity{
-		{
-			Name:     "vault_default",
-			Audience: []string{"vault.io"},
-			TTL:      time.Second,
-		},
-	}
-
-	signer := widmgr.NewMockWIDSigner(task.Identities)
-	signedWIDs, err := signer.SignIdentities(1, []*structs.WorkloadIdentityRequest{
-		{
-			AllocID: alloc.ID,
-			WIHandle: structs.WIHandle{
-				IdentityName:       task.Identities[0].Name,
-				WorkloadIdentifier: task.Name,
-				WorkloadType:       structs.WorkloadTypeTask,
-			},
-		},
-	})
-	must.NoError(t, err)
-	must.Len(t, 1, signedWIDs)
-
-	// Setup test JWKS server.
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		out, err := json.Marshal(signer.JSONWebKeySet())
-		if err != nil {
-			t.Errorf("failed to generate JWKS json response: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprintln(w, string(out))
-	}))
-	defer ts.Close()
-
-	// Start and configure Vault cluster for JWT authentication.
-	v := testutil.NewTestVault(t)
-	defer v.Stop()
-
-	err = setupVaultForWorkloadIdentity(v, ts.URL)
-	must.NoError(t, err)
-
-	// Start Vault client.
-	logger := testlog.HCLogger(t)
-	v.Config.ConnectionRetryIntv = 100 * time.Millisecond
-	v.Config.JWTAuthBackendPath = jwtAuthMountPathTest
-
-	c, err := NewVaultClient(v.Config, logger)
-	must.NoError(t, err)
-
-	// Derive Vault token using signed JWT.
-	jwtStr := signedWIDs[0].JWT
-	token, renewable, leaseDuration, err := c.DeriveTokenWithJWT(context.Background(), JWTLoginRequest{
-		JWT:       jwtStr,
-		Namespace: "default",
-	})
-	must.NoError(t, err)
-	must.NotEq(t, "", token)
-	must.True(t, renewable)
-	must.Eq(t, 72*60*60, leaseDuration) // token_period from role
-
-	renewedLease, err := c.Renew(t.Context(), token, 0)
-	must.Nil(t, err)
-	must.Eq(t, 72*60*60*time.Second, renewedLease)
 }
 
 // TestVaultClient_NamespaceSupport tests that the Vault namespace Config, if

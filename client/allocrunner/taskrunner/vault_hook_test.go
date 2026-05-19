@@ -104,6 +104,9 @@ func TestVaultHook_Prestart(t *testing.T) {
 		err := hook.Prestart(t.Context(), req, &resp)
 		must.NoError(t, err)
 		must.True(t, hook.allowTokenExpiration)
+		must.Wait(t, wait.ContinualSuccess(wait.Attempts(10), wait.BoolFunc(func() bool {
+			return len(client.Calls) == 1
+		})))
 	})
 
 	t.Run("overrides role with task vault block role", func(t *testing.T) {
@@ -114,12 +117,13 @@ func TestVaultHook_Prestart(t *testing.T) {
 		)
 
 		client := vaultclient.NewMockVaultClient()
+		// This mock will only accept `Role: "test-role"`. Any other role will fail
 		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{Role: "test-role"}).Return(
 			"testToken", false, 0, nil,
 		)
 
 		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-		hook.task.Vault.Role = "test-role"
+		hook.task.Vault.Role = "test-role" // use "test-role"
 
 		var resp interfaces.TaskPrestartResponse
 		req := &interfaces.TaskPrestartRequest{
@@ -132,7 +136,7 @@ func TestVaultHook_Prestart(t *testing.T) {
 		}
 
 		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err)
+		must.NoError(t, err) // Will error if a different role is passed
 	})
 
 	t.Run("reads existing token from private dir", func(t *testing.T) {
@@ -447,14 +451,8 @@ func TestVaultHook_handleRenewal(t *testing.T) {
 			token := updater.currentToken
 			must.NotEq(t, "", token)
 
-			// Verify expected lifecycle events happen.
-			must.Wait(t, wait.InitialSuccess(
-				wait.ErrorFunc(func() error {
-					return tc.verifyTaskLifecycle((hook.lifecycle).(*trtesting.MockTaskHooks))
-				}),
-				wait.Timeout(3*time.Second),
-				wait.Gap(1000*time.Millisecond),
-			))
+			err := tc.verifyTaskLifecycle((hook.lifecycle).(*trtesting.MockTaskHooks))
+			must.NoError(t, err)
 		})
 	}
 }
@@ -470,6 +468,8 @@ func (v *vaultTokenUpdaterMock) updatedVaultToken(token string) {
 
 func setupTestVaultHook(t *testing.T, config *vaultHookConfig, client *vaultclient.MockVaultClient) *vaultHook {
 	t.Helper()
+
+	config.taskCtx = t.Context()
 
 	if config == nil {
 		config = &vaultHookConfig{}

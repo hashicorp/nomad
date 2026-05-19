@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand/v2"
 	"os"
 	"path"
 	"path/filepath"
@@ -63,6 +62,7 @@ type vaultHookConfig struct {
 	logger           log.Logger
 	alloc            *structs.Allocation
 	task             *structs.Task
+	taskCtx          context.Context
 	widmgr           widmgr.IdentityManager
 }
 
@@ -91,8 +91,9 @@ type vaultHook struct {
 	// logger is used to log
 	logger log.Logger
 
-	// cancel is used to kill the long running token manager
-	cancel context.CancelFunc
+	// The taskRunner's context. This is stored on the vaulHook because it
+	// cuurently is not injected via Prestart.
+	taskCtx context.Context
 
 	// privateDirTokenPath is the path inside the task's private directory where
 	// the Vault token is read and written.
@@ -127,6 +128,7 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		lifecycle:            config.lifecycle,
 		updater:              config.updater,
 		task:                 config.task,
+		taskCtx:              config.taskCtx,
 		firstRun:             true,
 		widmgr:               config.widmgr,
 		widName:              config.task.Vault.IdentityName(),
@@ -206,10 +208,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	}
 
 	if !h.allowTokenExpiration {
-		rCtx, cancel := context.WithCancel(context.Background())
-		h.cancel = cancel
-
-		go h.run(rCtx, token, time.Duration(duration*int(time.Second)))
+		go h.run(h.taskCtx, token, time.Duration(duration*int(time.Second)))
 	}
 
 	h.updater.updatedVaultToken(token)
@@ -217,28 +216,19 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 }
 
 func (h *vaultHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
-	// Shutdown any created manager
-	if h.cancel != nil {
-		h.cancel()
-	}
 	return nil
 }
 
-func (h *vaultHook) Shutdown() {
-	if h.cancel != nil {
-		h.cancel()
-	}
-}
+func (h *vaultHook) Shutdown() {}
 
 func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) {
 	var err error
-	renewCh := make(chan struct{}, 1)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(renewalTime(rand.IntN, lease)):
+		case <-time.After(withJitter(lease)):
 			lease, err = h.renewWithBackoff(ctx, token)
 			if err != nil {
 				// failing to renew results in a triggering the change_mode
@@ -246,11 +236,6 @@ func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) 
 				return
 			}
 
-			select {
-			case renewCh <- struct{}{}:
-			default:
-			}
-		case <-renewCh:
 			h.handleRenewal(ctx, token)
 		}
 	}
@@ -440,15 +425,11 @@ func (h *vaultHook) writeToken(token string) error {
 	return nil
 }
 
-// randIntn is the function in math/rand needed by renewalTime. A type is used
-// to ease deterministic testing.
-type randIntn func(int) int
-
-// renewalTime returns when a token should be renewed given its leaseDuration
+// withJitter returns when a token should be renewed given its leaseDuration
 // and a randomizer to provide jitter.
 //
-// Leases < 1m will be not jitter.
-func renewalTime(dice randIntn, leaseDuration time.Duration) time.Duration {
+// Leases < 1m will not use jitter.
+func withJitter(leaseDuration time.Duration) time.Duration {
 	// Start trying to renew at half the lease duration to allow ample time
 	// for latency and retries.
 	renew := leaseDuration / 2
@@ -460,8 +441,5 @@ func renewalTime(dice randIntn, leaseDuration time.Duration) time.Duration {
 		return renew
 	}
 
-	// jitter is the +/- amount to vary the renewal time
-	var jitter int = 10
-	offset := dice(jitter*2) - jitter
-	return renew + time.Duration(offset)*time.Second
+	return renew + helper.RandomStagger(20*time.Second) - (10 - time.Second)
 }
