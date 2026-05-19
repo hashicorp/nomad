@@ -2144,6 +2144,42 @@ func TestBinPackIterator_GPUResourceReservation(t *testing.T) {
 			exhausted: gpuReservedCPUExhaustion,
 		},
 		{
+			name: "reserved cpu cores reduce schedulable core denominator",
+			node: func() *structs.Node {
+				node := gpuReservationNode(8, 16000, 4)
+				node.ReservedResources = &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares:        2000,
+						ReservedCpuCores: []uint16{0, 1},
+					},
+				}
+				return node
+			}(),
+			taskGroup: gpuReservationTaskGroup(2001, 100, false),
+			config: structs.SchedulerGPUResourceReservation{
+				CPUCores: 1,
+			},
+			exhausted: gpuReservedCPUExhaustion,
+		},
+		{
+			name: "reserved cpu cores allow placement at schedulable reserve boundary",
+			node: func() *structs.Node {
+				node := gpuReservationNode(8, 16000, 4)
+				node.ReservedResources = &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares:        2000,
+						ReservedCpuCores: []uint16{0, 1},
+					},
+				}
+				return node
+			}(),
+			taskGroup: gpuReservationTaskGroup(2000, 100, false),
+			config: structs.SchedulerGPUResourceReservation{
+				CPUCores: 1,
+			},
+			wantPlace: true,
+		},
+		{
 			name:      "cpu-only allowed on non-gpu node",
 			node:      gpuReservationNode(2, 2000, 0),
 			taskGroup: gpuReservationTaskGroup(2000, 1000, false),

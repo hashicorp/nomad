@@ -77,11 +77,15 @@ func gpuReservationCPUShares(
 		return -1
 	}
 
+	schedulableCoreCount := int64(len(available.Flattened.Cpu.ReservedCores))
+	if schedulableCoreCount == 0 {
+		return -1
+	}
+
 	requiredCores := int64(coresPerGPU * freeGPUs)
-	usableCoreCount := int64(usableCores.Size())
 	availableCPU := available.Flattened.Cpu.CpuShares
 
-	return (availableCPU*requiredCores + usableCoreCount - 1) / usableCoreCount
+	return (availableCPU*requiredCores + schedulableCoreCount - 1) / schedulableCoreCount
 }
 
 func gpuReservationViolated(
