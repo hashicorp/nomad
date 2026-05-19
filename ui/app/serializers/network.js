@@ -18,7 +18,7 @@ export default class NetworkSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     const ip = hash.IP;
 
-    if (isIPv6(ip)) {
+    if (ip && isIPv6(ip)) {
       hash.IP = `[${ip}]`;
     }
 

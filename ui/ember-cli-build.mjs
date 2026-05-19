@@ -16,6 +16,13 @@ const isTest = environment === 'test';
 
 export default function (defaults) {
   const app = new EmberApp(defaults, {
+    '@embroider/macros': {
+      setConfig: {
+        '@ember-data/store': {
+          polyfillUUID: true,
+        },
+      },
+    },
     emberData: {
       deprecations: {
         // New projects can safely leave this deprecation disabled.
