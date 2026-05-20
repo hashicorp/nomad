@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
@@ -69,9 +68,6 @@ type vaultClient struct {
 
 	// config is the configuration to connect to vault
 	config *config.VaultConfig
-
-	// TODO: maybe use to serialize requests to slow them down
-	lock sync.RWMutex
 
 	logger hclog.Logger
 }
