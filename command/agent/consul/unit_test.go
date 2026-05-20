@@ -36,7 +36,6 @@ func testWorkload() *serviceregistration.WorkloadServices {
 			AllocID: uuid.Generate(),
 			Task:    "taskname",
 		},
-		Restarter: &restartRecorder{},
 		Services: []*structs.Service{
 			{
 				Name:      "taskname-service",

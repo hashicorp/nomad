@@ -4,6 +4,7 @@
 package restarts
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -106,15 +107,22 @@ func (r *RestartTracker) SetExitResult(res *drivers.ExitResult) *RestartTracker 
 // restarted. Setting the failure to true restarts according to the restart
 // policy. When failure is false the task is restarted without considering the
 // restart policy.
-func (r *RestartTracker) SetRestartTriggered(failure bool) *RestartTracker {
+// Returns an error if the task has already been set to restart due to failure.
+func (r *RestartTracker) SetRestartTriggered(failure bool) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
+
+	// err if the task was already marked as restarting for failure
+	if r.failure && failure {
+		return errors.New("task failure restart already triggered")
+	}
+
 	if failure {
 		r.failure = true
 	} else {
 		r.restartTriggered = true
 	}
-	return r
+	return nil
 }
 
 // SetKilled is used to mark that the task has been killed.

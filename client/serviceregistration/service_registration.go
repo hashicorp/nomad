@@ -46,6 +46,13 @@ type Handler interface {
 	// UpdateTTL is used to update the TTL of an individual service
 	// registration check.
 	UpdateTTL(id, namespace, output, status string) error
+
+	// CheckWatcher returns the CheckWatcher for the service provider key
+	//
+	// Note: (mismith) this is awkward but removing the CheckWatcher from
+	// serviceReg is a decent sized lift due to Consul configuration complexity.
+	// Leaving this for a followup PR.
+	CheckWatcher(key string) CheckWatcher
 }
 
 type HandlerFunc func(string) Handler

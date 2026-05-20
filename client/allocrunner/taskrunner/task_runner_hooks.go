@@ -53,6 +53,7 @@ func (h *hookResources) getMounts() []*drivers.MountConfig {
 func (tr *TaskRunner) initHooks() {
 	hookLogger := tr.logger.Named("task_hook")
 	task := tr.Task()
+	alloc := tr.Alloc()
 
 	tr.logmonHookConfig = newLogMonHookConfig(task.Name, task.LogConfig, tr.taskDir.LogDir)
 
@@ -94,7 +95,6 @@ func (tr *TaskRunner) initHooks() {
 		}, task.Secrets))
 	}
 
-	alloc := tr.Alloc()
 	tr.runnerHooks = append(tr.runnerHooks, []interfaces.TaskHook{
 		newLogMonHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
@@ -149,6 +149,8 @@ func (tr *TaskRunner) initHooks() {
 		hookResources:     tr.allocHookResources,
 		logger:            hookLogger,
 	}))
+
+	tr.runnerHooks = append(tr.runnerHooks, newCheckRestartHook(alloc, task, tr.serviceRegWrapper, tr))
 
 	// If this is a Connect sidecar proxy (or a Connect Native) service,
 	// add the sidsHook for requesting a Service Identity token (if ACLs).

@@ -241,7 +241,7 @@ func (sc *ServiceCheck) Canonicalize(serviceName, taskName string) {
 	}
 
 	// Set task name if not already set
-	if sc.TaskName == "" && taskName != "group" {
+	if sc.TaskName == "" {
 		sc.TaskName = taskName
 	}
 
@@ -704,6 +704,7 @@ func (s *Service) Canonicalize(job, taskGroup, task, jobNamespace string) {
 		s.TaggedAddresses = nil
 	}
 
+	// TODO: mismithhisler: a task named group (yes, weird) will break this
 	// Set the task name if not already set
 	if s.TaskName == "" && task != "group" {
 		s.TaskName = task

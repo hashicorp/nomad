@@ -253,7 +253,6 @@ func (h *serviceHook) getWorkloadServices() *serviceregistration.WorkloadService
 	return &serviceregistration.WorkloadServices{
 		AllocInfo:         info,
 		ProviderNamespace: h.providerNamespace,
-		Restarter:         h.restarter,
 		Services:          interpolatedServices,
 		DriverExec:        h.driverExec,
 		DriverNetwork:     h.driverNet,

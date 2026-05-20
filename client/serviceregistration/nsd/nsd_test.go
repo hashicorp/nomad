@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,7 +31,7 @@ func (cw *mockCheckWatcher) Run(_ context.Context) {
 	// Run runs async; just assume it ran
 }
 
-func (cw *mockCheckWatcher) Watch(_, _, _ string, _ *structs.ServiceCheck, _ serviceregistration.WorkloadRestarter) {
+func (cw *mockCheckWatcher) Watch(_ string, _ *structs.ServiceCheck, _ serviceregistration.WorkloadRestarter) {
 	cw.lock.Lock()
 	defer cw.lock.Unlock()
 	cw.watchCalls++
@@ -44,45 +43,33 @@ func (cw *mockCheckWatcher) Unwatch(_ string) {
 	cw.unWatchCalls++
 }
 
-func (cw *mockCheckWatcher) assert(t *testing.T, watchCalls, unWatchCalls int) {
-	cw.lock.Lock()
-	defer cw.lock.Unlock()
-	test.Eq(t, watchCalls, cw.watchCalls, test.Sprintf("expected %d Watch() calls but got %d", watchCalls, cw.watchCalls))
-	test.Eq(t, unWatchCalls, cw.unWatchCalls, test.Sprintf("expected %d Unwatch() calls but got %d", unWatchCalls, cw.unWatchCalls))
-}
-
 func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		inputCfg             *ServiceRegistrationHandlerCfg
-		inputWorkload        *serviceregistration.WorkloadServices
-		expectedRPCs         map[string]int
-		expectedError        error
-		expWatch, expUnWatch int
+		name          string
+		inputCfg      *ServiceRegistrationHandlerCfg
+		inputWorkload *serviceregistration.WorkloadServices
+		expectedRPCs  map[string]int
+		expectedError error
 	}{
 		{
 			name: "registration disabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      false,
-				CheckWatcher: new(mockCheckWatcher),
+				CheckWatcher: &mockCheckWatcher{},
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{},
 			expectedError: errors.New(`service registration provider "nomad" not enabled`),
-			expWatch:      0,
-			expUnWatch:    0,
 		},
 		{
 			name: "registration enabled",
 			inputCfg: &ServiceRegistrationHandlerCfg{
 				Enabled:      true,
-				CheckWatcher: new(mockCheckWatcher),
+				CheckWatcher: &mockCheckWatcher{},
 			},
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationUpsertRPCMethod: 1},
 			expectedError: nil,
-			expWatch:      1,
-			expUnWatch:    0,
 		},
 	}
 
@@ -102,20 +89,18 @@ func TestServiceRegistrationHandler_RegisterWorkload(t *testing.T) {
 			actualErr := h.RegisterWorkload(tc.inputWorkload)
 			require.Equal(t, tc.expectedError, actualErr)
 			require.Equal(t, tc.expectedRPCs, mockRPC.calls())
-			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 }
 
 func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 	testCases := []struct {
-		name                 string
-		inputCfg             *ServiceRegistrationHandlerCfg
-		inputWorkload        *serviceregistration.WorkloadServices
-		returnedDeleteErr    error
-		expectedRPCs         map[string]int
-		expectedError        error
-		expWatch, expUnWatch int
+		name              string
+		inputCfg          *ServiceRegistrationHandlerCfg
+		inputWorkload     *serviceregistration.WorkloadServices
+		returnedDeleteErr error
+		expectedRPCs      map[string]int
+		expectedError     error
 	}{
 		{
 			name: "registration disabled multiple services",
@@ -126,8 +111,6 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
-			expWatch:      0,
-			expUnWatch:    2, // RemoveWorkload works regardless if provider is enabled
 		},
 		{
 			name: "registration enabled multiple services",
@@ -138,8 +121,6 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 			inputWorkload: mockWorkload(),
 			expectedRPCs:  map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 2},
 			expectedError: nil,
-			expWatch:      0,
-			expUnWatch:    2,
 		},
 		{
 			name: "failed deregister",
@@ -153,8 +134,6 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 			returnedDeleteErr: errors.New("unrecoverable error"),
 			expectedRPCs:      map[string]int{structs.ServiceRegistrationDeleteByIDRPCMethod: 4},
 			expectedError:     nil,
-			expWatch:          0,
-			expUnWatch:        2,
 		},
 	}
 
@@ -174,7 +153,6 @@ func TestServiceRegistrationHandler_RemoveWorkload(t *testing.T) {
 			h.RemoveWorkload(tc.inputWorkload)
 
 			must.Eq(t, tc.expectedRPCs, mockRPC.calls())
-			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 }
@@ -335,7 +313,6 @@ func TestServiceRegistrationHandler_UpdateWorkload(t *testing.T) {
 			require.Eventually(t, func() bool {
 				return assert.Equal(t, tc.expectedRPCs, mockRPC.calls())
 			}, 100*time.Millisecond, 10*time.Millisecond)
-			tc.inputCfg.CheckWatcher.(*mockCheckWatcher).assert(t, tc.expWatch, tc.expUnWatch)
 		})
 	}
 
@@ -677,7 +654,7 @@ func (mr *mockRPC) calls() map[string]int {
 }
 
 // RPC mocks the server RPCs, acting as though any request succeeds.
-func (mr *mockRPC) RPC(method string, _, _ interface{}) error {
+func (mr *mockRPC) RPC(method string, _, _ any) error {
 	mr.l.Lock()
 	defer mr.l.Unlock()
 

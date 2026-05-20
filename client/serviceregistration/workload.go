@@ -22,10 +22,6 @@ type WorkloadServices struct {
 	// registered, if the provider supports this functionality.
 	ProviderNamespace string
 
-	// Restarter allows restarting the task or task group depending on the
-	// check_restart blocks.
-	Restarter WorkloadRestarter
-
 	// Services and checks to register for the task.
 	Services []*structs.Service
 

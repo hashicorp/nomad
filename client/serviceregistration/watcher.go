@@ -10,19 +10,12 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// composite of allocID + taskName for uniqueness
-type key string
-
 type restarter struct {
-	allocID   string
-	taskName  string
 	checkID   string
 	checkName string
-	taskKey   key
 
 	logger         hclog.Logger
 	task           WorkloadRestarter
@@ -142,7 +135,7 @@ type CheckWatcher interface {
 	// Watch the given check. If the check status enters a failing state, the
 	// task associated with the check will be restarted according to its check_restart
 	// policy via wr.
-	Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, wr WorkloadRestarter)
+	Watch(checkID string, check *structs.ServiceCheck, wr WorkloadRestarter)
 
 	// Unwatch will cause the CheckWatcher to no longer monitor the check of given checkID.
 	Unwatch(checkID string)
@@ -179,24 +172,21 @@ func NewCheckWatcher(logger hclog.Logger, getter CheckStatusGetter) *UniversalCh
 }
 
 // Watch a check and restart its task if unhealthy.
-func (w *UniversalCheckWatcher) Watch(allocID, taskName, checkID string, check *structs.ServiceCheck, wr WorkloadRestarter) {
+func (w *UniversalCheckWatcher) Watch(checkID string, check *structs.ServiceCheck, wr WorkloadRestarter) {
 	if !check.TriggersRestarts() {
 		return // check_restart not set; no-op
 	}
 
 	c := &restarter{
-		allocID:        allocID,
-		taskName:       taskName,
 		checkID:        checkID,
 		checkName:      check.Name,
-		taskKey:        key(allocID + taskName),
 		task:           wr,
 		interval:       check.Interval,
 		grace:          check.CheckRestart.Grace,
 		graceUntil:     time.Now().Add(check.CheckRestart.Grace),
 		timeLimit:      check.Interval * time.Duration(check.CheckRestart.Limit-1),
 		ignoreWarnings: check.CheckRestart.IgnoreWarnings,
-		logger:         w.logger.With("alloc_id", allocID, "task", taskName, "check", check.Name),
+		logger:         w.logger.With("check", check.Name),
 	}
 
 	select {
@@ -225,26 +215,7 @@ func (w *UniversalCheckWatcher) Run(ctx context.Context) {
 	// map of checkID to their restarter handle (contains only checks we are watching)
 	watched := make(map[string]*restarter)
 
-	checkTimer, cleanupCheckTimer := helper.NewSafeTimer(0)
-	defer cleanupCheckTimer()
-
-	stopCheckTimer := func() { // todo: refactor using that other pattern
-		checkTimer.Stop()
-		select {
-		case <-checkTimer.C:
-		default:
-		}
-	}
-
-	// initialize with checkTimer disabled
-	stopCheckTimer()
-
 	for {
-		// disable polling if there are no checks
-		if len(watched) == 0 {
-			stopCheckTimer()
-		}
-
 		select {
 		// caller cancelled us; goodbye
 		case <-ctx.Done():
@@ -258,21 +229,11 @@ func (w *UniversalCheckWatcher) Run(ctx context.Context) {
 			}
 
 			watched[update.checkID] = update.restart
-			allocID := update.restart.allocID
-			taskName := update.restart.taskName
 			checkName := update.restart.checkName
-			w.logger.Trace("now watching check", "alloc_i", allocID, "task", taskName, "check", checkName)
+			w.logger.Trace("now watching check", "check", checkName)
 
-			// turn on the timer if we are now active
-			if len(watched) == 1 {
-				stopCheckTimer()
-				checkTimer.Reset(w.pollFrequency)
-			}
-
-		// poll time; refresh check statuses
-		case now := <-checkTimer.C:
-			w.interval(ctx, now, watched)
-			checkTimer.Reset(w.pollFrequency)
+		case <-time.After(w.pollFrequency):
+			w.interval(ctx, time.Now(), watched)
 		}
 	}
 }
@@ -287,7 +248,7 @@ func (w *UniversalCheckWatcher) interval(ctx context.Context, now time.Time, wat
 	w.failedPreviousInterval = false
 
 	// keep track of tasks restarted this interval
-	restarts := set.New[key](len(statuses))
+	restarts := set.New[string](len(statuses))
 
 	// iterate over status of all checks, and update the status of checks
 	// we care about watching
@@ -296,7 +257,7 @@ func (w *UniversalCheckWatcher) interval(ctx context.Context, now time.Time, wat
 			return //  short circuit; caller cancelled us
 		}
 
-		if restarts.Contains(checkRestarter.taskKey) {
+		if restarts.Contains(checkID) {
 			// skip; task is already being restarted
 			delete(watched, checkID)
 			continue
@@ -314,16 +275,7 @@ func (w *UniversalCheckWatcher) interval(ctx context.Context, now time.Time, wat
 		if checkRestarter.apply(ctx, now, status) {
 			// check will be re-registered & re-watched on startup
 			delete(watched, checkID)
-			restarts.Insert(checkRestarter.taskKey)
-		}
-	}
-
-	// purge passing checks of tasks that are being restarted
-	if restarts.Size() > 0 {
-		for checkID, checkRestarter := range watched {
-			if restarts.Contains(checkRestarter.taskKey) {
-				delete(watched, checkID)
-			}
+			restarts.Insert(checkID)
 		}
 	}
 }

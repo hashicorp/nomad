@@ -332,7 +332,7 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc)))
 
 	// Run Connect Native hook
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
@@ -394,7 +394,7 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc)))
 
 	// Run Connect Native hook
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
@@ -467,7 +467,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 		go consulClient.Run()
 		defer consulClient.Shutdown()
-		require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+		require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc)))
 
 		// Run Connect Native hook
 		h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{
@@ -583,7 +583,7 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go consulClient.Run()
 	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc)))
 
 	// Run Connect Native hook
 	h := newConnectNativeHook(newConnectNativeHookConfig(alloc, &config.ConsulConfig{

@@ -46,6 +46,7 @@ import (
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
+	"github.com/hashicorp/nomad/command/agent/consul"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	mockdriver "github.com/hashicorp/nomad/drivers/mock"
 	"github.com/hashicorp/nomad/drivers/rawexec"
@@ -1361,9 +1362,11 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 	consulServices := agentconsul.NewServiceClient(consulAgent, namespacesClient, conf.Logger, true)
 	go consulServices.Run()
 	defer consulServices.Shutdown()
+	sc := consul.NewServiceClientWrapper()
+	sc.AddClient("default", consulServices)
 
-	conf.ConsulServices = consulServices
-	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulServices, nil)
+	conf.ConsulServices = sc
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, sc, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)
@@ -1968,8 +1971,10 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	defer consulServices.Shutdown()
 	go consulServices.Run()
 
-	conf.ConsulServices = consulServices
-	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, consulServices, nil)
+	sc := consul.NewServiceClientWrapper()
+	sc.AddClient("default", consulServices)
+	conf.ConsulServices = sc
+	conf.ServiceRegWrapper = wrapper.NewHandlerWrapper(conf.Logger, sc, nil)
 
 	tr, err := NewTaskRunner(conf)
 	require.NoError(t, err)

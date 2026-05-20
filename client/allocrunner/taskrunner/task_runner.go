@@ -699,7 +699,7 @@ MAIN:
 				select {
 				case <-tr.killCtx.Done():
 					// We can go through the normal should restart check since
-					// the restart tracker knowns it is killed
+					// the restart tracker knows it is killed
 					result = tr.handleKill(resultCh)
 				case <-tr.shutdownCtx.Done():
 					// TaskRunner was told to exit immediately

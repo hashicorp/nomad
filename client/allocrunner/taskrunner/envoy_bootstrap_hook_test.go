@@ -351,7 +351,7 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go serviceClient.Run()
 	defer serviceClient.Shutdown()
-	must.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	must.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc)))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
@@ -449,7 +449,7 @@ func TestEnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go serviceClient.Run()
 	defer serviceClient.Shutdown()
-	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc)))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
@@ -512,7 +512,7 @@ func TestEnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
 	go serviceClient.Run()
 	defer serviceClient.Shutdown()
-	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc)))
 
 	// Register Configuration Entry
 	ceClient := consulAPIClient.ConfigEntries()

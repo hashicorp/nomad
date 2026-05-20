@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -46,7 +45,6 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
-		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -88,7 +86,6 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
-		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -130,7 +127,6 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
-		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -199,7 +195,6 @@ func TestGroupServiceHook_GroupServicesCheckUpdates(t *testing.T) {
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
-		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
 		hookResources:     resources,
 	})
@@ -254,7 +249,6 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
-		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -309,7 +303,6 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
-		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -357,7 +350,6 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 	h := newGroupServiceHook(groupServiceHookConfig{
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
-		restarter:         agentconsul.NoopRestarter(),
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -400,7 +392,6 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 			alloc:             alloc,
 			serviceRegWrapper: regWrapper,
 			shutdownDelayCtx:  shutDownCtx,
-			restarter:         agentconsul.NoopRestarter(),
 			logger:            logger,
 			hookResources:     cstructs.NewAllocHookResources(),
 		})
@@ -448,7 +439,6 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 		h := newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,
 			serviceRegWrapper: regWrapper,
-			restarter:         agentconsul.NoopRestarter(),
 			logger:            logger,
 			hookResources:     cstructs.NewAllocHookResources(),
 		})
@@ -500,7 +490,6 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 		h := newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,
 			serviceRegWrapper: regWrapper,
-			restarter:         agentconsul.NoopRestarter(),
 			logger:            logger,
 			hookResources:     cstructs.NewAllocHookResources(),
 		})
