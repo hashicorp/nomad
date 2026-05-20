@@ -4,8 +4,11 @@
 package command
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"sort"
@@ -249,6 +252,50 @@ func TestMeta_JobByPrefix(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMeta_JobIDByPrefix_OldServerFallback(t *testing.T) {
+	ci.Parallel(t)
+
+	// Simulate a server older than 1.11.3: it cannot parse the "is not nil"
+	// filter operator and rejects the filtered query while building the result
+	// paginator, but still serves an unfiltered prefix list.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("filter") != "" {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprint(w, `failed to create result paginator: unknown operator "is not nil"`)
+			return
+		}
+		json.NewEncoder(w).Encode([]*api.JobListStub{
+			{ID: "example", JobSummary: &api.JobSummary{Namespace: "default"}},
+			{ID: "example-batch", ParameterizedJob: true, JobSummary: &api.JobSummary{Namespace: "default"}},
+		})
+	}))
+	defer ts.Close()
+
+	conf := api.DefaultConfig()
+	conf.Address = ts.URL
+	client, err := api.NewClient(conf)
+	must.NoError(t, err)
+
+	meta := &Meta{Ui: cli.NewMockUi()}
+	onlyParameterized := func(j *api.JobListStub) bool {
+		return j.ParentID == "" && j.ParameterizedJob
+	}
+
+	// The fallback must narrow to the parameterized job, not the exact-match
+	// non-parameterized "example".
+	jobID, ns, err := meta.jobIDByPrefix(client, "example",
+		`ParentID == "" and ParameterizedJob is not nil`, onlyParameterized)
+	must.NoError(t, err)
+	must.Eq(t, "example-batch", jobID)
+	must.Eq(t, "default", ns)
+
+	// Without a client filter (the public path), the old-server error is
+	// surfaced rather than swallowed.
+	_, _, err = meta.JobIDByPrefix(client, "example",
+		`ParentID == "" and ParameterizedJob is not nil`)
+	must.ErrorContains(t, err, api.ResultPaginatorErrorContent)
 }
 
 func TestMeta_ShowUIPath(t *testing.T) {

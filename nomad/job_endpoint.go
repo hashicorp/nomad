@@ -1465,7 +1465,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 					stubFn)
 				if err != nil {
 					return structs.NewErrRPCCodedf(
-						http.StatusBadRequest, "failed to create result paginator: %v", err)
+						http.StatusBadRequest, "%s: %v", structs.ErrResultPaginatorCreation, err)
 				}
 
 				jobs, nextToken, err := pager.Page()
