@@ -219,11 +219,11 @@ func (a *Agent) ListKeys() (*KeyringResponse, error) {
 	return &resp, nil
 }
 
-type AgentReloadOpts struct {}
+type AgentReloadOpts struct{}
 
 // Reload requests the agent to reload its configuration.
 func (a *Agent) Reload(_ *AgentReloadOpts, q *WriteOptions) error {
-	_, err := a.client.put("/v1/agent/reload", nil, nil, wo)
+	_, err := a.client.put("/v1/agent/reload", nil, nil, q)
 	return err
 }
 
