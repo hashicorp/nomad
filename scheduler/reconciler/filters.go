@@ -137,6 +137,21 @@ var classificationRules = []classificationRule{
 		},
 		category: categoryReconnecting,
 	},
+	// A drained batch alloc (MigrateDisablePlacement is only set by the
+	// batch drainer) must keep counting toward the desired total — the
+	// drain explicitly said "don't place a replacement", so the slot must
+	// stay occupied from the reconciler's perspective. Otherwise a
+	// follow-up eval — e.g. node-update when the node is made eligible
+	// again before the drain completes — sees zero existing allocs and
+	// places a replacement.
+	{
+		condition: func(ctx allocContext) bool {
+			return ctx.alloc.ServerTerminalStatus() &&
+				!ctx.shouldReconnect &&
+				ctx.alloc.DesiredTransition.ShouldDisableMigrationPlacement()
+		},
+		category: categoryUntainted,
+	},
 	// Server-terminal allocs should be ignored when they are not reconnecting.
 	{
 		condition: func(ctx allocContext) bool {
@@ -438,6 +453,17 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	// status is failed so that they will be replaced. If they are
 	// complete but not failed, they shouldn't be replaced.
 	if isBatch {
+		// A batch alloc that was drained (MigrateDisablePlacement) must
+		// remain untainted so it counts toward the desired total and no
+		// replacement is placed. Without this, classifyAllocs routes the
+		// alloc to untainted but filterByRescheduleable then drops it here
+		// via the DesiredStatus=stop / !RanSuccessfully branch below, and
+		// the missing count causes computePlacements to schedule a
+		// replacement.
+		if alloc.DesiredTransition.ShouldDisableMigrationPlacement() {
+			return true, false
+		}
+
 		// if the batch job allocation is flagged for being rescheduled,
 		// which happens when stopped with the `alloc stop` command, the
 		// allocation should not be untainted nor ignored.
