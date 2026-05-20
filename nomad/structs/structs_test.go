@@ -1654,7 +1654,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			tg: &TaskGroup{
 				Name:           "web",
 				Count:          1,
-				MaxRunDuration: pointer.Of(5 * time.Minute),
+				MaxRunDuration: new(5 * time.Minute),
 				Tasks: []*Task{
 					{Name: "web"},
 				},
@@ -1669,7 +1669,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			tg: &TaskGroup{
 				Name:           "web",
 				Count:          1,
-				MaxRunDuration: pointer.Of(time.Duration(0)),
+				MaxRunDuration: new(time.Duration(0)),
 				Tasks: []*Task{
 					{Name: "web"},
 				},
@@ -1684,7 +1684,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			tg: &TaskGroup{
 				Name:           "web",
 				Count:          1,
-				MaxRunDuration: pointer.Of(5 * time.Minute),
+				MaxRunDuration: new(5 * time.Minute),
 				Tasks: []*Task{
 					{
 						Name:      "web",
@@ -1704,7 +1704,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			tg: &TaskGroup{
 				Name:           "web",
 				Count:          1,
-				MaxRunDuration: pointer.Of(5 * time.Minute),
+				MaxRunDuration: new(5 * time.Minute),
 				Tasks: []*Task{
 					{
 						Name:      "web",
