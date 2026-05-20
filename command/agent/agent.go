@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -1585,6 +1586,12 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 		agent = true
 	}
 
+	// Check if known config files or paths have changed.
+	if !slices.Equal(a.config.Files, newConfig.Files) ||
+		!slices.Equal(a.config.ConfigPaths, newConfig.ConfigPaths) {
+		agent = true
+	}
+
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
 		a.logger.Error("parsing TLS certificate", "error", err)
@@ -1638,6 +1645,9 @@ func (a *Agent) Reload(newConfig *Config) error {
 		current.LogLevel = newConfig.LogLevel
 		a.logger.SetLevel(log.LevelFromString(current.LogLevel))
 	}
+
+	current.Files = slices.Clone(newConfig.Files)
+	current.ConfigPaths = slices.Clone(newConfig.ConfigPaths)
 
 	// Update eventer config
 	if newConfig.Audit != nil {

@@ -1189,7 +1189,7 @@ func (c *Command) handleReload() error {
 	oldConf := c.agent.GetConfig().Copy()
 	newFiles := checkNewConfigFiles(oldConf.Files, newConf.Files)
 	if len(newFiles) > 0 {
-		c.agent.logger.Info("detected new config files before reload", "files", strings.Join(newFiles, ", "))
+		c.agent.logger.Debug("detected new config files before reload", "files", strings.Join(newFiles, ", "))
 	}
 
 	// Change the log level
@@ -1262,13 +1262,6 @@ func (c *Command) handleReload() error {
 			c.agent.httpLogger.Error("reloading config failed", "error", err)
 		}
 	}
-
-	// Keep runtime metadata in sync with the latest discovered config files and
-	// config paths so API responses reflect updates from config directories.
-	c.agent.configLock.Lock()
-	c.agent.config.Files = append([]string(nil), newConf.Files...)
-	c.agent.config.ConfigPaths = append([]string(nil), newConf.ConfigPaths...)
-	c.agent.configLock.Unlock()
 
 	return nil
 }
