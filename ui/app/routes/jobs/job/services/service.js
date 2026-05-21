@@ -4,6 +4,7 @@
  */
 
 import Route from '@ember/routing/route';
+import { addObserver, removeObserver } from '@ember/object/observers';
 
 export default class JobsJobServicesServiceRoute extends Route {
   model({ name = '', level = '' }) {
@@ -13,5 +14,32 @@ export default class JobsJobServicesServiceRoute extends Route {
         (service) => service.name === name && service.derivedLevel === level,
       );
     return { name, instances: services || [] };
+  }
+
+  // Watch the parent job's services collection while this detail route is
+  // active. When the parent route's services watcher receives an update that
+  // adds or removes a registration (e.g. after `nomad service delete`),
+  // job.services.length changes and we refresh this route so model() reruns
+  // with a fresh filtered snapshot. Without this, the static `instances`
+  // array captured at route entry would keep stale references to records
+  // that have been unloaded from the store.
+  activate() {
+    super.activate(...arguments);
+    const job = this.modelFor('jobs.job');
+    if (!job) return;
+    this._servicesObserver = () => {
+      if (this.isDestroyed || this.isDestroying) return;
+      this.refresh();
+    };
+    addObserver(job, 'services.length', this._servicesObserver);
+  }
+
+  deactivate() {
+    const job = this.modelFor('jobs.job');
+    if (job && this._servicesObserver) {
+      removeObserver(job, 'services.length', this._servicesObserver);
+    }
+    this._servicesObserver = null;
+    super.deactivate(...arguments);
   }
 }
