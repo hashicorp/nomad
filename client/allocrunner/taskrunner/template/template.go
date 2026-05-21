@@ -277,11 +277,6 @@ func (tm *TaskTemplateManager) Run() {
 	// Unblock the task
 	close(tm.config.UnblockCh)
 
-	// If all our templates are change mode no-op, then we can exit here
-	if tm.allTemplatesNoop() {
-		return
-	}
-
 	// handle all subsequent render events.
 	tm.handleTemplateRerenders(time.Now())
 }
