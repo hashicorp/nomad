@@ -228,7 +228,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 					"calc_interval": "hello",
 				},
 			},
-			err: "failed to parse",
+			err: "unable to decode conf",
 		},
 		{
 			name: "dynamicPriority - valid string interval",
