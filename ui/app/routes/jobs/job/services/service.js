@@ -17,12 +17,15 @@ export default class JobsJobServicesServiceRoute extends Route {
   }
 
   // Watch the parent job's services collection while this detail route is
-  // active. When the parent route's services watcher receives an update that
-  // adds or removes a registration (e.g. after `nomad service delete`),
-  // job.services.length changes and we refresh this route so model() reruns
-  // with a fresh filtered snapshot. Without this, the static `instances`
-  // array captured at route entry would keep stale references to records
-  // that have been unloaded from the store.
+  // active. When the watcher updates job.services (e.g. after
+  // `nomad service delete`), job.services.length changes and we refresh this
+  // route so model() reruns with a fresh filtered snapshot. Without this, the
+  // static `instances` array captured at route entry would keep stale
+  // references to records that have been unloaded from the store.
+  //
+  // The observer is added in activate() and torn down in deactivate(), so its
+  // lifetime is bounded to the time this route is active. The ember/no-observers
+  // rule is disabled because we genuinely need cross-route reactivity here.
   activate() {
     super.activate(...arguments);
     const job = this.modelFor('jobs.job');
@@ -31,6 +34,7 @@ export default class JobsJobServicesServiceRoute extends Route {
       if (this.isDestroyed || this.isDestroying) return;
       this.refresh();
     };
+    // eslint-disable-next-line ember/no-observers
     addObserver(job, 'services.length', this._servicesObserver);
   }
 
