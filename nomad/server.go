@@ -47,6 +47,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
 	"github.com/hashicorp/nomad/nomad/peers"
+	"github.com/hashicorp/nomad/nomad/queues"
 	"github.com/hashicorp/nomad/nomad/reporting"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -213,6 +214,10 @@ type Server struct {
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
 	evalBroker *EvalBroker
+
+	// batchJobQueue is the interface for enqueuing job
+	// register evaluations on a queue implementation
+	batchJobQueue queues.Queue
 
 	// brokerLock is used to synchronise the alteration of the blockedEvals and
 	// evalBroker enabled state. These two subsystems change state when
@@ -482,11 +487,29 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		Encrypter:      s.encrypter,
 	})
 
+	// Creates the batch job queue
+	s.batchJobQueue, err = queues.NewQueue(
+		&s.config.DefaultSchedulerConfig.BatchQueue,
+		evalBroker,
+		logger,
+	)
+	if err != nil {
+		s.Shutdown()
+		s.logger.Error("failed to create batch job queue", "error", err)
+		return nil, fmt.Errorf("Failed to create batch jo queue: %v", err)
+	}
+
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {
 		s.Shutdown()
 		s.logger.Error("failed to start Raft", "error", err)
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
+	}
+
+	if err := s.batchJobQueue.Start(s.shutdownCtx); err != nil {
+		s.Shutdown()
+		s.logger.Error("failed to start batch job queue", "error", err)
+		return nil, fmt.Errorf("Failed to start batcj job queue: %v", err)
 	}
 
 	// Initialize the wan Serf
@@ -1356,6 +1379,7 @@ func (s *Server) setupRaft() error {
 	// Create the FSM
 	fsmConfig := &FSMConfig{
 		EvalBroker:         s.evalBroker,
+		BatchQueue:         s.batchJobQueue,
 		Periodic:           s.periodicDispatcher,
 		Blocked:            s.blockedEvals,
 		Encrypter:          s.encrypter,
