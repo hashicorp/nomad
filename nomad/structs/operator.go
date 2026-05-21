@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/raft"
 )
@@ -365,7 +366,7 @@ type (
 )
 
 const (
-	BatchQueueTypeDynamic BatchQueueType = "dynamicPriorty"
+	BatchQueueTypeDynamic BatchQueueType = "dynamicPriority"
 
 	TenantTypeMetadata  BatchQueueTenant = "metadata"
 	TenantTypeNamespace BatchQueueTenant = "namespace"
@@ -382,23 +383,25 @@ type BatchQueue struct {
 }
 
 type DynamicQueueConfig struct {
-	CalcInterval time.Duration
-	MaxAge       time.Duration
-	MaxSize      int
-	AgeWeight    int
-	UsageWeight  int
-	SizeWeight   int
+	CalcInterval time.Duration `mapstructure:"calc_interval"`
+	MaxAge       time.Duration `mapstructure:"max_age"`
+	MaxSize      int           `mapstructure:"max_size"`
+	AgeWeight    int           `mapstructure:"age_weight"`
+	UsageWeight  int           `mapstructure:"usage_weight"`
+	SizeWeight   int           `mapstructure:"size_weight"`
 }
 
-func validateDuration(val any) error {
-	switch t := val.(type) {
-	case string:
-		if _, err := time.ParseDuration(t); err != nil {
-			return err
-		}
-	case int, nil:
-	default:
-		return fmt.Errorf("value not a duration: %v", val)
+func DecodeBatchQueueConf[T any](in map[string]any, out *T) error {
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:     out,
+		DecodeHook: mapstructure.StringToTimeDurationHookFunc(),
+	})
+	if err != nil {
+		return fmt.Errorf("unable to create config decoder, %w", err)
+	}
+
+	if err := decoder.Decode(in); err != nil {
+		return fmt.Errorf("unable to decode config, %w", err)
 	}
 
 	return nil
@@ -416,11 +419,8 @@ func (b *BatchQueue) Validate() error {
 
 	switch b.Type {
 	case BatchQueueTypeDynamic:
-		if err := validateDuration(b.Config[DynamicCalcInterval]); err != nil {
-			return fmt.Errorf("failed to parse calc_interval: %v", err)
-		}
-		if err := validateDuration(b.Config[DynamicMaxAge]); err != nil {
-			return fmt.Errorf("failed to parse max_age: %v", err)
+		if err := DecodeBatchQueueConf(b.Config, &DynamicQueueConfig{}); err != nil {
+			return err
 		}
 	default:
 		return fmt.Errorf("unsupported batch queue type: %q", b.Type)

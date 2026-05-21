@@ -17,6 +17,7 @@ import (
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/queues"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -131,6 +132,7 @@ type SnapshotRestorers map[SnapshotType]SnapshotRestorer
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
 	evalBroker         *EvalBroker
+	batchQueue         queues.Queue
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
 	encrypter          *Encrypter
@@ -168,6 +170,9 @@ type SnapshotHeader struct {
 type FSMConfig struct {
 	// EvalBroker is the evaluation broker evaluations should be added to
 	EvalBroker *EvalBroker
+
+	// BatchQueue is the configured queue for batch job registrations
+	BatchQueue queues.Queue
 
 	// Periodic is the periodic job dispatcher that periodic jobs should be
 	// added/removed from
@@ -214,6 +219,7 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 
 	fsm := &nomadFSM{
 		evalBroker:          config.EvalBroker,
+		batchQueue:          config.BatchQueue,
 		periodicDispatcher:  config.Periodic,
 		blockedEvals:        config.Blocked,
 		encrypter:           config.Encrypter,
@@ -971,7 +977,11 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 	}
 
 	if eval.ShouldEnqueue() {
-		n.evalBroker.Enqueue(eval)
+		if eval.Type == structs.JobTypeBatch && eval.TriggeredBy == structs.EvalTriggerJobRegister {
+			n.batchQueue.Enqueue(eval)
+		} else {
+			n.evalBroker.Enqueue(eval)
+		}
 	} else if eval.ShouldBlock() {
 		n.blockedEvals.Block(eval)
 	} else if eval.Status == structs.EvalStatusComplete &&
