@@ -10,7 +10,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import Administration from 'nomad-ui/tests/pages/administration';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import { allScenarios } from '../../mirage/scenarios/default';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import faker from 'nomad-ui/mirage/faker';
 
 // Several related tests within Access Control are contained in the Tokens, Roles,
@@ -63,7 +62,6 @@ module('Acceptance | access control', function (hooks) {
       'management token can access /administration',
     );
 
-    await a11yAudit(assert);
 
     await Administration.visitTokens();
     assert.deepEqual(

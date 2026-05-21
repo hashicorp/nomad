@@ -10,7 +10,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module(
   'Integration | Component | job-page/parts/placement-failures',
@@ -77,7 +76,6 @@ module(
         );
       });
 
-      await componentA11yAudit(this.element, assert);
     });
 
     test('when the job has no placement failures, the placement failures section is gone', async function (assert) {

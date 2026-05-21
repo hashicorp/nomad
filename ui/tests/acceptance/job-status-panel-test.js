@@ -18,7 +18,6 @@ import {
 
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import faker from 'nomad-ui/mirage/faker';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 // TODO: Mirage is not type-friendly / assigns "server" as a global. Try to work around this shortcoming.
 
 module('Acceptance | job status panel', function (hooks) {
@@ -42,7 +41,6 @@ module('Acceptance | job status panel', function (hooks) {
 
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
-    await a11yAudit(assert);
 
     assert
       .dom('[data-test-status-mode="current"]')

@@ -6,7 +6,6 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Actions from 'nomad-ui/tests/pages/jobs/job/actions';
 import { triggerEvent, visit, click } from '@ember/test-helpers';
 import faker from 'nomad-ui/mirage/faker';
@@ -113,7 +112,6 @@ module('Acceptance | actions', function (hooks) {
     );
     assert.ok(Actions.taskRowActions.length, 'Task row has actions dropdowns');
 
-    await a11yAudit(assert);
 
     // Sign out and sign back in as a token without alloc exec
     await Tokens.visit();

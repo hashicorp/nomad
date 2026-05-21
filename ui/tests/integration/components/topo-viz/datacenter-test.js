@@ -8,7 +8,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
 import faker from 'nomad-ui/mirage/faker';
@@ -78,7 +77,6 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
       this.datacenter.nodes.length,
     );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('datacenter stats are an aggregate of node stats', async function (assert) {

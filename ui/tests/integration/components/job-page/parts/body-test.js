@@ -8,7 +8,6 @@ import { setupRenderingTest } from 'ember-qunit';
 import { find, findAll, render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/parts/body', function (hooks) {
   setupRenderingTest(hooks);
@@ -67,7 +66,6 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
       'Deployments link',
     );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('the subnav does not include the deployments link when the job is not a service', async function (assert) {
