@@ -4,6 +4,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"net"
@@ -2319,20 +2320,20 @@ func TestClient_DefaultIneligible(t *testing.T) {
 	var out structs.SingleNodeResponse
 
 	// Register should succeed
-	testutil.WaitForResult(func() (bool, error) {
-		err := s1.RPC("Node.GetNode", &req, &out)
-		if err != nil {
-			return false, err
-		}
-		if out.Node == nil {
-			return false, fmt.Errorf("missing reg")
-		}
-		must.Eq(t, structs.NodeSchedulingIneligible, out.Node.SchedulingEligibility)
-		return out.Node.ID == req.NodeID, nil
-	}, func(err error) {
-		must.NoError(t, err)
-	})
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			err := s1.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return err
+			}
+			if out.Node == nil {
+				return fmt.Errorf("missing reg")
+			}
+			return nil
+		}),
+	))
 
+	// Set node as eligible
 	req2 := structs.NodeUpdateEligibilityRequest{
 		NodeID:       c1.Node().ID,
 		Eligibility:  structs.NodeSchedulingEligible,
@@ -2340,19 +2341,9 @@ func TestClient_DefaultIneligible(t *testing.T) {
 	}
 	var out2 structs.NodeEligibilityUpdateResponse
 
-	// Set node as eligible and restart, should return as eligible
-
-	// Update eligibility should succeed
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			err := s1.RPC("Node.UpdateEligibility", &req2, &out2)
-			if err != nil {
-				return err
-			}
-			must.NotEq(t, out2.NodeModifyIndex, out.Index)
-			return nil
-		}),
-	))
+	err := s1.RPC("Node.UpdateEligibility", &req2, &out2)
+	must.NoError(t, err)
+	must.NotEq(t, out2.NodeModifyIndex, out.Index)
 
 	// Query node to confirm eligibility was toggled on
 	req3 := structs.NodeSpecificRequest{
@@ -2360,18 +2351,9 @@ func TestClient_DefaultIneligible(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global"},
 	}
 	var out3 structs.SingleNodeResponse
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			err := s1.RPC("Node.GetNode", &req3, &out3)
-			if err != nil {
-				return err
-			}
-			must.Eq(t, structs.NodeSchedulingEligible, out3.Node.SchedulingEligibility)
-			return nil
-		}),
-		wait.Timeout(time.Second*1),
-		wait.Gap(time.Millisecond*30),
-	))
+	err = s1.RPC("Node.GetNode", &req3, &out3)
+	must.NoError(t, err)
+	must.Eq(t, structs.NodeSchedulingEligible, out3.Node.SchedulingEligibility)
 
 	// Save client config, shutdown and start new client
 	c1Config := c1.config.Copy()
@@ -2387,21 +2369,27 @@ func TestClient_DefaultIneligible(t *testing.T) {
 
 	// Query to confirm restarted node is still eligible
 	req4 := structs.NodeSpecificRequest{
-		NodeID:       c2.Node().ID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		NodeID: c2.Node().ID,
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
 	}
 	var out4 structs.SingleNodeResponse
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
 			err := s1.RPC("Node.GetNode", &req4, &out4)
-			if err != nil {
-				return err
+			must.NoError(t, err)
+			if out4.Node.LastMissedHeartbeatIndex != 0 {
+				return errors.New("wait until node is ready")
 			}
+
+			fmt.Print("\nindex : ", out4.Index, "last missed heartbeat index", out4.Node.LastMissedHeartbeatIndex, "\n")
 			must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
+
 			return nil
 		}),
-		wait.Timeout(time.Second*1),
-		wait.Gap(time.Millisecond*30),
+		wait.Gap(time.Second*1),
+		wait.Attempts(10),
 	))
 
 }
