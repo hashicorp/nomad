@@ -362,10 +362,6 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 		return err
 	}
 
-	if args.Eval != nil {
-		j.routeJobRegisterEval(args.Eval)
-	}
-
 	// Populate the reply with job information
 	reply.JobModifyIndex = index
 	reply.Index = index
@@ -396,14 +392,6 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 	}
 
 	return nil
-}
-
-func (j *Job) routeJobRegisterEval(eval *structs.Evaluation) {
-	if eval.Type == structs.JobTypeBatch {
-		j.srv.batchJobQueue.Enqueue(eval)
-	} else {
-		j.srv.evalBroker.Enqueue(eval)
-	}
 }
 
 // propagateScalingPolicyIDs propagates scaling policy IDs from existing job
