@@ -2830,3 +2830,50 @@ func TestTaskTemplateManager_deniedSprig(t *testing.T) {
 	}
 
 }
+
+// TestTaskTemplateManager_noopExitsOnFatal tests that templates with
+// change_mode=noop fail their task if the template runner throws a fatal error
+// because it's lost connection with the dependency
+func TestTaskTemplateManager_noopExitsOnFatal(t *testing.T) {
+	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
+	// Make a template that will render based on a key in Consul
+	consulKey := "foo"
+	consulContent := "barbaz"
+	consulEmbedded := fmt.Sprintf(`{{key "%s"}}`, consulKey)
+	consulFile := "consul.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: consulEmbedded,
+		DestPath:     consulFile,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	harness.config.TemplateConfig.ConsulRetry = &config.RetryConfig{
+		Backoff:    pointer.Of(10 * time.Millisecond),
+		Attempts:   pointer.Of(2),
+		MaxBackoff: pointer.Of(20 * time.Millisecond),
+	}
+	harness.consul.SetKV(t, consulKey, []byte(consulContent))
+
+	must.NoError(t, harness.startWithErr(), must.Sprint("couldn't setup initial harness"))
+	t.Cleanup(harness.stop)
+
+	// Wait for the template to render once
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5 * time.Second)):
+		t.Fatalf("Task unblock should have been called")
+	}
+
+	// Wait for template to throw a fatal error and expect the task to be killed
+	harness.consul.Stop()
+
+	select {
+	case <-harness.mockHooks.KillCh:
+		t.Log("task killed!")
+	case <-time.After(time.Duration(5 * time.Second)):
+		t.Fatalf("Task kill should have been called")
+	}
+}
