@@ -168,7 +168,7 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Error reading SecretID: %v", err))
 			return 1
 		}
-		secretID = strings.TrimSuffix(string(raw), "\n")
+		secretID = strings.TrimSpace(string(raw))
 	}
 
 	// Set up the token.
