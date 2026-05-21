@@ -154,6 +154,12 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		return 1
 	}
 
+	if accessorID != "" && !helper.IsUUID(accessorID) {
+		c.Ui.Error("-accessor value must be a valid UUID")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
 	var secretID string
 	if len(args) == 1 {
 		var raw []byte
@@ -169,6 +175,11 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 			return 1
 		}
 		secretID = strings.TrimSpace(string(raw))
+		if !helper.IsUUID(secretID) {
+			c.Ui.Error("SecretID must be a valid UUID")
+			c.Ui.Error(commandErrorText(c))
+			return 1
+		}
 	}
 
 	// Set up the token.

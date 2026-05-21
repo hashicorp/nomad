@@ -118,6 +118,10 @@ func TestACLTokenCreateCommand_UploadFromFile(t *testing.T) {
 	secretFile := t.TempDir() + "/secret.txt"
 	must.NoError(t, os.WriteFile(secretFile, []byte(secretID), 0600))
 
+	// Write the SecretID to a temp file
+	invalidSecretFile := t.TempDir() + "/secret.txt"
+	must.NoError(t, os.WriteFile(invalidSecretFile, []byte("invalid-uuid"), 0600))
+
 	testCases := []struct {
 		desc        string
 		args        []string
@@ -135,6 +139,18 @@ func TestACLTokenCreateCommand_UploadFromFile(t *testing.T) {
 			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", secretFile},
 			expectedErr: true,
 			errorMsg:    "-accessor was not set",
+		},
+		{
+			desc:        "providing -accessor that is not a valid UUID should fail",
+			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", "-accessor=invalid-uuid", secretFile},
+			expectedErr: true,
+			errorMsg:    "-accessor value must be a valid UUID",
+		},
+		{
+			desc:        "providing a SecretID that is not a valid UUID should fail",
+			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", "-accessor=" + accessorID, invalidSecretFile},
+			expectedErr: true,
+			errorMsg:    "SecretID must be a valid UUID",
 		},
 		{
 			desc:        "successfully upload a client token with pre-specified IDs",
