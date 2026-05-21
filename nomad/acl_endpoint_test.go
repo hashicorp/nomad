@@ -1974,18 +1974,18 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 					},
 				}
 				var resp structs.ACLTokenUpsertResponse
-				require.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
-				require.Len(t, resp.Tokens, 1)
+				must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
+				must.Len(t, 1, resp.Tokens)
 
 				got := resp.Tokens[0]
-				require.Equal(t, uploadToken.AccessorID, got.AccessorID)
-				require.Equal(t, uploadToken.SecretID, got.SecretID)
+				must.Eq(t, uploadToken.AccessorID, got.AccessorID)
+				must.Eq(t, uploadToken.SecretID, got.SecretID)
 
 				out, err := testServer.fsm.State().ACLTokenByAccessorID(nil, uploadToken.AccessorID)
-				require.NoError(t, err)
-				require.NotNil(t, out)
-				require.Equal(t, uploadToken.AccessorID, out.AccessorID)
-				require.Equal(t, uploadToken.SecretID, out.SecretID)
+				must.NoError(t, err)
+				must.NotNil(t, out)
+				must.Eq(t, uploadToken.AccessorID, out.AccessorID)
+				must.Eq(t, uploadToken.SecretID, out.SecretID)
 			},
 		},
 		{
@@ -2006,8 +2006,8 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 				}
 				var resp structs.ACLTokenUpsertResponse
 				err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp)
-				require.ErrorContains(t, err, "cannot find token")
-				require.Empty(t, resp.Tokens)
+				must.ErrorContains(t, err, "cannot find token")
+				must.Len(t, 0, resp.Tokens)
 			},
 		},
 	}
