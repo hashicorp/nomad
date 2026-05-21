@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -24,7 +25,7 @@ type DynamicPriorityQueue struct {
 	// tenants is used to keep track of cluster usage for this queue.
 	// When workloads are placed or the  configured interval is passed,
 	// cluster usage is updated for the workloads of each tenant.
-	tenants map[TenantID]Tenant
+	tenants map[TenantID]*Tenant
 
 	// queue is the main datastructure that contains all pending workloads
 	//
@@ -49,23 +50,25 @@ type DynamicPriorityQueue struct {
 	// totalUsage is the sum of all tenant usages
 	totalUsage int
 
+	tenantType structs.BatchQueueTenant
+
+	metadataKey string
+
 	// conf contains user configurations for tuning the behavior of the queue
-	conf *DynamicPriorityConfig
+	conf *structs.DynamicQueueConfig
 
 	// evalBroker is the injected broker for passing an evaluation
 	// on to be scheduled by Nomad
-	evalBroker Queue
+	evalBroker Broker
+
+	// enabled tracks whether the server running the batch job queue is the leader
+	// so should process evaluations
+	enabled atomic.Bool
 
 	// state is the in-memory state store used for both reconciling tenant
 	// workload usages, and polling submitted evaluations for placement
 	state  *state.StateStore
 	logger hclog.Logger
-}
-
-type DynamicPriorityConfig struct {
-	TenantType   string
-	MetadataKey  string
-	CalcInterval time.Duration
 }
 
 type Tenant struct {
@@ -87,25 +90,33 @@ func (w *Workload) calculatePriority(_ int64) {
 	// unimplemented
 }
 
-func NewDynamicPriorityQueue(state *state.StateStore, broker Queue, conf *DynamicPriorityConfig, logger hclog.Logger) *DynamicPriorityQueue {
+func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
-		tenants:    map[TenantID]Tenant{},
-		queue:      WorkloadQueue{},
-		state:      state,
-		enqueueCh:  make(chan *Workload, 8096),
-		evalBroker: broker,
-		qMux:       sync.Mutex{},
-		qNotify:    make(chan struct{}, 1),
-		conf:       conf,
-		logger:     logger.Named("Dynamic Priority Queue"),
+		tenants:     make(map[TenantID]*Tenant),
+		queue:       WorkloadQueue{},
+		enqueueCh:   make(chan *Workload, 8192),
+		evalBroker:  broker,
+		qMux:        sync.Mutex{},
+		qNotify:     make(chan struct{}, 1),
+		tenantType:  qconf.TenantType,
+		metadataKey: qconf.MetadataKey,
+		conf:        conf,
+		logger:      logger.Named("Dynamic Priority Queue"),
+		totalUsage:  0,
 	}
 }
 
-func (d *DynamicPriorityQueue) Start(ctx context.Context) {
-	// rebuild internal state from statestore, unimplemented
-
+func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
 	go d.runProducer(ctx)
 	go d.runConsumer(ctx)
+
+	return nil
+}
+
+func (d *DynamicPriorityQueue) SetEnabled(val bool, state *state.StateStore) {
+	// rebuild internal state from statestore, unimplemented
+	d.state = state
+	d.enabled.Store(val)
 }
 
 // Enqueue is the method used to put evaluations on the queue.
@@ -113,7 +124,12 @@ func (d *DynamicPriorityQueue) Start(ctx context.Context) {
 // to an internal channel to be processed and added to the actual
 // heap container.
 func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
+	if !d.enabled.Load() {
+		return
+	}
+
 	w := d.generateWorkload(e)
+
 	// in the event of an empty workload, just pass eval to eval broker
 	if w == nil {
 		d.evalBroker.Enqueue(e)
@@ -143,6 +159,10 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			default:
 			}
 		case <-time.After(d.conf.CalcInterval):
+			if !d.enabled.Load() {
+				continue
+			}
+
 			d.qMux.Lock()
 			d.calculatePriorities(time.Now().UnixNano())
 			heap.Init(&d.queue)
@@ -199,11 +219,11 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 	}
 
 	tid := ""
-	switch d.conf.TenantType {
+	switch d.tenantType {
 	case "namespace":
 		tid = job.Namespace
 	case "metadata":
-		tenantID, ok := job.Meta[d.conf.MetadataKey]
+		tenantID, ok := job.Meta[d.metadataKey]
 		if !ok {
 			return nil
 		}
