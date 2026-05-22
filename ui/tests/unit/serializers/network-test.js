@@ -44,4 +44,15 @@ module('Unit | Serializer | Network', function (hooks) {
       undefined,
     );
   });
+
+  test('missing IP does not throw', async function (assert) {
+    const original = {
+      ReservedPorts: [{ Label: 'http', Value: 80 }],
+    };
+
+    assert.deepEqual(
+      this.subject().normalize(NetworkModel, original).data.attributes.ip,
+      undefined,
+    );
+  });
 });
