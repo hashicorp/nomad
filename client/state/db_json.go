@@ -136,6 +136,11 @@ func NewJsonDB(logger hclog.Logger, stateDir string) (StateDB, error) {
 		defer lockFile.Close()
 		return nil, fmt.Errorf("error writing client lock file (%d bytes written): %w", n, err)
 	}
+	if err := lockFile.Sync(); err != nil {
+		defer root.Close()
+		defer lockFile.Close()
+		return nil, fmt.Errorf("error syncing client lock file: %w", err)
+	}
 
 	// Initialize struct to empty values
 	db := &JsonDB{
@@ -195,6 +200,10 @@ func (db *JsonDB) save() error {
 	if err := enc.Encode(db); err != nil {
 		_ = stateFile.Close()
 		return fmt.Errorf("error writing client state to %q: %w", tmpfn, err)
+	}
+
+	if err := stateFile.Sync(); err != nil {
+		return fmt.Errorf("error syncing client state file %q: %w", tmpfn, err)
 	}
 
 	if err := stateFile.Close(); err != nil {
