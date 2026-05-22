@@ -151,6 +151,7 @@ func NvidiaNode() *structs.Node {
 
 // SharedNvidiaNode returns a node with two sharing enabled instances of an Nvidia GPU
 func SharedNvidiaNode() *structs.Node {
+	var active = structs.DeviceSharingActive
 	n := Node()
 	n.NodeResources.Processors.Topology = structs.MockWorkstationTopology()
 	n.NodeResources.Devices = []*structs.NodeDeviceResource{
@@ -171,7 +172,7 @@ func SharedNvidiaNode() *structs.Node {
 					Locality: &structs.NodeDeviceLocality{
 						PciBusID: "0000:02:00.1", // node 0
 					},
-					Shared: &structs.DeviceSharing{Shared: structs.DeviceSharingActive},
+					Shared: &active,
 				},
 				{
 					ID:      uuid.Generate(),
@@ -179,7 +180,7 @@ func SharedNvidiaNode() *structs.Node {
 					Locality: &structs.NodeDeviceLocality{
 						PciBusID: "0000:02:01.1", // node 0
 					},
-					Shared: &structs.DeviceSharing{Shared: structs.DeviceSharingActive},
+					Shared: &active,
 				},
 			},
 		},

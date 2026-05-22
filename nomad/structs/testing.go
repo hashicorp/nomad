@@ -271,12 +271,10 @@ func MockIntelNode() *Node {
 				{
 					ID:      uuid.Generate(),
 					Healthy: true,
-					Shared:  &DeviceSharing{DeviceSharingInactive},
 				},
 				{
 					ID:      uuid.Generate(),
 					Healthy: false,
-					Shared:  &DeviceSharing{DeviceSharingInactive},
 				},
 			},
 		},

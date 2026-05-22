@@ -179,7 +179,7 @@ type NvidiaDevice struct {
 	MpsConfig *MpsConfig
 
 	// devices is the set of detected eligible devices
-	devices    map[string]device.DeviceSharing
+	devices    map[string]device.Shared
 	deviceLock sync.RWMutex
 
 	logger hclog.Logger
@@ -191,7 +191,7 @@ func NewNvidiaDevice(_ context.Context, log hclog.Logger) *NvidiaDevice {
 	logger := log.Named(pluginName)
 	return &NvidiaDevice{
 		logger:        logger,
-		devices:       make(map[string]device.DeviceSharing),
+		devices:       make(map[string]device.Shared),
 		ignoredGPUIDs: make(map[string]struct{}),
 	}
 }
@@ -350,23 +350,24 @@ func (d *NvidiaDevice) diffFiles(files []os.FileInfo) ([]*device.Device, []*devi
 		perms := f.Mode().Perm().String()
 		//turn health into sharing status
 		healthBool := perms != d.unhealthyPerm
-		var healthy device.DeviceSharing
+		var healthy string
 		if healthBool {
-			healthy = device.SharingActive
+			healthy = device.SharingActive.String()
 		} else {
-			healthy = device.SharingInactive
+			healthy = device.SharingInactive.String()
 		}
 		d.logger.Info("checking health", "file perm", perms, "unhealthy perms", d.unhealthyPerm, "healthy", healthy)
 
 		// See if we already have the device
 		oldHealth, ok := d.devices[name]
-		if ok && oldHealth == healthy {
+		if ok && oldHealth.String() == healthy {
 			continue
 		}
 
 		// Health has changed or we have a new object
 		//changes = true
-		d.devices[name] = healthy
+
+		d.devices[name] = device.Shared(healthy)
 	}
 
 	for id := range d.devices {

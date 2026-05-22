@@ -247,7 +247,7 @@ type NodeDevice struct {
 	Locality *NodeDeviceLocality
 
 	// Shared reports the MPS Sharing status of the device
-	Shared DeviceSharing
+	Shared Shared
 }
 
 // Attribute is used to describe the value of an attribute, optionally
@@ -292,19 +292,21 @@ func (a Attribute) String() string {
 	}
 }
 
+type Shared string
+
 // DeviceSharing mirrors the plugin.DeviceSharing struct found
 // on Devices.DetectedDevice. It holds a string that some
 // devices use to report the status and presence of sharing
 // subsystems
 type DeviceSharing struct {
-	Shared string
+	Shared Shared
 }
 
 const (
-	DeviceSharingUnset      string = ""
-	DeviceSharingIneligible string = "ineligible"
-	DeviceSharingActive     string = "active"
-	DeviceSharingInactive   string = "inactive"
+	DeviceSharingUnset      Shared = ""
+	DeviceSharingIneligible Shared = "ineligible"
+	DeviceSharingActive     Shared = "active"
+	DeviceSharingInactive   Shared = "inactive"
 )
 
 // NodeDeviceLocality stores information about the devices hardware locality on

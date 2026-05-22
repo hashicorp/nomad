@@ -82,7 +82,7 @@ func convertDevice(dev *device.Device) *structs.NodeDevice {
 		Healthy:           dev.Healthy,
 		HealthDescription: dev.HealthDesc,
 		Locality:          convertHwLocality(dev.HwLocality),
-		Shared:            convertDeviceSharing(dev.Shared),
+		Shared:            convertShared(dev.Shared),
 	}
 }
 
@@ -96,19 +96,20 @@ func convertHwLocality(l *device.DeviceLocality) *structs.NodeDeviceLocality {
 	}
 }
 
-func convertDeviceSharing(s *device.DeviceSharing) *structs.DeviceSharing {
+func convertShared(s *device.Shared) *structs.Shared {
+	var c structs.Shared
 	if s == nil {
-		return &structs.DeviceSharing{Shared: structs.DeviceSharingInactive}
+		c = structs.DeviceSharingUnset
 	}
-
-	switch s.Shared {
+	switch *s {
 	case device.SharingIneligible:
-		return &structs.DeviceSharing{Shared: structs.DeviceSharingIneligible}
+		c = structs.DeviceSharingIneligible
 	case device.SharingActive:
-		return &structs.DeviceSharing{Shared: structs.DeviceSharingActive}
+		c = structs.DeviceSharingActive
 	case device.SharingInactive:
-		return &structs.DeviceSharing{Shared: structs.DeviceSharingInactive}
+		c = structs.DeviceSharingInactive
 	default:
-		return &structs.DeviceSharing{Shared: structs.DeviceSharingUnset}
+		c = structs.DeviceSharingUnset
 	}
+	return &c
 }

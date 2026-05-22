@@ -33,7 +33,7 @@ func nvidiaAlloc() *Allocation {
 }
 
 // sets the supplied DeviceSharing on the node and returns the node and 1st deviceID
-func sharedNodeWithDeviceID(node *Node, sharingStatus DeviceSharing) (*Node, string) {
+func sharedNodeWithDeviceID(node *Node, sharingStatus Shared) (*Node, string) {
 	node.NodeResources.Devices[0].Instances[0].Shared = &sharingStatus
 	deviceID := node.NodeResources.Devices[0].Instances[0].ID
 	return node, deviceID
@@ -156,7 +156,7 @@ func TestDeviceAccounter_AddAllocs_UnknownID(t *testing.T) {
 // Test that collision detection works
 func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 	ci.Parallel(t)
-
+	active := DeviceSharingActive
 	for _, tc := range []struct {
 		name         string
 		shared       bool
@@ -176,8 +176,8 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 
 			n := devNode()
 			if tc.shared {
-				n.NodeResources.Devices[0].Instances[0].Shared = &DeviceSharing{DeviceSharingActive}
-				n.NodeResources.Devices[0].Instances[1].Shared = &DeviceSharing{DeviceSharingActive}
+				n.NodeResources.Devices[0].Instances[0].Shared = &active
+				n.NodeResources.Devices[0].Instances[1].Shared = &active
 			}
 			d := NewDeviceAccounter(n)
 			must.NotNil(t, d)
@@ -200,9 +200,9 @@ func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
 	ci.Parallel(t)
 
-	nvidiaNode, nvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharing{DeviceSharingUnset})
-	sharedNvidiaNode, sharedNvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharing{DeviceSharingActive})
-	sharedIntelNode, sharedIntelNodeSharedDeviceId := sharedNodeWithDeviceID(MockIntelNode(), DeviceSharing{DeviceSharingActive})
+	nvidiaNode, nvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharingUnset)
+	sharedNvidiaNode, sharedNvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharingActive)
+	sharedIntelNode, sharedIntelNodeSharedDeviceId := sharedNodeWithDeviceID(MockIntelNode(), DeviceSharingActive)
 	genNvidiaOrIntelAllocs := func(isNvidia bool, willShare bool, count int, sharedSharedDeviceId string) []*Allocation {
 		var (
 			allocs    []*Allocation

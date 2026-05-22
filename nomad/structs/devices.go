@@ -140,7 +140,7 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 							// Mark that the device is in use
 							devAccounter.Instances[instanceID]++
 							shared := devAccounter.GetSharedByID(instanceID)
-							if shared == DeviceSharingActive {
+							if shared == string(DeviceSharingActive) {
 								continue
 							}
 							if i != 0 {

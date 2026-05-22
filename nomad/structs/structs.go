@@ -3589,29 +3589,32 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	return true
 }
 
+type Shared string
+
+func (s Shared) String() string {
+	switch s {
+	case DeviceSharingInactive:
+		return "inactive"
+	case DeviceSharingIneligible:
+		return "inelegible"
+	case DeviceSharingActive:
+		return "active"
+	default:
+		return "unset"
+	}
+}
+
 // DeviceSharing mirrors the plugin.DeviceSharing struct found
 // on Devices.DetectedDevice. It holds a string enum that some
 // devices use to report the status and presence of sharing
 // subsystems
-type DeviceSharing struct {
-	Shared string
-}
 
 const (
-	DeviceSharingUnset      string = ""
-	DeviceSharingIneligible string = "ineligible"
-	DeviceSharingActive     string = "active"
-	DeviceSharingInactive   string = "inactive"
+	DeviceSharingUnset      Shared = ""
+	DeviceSharingIneligible Shared = "ineligible"
+	DeviceSharingActive     Shared = "active"
+	DeviceSharingInactive   Shared = "inactive"
 )
-
-func (d DeviceSharing) Copy() *DeviceSharing {
-
-	return &DeviceSharing{d.Shared}
-}
-
-func (d DeviceSharing) String() string {
-	return d.Shared
-}
 
 // NodeDevice is an instance of a particular device.
 type NodeDevice struct {
@@ -3632,7 +3635,7 @@ type NodeDevice struct {
 	// Shared holds a pointer to a DeviceSharing struct that mirrors
 	// the Shared filed on Devices.DetectedDevice and holds a string enum that
 	// some devices use to report status and presence of sharing subsystems
-	Shared *DeviceSharing
+	Shared *Shared
 }
 
 func (n *NodeDevice) Equal(o *NodeDevice) bool {
@@ -3671,7 +3674,7 @@ func (n *NodeDevice) Copy() *NodeDevice {
 	nn.Locality = nn.Locality.Copy()
 	// copy sharing
 	if nn.Shared != nil {
-		nn.Shared = n.Shared.Copy()
+		nn.Shared = n.Shared
 	}
 	return &nn
 }
