@@ -20,8 +20,8 @@ const (
 
 // isWebsocketUpgrade checks if the request is a websocket upgrade request
 func isWebsocketUpgrade(req *http.Request) bool {
-	return req.Header.Get("Upgrade") == "websocket" &&
-		strings.Contains(strings.ToLower(req.Header.Get("Connection")), "upgrade")
+	return strings.EqualFold(req.Header.Get("Upgrade"), "websocket") &&
+		strings.EqualFold(req.Header.Get("Connection"), "upgrade")
 }
 
 // wrapWebsocketHandler upgrades the HTTP connection to a websocket. Auditing

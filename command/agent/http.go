@@ -1058,7 +1058,7 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	// Websocket requests may not have an auth header if they came from a
 	// browser, so extract the token from the request context added when we
 	// upgraded the connection instead
-	if ctxVal := req.Context().Value("ws_auth_token"); ctxVal != nil {
+	if ctxVal := req.Context().Value(ctxKeyWebSocketAuthToken); ctxVal != nil {
 		if ctxToken, ok := ctxVal.(string); ok && ctxToken != "" {
 			*token = ctxToken
 			return
