@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 
 import {
@@ -27,6 +28,20 @@ module('Acceptance | job status panel', function (hooks) {
   hooks.beforeEach(async function () {
     this.server.create('node-pool');
     this.server.create('node');
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    faker.seed(1);
+    const job = this.server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      createAllocations: true,
+      noDeployments: true,
+    });
+    await visit(`/jobs/${job.id}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('Status panel lets you switch between Current and Historical', async function (assert) {

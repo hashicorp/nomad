@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -28,8 +29,9 @@ module('Acceptance | plugin detail', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await PluginDetail.visit({ id: plugin.id });
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/storage/plugins/:id should have a breadcrumb trail linking back to Plugins and Storage', async function (assert) {

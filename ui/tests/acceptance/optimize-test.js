@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { currentURL, visit, waitUntil } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -66,8 +67,17 @@ module('Acceptance | optimize', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await Optimize.visit();
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('optimize.summary passes an accessibility audit', async function (assert) {
+    await Optimize.visit();
+    const summary = Optimize.recommendationSummaries[0];
+    await visit(`/optimize/${summary.slug}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('lets recommendations be toggled, reports the choices to the recommendations API, and displays task group recommendations serially', async function (assert) {

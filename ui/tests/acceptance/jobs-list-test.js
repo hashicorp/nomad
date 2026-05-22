@@ -14,6 +14,7 @@ import {
   waitUntil,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import pageSizeSelect from './behaviors/page-size-select';
@@ -39,8 +40,9 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await JobsList.visit();
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('visiting /jobs', async function (assert) {

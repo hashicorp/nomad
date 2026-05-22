@@ -4,6 +4,7 @@
  */
 
 import { test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, visit } from '@ember/test-helpers';
 
@@ -39,10 +40,11 @@ export default function browseFilesystem({
   getFilesystemRoot,
 }) {
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await FS[pageObjectVisitFunctionName](
       visitSegments({ allocation: this.allocation, task: this.task }),
     );
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('visiting filesystem root', async function (assert) {

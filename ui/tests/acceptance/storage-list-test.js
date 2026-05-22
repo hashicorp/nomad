@@ -6,6 +6,7 @@
 import { currentURL, visit } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
@@ -38,8 +39,9 @@ module('Acceptance | storage list', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await StorageList.visit();
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('visiting the now-deprecated /csi redirects to /storage', async function (assert) {

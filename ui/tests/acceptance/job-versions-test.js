@@ -12,6 +12,7 @@ import {
 } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Versions from 'nomad-ui/tests/pages/jobs/job/versions';
@@ -61,7 +62,8 @@ module('Acceptance | job versions', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/jobs/:id/versions should list all job versions', async function (assert) {

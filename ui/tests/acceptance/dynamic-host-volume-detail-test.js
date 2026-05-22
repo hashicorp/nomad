@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { setupApplicationTest } from 'ember-qunit';
@@ -40,8 +41,9 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await VolumeDetail.visit({ id: `${volume.id}@default` });
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/storage/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function (assert) {

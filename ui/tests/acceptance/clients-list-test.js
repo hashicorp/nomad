@@ -6,6 +6,7 @@
 import { currentURL, settled } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import pageSizeSelect from './behaviors/page-size-select';
@@ -22,13 +23,14 @@ module('Acceptance | clients list', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     const nodesCount = ClientsList.pageSize + 1;
 
     this.server.createList('node', nodesCount);
     this.server.createList('agent', 1);
 
     await ClientsList.visit();
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/clients should list one page of clients', async function (assert) {

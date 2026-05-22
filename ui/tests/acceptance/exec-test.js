@@ -4,6 +4,7 @@
  */
 
 import { module, skip, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
@@ -48,8 +49,9 @@ module('Acceptance | exec', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await Exec.visitJob({ job: this.job.id });
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function (assert) {

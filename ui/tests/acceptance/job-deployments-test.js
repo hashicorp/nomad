@@ -7,6 +7,7 @@ import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { get } from '@ember/object';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import moment from 'moment';
@@ -47,8 +48,9 @@ module('Acceptance | job deployments', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await Deployments.visit({ id: job.id });
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/jobs/:id/deployments should list all job deployments', async function (assert) {

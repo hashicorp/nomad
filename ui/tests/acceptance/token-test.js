@@ -14,6 +14,7 @@ import {
   waitUntil,
 } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
@@ -61,8 +62,9 @@ module('Acceptance | tokens', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     await Tokens.visit();
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('the token form sets the token in local storage', async function (assert) {

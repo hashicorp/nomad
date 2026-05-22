@@ -4,7 +4,8 @@
  */
 
 import { module, test } from 'qunit';
-import { findAll, fillIn, find, click, currentURL } from '@ember/test-helpers';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
+import { findAll, fillIn, find, click, currentURL, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { allScenarios } from '../../mirage/scenarios/default';
@@ -33,6 +34,30 @@ module('Acceptance | sentinel policies', function (hooks) {
   hooks.afterEach(async function () {
     await Tokens.visit();
     await Tokens.clear();
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('administration.sentinel-policies.new passes an accessibility audit', async function (assert) {
+    await visit('/administration/sentinel-policies/new');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('administration.sentinel-policies.gallery passes an accessibility audit', async function (assert) {
+    await visit('/administration/sentinel-policies/gallery');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('administration.sentinel-policies.policy passes an accessibility audit', async function (assert) {
+    const policy = this.server.db.sentinelPolicies[0];
+    await visit(`/administration/sentinel-policies/${policy.name}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('Sentinel Policies index, general', async function (assert) {

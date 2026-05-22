@@ -6,6 +6,7 @@
 import { currentURL, waitFor, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
@@ -37,7 +38,8 @@ module('Acceptance | task detail', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/allocation/:id/:task_name should name the task and list high-level task information', async function (assert) {

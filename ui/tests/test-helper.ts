@@ -9,10 +9,7 @@ import * as QUnit from 'qunit';
 import { setApplication } from '@ember/test-helpers';
 import { setup } from 'qunit-dom';
 import { setupEmberOnerrorValidation } from 'ember-qunit';
-import {
-  setupGlobalA11yHooks,
-  setRunOptions,
-} from 'ember-a11y-testing/test-support';
+import { setupGlobalA11yHooks } from 'ember-a11y-testing/test-support';
 // @ts-expect-error: no types for ember-exam
 import { start } from 'ember-exam/test-support';
 
@@ -24,19 +21,10 @@ setupEmberOnerrorValidation();
 // Configure ember-a11y-testing per addon instructions:
 // https://github.com/ember-a11y/ember-a11y-testing
 //
-// Rules are scoped here (not silently disabled in a wrapper helper) so the
-// configuration is centralized and discoverable. Each suppressed rule should
-// be tracked toward eventual remediation rather than hidden indefinitely.
-setRunOptions({
-  rules: {
-    'color-contrast': { enabled: false },
-    'heading-order': { enabled: false },
-  },
-});
-
 // Automatically run an a11y audit after every interaction helper (visit,
-// click, fillIn, render, etc.). This ensures accessibility is verified each
-// time a page is visited without requiring tests to opt in individually.
+// click, fillIn, render, etc.) so accessibility is verified each time a page
+// is visited. Acceptance tests should also call `a11yAudit` explicitly after
+// `visit(...)` for an opt-in, assertion-emitting audit per route.
 setupGlobalA11yHooks(() => true);
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-call

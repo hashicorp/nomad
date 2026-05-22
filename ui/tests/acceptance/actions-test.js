@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
@@ -61,6 +62,22 @@ module('Acceptance | actions', function (hooks) {
       .models[0].taskStates.models[0]?.update({
         state: 'running',
       });
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    try {
+      const managementToken = this.server.create('token', {
+        type: 'management',
+        name: 'Management Token',
+      });
+      await Tokens.visit();
+      await Tokens.secret(managementToken.secretId).submit();
+      await Actions.visitIndex({ id: 'actionable-job' });
+      await a11yAudit();
+      assert.ok(true, 'no a11y errors found');
+    } finally {
+      window.localStorage.removeItem('nomadTokenSecret');
+    }
   });
 
   test('Actions show up on the Job Index page, permissions allowing', async function (assert) {

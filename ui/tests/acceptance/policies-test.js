@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import {
   visit,
   currentURL,
@@ -23,6 +24,34 @@ module('Acceptance | policies', function (hooks) {
 
   hooks.beforeEach(function () {
     faker.seed(1);
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    allScenarios.policiesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
+    await visit('/administration/policies');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('administration.policies.new passes an accessibility audit', async function (assert) {
+    allScenarios.policiesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
+    await visit('/administration/policies/new');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('administration.policies.policy passes an accessibility audit', async function (assert) {
+    allScenarios.policiesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
+    const policy = this.server.db.policies[0];
+    await visit(`/administration/policies/${policy.name}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+    window.localStorage.nomadTokenSecret = null;
   });
 
   test('Policies index route looks good', async function (assert) {

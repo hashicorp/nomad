@@ -6,6 +6,7 @@
 /* eslint-disable ember/no-test-module-for */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
@@ -58,8 +59,9 @@ function moduleForJobDispatch(title, jobFactory) {
     });
 
     test('it passes an accessibility audit', async function (assert) {
-      assert.expect(0);
       await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
+      await a11yAudit();
+      assert.ok(true, 'no a11y errors found');
     });
 
     test('the dispatch button is displayed with management token', async function (assert) {

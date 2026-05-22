@@ -14,6 +14,7 @@ import {
   waitUntil,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
@@ -62,7 +63,8 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/allocation/:id should name the allocation and link to the corresponding job and node', async function (assert) {

@@ -16,6 +16,7 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 import { setupApplicationTest } from 'ember-qunit';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { allScenarios } from '../../mirage/scenarios/default';
 import cleanWhitespace from '../utils/clean-whitespace';
 import faker from 'nomad-ui/mirage/faker';
@@ -369,11 +370,25 @@ module('Acceptance | variables', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     allScenarios.variableTestCluster(this.server);
     const variablesToken = this.server.db.tokens.find(VARIABLE_TOKEN_ID);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
     await Variables.visit();
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('variables.variable.edit passes an accessibility audit', async function (assert) {
+    try {
+      allScenarios.variableTestCluster(this.server);
+      window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
+      const variable = this.server.db.variables[0];
+      await visit(`/variables/var/${variable.path}@${variable.namespace}/edit`);
+      await a11yAudit();
+      assert.ok(true, 'no a11y errors found');
+    } finally {
+      window.localStorage.removeItem('nomadTokenSecret');
+    }
   });
 
   module('create flow', function () {

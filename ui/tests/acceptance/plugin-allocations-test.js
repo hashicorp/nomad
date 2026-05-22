@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -25,7 +26,6 @@ module('Acceptance | plugin allocations', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     plugin = this.server.create('csi-plugin', {
       shallow: true,
       controllerRequired: true,
@@ -34,6 +34,8 @@ module('Acceptance | plugin allocations', function (hooks) {
     });
 
     await PluginAllocations.visit({ id: plugin.id });
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/storage/plugins/:id/allocations shows all allocations in a single table', async function (assert) {

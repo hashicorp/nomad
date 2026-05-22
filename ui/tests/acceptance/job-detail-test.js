@@ -7,6 +7,7 @@
 
 import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import moment from 'moment';
@@ -520,9 +521,10 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    assert.expect(0);
     const namespace = this.server.db.namespaces.find(job.namespaceId);
     await JobDetail.visit({ id: `${job.id}@${namespace.name}` });
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('when there are namespaces, the job detail page states the namespace for the job', async function (assert) {
