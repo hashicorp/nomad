@@ -1,3 +1,11 @@
+## 1.11.6 Enterprise (May 22, 2026)
+
+BUG FIXES:
+
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+
 ## 1.11.5 Enterprise (May 12, 2026)
 
 BREAKING CHANGES:
