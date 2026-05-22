@@ -13,6 +13,7 @@ SECURITY:
 
 IMPROVEMENTS:
 
+* acl: Downscoped AllowClientOp to node pool [[GH-27718](https://github.com/hashicorp/nomad/issues/27718)]
 * api: Add "latest" flag for tagging the latest version of a job [[GH-27764](https://github.com/hashicorp/nomad/issues/27764)]
 * build: Update Go toolchain to 1.26.3 [[GH-27924](https://github.com/hashicorp/nomad/issues/27924)]
 * cli: Added retry for nomad job run monitoring [[GH-27887](https://github.com/hashicorp/nomad/issues/27887)]
