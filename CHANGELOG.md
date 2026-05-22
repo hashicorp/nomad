@@ -1,3 +1,12 @@
+## 2.0.2 (May 22, 2026)
+
+BUG FIXES:
+
+* acl: fix rpc permission denied error when using node_pool="all" [[GH-27973](https://github.com/hashicorp/nomad/issues/27973)]
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+
 ## 2.0.1 (May 12, 2026)
 
 BREAKING CHANGES:
@@ -64,6 +73,15 @@ BUG FIXES:
 * identity: fix bug where client identity failed to renew after server upgrade to >=1.11.0 [[GH-27773](https://github.com/hashicorp/nomad/issues/27773)]
 * oidc: Fixed a bug where the request cache could be corrupted by concurrent requests with the same nonce [[GH-27747](https://github.com/hashicorp/nomad/issues/27747)]
 * tls: fix parsing of combined key files when creating tls expiry metric [[GH-27667](https://github.com/hashicorp/nomad/issues/27667)]
+
+## 1.11.6 Enterprise (May 22, 2026)
+
+BUG FIXES:
+
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+
 
 ## 1.11.5 Enterprise (May 12, 2026)
 
@@ -321,6 +339,14 @@ BUG FIXES:
 * state: Fixed a bug where the server could panic when attempting to remove unneeded evals from the eval broker [[GH-26872](https://github.com/hashicorp/nomad/issues/26872)]
 * ui: Fixed a bug where action fly-outs would fail to open due to a missing module [[GH-26833](https://github.com/hashicorp/nomad/issues/26833)]
 * windows: Fixed a bug where agents would not gracefully shut down on Ctrl-C [[GH-26780](https://github.com/hashicorp/nomad/issues/26780)]
+
+## 1.10.12 Enterprise (May 22, 2026)
+
+BUG FIXES:
+
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
 
 ## 1.10.11 Enterprise (May 12, 2026)
 
