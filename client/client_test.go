@@ -4,7 +4,6 @@
 package client
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"net"
@@ -2371,26 +2370,14 @@ func TestClient_DefaultIneligible(t *testing.T) {
 	req4 := structs.NodeSpecificRequest{
 		NodeID: c2.Node().ID,
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:        "global",
+			MinQueryIndex: out3.Index + 1,
 		},
 	}
 	var out4 structs.SingleNodeResponse
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			err := s1.RPC("Node.GetNode", &req4, &out4)
-			must.NoError(t, err)
-			if out4.Node.LastMissedHeartbeatIndex != 0 {
-				return errors.New("wait until node is ready")
-			}
-
-			fmt.Print("\nindex : ", out4.Index, "last missed heartbeat index", out4.Node.LastMissedHeartbeatIndex, "\n")
-			must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
-
-			return nil
-		}),
-		wait.Gap(time.Second*1),
-		wait.Attempts(10),
-	))
+	err = s1.RPC("Node.GetNode", &req4, &out4)
+	must.NoError(t, err)
+	must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
 
 }
 
