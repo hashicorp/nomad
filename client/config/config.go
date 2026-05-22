@@ -374,6 +374,9 @@ type Config struct {
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
 
+	// DefaultIneligible disables scheduling eligibility for newly-created nodes.
+	DefaultIneligible bool
+
 	// APIListenerRegistrar allows the client to register listeners created at
 	// runtime (eg the Task API) with the agent's HTTP server. Since the agent
 	// creates the HTTP *after* the client starts, we have to use this shim to

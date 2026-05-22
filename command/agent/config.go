@@ -447,6 +447,9 @@ type ClientConfig struct {
 	// internal use.
 	Fingerprinters []*client.Fingerprint `hcl:"fingerprint"`
 
+	// DefaultIneligible disables scheduling eligibility for newly-created nodes.
+	DefaultIneligible bool `hcl:"default_ineligible"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -3014,6 +3017,10 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	// supplied an override value.
 	if b.NomadServiceDiscovery != nil {
 		result.NomadServiceDiscovery = b.NomadServiceDiscovery
+	}
+
+	if b.DefaultIneligible {
+		result.DefaultIneligible = true
 	}
 
 	if b.CgroupParent != "" {
