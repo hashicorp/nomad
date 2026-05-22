@@ -212,6 +212,82 @@ func TestACLTokens_CreateUpdate(t *testing.T) {
 	must.Eq(t, role.Name, out3.Roles[0].Name)
 }
 
+func TestACLTokens_Upload(t *testing.T) {
+	testutil.Parallel(t)
+
+	client, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+	tokens := client.ACLTokens()
+
+	aclPolicy := &ACLPolicy{
+		Name:  "upload-test-policy",
+		Rules: `namespace "default" { policy = "read" }`,
+	}
+	_, err := client.ACLPolicies().Upsert(aclPolicy, nil)
+	must.NoError(t, err)
+
+	testCases := []struct {
+		desc        string
+		token       *ACLToken
+		expectedErr bool
+		errorMsg    string
+	}{
+		{
+			desc: "missing AccessorID",
+			token: &ACLToken{
+				SecretID: "f5b20e34-9g6c-53d2-b8e4-7f1g2c3d5b6e",
+			},
+			expectedErr: true,
+			errorMsg:    "missing accessor ID",
+		},
+		{
+			desc: "missing SecretID",
+			token: &ACLToken{
+				AccessorID: "b306571d-a3fa-42d2-ac5b-bbe49d8c3c7f",
+			},
+			expectedErr: true,
+			errorMsg:    "missing secret ID",
+		},
+		{
+			desc: "management token",
+			token: &ACLToken{
+				AccessorID: "d172e5b4-7e3c-4a9e-bf01-8a5f2c9b1d0c",
+				SecretID:   "e4a19d23-8f5b-42c1-a7d3-6e0f1b2c4a5d",
+				Name:       "my management token",
+				Type:       "management",
+			},
+			expectedErr: true,
+			errorMsg:    "cannot upload management tokens",
+		},
+		{
+			desc: "valid client token",
+			token: &ACLToken{
+				AccessorID: "b306571d-a3fa-42d2-ac5b-bbe49d8c3c7f",
+				SecretID:   "c28ba0f6-ab8d-4e4d-b9f0-7f9f5d1c2e3a",
+				Name:       "my uploaded token",
+				Type:       "client",
+				Policies:   []string{aclPolicy.Name},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			tok, wm, err := tokens.Upload(tc.token, nil)
+			if tc.expectedErr {
+				must.ErrorContains(t, err, tc.errorMsg)
+			} else {
+				must.NoError(t, err)
+				assertWriteMeta(t, wm)
+				must.NotNil(t, tok)
+
+				must.Eq(t, tc.token.AccessorID, tok.AccessorID)
+				must.Eq(t, tc.token.SecretID, tok.SecretID)
+			}
+		})
+	}
+}
+
 func TestACLTokens_Info(t *testing.T) {
 	testutil.Parallel(t)
 

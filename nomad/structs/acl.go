@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -727,17 +727,26 @@ type ACLTokenRoleLink struct {
 // set if it is empty, so copies should be taken if needed before calling this
 // function.
 func (a *ACLToken) Canonicalize() {
-
-	// If the accessor ID is empty, it means this is creation of a new token,
-	// therefore we need to generate base information.
+	// If the accessor ID is empty, this is a new token being created: generate
+	// both IDs and initialize the creation timestamp.
 	if a.AccessorID == "" {
-
 		a.AccessorID = uuid.Generate()
 		a.SecretID = uuid.Generate()
 		a.CreateTime = time.Now().UTC()
 
 		// If the user has not set the expiration time, but has provided a TTL, we
-		// calculate and populate the former filed.
+		// calculate and populate the former field.
+		if a.ExpirationTime == nil && a.ExpirationTTL != 0 {
+			a.ExpirationTime = pointer.Of(a.CreateTime.Add(a.ExpirationTTL))
+		}
+		return
+	}
+
+	// If both IDs are already set but no creation time was provided, the token
+	// is being uploaded and the createTime should be set.
+	if a.CreateTime.IsZero() {
+		a.CreateTime = time.Now().UTC()
+
 		if a.ExpirationTime == nil && a.ExpirationTTL != 0 {
 			a.ExpirationTime = pointer.Of(a.CreateTime.Add(a.ExpirationTTL))
 		}
