@@ -5,6 +5,7 @@ package structs
 
 import (
 	"fmt"
+	"log"
 	"maps"
 	"regexp"
 	"slices"
@@ -14,6 +15,8 @@ import (
 	jwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/hil"
+	"github.com/hashicorp/hil/ast"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -53,8 +56,6 @@ var (
 	// validIdentityName is used to validate workload identity Name fields. Must
 	// be safe to use in filenames.
 	validIdentityName = regexp.MustCompile("^[a-zA-Z0-9-_]{1,128}$")
-
-	wIClaimPattern = regexp.MustCompile(`\$\{([^}]+)\}`)
 
 	// MinNomadVersionVaultWID is the minimum version of Nomad that supports
 	// workload identities for Vault.
@@ -244,50 +245,93 @@ func (b *WorkloadIdentityClaimsBuilder) interpolate() {
 		return
 	}
 
-	staticValues := map[string]string{
-		"${job.region}":      b.job.Region,
-		"${job.namespace}":   b.job.Namespace,
-		"${job.id}":          b.job.GetIDforWorkloadIdentity(),
-		"${job.node_pool}":   b.job.NodePool,
-		"${group.name}":      b.tg.Name,
-		"${alloc.id}":        b.alloc.ID,
-		"${node.id}":         strAttrGet(b.node, func(n *Node) string { return n.ID }),
-		"${node.datacenter}": strAttrGet(b.node, func(n *Node) string { return n.Datacenter }),
-		"${node.pool}":       strAttrGet(b.node, func(n *Node) string { return n.NodePool }),
-		"${node.class}":      strAttrGet(b.node, func(n *Node) string { return n.NodeClass }),
-		"${task.name}":       strAttrGet(b.task, func(t *Task) string { return t.Name }),
-		"${vault.cluster}":   strAttrGet(b.vault, func(v *Vault) string { return v.Cluster }),
-		"${vault.namespace}": strAttrGet(b.vault, func(v *Vault) string { return v.Namespace }),
-		"${vault.role}":      strAttrGet(b.vault, func(v *Vault) string { return v.Role }),
+	varMap := map[string]ast.Variable{
+		"job.region": {
+			Type:  ast.TypeString,
+			Value: b.job.Region,
+		},
+		"job.namespace": {
+			Type:  ast.TypeString,
+			Value: b.job.Namespace,
+		},
+		"job.id": {
+			Type:  ast.TypeString,
+			Value: b.job.GetIDforWorkloadIdentity(),
+		},
+		"job.node_pool": {
+			Type:  ast.TypeString,
+			Value: b.job.NodePool,
+		},
+		"group.name": {
+			Type:  ast.TypeString,
+			Value: b.tg.Name,
+		},
+		"alloc.id": {
+			Type:  ast.TypeString,
+			Value: b.alloc.ID,
+		},
+		"node.id": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.node, func(n *Node) string { return n.ID }),
+		},
+		"node.datacenter": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.node, func(n *Node) string { return n.Datacenter }),
+		},
+		"node.pool": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.node, func(n *Node) string { return n.NodePool }),
+		},
+		"node.class": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.node, func(n *Node) string { return n.NodeClass }),
+		},
+		"task.name": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.task, func(t *Task) string { return t.Name }),
+		},
+		"vault.cluster": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.vault, func(v *Vault) string { return v.Cluster }),
+		},
+		"vault.namespace": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.vault, func(v *Vault) string { return v.Namespace }),
+		},
+		"vault.role": {
+			Type:  ast.TypeString,
+			Value: strAttrGet(b.vault, func(v *Vault) string { return v.Role }),
+		},
+	}
+
+	if b.job != nil && b.job.Meta != nil {
+		for k, v := range b.job.Meta {
+			varMap["job.meta."+k] = ast.Variable{
+				Type:  ast.TypeString,
+				Value: v,
+			}
+		}
 	}
 
 	for k, v := range b.extras {
-		val := wIClaimPattern.ReplaceAllStringFunc(v, func(token string) string {
-			if val, ok := staticValues[token]; ok {
-				return val
-			}
+		tree, err := hil.Parse(v)
+		if err != nil {
+			log.Printf("failed to parse claim %s: %v", k, err)
+			continue
+		}
 
-			return b.resolveDynamicToken(token)
+		result, err := hil.Eval(tree, &hil.EvalConfig{
+			GlobalScope: &ast.BasicScope{
+				VarMap: varMap,
+			},
 		})
-		b.extras[k] = val
-	}
-}
 
-func (b *WorkloadIdentityClaimsBuilder) resolveDynamicToken(token string) string {
-	path := strings.TrimSuffix(strings.TrimPrefix(token, "${"), "}")
-	switch {
-	case strings.HasPrefix(path, "job.meta."):
-		key := strings.TrimPrefix(path, "job.meta.")
-		if key == "" || b.job == nil || b.job.Meta == nil {
-			return token
+		if err != nil {
+			log.Printf("failed to eval claim %s: %v", k, err)
+			continue
 		}
-		value, ok := b.job.Meta[key]
-		if !ok {
-			return token
-		}
-		return value
-	default:
-		return token
+
+		b.extras[k] = result.Value.(string)
 	}
 }
 
