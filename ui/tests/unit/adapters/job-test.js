@@ -278,6 +278,73 @@ module('Unit | Adapter | Job', function (hooks) {
     );
   });
 
+  test('reloadRelationship with replace:true pushes new records before removing stale ones, preventing dangling LID references', async function (assert) {
+    await this.initializeUI();
+
+    // Create two services for job-1 in mirage
+    this.server.create('service', {
+      id: 'svc-keep',
+      jobId: 'job-1',
+      namespace: 'default',
+    });
+    this.server.create('service', {
+      id: 'svc-remove',
+      jobId: 'job-1',
+      namespace: 'default',
+    });
+
+    // Load the job and trigger the initial services relationship load
+    const job = await this.store.findRecord(
+      'job',
+      JSON.stringify(['job-1', 'default']),
+    );
+    await job.services;
+    await settled();
+
+    assert.strictEqual(
+      this.store.peekAll('service').length,
+      2,
+      'Initially 2 services are in the store',
+    );
+
+    // Simulate a server-side change: svc-remove is gone from the server
+    this.server.db.services.remove('svc-remove');
+
+    // Reload the services relationship with replace: true
+    await this.store.adapterFor('job').reloadRelationship(job, 'services', {
+      replace: true,
+    });
+    await settled();
+
+    assert.notOk(
+      this.store.peekRecord('service', 'svc-remove'),
+      'svc-remove is removed from the store after the replace reload',
+    );
+    assert.ok(
+      this.store.peekRecord('service', 'svc-keep'),
+      'svc-keep is still in the store after the replace reload',
+    );
+
+    // Critically, accessing the job's services relationship must not throw
+    // the "Cannot create a record ... as no resource data exists" error that
+    // Ember Data 4.12 raises when a hasMany relationship still holds a dangling
+    // LID for a record that was removed via store.unloadAll().
+    let errorThrown = null;
+    try {
+      const currentServices = job.hasMany('services').value();
+      if (currentServices) {
+        currentServices.forEach((s) => void s.serviceName);
+      }
+    } catch (e) {
+      errorThrown = e;
+    }
+    assert.strictEqual(
+      errorThrown,
+      null,
+      'Accessing job.services after a replace reload does not throw',
+    );
+  });
+
   test('findAll can be canceled', async function (assert) {
     await this.initializeUI();
 
