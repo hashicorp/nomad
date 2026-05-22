@@ -126,13 +126,34 @@ func (a *ACLTokens) List(q *QueryOptions) ([]*ACLTokenListStub, *QueryMeta, erro
 	return resp, qm, nil
 }
 
-// Create is used to create a token
+// Create is used to create a token with server-generated AccessorID and
+// SecretID. Use Upload to create a token with pre-specified IDs.
 func (a *ACLTokens) Create(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if token.AccessorID != "" {
 		return nil, nil, errors.New("cannot specify Accessor ID")
 	}
 	var resp ACLToken
 	wm, err := a.client.put("/v1/acl/token", token, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Upload is used to create a client token with pre-specified AccessorID and
+// SecretID. Management tokens cannot be uploaded and must be created with Create.
+func (a *ACLTokens) Upload(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	if token.AccessorID == "" {
+		return nil, nil, errors.New("missing accessor ID")
+	}
+	if token.SecretID == "" {
+		return nil, nil, errors.New("missing secret ID")
+	}
+	if token.Type == "management" {
+		return nil, nil, errors.New("cannot upload management tokens")
+	}
+	var resp ACLToken
+	wm, err := a.client.put("/v1/acl/token/"+token.AccessorID, token, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
