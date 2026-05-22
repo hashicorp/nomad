@@ -335,31 +335,6 @@ func TestCheckNamespaceScope(t *testing.T) {
 	}
 }
 
-func TestTimer_NewSafeTimer(t *testing.T) {
-	t.Run("zero", func(t *testing.T) {
-		timer, stop := NewSafeTimer(0)
-		defer stop()
-		<-timer.C
-	})
-
-	t.Run("positive", func(t *testing.T) {
-		timer, stop := NewSafeTimer(1)
-		defer stop()
-		<-timer.C
-	})
-}
-
-func TestTimer_NewStoppedTimer(t *testing.T) {
-	timer, stop := NewStoppedTimer()
-	defer stop()
-
-	select {
-	case <-timer.C:
-		must.Unreachable(t)
-	default:
-	}
-}
-
 func Test_ConvertSlice(t *testing.T) {
 	t.Run("string wrapper", func(t *testing.T) {
 

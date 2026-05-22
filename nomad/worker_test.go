@@ -15,7 +15,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -365,12 +364,10 @@ func TestWorker_runBackoff(t *testing.T) {
 	// We expect to be paused for 10ms + 1ms but otherwise can't be all that
 	// precise here because of concurrency. But checking coverage for this test
 	// shows we've covered the logic
-	t1, cancelT1 := helper.NewSafeTimer(100 * time.Millisecond)
-	defer cancelT1()
 	select {
 	case <-doneCh:
 		t.Fatal("returned early")
-	case <-t1.C:
+	case <-time.After(100 * time.Millisecond):
 	}
 
 	workerCancel()

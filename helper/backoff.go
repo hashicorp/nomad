@@ -24,10 +24,7 @@ func Backoff(backoffBase time.Duration, backoffLimit time.Duration, attempt uint
 	}
 
 	// Compute deadline and clamp it to backoffLimit
-	deadline := 1 << attempt * backoffBase
-	if deadline > backoffLimit {
-		deadline = backoffLimit
-	}
+	deadline := min(1<<attempt*backoffBase, backoffLimit)
 
 	return deadline
 }
@@ -36,29 +33,24 @@ func Backoff(backoffBase time.Duration, backoffLimit time.Duration, attempt uint
 // small jitter to a maximum backoff. It returns once the context closes, with
 // the error wrapping over the error from the function.
 func WithBackoffFunc(ctx context.Context, minBackoff, maxBackoff time.Duration, fn func() error) error {
-	var err error
-	backoff := minBackoff
-	t, stop := NewSafeTimer(0)
-	defer stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("operation cancelled: %w", err)
-		case <-t.C:
-		}
+	var (
+		backoff time.Duration = minBackoff
+		err     error
+	)
 
-		err = fn()
-		if err == nil {
+	for {
+		if err = fn(); err == nil {
 			return nil
 		}
 
-		if backoff < maxBackoff {
-			backoff = backoff*2 + RandomStagger(minBackoff/10)
-			if backoff > maxBackoff {
-				backoff = maxBackoff
-			}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("operation cancelled: %w", err)
+		case <-time.After(backoff):
 		}
 
-		t.Reset(backoff)
+		if backoff < maxBackoff {
+			backoff = min(backoff*2+RandomStagger(minBackoff/10), maxBackoff)
+		}
 	}
 }

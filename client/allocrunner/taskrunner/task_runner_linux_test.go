@@ -40,7 +40,6 @@ import (
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
@@ -2341,11 +2340,8 @@ func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
 				doneCh := make(chan struct{})
 				t.Cleanup(func() { close(doneCh) })
 
-				timer, stop := helper.NewSafeTimer(wait)
-				t.Cleanup(stop)
-
 				select {
-				case <-timer.C:
+				case <-time.After(wait):
 				case <-doneCh:
 					return
 				}

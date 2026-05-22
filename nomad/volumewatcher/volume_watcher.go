@@ -11,7 +11,6 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"golang.org/x/time/rate"
@@ -118,9 +117,6 @@ func (vw *volumeWatcher) watch() {
 	defer vw.deleteFn()
 	defer vw.Stop()
 
-	timer, stop := helper.NewSafeTimer(vw.quiescentTimeout)
-	defer stop()
-
 	for {
 		select {
 		// TODO(tgross): currently server->client RPC have no cancellation
@@ -137,8 +133,7 @@ func (vw *volumeWatcher) watch() {
 				return
 			}
 			vw.volumeReap(vol)
-			timer.Reset(vw.quiescentTimeout)
-		case <-timer.C:
+		case <-time.After(vw.quiescentTimeout):
 			// Wait until the volume has "settled" before stopping this
 			// goroutine so that we can handle the burst of updates around
 			// freeing claims without having to spin it back up

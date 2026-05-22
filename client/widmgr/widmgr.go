@@ -364,9 +364,6 @@ func (m *WIDMgr) renew() {
 		wait = helper.ExpiryToRenewTime(minExp, time.Now, m.minWait)
 	}
 
-	timer, timerStop := helper.NewStoppedTimer()
-	defer timerStop()
-
 	var retry uint64
 
 	for {
@@ -378,9 +375,8 @@ func (m *WIDMgr) renew() {
 		}
 
 		m.logger.Debug("waiting to renew identities", "num", len(reqs), "wait", wait)
-		timer.Reset(wait)
 		select {
-		case <-timer.C:
+		case <-time.After(wait):
 			m.logger.Trace("getting new signed identities", "num", len(reqs))
 		case <-m.stopCtx.Done():
 			// close watchers and shutdown

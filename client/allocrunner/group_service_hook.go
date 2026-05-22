@@ -248,13 +248,10 @@ func (h *groupServiceHook) preKillLocked() {
 
 	h.logger.Debug("delay before killing tasks", "group", h.group, "shutdown_delay", h.delay)
 
-	timer, cancel := helper.NewSafeTimer(h.delay)
-	defer cancel()
-
 	select {
 	// Wait for specified shutdown_delay unless ignored
 	// This will block an agent from shutting down.
-	case <-timer.C:
+	case <-time.After(h.delay):
 	case <-h.shutdownDelayCtx.Done():
 	}
 }

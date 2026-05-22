@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -626,10 +625,6 @@ func evaluateConsulChecks(services []*structs.Service, registrations *servicereg
 //
 // Does not watch Consul service checks; see watchConsulEvents for those.
 func (t *Tracker) watchNomadEvents() {
-	// checkTicker is the ticker that triggers us to look at the checks in Nomad
-	checkTicker, cancel := helper.NewSafeTimer(t.checkLookupInterval)
-	defer cancel()
-
 	// waiter is used to fire when the checks have been healthy for the MinHealthyTime
 	waiter := newHealthyFuture()
 
@@ -650,9 +645,8 @@ func (t *Tracker) watchNomadEvents() {
 			return
 
 		// it is time to check the checks
-		case <-checkTicker.C:
+		case <-time.After(t.checkLookupInterval):
 			results = t.checkStore.List(allocID)
-			checkTicker.Reset(t.checkLookupInterval)
 
 		// enough time has passed with healthy checks
 		case <-waiter.C():

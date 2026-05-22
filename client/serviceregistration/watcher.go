@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -225,26 +224,7 @@ func (w *UniversalCheckWatcher) Run(ctx context.Context) {
 	// map of checkID to their restarter handle (contains only checks we are watching)
 	watched := make(map[string]*restarter)
 
-	checkTimer, cleanupCheckTimer := helper.NewSafeTimer(0)
-	defer cleanupCheckTimer()
-
-	stopCheckTimer := func() { // todo: refactor using that other pattern
-		checkTimer.Stop()
-		select {
-		case <-checkTimer.C:
-		default:
-		}
-	}
-
-	// initialize with checkTimer disabled
-	stopCheckTimer()
-
 	for {
-		// disable polling if there are no checks
-		if len(watched) == 0 {
-			stopCheckTimer()
-		}
-
 		select {
 		// caller cancelled us; goodbye
 		case <-ctx.Done():
@@ -263,16 +243,12 @@ func (w *UniversalCheckWatcher) Run(ctx context.Context) {
 			checkName := update.restart.checkName
 			w.logger.Trace("now watching check", "alloc_i", allocID, "task", taskName, "check", checkName)
 
-			// turn on the timer if we are now active
-			if len(watched) == 1 {
-				stopCheckTimer()
-				checkTimer.Reset(w.pollFrequency)
-			}
-
 		// poll time; refresh check statuses
-		case now := <-checkTimer.C:
+		case now := <-time.After(w.pollFrequency):
+			if len(watched) == 0 {
+				continue
+			}
 			w.interval(ctx, now, watched)
-			checkTimer.Reset(w.pollFrequency)
 		}
 	}
 }

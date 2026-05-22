@@ -9,7 +9,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper"
 )
 
 // Monitor provides a mechanism to stream logs using go-hclog
@@ -111,17 +110,12 @@ func (d *monitor) Start() <-chan []byte {
 	// dropped messages and makes room on the logCh
 	// to add a dropped message count warning
 	go func() {
-		timer, stop := helper.NewSafeTimer(d.droppedDuration)
-		defer stop()
-
 		// loop and check for dropped messages
 		for {
-			timer.Reset(d.droppedDuration)
-
 			select {
 			case <-d.doneCh:
 				return
-			case <-timer.C:
+			case <-time.After(d.droppedDuration):
 				d.Lock()
 
 				// Check if there have been any dropped messages.

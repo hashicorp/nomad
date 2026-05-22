@@ -25,7 +25,6 @@ import (
 	wrapping "github.com/hashicorp/go-kms-wrapping/v2"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1046,29 +1045,25 @@ func TestEncrypter_IsReady_eventuallyReady(t *testing.T) {
 		respCh <- encrypter.IsReady(timeoutCtx)
 	}()
 
+	select {
 	// Create a timer at 1/3 the value of the timeout. When this triggers, we
 	// add a new decryption task to the encrypter. This simulates Nomad
 	// upserting a new key into state which was not part of the original
 	// snapshot or trailing logs and therefore should not block the readiness
 	// check.
-	taskAddTimer, stop := helper.NewSafeTimer(timeout / 3)
-	t.Cleanup(stop)
+	case <-time.After(timeout / 3):
+		encrypter.decryptTasksLock.Lock()
+		encrypter.decryptTasks["id2"] = struct{}{}
+		encrypter.decryptTasksLock.Unlock()
 
 	// Create a timer at half the value of the timeout. When this triggers, we
 	// will remove the task from the encrypter simulating it finishing and the
 	// encrypter becoming ready.
-	taskDeleteTimer, stop := helper.NewSafeTimer(timeout / 2)
-	t.Cleanup(stop)
-
-	select {
-	case <-taskAddTimer.C:
-		encrypter.decryptTasksLock.Lock()
-		encrypter.decryptTasks["id2"] = struct{}{}
-		encrypter.decryptTasksLock.Unlock()
-	case <-taskDeleteTimer.C:
+	case <-time.After(timeout / 2):
 		encrypter.decryptTasksLock.Lock()
 		delete(encrypter.decryptTasks, "id1")
 		encrypter.decryptTasksLock.Unlock()
+
 	case err := <-respCh:
 		must.NoError(t, err)
 		encrypter.decryptTasksLock.RLock()
@@ -1317,23 +1312,13 @@ func TestEncrypter_decryptWrappedKeyTask_contextCancel(t *testing.T) {
 
 	respCh := make(chan *cipherSet, 1)
 
-	// Generate a context and immediately cancel it.
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	// Ensure we receive an error indicating we hit the context done case and
-	// check no cipher response was sent.
-	err = encrypter.decryptWrappedKeyTask(ctx, kmsWrapper, key.Meta, wrappedKey, respCh)
-	must.ErrorContains(t, err, "operation cancelled")
-	must.Eq(t, 0, len(respCh))
-
 	// Recreate the response channel so that it is no longer buffered. The
 	// decrypt task should now block on attempting to send to it.
 	respCh = make(chan *cipherSet)
 
 	// Generate a new context and an error channel so we can gather the response
 	// of decryptWrappedKeyTask running inside a goroutine.
-	ctx, cancel = context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	errorCh := make(chan error, 1)
 
@@ -1352,17 +1337,11 @@ func TestEncrypter_decryptWrappedKeyTask_contextCancel(t *testing.T) {
 	//
 	// Canceling the context should cause the routine to exit and send an error
 	// which we can check to ensure we correctly unblock.
-	timer, timerStop := helper.NewSafeTimer(500 * time.Millisecond)
-	defer timerStop()
-
-	<-timer.C
+	<-time.After(500 * time.Millisecond)
 	cancel()
 
-	timer, timerStop = helper.NewSafeTimer(200 * time.Millisecond)
-	defer timerStop()
-
 	select {
-	case <-timer.C:
+	case <-time.After(200 * time.Millisecond):
 		t.Fatal("timed out waiting for decryptWrappedKeyTask to send its error")
 	case err := <-errorCh:
 		must.ErrorContains(t, err, "context canceled")

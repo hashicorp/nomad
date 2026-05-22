@@ -19,7 +19,6 @@ import (
 	josejwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/widmgr"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/useragent"
@@ -505,9 +504,6 @@ func TestVaultClient_RenewalConcurrent(t *testing.T) {
 	}
 
 	// Collect results with timeout.
-	timer, stop := helper.NewSafeTimer(3 * time.Second)
-	defer stop()
-
 	sawInitial := 0
 	sawRenew := 0
 	for {
@@ -526,7 +522,7 @@ func TestVaultClient_RenewalConcurrent(t *testing.T) {
 			}
 		case got := <-resultCh:
 			must.Nil(t, got, must.Sprintf("token renewal error: %v", got))
-		case <-timer.C:
+		case <-time.After(3 * time.Second):
 			t.Fatalf("timeout waiting for expected token renewals (initial: %d renewed: %d)",
 				sawInitial, sawRenew)
 		}

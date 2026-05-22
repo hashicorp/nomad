@@ -36,7 +36,6 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclspecutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/users/dynamic"
@@ -622,10 +621,6 @@ func (tr *TaskRunner) Run() {
 	// Set the initial task state.
 	tr.stateUpdater.TaskStateUpdated()
 
-	// start with a stopped timer; actual restart delay computed later
-	timer, stop := helper.NewStoppedTimer()
-	defer stop()
-
 MAIN:
 	for !tr.shouldShutdown() {
 		if dead {
@@ -730,11 +725,9 @@ MAIN:
 			break MAIN
 		}
 
-		timer.Reset(restartDelay)
-
 		// Actually restart by sleeping and also watching for destroy events
 		select {
-		case <-timer.C:
+		case <-time.After(restartDelay):
 		case <-tr.killCtx.Done():
 			tr.logger.Trace("task killed between restarts", "delay", restartDelay)
 			break MAIN

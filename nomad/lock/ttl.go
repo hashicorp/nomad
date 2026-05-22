@@ -8,7 +8,6 @@ import (
 	"time"
 
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/helper"
 )
 
 // TTLTimer provides a map of named timers which is safe for concurrent use.
@@ -84,13 +83,9 @@ func (t *TTLTimer) StopAndRemoveAll() {
 // EmitMetrics is a long-running routine used to emit periodic metrics about
 // the Timer.
 func (t *TTLTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{}) {
-	timer, stop := helper.NewSafeTimer(period)
-	defer stop()
-
 	for {
-		timer.Reset(period)
 		select {
-		case <-timer.C:
+		case <-time.After(period):
 			metrics.SetGauge([]string{"variables", "locks", "ttl_timer", "num"}, float32(t.TimerNum()))
 		case <-shutdownCh:
 			return

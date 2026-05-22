@@ -14,7 +14,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -231,13 +230,7 @@ func waitFor(ctx context.Context, condition func() (bool, error)) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
 
-	pauseDur := time.Millisecond * 250
-	t, timerStop := helper.NewSafeTimer(pauseDur)
-	defer timerStop()
-
 	for {
-		t.Reset(pauseDur)
-
 		complete, err := condition()
 		if err != nil {
 			return err
@@ -250,7 +243,7 @@ func waitFor(ctx context.Context, condition func() (bool, error)) error {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("timeout exceeded waiting for process")
-		case <-t.C:
+		case <-time.After(250 * time.Millisecond):
 		}
 	}
 }

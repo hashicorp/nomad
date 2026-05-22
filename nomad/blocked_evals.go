@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -800,15 +799,9 @@ func (b *BlockedEvals) Flush() {
 
 // EmitStats is used to export metrics about the blocked eval tracker while enabled
 func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
-	timer, stop := helper.NewSafeTimer(period)
-	defer stop()
-
 	for {
-		timer.Reset(period)
-
 		select {
-
-		case <-timer.C:
+		case <-time.After(period):
 			stats := b.stats.Copy()
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_quota_limit"}, float32(stats.TotalQuotaLimit))
 			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_blocked"}, float32(stats.TotalBlocked))

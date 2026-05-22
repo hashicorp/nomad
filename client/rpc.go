@@ -144,12 +144,9 @@ TRY:
 		return rpcErr
 	}
 
-	// Wait to avoid thundering herd
-	timer, cancel := helper.NewSafeTimer(helper.RandomStagger(conf.RPCHoldTimeout / structs.JitterFraction))
-	defer cancel()
-
 	select {
-	case <-timer.C:
+	// Wait to avoid thundering herd
+	case <-time.After(helper.RandomStagger(conf.RPCHoldTimeout / structs.JitterFraction)):
 		// If we are going to retry a blocking query we need to update the time
 		// to block so it finishes by our deadline.
 
