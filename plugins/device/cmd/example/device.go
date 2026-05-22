@@ -15,7 +15,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -420,11 +419,9 @@ func (d *NvidiaDevice) getDeviceGroup(devices []*device.Device, name string) *de
 		Name:    name,
 		Devices: devices,
 		Attributes: map[string]*structs.Attribute{
+
 			"cool-attribute": {
-				String: pointer.Of("attribute-wearing-sunglasses"),
-			},
-			"Shared": {
-				String: pointer.Of(shared),
+				String: new("attribute-wearing-sunglasses"),
 			},
 		},
 	}

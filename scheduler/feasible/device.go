@@ -132,10 +132,9 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 		for instanceID, v := range devInst.Instances {
 			var instanceSharedStatus structs.Shared
 			// mark shareable if we find a single shareable device
-			shared := devInst.GetSharedByID(instanceID)
-			if shared == structs.DeviceSharingActive.String() {
-				shareable = true
-				break
+			instanceSharedStatus = devInst.GetSharedByID(instanceID)
+			if instanceSharedStatus == structs.DeviceSharingActive {
+				d.ctx.Logger().Error("device sharing value", "value", instanceSharedStatus)
 			}
 
 			if v != 0 && instanceSharedStatus != structs.DeviceSharingActive {
