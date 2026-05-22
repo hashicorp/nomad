@@ -246,7 +246,8 @@ type NodeDevice struct {
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
 
-	// Shared reports the MPS Sharing status of the device
+	// Shared mirrors a string enum on device.DetectedDevice that some
+	// devices use to report status and presence of sharing subsystems
 	Shared Shared
 }
 

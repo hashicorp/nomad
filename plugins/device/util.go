@@ -57,14 +57,13 @@ func convertProtoDevice(in *proto.DetectedDevice) *Device {
 	if in == nil {
 		return nil
 	}
-	s := in.GetShared().String()
-	share := Shared(s)
+
 	return &Device{
 		ID:         in.ID,
 		Healthy:    in.Healthy,
 		HealthDesc: in.HealthDescription,
 		HwLocality: convertProtoDeviceLocality(in.HwLocality),
-		Shared:     &share,
+		Shared:     Shared(in.GetShared()),
 	}
 }
 
@@ -392,7 +391,7 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 	}
 }
 
-func convertShared(s *Shared) proto.Shared {
+func convertShared(s Shared) proto.Shared {
 
 	switch s.String() {
 	case "ineligible":

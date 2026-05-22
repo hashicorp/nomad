@@ -51,10 +51,10 @@ func (dai *DeviceAccounterInstance) Copy() *DeviceAccounterInstance {
 //
 // If no instance matching the deviceID is found or if Shared is nil
 // an empty string, equivalent to DeviceSharingUnset is returned
-func (dai *DeviceAccounterInstance) GetSharedByID(instanceID string) string {
+func (dai *DeviceAccounterInstance) GetSharedByID(instanceID string) Shared {
 	for _, instance := range dai.Device.Instances {
-		if instance.ID == instanceID && instance.Shared != nil {
-			return instance.Shared.String()
+		if instance.ID == instanceID {
+			return instance.Shared
 		}
 	}
 	return ""
@@ -140,7 +140,7 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 							// Mark that the device is in use
 							devAccounter.Instances[instanceID]++
 							shared := devAccounter.GetSharedByID(instanceID)
-							if shared == string(DeviceSharingActive) {
+							if shared == DeviceSharingActive {
 								continue
 							}
 							if i != 0 {

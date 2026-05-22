@@ -3180,7 +3180,7 @@ func TestSetContainsAny(t *testing.T) {
 
 func TestDeviceChecker(t *testing.T) {
 	ci.Parallel(t)
-	var active = structs.DeviceSharingActive
+
 	getTg := func(devices ...*structs.RequestedDevice) *structs.TaskGroup {
 		return &structs.TaskGroup{
 			Name: "example",
@@ -3294,7 +3294,7 @@ func TestDeviceChecker(t *testing.T) {
 	}
 	makeDeviceSharable := func(device *structs.NodeDeviceResource) *structs.NodeDeviceResource {
 		for _, v := range device.Instances {
-			v.Shared = &active
+			v.Shared = structs.DeviceSharingActive
 		}
 		return device
 	}

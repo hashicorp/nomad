@@ -387,7 +387,7 @@ func (d *NvidiaDevice) diffFiles(files []os.FileInfo) ([]*device.Device, []*devi
 			desc = unhealthyDesc
 			inactive = append(inactive, &device.Device{
 				ID:         name,
-				Shared:     &healthy,
+				Shared:     healthy,
 				HealthDesc: desc,
 				Healthy:    true,
 			})
@@ -395,7 +395,7 @@ func (d *NvidiaDevice) diffFiles(files []os.FileInfo) ([]*device.Device, []*devi
 		}
 		shared = append(shared, &device.Device{
 			ID:         name,
-			Shared:     &healthy,
+			Shared:     healthy,
 			HealthDesc: "healthy",
 			Healthy:    true,
 		})

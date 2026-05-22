@@ -2035,7 +2035,6 @@ func TestBinPackIterator_Devices(t *testing.T) {
 // when devices are not shared. Demonstrates shared devices do not fail
 // This test has devices at task level
 func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
-	var active = structs.DeviceSharingActive
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -2107,7 +2106,7 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 				//mark gpu as SharingActive on RankedNodes
 				for _, v := range tc.nodes {
 					newNode := v.Node.Copy()
-					newNode.NodeResources.Devices[0].Instances[0].Shared = &active
+					newNode.NodeResources.Devices[0].Instances[0].Shared = structs.DeviceSharingActive
 					n = append(n, &RankedNode{
 						Node: newNode,
 					})

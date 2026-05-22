@@ -3604,11 +3604,6 @@ func (s Shared) String() string {
 	}
 }
 
-// DeviceSharing mirrors the plugin.DeviceSharing struct found
-// on Devices.DetectedDevice. It holds a string enum that some
-// devices use to report the status and presence of sharing
-// subsystems
-
 const (
 	DeviceSharingUnset      Shared = ""
 	DeviceSharingIneligible Shared = "ineligible"
@@ -3632,10 +3627,9 @@ type NodeDevice struct {
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
 
-	// Shared holds a pointer to a DeviceSharing struct that mirrors
-	// the Shared filed on Devices.DetectedDevice and holds a string enum that
-	// some devices use to report status and presence of sharing subsystems
-	Shared *Shared
+	// Shared mirrors a string enum on device.DetectedDevice that some
+	// devices use to report status and presence of sharing subsystems
+	Shared Shared
 }
 
 func (n *NodeDevice) Equal(o *NodeDevice) bool {
@@ -3672,10 +3666,6 @@ func (n *NodeDevice) Copy() *NodeDevice {
 
 	// Copy the locality
 	nn.Locality = nn.Locality.Copy()
-	// copy sharing
-	if nn.Shared != nil {
-		nn.Shared = n.Shared
-	}
 	return &nn
 }
 
