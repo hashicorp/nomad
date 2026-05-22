@@ -1,3 +1,12 @@
+## 2.0.2 (May 22, 2026)
+
+BUG FIXES:
+
+* acl: fix rpc permission denied error when using node_pool="all" [[GH-27973](https://github.com/hashicorp/nomad/issues/27973)]
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+
 ## 2.0.1 (May 12, 2026)
 
 BREAKING CHANGES:
