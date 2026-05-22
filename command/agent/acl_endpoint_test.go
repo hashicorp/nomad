@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -582,6 +582,44 @@ func TestHTTP_ACLTokenCreateExpirationTTL(t *testing.T) {
 	})
 }
 
+func TestHTTP_ACLTokenUpdate(t *testing.T) {
+	ci.Parallel(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		token := &structs.ACLToken{
+			AccessorID:    uuid.Generate(),
+			SecretID:      uuid.Generate(),
+			Name:          "test token",
+			Type:          "client",
+			Policies:      []string{"foo"},
+			ExpirationTTL: 10 * time.Hour,
+		}
+
+		buf := encodeReq(token)
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/token/"+token.AccessorID, buf)
+		must.NoError(t, err)
+		respW := httptest.NewRecorder()
+		setToken(req, s.RootToken)
+
+		// Make the request
+		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.NotNil(t, obj)
+		outTK := obj.(*structs.ACLToken)
+
+		// Check for the index
+		must.NotEq(t, "", respW.Result().Header.Get("X-Nomad-Index"))
+
+		// Check token was created
+		state := s.Agent.server.State()
+		out, err := state.ACLTokenByAccessorID(nil, outTK.AccessorID)
+		must.NoError(t, err)
+		must.NotNil(t, out)
+		must.Eq(t, outTK, out)
+		must.Eq(t, token.AccessorID, out.AccessorID)
+		must.Eq(t, token.SecretID, out.SecretID)
+	})
+}
+
 func TestHTTP_ACLTokenDelete(t *testing.T) {
 	ci.Parallel(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -621,8 +659,8 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 		// Check token was created
 		state := s.Agent.server.State()
 		out, err := state.ACLTokenByAccessorID(nil, ID)
-		assert.Nil(t, err)
-		assert.Nil(t, out)
+		must.NoError(t, err)
+		must.Nil(t, out)
 	})
 }
 

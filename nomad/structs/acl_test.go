@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -78,6 +78,46 @@ func TestACLToken_Canonicalize(t *testing.T) {
 				require.NotEmpty(t, mockToken.SecretID)
 				require.NotEmpty(t, mockToken.CreateTime)
 				require.NotEmpty(t, mockToken.ExpirationTime)
+			},
+		},
+		{
+			name: "token upload with both ids but no create time",
+			testFn: func() {
+				accessorID := uuid.Generate()
+				secretID := uuid.Generate()
+				mockToken := &ACLToken{
+					AccessorID:    accessorID,
+					SecretID:      secretID,
+					Name:          "uploaded token " + uuid.Generate(),
+					Type:          "client",
+					Policies:      []string{"foo"},
+					ExpirationTTL: 10 * time.Hour,
+				}
+
+				mockToken.Canonicalize()
+				require.Equal(t, accessorID, mockToken.AccessorID)
+				require.Equal(t, secretID, mockToken.SecretID)
+
+				require.NotEmpty(t, mockToken.CreateTime)
+				require.NotNil(t, mockToken.ExpirationTime)
+				require.Equal(t, 10*time.Hour, mockToken.ExpirationTime.Sub(mockToken.CreateTime))
+			},
+		},
+		{
+			name: "token with create time set",
+			testFn: func() {
+				originalCreateTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+				mockToken := &ACLToken{
+					AccessorID: uuid.Generate(),
+					SecretID:   uuid.Generate(),
+					Name:       "uploaded token " + uuid.Generate(),
+					Type:       "client",
+					Policies:   []string{"foo"},
+					CreateTime: originalCreateTime,
+				}
+
+				mockToken.Canonicalize()
+				require.Equal(t, originalCreateTime, mockToken.CreateTime)
 			},
 		},
 	}
