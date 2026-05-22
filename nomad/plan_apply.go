@@ -281,8 +281,8 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	updateAllocTimestamps(req.AllocsUpdated, unixNow)
 
 	ns, err := snap.NamespaceByName(nil, job.Namespace)
-	if err != nil {
-		return nil, err
+	if ns == nil {
+		return nil, fmt.Errorf("namespace %q not found for job %q: %w", job.Namespace, job.ID, err)
 	}
 
 	if err := signAllocIdentities(p.srv.encrypter, job, req.AllocsUpdated, ns, now); err != nil {
