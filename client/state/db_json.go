@@ -4,8 +4,6 @@
 package state
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +11,7 @@ import (
 	"maps"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
@@ -76,9 +75,11 @@ type JsonDB struct {
 	// ClientIdent is the persisted identity of the client.
 	ClientIdent string
 
-	logger hclog.Logger
+	lockFile *os.File
+	root     *os.Root
+	pid      int
 
-	file *os.File
+	logger hclog.Logger
 
 	mu sync.RWMutex
 }
@@ -91,18 +92,49 @@ func NewJsonDB(logger hclog.Logger, stateDir string) (StateDB, error) {
 	// Open root
 	root, err := os.OpenRoot(stateDir)
 	if err != nil {
+		defer root.Close()
 		return nil, fmt.Errorf("error opening state dir: %w", err)
 	}
 
-	// Open/create file
-	fi, err := root.OpenFile("state.json", os.O_RDWR|os.O_CREATE, 0640)
+	// Open lock file
+	lockFile, err := root.OpenFile("state.json.lock", os.O_RDWR|os.O_CREATE, 0640)
 	if err != nil {
+		defer root.Close()
 		return nil, err
 	}
 
 	// Lock file
-	if err := flock.FLock(fi); err != nil {
+	if err := flock.FLock(lockFile); err != nil {
+		defer root.Close()
+		defer lockFile.Close()
+		if errors.Is(err, flock.ErrLocked) {
+			buf := make([]byte, 1000)
+			n, ferr := lockFile.Read(buf)
+			if ferr != nil {
+				return nil, fmt.Errorf("client lock file %s locked. error reading: %w", lockFile.Name(), ferr)
+			}
+			return nil, fmt.Errorf("client lock file %s locked. contents: %q", lockFile.Name(), string(buf[0:n]))
+		}
 		return nil, err
+	}
+
+	// Write info for concurrent openers
+	pid := os.Getpid()
+	lockmsg := []byte(fmt.Sprintf("%d at %s", pid, time.Now()))
+	if err := lockFile.Truncate(int64(len(lockmsg))); err != nil {
+		defer root.Close()
+		defer lockFile.Close()
+		return nil, fmt.Errorf("error truncating client lock file: %w", err)
+	}
+	if _, err := lockFile.Seek(0, io.SeekStart); err != nil {
+		defer root.Close()
+		defer lockFile.Close()
+		return nil, fmt.Errorf("error seeking in client lock file: %w", err)
+	}
+	if n, err := lockFile.Write(lockmsg); err != nil {
+		defer root.Close()
+		defer lockFile.Close()
+		return nil, fmt.Errorf("error writing client lock file (%d bytes written): %w", n, err)
 	}
 
 	// Initialize struct to empty values
@@ -117,96 +149,60 @@ func NewJsonDB(logger hclog.Logger, stateDir string) (StateDB, error) {
 		Identities:      make(map[string][]*structs.SignedWorkloadIdentity),
 		ConsulACLTokens: make(map[string][]*cstructs.ConsulACLToken),
 		DynHostVols:     make(map[string]*cstructs.HostVolumeState),
+		lockFile:        lockFile,
+		root:            root,
+		pid:             pid,
 	}
 	db.logger = logger.Named(db.Name())
 
-	// Decode client state
-	dec := json.NewDecoder(fi)
-	if err := dec.Decode(db); err != nil {
-		if errors.Is(err, io.EOF) {
-			// New file, nothing more to do
-			return db, nil
-		}
-
-		// Unexpected error, funlock and return
-		_ = flock.FUnlock(fi)
-		_ = fi.Close()
-		return nil, fmt.Errorf("unable to decode client state: %w", err)
+	if err := db.load(); err != nil {
+		defer root.Close()
+		return nil, err
 	}
-
-	// Record the end of the first object
-	off := dec.InputOffset()
-
-	// Decode checksum record
-	meta := &JsonDBMeta{}
-	if err := dec.Decode(meta); err != nil {
-		return nil, fmt.Errorf("unable to decode client state metadata: %w", err)
-	}
-	if n := len(meta.Sha256sum); n != sha256.Size {
-		if n == 0 {
-			return nil, fmt.Errorf("no checksum for client state")
-		} else {
-			return nil, fmt.Errorf("client state checksum is the wrong size. expected: %d, found: %d", sha256.Size, n)
-		}
-	}
-	hasher := sha256.New()
-
-	// Rewind and hash first object
-	if _, err := fi.Seek(0, 0); err != nil {
-		return nil, fmt.Errorf("failed to rewind client state file: %s", err)
-	}
-
-	lr := &io.LimitedReader{
-		R: fi,
-		N: off,
-	}
-	if n, err := io.Copy(hasher, lr); err != nil {
-		return nil, fmt.Errorf("error checksumming client state file: %w", err)
-	} else if n != off {
-		return nil, fmt.Errorf("unexpected amount of client state checksummed. expected: %d, found: %d", off, n)
-	}
-
-	// No need for constant time comparison as hash is only used to validate
-	// file. Anyone able to udpate the file should also be able to update the
-	// checksum.
-	if !bytes.Equal(hasher.Sum(nil), meta.Sha256sum) {
-		return nil, fmt.Errorf("client state file failed checksum. expected: %x, found: %x", meta.Sha256sum, hasher.Sum(nil))
-	}
-
-	db.file = fi
 
 	return db, nil
 }
 
-func (db *JsonDB) save() error {
-	// Encode
-	buf, err := json.MarshalIndent(db, "", "  ")
+func (db *JsonDB) load() error {
+	stateFile, err := db.root.Open("state.json")
+	if errors.Is(err, os.ErrNotExist) {
+		// Nothing to load
+		return nil
+	}
 	if err != nil {
-		return fmt.Errorf("error encoding client state as json: %w", err)
+		return fmt.Errorf("error loading client state: %w", err)
+	}
+	defer stateFile.Close()
+
+	// Decode client state
+	dec := json.NewDecoder(stateFile)
+	if err := dec.Decode(db); err != nil {
+		return fmt.Errorf("unable to decode client state: %w", err)
 	}
 
-	// Checksum
-	sum := sha256.Sum256(buf)
-	meta := &JsonDBMeta{
-		Sha256sum: sum[:],
+	return nil
+}
+
+func (db *JsonDB) save() error {
+	tmpfn := fmt.Sprintf("state.json.%d.%d", db.pid, time.Now().UnixMilli())
+	stateFile, err := db.root.OpenFile(tmpfn, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return fmt.Errorf("error opening client sate file for writing: %w", err)
 	}
 
-	if _, err := db.file.Seek(0, 0); err != nil {
-		return fmt.Errorf("failed to rewind client state file: %w", err)
+	enc := json.NewEncoder(stateFile)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(db); err != nil {
+		_ = stateFile.Close()
+		return fmt.Errorf("error writing client state to %q: %w", tmpfn, err)
 	}
 
-	// Newline delimit records
-	buf = append(buf, '\n')
-
-	if _, err := db.file.Write(buf); err != nil {
-		return fmt.Errorf("failed to write client state: %w", err)
-	}
-	if err := json.NewEncoder(db.file).Encode(meta); err != nil {
-		return fmt.Errorf("failed to write client state metadata: %w", err)
+	if err := stateFile.Close(); err != nil {
+		return fmt.Errorf("error closing client state file %q: %w", tmpfn, err)
 	}
 
-	if err := db.file.Sync(); err != nil {
-		return fmt.Errorf("failed to sync client state: %w", err)
+	if err := db.root.Rename(tmpfn, "state.json"); err != nil {
+		return fmt.Errorf("error moving client state file: %w", err)
 	}
 
 	return nil
@@ -542,6 +538,10 @@ func (db *JsonDB) Close() error {
 	if err := db.save(); err != nil {
 		return fmt.Errorf("error saving before close: %w", err)
 	}
+
+	_ = flock.FUnlock(db.lockFile)
+	_ = db.lockFile.Close()
+	_ = db.root.Close()
 
 	// Set everything to nil to blow up on further use
 	db.Allocs = nil
