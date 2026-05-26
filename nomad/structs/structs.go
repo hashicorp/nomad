@@ -10441,7 +10441,14 @@ type Vault struct {
 // IdentityName returns the name of the workload identity to be used to access
 // this Vault cluster.
 func (v *Vault) IdentityName() string {
-	return fmt.Sprintf("%s%s", WorkloadIdentityVaultPrefix, v.Cluster)
+	var clusterName string
+	if v != nil && v.Cluster != "" {
+		clusterName = v.Cluster
+	} else {
+		clusterName = VaultDefaultCluster
+	}
+
+	return fmt.Sprintf("%s%s", WorkloadIdentityVaultPrefix, clusterName)
 }
 
 func (v *Vault) Equal(o *Vault) bool {

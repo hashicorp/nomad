@@ -1,0 +1,7 @@
+```release-note:improvement
+workload identity: client now requests identities for pre-WI tasks with `consul` or `vault` blocks
+```
+
+```release-note:improvement
+workload identity: added configuration for forcing the client to request identity for Consul for tasks with `template` blocks but no `consul` block
+```

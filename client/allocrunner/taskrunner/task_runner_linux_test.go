@@ -155,7 +155,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.MockWranglers(t),
-		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger, allocEnv),
+		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger, allocEnv, false),
 		AllocHookResources:    cstructs.NewAllocHookResources(),
 	}
 

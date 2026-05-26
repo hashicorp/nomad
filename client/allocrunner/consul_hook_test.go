@@ -60,7 +60,7 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 	// the WIDMgr env builder never has the task available
 	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
 
-	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env)
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env, false)
 	mockWIDMgr.SignForTesting()
 
 	consulConfigs := map[string]*structsc.ConsulConfig{

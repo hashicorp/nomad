@@ -26,6 +26,7 @@ require (
 	github.com/containernetworking/cni v1.3.0
 	github.com/coreos/go-iptables v0.8.0
 	github.com/creack/pty v1.1.24
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v29.5.0+incompatible
 	github.com/docker/go-connections v0.7.0
@@ -229,7 +230,6 @@ require (
 	github.com/coreos/go-systemd/v22 v22.7.0 // indirect
 	github.com/coreos/pkg v0.0.0-20220810130054-c7d1c02cb6cf // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba // indirect
 	github.com/digitalocean/godo v1.10.0 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect

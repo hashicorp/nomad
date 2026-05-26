@@ -633,8 +633,45 @@ func (a *Alloc) signTasks(
 
 		claims := builder.Build(now)
 		err = a.signClaims(claims, idReq, reply)
-		break
+		return
 	}
+
+	// fallback for existing allocations
+	if len(task.Identities) == 0 {
+		wid := &structs.WorkloadIdentity{
+			Name: idReq.IdentityName,
+		}
+
+		if task.Vault != nil && wid.IsVault() {
+			widFound = true
+			builder := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid).
+				WithTask(task)
+
+			vaultCfg := a.srv.GetConfig().GetVaultForIdentity(wid)
+			if vaultCfg != nil && vaultCfg.DefaultIdentity != nil {
+				builder.WithVault(vaultCfg.DefaultIdentity.ExtraClaims)
+			}
+			claims := builder.Build(now)
+			err = a.signClaims(claims, idReq, reply)
+			if err != nil {
+				return
+			}
+		}
+
+		if wid.IsConsul() && (task.Consul != nil || len(task.Templates) > 0) {
+			widFound = true
+			builder := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid).
+				WithTask(task).
+				WithConsul()
+			claims := builder.Build(now)
+			err = a.signClaims(claims, idReq, reply)
+			if err != nil {
+				return
+			}
+		}
+
+	}
+
 	return
 }
 
@@ -650,20 +687,39 @@ func (a *Alloc) signServices(
 	// services can be on the level of task groups or tasks
 	for _, tg := range job.TaskGroups {
 		for _, service := range tg.Services {
-			if service.IdentityHandle(nil).Equal(wid) {
+			serviceHandle := service.IdentityHandle(nil)
+			serviceIdentity := service.Identity
+			if serviceHandle == nil {
+				// fallback for legacy allocations on clusters that have been
+				// upgraded to use WI but haven't been redeployed as new job
+				// versions yet
+				serviceHandle, serviceIdentity = a.fallbackServiceIdentityHandle(
+					tg, service)
+			}
+			if serviceHandle.Equal(wid) {
 				claims := structs.NewIdentityClaimsBuilder(
-					alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+					alloc.Job, alloc, &idReq.WIHandle, serviceIdentity).
 					WithConsul().
 					WithService(service).
 					Build(now)
 				return true, a.signClaims(claims, idReq, reply)
 			}
 		}
+
 		for _, task := range tg.Tasks {
 			for _, service := range task.Services {
-				if service.IdentityHandle(nil).Equal(wid) {
+				serviceHandle := service.IdentityHandle(nil)
+				serviceIdentity := service.Identity
+				if serviceHandle == nil {
+					// fallback for legacy allocations on clusters that have been
+					// upgraded to use WI but haven't been redeployed as new job
+					// versions yet
+					serviceHandle, serviceIdentity = a.fallbackServiceIdentityHandle(
+						tg, service)
+				}
+				if serviceHandle.Equal(wid) {
 					claims := structs.NewIdentityClaimsBuilder(
-						alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+						alloc.Job, alloc, &idReq.WIHandle, serviceIdentity).
 						WithTask(task).
 						WithConsul().
 						WithService(service).
@@ -692,4 +748,24 @@ func (a *Alloc) signClaims(
 	})
 
 	return nil
+}
+
+func (a *Alloc) fallbackServiceIdentityHandle(tg *structs.TaskGroup, service *structs.Service) (*structs.WIHandle, *structs.WorkloadIdentity) {
+	if service.Provider == structs.ServiceProviderNomad {
+		return nil, nil // note: the client shouldn't send WID requests for this
+	}
+
+	serviceWID := a.srv.GetConfig().ConsulServiceIdentity(
+		service.GetConsulClusterName(tg))
+	if serviceWID == nil {
+		return nil, nil
+	}
+
+	serviceWID.Name = service.MakeUniqueIdentityName()
+	serviceWID.ServiceName = service.Name
+	service = service.Copy()
+	service.Identity = serviceWID
+
+	handle := service.IdentityHandle(nil)
+	return handle, serviceWID
 }

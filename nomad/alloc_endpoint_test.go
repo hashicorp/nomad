@@ -8,12 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
@@ -1985,4 +1987,150 @@ func TestAlloc_SignIdentities_Blocking(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatalf("result not returned when expected")
 	}
+}
+
+// TestAlloc_SignIdentitiesLegacy tests cases where the client is requesting
+// signed identities for a pre-WI allocation to migrate its use of Consul/Vault.
+func TestAlloc_SignIdentitiesLegacy(t *testing.T) {
+	ci.Parallel(t)
+
+	// Use non-ACL server because auth should always be enforced on this endpoint
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.ConsulConfigs = map[string]*config.ConsulConfig{
+			structs.ConsulDefaultCluster: {
+				ServiceIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"consul.io"},
+				},
+			},
+		}
+	})
+	t.Cleanup(cleanup)
+	codec := rpcClient(t, srv)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+	store := srv.fsm.State()
+	index, _ := store.LatestIndex()
+
+	node := mock.Node()
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	// Insert an alloc that's missing implicit identities but wants WIs. Because
+	// this job has no services, Consul/Vault blocks, or templates, the server
+	// should reject any requests for implicit identities. This ensures the
+	// server can't be tricked by a malicious client into handing out WIs it
+	// shouldn't.
+	alloc0 := mock.MinAlloc()
+	alloc0.NodeID = node.ID
+	alloc0.Job.TaskGroups[0].Tasks[0].Identities = nil // definitely empty
+
+	summary := mock.JobSummary(alloc0.JobID)
+	index++
+	must.NoError(t, store.UpsertJobSummary(index, summary))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc0.Job))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc0}))
+
+	evilSvc0 := &structs.Service{Name: "${TASK}-frontend", PortLabel: "www"}
+	evilSvcIDName := evilSvc0.MakeUniqueIdentityName()
+
+	qo := structs.QueryOptions{
+		Region:     "global",
+		Namespace:  structs.DefaultNamespace,
+		AllowStale: true,
+		AuthToken:  node.SecretID,
+	}
+
+	req := &structs.AllocIdentitiesRequest{
+		Identities: []*structs.WorkloadIdentityRequest{
+			{
+				AllocID: alloc0.ID,
+				WIHandle: structs.WIHandle{
+					IdentityName:                   "vault_default",
+					WorkloadIdentifier:             "t",
+					WorkloadType:                   structs.WorkloadTypeTask,
+					InterpolatedWorkloadIdentifier: "t",
+				},
+			},
+			{
+				AllocID: alloc0.ID,
+				WIHandle: structs.WIHandle{
+					IdentityName:                   "consul_default",
+					WorkloadIdentifier:             "t",
+					WorkloadType:                   structs.WorkloadTypeTask,
+					InterpolatedWorkloadIdentifier: "t",
+				},
+			},
+			{
+				AllocID: alloc0.ID,
+				WIHandle: structs.WIHandle{
+					IdentityName:                   evilSvcIDName,
+					WorkloadIdentifier:             evilSvc0.Name,
+					WorkloadType:                   structs.WorkloadTypeService,
+					InterpolatedWorkloadIdentifier: "t-frontend",
+				},
+			},
+		},
+		QueryOptions: qo,
+	}
+	var resp structs.AllocIdentitiesResponse
+	err := msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp)
+	must.NoError(t, err)
+	must.Len(t, 3, resp.Rejections)
+
+	// Insert an alloc that's missing implicit identities and wants WIs, but
+	// should be allowed to get them for its services, Consul/Vault blocks, or
+	// templates.
+	alloc1 := mock.AllocForNode(node)
+	alloc1.Job.TaskGroups[0].Tasks[0].Identities = nil // definitely empty
+
+	tg0 := alloc1.Job.TaskGroups[0]
+	task0 := tg0.Tasks[0]
+	task0.Vault = &structs.Vault{}
+
+	service0 := alloc1.Job.TaskGroups[0].Tasks[0].Services[0]
+	alloc1.Job.TaskGroups[0].Tasks[0].Services[1].Provider = "nomad"
+	task0.Templates = []*structs.Template{{
+		EmbeddedTmpl: "template-contents-foo",
+	}}
+
+	summary = mock.JobSummary(alloc1.JobID)
+	index++
+	must.NoError(t, store.UpsertJobSummary(index, summary))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc1.Job))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1}))
+	req = &structs.AllocIdentitiesRequest{
+		Identities: []*structs.WorkloadIdentityRequest{
+			{
+				AllocID: alloc1.ID,
+				WIHandle: structs.WIHandle{
+					IdentityName:                   "vault_default",
+					WorkloadIdentifier:             task0.Name,
+					WorkloadType:                   structs.WorkloadTypeTask,
+					InterpolatedWorkloadIdentifier: task0.Name,
+				},
+			},
+			{
+				AllocID: alloc1.ID,
+				WIHandle: structs.WIHandle{
+					IdentityName:                   "consul_default",
+					WorkloadIdentifier:             task0.Name,
+					WorkloadType:                   structs.WorkloadTypeTask,
+					InterpolatedWorkloadIdentifier: task0.Name,
+				},
+			},
+			{
+				AllocID: alloc1.ID,
+				WIHandle: structs.WIHandle{
+					IdentityName:                   service0.MakeUniqueIdentityName(),
+					WorkloadIdentifier:             service0.Name,
+					WorkloadType:                   structs.WorkloadTypeService,
+					InterpolatedWorkloadIdentifier: service0.Name,
+				},
+			},
+		},
+		QueryOptions: qo,
+	}
+	err = msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp)
+	must.NoError(t, err)
+	must.Len(t, 0, resp.Rejections, must.Sprint(spew.Sdump(resp.Rejections)))
+
 }

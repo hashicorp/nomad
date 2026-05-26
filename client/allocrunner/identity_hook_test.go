@@ -44,7 +44,7 @@ func TestIdentityHook_Prerun(t *testing.T) {
 
 	// setup mock signer and WIDMgr
 	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
-	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env)
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env, false)
 	allocrunner.widmgr = mockWIDMgr
 	allocrunner.widsigner = mockSigner
 

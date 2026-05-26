@@ -22,9 +22,10 @@ func TestWIDMgr_Restore(t *testing.T) {
 	db := cstate.NewMemDB(logger)
 
 	alloc := mock.Alloc()
-	service := alloc.Job.TaskGroups[0].Tasks[0].Services[0]
+	service0 := alloc.Job.TaskGroups[0].Tasks[0].Services[0] // WI identity
+	alloc.Job.TaskGroups[0].Tasks[0].Services[1].Provider = "nomad"
 	widSpecs := []*structs.WorkloadIdentity{
-		{ServiceName: service.MakeUniqueIdentityName()},
+		{Name: service0.MakeUniqueIdentityName(), ServiceName: service0.Name},
 		{Name: "default"},
 		{Name: "extra", TTL: time.Hour},
 	}
@@ -33,7 +34,7 @@ func TestWIDMgr_Restore(t *testing.T) {
 	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
 
 	signer := NewMockWIDSigner(widSpecs)
-	mgr := NewWIDMgr(signer, alloc, db, logger, env)
+	mgr := NewWIDMgr(signer, alloc, db, logger, env, false)
 
 	// restore, but we haven't previously saved to the db
 	hasExpired, err := mgr.restoreStoredIdentities()
@@ -54,7 +55,7 @@ func TestWIDMgr_Restore(t *testing.T) {
 	widSpecs[2].TTL = time.Second
 	signer.setWIDs(widSpecs)
 
-	wiHandle := service.IdentityHandle(env.ReplaceEnv)
+	wiHandle := service0.IdentityHandle(env.ReplaceEnv)
 	mgr.widSpecs[*wiHandle].TTL = time.Second
 
 	// force a re-sign to re-populate the lastToken and save to the db
@@ -64,4 +65,50 @@ func TestWIDMgr_Restore(t *testing.T) {
 	hasExpired, err = mgr.restoreStoredIdentities()
 	must.NoError(t, err)
 	must.True(t, hasExpired)
+}
+
+// TestWIDMgr_RestoreLegacy tests the restore path on existing pre-WI
+// allocations that don't have any injected implicit identities for Consul/Vault
+func TestWIDMgr_RestoreLegacy(t *testing.T) {
+
+	logger := testlog.HCLogger(t)
+
+	db := cstate.NewMemDB(logger)
+
+	alloc := mock.Alloc()
+	tg0 := alloc.Job.TaskGroups[0]
+	task0 := tg0.Tasks[0]
+
+	// non-nil Vault block triggers fallback identity request for Vault WI for task
+	task0.Vault = &structs.Vault{}
+
+	// non-nil template block + ClientConfig.TemplateConfig.DeriveConsulToken
+	// triggers fallback identity request for Consul WI for task
+	deriveConsulWIForTemplates := true
+	task0.Templates = []*structs.Template{{
+		EmbeddedTmpl: "template-contents-foo",
+	}}
+
+	// Consul service block triggers fallback identity request for Consul WI for
+	// service
+	service0 := alloc.Job.TaskGroups[0].Tasks[0].Services[0]
+	task0.Services[1].Provider = "nomad"
+
+	widSpecs := []*structs.WorkloadIdentity{
+		{Name: service0.MakeUniqueIdentityName(), ServiceName: service0.Name},
+		{Name: "vault_default"},
+		{Name: "consul_default"},
+		{Name: "default"},
+	}
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
+	signer := NewMockWIDSigner(widSpecs)
+	mgr := NewWIDMgr(signer, alloc, db, logger, env, deriveConsulWIForTemplates)
+
+	// restore, but we haven't previously saved to the db
+	hasExpired, err := mgr.restoreStoredIdentities()
+	must.NoError(t, err)
+	must.True(t, hasExpired)
+
+	// populate the lastToken and save to the db
+	must.NoError(t, mgr.getInitialIdentities())
 }

@@ -306,7 +306,9 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	).SetAllocDir(ar.allocDir.AllocDirPath()).Build()
 
 	// initialize the workload identity manager
-	widmgr := widmgr.NewWIDMgr(ar.widsigner, alloc, ar.stateDB, ar.logger, allocEnv)
+	widmgr := widmgr.NewWIDMgr(ar.widsigner, alloc, ar.stateDB, ar.logger, allocEnv,
+		config.ClientConfig.TemplateConfig.DeriveConsulToken,
+	)
 	ar.widmgr = widmgr
 
 	// Initialize the runners hooks.

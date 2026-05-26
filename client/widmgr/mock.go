@@ -75,6 +75,7 @@ func (m *MockWIDSigner) JSONWebKeySet() *jose.JSONWebKeySet {
 
 func (m *MockWIDSigner) SignIdentities(_ uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
 	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
+
 	for _, idReq := range req {
 		// Set test values for default claims
 		claims := &structs.IdentityClaims{

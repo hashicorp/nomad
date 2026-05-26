@@ -54,30 +54,21 @@ type WIDMgr struct {
 	logger hclog.Logger
 }
 
-func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger, allocEnv *taskenv.TaskEnv) *WIDMgr {
+func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger, allocEnv *taskenv.TaskEnv, deriveConsulWIForTemplates bool) *WIDMgr {
 	widspecs := map[structs.WIHandle]*structs.WorkloadIdentity{}
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
 	for _, service := range tg.Services {
-		if service.Identity != nil {
-			handle := *service.IdentityHandle(allocEnv.ReplaceEnv)
-			widspecs[handle] = service.Identity
-		}
+		genWIDspecForService(widspecs, service, allocEnv)
 	}
 
 	for _, task := range tg.Tasks {
-		// Omit default identity as it does not expire
-		for _, id := range task.Identities {
-			widspecs[*task.IdentityHandle(id)] = id
-		}
+		getWIDspecForTask(widspecs, task, tg, deriveConsulWIForTemplates)
 
 		// update the builder for this task
 		taskEnv := allocEnv.WithTask(a, task)
 		for _, service := range task.Services {
-			if service.Identity != nil {
-				handle := *service.IdentityHandle(taskEnv.ReplaceEnv)
-				widspecs[handle] = service.Identity
-			}
+			genWIDspecForService(widspecs, service, taskEnv)
 		}
 	}
 
@@ -99,6 +90,81 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 		stop:                    stop,
 		logger:                  logger.Named("widmgr"),
 	}
+}
+
+func genWIDspecForService(widspecs map[structs.WIHandle]*structs.WorkloadIdentity, service *structs.Service, taskEnv *taskenv.TaskEnv) {
+	if service.Identity != nil {
+		handle := *service.IdentityHandle(taskEnv.ReplaceEnv)
+		widspecs[handle] = service.Identity
+		return
+	}
+	if service.Provider == structs.ServiceProviderNomad {
+		return
+	}
+
+	// provide a bare-minimum identity handle that will let the server to
+	// fallback to the default Consul service identity for this service's
+	// cluster
+	fallbackWI := &structs.WorkloadIdentity{
+		Name:        service.MakeUniqueIdentityName(),
+		ServiceName: service.Name,
+	}
+	service.Identity = fallbackWI
+	handle := *service.IdentityHandle(taskEnv.ReplaceEnv)
+	widspecs[handle] = fallbackWI
+}
+
+func getWIDspecForTask(widspecs map[structs.WIHandle]*structs.WorkloadIdentity, task *structs.Task, tg *structs.TaskGroup, deriveConsulTokenForTemplates bool) {
+	// Omit default identity as it does not expire
+	for _, id := range task.Identities {
+		widspecs[*task.IdentityHandle(id)] = id
+	}
+	if len(task.Identities) > 0 {
+		return
+	}
+
+	// To improve backwards compatibility for pre-1.10 allocations, assume that
+	// if there are no identities that this may be an allocation that hasn't
+	// been migrated to workload identity. If they have any Consul/Vault
+	// configuration we can safely assume they also need a token.
+
+	if task.Vault != nil {
+		fallbackWI := &structs.WorkloadIdentity{
+			Name: task.Vault.IdentityName(),
+		}
+		handle := *task.IdentityHandle(fallbackWI)
+		widspecs[handle] = fallbackWI
+	}
+
+	if task.Consul != nil {
+		fallbackWI := &structs.WorkloadIdentity{
+			Name: task.Consul.IdentityName(),
+		}
+		handle := *task.IdentityHandle(fallbackWI)
+		widspecs[handle] = fallbackWI
+		deriveConsulTokenForTemplates = false
+	} else if tg.Consul != nil {
+		fallbackWI := &structs.WorkloadIdentity{
+			Name: tg.Consul.IdentityName(),
+		}
+		handle := *task.IdentityHandle(fallbackWI)
+		widspecs[handle] = fallbackWI
+		deriveConsulTokenForTemplates = false
+	}
+
+	// The vault block was required to get a Vault token even prior to 1.10, but
+	// the consul block was not as is unlikely to be set for CE users because
+	// there are no CE fields in the consul block. For those users, we can
+	// fallback to checking a client configuration
+	if len(task.Templates) == 0 || !deriveConsulTokenForTemplates {
+		return
+	}
+
+	fallbackWI := &structs.WorkloadIdentity{
+		Name: task.Consul.IdentityName(),
+	}
+	handle := *task.IdentityHandle(fallbackWI)
+	widspecs[handle] = fallbackWI
 }
 
 // SetMinWait sets the minimum time for renewals

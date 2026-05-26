@@ -143,6 +143,9 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 		return fmt.Errorf("no such consul cluster: %s", clusterName)
 	}
 
+	// TODO: need fallback for when identity hasn't been set for existing
+	// allocations (or we need to mutate the Task in the WID manager)
+
 	// Find task workload identity for Consul.
 	widName := fmt.Sprintf("%s_%s", structs.ConsulTaskIdentityNamePrefix, consulConfig.Name)
 	wid := task.GetIdentity(widName)
