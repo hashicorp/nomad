@@ -1,5 +1,11 @@
 package agent
 
+import (
+	"net/http"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
 func (s *HTTPServer) JobQueueStatus(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
