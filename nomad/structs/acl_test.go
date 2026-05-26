@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -196,7 +195,7 @@ func TestACLTokenValidate(t *testing.T) {
 				Type:           ACLManagementToken,
 				Name:           "foo",
 				CreateTime:     time.Date(2022, time.July, 11, 16, 23, 0, 0, time.UTC),
-				ExpirationTime: pointer.Of(time.Date(2022, time.July, 11, 16, 23, 10, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.July, 11, 16, 23, 10, 0, time.UTC)),
 			},
 			inputExistingACLToken: nil,
 			expectedErrorContains: "expiration time cannot be less than",
@@ -207,7 +206,7 @@ func TestACLTokenValidate(t *testing.T) {
 				Type:           ACLManagementToken,
 				Name:           "foo",
 				CreateTime:     time.Date(2022, time.July, 11, 16, 23, 0, 0, time.UTC),
-				ExpirationTime: pointer.Of(time.Date(2042, time.July, 11, 16, 23, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2042, time.July, 11, 16, 23, 0, 0, time.UTC)),
 			},
 			inputExistingACLToken: nil,
 			expectedErrorContains: "expiration time cannot be more than",
@@ -264,21 +263,21 @@ func TestACLToken_HasExpirationTime(t *testing.T) {
 		{
 			name: "expiration set to now",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Now().UTC()),
+				ExpirationTime: new(time.Now().UTC()),
 			},
 			expectedOutput: true,
 		},
 		{
 			name: "expiration set to past",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.February, 21, 19, 35, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.February, 21, 19, 35, 0, 0, time.UTC)),
 			},
 			expectedOutput: true,
 		},
 		{
 			name: "expiration set to future",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2087, time.April, 25, 12, 0, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2087, time.April, 25, 12, 0, 0, 0, time.UTC)),
 			},
 			expectedOutput: true,
 		},
@@ -314,7 +313,7 @@ func TestACLToken_IsExpired(t *testing.T) {
 		{
 			name: "token not expired",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
 			},
 			inputTime:      time.Date(2022, time.May, 9, 10, 26, 0, 0, time.UTC),
 			expectedOutput: false,
@@ -322,7 +321,7 @@ func TestACLToken_IsExpired(t *testing.T) {
 		{
 			name: "token expired",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
 			},
 			inputTime:      time.Date(2022, time.May, 9, 10, 28, 0, 0, time.UTC),
 			expectedOutput: true,
@@ -330,7 +329,7 @@ func TestACLToken_IsExpired(t *testing.T) {
 		{
 			name: "empty input time",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
 			},
 			inputTime:      time.Time{},
 			expectedOutput: true,

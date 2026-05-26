@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -494,7 +493,7 @@ func genTaskGroup(idg *idGenerator) *rapid.Generator[*structs.TaskGroup] {
 			Update: genUpdateBlock(tgCount).Draw(t, "tg_update_block"),
 			Disconnect: &structs.DisconnectStrategy{
 				LostAfter: maybeDuration(50, 300).Draw(t, "disconnect:lost_after"),
-				Replace:   pointer.Of(rapid.Bool().Draw(t, "disconnect:replace")),
+				Replace:   new(rapid.Bool().Draw(t, "disconnect:replace")),
 				Reconcile: structs.ReconcileOptionBestScore,
 			},
 			// we'll use a fairly static policy and then use the alloc

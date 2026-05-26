@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -18,10 +17,10 @@ func TestWorkloadIdentityConfig_Copy(t *testing.T) {
 	original := &WorkloadIdentityConfig{
 		Name:     "test",
 		Audience: []string{"aud"},
-		Env:      pointer.Of(true),
-		File:     pointer.Of(false),
+		Env:      new(true),
+		File:     new(false),
 		Filepath: "foo",
-		TTL:      pointer.Of(time.Hour),
+		TTL:      new(time.Hour),
 	}
 
 	// Verify Copy() returns the same values but different pointer.
@@ -62,18 +61,18 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 			a: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(false),
+				Env:      new(true),
+				File:     new(false),
 				Filepath: "foo",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			},
 			b: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(false),
+				Env:      new(true),
+				File:     new(false),
 				Filepath: "foo",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			},
 			expectEq: true,
 		},
@@ -100,17 +99,17 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 		{
 			name: "different env",
 			a: &WorkloadIdentityConfig{
-				Env: pointer.Of(true),
+				Env: new(true),
 			},
 			b: &WorkloadIdentityConfig{
-				Env: pointer.Of(false),
+				Env: new(false),
 			},
 			expectEq: false,
 		},
 		{
 			name: "different env nil",
 			a: &WorkloadIdentityConfig{
-				Env: pointer.Of(true),
+				Env: new(true),
 			},
 			b: &WorkloadIdentityConfig{
 				Env: nil,
@@ -120,10 +119,10 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 		{
 			name: "different file",
 			a: &WorkloadIdentityConfig{
-				File: pointer.Of(true),
+				File: new(true),
 			},
 			b: &WorkloadIdentityConfig{
-				File: pointer.Of(false),
+				File: new(false),
 			},
 			expectEq: false,
 		},
@@ -140,7 +139,7 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 		{
 			name: "different file nil",
 			a: &WorkloadIdentityConfig{
-				File: pointer.Of(true),
+				File: new(true),
 			},
 			b: &WorkloadIdentityConfig{
 				File: nil,
@@ -150,10 +149,10 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 		{
 			name: "different ttl",
 			a: &WorkloadIdentityConfig{
-				TTL: pointer.Of(time.Hour),
+				TTL: new(time.Hour),
 			},
 			b: &WorkloadIdentityConfig{
-				TTL: pointer.Of(time.Minute),
+				TTL: new(time.Minute),
 			},
 			expectEq: false,
 		},
@@ -186,10 +185,10 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 			expected: &WorkloadIdentityConfig{
 				Name:     "other",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(false),
+				Env:      new(true),
+				File:     new(false),
 				Filepath: "test",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			},
 		},
 		{
@@ -200,38 +199,38 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 			expected: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud", "other"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(false),
+				Env:      new(true),
+				File:     new(false),
 				Filepath: "test",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			},
 		},
 		{
 			name: "merge env",
 			other: &WorkloadIdentityConfig{
-				Env: pointer.Of(false),
+				Env: new(false),
 			},
 			expected: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(false),
-				File:     pointer.Of(false),
+				Env:      new(false),
+				File:     new(false),
 				Filepath: "test",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			},
 		},
 		{
 			name: "merge file",
 			other: &WorkloadIdentityConfig{
-				File: pointer.Of(true),
+				File: new(true),
 			},
 			expected: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(true),
+				Env:      new(true),
+				File:     new(true),
 				Filepath: "test",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			},
 		},
 		{
@@ -242,24 +241,24 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 			expected: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(false),
+				Env:      new(true),
+				File:     new(false),
 				Filepath: "other",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			},
 		},
 		{
 			name: "merge ttl",
 			other: &WorkloadIdentityConfig{
-				TTL: pointer.Of(time.Second),
+				TTL: new(time.Second),
 			},
 			expected: &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(false),
+				Env:      new(true),
+				File:     new(false),
 				Filepath: "test",
-				TTL:      pointer.Of(time.Second),
+				TTL:      new(time.Second),
 			},
 		},
 	}
@@ -269,10 +268,10 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 			original := &WorkloadIdentityConfig{
 				Name:     "test",
 				Audience: []string{"aud"},
-				Env:      pointer.Of(true),
-				File:     pointer.Of(false),
+				Env:      new(true),
+				File:     new(false),
 				Filepath: "test",
-				TTL:      pointer.Of(time.Hour),
+				TTL:      new(time.Hour),
 			}
 			got := original.Merge(tc.other)
 			must.Eq(t, tc.expected, got)
@@ -284,33 +283,33 @@ func TestWorkloadIdentityConfig_Merge_multiple(t *testing.T) {
 	widConfig1 := &WorkloadIdentityConfig{
 		Name:     "wid1",
 		Audience: []string{"aud1"},
-		Env:      pointer.Of(true),
+		Env:      new(true),
 	}
 
 	widConfig2 := &WorkloadIdentityConfig{
 		Name:     "wid2",
 		Audience: []string{"aud2"},
-		Env:      pointer.Of(false),
+		Env:      new(false),
 	}
 
 	got12 := widConfig1.Merge(widConfig2)
 	must.Eq(t, &WorkloadIdentityConfig{
 		Name:     "wid2",
 		Audience: []string{"aud1", "aud2"},
-		Env:      pointer.Of(false),
+		Env:      new(false),
 	}, got12)
 
 	widConfig3 := &WorkloadIdentityConfig{
 		Name:     "wid3",
 		Audience: []string{"aud1", "aud2", "aud3"},
-		File:     pointer.Of(false),
+		File:     new(false),
 	}
 
 	got123 := got12.Merge(widConfig3)
 	must.Eq(t, &WorkloadIdentityConfig{
 		Name:     "wid3",
 		Audience: []string{"aud1", "aud2", "aud3"},
-		Env:      pointer.Of(false),
-		File:     pointer.Of(false),
+		Env:      new(false),
+		File:     new(false),
 	}, got123)
 }

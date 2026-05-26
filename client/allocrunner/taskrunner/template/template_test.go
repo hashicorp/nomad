@@ -29,7 +29,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -95,7 +94,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 			TemplateConfig: &config.ClientTemplateConfig{
 				FunctionDenylist: config.DefaultTemplateFunctionDenylist,
 				DisableSandbox:   false,
-				ConsulRetry:      &config.RetryConfig{Backoff: pointer.Of(10 * time.Millisecond)},
+				ConsulRetry:      &config.RetryConfig{Backoff: new(10 * time.Millisecond)},
 			}},
 		emitRate: DefaultMaxTemplateEventRate,
 	}
@@ -360,20 +359,20 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 func TestNewRunnerConfig_Retries(t *testing.T) {
 	tcfg := config.DefaultTemplateConfig()
 	tcfg.ConsulRetry = &config.RetryConfig{
-		Attempts:   pointer.Of(0), // unlimited
-		Backoff:    pointer.Of(100 * time.Millisecond),
-		MaxBackoff: pointer.Of(300 * time.Millisecond),
+		Attempts:   new(0), // unlimited
+		Backoff:    new(100 * time.Millisecond),
+		MaxBackoff: new(300 * time.Millisecond),
 	}
 	tcfg.VaultRetry = &config.RetryConfig{
-		Attempts:   pointer.Of(5), // limited non-default
-		Backoff:    pointer.Of(200 * time.Millisecond),
-		MaxBackoff: pointer.Of(500 * time.Millisecond),
+		Attempts:   new(5), // limited non-default
+		Backoff:    new(200 * time.Millisecond),
+		MaxBackoff: new(500 * time.Millisecond),
 	}
 
 	managerCfg := &TaskTemplateManagerConfig{
 		ClientConfig: &config.Config{TemplateConfig: tcfg},
 		ConsulConfig: &sconfig.ConsulConfig{},
-		VaultConfig:  &sconfig.VaultConfig{Enabled: pointer.Of(true)},
+		VaultConfig:  &sconfig.VaultConfig{Enabled: new(true)},
 	}
 	ct := ctconf.DefaultTemplateConfig()
 	mapping := map[*ctconf.TemplateConfig]*structs.Template{ct: {}}
@@ -381,22 +380,22 @@ func TestNewRunnerConfig_Retries(t *testing.T) {
 	must.NoError(t, err)
 
 	must.Eq(t, &ctconf.RetryConfig{
-		Attempts:   pointer.Of(0),
-		Backoff:    pointer.Of(100 * time.Millisecond),
-		MaxBackoff: pointer.Of(300 * time.Millisecond),
-		Enabled:    pointer.Of(true),
+		Attempts:   new(0),
+		Backoff:    new(100 * time.Millisecond),
+		MaxBackoff: new(300 * time.Millisecond),
+		Enabled:    new(true),
 	}, tconfig.Consul.Retry)
 	must.Eq(t, &ctconf.RetryConfig{
-		Attempts:   pointer.Of(5),
-		Backoff:    pointer.Of(200 * time.Millisecond),
-		MaxBackoff: pointer.Of(500 * time.Millisecond),
-		Enabled:    pointer.Of(true),
+		Attempts:   new(5),
+		Backoff:    new(200 * time.Millisecond),
+		MaxBackoff: new(500 * time.Millisecond),
+		Enabled:    new(true),
 	}, tconfig.Vault.Retry)
 	must.Eq(t, &ctconf.RetryConfig{
-		Attempts:   pointer.Of(12),
-		Backoff:    pointer.Of(250 * time.Millisecond),
-		MaxBackoff: pointer.Of(time.Minute),
-		Enabled:    pointer.Of(true),
+		Attempts:   new(12),
+		Backoff:    new(250 * time.Millisecond),
+		MaxBackoff: new(time.Minute),
+		Enabled:    new(true),
 	}, tconfig.Nomad.Retry)
 }
 
@@ -1900,7 +1899,7 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	c.Node = mock.Node()
 	c.VaultConfigs = map[string]*sconfig.VaultConfig{
 		structs.VaultDefaultCluster: {
-			Enabled:       pointer.Of(true),
+			Enabled:       new(true),
 			Addr:          "https://localhost/",
 			TLSServerName: "notlocalhost",
 		},
@@ -1932,7 +1931,7 @@ func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	c.Node = mock.Node()
 	c.VaultConfigs = map[string]*sconfig.VaultConfig{
 		structs.VaultDefaultCluster: {
-			Enabled:       pointer.Of(true),
+			Enabled:       new(true),
 			Addr:          "https://localhost/",
 			TLSServerName: "notlocalhost",
 			Namespace:     testNS,
@@ -1966,7 +1965,7 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	c.Node = mock.Node()
 	c.VaultConfigs = map[string]*sconfig.VaultConfig{
 		structs.VaultDefaultCluster: {
-			Enabled:       pointer.Of(true),
+			Enabled:       new(true),
 			Addr:          "https://localhost/",
 			TLSServerName: "notlocalhost",
 			Namespace:     testNS,
@@ -2361,7 +2360,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 
 	clientConfig.VaultConfigs = map[string]*sconfig.VaultConfig{
 		structs.VaultDefaultCluster: {
-			Enabled:   pointer.Of(true),
+			Enabled:   new(true),
 			Namespace: testNS,
 		},
 	}
@@ -2372,18 +2371,18 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 
 	// helper to reduce boilerplate
 	waitConfig := &config.WaitConfig{
-		Min: pointer.Of(5 * time.Second),
-		Max: pointer.Of(10 * time.Second),
+		Min: new(5 * time.Second),
+		Max: new(10 * time.Second),
 	}
 	// helper to reduce boilerplate
 	retryConfig := &config.RetryConfig{
-		Attempts:   pointer.Of(5),
-		Backoff:    pointer.Of(5 * time.Second),
-		MaxBackoff: pointer.Of(20 * time.Second),
+		Attempts:   new(5),
+		Backoff:    new(5 * time.Second),
+		MaxBackoff: new(20 * time.Second),
 	}
 
-	clientConfig.TemplateConfig.MaxStale = pointer.Of(5 * time.Second)
-	clientConfig.TemplateConfig.BlockQueryWaitTime = pointer.Of(60 * time.Second)
+	clientConfig.TemplateConfig.MaxStale = new(5 * time.Second)
+	clientConfig.TemplateConfig.BlockQueryWaitTime = new(60 * time.Second)
 	clientConfig.TemplateConfig.Wait = waitConfig.Copy()
 	clientConfig.TemplateConfig.ConsulRetry = retryConfig.Copy()
 	clientConfig.TemplateConfig.VaultRetry = retryConfig.Copy()
@@ -2394,8 +2393,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	allocWithOverride.Job.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Min: pointer.Of(2 * time.Second),
-				Max: pointer.Of(12 * time.Second),
+				Min: new(2 * time.Second),
+				Max: new(12 * time.Second),
 			},
 		},
 	}
@@ -2410,8 +2409,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 		{
 			"basic-wait-config",
 			&config.ClientTemplateConfig{
-				MaxStale:           pointer.Of(5 * time.Second),
-				BlockQueryWaitTime: pointer.Of(60 * time.Second),
+				MaxStale:           new(5 * time.Second),
+				BlockQueryWaitTime: new(60 * time.Second),
 				Wait:               waitConfig.Copy(),
 				ConsulRetry:        retryConfig.Copy(),
 				VaultRetry:         retryConfig.Copy(),
@@ -2426,8 +2425,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&config.Config{
 				TemplateConfig: &config.ClientTemplateConfig{
-					MaxStale:           pointer.Of(5 * time.Second),
-					BlockQueryWaitTime: pointer.Of(60 * time.Second),
+					MaxStale:           new(5 * time.Second),
+					BlockQueryWaitTime: new(60 * time.Second),
 					Wait:               waitConfig.Copy(),
 					ConsulRetry:        retryConfig.Copy(),
 					VaultRetry:         retryConfig.Copy(),
@@ -2436,17 +2435,17 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&templateconfig.TemplateConfig{
 				Wait: &templateconfig.WaitConfig{
-					Enabled: pointer.Of(true),
-					Min:     pointer.Of(5 * time.Second),
-					Max:     pointer.Of(10 * time.Second),
+					Enabled: new(true),
+					Min:     new(5 * time.Second),
+					Max:     new(10 * time.Second),
 				},
 			},
 		},
 		{
 			"template-override",
 			&config.ClientTemplateConfig{
-				MaxStale:           pointer.Of(5 * time.Second),
-				BlockQueryWaitTime: pointer.Of(60 * time.Second),
+				MaxStale:           new(5 * time.Second),
+				BlockQueryWaitTime: new(60 * time.Second),
 				Wait:               waitConfig.Copy(),
 				ConsulRetry:        retryConfig.Copy(),
 				VaultRetry:         retryConfig.Copy(),
@@ -2461,8 +2460,8 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&config.Config{
 				TemplateConfig: &config.ClientTemplateConfig{
-					MaxStale:           pointer.Of(5 * time.Second),
-					BlockQueryWaitTime: pointer.Of(60 * time.Second),
+					MaxStale:           new(5 * time.Second),
+					BlockQueryWaitTime: new(60 * time.Second),
 					Wait:               waitConfig.Copy(),
 					ConsulRetry:        retryConfig.Copy(),
 					VaultRetry:         retryConfig.Copy(),
@@ -2471,21 +2470,21 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&templateconfig.TemplateConfig{
 				Wait: &templateconfig.WaitConfig{
-					Enabled: pointer.Of(true),
-					Min:     pointer.Of(2 * time.Second),
-					Max:     pointer.Of(12 * time.Second),
+					Enabled: new(true),
+					Min:     new(2 * time.Second),
+					Max:     new(12 * time.Second),
 				},
 			},
 		},
 		{
 			"bounds-override",
 			&config.ClientTemplateConfig{
-				MaxStale:           pointer.Of(5 * time.Second),
-				BlockQueryWaitTime: pointer.Of(60 * time.Second),
+				MaxStale:           new(5 * time.Second),
+				BlockQueryWaitTime: new(60 * time.Second),
 				Wait:               waitConfig.Copy(),
 				WaitBounds: &config.WaitConfig{
-					Min: pointer.Of(3 * time.Second),
-					Max: pointer.Of(11 * time.Second),
+					Min: new(3 * time.Second),
+					Max: new(11 * time.Second),
 				},
 				ConsulRetry: retryConfig.Copy(),
 				VaultRetry:  retryConfig.Copy(),
@@ -2500,20 +2499,20 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				Templates: []*structs.Template{
 					{
 						Wait: &structs.WaitConfig{
-							Min: pointer.Of(2 * time.Second),
-							Max: pointer.Of(12 * time.Second),
+							Min: new(2 * time.Second),
+							Max: new(12 * time.Second),
 						},
 					},
 				},
 			},
 			&config.Config{
 				TemplateConfig: &config.ClientTemplateConfig{
-					MaxStale:           pointer.Of(5 * time.Second),
-					BlockQueryWaitTime: pointer.Of(60 * time.Second),
+					MaxStale:           new(5 * time.Second),
+					BlockQueryWaitTime: new(60 * time.Second),
 					Wait:               waitConfig.Copy(),
 					WaitBounds: &config.WaitConfig{
-						Min: pointer.Of(3 * time.Second),
-						Max: pointer.Of(11 * time.Second),
+						Min: new(3 * time.Second),
+						Max: new(11 * time.Second),
 					},
 					ConsulRetry: retryConfig.Copy(),
 					VaultRetry:  retryConfig.Copy(),
@@ -2522,9 +2521,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&templateconfig.TemplateConfig{
 				Wait: &templateconfig.WaitConfig{
-					Enabled: pointer.Of(true),
-					Min:     pointer.Of(3 * time.Second),
-					Max:     pointer.Of(11 * time.Second),
+					Enabled: new(true),
+					Min:     new(3 * time.Second),
+					Max:     new(11 * time.Second),
 				},
 			},
 		},
@@ -2594,8 +2593,8 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 		Templates: []*structs.Template{
 			{
 				Wait: &structs.WaitConfig{
-					Min: pointer.Of(5 * time.Second),
-					Max: pointer.Of(10 * time.Second),
+					Min: new(5 * time.Second),
+					Max: new(10 * time.Second),
 				},
 			},
 		},
@@ -2628,13 +2627,13 @@ func Test_newRunnerConfig_consul(t *testing.T) {
 				ClientConfig: config.DefaultConfig(),
 			},
 			expectedOutputConfig: &ctconf.ConsulConfig{
-				Address:   pointer.Of("localhost:8500"),
-				Namespace: pointer.Of(""),
+				Address:   new("localhost:8500"),
+				Namespace: new(""),
 				Auth:      ctconf.DefaultAuthConfig(),
 				Retry:     ctconf.DefaultRetryConfig(),
 				SSL:       ctconf.DefaultSSLConfig(),
-				Token:     pointer.Of("token"),
-				TokenFile: pointer.Of(""),
+				Token:     new("token"),
+				TokenFile: new(""),
 				Transport: ctconf.DefaultTransportConfig(),
 			},
 		},
@@ -2645,13 +2644,13 @@ func Test_newRunnerConfig_consul(t *testing.T) {
 				ClientConfig: config.DefaultConfig(),
 			},
 			expectedOutputConfig: &ctconf.ConsulConfig{
-				Address:   pointer.Of("localhost:8500"),
-				Namespace: pointer.Of(""),
+				Address:   new("localhost:8500"),
+				Namespace: new(""),
 				Auth:      ctconf.DefaultAuthConfig(),
 				Retry:     ctconf.DefaultRetryConfig(),
 				SSL:       ctconf.DefaultSSLConfig(),
-				Token:     pointer.Of(""),
-				TokenFile: pointer.Of(""),
+				Token:     new(""),
+				TokenFile: new(""),
 				Transport: ctconf.DefaultTransportConfig(),
 			},
 		},

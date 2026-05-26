@@ -1,12 +1,10 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
 
 import (
 	"time"
-
-	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 type AutopilotConfig struct {
@@ -63,7 +61,7 @@ func (a *AutopilotConfig) Merge(b *AutopilotConfig) *AutopilotConfig {
 	result := a.Copy()
 
 	if b.CleanupDeadServers != nil {
-		result.CleanupDeadServers = pointer.Of(*b.CleanupDeadServers)
+		result.CleanupDeadServers = new(*b.CleanupDeadServers)
 	}
 	if b.ServerStabilizationTime != 0 {
 		result.ServerStabilizationTime = b.ServerStabilizationTime
@@ -87,7 +85,7 @@ func (a *AutopilotConfig) Merge(b *AutopilotConfig) *AutopilotConfig {
 		result.EnableRedundancyZones = b.EnableRedundancyZones
 	}
 	if b.DisableUpgradeMigration != nil {
-		result.DisableUpgradeMigration = pointer.Of(*b.DisableUpgradeMigration)
+		result.DisableUpgradeMigration = new(*b.DisableUpgradeMigration)
 	}
 	if b.EnableCustomUpgrades != nil {
 		result.EnableCustomUpgrades = b.EnableCustomUpgrades
@@ -107,16 +105,16 @@ func (a *AutopilotConfig) Copy() *AutopilotConfig {
 
 	// Copy the bools
 	if a.CleanupDeadServers != nil {
-		nc.CleanupDeadServers = pointer.Of(*a.CleanupDeadServers)
+		nc.CleanupDeadServers = new(*a.CleanupDeadServers)
 	}
 	if a.EnableRedundancyZones != nil {
-		nc.EnableRedundancyZones = pointer.Of(*a.EnableRedundancyZones)
+		nc.EnableRedundancyZones = new(*a.EnableRedundancyZones)
 	}
 	if a.DisableUpgradeMigration != nil {
-		nc.DisableUpgradeMigration = pointer.Of(*a.DisableUpgradeMigration)
+		nc.DisableUpgradeMigration = new(*a.DisableUpgradeMigration)
 	}
 	if a.EnableCustomUpgrades != nil {
-		nc.EnableCustomUpgrades = pointer.Of(*a.EnableCustomUpgrades)
+		nc.EnableCustomUpgrades = new(*a.EnableCustomUpgrades)
 	}
 
 	return nc
