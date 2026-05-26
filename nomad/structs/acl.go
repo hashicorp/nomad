@@ -736,7 +736,7 @@ func (a *ACLToken) Canonicalize() {
 		// If the user has not set the expiration time, but has provided a TTL, we
 		// calculate and populate the former field.
 		if a.ExpirationTime == nil && a.ExpirationTTL != 0 {
-			a.ExpirationTime = pointer.Of(a.CreateTime.Add(a.ExpirationTTL))
+			a.ExpirationTime = new(a.CreateTime.Add(a.ExpirationTTL))
 		}
 		return
 	}
