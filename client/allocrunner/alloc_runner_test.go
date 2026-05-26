@@ -2966,3 +2966,111 @@ func (h *allocPostrunHook) Postrun() error {
 	h.ran = true
 	return h.err
 }
+
+// TestAllocRunner_Migration tests the restore path on existing pre-WI
+// allocations that don't have any injected implicit identities for Consul/Vault
+func TestAllocRunner_Migration(t *testing.T) {
+
+	testCases := []struct {
+		name      string
+		setup     func(*structs.TaskGroup)
+		cfgDerive bool
+		assert    func(*testing.T, *structs.TaskGroup)
+	}{
+		{
+			name: "vault block",
+			setup: func(tg *structs.TaskGroup) {
+				tg.Tasks[0].Vault = &structs.Vault{}
+			},
+			assert: func(t *testing.T, tg *structs.TaskGroup) {
+				t.Helper()
+				must.Len(t, 1, tg.Tasks[0].Identities)
+				must.Eq(t, "vault_default", tg.Tasks[0].Identities[0].Name)
+			},
+		},
+		{
+			name: "consul task service",
+			setup: func(tg *structs.TaskGroup) {
+				tg.Tasks[0].Services[1].Provider = "nomad"
+			},
+			assert: func(t *testing.T, tg *structs.TaskGroup) {
+				t.Helper()
+				must.NotNil(t, tg.Tasks[0].Services[0].Identity)
+				must.Eq(t, "consul-service_web-web-frontend-http", tg.Tasks[0].Services[0].Identity.Name)
+				must.Nil(t, tg.Tasks[0].Services[1].Identity)
+			},
+		},
+		{
+			name: "consul group service",
+			setup: func(tg *structs.TaskGroup) {
+				tg.Consul = &structs.Consul{} // will always exist for consul group service
+				tg.Services = []*structs.Service{{
+					Name:      "httpd",
+					PortLabel: "www",
+					Provider:  "consul",
+				}}
+			},
+			assert: func(t *testing.T, tg *structs.TaskGroup) {
+				t.Helper()
+				must.NotNil(t, tg.Services[0].Identity)
+				must.Eq(t, "consul-service_httpd-www", tg.Services[0].Identity.Name)
+				must.Len(t, 0, tg.Tasks[0].Identities, must.Sprint(
+					"group consul block should not create task-level identity without template"))
+			},
+		},
+		{
+			name: "consul block in task",
+			setup: func(tg *structs.TaskGroup) {
+				tg.Tasks[0].Consul = &structs.Consul{}
+			},
+			assert: func(t *testing.T, tg *structs.TaskGroup) {
+				t.Helper()
+				must.Len(t, 1, tg.Tasks[0].Identities)
+				must.Eq(t, "consul_default", tg.Tasks[0].Identities[0].Name)
+			},
+		},
+		{
+			name: "templates but no consul block without derive token config",
+			setup: func(tg *structs.TaskGroup) {
+				tg.Tasks[0].Templates = []*structs.Template{{
+					EmbeddedTmpl: "template-contents-foo",
+				}}
+			},
+			assert: func(t *testing.T, tg *structs.TaskGroup) {
+				t.Helper()
+				must.Len(t, 0, tg.Tasks[0].Identities)
+			},
+		},
+		{
+			name: "templates but no consul block with derive token config",
+			setup: func(tg *structs.TaskGroup) {
+				tg.Tasks[0].Templates = []*structs.Template{{
+					EmbeddedTmpl: "template-contents-foo",
+				}}
+			},
+			cfgDerive: true,
+			assert: func(t *testing.T, tg *structs.TaskGroup) {
+				t.Helper()
+				must.Len(t, 1, tg.Tasks[0].Identities)
+				must.Eq(t, "consul_default", tg.Tasks[0].Identities[0].Name)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		alloc := mock.Alloc()
+		tg := alloc.Job.TaskGroups[0]
+		tc.setup(tg)
+
+		conf, cleanup := testAllocRunnerConfig(t, alloc)
+		t.Cleanup(cleanup)
+		conf.ClientConfig.TemplateConfig.DeriveConsulToken = tc.cfgDerive
+
+		ar, err := NewAllocRunner(conf)
+		must.NoError(t, err)
+
+		migratedAlloc := ar.Alloc()
+		migratedTG := migratedAlloc.Job.TaskGroups[0]
+		tc.assert(t, migratedTG)
+	}
+}

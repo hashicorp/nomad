@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/stretchr/testify/require"
@@ -96,6 +97,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		Getter:             getter.TestSandbox(t),
 		Wranglers:          proclib.MockWranglers(t),
 		Partitions:         cgroupslib.NoopPartition(),
+		WIDSigner:          widmgr.NewMockWIDSigner(nil),
 	}
 
 	return conf, cleanup

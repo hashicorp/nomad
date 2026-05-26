@@ -488,6 +488,11 @@ type ClientTemplateConfig struct {
 	// to wait for the cluster to become available, as is customary in distributed
 	// systems.
 	NomadRetry *RetryConfig `hcl:"nomad_retry,optional"`
+
+	// DeriveConsulToken is a compatibility configuration that forces the client
+	// to derive a Consul token for existing allocations with template blocks if
+	// they don't have an implicit identity for Consul
+	DeriveConsulToken bool `hcl:"derive_consul_token"`
 }
 
 func DefaultTemplateConfig() *ClientTemplateConfig {
@@ -515,6 +520,7 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 			Backoff:    new(time.Millisecond * 250),
 			MaxBackoff: new(time.Minute),
 		},
+		DeriveConsulToken: false,
 	}
 }
 
@@ -618,6 +624,9 @@ func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateCon
 	}
 	if o.NomadRetry != nil {
 		result.NomadRetry = c.NomadRetry.Merge(o.NomadRetry)
+	}
+	if o.DeriveConsulToken {
+		result.DeriveConsulToken = true
 	}
 
 	return &result

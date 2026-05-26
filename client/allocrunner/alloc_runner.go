@@ -239,6 +239,8 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		return nil, fmt.Errorf("failed to lookup task group %q", alloc.TaskGroup)
 	}
 
+	alloc, tg = migrateTaskGroup(alloc, tg, config.ClientConfig)
+
 	ar := &allocRunner{
 		id:                       alloc.ID,
 		alloc:                    alloc,
@@ -1649,4 +1651,112 @@ func (ar *allocRunner) setHookStatsHandler(ns string) {
 		labels = append(labels, metrics.Label{Name: "namespace", Value: ns})
 		ar.hookStatsHandler = hookstats.NewHandler(labels, "alloc_hook")
 	}
+}
+
+// migrateTaskGroup allows the allocrunner to add missing features such as
+// implicit workload identities on the task group before we try to restore
+// it. It returns either the unmodified alloc and task group, or copies of both.
+func migrateTaskGroup(alloc *structs.Allocation, tg *structs.TaskGroup, cfg *config.Config) (*structs.Allocation, *structs.TaskGroup) {
+
+	// copying the task group is expensive, so track any required changes and
+	// then apply them to a copy only if we need to
+	groupSvcWI := map[string]*structs.WorkloadIdentity{}
+	taskSvcWI := map[string]map[string]*structs.WorkloadIdentity{}
+	taskWI := map[string][]*structs.WorkloadIdentity{}
+
+	for _, service := range tg.Services {
+		if service.Identity == nil && service.Provider != structs.ServiceProviderNomad {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name:        service.MakeUniqueIdentityName(),
+				ServiceName: service.Name,
+			}
+			groupSvcWI[service.Name] = fallbackWI
+		}
+	}
+
+	for _, task := range tg.Tasks {
+
+		for _, service := range task.Services {
+			if service.Identity == nil && service.Provider != structs.ServiceProviderNomad {
+				fallbackWI := &structs.WorkloadIdentity{
+					Name:        service.MakeUniqueIdentityName(),
+					ServiceName: service.Name,
+				}
+				if taskSvcWI[task.Name] == nil {
+					taskSvcWI[task.Name] = map[string]*structs.WorkloadIdentity{
+						service.Name: fallbackWI}
+				} else {
+					taskSvcWI[task.Name][service.Name] = fallbackWI
+				}
+			}
+		}
+
+		if len(task.Identities) > 0 {
+			// note the default identity is in task.Identity and not this slice;
+			// if we have any non-default identities we can safely assume this
+			// job was submitted either to a server with WI configured for
+			// Consul/Vault, or that the user has configured specific identities
+			// and we shouldn't try to change those
+			continue
+		}
+		taskWI[task.Name] = []*structs.WorkloadIdentity{}
+		if task.Vault != nil {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: task.Vault.IdentityName(),
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		}
+
+		if task.Consul != nil {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: task.Consul.IdentityName(),
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		} else if tg.Consul != nil && len(task.Templates) > 0 {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: tg.Consul.IdentityName(),
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		} else if cfg.TemplateConfig.DeriveConsulToken && len(task.Templates) > 0 {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: task.Consul.IdentityName(), // will be safe with nil
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		}
+	}
+
+	if len(groupSvcWI) > 0 || len(taskSvcWI) > 0 || len(taskWI) > 0 {
+		// this copy is expensive, so only do it if we need it
+		alloc = alloc.Copy()
+		tg = alloc.Job.LookupTaskGroup(tg.Name)
+
+		for i, svc := range tg.Services {
+			if wid, ok := groupSvcWI[svc.Name]; ok {
+				svc.Identity = wid
+				tg.Services[i] = svc
+			}
+		}
+		for i, task := range tg.Tasks {
+			if wids, ok := taskSvcWI[task.Name]; ok {
+				for j, svc := range task.Services {
+					if wid, ok := wids[svc.Name]; ok {
+						svc.Identity = wid
+						task.Services[j] = svc
+					}
+				}
+				tg.Tasks[i] = task
+			}
+			if wids, ok := taskWI[task.Name]; ok {
+				task.Identities = append(task.Identities, wids...)
+				tg.Tasks[i] = task
+			}
+		}
+		for i, otg := range alloc.Job.TaskGroups {
+			if otg.Name == tg.Name {
+				alloc.Job.TaskGroups[i] = tg
+			}
+		}
+	}
+
+	return alloc, tg
 }
