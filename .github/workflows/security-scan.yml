@@ -70,7 +70,7 @@ jobs:
         id: scan
         uses: ./security-scanner
         with:
-          repository: "code"
+          repository: "$PWD"
           plugins: "codeql semgrep"
         env:
           SECURITY_SCANNER_CONFIG_FILE: .github/scan.hcl
