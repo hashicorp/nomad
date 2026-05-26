@@ -1767,7 +1767,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Server.BootstrapExpect = 1
 	conf.EnableDebug = true
 	conf.DisableAnonymousSignature = true
-	conf.defaultConsul().AutoAdvertise = pointer.Of(true)
+	conf.defaultConsul().AutoAdvertise = new(true)
 	conf.Client.NetworkInterface = mode.iface
 	conf.Client.Options = map[string]string{
 		"driver.raw_exec.enable": "true",
@@ -1779,7 +1779,7 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCMaxAllocs = 50
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
-	conf.Client.NomadServiceDiscovery = pointer.Of(true)
+	conf.Client.NomadServiceDiscovery = new(true)
 	conf.Client.ReservableCores = "" // inherit all the cores
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
@@ -1790,20 +1790,20 @@ func DevConfig(mode *devModeConfig) *Config {
 	if mode.consulMode {
 		conf.Consuls[0].ServiceIdentity = &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
-			TTL:      pointer.Of(time.Hour),
+			TTL:      new(time.Hour),
 		}
 		conf.Consuls[0].TaskIdentity = &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
-			TTL:      pointer.Of(time.Hour),
+			TTL:      new(time.Hour),
 		}
 	}
 
 	if mode.vaultMode {
-		conf.Vaults[0].Enabled = pointer.Of(true)
+		conf.Vaults[0].Enabled = new(true)
 		conf.Vaults[0].Addr = "http://localhost:8200"
 		conf.Vaults[0].DefaultIdentity = &config.WorkloadIdentityConfig{
 			Audience: []string{"vault.io"},
-			TTL:      pointer.Of(time.Hour),
+			TTL:      new(time.Hour),
 		}
 	}
 	return conf
@@ -1853,7 +1853,7 @@ func DefaultConfig() *Config {
 			GCDiskUsageThreshold:  80,
 			GCInodeUsageThreshold: 70,
 			GCMaxAllocs:           50,
-			NoHostUUID:            pointer.Of(true),
+			NoHostUUID:            new(true),
 			DisableRemoteExec:     false,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
@@ -1864,7 +1864,7 @@ func DefaultConfig() *Config {
 			BindWildcardDefaultHostNetwork: true,
 			CNIPath:                        client.DefaultCNIPath,
 			CNIConfigDir:                   "/opt/cni/config",
-			NomadServiceDiscovery:          pointer.Of(true),
+			NomadServiceDiscovery:          new(true),
 			Artifact:                       config.DefaultArtifactConfig(),
 			Drain:                          nil,
 			Users:                          config.DefaultUsersConfig(),
@@ -1872,12 +1872,12 @@ func DefaultConfig() *Config {
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
-			EnableEventBroker: pointer.Of(true),
-			EventBufferSize:   pointer.Of(100),
+			EnableEventBroker: new(true),
+			EventBufferSize:   new(100),
 			RaftProtocol:      3,
 			StartJoin:         []string{},
 			PlanRejectionTracker: &PlanRejectionTracker{
-				Enabled:       pointer.Of(false),
+				Enabled:       new(false),
 				NodeThreshold: 100,
 				NodeWindow:    5 * time.Minute,
 			},
@@ -1892,8 +1892,8 @@ func DefaultConfig() *Config {
 				LimitResults:  100,
 				MinTermLength: 2,
 			},
-			JobMaxSourceSize:   pointer.Of("1M"),
-			JobTrackedVersions: pointer.Of(structs.JobDefaultTrackedVersions),
+			JobMaxSourceSize:   new("1M"),
+			JobTrackedVersions: new(structs.JobDefaultTrackedVersions),
 		},
 		ACL: &ACLConfig{
 			Enabled:   false,
@@ -1909,7 +1909,7 @@ func DefaultConfig() *Config {
 			inMemoryRetentionPeriod:      1 * time.Minute,
 			CollectionInterval:           "1s",
 			collectionInterval:           1 * time.Second,
-			DisableAllocationHookMetrics: pointer.Of(false),
+			DisableAllocationHookMetrics: new(false),
 		},
 		Eventlog: &Eventlog{
 			Enabled: false,
@@ -1920,7 +1920,7 @@ func DefaultConfig() *Config {
 		Version:            version.GetVersion(),
 		Autopilot:          config.DefaultAutopilotConfig(),
 		Audit:              &config.AuditConfig{},
-		DisableUpdateCheck: pointer.Of(false),
+		DisableUpdateCheck: new(false),
 		Limits:             config.DefaultLimits(),
 		Reporting:          config.DefaultReporting(),
 		KEKProviders:       []*structs.KEKProviderConfig{},
@@ -2013,7 +2013,7 @@ func (c *Config) Merge(b *Config) *Config {
 		result.SyslogFacility = b.SyslogFacility
 	}
 	if b.DisableUpdateCheck != nil {
-		result.DisableUpdateCheck = pointer.Of(*b.DisableUpdateCheck)
+		result.DisableUpdateCheck = new(*b.DisableUpdateCheck)
 	}
 	if b.DisableAnonymousSignature {
 		result.DisableAnonymousSignature = true
@@ -2637,7 +2637,7 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.RaftMultiplier = &c
 	}
 	if b.NumSchedulers != nil {
-		result.NumSchedulers = pointer.Of(*b.NumSchedulers)
+		result.NumSchedulers = new(*b.NumSchedulers)
 	}
 	if b.NodeGCThreshold != "" {
 		result.NodeGCThreshold = b.NodeGCThreshold
@@ -2649,13 +2649,13 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.JobGCThreshold = b.JobGCThreshold
 	}
 	if b.JobDefaultPriority != nil {
-		result.JobDefaultPriority = pointer.Of(*b.JobDefaultPriority)
+		result.JobDefaultPriority = new(*b.JobDefaultPriority)
 	}
 	if b.JobMaxPriority != nil {
-		result.JobMaxPriority = pointer.Of(*b.JobMaxPriority)
+		result.JobMaxPriority = new(*b.JobMaxPriority)
 	}
 	if b.JobMaxCount != nil {
-		result.JobMaxCount = pointer.Of(*b.JobMaxCount)
+		result.JobMaxCount = new(*b.JobMaxCount)
 	}
 	if b.EvalGCThreshold != "" {
 		result.EvalGCThreshold = b.EvalGCThreshold
@@ -2786,15 +2786,15 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	}
 
 	if b.RaftSnapshotThreshold != nil {
-		result.RaftSnapshotThreshold = pointer.Of(*b.RaftSnapshotThreshold)
+		result.RaftSnapshotThreshold = new(*b.RaftSnapshotThreshold)
 	}
 
 	if b.RaftSnapshotInterval != nil {
-		result.RaftSnapshotInterval = pointer.Of(*b.RaftSnapshotInterval)
+		result.RaftSnapshotInterval = new(*b.RaftSnapshotInterval)
 	}
 
 	if b.RaftTrailingLogs != nil {
-		result.RaftTrailingLogs = pointer.Of(*b.RaftTrailingLogs)
+		result.RaftTrailingLogs = new(*b.RaftTrailingLogs)
 	}
 
 	if b.JobTrackedVersions != nil {

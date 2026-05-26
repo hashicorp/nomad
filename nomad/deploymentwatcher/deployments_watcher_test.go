@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -368,7 +367,7 @@ func TestWatcher_PromoteDeployment_HealthyCanaries(t *testing.T) {
 	d.TaskGroups[a.TaskGroup].DesiredCanaries = 1
 	d.TaskGroups[a.TaskGroup].PlacedCanaries = []string{a.ID}
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	a.DeploymentID = d.ID
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
@@ -995,7 +994,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline(t *testing.T) {
 	// Update the alloc to be unhealthy and require that nothing happens.
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   pointer.Of(false),
+		Healthy:   new(false),
 		Timestamp: now,
 	}
 
@@ -1079,7 +1078,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 
 	// Update the first allocation to be healthy
 	a3 := a.Copy()
-	a3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
+	a3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: new(true)}
 	must.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a3}))
 
 	// Get the updated deployment
@@ -1098,7 +1097,7 @@ func TestDeploymentWatcher_ProgressCutoff(t *testing.T) {
 
 	// Update the second allocation to be healthy
 	a4 := a2.Copy()
-	a4.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
+	a4.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: new(true)}
 	must.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(), []*structs.Allocation{a4}))
 
 	// Get the updated deployment
@@ -1150,7 +1149,7 @@ func TestDeploymentWatcher_Watch_ProgressDeadline_Canaries(t *testing.T) {
 	// Update the alloc to be unhealthy and require that nothing happens.
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   pointer.Of(true),
+		Healthy:   new(true),
 		Timestamp: now,
 	}
 
@@ -1209,7 +1208,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	a.Job = j
 	a.JobID = j.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   pointer.Of(true),
+		Healthy:   new(true),
 		Timestamp: now,
 	}
 	must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
@@ -1228,7 +1227,7 @@ func TestDeploymentWatcher_PromotedCanary_UpdatedAllocs(t *testing.T) {
 	a2.Job = j
 	a2.JobID = j.ID
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   pointer.Of(true),
+		Healthy:   new(true),
 		Timestamp: now,
 	}
 	d.TaskGroups["web"].RequireProgressBy = time.Now().Add(2 * time.Second)
@@ -1324,7 +1323,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	canary2.ModifyTime = now.UnixNano()
 	canary2.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    true,
-		Healthy:   pointer.Of(true),
+		Healthy:   new(true),
 		Timestamp: now,
 	}
 
@@ -1346,7 +1345,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	canary1.ModifyTime = now.UnixNano()
 	canary1.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    true,
-		Healthy:   pointer.Of(true),
+		Healthy:   new(true),
 		Timestamp: now,
 	}
 
@@ -1407,7 +1406,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	alloc1a.ModifyTime = now.UnixNano()
 	alloc1a.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    false,
-		Healthy:   pointer.Of(true),
+		Healthy:   new(true),
 		Timestamp: now,
 	}
 
@@ -1416,7 +1415,7 @@ func TestDeploymentWatcher_ProgressDeadline_LatePromote(t *testing.T) {
 	alloc1b.ModifyTime = now.UnixNano()
 	alloc1b.DeploymentStatus = &structs.AllocDeploymentStatus{
 		Canary:    false,
-		Healthy:   pointer.Of(true),
+		Healthy:   new(true),
 		Timestamp: now,
 	}
 
@@ -1484,7 +1483,7 @@ func TestDeploymentWatcher_Watch_StartWithoutProgressDeadline(t *testing.T) {
 	// Update the alloc to be unhealthy
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   pointer.Of(false),
+		Healthy:   new(false),
 		Timestamp: time.Now(),
 	}
 
@@ -1547,7 +1546,7 @@ func TestDeploymentWatcher_Watch_FailEarly(t *testing.T) {
 	// Update the alloc to be unhealthy
 	a2 := a.Copy()
 	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy:   pointer.Of(false),
+		Healthy:   new(false),
 		Timestamp: now,
 	}
 

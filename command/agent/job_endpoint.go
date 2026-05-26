@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -1045,7 +1044,7 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	// the namespace to be correct
 	queryNamespace := req.URL.Query().Get("namespace")
 	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
-	job.Namespace = pointer.Of(namespace)
+	job.Namespace = new(namespace)
 	writeReq.Namespace = namespace
 
 	sJob := ApiJobToStructJob(job)

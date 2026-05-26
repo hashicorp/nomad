@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -148,7 +147,7 @@ func TestAllocSet_classifyAllocs_ClassificationRules(t *testing.T) {
 			alloc: func() *structs.Allocation {
 				a := makeAlloc("c3", "ready", structs.AllocClientStatusComplete, structs.AllocDesiredStatusRun)
 				a.DeploymentStatus = &structs.AllocDeploymentStatus{Canary: true}
-				a.DesiredTransition = structs.DesiredTransition{Migrate: pointer.Of(true)}
+				a.DesiredTransition = structs.DesiredTransition{Migrate: new(true)}
 				return a
 			}(),
 			expected: "migrate",
@@ -205,7 +204,7 @@ func TestAllocSet_classifyAllocs_ClassificationRules(t *testing.T) {
 			name: "migrate flag",
 			alloc: func() *structs.Allocation {
 				a := makeAlloc("c11", "ready", structs.AllocClientStatusPending, structs.AllocDesiredStatusRun)
-				a.DesiredTransition = structs.DesiredTransition{Migrate: pointer.Of(true)}
+				a.DesiredTransition = structs.DesiredTransition{Migrate: new(true)}
 				return a
 			}(),
 			expected: "migrate",

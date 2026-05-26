@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -16,13 +15,13 @@ func TestReporting_Merge(t *testing.T) {
 
 	a := &ReportingConfig{
 		License: &LicenseReportingConfig{
-			Enabled: pointer.Of(false),
+			Enabled: new(false),
 		},
 	}
 
 	b := &ReportingConfig{
 		License: &LicenseReportingConfig{
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 		},
 	}
 

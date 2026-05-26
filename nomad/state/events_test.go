@@ -9,7 +9,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -180,7 +179,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -188,7 +187,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
@@ -257,7 +256,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -265,7 +264,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
@@ -709,7 +708,7 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 
 	req := &structs.AllocUpdateDesiredTransitionRequest{
 		Allocs: map[string]*structs.DesiredTransition{
-			alloc.ID: {Migrate: pointer.Of(true)},
+			alloc.ID: {Migrate: new(true)},
 		},
 		Evals: evals,
 	}

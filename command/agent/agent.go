@@ -33,7 +33,6 @@ import (
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -693,7 +692,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	// Interpret job_max_source_size as bytes from string value
 	if agentConfig.Server.JobMaxSourceSize == nil {
-		agentConfig.Server.JobMaxSourceSize = pointer.Of("1M")
+		agentConfig.Server.JobMaxSourceSize = new("1M")
 	}
 	jobMaxSourceBytes, err := humanize.ParseBytes(*agentConfig.Server.JobMaxSourceSize)
 	if err != nil {

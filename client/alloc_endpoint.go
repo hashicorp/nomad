@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -233,7 +232,7 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	// Decode the arguments
 	var req cstructs.AllocExecRequest
 	if err := decoder.Decode(&req); err != nil {
-		return pointer.Of(int64(500)), err
+		return new(int64(500)), err
 	}
 
 	if a.c.GetConfig().DisableRemoteExec {
@@ -241,13 +240,13 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 
 	if req.AllocID == "" {
-		return pointer.Of(int64(400)), allocIDNotPresentErr
+		return new(int64(400)), allocIDNotPresentErr
 	}
 	ar, err := a.c.getAllocRunner(req.AllocID)
 	if err != nil {
-		code := pointer.Of(int64(500))
+		code := new(int64(500))
 		if nstructs.IsErrUnknownAllocation(err) {
-			code = pointer.Of(int64(404))
+			code = new(int64(404))
 		}
 
 		return code, err
@@ -286,18 +285,18 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	// Check alloc-exec permission.
 	if err != nil {
-		return pointer.Of(int64(400)), err
+		return new(int64(400)), err
 	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityAllocExec) {
 		return nil, nstructs.ErrPermissionDenied
 	}
 
 	// Validate the arguments
 	if req.Task == "" {
-		return pointer.Of(int64(400)), taskNotPresentErr
+		return new(int64(400)), taskNotPresentErr
 	}
 
 	if req.JobID != "" && req.JobID != alloc.JobID {
-		return pointer.Of(int64(http.StatusBadRequest)),
+		return new(int64(http.StatusBadRequest)),
 			fmt.Errorf("job %s does not have allocation %s", req.JobID, req.AllocID)
 	}
 
@@ -305,12 +304,12 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	if req.Action != "" {
 		task := alloc.LookupTask(req.Task)
 		if task == nil {
-			return pointer.Of(int64(http.StatusBadRequest)),
+			return new(int64(http.StatusBadRequest)),
 				fmt.Errorf("task %s not found in allocation %s", req.Task, alloc.ID)
 		}
 		jobAction := task.GetAction(req.Action)
 		if jobAction == nil {
-			return pointer.Of(int64(http.StatusBadRequest)),
+			return new(int64(http.StatusBadRequest)),
 				fmt.Errorf("action %s not found in task %s", req.Action, req.Task)
 		}
 
@@ -319,14 +318,14 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	}
 
 	if len(req.Cmd) == 0 {
-		return pointer.Of(int64(400)), errors.New("command is not present")
+		return new(int64(400)), errors.New("command is not present")
 	}
 
 	capabilities, err := ar.GetTaskDriverCapabilities(req.Task)
 	if err != nil {
-		code := pointer.Of(int64(500))
+		code := new(int64(500))
 		if nstructs.IsErrUnknownAllocation(err) {
-			code = pointer.Of(int64(404))
+			code = new(int64(404))
 		}
 
 		return code, err
@@ -342,9 +341,9 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	allocState, err := a.c.GetAllocState(req.AllocID)
 	if err != nil {
-		code := pointer.Of(int64(500))
+		code := new(int64(500))
 		if nstructs.IsErrUnknownAllocation(err) {
-			code = pointer.Of(int64(404))
+			code = new(int64(404))
 		}
 
 		return code, err
@@ -353,11 +352,11 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 	// Check that the task is there
 	taskState := allocState.TaskStates[req.Task]
 	if taskState == nil {
-		return pointer.Of(int64(400)), fmt.Errorf("unknown task name %q", req.Task)
+		return new(int64(400)), fmt.Errorf("unknown task name %q", req.Task)
 	}
 
 	if taskState.StartedAt.IsZero() {
-		return pointer.Of(int64(404)), fmt.Errorf("task %q not started yet.", req.Task)
+		return new(int64(404)), fmt.Errorf("task %q not started yet.", req.Task)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -365,12 +364,12 @@ func (a *Allocations) execImpl(encoder *codec.Encoder, decoder *codec.Decoder, e
 
 	h := ar.GetTaskExecHandler(req.Task)
 	if h == nil {
-		return pointer.Of(int64(404)), fmt.Errorf("task %q is not running.", req.Task)
+		return new(int64(404)), fmt.Errorf("task %q is not running.", req.Task)
 	}
 
 	err = h(ctx, req.Cmd, req.Tty, newExecStream(decoder, encoder))
 	if err != nil {
-		code := pointer.Of(int64(500))
+		code := new(int64(500))
 		return code, err
 	}
 
