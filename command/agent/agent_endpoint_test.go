@@ -2276,3 +2276,77 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_Client(t *testing.T) {
 		})
 	}
 }
+
+func TestHTTP_AgentReload_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	httpACLTest(t, nil, func(s *TestAgent) {
+		state := s.Agent.server.State()
+
+		// Make the HTTP request
+		req, err := http.NewRequest(http.MethodPut, "/v1/agent/reload", nil)
+		must.NoError(t, err)
+
+		// Try request with an invalid method
+		{
+			req, err := http.NewRequest(http.MethodGet, "/v1/agent/reload", nil)
+			must.NoError(t, err)
+			respW := httptest.NewRecorder()
+			_, err = s.Server.AgentReloadRequest(respW, req)
+			must.EqError(t, err, ErrInvalidMethod)
+		}
+
+		// Try request without a token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			_, err := s.Server.AgentReloadRequest(respW, req)
+			must.EqError(t, err, structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with an invalid token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyWrite))
+			setToken(req, token)
+			_, err := s.Server.AgentReloadRequest(respW, req)
+			must.NotNil(t, err)
+		}
+
+		// Try request with a read token and expect failure
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1006, "read", mock.AgentPolicy(acl.PolicyRead))
+			setToken(req, token)
+			_, err := s.Server.AgentReloadRequest(respW, req)
+			must.EqError(t, err, structs.ErrPermissionDenied.Error())
+		}
+
+		// Try request with a valid write token
+		// Update from trace to warn log levels
+		// Warn makes a pretty noticeable change
+		{
+			respW := httptest.NewRecorder()
+			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.AgentPolicy(acl.PolicyWrite))
+			setToken(req, token)
+
+			// Grab the initial log level.
+			initalLogLevel := s.Agent.logger.GetLevel().String()
+			reloadedLogLevel := "WARN"
+
+			reloadCalls := 0
+			s.Agent.configReloader = func() error {
+				reloadCalls++
+				newConfig := s.Agent.GetConfig().Copy()
+				newConfig.LogLevel = reloadedLogLevel
+				return s.Agent.Reload(newConfig)
+			}
+
+			obj, err := s.Server.AgentReloadRequest(respW, req)
+			must.NoError(t, err)
+			must.Nil(t, obj)                                            // this will need changed if the API ever returns something other than nil
+			must.Eq(t, 1, reloadCalls)                                  // confirm that the reloader was called
+			must.NotEq(t, initalLogLevel, s.Agent.GetConfig().LogLevel) // confirm that the log level was actually changed
+			must.Eq(t, reloadedLogLevel, s.Agent.GetConfig().LogLevel)  // confirm that the log level was updated in the agent's config
+		}
+	})
+}
