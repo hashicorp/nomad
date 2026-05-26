@@ -23,8 +23,9 @@
       (queue this.preventDefault (perform this.drain m.actions.close))
     }}
     class="form is-small"
+    aria-labelledby="drain-options-heading"
   >
-    <h4 class="group-heading">Drain Options</h4>
+    <h4 id="drain-options-heading" class="group-heading">Drain Options</h4>
     <div class="field">
       <label class="label is-interactive">
         <Toggle
