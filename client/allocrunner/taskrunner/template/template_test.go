@@ -2850,9 +2850,9 @@ func TestTaskTemplateManager_noopExitsOnFatal(t *testing.T) {
 
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
 	harness.config.TemplateConfig.ConsulRetry = &config.RetryConfig{
-		Backoff:    pointer.Of(10 * time.Millisecond),
-		Attempts:   pointer.Of(2),
-		MaxBackoff: pointer.Of(20 * time.Millisecond),
+		Backoff:    new(10 * time.Millisecond),
+		Attempts:   new(2),
+		MaxBackoff: new(20 * time.Millisecond),
 	}
 	harness.consul.SetKV(t, consulKey, []byte(consulContent))
 
