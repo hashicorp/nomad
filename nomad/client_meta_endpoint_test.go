@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
@@ -104,7 +103,7 @@ func TestNodeMeta_Forward(t *testing.T) {
 					Region: region,
 				},
 				NodeID: nodeID,
-				Meta:   map[string]*string{"testing": pointer.Of("123")},
+				Meta:   map[string]*string{"testing": new("123")},
 			}
 			reply := &structs.NodeMetaResponse{}
 			must.NoError(t, rpc("NodeMeta.Apply", args, reply))

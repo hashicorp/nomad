@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package widmgr_test
@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -24,7 +23,7 @@ func TestWIDMgr(t *testing.T) {
 	// Create a mixed ta
 	ta := agent.NewTestAgent(t, "widtest", func(c *agent.Config) {
 		c.Server.Enabled = true
-		c.Server.NumSchedulers = pointer.Of(1)
+		c.Server.NumSchedulers = new(1)
 		c.Client.Enabled = true
 	})
 	t.Cleanup(ta.Shutdown)

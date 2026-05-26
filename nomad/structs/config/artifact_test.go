@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -24,12 +23,12 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	must.Equal(t, a, b)
 	must.Equal(t, b, a)
 
-	b.HTTPReadTimeout = pointer.Of("5m")
-	b.HTTPMaxSize = pointer.Of("2MB")
-	b.GitTimeout = pointer.Of("3m")
-	b.HgTimeout = pointer.Of("2m")
-	b.DecompressionFileCountLimit = pointer.Of(7)
-	b.DecompressionSizeLimit = pointer.Of("2GB")
+	b.HTTPReadTimeout = new("5m")
+	b.HTTPMaxSize = new("2MB")
+	b.GitTimeout = new("3m")
+	b.HgTimeout = new("2m")
+	b.DecompressionFileCountLimit = new(7)
+	b.DecompressionSizeLimit = new("2GB")
 	must.NotEqual(t, a, b)
 
 	b = a.Copy()
@@ -49,169 +48,169 @@ func TestArtifactConfig_Merge(t *testing.T) {
 		{
 			name: "merge all fields",
 			source: &ArtifactConfig{
-				HTTPReadTimeout:             pointer.Of("30m"),
-				HTTPMaxSize:                 pointer.Of("100GB"),
-				GCSTimeout:                  pointer.Of("30m"),
-				GitTimeout:                  pointer.Of("30m"),
-				HgTimeout:                   pointer.Of("30m"),
-				S3Timeout:                   pointer.Of("30m"),
-				DecompressionFileCountLimit: pointer.Of(4096),
-				DecompressionSizeLimit:      pointer.Of("100GB"),
-				DisableFilesystemIsolation:  pointer.Of(false),
+				HTTPReadTimeout:             new("30m"),
+				HTTPMaxSize:                 new("100GB"),
+				GCSTimeout:                  new("30m"),
+				GitTimeout:                  new("30m"),
+				HgTimeout:                   new("30m"),
+				S3Timeout:                   new("30m"),
+				DecompressionFileCountLimit: new(4096),
+				DecompressionSizeLimit:      new("100GB"),
+				DisableFilesystemIsolation:  new(false),
 				FilesystemIsolationExtraPaths: []string{
 					"f:r:/dev/urandom",
 					"d:rx:/opt/bin",
 					"d:r:/tmp/stash",
 				},
-				SetEnvironmentVariables: pointer.Of(""),
+				SetEnvironmentVariables: new(""),
 			},
 			other: &ArtifactConfig{
-				HTTPReadTimeout:             pointer.Of("5m"),
-				HTTPMaxSize:                 pointer.Of("2GB"),
-				GCSTimeout:                  pointer.Of("1m"),
-				GitTimeout:                  pointer.Of("2m"),
-				HgTimeout:                   pointer.Of("3m"),
-				S3Timeout:                   pointer.Of("4m"),
-				DecompressionFileCountLimit: pointer.Of(100),
-				DecompressionSizeLimit:      pointer.Of("8GB"),
-				DisableFilesystemIsolation:  pointer.Of(true),
+				HTTPReadTimeout:             new("5m"),
+				HTTPMaxSize:                 new("2GB"),
+				GCSTimeout:                  new("1m"),
+				GitTimeout:                  new("2m"),
+				HgTimeout:                   new("3m"),
+				S3Timeout:                   new("4m"),
+				DecompressionFileCountLimit: new(100),
+				DecompressionSizeLimit:      new("8GB"),
+				DisableFilesystemIsolation:  new(true),
 				FilesystemIsolationExtraPaths: []string{
 					"d:rw:/opt/certs",
 					"f:rx:/opt/bin/runme",
 				},
-				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables: new("FOO,BAR"),
 			},
 			expected: &ArtifactConfig{
-				HTTPReadTimeout:             pointer.Of("5m"),
-				HTTPMaxSize:                 pointer.Of("2GB"),
-				GCSTimeout:                  pointer.Of("1m"),
-				GitTimeout:                  pointer.Of("2m"),
-				HgTimeout:                   pointer.Of("3m"),
-				S3Timeout:                   pointer.Of("4m"),
-				DecompressionFileCountLimit: pointer.Of(100),
-				DecompressionSizeLimit:      pointer.Of("8GB"),
-				DisableFilesystemIsolation:  pointer.Of(true),
+				HTTPReadTimeout:             new("5m"),
+				HTTPMaxSize:                 new("2GB"),
+				GCSTimeout:                  new("1m"),
+				GitTimeout:                  new("2m"),
+				HgTimeout:                   new("3m"),
+				S3Timeout:                   new("4m"),
+				DecompressionFileCountLimit: new(100),
+				DecompressionSizeLimit:      new("8GB"),
+				DisableFilesystemIsolation:  new(true),
 				FilesystemIsolationExtraPaths: []string{
 					"d:rw:/opt/certs",
 					"f:rx:/opt/bin/runme",
 				},
-				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables: new("FOO,BAR"),
 			},
 		},
 		{
 			name:   "null source",
 			source: nil,
 			other: &ArtifactConfig{
-				HTTPReadTimeout:             pointer.Of("5m"),
-				HTTPMaxSize:                 pointer.Of("2GB"),
-				GCSTimeout:                  pointer.Of("1m"),
-				GitTimeout:                  pointer.Of("2m"),
-				HgTimeout:                   pointer.Of("3m"),
-				S3Timeout:                   pointer.Of("4m"),
-				DecompressionFileCountLimit: pointer.Of(100),
-				DecompressionSizeLimit:      pointer.Of("8GB"),
-				DisableFilesystemIsolation:  pointer.Of(true),
+				HTTPReadTimeout:             new("5m"),
+				HTTPMaxSize:                 new("2GB"),
+				GCSTimeout:                  new("1m"),
+				GitTimeout:                  new("2m"),
+				HgTimeout:                   new("3m"),
+				S3Timeout:                   new("4m"),
+				DecompressionFileCountLimit: new(100),
+				DecompressionSizeLimit:      new("8GB"),
+				DisableFilesystemIsolation:  new(true),
 				FilesystemIsolationExtraPaths: []string{
 					"d:rw:/opt/certs",
 					"f:rx:/opt/bin/runme",
 				},
-				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables: new("FOO,BAR"),
 			},
 			expected: &ArtifactConfig{
-				HTTPReadTimeout:             pointer.Of("5m"),
-				HTTPMaxSize:                 pointer.Of("2GB"),
-				GCSTimeout:                  pointer.Of("1m"),
-				GitTimeout:                  pointer.Of("2m"),
-				HgTimeout:                   pointer.Of("3m"),
-				S3Timeout:                   pointer.Of("4m"),
-				DecompressionFileCountLimit: pointer.Of(100),
-				DecompressionSizeLimit:      pointer.Of("8GB"),
-				DisableFilesystemIsolation:  pointer.Of(true),
+				HTTPReadTimeout:             new("5m"),
+				HTTPMaxSize:                 new("2GB"),
+				GCSTimeout:                  new("1m"),
+				GitTimeout:                  new("2m"),
+				HgTimeout:                   new("3m"),
+				S3Timeout:                   new("4m"),
+				DecompressionFileCountLimit: new(100),
+				DecompressionSizeLimit:      new("8GB"),
+				DisableFilesystemIsolation:  new(true),
 				FilesystemIsolationExtraPaths: []string{
 					"d:rw:/opt/certs",
 					"f:rx:/opt/bin/runme",
 				},
-				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables: new("FOO,BAR"),
 			},
 		},
 		{
 			name: "null other",
 			source: &ArtifactConfig{
-				HTTPReadTimeout:             pointer.Of("30m"),
-				HTTPMaxSize:                 pointer.Of("100GB"),
-				GCSTimeout:                  pointer.Of("30m"),
-				GitTimeout:                  pointer.Of("30m"),
-				HgTimeout:                   pointer.Of("30m"),
-				S3Timeout:                   pointer.Of("30m"),
-				DecompressionFileCountLimit: pointer.Of(4096),
-				DecompressionSizeLimit:      pointer.Of("100GB"),
-				DisableFilesystemIsolation:  pointer.Of(true),
+				HTTPReadTimeout:             new("30m"),
+				HTTPMaxSize:                 new("100GB"),
+				GCSTimeout:                  new("30m"),
+				GitTimeout:                  new("30m"),
+				HgTimeout:                   new("30m"),
+				S3Timeout:                   new("30m"),
+				DecompressionFileCountLimit: new(4096),
+				DecompressionSizeLimit:      new("100GB"),
+				DisableFilesystemIsolation:  new(true),
 				FilesystemIsolationExtraPaths: []string{
 					"f:r:/dev/urandom",
 					"d:rx:/opt/bin",
 					"d:r:/tmp/stash",
 				},
-				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables: new("FOO,BAR"),
 			},
 			other: nil,
 			expected: &ArtifactConfig{
-				HTTPReadTimeout:             pointer.Of("30m"),
-				HTTPMaxSize:                 pointer.Of("100GB"),
-				GCSTimeout:                  pointer.Of("30m"),
-				GitTimeout:                  pointer.Of("30m"),
-				HgTimeout:                   pointer.Of("30m"),
-				S3Timeout:                   pointer.Of("30m"),
-				DecompressionFileCountLimit: pointer.Of(4096),
-				DecompressionSizeLimit:      pointer.Of("100GB"),
-				DisableFilesystemIsolation:  pointer.Of(true),
+				HTTPReadTimeout:             new("30m"),
+				HTTPMaxSize:                 new("100GB"),
+				GCSTimeout:                  new("30m"),
+				GitTimeout:                  new("30m"),
+				HgTimeout:                   new("30m"),
+				S3Timeout:                   new("30m"),
+				DecompressionFileCountLimit: new(4096),
+				DecompressionSizeLimit:      new("100GB"),
+				DisableFilesystemIsolation:  new(true),
 				FilesystemIsolationExtraPaths: []string{
 					"f:r:/dev/urandom",
 					"d:rx:/opt/bin",
 					"d:r:/tmp/stash",
 				},
-				SetEnvironmentVariables: pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables: new("FOO,BAR"),
 			},
 		},
 		{
 			name: "null fsIsolationLocation",
 			source: &ArtifactConfig{
-				HTTPReadTimeout:               pointer.Of("30m"),
-				HTTPMaxSize:                   pointer.Of("100GB"),
-				GCSTimeout:                    pointer.Of("30m"),
-				GitTimeout:                    pointer.Of("30m"),
-				HgTimeout:                     pointer.Of("30m"),
-				S3Timeout:                     pointer.Of("30m"),
-				DecompressionFileCountLimit:   pointer.Of(4096),
-				DecompressionSizeLimit:        pointer.Of("100GB"),
-				DisableFilesystemIsolation:    pointer.Of(false),
+				HTTPReadTimeout:               new("30m"),
+				HTTPMaxSize:                   new("100GB"),
+				GCSTimeout:                    new("30m"),
+				GitTimeout:                    new("30m"),
+				HgTimeout:                     new("30m"),
+				S3Timeout:                     new("30m"),
+				DecompressionFileCountLimit:   new(4096),
+				DecompressionSizeLimit:        new("100GB"),
+				DisableFilesystemIsolation:    new(false),
 				FilesystemIsolationExtraPaths: nil,
-				SetEnvironmentVariables:       pointer.Of(""),
+				SetEnvironmentVariables:       new(""),
 			},
 			other: &ArtifactConfig{
-				HTTPReadTimeout:               pointer.Of("5m"),
-				HTTPMaxSize:                   pointer.Of("2GB"),
-				GCSTimeout:                    pointer.Of("1m"),
-				GitTimeout:                    pointer.Of("2m"),
-				HgTimeout:                     pointer.Of("3m"),
-				S3Timeout:                     pointer.Of("4m"),
-				DecompressionFileCountLimit:   pointer.Of(100),
-				DecompressionSizeLimit:        pointer.Of("8GB"),
-				DisableFilesystemIsolation:    pointer.Of(true),
+				HTTPReadTimeout:               new("5m"),
+				HTTPMaxSize:                   new("2GB"),
+				GCSTimeout:                    new("1m"),
+				GitTimeout:                    new("2m"),
+				HgTimeout:                     new("3m"),
+				S3Timeout:                     new("4m"),
+				DecompressionFileCountLimit:   new(100),
+				DecompressionSizeLimit:        new("8GB"),
+				DisableFilesystemIsolation:    new(true),
 				FilesystemIsolationExtraPaths: nil,
-				SetEnvironmentVariables:       pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables:       new("FOO,BAR"),
 			},
 			expected: &ArtifactConfig{
-				HTTPReadTimeout:               pointer.Of("5m"),
-				HTTPMaxSize:                   pointer.Of("2GB"),
-				GCSTimeout:                    pointer.Of("1m"),
-				GitTimeout:                    pointer.Of("2m"),
-				HgTimeout:                     pointer.Of("3m"),
-				S3Timeout:                     pointer.Of("4m"),
-				DecompressionFileCountLimit:   pointer.Of(100),
-				DecompressionSizeLimit:        pointer.Of("8GB"),
-				DisableFilesystemIsolation:    pointer.Of(true),
+				HTTPReadTimeout:               new("5m"),
+				HTTPMaxSize:                   new("2GB"),
+				GCSTimeout:                    new("1m"),
+				GitTimeout:                    new("2m"),
+				HgTimeout:                     new("3m"),
+				S3Timeout:                     new("4m"),
+				DecompressionFileCountLimit:   new(100),
+				DecompressionSizeLimit:        new("8GB"),
+				DisableFilesystemIsolation:    new(true),
 				FilesystemIsolationExtraPaths: nil,
-				SetEnvironmentVariables:       pointer.Of("FOO,BAR"),
+				SetEnvironmentVariables:       new("FOO,BAR"),
 			},
 		},
 	}
@@ -247,28 +246,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "http read timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = pointer.Of("invalid")
+				a.HTTPReadTimeout = new("invalid")
 			},
 			expErr: "http_read_timeout not a valid duration",
 		},
 		{
 			name: "http read timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = pointer.Of("")
+				a.HTTPReadTimeout = new("")
 			},
 			expErr: "http_read_timeout not a valid duration",
 		},
 		{
 			name: "http read timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = pointer.Of("0")
+				a.HTTPReadTimeout = new("0")
 			},
 			expErr: "",
 		},
 		{
 			name: "http read timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.HTTPReadTimeout = pointer.Of("-10m")
+				a.HTTPReadTimeout = new("-10m")
 			},
 			expErr: "http_read_timeout must be > 0",
 		},
@@ -282,28 +281,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "http max size is invalid",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = pointer.Of("invalid")
+				a.HTTPMaxSize = new("invalid")
 			},
 			expErr: "http_max_size not a valid size",
 		},
 		{
 			name: "http max size is empty",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = pointer.Of("")
+				a.HTTPMaxSize = new("")
 			},
 			expErr: "http_max_size not a valid size",
 		},
 		{
 			name: "http max size is zero",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = pointer.Of("0")
+				a.HTTPMaxSize = new("0")
 			},
 			expErr: "",
 		},
 		{
 			name: "http max size is negative",
 			config: func(a *ArtifactConfig) {
-				a.HTTPMaxSize = pointer.Of("-l0MB")
+				a.HTTPMaxSize = new("-l0MB")
 			},
 			expErr: "http_max_size not a valid size",
 		},
@@ -317,28 +316,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "gcs timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = pointer.Of("invalid")
+				a.GCSTimeout = new("invalid")
 			},
 			expErr: "gcs_timeout not a valid duration",
 		},
 		{
 			name: "gcs timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = pointer.Of("")
+				a.GCSTimeout = new("")
 			},
 			expErr: "gcs_timeout not a valid duration",
 		},
 		{
 			name: "gcs timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = pointer.Of("0")
+				a.GCSTimeout = new("0")
 			},
 			expErr: "",
 		},
 		{
 			name: "gcs timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.GCSTimeout = pointer.Of("-l0m")
+				a.GCSTimeout = new("-l0m")
 			},
 			expErr: "gcs_timeout not a valid duration",
 		},
@@ -352,28 +351,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "git timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = pointer.Of("invalid")
+				a.GitTimeout = new("invalid")
 			},
 			expErr: "git_timeout not a valid duration",
 		},
 		{
 			name: "git timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = pointer.Of("")
+				a.GitTimeout = new("")
 			},
 			expErr: "git_timeout not a valid duration",
 		},
 		{
 			name: "git timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = pointer.Of("0")
+				a.GitTimeout = new("0")
 			},
 			expErr: "",
 		},
 		{
 			name: "git timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.GitTimeout = pointer.Of("-l0m")
+				a.GitTimeout = new("-l0m")
 			},
 			expErr: "git_timeout not a valid duration",
 		},
@@ -387,28 +386,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "hg timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = pointer.Of("invalid")
+				a.HgTimeout = new("invalid")
 			},
 			expErr: "hg_timeout not a valid duration",
 		},
 		{
 			name: "hg timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = pointer.Of("")
+				a.HgTimeout = new("")
 			},
 			expErr: "hg_timeout not a valid duration",
 		},
 		{
 			name: "hg timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = pointer.Of("0")
+				a.HgTimeout = new("0")
 			},
 			expErr: "",
 		},
 		{
 			name: "hg timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.HgTimeout = pointer.Of("-l0m")
+				a.HgTimeout = new("-l0m")
 			},
 			expErr: "hg_timeout not a valid duration",
 		},
@@ -422,28 +421,28 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "s3 timeout is invalid",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = pointer.Of("invalid")
+				a.S3Timeout = new("invalid")
 			},
 			expErr: "s3_timeout not a valid duration",
 		},
 		{
 			name: "s3 timeout is empty",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = pointer.Of("")
+				a.S3Timeout = new("")
 			},
 			expErr: "s3_timeout not a valid duration",
 		},
 		{
 			name: "s3 timeout is zero",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = pointer.Of("0")
+				a.S3Timeout = new("0")
 			},
 			expErr: "",
 		},
 		{
 			name: "s3 timeout is negative",
 			config: func(a *ArtifactConfig) {
-				a.S3Timeout = pointer.Of("-l0m")
+				a.S3Timeout = new("-l0m")
 			},
 			expErr: "s3_timeout not a valid duration",
 		},
@@ -457,7 +456,7 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "decompression file count limit is negative",
 			config: func(a *ArtifactConfig) {
-				a.DecompressionFileCountLimit = pointer.Of(-1)
+				a.DecompressionFileCountLimit = new(-1)
 			},
 			expErr: "decompression_file_count_limit must be >= 0 but found -1",
 		},
@@ -471,7 +470,7 @@ func TestArtifactConfig_Validate(t *testing.T) {
 		{
 			name: "decompression size limit is negative",
 			config: func(a *ArtifactConfig) {
-				a.DecompressionSizeLimit = pointer.Of("-1GB")
+				a.DecompressionSizeLimit = new("-1GB")
 			},
 			expErr: "decompression_size_limit is not a valid size",
 		},

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
@@ -51,12 +50,12 @@ func TestNodeDrainCommand_Detach(t *testing.T) {
 
 	// Register a job to create an alloc to drain that will block draining
 	job := &api.Job{
-		ID:          pointer.Of("mock_service"),
-		Name:        pointer.Of("mock_service"),
+		ID:          new("mock_service"),
+		Name:        new("mock_service"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name: pointer.Of("mock_group"),
+				Name: new("mock_group"),
 				Tasks: []*api.Task{
 					{
 						Name:   "mock_task",
@@ -128,19 +127,19 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	// Register a service job to create allocs to drain
 	serviceCount := 3
 	job := &api.Job{
-		ID:          pointer.Of("mock_service"),
-		Name:        pointer.Of("mock_service"),
+		ID:          new("mock_service"),
+		Name:        new("mock_service"),
 		Datacenters: []string{"dc1"},
-		Type:        pointer.Of("service"),
+		Type:        new("service"),
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  pointer.Of("mock_group"),
+				Name:  new("mock_group"),
 				Count: &serviceCount,
 				Migrate: &api.MigrateStrategy{
-					MaxParallel:     pointer.Of(1),
-					HealthCheck:     pointer.Of("task_states"),
-					MinHealthyTime:  pointer.Of(10 * time.Millisecond),
-					HealthyDeadline: pointer.Of(5 * time.Minute),
+					MaxParallel:     new(1),
+					HealthCheck:     new("task_states"),
+					MinHealthyTime:  new(10 * time.Millisecond),
+					HealthyDeadline: new(5 * time.Minute),
 				},
 				Tasks: []*api.Task{
 					{
@@ -150,8 +149,8 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 							"run_for": "10m",
 						},
 						Resources: &api.Resources{
-							CPU:      pointer.Of(50),
-							MemoryMB: pointer.Of(50),
+							CPU:      new(50),
+							MemoryMB: new(50),
 						},
 					},
 				},
@@ -164,14 +163,14 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 
 	// Register a system job to ensure it is ignored during draining
 	sysjob := &api.Job{
-		ID:          pointer.Of("mock_system"),
-		Name:        pointer.Of("mock_system"),
+		ID:          new("mock_system"),
+		Name:        new("mock_system"),
 		Datacenters: []string{"dc1"},
-		Type:        pointer.Of("system"),
+		Type:        new("system"),
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  pointer.Of("mock_sysgroup"),
-				Count: pointer.Of(1),
+				Name:  new("mock_sysgroup"),
+				Count: new(1),
 				Tasks: []*api.Task{
 					{
 						Name:   "mock_systask",
@@ -180,8 +179,8 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 							"run_for": "10m",
 						},
 						Resources: &api.Resources{
-							CPU:      pointer.Of(50),
-							MemoryMB: pointer.Of(50),
+							CPU:      new(50),
+							MemoryMB: new(50),
 						},
 					},
 				},

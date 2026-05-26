@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/iterator"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -27,12 +26,12 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 
 	poolWithMemOversub := mock.NodePool()
 	poolWithMemOversub.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-		MemoryOversubscriptionEnabled: pointer.Of(true),
+		MemoryOversubscriptionEnabled: new(true),
 	}
 
 	poolNoMemOversub := mock.NodePool()
 	poolNoMemOversub.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-		MemoryOversubscriptionEnabled: pointer.Of(false),
+		MemoryOversubscriptionEnabled: new(false),
 	}
 
 	cases := []struct {

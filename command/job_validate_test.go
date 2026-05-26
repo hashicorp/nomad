@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
@@ -30,7 +29,7 @@ func TestValidateCommand_Files(t *testing.T) {
 	s := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
 		c.Vaults[0].Address = v.HTTPAddr
 		c.Vaults[0].Enabled = true
-		c.Vaults[0].AllowUnauthenticated = pointer.Of(false)
+		c.Vaults[0].AllowUnauthenticated = new(false)
 		c.Vaults[0].Token = v.RootToken
 	})
 	defer s.Stop()

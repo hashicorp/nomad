@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -19,7 +18,7 @@ func testJob_Disconnected() *structs.Job {
 	testJob := mock.Job()
 	testJob.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 		LostAfter: 5 * time.Second,
-		Replace:   pointer.Of(true),
+		Replace:   new(true),
 	}
 
 	return testJob
@@ -29,7 +28,7 @@ func testJobSingle_Disconnected() *structs.Job {
 	testJobSingle := mock.Job()
 	testJobSingle.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 		LostAfter: 5 * time.Second,
-		Replace:   pointer.Of(true),
+		Replace:   new(true),
 	}
 	return testJobSingle
 }
@@ -45,7 +44,7 @@ func testJobNoMaxDisconnectSingle_Disconnected() *structs.Job {
 	testJobNoMaxDisconnectSingle := mock.Job()
 	testJobNoMaxDisconnectSingle.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 		LostAfter: 0 * time.Second,
-		Replace:   pointer.Of(false),
+		Replace:   new(false),
 	}
 
 	return testJobNoMaxDisconnectSingle
@@ -173,7 +172,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating1": {
 							ID:                "migrating1",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJob,
 							NodeID:            "draining",
 						},
@@ -181,7 +180,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating2": {
 							ID:                "migrating2",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJob,
 							NodeID:            "nil",
 						},
@@ -220,7 +219,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating1": {
 							ID:                "migrating1",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJob,
 							NodeID:            "draining",
 						},
@@ -228,7 +227,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating2": {
 							ID:                "migrating2",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJob,
 							NodeID:            "nil",
 						},
@@ -875,7 +874,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating1": {
 							ID:                "migrating1",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJobSingle,
 							NodeID:            "draining",
 						},
@@ -883,7 +882,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating2": {
 							ID:                "migrating2",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJobSingle,
 							NodeID:            "nil",
 						},
@@ -922,7 +921,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating1": {
 							ID:                "migrating1",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJobSingle,
 							NodeID:            "draining",
 						},
@@ -930,7 +929,7 @@ func TestAllocSet_classifyAllocs(t *testing.T) {
 						"migrating2": {
 							ID:                "migrating2",
 							ClientStatus:      structs.AllocClientStatusRunning,
-							DesiredTransition: structs.DesiredTransition{Migrate: pointer.Of(true)},
+							DesiredTransition: structs.DesiredTransition{Migrate: new(true)},
 							Job:               testJobSingle,
 							NodeID:            "nil",
 						},
@@ -1880,7 +1879,7 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					Job:          testJob,
 					TaskGroup:    "rescheduleTG",
 					DesiredTransition: structs.DesiredTransition{
-						Reschedule: pointer.Of(true),
+						Reschedule: new(true),
 					},
 					ModifyTime: now.Unix(),
 					TaskStates: map[string]*structs.TaskState{
@@ -1895,7 +1894,7 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					Job:          testJob,
 					TaskGroup:    "rescheduleTG",
 					DesiredTransition: structs.DesiredTransition{
-						Reschedule: pointer.Of(true),
+						Reschedule: new(true),
 					},
 					ModifyTime: now.Unix(),
 					TaskStates: map[string]*structs.TaskState{

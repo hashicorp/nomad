@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
@@ -39,8 +38,8 @@ func TestNodePoolJobsListCommand_Run(t *testing.T) {
 	// Register some jobs
 	registerJob := func(np, ns, id string) {
 		job := testJob(id)
-		job.Namespace = pointer.Of(ns)
-		job.NodePool = pointer.Of(np)
+		job.Namespace = new(ns)
+		job.NodePool = new(np)
 		_, _, err := client.Jobs().Register(job, nil)
 		must.NoError(t, err)
 	}

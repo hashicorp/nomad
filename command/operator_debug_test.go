@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	mon "github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
@@ -891,7 +890,7 @@ func testServerWithoutLeader(t *testing.T, runClient bool, cb func(*agent.Config
 	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
 		config.Client.Enabled = runClient
 		config.Server.Enabled = true
-		config.Server.NumSchedulers = pointer.Of(0)
+		config.Server.NumSchedulers = new(0)
 		config.Server.BootstrapExpect = 3
 
 		if cb != nil {
