@@ -4,6 +4,24 @@
  */
 
 .topo-viz {
+  .topo-viz-tooltip {
+    max-width: min(40rem, calc(100vw - 2rem));
+
+    ol > li {
+      min-width: 0;
+    }
+
+    .label {
+      flex: 0 0 auto;
+    }
+
+    .value {
+      max-width: 28rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
   .topo-viz-datacenters {
     display: flex;
     flex-flow: column wrap;

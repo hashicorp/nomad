@@ -522,7 +522,7 @@
         />
         <SearchBox
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{this.resetPagination}}
+          @onChange={{queue (fn (mut this.searchTerm)) this.resetPagination}}
           @placeholder="Search allocations..."
           @inputClass="is-compact"
           @class="is-padded"
@@ -560,27 +560,27 @@
             <t.head>
               <th class="is-narrow"><span class="visually-hidden">Driver Health,
                   Scheduling, and Preemption</span></th>
-              <t.sort-by @prop="shortId">
+              <t.sortBy @prop="shortId">
                 ID
-              </t.sort-by>
-              <t.sort-by @prop="createIndex" @title="Create Index">
+              </t.sortBy>
+              <t.sortBy @prop="createIndex" @title="Create Index">
                 Created
-              </t.sort-by>
-              <t.sort-by @prop="modifyIndex" @title="Modify Index">
+              </t.sortBy>
+              <t.sortBy @prop="modifyIndex" @title="Modify Index">
                 Modified
-              </t.sort-by>
-              <t.sort-by @prop="maxRunDeadline">
+              </t.sortBy>
+              <t.sortBy @prop="maxRunDeadline">
                 Max Run Deadline
-              </t.sort-by>
-              <t.sort-by @prop="statusIndex">
+              </t.sortBy>
+              <t.sortBy @prop="statusIndex">
                 Status
-              </t.sort-by>
-              <t.sort-by @prop="job.name">
+              </t.sortBy>
+              <t.sortBy @prop="job.name">
                 Job
-              </t.sort-by>
-              <t.sort-by @prop="jobVersion">
+              </t.sortBy>
+              <t.sortBy @prop="jobVersion">
                 Version
-              </t.sort-by>
+              </t.sortBy>
               <th>
                 Volume
               </th>
@@ -601,8 +601,8 @@
                 @allocation={{row.model}}
                 @context="node"
                 @onClick={{fn this.gotoAllocation row.model}}
-                @data-test-allocation={{row.model.id}}
                 @showMaxRunDeadline={{true}}
+                data-test-allocation={{row.model.id}}
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}

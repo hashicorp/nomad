@@ -202,18 +202,18 @@
         >
           <t.head>
             <th class="is-narrow"><span class="visually-hidden">Driver Health</span></th>
-            <t.sort-by @prop="name">
+            <t.sortBy @prop="name">
               Name
-            </t.sort-by>
-            <t.sort-by @prop="state">
+            </t.sortBy>
+            <t.sortBy @prop="state">
               State
-            </t.sort-by>
+            </t.sortBy>
             <th>
               Last Event
             </th>
-            <t.sort-by @prop="events.lastObject.time">
+            <t.sortBy @prop="events.lastObject.time">
               Time
-            </t.sort-by>
+            </t.sortBy>
             <th>
               Volumes
             </th>
@@ -230,7 +230,7 @@
                 enumerated=true
                 action=(fn this.taskClick row.model.allocation row.model)
               }}
-              @data-test-task-row={{row.model.name}}
+              data-test-task-row={{row.model.name}}
               @task={{row.model}}
               @onClick={{fn this.taskClick row.model.allocation row.model}}
             />
@@ -534,8 +534,8 @@
             <AllocationRow
               @allocation={{row.model}}
               @context="job"
-              @data-test-allocation={{row.model.id}}
               @showMaxRunDeadline={{this.model.job.isBatchOrSysbatch}}
+              data-test-allocation={{row.model.id}}
             />
           </t.body>
         </ListTable>

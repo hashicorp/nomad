@@ -92,6 +92,7 @@ export default defineConfig([
       },
     },
     rules: {
+      'ember/no-at-ember-render-modifiers': 'off',
       'ember/no-runloop': 'off',
       'ember/no-mixins': 'off',
       'ember/avoid-leaking-state-in-ember-objects': 'off',

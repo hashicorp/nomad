@@ -1,0 +1,19 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+export const HamburgerMenu = <template>
+  <svg
+    class="hamburger-menu"
+    viewBox="0 0 100 100"
+    xmlns="http://www.w3.org/2000/svg"
+    ...attributes
+  >
+    <rect x="0" y="0" width="100" height="16" />
+    <rect x="0" y="42" width="100" height="16" />
+    <rect x="0" y="84" width="100" height="16" />
+  </svg>
+</template>;
+
+export default HamburgerMenu;

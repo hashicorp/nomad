@@ -22,16 +22,16 @@
         as |t|
       >
         <t.head>
-          <t.sort-by @prop="name">Name</t.sort-by>
-          <t.sort-by @prop="status">Status</t.sort-by>
-          <t.sort-by @prop="isLeader">Leader</t.sort-by>
-          <t.sort-by
+          <t.sortBy @prop="name">Name</t.sortBy>
+          <t.sortBy @prop="status">Status</t.sortBy>
+          <t.sortBy @prop="isLeader">Leader</t.sortBy>
+          <t.sortBy
             @class="is-200px is-truncatable"
             @prop="address"
-          >Address</t.sort-by>
-          <t.sort-by @prop="serfPort">port</t.sort-by>
-          <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
-          <t.sort-by @prop="version">Version</t.sort-by>
+          >Address</t.sortBy>
+          <t.sortBy @prop="serfPort">port</t.sortBy>
+          <t.sortBy @prop="datacenter">Datacenter</t.sortBy>
+          <t.sortBy @prop="version">Version</t.sortBy>
         </t.head>
         <t.body as |row|>
           <ServerAgentRow data-test-server-agent-row @agent={{row.model}} />

@@ -52,10 +52,18 @@ export default class AccessControlRolesIndexController extends Controller {
 
   get roles() {
     return this.model.roles.map((role) => {
-      role.tokens = (this.model.tokens || []).filter((token) => {
+      const tokens = (this.model.tokens || []).filter((token) => {
         return token.roles.includes(role);
       });
-      return role;
+
+      return {
+        id: role.id,
+        name: role.name,
+        description: role.description,
+        policyNames: role.policyNames,
+        tokens,
+        record: role,
+      };
     });
   }
 
@@ -69,10 +77,12 @@ export default class AccessControlRolesIndexController extends Controller {
 
   @task(function* (role) {
     try {
-      yield role.deleteRecord();
-      yield role.save();
+      const record = role.record || role;
+
+      yield record.deleteRecord();
+      yield record.save();
       this.notifications.add({
-        title: `Role ${role.name} successfully deleted`,
+        title: `Role ${record.name} successfully deleted`,
         color: 'success',
       });
     } catch (err) {

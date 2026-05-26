@@ -168,21 +168,25 @@ module('Acceptance | policies', function (hooks) {
 
   test('Policies Index', async function (assert) {
     allScenarios.policiesTestCluster(this.server);
+    const initialPolicyCount = this.server.db.policies.length;
+
     window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/policies');
     // Table contains every policy in db
-    assert
-      .dom('[data-test-policy-row]')
-      .exists({ count: this.server.db.policies.length });
+    assert.dom('[data-test-policy-row]').exists({ count: initialPolicyCount });
 
     assert.dom('[data-test-empty-policies-list-headline]').doesNotExist();
 
     // Deleting all policies results in a message
-    const policyRows = findAll('[data-test-policy-row]');
-    for (const row of policyRows) {
-      const deleteButton = row.querySelector('[data-test-delete-policy]');
-      await click(deleteButton);
+    while (findAll('[data-test-policy-row]').length) {
+      await click('[data-test-policy-row] [data-test-delete-policy]');
     }
+    assert.dom('[data-test-policy-row]').doesNotExist('all rows were removed');
+    assert.strictEqual(
+      this.server.db.policies.length,
+      0,
+      'all policies are deleted',
+    );
     assert.dom('[data-test-empty-policies-list-headline]').exists();
     // Reset Token
     window.localStorage.nomadTokenSecret = null;

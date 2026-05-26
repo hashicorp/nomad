@@ -154,13 +154,7 @@ module('Unit | Mixin | Searchable', function (hooks) {
           continent: 'North America',
           fuzzySearchMatches: [
             {
-              indices: [
-                [2, 2],
-                [4, 4],
-                [9, 9],
-                [11, 11],
-                [17, 23],
-              ],
+              indices: [[17, 23]],
               value: 'United States of America',
               key: 'name',
             },

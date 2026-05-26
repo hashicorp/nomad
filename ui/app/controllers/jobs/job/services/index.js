@@ -43,10 +43,16 @@ export default class JobsJobServicesIndexController extends Controller.extend(
       .map((t) => (t.services || []).toArray())
       .flat()
       .compact()
-      .map((service) => {
-        service.level = 'task';
-        return service;
-      });
+      .map((service) => ({
+        name: service.name,
+        portLabel: service.portLabel,
+        tags: service.tags,
+        canary_tags: service.canary_tags,
+        provider: service.provider,
+        connect: service.connect,
+        level: 'task',
+        instances: [],
+      }));
   }
 
   @computed('model.taskGroup.services.@each.name', 'taskGroups')
@@ -55,10 +61,16 @@ export default class JobsJobServicesIndexController extends Controller.extend(
       .map((g) => (g.services || []).toArray())
       .flat()
       .compact()
-      .map((service) => {
-        service.level = 'group';
-        return service;
-      });
+      .map((service) => ({
+        name: service.name,
+        portLabel: service.portLabel,
+        tags: service.tags,
+        canary_tags: service.canary_tags,
+        provider: service.provider,
+        connect: service.connect,
+        level: 'group',
+        instances: [],
+      }));
   }
 
   @union('taskServices', 'groupServices') serviceFragments;
@@ -70,11 +82,11 @@ export default class JobsJobServicesIndexController extends Controller.extend(
     'serviceFragments',
   )
   get services() {
-    return this.serviceFragments.map((fragment) => {
-      fragment.instances = this.job.services.filter(
+    return this.serviceFragments.map((fragment) => ({
+      ...fragment,
+      instances: this.job.services.filter(
         (s) => s.name === fragment.name && s.derivedLevel === fragment.level,
-      );
-      return fragment;
-    });
+      ),
+    }));
   }
 }
