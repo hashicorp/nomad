@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package deploymentwatcher
@@ -11,7 +11,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,7 +28,7 @@ var (
 	// allocations part of a deployment to be rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowRescheduleTransition = &structs.DesiredTransition{
-		Reschedule: pointer.Of(true),
+		Reschedule: new(true),
 	}
 )
 
@@ -156,7 +155,7 @@ func (w *deploymentWatcher) getDeployment() *structs.Deployment {
 	return w.d
 }
 
-func (w *deploymentWatcher) SetAllocHealth(
+func (w *deploymentWatcher) setAllocHealth(
 	req *structs.DeploymentAllocHealthRequest,
 	resp *structs.DeploymentUpdateResponse) error {
 
@@ -214,6 +213,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 	}
 
 	// Canonicalize the job in case it doesn't have namespace set
+	j = j.Copy()
 	j.Canonicalize()
 
 	// Create the request
@@ -236,7 +236,7 @@ func (w *deploymentWatcher) SetAllocHealth(
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
 	if j != nil {
-		resp.RevertedJobVersion = pointer.Of(j.Version)
+		resp.RevertedJobVersion = new(j.Version)
 	}
 	return nil
 }
@@ -397,7 +397,7 @@ func (w *deploymentWatcher) FailDeployment(
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
 	if rollbackJob != nil {
-		resp.RevertedJobVersion = pointer.Of(rollbackJob.Version)
+		resp.RevertedJobVersion = new(rollbackJob.Version)
 	}
 	return nil
 }
@@ -668,6 +668,9 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	}
 
 	fail = false
+	if d.Status == structs.DeploymentStatusPaused {
+		return false, false, nil
+	}
 	for tg, dstate := range d.TaskGroups {
 		// If we are in a canary state we fail if there aren't enough healthy
 		// allocs to satisfy DesiredCanaries
@@ -884,10 +887,16 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 
 // getDeploymentStatusUpdate returns a deployment status update
 func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *structs.DeploymentStatusUpdate {
+	// only pass UpdatedAt value for paused deployments
+	var updatedAt int64
+	if status == structs.DeploymentStatusPaused || status == structs.DeploymentStatusRunning {
+		updatedAt = time.Now().UTC().UnixNano()
+	}
 	return &structs.DeploymentStatusUpdate{
 		DeploymentID:      w.deploymentID,
 		Status:            status,
 		StatusDescription: desc,
+		UpdatedAt:         updatedAt,
 	}
 }
 

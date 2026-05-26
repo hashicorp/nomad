@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -38,10 +38,16 @@ func TestOperatorClientStateCommand(t *testing.T) {
 	alloc := structs.MockAlloc()
 	err = db.PutAllocation(alloc)
 	must.NoError(t, err)
+
+	// Write a node identity to the DB, so we can test that the command reads
+	// this data.
+	must.NoError(t, db.PutNodeIdentity("mynodeidentity"))
+
 	must.NoError(t, db.Close())
 
 	// run against an incomplete client state directory
 	code = cmd.Run([]string{dir})
 	must.Eq(t, 0, code)
 	must.StrContains(t, ui.OutputWriter.String(), alloc.ID)
+	must.StrContains(t, ui.OutputWriter.String(), "NodeIdentity\":\"mynodeidentity")
 }

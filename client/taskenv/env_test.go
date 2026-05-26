@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskenv
@@ -39,6 +39,9 @@ const (
 	envOneVal = "127.0.0.1"
 	envTwoKey = "NOMAD_PORT_WEB"
 	envTwoVal = ":80"
+
+	// Secrets populated from secrets hook
+	testSecret = "foo"
 )
 
 var (
@@ -65,7 +68,13 @@ func testEnvBuilder() *Builder {
 		envOneKey: envOneVal,
 		envTwoKey: envTwoVal,
 	}
-	return NewBuilder(n, mock.Alloc(), task, "global")
+
+	b := NewBuilder(n, mock.Alloc(), task, "global")
+	b.taskSecrets = map[string]string{
+		testSecret: testSecret,
+	}
+
+	return b
 }
 
 func TestEnvironment_ParseAndReplace_Env(t *testing.T) {
@@ -145,13 +154,13 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 	ci.Parallel(t)
 
-	input := fmt.Sprintf("${%v}${%v%v}", nodeNameKey, nodeAttributePrefix, attrKey)
-	exp := fmt.Sprintf("%v%v", nodeName, attrVal)
+	input := fmt.Sprintf("${%v}${%v%v}${%v}", nodeNameKey, nodeAttributePrefix, attrKey, testSecret)
+	exp := fmt.Sprintf("%v%v%v", nodeName, attrVal, testSecret)
 	env := testEnvBuilder()
 	act := env.Build().ReplaceEnv(input)
 
 	if act != exp {
-		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
+		t.Fatalf("ReplaceEnv(%v) returned %#v; want %#v", input, act, exp)
 	}
 }
 
@@ -214,7 +223,7 @@ func TestEnvironment_AsList(t *testing.T) {
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
 		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
-	)
+	).SetDefaultWorkloadToken("test-wi-token")
 
 	act := env.Build().List()
 	exp := []string{
@@ -263,6 +272,8 @@ func TestEnvironment_AsList(t *testing.T) {
 		fmt.Sprintf("NOMAD_ALLOC_ID=%s", a.ID),
 		fmt.Sprintf("NOMAD_SHORT_ALLOC_ID=%s", a.ID[:8]),
 		"NOMAD_ALLOC_INDEX=0",
+		"NOMAD_TOKEN=test-wi-token",
+		"NOMAD_UNIX_ADDR=unix://api.sock",
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
@@ -342,7 +353,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 	}
 	env := NewBuilder(n, a, task, "global").SetDriverNetwork(
 		&drivers.DriverNetwork{PortMap: map[string]int{"https": 443}},
-	)
+	).SetDefaultWorkloadToken("test-wi-token")
 
 	// Setting the network status ensures we trigger the addNomadAllocNetwork
 	// for the test.
@@ -361,6 +372,10 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"LC_CTYPE": "C.UTF-8",
 	}
 	env.mu.Unlock()
+
+	env.taskSecrets = map[string]string{
+		"secret.testsecret.test": "foo",
+	}
 
 	values, errs, err := env.Build().AllValues()
 	require.NoError(t, err)
@@ -394,6 +409,9 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"node.attr.driver.mock_driver": "1",
 		"node.attr.kernel.name":        "linux",
 		"node.attr.nomad.version":      "0.5.0",
+
+		// Task Secrets for interpreting task config
+		`secret.testsecret.test`: "foo",
 
 		// Env
 		"taskEnvKey":                                "taskEnvVal",
@@ -453,6 +471,8 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_ALLOC_INTERFACE_admin":               "eth0",
 		"NOMAD_ALLOC_IP_admin":                      "172.26.64.19",
 		"NOMAD_ALLOC_ADDR_admin":                    "172.26.64.19:9000",
+		"NOMAD_TOKEN":                               "test-wi-token",
+		"NOMAD_UNIX_ADDR":                           "unix://api.sock",
 
 		// Env vars from the host.
 		"LC_CTYPE": "C.UTF-8",
@@ -837,6 +857,21 @@ func Test_addNetNamespacePort(t *testing.T) {
 				"NOMAD_ALLOC_ADDR_http":      "172.26.64.11:80",
 			},
 			name: "single input port",
+		},
+		{
+			inputPorts: structs.AllocatedPorts{
+				{Label: "http", Value: 80},
+			},
+			inputNetwork: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "172.26.64.11",
+			},
+			expectedOutput: map[string]string{
+				"NOMAD_ALLOC_INTERFACE_http": "eth0",
+				"NOMAD_ALLOC_IP_http":        "172.26.64.11",
+				"NOMAD_ALLOC_ADDR_http":      "172.26.64.11:80",
+			},
+			name: "single static input port",
 		},
 		{
 			inputPorts: structs.AllocatedPorts{

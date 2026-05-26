@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -46,10 +46,10 @@ $secondaryNavbarHeight: 4.5rem;
           width: 1px;
           height: 1em;
           background: rgba($primary-invert, 0.5);
-          content: ' ';
+          content: " ";
           display: block;
           position: absolute;
-          left: 0px;
+          left: 0;
         }
       }
     }

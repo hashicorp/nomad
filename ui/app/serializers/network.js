@@ -1,10 +1,10 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import ApplicationSerializer from './application';
-import isIp from 'is-ip';
+import { isIPv6 } from 'is-ip';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -18,7 +18,7 @@ export default class NetworkSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     const ip = hash.IP;
 
-    if (isIp.v6(ip)) {
+    if (ip && isIPv6(ip)) {
       hash.IP = `[${ip}]`;
     }
 

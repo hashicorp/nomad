@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -91,6 +91,7 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 
 	volumes := map[string]*structs.VolumeRequest{
 		"foo": {
+			Name:   "foo",
 			Type:   "csi",
 			Source: "my-test-volume",
 		},
@@ -113,8 +114,9 @@ func TestVolumeHook_prepareCSIVolumes(t *testing.T) {
 			},
 			Expected: []*drivers.MountConfig{
 				{
-					HostPath: "/mnt/my-test-volume",
-					TaskPath: "/bar",
+					RequestName: "foo",
+					HostPath:    "/mnt/my-test-volume",
+					TaskPath:    "/bar",
 				},
 			},
 		},

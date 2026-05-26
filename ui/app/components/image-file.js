@@ -1,10 +1,10 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { action, computed } from '@ember/object';
 import {
   classNames,
   tagName,
@@ -31,6 +31,11 @@ export default class ImageFile extends Component {
   get fileName() {
     if (!this.src) return undefined;
     return this.src.includes('/') ? this.src.match(/^.*\/(.*)$/)[1] : this.src;
+  }
+
+  @action
+  handleImageLoad(event) {
+    this.updateImageMeta(event);
   }
 
   updateImageMeta(event) {

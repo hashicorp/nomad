@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package workload_id
@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/shoenig/test/must"
@@ -72,7 +71,7 @@ func testDynamicNodeMetadata(t *testing.T) {
 		Strict: true,
 	})
 	must.NoError(t, err)
-	job.ID = pointer.Of(jobID)
+	job.ID = new(jobID)
 
 	// Setup ACLs
 	for _, task := range job.TaskGroups[0].Tasks {
@@ -94,8 +93,8 @@ func testDynamicNodeMetadata(t *testing.T) {
 	req := &api.NodeMetaApplyRequest{
 		NodeID: node.ID,
 		Meta: map[string]*string{
-			keyFoo:   pointer.Of("bar"),
-			keyEmpty: pointer.Of(""),
+			keyFoo:   new("bar"),
+			keyEmpty: new(""),
 			keyUnset: nil,
 		},
 	}

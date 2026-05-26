@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -16,6 +16,7 @@ import (
 	"github.com/gosuri/uilive"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
 	"github.com/moby/term"
@@ -76,6 +77,7 @@ func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
 			"-monitor": complete.PredictNothing,
 			"-t":       complete.PredictAnything,
 			"-ui":      complete.PredictNothing,
+			"-wait":    complete.PredictAnything,
 		})
 }
 
@@ -276,18 +278,46 @@ func (c *DeploymentStatusCommand) ttyMonitor(client *api.Client, deployID string
 	var statusComponent *glint.LayoutComponent
 	var endSpinner *glint.LayoutComponent
 
+	// Retry on error monitoring config
+	const (
+		retryBackoffBase = time.Second
+		retryBackoffMax  = 12 * time.Second
+		maxRetries       = 10
+	)
+
 UPDATE:
 	for {
 		var deploy *api.Deployment
 		var meta *api.QueryMeta
-		deploy, meta, err = client.Deployments().Info(deployID, &q)
-		if err != nil {
-			d.Append(glint.Layout(glint.Style(
-				glint.Text(fmt.Sprintf("%s: Error fetching deployment: %v", formatTime(time.Now()), err)),
-				glint.Color("red"),
-			)).MarginLeft(4), glint.Text(""))
+
+		for attempt := 0; ; attempt++ {
+			deploy, meta, err = client.Deployments().Info(deployID, &q)
+			if err == nil {
+				break
+			}
+
+			if attempt >= maxRetries {
+				// Final attempt failed, print error and exit monitoring
+				d.Set()
+				d.Append(
+					glint.Layout(glint.Style(
+						glint.Text(fmt.Sprintf("%s: Error fetching deployment: %v", formatTime(time.Now()), err)),
+						glint.Color("red"),
+					)).MarginLeft(4), glint.Text(""))
+				d.RenderFrame()
+				return
+			}
+
+			backoff := helper.Backoff(retryBackoffBase, retryBackoffMax, uint64(attempt))
+
+			retryComponent := glint.Layout(
+				glint.Text(fmt.Sprintf("Failed fetching deployment: %v, retrying in %s (attempt %d/%d)",
+					err, backoff, attempt+1, maxRetries)),
+			).Row().MarginLeft(4)
+			d.Set(spinner, retryComponent)
 			d.RenderFrame()
-			return
+
+			time.Sleep(backoff)
 		}
 
 		status = deploy.Status
@@ -556,7 +586,7 @@ func formatDeployment(c *api.Client, d *api.Deployment, uuidLength int) string {
 		return base
 	}
 	base += "\n\n[bold]Deployed[reset]\n"
-	base += formatDeploymentGroups(d, uuidLength)
+	base += formatDeploymentGroups(d.TaskGroups, uuidLength)
 	return base
 }
 
@@ -627,11 +657,11 @@ func formatMultiregionDeployment(regions map[string]*api.Deployment, uuidLength 
 	return formatList(rows)
 }
 
-func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
+func formatDeploymentGroups(tgs map[string]*api.DeploymentState, uuidLength int) string {
 	// Detect if we need to add these columns
 	var canaries, autorevert, progressDeadline bool
-	tgNames := make([]string, 0, len(d.TaskGroups))
-	for name, state := range d.TaskGroups {
+	tgNames := make([]string, 0, len(tgs))
+	for name, state := range tgs {
 		tgNames = append(tgNames, name)
 		if state.AutoRevert {
 			autorevert = true
@@ -664,11 +694,11 @@ func formatDeploymentGroups(d *api.Deployment, uuidLength int) string {
 		rowString += "|Progress Deadline"
 	}
 
-	rows := make([]string, len(d.TaskGroups)+1)
+	rows := make([]string, len(tgs)+1)
 	rows[0] = rowString
 	i := 1
 	for _, tg := range tgNames {
-		state := d.TaskGroups[tg]
+		state := tgs[tg]
 		row := fmt.Sprintf("%s|", tg)
 		if autorevert {
 			row += fmt.Sprintf("%v|", state.AutoRevert)

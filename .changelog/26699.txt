@@ -1,0 +1,3 @@
+```release-note:bug
+client: restore task network status on client restart so restarted tasks receive proper networking environment variables, hosts file, and resolv.conf.
+```

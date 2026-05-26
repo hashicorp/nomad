@@ -1,11 +1,10 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 import (
 	"bytes"
-	"container/heap"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -34,8 +33,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/command/agent/host"
 	"github.com/hashicorp/nomad/command/agent/pprof"
@@ -45,7 +44,6 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/lib/kheap"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/miekg/dns"
 	"github.com/mitchellh/copystructure"
@@ -139,6 +137,9 @@ const (
 
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
+	//
+	// NOTE: Adding a new MessageType above? You need to have a version check
+	// for the feature to avoid panics during upgrades.
 )
 
 const (
@@ -215,11 +216,17 @@ const (
 	RateMetricRead  = "read"
 	RateMetricList  = "list"
 	RateMetricWrite = "write"
+
+	// Vault secret provider used in task validation
+	SecretProviderVault = "vault"
 )
 
 var (
 	// validNamespaceName is used to validate a namespace name
 	validNamespaceName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+
+	// validSecretName is used to validate a secret name
+	validSecretName = regexp.MustCompile("^[a-zA-Z0-9_]{1,128}$")
 )
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -542,11 +549,17 @@ func (ai *AuthenticatedIdentity) String() string {
 	if ai.ACLToken != nil && ai.ACLToken != AnonymousACLToken {
 		return "token:" + ai.ACLToken.AccessorID
 	}
-	if ai.Claims != nil {
+	if ai.Claims != nil && ai.Claims.IsWorkload() {
 		return "alloc:" + ai.Claims.AllocationID
 	}
 	if ai.ClientID != "" {
 		return "client:" + ai.ClientID
+	}
+	if ai.Claims != nil && ai.Claims.IsNode() {
+		return "client:" + ai.Claims.NodeID
+	}
+	if ai.Claims != nil && ai.Claims.IsNodeIntroduction() {
+		return "client-introduction:" + ai.Claims.NodeIntroductionIdentityClaims.String()
 	}
 	return ai.TLSName + ":" + ai.RemoteIP.String()
 }
@@ -594,19 +607,6 @@ type WriteMeta struct {
 	Index uint64
 }
 
-// NodeRegisterRequest is used for Node.Register endpoint
-// to register a node as being a schedulable entity.
-type NodeRegisterRequest struct {
-	Node      *Node
-	NodeEvent *NodeEvent
-
-	// CreateNodePool is used to indicate that the node's node pool should be
-	// create along with the node registration if it doesn't exist.
-	CreateNodePool bool
-
-	WriteRequest
-}
-
 // NodeDeregisterRequest is used for Node.Deregister endpoint
 // to deregister a node as being a schedulable entity.
 type NodeDeregisterRequest struct {
@@ -638,16 +638,6 @@ type NodeServerInfo struct {
 
 	// Datacenter is the datacenter that a Nomad server belongs to
 	Datacenter string
-}
-
-// NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
-// to update the status of a node.
-type NodeUpdateStatusRequest struct {
-	NodeID    string
-	Status    string
-	NodeEvent *NodeEvent
-	UpdatedAt int64
-	WriteRequest
 }
 
 // NodeUpdateDrainRequest is used for updating the drain strategy
@@ -743,6 +733,11 @@ type JobRegisterRequest struct {
 	// counts should be preserved, over those specified in the new job spec
 	// PreserveCounts is ignored for newly created jobs.
 	PreserveCounts bool
+
+	// PreserveResources indicates that during job update, existing task
+	// resources should be preserved, over those specified in the new job spec
+	// PreserveResources is ignored for newly created jobs.
+	PreserveResources bool
 
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
@@ -1064,11 +1059,22 @@ type PlanRequest struct {
 }
 
 // ApplyPlanResultsRequest is used by the planner to apply a Raft transaction
-// committing the result of a plan.
+// committing the result of a plan, including assigning new allocations or
+// evicting existing ones.
 type ApplyPlanResultsRequest struct {
-	// AllocUpdateRequest holds the allocation updates to be made by the
-	// scheduler.
-	AllocUpdateRequest
+	// Allocations to stop. Contains only the diff, not the entire allocation
+	AllocsStopped []*AllocationDiff
+
+	// New or updated allocations
+	AllocsUpdated []*Allocation
+
+	// Evals is the list of new evaluations to create Evals are valid only when
+	// used in the Raft RPC
+	Evals []*Evaluation
+
+	// Job is the shared parent job of the allocations. It is pulled out of the
+	// request sent over the wire from the scheduler to reduce payload size.
+	Job *Job
 
 	// Deployment is the deployment created or updated as a result of a
 	// scheduling event.
@@ -1087,12 +1093,6 @@ type ApplyPlanResultsRequest struct {
 	// the evaluation itself being updated.
 	EvalID string
 
-	// COMPAT 0.11
-	// NodePreemptions is a slice of allocations from other lower priority jobs
-	// that are preempted. Preempted allocations are marked as evicted.
-	// Deprecated: Replaced with AllocsPreempted which contains only the diff
-	NodePreemptions []*Allocation
-
 	// AllocsPreempted is a slice of allocation diffs from other lower priority jobs
 	// that are preempted. Preempted allocations are marked as evicted.
 	AllocsPreempted []*AllocationDiff
@@ -1110,29 +1110,15 @@ type ApplyPlanResultsRequest struct {
 	UpdatedAt int64
 }
 
-// AllocUpdateRequest is used to submit changes to allocations, either
-// to cause evictions or to assign new allocations. Both can be done
-// within a single transaction
+// AllocUpdateRequest is used to update the server from the client.
 type AllocUpdateRequest struct {
-	// COMPAT 0.11
-	// Alloc is the list of new allocations to assign
-	// Deprecated: Replaced with two separate slices, one containing stopped allocations
-	// and another containing updated allocations
+	// Alloc is the list of allocation updates from the client
 	Alloc []*Allocation
 
-	// Allocations to stop. Contains only the diff, not the entire allocation
-	AllocsStopped []*AllocationDiff
-
-	// New or updated allocations
-	AllocsUpdated []*Allocation
-
-	// Evals is the list of new evaluations to create
-	// Evals are valid only when used in the Raft RPC
+	// Evals is the list of new evaluations to create; these are only added to
+	// the request object in the RPC handler so that we're writing them into the
+	// Raft log entry
 	Evals []*Evaluation
-
-	// Job is the shared parent job of the allocations.
-	// It is pulled out since it is common to reduce payload size.
-	Job *Job
 
 	WriteRequest
 }
@@ -1154,6 +1140,7 @@ type AllocUpdateDesiredTransitionRequest struct {
 type AllocStopRequest struct {
 	AllocID         string
 	NoShutdownDelay bool
+	Reschedule      bool
 
 	WriteRequest
 }
@@ -1259,6 +1246,9 @@ type ClusterMetadata struct {
 
 // VaultAccessor is a reference to a created Vault token on behalf of
 // an allocation's task.
+//
+// DEPRECATED (1.10.0): this object exists only to allow decoding any accessors
+// still left in state so they can be discarded during FSM restore
 type VaultAccessor struct {
 	AllocID     string
 	Task        string
@@ -1491,36 +1481,6 @@ type JobValidateResponse struct {
 	// Warnings contains any warnings about the given job. These may include
 	// deprecation warnings.
 	Warnings string
-}
-
-// NodeUpdateResponse is used to respond to a node update
-type NodeUpdateResponse struct {
-	HeartbeatTTL    time.Duration
-	EvalIDs         []string
-	EvalCreateIndex uint64
-	NodeModifyIndex uint64
-
-	// Features informs clients what enterprise features are allowed
-	Features uint64
-
-	// LeaderRPCAddr is the RPC address of the current Raft Leader.  If
-	// empty, the current Nomad Server is in the minority of a partition.
-	LeaderRPCAddr string
-
-	// NumNodes is the number of Nomad nodes attached to this quorum of
-	// Nomad Servers at the time of the response.  This value can
-	// fluctuate based on the health of the cluster between heartbeats.
-	NumNodes int32
-
-	// Servers is the full list of known Nomad servers in the local
-	// region.
-	Servers []*NodeServerInfo
-
-	// SchedulingEligibility is used to inform clients what the server-side
-	// has for their scheduling status during heartbeats.
-	SchedulingEligibility string
-
-	QueryMeta
 }
 
 // NodeDrainUpdateResponse is used to respond to a node drain update
@@ -2091,19 +2051,6 @@ type Node struct {
 	// reserved from scheduling.
 	ReservedResources *NodeReservedResources
 
-	// Resources is the available resources on the client.
-	// For example 'cpu=2' 'memory=2048'
-	// COMPAT(0.10): Remove after 0.10
-	Resources *Resources
-
-	// Reserved is the set of resources that are reserved,
-	// and should be subtracted from the total resources for
-	// the purposes of scheduling. This may be provide certain
-	// high-watermark tolerances or because of external schedulers
-	// consuming resources.
-	// COMPAT(0.10): Remove after 0.10
-	Reserved *Resources
-
 	// Links are used to 'link' this client to external
 	// systems. For example 'consul=foo.dc1' 'aws=i-83212'
 	// 'ami=ami-123'
@@ -2138,6 +2085,15 @@ type Node struct {
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
 
+	// IdentitySigningKeyID is the ID of the root key used to sign the identity
+	// of the node. This is primarily used to ensure Nomad does not delete a
+	// root keyring that still has nodes with identities signed by it.
+	//
+	// This field is only set if the node has a workload identity and will be
+	// modified by the server when the node is registered or updated, and the
+	// signing key ID has changed from what is stored in state.
+	IdentitySigningKeyID string
+
 	// StatusUpdatedAt is the time stamp at which the state of the node was
 	// updated, stored as Unix (no nano seconds!)
 	StatusUpdatedAt int64
@@ -2157,11 +2113,19 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// GCVolumesOnNodeGC indicates that the server should GC any dynamic host
+	// volumes on this node when the node is GC'd. This should only be set if
+	// you know that a GC'd node can never come back
+	GCVolumesOnNodeGC bool
+
 	// HostNetworks is a map of host host_network names to their configuration
 	HostNetworks map[string]*ClientHostNetworkConfig
 
 	// LastDrain contains metadata about the most recent drain operation
 	LastDrain *DrainMetadata
+
+	// NodeMaxAllocs defaults to 0 unless set in the client config
+	NodeMaxAllocs int
 
 	// LastMissedHeartbeatIndex stores the Raft index when the node last missed
 	// a heartbeat. It resets to zero once the node is marked as ready again.
@@ -2250,6 +2214,12 @@ func (n *Node) Canonicalize() {
 				n.NodeResources.NodeNetworks = append(n.NodeResources.NodeNetworks, nnr)
 			}
 		}
+
+		if n.NodeResources.Processors.Empty() {
+			n.NodeResources.Processors = NodeProcessorResources{
+				Topology: &numalib.Topology{},
+			}
+		}
 	}
 }
 
@@ -2261,8 +2231,6 @@ func (n *Node) Copy() *Node {
 	nn.Attributes = maps.Clone(nn.Attributes)
 	nn.NodeResources = nn.NodeResources.Copy()
 	nn.ReservedResources = nn.ReservedResources.Copy()
-	nn.Resources = nn.Resources.Copy()
-	nn.Reserved = nn.Reserved.Copy()
 	nn.Links = maps.Clone(nn.Links)
 	nn.Meta = maps.Clone(nn.Meta)
 	nn.DrainStrategy = nn.DrainStrategy.Copy()
@@ -2325,7 +2293,6 @@ func (n *Node) HasEvent(msg string) bool {
 
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
-
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
 	s := &NodeListStub{
@@ -3585,7 +3552,8 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 		return false
 	}
 	for k, v := range n.Attributes {
-		if otherV, ok := o.Attributes[k]; !ok || v != otherV {
+		otherV, ok := o.Attributes[k]
+		if !ok || !v.Equal(otherV) {
 			return false
 		}
 	}
@@ -3643,7 +3611,7 @@ func (n *NodeDevice) Equal(o *NodeDevice) bool {
 		return false
 	}
 
-	return false
+	return true
 }
 
 func (n *NodeDevice) Copy() *NodeDevice {
@@ -3758,11 +3726,6 @@ type NodeReservedNetworkResources struct {
 	// interfaces. Its format is a comma separate list of integers or integer
 	// ranges. (80,443,1000-2000,2005)
 	ReservedHostPorts string
-}
-
-// ParseReservedHostPorts returns the reserved host ports.
-func (n *NodeReservedNetworkResources) ParseReservedHostPorts() ([]uint64, error) {
-	return ParsePortRanges(n.ReservedHostPorts)
 }
 
 // AllocatedResources is the set of resources to be used by an allocation.
@@ -4339,6 +4302,9 @@ const (
 	// JobMaxPriority is the maximum allowed configuration value for maximum job priority
 	JobMaxPriority = math.MaxInt16 - 1
 
+	// JobDefaultMaxCount is the default maximum total task group counts per job
+	JobDefaultMaxCount = 50000
+
 	// CoreJobPriority should be higher than any user
 	// specified job so that it gets priority. This is important
 	// for the system to remain healthy.
@@ -4570,6 +4536,7 @@ type JobApplyTagRequest struct {
 	Name    string
 	Tag     *JobVersionTag
 	Version uint64
+	Latest  bool
 	WriteRequest
 }
 
@@ -4913,6 +4880,72 @@ func (j *Job) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+func (j *Job) generateServiceShutdownDelayWarnings() []error {
+	var warnings []error
+
+	for _, tg := range j.TaskGroups {
+		warnings = append(warnings, generateTaskGroupServiceShutdownDelayWarnings(tg)...)
+	}
+
+	return warnings
+}
+
+func generateTaskGroupServiceShutdownDelayWarnings(tg *TaskGroup) []error {
+	var warnings []error
+
+	// for every tg, we need to look at how services are defined.
+	//
+	// 1. if we have a service.task configured, we need to make sure that task
+	// has a shutdown_delay set.
+	// 2. if it's a connect service, we look at the task we're proxying.
+	// 3. if neither, at least one task should have a shutdown delay defined.
+	referencedTaskIDs := map[string]struct{}{}
+	hasUnscopedGroupService := false
+	anyTaskHasShutdownDelay := false
+	hasGroupShutdownDelay := tg.ShutdownDelay != nil && *tg.ShutdownDelay > 0
+
+	for _, s := range tg.Services {
+		if s.TaskName != "" {
+			referencedTaskIDs[s.TaskName] = struct{}{}
+			continue
+		}
+
+		if s.Connect != nil && s.Connect.SidecarTask != nil {
+			if s.Connect.SidecarTask.ShutdownDelay == nil {
+				warnings = append(warnings, fmt.Errorf(
+					"service %q defines a sidecar task in Consul Connect definition, but the task has no shutdown_delay set",
+					s.Name))
+			}
+			continue
+		}
+
+		hasUnscopedGroupService = true
+	}
+
+	for _, t := range tg.Tasks {
+		if _, ok := referencedTaskIDs[t.Name]; ok && t.ShutdownDelay == 0 {
+			warnings = append(warnings, fmt.Errorf(
+				"group %q references task %q in a service definition, but the task has no shutdown_delay set",
+				tg.Name, t.Name))
+		}
+
+		if t.ShutdownDelay > 0 {
+			anyTaskHasShutdownDelay = true
+		} else if len(t.Services) > 0 {
+			warnings = append(warnings, fmt.Errorf(
+				"task %q in group %q defines services, but has no shutdown_delay set",
+				t.Name, tg.Name))
+		}
+	}
+
+	if hasUnscopedGroupService && !hasGroupShutdownDelay && !anyTaskHasShutdownDelay {
+		warnings = append(warnings, fmt.Errorf(
+			"group %q defines services, but neither the group nor any of its tasks have shutdown_delay set", tg.Name))
+	}
+
+	return warnings
+}
+
 // Warnings returns a list of warnings that may be from dubious settings or
 // deprecation warnings.
 func (j *Job) Warnings() error {
@@ -4934,6 +4967,9 @@ func (j *Job) Warnings() error {
 			allAutoPromote = allAutoPromote && (u.Canary == 0 || u.AutoPromote)
 		}
 	}
+
+	// check if we have services with no shutdown delay set
+	mErr.Errors = append(mErr.Errors, j.generateServiceShutdownDelayWarnings()...)
 
 	// Check AutoPromote, should be all or none
 	if hasAutoPromote && !allAutoPromote {
@@ -5111,6 +5147,33 @@ func (j *Job) Vault() map[string]map[string]*Vault {
 
 		if len(tgBlocks) != 0 {
 			blocks[tg.Name] = tgBlocks
+		}
+	}
+
+	return blocks
+}
+
+// Secrets returns the set of secrets per task group, per task
+func (j *Job) Secrets() map[string][]string {
+	blocks := make(map[string][]string, len(j.TaskGroups))
+
+	for _, tg := range j.TaskGroups {
+		secrets := []string{}
+
+		for _, task := range tg.Tasks {
+			if len(task.Secrets) == 0 {
+				continue
+			}
+
+			for _, s := range task.Secrets {
+				if !slices.Contains(secrets, s.Provider) {
+					secrets = append(secrets, s.Provider)
+				}
+			}
+		}
+
+		if len(secrets) != 0 {
+			blocks[tg.Name] = secrets
 		}
 	}
 
@@ -5343,6 +5406,9 @@ var (
 type UpdateStrategy struct {
 	// Stagger is used to determine the rate at which allocations are migrated
 	// due to down or draining nodes.
+	//
+	// Deprecated: as of Nomad 1.11, this field is equivalent to MinHealthyTime
+	// and will be removed in future releases.
 	Stagger time.Duration
 
 	// MaxParallel is how many updates can be done in parallel
@@ -6871,6 +6937,11 @@ type TaskGroup struct {
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
 
+	// MaxRunDuration is the maximum amount of time a batch or sysbatch task
+	// group allocation may run after entering the running state before Nomad
+	// stops it.
+	MaxRunDuration *time.Duration
+
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
 	// To be deprecated after 1.8.0 infavor of Disconnect.StopOnClientAfter
@@ -6937,6 +7008,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	if tg.ShutdownDelay != nil {
 		ntg.ShutdownDelay = tg.ShutdownDelay
+	}
+
+	if tg.MaxRunDuration != nil {
+		ntg.MaxRunDuration = tg.MaxRunDuration
 	}
 
 	return ntg
@@ -7058,6 +7133,18 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
+	if tg.MaxRunDuration != nil {
+		if *tg.MaxRunDuration <= 0 {
+			mErr = multierror.Append(mErr, errors.New("MaxRunDuration must be greater than zero"))
+		}
+
+		switch j.Type {
+		case JobTypeBatch, JobTypeSysBatch:
+		default:
+			mErr = multierror.Append(mErr, fmt.Errorf("Job type %q does not allow max_run_duration", j.Type))
+		}
+	}
+
 	for idx, constr := range tg.Constraints {
 		if err := constr.Validate(); err != nil {
 			outer := fmt.Errorf("Constraint %d validation failed: %s", idx+1, err)
@@ -7098,9 +7185,9 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		}
 	}
 
-	if j.Type == JobTypeSystem {
+	if j.Type == JobTypeSystem || j.Type == JobTypeSysBatch {
 		if tg.ReschedulePolicy != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("System jobs should not have a reschedule policy"))
+			mErr = multierror.Append(mErr, fmt.Errorf("System or sysbatch jobs should not have a reschedule policy"))
 		}
 	} else {
 		if tg.ReschedulePolicy != nil {
@@ -7627,9 +7714,9 @@ func (tg *TaskGroup) Replace() bool {
 	return *tg.Disconnect.Replace
 }
 
-// GetDisconnectLostTimeout is a helper meant to simplify the logic for
+// GetDisconnectLostAfter is a helper meant to simplify the logic for
 // getting the Disconnect.LostAfter field of a task group.
-func (tg *TaskGroup) GetDisconnectLostTimeout() time.Duration {
+func (tg *TaskGroup) GetDisconnectLostAfter() time.Duration {
 	if tg.Disconnect != nil {
 		return tg.Disconnect.LostAfter
 	}
@@ -7809,6 +7896,9 @@ type Task struct {
 	// Vault is used to define the set of Vault policies that this task should
 	// have access to.
 	Vault *Vault
+
+	// List of secrets for the task.
+	Secrets []*Secret
 
 	// Consul configuration specific to this task. If uset, falls back to the
 	// group's Consul field.
@@ -8104,6 +8194,12 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 	if t.Name == "" {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing task name"))
 	}
+
+	// Tasks cannot be named "alloc" as this conflicts with and breaks task
+	// filesystem isolation features.
+	if t.Name == "alloc" {
+		mErr.Errors = append(mErr.Errors, errors.New("Task cannot be named \"alloc\""))
+	}
 	if strings.ContainsAny(t.Name, `/\`) {
 		// We enforce this so that when creating the directory on disk it will
 		// not have any slashes.
@@ -8282,7 +8378,7 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 		}
 
 		if t.CSIPluginConfig.StagePublishBaseDir != "" && t.CSIPluginConfig.MountDir != "" &&
-			strings.HasPrefix(t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir) {
+			helper.IsSubdirectory(t.CSIPluginConfig.MountDir, t.CSIPluginConfig.StagePublishBaseDir) {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("CSIPluginConfig StagePublishBaseDir must not be a subdirectory of MountDir, got: StagePublishBaseDir=\"%s\" MountDir=\"%s\"", t.CSIPluginConfig.StagePublishBaseDir, t.CSIPluginConfig.MountDir))
 		}
 
@@ -8306,6 +8402,23 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 
 		if err := wid.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", wid.Name, err))
+		}
+	}
+
+	secrets := make(map[string]bool)
+	for _, s := range t.Secrets {
+		if _, ok := secrets[s.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Duplicate secret %q found", s.Name))
+		} else {
+			secrets[s.Name] = true
+		}
+
+		if s.Provider == SecretProviderVault && t.Vault == nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q has provider \"vault\" but no vault block", s.Name))
+		}
+
+		if err := s.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q is invalid: %w", s.Name, err))
 		}
 	}
 
@@ -8335,6 +8448,10 @@ func validateServices(t *Task, tgNetworks Networks) error {
 
 		if service.AddressMode == AddressModeAlloc {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"alloc\", only services defined in a \"group\" block can use this mode", service.Name))
+		}
+
+		if service.AddressMode == AddressModeAllocIPv6 {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("service %q cannot use address_mode=\"alloc_ipv6\", only services defined in a \"group\" block can use this mode", service.Name))
 		}
 
 		// Ensure that services with the same name are not being registered for
@@ -8372,6 +8489,10 @@ func validateServices(t *Task, tgNetworks Networks) error {
 
 			if check.AddressMode == AddressModeAlloc {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q cannot use address_mode=\"alloc\", only checks defined in a \"group\" service block can use this mode", service.Name))
+			}
+
+			if check.AddressMode == AddressModeAllocIPv6 {
+				mErr.Errors = append(mErr.Errors, fmt.Errorf("check %q cannot use address_mode=\"alloc_ipv6\", only checks defined in a \"group\" service block can use this mode", service.Name))
 			}
 
 			if !check.RequiresPort() {
@@ -8682,6 +8803,10 @@ type Template struct {
 	// ChangeMode is set to script.
 	ChangeScript *ChangeScript
 
+	// Once will wait for the templates to render and then exit without
+	// watching for changes.
+	Once bool
+
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
 	// application of a change
@@ -8749,6 +8874,8 @@ func (t *Template) Equal(o *Template) bool {
 	case t.ChangeSignal != o.ChangeSignal:
 		return false
 	case !t.ChangeScript.Equal(o.ChangeScript):
+		return false
+	case t.Once != o.Once:
 		return false
 	case t.Splay != o.Splay:
 		return false
@@ -8983,19 +9110,6 @@ func (wc *WaitConfig) Validate() error {
 	}
 
 	return nil
-}
-
-// AllocStateField records a single event that changes the state of the whole allocation
-type AllocStateField uint8
-
-const (
-	AllocStateFieldClientStatus AllocStateField = iota
-)
-
-type AllocState struct {
-	Field AllocStateField
-	Value string
-	Time  time.Time
 }
 
 // Set of possible states for a task.
@@ -9933,12 +10047,25 @@ func (c *Constraint) Validate() error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("Unknown constraint type %q", c.Operand))
 	}
 
-	// Ensure we have an LTarget for the constraints that need one
-	if requireLtarget && c.LTarget == "" {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("No LTarget provided but is required by constraint"))
+	// If the constraint must have a "LTarget" (attribute in the job spec), then
+	// ensure it is not an empty string and is valid.
+	if requireLtarget {
+		if c.LTarget == "" {
+			mErr.Errors = append(mErr.Errors, errors.New("no attribute provided but is required by operator"))
+		} else {
+			if err := validateConstraintAttribute(c.LTarget); err != nil {
+				mErr.Errors = append(mErr.Errors, err)
+			}
+		}
+
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// DiffID fulfills the DiffableWithID interface.
+func (c *Constraint) DiffID() string {
+	return c.String()
 }
 
 type Constraints []*Constraint
@@ -10055,6 +10182,11 @@ func (a *Affinity) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// DiffID fulfills the DiffableWithID interface.
+func (a *Affinity) DiffID() string {
+	return a.String()
 }
 
 // Spread is used to specify desired distribution of allocations according to weight
@@ -10382,317 +10514,100 @@ func (v *Vault) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-const (
-	// DeploymentStatuses are the various states a deployment can be be in
-	DeploymentStatusRunning      = "running"
-	DeploymentStatusPaused       = "paused"
-	DeploymentStatusFailed       = "failed"
-	DeploymentStatusSuccessful   = "successful"
-	DeploymentStatusCancelled    = "cancelled"
-	DeploymentStatusInitializing = "initializing"
-	DeploymentStatusPending      = "pending"
-	DeploymentStatusBlocked      = "blocked"
-	DeploymentStatusUnblocking   = "unblocking"
-
-	// TODO Statuses and Descriptions do not match 1:1 and we sometimes use the Description as a status flag
-
-	// DeploymentStatusDescriptions are the various descriptions of the states a
-	// deployment can be in.
-	DeploymentStatusDescriptionRunning               = "Deployment is running"
-	DeploymentStatusDescriptionRunningNeedsPromotion = "Deployment is running but requires manual promotion"
-	DeploymentStatusDescriptionRunningAutoPromotion  = "Deployment is running pending automatic promotion"
-	DeploymentStatusDescriptionPaused                = "Deployment is paused"
-	DeploymentStatusDescriptionSuccessful            = "Deployment completed successfully"
-	DeploymentStatusDescriptionStoppedJob            = "Cancelled because job is stopped"
-	DeploymentStatusDescriptionNewerJob              = "Cancelled due to newer version of job"
-	DeploymentStatusDescriptionFailedAllocations     = "Failed due to unhealthy allocations"
-	DeploymentStatusDescriptionProgressDeadline      = "Failed due to progress deadline"
-	DeploymentStatusDescriptionFailedByUser          = "Deployment marked as failed"
-
-	// used only in multiregion deployments
-	DeploymentStatusDescriptionFailedByPeer   = "Failed because of an error in peer region"
-	DeploymentStatusDescriptionBlocked        = "Deployment is complete but waiting for peer region"
-	DeploymentStatusDescriptionUnblocking     = "Deployment is unblocking remaining regions"
-	DeploymentStatusDescriptionPendingForPeer = "Deployment is pending, waiting for peer region"
-)
-
-// DeploymentStatusDescriptionRollback is used to get the status description of
-// a deployment when rolling back to an older job.
-func DeploymentStatusDescriptionRollback(baseDescription string, jobVersion uint64) string {
-	return fmt.Sprintf("%s - rolling back to job version %d", baseDescription, jobVersion)
+type Secret struct {
+	Name     string
+	Provider string
+	Path     string
+	Config   map[string]any
+	Env      map[string]string
 }
 
-// DeploymentStatusDescriptionRollbackNoop is used to get the status description of
-// a deployment when rolling back is not possible because it has the same specification
-func DeploymentStatusDescriptionRollbackNoop(baseDescription string, jobVersion uint64) string {
-	return fmt.Sprintf("%s - not rolling back to stable job version %d as current job has same specification", baseDescription, jobVersion)
-}
-
-// DeploymentStatusDescriptionNoRollbackTarget is used to get the status description of
-// a deployment when there is no target to rollback to but autorevert is desired.
-func DeploymentStatusDescriptionNoRollbackTarget(baseDescription string) string {
-	return fmt.Sprintf("%s - no stable job version to auto revert to", baseDescription)
-}
-
-// Deployment is the object that represents a job deployment which is used to
-// transition a job between versions.
-type Deployment struct {
-	// ID is a generated UUID for the deployment
-	ID string
-
-	// Namespace is the namespace the deployment is created in
-	Namespace string
-
-	// JobID is the job the deployment is created for
-	JobID string
-
-	// JobVersion is the version of the job at which the deployment is tracking
-	JobVersion uint64
-
-	// JobModifyIndex is the ModifyIndex of the job which the deployment is
-	// tracking.
-	JobModifyIndex uint64
-
-	// JobSpecModifyIndex is the JobModifyIndex of the job which the
-	// deployment is tracking.
-	JobSpecModifyIndex uint64
-
-	// JobCreateIndex is the create index of the job which the deployment is
-	// tracking. It is needed so that if the job gets stopped and reran we can
-	// present the correct list of deployments for the job and not old ones.
-	JobCreateIndex uint64
-
-	// Multiregion specifies if deployment is part of multiregion deployment
-	IsMultiregion bool
-
-	// TaskGroups is the set of task groups effected by the deployment and their
-	// current deployment status.
-	TaskGroups map[string]*DeploymentState
-
-	// The status of the deployment
-	Status string
-
-	// StatusDescription allows a human readable description of the deployment
-	// status.
-	StatusDescription string
-
-	// EvalPriority tracks the priority of the evaluation which lead to the
-	// creation of this Deployment object. Any additional evaluations created
-	// as a result of this deployment can therefore inherit this value, which
-	// is not guaranteed to be that of the job priority parameter.
-	EvalPriority int
-
-	CreateIndex uint64
-	ModifyIndex uint64
-
-	// Creation and modification times, stored as UnixNano
-	CreateTime int64
-	ModifyTime int64
-}
-
-// NewDeployment creates a new deployment given the job.
-func NewDeployment(job *Job, evalPriority int, now int64) *Deployment {
-	return &Deployment{
-		ID:                 uuid.Generate(),
-		Namespace:          job.Namespace,
-		JobID:              job.ID,
-		JobVersion:         job.Version,
-		JobModifyIndex:     job.ModifyIndex,
-		JobSpecModifyIndex: job.JobModifyIndex,
-		JobCreateIndex:     job.CreateIndex,
-		IsMultiregion:      job.IsMultiregion(),
-		Status:             DeploymentStatusRunning,
-		StatusDescription:  DeploymentStatusDescriptionRunning,
-		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
-		EvalPriority:       evalPriority,
-		CreateTime:         now,
-	}
-}
-
-func (d *Deployment) Copy() *Deployment {
-	if d == nil {
-		return nil
+func (s *Secret) Equal(o *Secret) bool {
+	if s == nil || o == nil {
+		return s == o
 	}
 
-	c := &Deployment{}
-	*c = *d
-
-	c.TaskGroups = nil
-	if l := len(d.TaskGroups); d.TaskGroups != nil {
-		c.TaskGroups = make(map[string]*DeploymentState, l)
-		for tg, s := range d.TaskGroups {
-			c.TaskGroups[tg] = s.Copy()
-		}
-	}
-
-	return c
-}
-
-// Stub implements support for pagination
-func (d *Deployment) Stub() (*Deployment, error) {
-	return d, nil
-}
-
-// Active returns whether the deployment is active or terminal.
-func (d *Deployment) Active() bool {
-	switch d.Status {
-	case DeploymentStatusRunning, DeploymentStatusPaused, DeploymentStatusBlocked,
-		DeploymentStatusUnblocking, DeploymentStatusInitializing, DeploymentStatusPending:
-		return true
-	default:
+	switch {
+	case s.Name != o.Name:
+		return false
+	case s.Provider != o.Provider:
+		return false
+	case s.Path != o.Path:
+		return false
+	case !maps.Equal(s.Config, o.Config):
+		return false
+	case !maps.Equal(s.Env, o.Env):
 		return false
 	}
-}
 
-// GetID is a helper for getting the ID when the object may be nil
-func (d *Deployment) GetID() string {
-	if d == nil {
-		return ""
-	}
-	return d.ID
-}
-
-// GetCreateIndex implements the CreateIndexGetter interface, required for
-// pagination.
-func (d *Deployment) GetCreateIndex() uint64 {
-	if d == nil {
-		return 0
-	}
-	return d.CreateIndex
-}
-
-// HasPlacedCanaries returns whether the deployment has placed canaries
-func (d *Deployment) HasPlacedCanaries() bool {
-	if d == nil || len(d.TaskGroups) == 0 {
-		return false
-	}
-	for _, group := range d.TaskGroups {
-		if len(group.PlacedCanaries) != 0 {
-			return true
-		}
-	}
-	return false
-}
-
-// RequiresPromotion returns whether the deployment requires promotion to
-// continue
-func (d *Deployment) RequiresPromotion() bool {
-	if d == nil || len(d.TaskGroups) == 0 || d.Status != DeploymentStatusRunning {
-		return false
-	}
-	for _, group := range d.TaskGroups {
-		if group.DesiredCanaries > 0 && !group.Promoted {
-			return true
-		}
-	}
-	return false
-}
-
-// HasAutoPromote determines if all taskgroups are marked auto_promote
-func (d *Deployment) HasAutoPromote() bool {
-	if d == nil || len(d.TaskGroups) == 0 || d.Status != DeploymentStatusRunning {
-		return false
-	}
-	for _, group := range d.TaskGroups {
-		if group.DesiredCanaries > 0 && !group.AutoPromote {
-			return false
-		}
-	}
 	return true
 }
 
-func (d *Deployment) GoString() string {
-	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
-	for group, state := range d.TaskGroups {
-		base += fmt.Sprintf("\nTask Group %q has state:\n%#v", group, state)
+func (s *Secret) Copy() *Secret {
+	if s == nil {
+		return nil
 	}
-	return base
-}
 
-// GetNamespace implements the NamespaceGetter interface, required for pagination.
-func (d *Deployment) GetNamespace() string {
-	if d == nil {
-		return ""
+	confCopy, err := copystructure.Copy(s.Config)
+	if err != nil {
+		// The default Copy() implementation should not return
+		// an error, so we should not reach this code path.
+		panic(err.Error())
 	}
-	return d.Namespace
+
+	return &Secret{
+		Name:     s.Name,
+		Provider: s.Provider,
+		Path:     s.Path,
+		Config:   confCopy.(map[string]any),
+		Env:      maps.Clone(s.Env),
+	}
 }
 
-// DeploymentState tracks the state of a deployment for a given task group.
-type DeploymentState struct {
-	// AutoRevert marks whether the task group has indicated the job should be
-	// reverted on failure
-	AutoRevert bool
+func (s *Secret) Validate() error {
+	if s == nil {
+		return nil
+	}
 
-	// AutoPromote marks promotion triggered automatically by healthy canaries
-	// copied from TaskGroup UpdateStrategy in scheduler.reconcile
-	AutoPromote bool
+	var mErr multierror.Error
 
-	// ProgressDeadline is the deadline by which an allocation must transition
-	// to healthy before the deployment is considered failed. This value is set
-	// by the jobspec `update.progress_deadline` field.
-	ProgressDeadline time.Duration
+	if s.Name == "" {
+		_ = multierror.Append(&mErr, errors.New("secret name cannot be empty"))
+	}
 
-	// RequireProgressBy is the time by which an allocation must transition to
-	// healthy before the deployment is considered failed. This value is reset
-	// to "now" + ProgressDeadline when an allocation updates the deployment.
-	RequireProgressBy time.Time
+	if !validSecretName.MatchString(s.Name) {
+		_ = multierror.Append(&mErr, fmt.Errorf("secret name must match regex %s", validSecretName))
+	}
 
-	// Promoted marks whether the canaries have been promoted
-	Promoted bool
+	if s.Provider == "" {
+		_ = multierror.Append(&mErr, errors.New("secret provider cannot be empty"))
+	}
 
-	// PlacedCanaries is the set of placed canary allocations
-	PlacedCanaries []string
+	if s.Path == "" {
+		_ = multierror.Append(&mErr, errors.New("secret path cannot be empty"))
+	}
 
-	// DesiredCanaries is the number of canaries that should be created.
-	DesiredCanaries int
+	if s.Provider == "nomad" || s.Provider == "vault" {
+		if len(s.Env) > 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("%s provider cannot use the env block", s.Provider))
+		}
+	} else {
+		if len(s.Config) > 0 {
+			_ = multierror.Append(&mErr, fmt.Errorf("custom plugin provider %s cannot use the config block", s.Provider))
+		}
+	}
 
-	// DesiredTotal is the total number of allocations that should be created as
-	// part of the deployment.
-	DesiredTotal int
-
-	// PlacedAllocs is the number of allocations that have been placed
-	PlacedAllocs int
-
-	// HealthyAllocs is the number of allocations that have been marked healthy.
-	HealthyAllocs int
-
-	// UnhealthyAllocs are allocations that have been marked as unhealthy.
-	UnhealthyAllocs int
+	return mErr.ErrorOrNil()
 }
 
-func (d *DeploymentState) GoString() string {
-	base := fmt.Sprintf("\tDesired Total: %d", d.DesiredTotal)
-	base += fmt.Sprintf("\n\tDesired Canaries: %d", d.DesiredCanaries)
-	base += fmt.Sprintf("\n\tPlaced Canaries: %#v", d.PlacedCanaries)
-	base += fmt.Sprintf("\n\tPromoted: %v", d.Promoted)
-	base += fmt.Sprintf("\n\tPlaced: %d", d.PlacedAllocs)
-	base += fmt.Sprintf("\n\tHealthy: %d", d.HealthyAllocs)
-	base += fmt.Sprintf("\n\tUnhealthy: %d", d.UnhealthyAllocs)
-	base += fmt.Sprintf("\n\tAutoRevert: %v", d.AutoRevert)
-	base += fmt.Sprintf("\n\tAutoPromote: %v", d.AutoPromote)
-	return base
-}
+func (s *Secret) Canonicalize() {
+	if s == nil {
+		return
+	}
 
-func (d *DeploymentState) Copy() *DeploymentState {
-	c := &DeploymentState{}
-	*c = *d
-	c.PlacedCanaries = slices.Clone(d.PlacedCanaries)
-	return c
-}
-
-// DeploymentStatusUpdate is used to update the status of a given deployment
-type DeploymentStatusUpdate struct {
-	// DeploymentID is the ID of the deployment to update
-	DeploymentID string
-
-	// Status is the new status of the deployment.
-	Status string
-
-	// StatusDescription is the new status description of the deployment.
-	StatusDescription string
-
-	// UpdatedAt is the time of the update, stored as UnixNano
-	UpdatedAt int64
+	if len(s.Config) == 0 {
+		s.Config = nil
+	}
 }
 
 // RescheduleTracker encapsulates previous reschedule events
@@ -10796,1243 +10711,6 @@ func (re *RescheduleEvent) Copy() *RescheduleEvent {
 	return copy
 }
 
-// DesiredTransition is used to mark an allocation as having a desired state
-// transition. This information can be used by the scheduler to make the
-// correct decision.
-type DesiredTransition struct {
-	// Migrate is used to indicate that this allocation should be stopped and
-	// migrated to another node.
-	Migrate *bool
-
-	// Reschedule is used to indicate that this allocation is eligible to be
-	// rescheduled. Most allocations are automatically eligible for
-	// rescheduling, so this field is only required when an allocation is not
-	// automatically eligible. An example is an allocation that is part of a
-	// deployment.
-	Reschedule *bool
-
-	// ForceReschedule is used to indicate that this allocation must be rescheduled.
-	// This field is only used when operators want to force a placement even if
-	// a failed allocation is not eligible to be rescheduled
-	ForceReschedule *bool
-
-	// NoShutdownDelay, if set to true, will override the group and
-	// task shutdown_delay configuration and ignore the delay for any
-	// allocations stopped as a result of this Deregister call.
-	NoShutdownDelay *bool
-}
-
-// Merge merges the two desired transitions, preferring the values from the
-// passed in object.
-func (d *DesiredTransition) Merge(o *DesiredTransition) {
-	if o.Migrate != nil {
-		d.Migrate = o.Migrate
-	}
-
-	if o.Reschedule != nil {
-		d.Reschedule = o.Reschedule
-	}
-
-	if o.ForceReschedule != nil {
-		d.ForceReschedule = o.ForceReschedule
-	}
-
-	if o.NoShutdownDelay != nil {
-		d.NoShutdownDelay = o.NoShutdownDelay
-	}
-}
-
-// ShouldMigrate returns whether the transition object dictates a migration.
-func (d *DesiredTransition) ShouldMigrate() bool {
-	return d.Migrate != nil && *d.Migrate
-}
-
-// ShouldReschedule returns whether the transition object dictates a
-// rescheduling.
-func (d *DesiredTransition) ShouldReschedule() bool {
-	return d.Reschedule != nil && *d.Reschedule
-}
-
-// ShouldForceReschedule returns whether the transition object dictates a
-// forced rescheduling.
-func (d *DesiredTransition) ShouldForceReschedule() bool {
-	if d == nil {
-		return false
-	}
-	return d.ForceReschedule != nil && *d.ForceReschedule
-}
-
-// ShouldIgnoreShutdownDelay returns whether the transition object dictates
-// that shutdown skip any shutdown delays.
-func (d *DesiredTransition) ShouldIgnoreShutdownDelay() bool {
-	if d == nil {
-		return false
-	}
-	return d.NoShutdownDelay != nil && *d.NoShutdownDelay
-}
-
-const (
-	AllocDesiredStatusRun   = "run"   // Allocation should run
-	AllocDesiredStatusStop  = "stop"  // Allocation should stop
-	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
-)
-
-const (
-	AllocClientStatusPending  = "pending"
-	AllocClientStatusRunning  = "running"
-	AllocClientStatusComplete = "complete"
-	AllocClientStatusFailed   = "failed"
-	AllocClientStatusLost     = "lost"
-	AllocClientStatusUnknown  = "unknown"
-)
-
-// terminalAllocationStatuses lists allocation statutes that we consider
-// terminal
-var terminalAllocationStatuses = []string{
-	AllocClientStatusComplete,
-	AllocClientStatusFailed,
-	AllocClientStatusLost,
-}
-
-// Allocation is used to allocate the placement of a task group to a node.
-type Allocation struct {
-	// msgpack omit empty fields during serialization
-	_struct bool `codec:",omitempty"` // nolint: structcheck
-
-	// ID of the allocation (UUID)
-	ID string
-
-	// Namespace is the namespace the allocation is created in
-	Namespace string
-
-	// ID of the evaluation that generated this allocation
-	EvalID string
-
-	// Name is a logical name of the allocation.
-	Name string
-
-	// NodeID is the node this is being placed on
-	NodeID string
-
-	// NodeName is the name of the node this is being placed on.
-	NodeName string
-
-	// Job is the parent job of the task group being allocated.
-	// This is copied at allocation time to avoid issues if the job
-	// definition is updated.
-	JobID string
-	Job   *Job
-
-	// TaskGroup is the name of the task group that should be run
-	TaskGroup string
-
-	// COMPAT(0.11): Remove in 0.11
-	// Resources is the total set of resources allocated as part
-	// of this allocation of the task group. Dynamic ports will be set by
-	// the scheduler.
-	Resources *Resources
-
-	// SharedResources are the resources that are shared by all the tasks in an
-	// allocation
-	// Deprecated: use AllocatedResources.Shared instead.
-	// Keep field to allow us to handle upgrade paths from old versions
-	SharedResources *Resources
-
-	// TaskResources is the set of resources allocated to each
-	// task. These should sum to the total Resources. Dynamic ports will be
-	// set by the scheduler.
-	// Deprecated: use AllocatedResources.Tasks instead.
-	// Keep field to allow us to handle upgrade paths from old versions
-	TaskResources map[string]*Resources
-
-	// AllocatedResources is the total resources allocated for the task group.
-	AllocatedResources *AllocatedResources
-
-	// Metrics associated with this allocation
-	Metrics *AllocMetric
-
-	// Desired Status of the allocation on the client
-	DesiredStatus string
-
-	// DesiredStatusDescription is meant to provide more human useful information
-	DesiredDescription string
-
-	// DesiredTransition is used to indicate that a state transition
-	// is desired for a given reason.
-	DesiredTransition DesiredTransition
-
-	// Status of the allocation on the client
-	ClientStatus string
-
-	// ClientStatusDescription is meant to provide more human useful information
-	ClientDescription string
-
-	// TaskStates stores the state of each task,
-	TaskStates map[string]*TaskState
-
-	// AllocStates track meta data associated with changes to the state of the whole allocation, like becoming lost
-	AllocStates []*AllocState
-
-	// PreviousAllocation is the allocation that this allocation is replacing
-	PreviousAllocation string
-
-	// NextAllocation is the allocation that this allocation is being replaced by
-	NextAllocation string
-
-	// DeploymentID identifies an allocation as being created from a
-	// particular deployment
-	DeploymentID string
-
-	// DeploymentStatus captures the status of the allocation as part of the
-	// given deployment
-	DeploymentStatus *AllocDeploymentStatus
-
-	// RescheduleTrackers captures details of previous reschedule attempts of the allocation
-	RescheduleTracker *RescheduleTracker
-
-	// NetworkStatus captures networking details of an allocation known at runtime
-	NetworkStatus *AllocNetworkStatus
-
-	// FollowupEvalID captures a follow up evaluation created to handle a failed allocation
-	// that can be rescheduled in the future
-	FollowupEvalID string
-
-	// PreemptedAllocations captures IDs of any allocations that were preempted
-	// in order to place this allocation
-	PreemptedAllocations []string
-
-	// PreemptedByAllocation tracks the alloc ID of the allocation that caused this allocation
-	// to stop running because it got preempted
-	PreemptedByAllocation string
-
-	// SignedIdentities is a map of task names to signed identity/capability
-	// claim tokens for those tasks. If needed, it is populated in the plan
-	// applier.
-	SignedIdentities map[string]string `json:"-"`
-
-	// SigningKeyID is the key used to sign the SignedIdentities field.
-	SigningKeyID string
-
-	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
-
-	// AllocModifyIndex is not updated when the client updates allocations. This
-	// lets the client pull only the allocs updated by the server.
-	AllocModifyIndex uint64
-
-	// CreateTime is the time the allocation has finished scheduling and been
-	// verified by the plan applier, stored as UnixNano.
-	CreateTime int64
-
-	// ModifyTime is the time the allocation was last updated stored as UnixNano.
-	ModifyTime int64
-}
-
-// GetID implements the IDGetter interface, required for pagination.
-func (a *Allocation) GetID() string {
-	if a == nil {
-		return ""
-	}
-	return a.ID
-}
-
-// Sanitize returns a copy of the allocation with the SignedIdentities field
-// removed. This is useful for returning allocations to clients where the
-// SignedIdentities field is not needed.
-func (a *Allocation) Sanitize() *Allocation {
-	if a == nil {
-		return nil
-	}
-
-	if a.SignedIdentities == nil {
-		return a
-	}
-
-	clean := a.Copy()
-	clean.SignedIdentities = nil
-	return clean
-}
-
-// GetNamespace implements the NamespaceGetter interface, required for
-// pagination and filtering namespaces in endpoints that support glob namespace
-// requests using tokens with limited access.
-func (a *Allocation) GetNamespace() string {
-	if a == nil {
-		return ""
-	}
-	return a.Namespace
-}
-
-// GetCreateIndex implements the CreateIndexGetter interface, required for
-// pagination.
-func (a *Allocation) GetCreateIndex() uint64 {
-	if a == nil {
-		return 0
-	}
-	return a.CreateIndex
-}
-
-// ReservedCores returns the union of reserved cores across tasks in this alloc.
-func (a *Allocation) ReservedCores() *idset.Set[hw.CoreID] {
-	s := idset.Empty[hw.CoreID]()
-	if a == nil || a.AllocatedResources == nil {
-		return s
-	}
-	for _, taskResources := range a.AllocatedResources.Tasks {
-		if len(taskResources.Cpu.ReservedCores) > 0 {
-			for _, core := range taskResources.Cpu.ReservedCores {
-				s.Insert(hw.CoreID(core))
-			}
-		}
-	}
-	return s
-}
-
-// ConsulNamespace returns the Consul namespace of the task group associated
-// with this allocation.
-func (a *Allocation) ConsulNamespace() string {
-	return a.Job.LookupTaskGroup(a.TaskGroup).Consul.GetNamespace()
-}
-
-func (a *Allocation) ConsulNamespaceForTask(taskName string) string {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	task := tg.LookupTask(taskName)
-	if task.Consul != nil {
-		return task.Consul.GetNamespace()
-	}
-
-	return tg.Consul.GetNamespace()
-}
-
-func (a *Allocation) JobNamespacedID() NamespacedID {
-	return NewNamespacedID(a.JobID, a.Namespace)
-}
-
-// Index returns the index of the allocation. If the allocation is from a task
-// group with count greater than 1, there will be multiple allocations for it.
-func (a *Allocation) Index() uint {
-	return AllocIndexFromName(a.Name, a.JobID, a.TaskGroup)
-}
-
-// AllocIndexFromName returns the index of an allocation given its name, the
-// jobID and the task group name.
-func AllocIndexFromName(allocName, jobID, taskGroup string) uint {
-	l := len(allocName)
-	prefix := len(jobID) + len(taskGroup) + 2
-	if l <= 3 || l <= prefix {
-		return uint(0)
-	}
-
-	strNum := allocName[prefix : len(allocName)-1]
-	num, _ := strconv.Atoi(strNum)
-	return uint(num)
-}
-
-// Copy provides a copy of the allocation and deep copies the job
-func (a *Allocation) Copy() *Allocation {
-	return a.copyImpl(true)
-}
-
-// CopySkipJob provides a copy of the allocation but doesn't deep copy the job
-func (a *Allocation) CopySkipJob() *Allocation {
-	return a.copyImpl(false)
-}
-
-// Canonicalize Allocation to ensure fields are initialized to the expectations
-// of this version of Nomad. Should be called when restoring persisted
-// Allocations or receiving Allocations from Nomad agents potentially on an
-// older version of Nomad.
-func (a *Allocation) Canonicalize() {
-	if a.AllocatedResources == nil && a.TaskResources != nil {
-		ar := AllocatedResources{}
-
-		tasks := make(map[string]*AllocatedTaskResources, len(a.TaskResources))
-		for name, tr := range a.TaskResources {
-			atr := AllocatedTaskResources{}
-			atr.Cpu.CpuShares = int64(tr.CPU)
-			atr.Memory.MemoryMB = int64(tr.MemoryMB)
-			atr.Networks = tr.Networks.Copy()
-
-			tasks[name] = &atr
-		}
-		ar.Tasks = tasks
-
-		if a.SharedResources != nil {
-			ar.Shared.DiskMB = int64(a.SharedResources.DiskMB)
-			ar.Shared.Networks = a.SharedResources.Networks.Copy()
-		}
-
-		a.AllocatedResources = &ar
-	}
-
-	a.Job.Canonicalize()
-}
-
-func (a *Allocation) copyImpl(job bool) *Allocation {
-	if a == nil {
-		return nil
-	}
-	na := new(Allocation)
-	*na = *a
-
-	if job {
-		na.Job = na.Job.Copy()
-	}
-
-	na.AllocatedResources = na.AllocatedResources.Copy()
-	na.Resources = na.Resources.Copy()
-	na.SharedResources = na.SharedResources.Copy()
-
-	if a.TaskResources != nil {
-		tr := make(map[string]*Resources, len(na.TaskResources))
-		for task, resource := range na.TaskResources {
-			tr[task] = resource.Copy()
-		}
-		na.TaskResources = tr
-	}
-
-	na.Metrics = na.Metrics.Copy()
-	na.DeploymentStatus = na.DeploymentStatus.Copy()
-
-	if a.TaskStates != nil {
-		ts := make(map[string]*TaskState, len(na.TaskStates))
-		for task, state := range na.TaskStates {
-			ts[task] = state.Copy()
-		}
-		na.TaskStates = ts
-	}
-
-	na.RescheduleTracker = a.RescheduleTracker.Copy()
-	na.PreemptedAllocations = slices.Clone(a.PreemptedAllocations)
-	return na
-}
-
-// TerminalStatus returns if the desired or actual status is terminal and
-// will no longer transition.
-func (a *Allocation) TerminalStatus() bool {
-	// First check the desired state and if that isn't terminal, check client
-	// state.
-	return a.ServerTerminalStatus() || a.ClientTerminalStatus()
-}
-
-// ServerTerminalStatus returns true if the desired state of the allocation is terminal
-func (a *Allocation) ServerTerminalStatus() bool {
-	switch a.DesiredStatus {
-	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
-		return true
-	default:
-		return false
-	}
-}
-
-// ClientTerminalStatus returns if the client status is terminal and will no longer transition
-func (a *Allocation) ClientTerminalStatus() bool {
-	return slices.Contains(terminalAllocationStatuses, a.ClientStatus)
-}
-
-// ShouldReschedule returns if the allocation is eligible to be rescheduled according
-// to its status and ReschedulePolicy given its failure time
-func (a *Allocation) ShouldReschedule(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
-	// First check the desired state
-	switch a.DesiredStatus {
-	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
-		return false
-	default:
-	}
-	switch a.ClientStatus {
-	case AllocClientStatusFailed:
-		return a.RescheduleEligible(reschedulePolicy, failTime)
-	default:
-		return false
-	}
-}
-
-// RescheduleEligible returns if the allocation is eligible to be rescheduled according
-// to its ReschedulePolicy and the current state of its reschedule trackers
-func (a *Allocation) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
-	return a.RescheduleTracker.RescheduleEligible(reschedulePolicy, failTime)
-}
-
-func (a *Allocation) RescheduleInfo() (int, int) {
-	return a.RescheduleTracker.rescheduleInfo(a.ReschedulePolicy(), a.LastEventTime())
-}
-
-// LastEventTime is the time of the last task event in the allocation.
-// It is used to determine allocation failure time. If the FinishedAt field
-// is not set, the alloc's modify time is used
-func (a *Allocation) LastEventTime() time.Time {
-	var lastEventTime time.Time
-	if a.TaskStates != nil {
-		for _, s := range a.TaskStates {
-			if lastEventTime.IsZero() || s.FinishedAt.After(lastEventTime) {
-				lastEventTime = s.FinishedAt
-			}
-		}
-	}
-
-	if lastEventTime.IsZero() {
-		return time.Unix(0, a.ModifyTime).UTC()
-	}
-	return lastEventTime
-}
-
-// ReschedulePolicy returns the reschedule policy based on the task group
-func (a *Allocation) ReschedulePolicy() *ReschedulePolicy {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil {
-		return nil
-	}
-	return tg.ReschedulePolicy
-}
-
-// MigrateStrategy returns the migrate strategy based on the task group
-func (a *Allocation) MigrateStrategy() *MigrateStrategy {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil {
-		return nil
-	}
-	return tg.Migrate
-}
-
-// NextRescheduleTime returns a time on or after which the allocation is eligible to be rescheduled,
-// and whether the next reschedule time is within policy's interval if the policy doesn't allow unlimited reschedules
-func (a *Allocation) NextRescheduleTime() (time.Time, bool) {
-	failTime := a.LastEventTime()
-	reschedulePolicy := a.ReschedulePolicy()
-
-	// If reschedule is disabled, return early
-	if reschedulePolicy == nil || (reschedulePolicy.Attempts == 0 && !reschedulePolicy.Unlimited) {
-		return time.Time{}, false
-	}
-
-	if (a.DesiredStatus == AllocDesiredStatusStop && !a.LastRescheduleFailed()) ||
-		(a.ClientStatus != AllocClientStatusFailed && a.ClientStatus != AllocClientStatusLost) ||
-		failTime.IsZero() || reschedulePolicy == nil {
-		return time.Time{}, false
-	}
-
-	return a.nextRescheduleTime(failTime, reschedulePolicy)
-}
-
-func (a *Allocation) nextRescheduleTime(failTime time.Time, reschedulePolicy *ReschedulePolicy) (time.Time, bool) {
-	nextDelay := a.NextDelay()
-	nextRescheduleTime := failTime.Add(nextDelay)
-	rescheduleEligible := reschedulePolicy.Unlimited || (reschedulePolicy.Attempts > 0 && a.RescheduleTracker == nil)
-	if reschedulePolicy.Attempts > 0 && a.RescheduleTracker != nil && a.RescheduleTracker.Events != nil {
-		// Check for eligibility based on the interval if max attempts is set
-		attempted, attempts := a.RescheduleTracker.rescheduleInfo(reschedulePolicy, failTime)
-		rescheduleEligible = attempted < attempts && nextDelay < reschedulePolicy.Interval
-	}
-	return nextRescheduleTime, rescheduleEligible
-}
-
-// NextRescheduleTimeByTime works like NextRescheduleTime but allows callers
-// specify a failure time. Useful for things like determining whether to reschedule
-// an alloc on a disconnected node.
-func (a *Allocation) NextRescheduleTimeByTime(t time.Time) (time.Time, bool) {
-	reschedulePolicy := a.ReschedulePolicy()
-	if reschedulePolicy == nil {
-		return time.Time{}, false
-	}
-
-	return a.nextRescheduleTime(t, reschedulePolicy)
-}
-
-func (a *Allocation) RescheduleTimeOnDisconnect(now time.Time) (time.Time, bool) {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil || tg.Disconnect == nil || tg.Disconnect.Replace == nil {
-		// Kept to maintain backwards compatibility with behavior prior to 1.8.0
-		return a.NextRescheduleTimeByTime(now)
-	}
-
-	return now, *tg.Disconnect.Replace
-}
-
-// ShouldClientStop tests an alloc for StopAfterClient on the Disconnect configuration
-func (a *Allocation) ShouldClientStop() bool {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	timeout := tg.GetDisconnectStopTimeout()
-
-	if tg == nil ||
-		timeout == nil ||
-		*timeout == 0*time.Nanosecond {
-		return false
-	}
-	return true
-}
-
-// WaitClientStop uses the reschedule delay mechanism to block rescheduling until
-// disconnect.stop_on_client_after's interval passes
-func (a *Allocation) WaitClientStop() time.Time {
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-
-	// An alloc can only be marked lost once, so use the first lost transition
-	var t time.Time
-	for _, s := range a.AllocStates {
-		if s.Field == AllocStateFieldClientStatus &&
-			s.Value == AllocClientStatusLost {
-			t = s.Time
-			break
-		}
-	}
-
-	// On the first pass, the alloc hasn't been marked lost yet, and so we start
-	// counting from now
-	if t.IsZero() {
-		t = time.Now().UTC()
-	}
-
-	// Find the max kill timeout
-	kill := DefaultKillTimeout
-	for _, t := range tg.Tasks {
-		if t.KillTimeout > kill {
-			kill = t.KillTimeout
-		}
-	}
-
-	return t.Add(*tg.GetDisconnectStopTimeout() + kill)
-}
-
-// DisconnectTimeout uses the Disconnect.LostAfter to compute when the allocation
-// should transition to lost.
-func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
-	if a == nil || a.Job == nil {
-		return now
-	}
-
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-
-	timeout := tg.GetDisconnectLostTimeout()
-	if timeout == 0 {
-		return now
-	}
-
-	return now.Add(timeout)
-}
-
-// SupportsDisconnectedClients determines whether both the server and the task group
-// are configured to allow the allocation to reconnect after network connectivity
-// has been lost and then restored.
-func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClients bool) bool {
-	if !serverSupportsDisconnectedClients {
-		return false
-	}
-
-	if a.Job != nil {
-		tg := a.Job.LookupTaskGroup(a.TaskGroup)
-		if tg != nil {
-			return tg.GetDisconnectLostTimeout() != 0
-		}
-	}
-
-	return false
-}
-
-// PreventReplaceOnDisconnect determines if an alloc allows to have a replacement
-// when Disconnected.
-func (a *Allocation) PreventReplaceOnDisconnect() bool {
-	if a.Job != nil {
-		tg := a.Job.LookupTaskGroup(a.TaskGroup)
-		if tg != nil {
-			return !tg.Replace()
-		}
-	}
-
-	return false
-}
-
-// NextDelay returns a duration after which the allocation can be rescheduled.
-// It is calculated according to the delay function and previous reschedule attempts.
-func (a *Allocation) NextDelay() time.Duration {
-	policy := a.ReschedulePolicy()
-	// Can be nil if the task group was updated to remove its reschedule policy
-	if policy == nil {
-		return 0
-	}
-	delayDur := policy.Delay
-	if a.RescheduleTracker == nil || a.RescheduleTracker.Events == nil || len(a.RescheduleTracker.Events) == 0 {
-		return delayDur
-	}
-	events := a.RescheduleTracker.Events
-	switch policy.DelayFunction {
-	case "exponential":
-		delayDur = a.RescheduleTracker.Events[len(a.RescheduleTracker.Events)-1].Delay * 2
-	case "fibonacci":
-		if len(events) >= 2 {
-			fibN1Delay := events[len(events)-1].Delay
-			fibN2Delay := events[len(events)-2].Delay
-			// Handle reset of delay ceiling which should cause
-			// a new series to start
-			if fibN2Delay == policy.MaxDelay && fibN1Delay == policy.Delay {
-				delayDur = fibN1Delay
-			} else {
-				delayDur = fibN1Delay + fibN2Delay
-			}
-		}
-	default:
-		return delayDur
-	}
-	if policy.MaxDelay > 0 && delayDur > policy.MaxDelay {
-		delayDur = policy.MaxDelay
-		// check if delay needs to be reset
-
-		lastRescheduleEvent := a.RescheduleTracker.Events[len(a.RescheduleTracker.Events)-1]
-		timeDiff := a.LastEventTime().UTC().UnixNano() - lastRescheduleEvent.RescheduleTime
-		if timeDiff > delayDur.Nanoseconds() {
-			delayDur = policy.Delay
-		}
-
-	}
-
-	return delayDur
-}
-
-// Terminated returns if the allocation is in a terminal state on a client.
-func (a *Allocation) Terminated() bool {
-	if a.ClientStatus == AllocClientStatusFailed ||
-		a.ClientStatus == AllocClientStatusComplete ||
-		a.ClientStatus == AllocClientStatusLost {
-		return true
-	}
-	return false
-}
-
-// SetStop updates the allocation in place to a DesiredStatus stop, with the ClientStatus
-func (a *Allocation) SetStop(clientStatus, clientDesc string) {
-	a.DesiredStatus = AllocDesiredStatusStop
-	a.ClientStatus = clientStatus
-	a.ClientDescription = clientDesc
-	a.AppendState(AllocStateFieldClientStatus, clientStatus)
-}
-
-// AppendState creates and appends an AllocState entry recording the time of the state
-// transition. Used to mark the transition to lost
-func (a *Allocation) AppendState(field AllocStateField, value string) {
-	a.AllocStates = append(a.AllocStates, &AllocState{
-		Field: field,
-		Value: value,
-		Time:  time.Now().UTC(),
-	})
-}
-
-// RanSuccessfully returns whether the client has ran the allocation and all
-// tasks finished successfully. Critically this function returns whether the
-// allocation has ran to completion and not just that the alloc has converged to
-// its desired state. That is to say that a batch allocation must have finished
-// with exit code 0 on all task groups. This doesn't really have meaning on a
-// non-batch allocation because a service and system allocation should not
-// finish.
-func (a *Allocation) RanSuccessfully() bool {
-	// Handle the case the client hasn't started the allocation.
-	if len(a.TaskStates) == 0 {
-		return false
-	}
-
-	// Check to see if all the tasks finished successfully in the allocation
-	allSuccess := true
-	for _, state := range a.TaskStates {
-		allSuccess = allSuccess && state.Successful()
-	}
-
-	return allSuccess
-}
-
-// ShouldMigrate returns if the allocation needs data migration
-func (a *Allocation) ShouldMigrate() bool {
-	if a.PreviousAllocation == "" {
-		return false
-	}
-
-	if a.DesiredStatus == AllocDesiredStatusStop || a.DesiredStatus == AllocDesiredStatusEvict {
-		return false
-	}
-
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-
-	// if the task group is nil or the ephemeral disk block isn't present then
-	// we won't migrate
-	if tg == nil || tg.EphemeralDisk == nil {
-		return false
-	}
-
-	// We won't migrate any data if the user hasn't enabled migration
-	return tg.EphemeralDisk.Migrate
-}
-
-// SetEventDisplayMessages populates the display message if its not already set,
-// a temporary fix to handle old allocations that don't have it.
-// This method will be removed in a future release.
-func (a *Allocation) SetEventDisplayMessages() {
-	setDisplayMsg(a.TaskStates)
-}
-
-// LookupTask by name from the Allocation. Returns nil if the Job is not set, the
-// TaskGroup does not exist, or the task name cannot be found.
-func (a *Allocation) LookupTask(name string) *Task {
-	if a.Job == nil {
-		return nil
-	}
-
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil {
-		return nil
-	}
-
-	return tg.LookupTask(name)
-}
-
-// Stub returns a list stub for the allocation
-func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
-	s := &AllocListStub{
-		ID:                    a.ID,
-		EvalID:                a.EvalID,
-		Name:                  a.Name,
-		Namespace:             a.Namespace,
-		NodeID:                a.NodeID,
-		NodeName:              a.NodeName,
-		JobID:                 a.JobID,
-		JobType:               a.Job.Type,
-		JobVersion:            a.Job.Version,
-		TaskGroup:             a.TaskGroup,
-		DesiredStatus:         a.DesiredStatus,
-		DesiredDescription:    a.DesiredDescription,
-		ClientStatus:          a.ClientStatus,
-		ClientDescription:     a.ClientDescription,
-		DesiredTransition:     a.DesiredTransition,
-		TaskStates:            a.TaskStates,
-		DeploymentStatus:      a.DeploymentStatus,
-		FollowupEvalID:        a.FollowupEvalID,
-		NextAllocation:        a.NextAllocation,
-		RescheduleTracker:     a.RescheduleTracker,
-		PreemptedAllocations:  a.PreemptedAllocations,
-		PreemptedByAllocation: a.PreemptedByAllocation,
-		CreateIndex:           a.CreateIndex,
-		ModifyIndex:           a.ModifyIndex,
-		CreateTime:            a.CreateTime,
-		ModifyTime:            a.ModifyTime,
-	}
-
-	if fields != nil {
-		if fields.Resources {
-			s.AllocatedResources = a.AllocatedResources
-		}
-		if !fields.TaskStates {
-			s.TaskStates = nil
-		}
-	}
-
-	return s
-}
-
-// AllocationDiff converts an Allocation type to an AllocationDiff type
-// If at any time, modification are made to AllocationDiff so that an
-// Allocation can no longer be safely converted to AllocationDiff,
-// this method should be changed accordingly.
-func (a *Allocation) AllocationDiff() *AllocationDiff {
-	return (*AllocationDiff)(a)
-}
-
-// Expired determines whether an allocation has exceeded its Disconnect.LostAfter
-// duration relative to the passed time stamp.
-func (a *Allocation) Expired(now time.Time) bool {
-	if a == nil || a.Job == nil {
-		return false
-	}
-
-	// If alloc is not Unknown it cannot be expired.
-	if a.ClientStatus != AllocClientStatusUnknown {
-		return false
-	}
-
-	lastUnknown := a.LastUnknown()
-	if lastUnknown.IsZero() {
-		return false
-	}
-
-	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-	if tg == nil {
-		return false
-	}
-
-	timeout := tg.GetDisconnectLostTimeout()
-	if timeout == 0 && tg.Replace() {
-		return false
-	}
-
-	expiry := lastUnknown.Add(timeout)
-	return expiry.Sub(now) <= 0
-}
-
-// LastUnknown returns the timestamp for the last time the allocation
-// transitioned into the unknown client status.
-func (a *Allocation) LastUnknown() time.Time {
-	var lastUnknown time.Time
-
-	for _, s := range a.AllocStates {
-		if s.Field == AllocStateFieldClientStatus &&
-			s.Value == AllocClientStatusUnknown {
-			if lastUnknown.IsZero() || lastUnknown.Before(s.Time) {
-				lastUnknown = s.Time
-			}
-		}
-	}
-
-	return lastUnknown.UTC()
-}
-
-// NeedsToReconnect returns true if the last known ClientStatus value is
-// "unknown" and so the allocation did not reconnect yet.
-func (a *Allocation) NeedsToReconnect() bool {
-	disconnected := false
-
-	// AllocStates are appended to the list and we only need the latest
-	// ClientStatus transition, so traverse from the end until we find one.
-	for i := len(a.AllocStates) - 1; i >= 0; i-- {
-		s := a.AllocStates[i]
-		if s.Field != AllocStateFieldClientStatus {
-			continue
-		}
-
-		disconnected = s.Value == AllocClientStatusUnknown
-		break
-	}
-
-	return disconnected
-}
-
-// LastStartOfTask returns the time of the last start event for the given task
-// using the allocations TaskStates. If the task has not started, the zero time
-// will be returned.
-func (a *Allocation) LastStartOfTask(taskName string) time.Time {
-	task := a.TaskStates[taskName]
-	if task == nil {
-		return time.Time{}
-	}
-
-	if task.Restarts > 0 {
-		return task.LastRestart
-	}
-
-	return task.StartedAt
-}
-
-// HasAnyPausedTasks returns true if any of the TaskStates on the alloc
-// are Paused (Enterprise feature) either due to a schedule or being forced.
-func (a *Allocation) HasAnyPausedTasks() bool {
-	if a == nil {
-		return false
-	}
-	for _, ts := range a.TaskStates {
-		if ts == nil {
-			continue
-		}
-		if ts.Paused.Stop() {
-			return true
-		}
-	}
-	return false
-}
-
-// LastRescheduleFailed returns whether the scheduler previously attempted to
-// reschedule this allocation but failed to find a placement
-func (a *Allocation) LastRescheduleFailed() bool {
-	if a.RescheduleTracker == nil {
-		return false
-	}
-	return a.RescheduleTracker.LastReschedule != "" &&
-		a.RescheduleTracker.LastReschedule != LastRescheduleSuccess
-}
-
-// AllocationDiff is another named type for Allocation (to use the same fields),
-// which is used to represent the delta for an Allocation. If you need a method
-// defined on the al
-type AllocationDiff Allocation
-
-// AllocListStub is used to return a subset of alloc information
-type AllocListStub struct {
-	ID                    string
-	EvalID                string
-	Name                  string
-	Namespace             string
-	NodeID                string
-	NodeName              string
-	JobID                 string
-	JobType               string
-	JobVersion            uint64
-	TaskGroup             string
-	AllocatedResources    *AllocatedResources `json:",omitempty"`
-	DesiredStatus         string
-	DesiredDescription    string
-	ClientStatus          string
-	ClientDescription     string
-	DesiredTransition     DesiredTransition
-	TaskStates            map[string]*TaskState
-	DeploymentStatus      *AllocDeploymentStatus
-	FollowupEvalID        string
-	NextAllocation        string
-	RescheduleTracker     *RescheduleTracker
-	PreemptedAllocations  []string
-	PreemptedByAllocation string
-	CreateIndex           uint64
-	ModifyIndex           uint64
-	CreateTime            int64
-	ModifyTime            int64
-}
-
-// SetEventDisplayMessages populates the display message if its not already
-// set, a temporary fix to handle old allocations that don't have it. This
-// method will be removed in a future release.
-func (a *AllocListStub) SetEventDisplayMessages() {
-	setDisplayMsg(a.TaskStates)
-}
-
-// RescheduleEligible returns if the allocation is eligible to be rescheduled according
-// to its ReschedulePolicy and the current state of its reschedule trackers
-func (a *AllocListStub) RescheduleEligible(reschedulePolicy *ReschedulePolicy, failTime time.Time) bool {
-	return a.RescheduleTracker.RescheduleEligible(reschedulePolicy, failTime)
-}
-
-// ClientTerminalStatus returns if the client status is terminal and will no longer transition
-func (a *AllocListStub) ClientTerminalStatus() bool {
-	return slices.Contains(terminalAllocationStatuses, a.ClientStatus)
-}
-
-func setDisplayMsg(taskStates map[string]*TaskState) {
-	for _, taskState := range taskStates {
-		for _, event := range taskState.Events {
-			event.PopulateEventDisplayMessage()
-		}
-	}
-}
-
-// AllocStubFields defines which fields are included in the AllocListStub.
-type AllocStubFields struct {
-	// Resources includes resource-related fields if true.
-	Resources bool
-
-	// TaskStates removes the TaskStates field if false (default is to
-	// include TaskStates).
-	TaskStates bool
-}
-
-func NewAllocStubFields() *AllocStubFields {
-	return &AllocStubFields{
-		// Maintain backward compatibility by retaining task states by
-		// default.
-		TaskStates: true,
-	}
-}
-
-// AllocMetric is used to track various metrics while attempting
-// to make an allocation. These are used to debug a job, or to better
-// understand the pressure within the system.
-type AllocMetric struct {
-	// NodesEvaluated is the number of nodes that were evaluated
-	NodesEvaluated int
-
-	// NodesFiltered is the number of nodes filtered due to a constraint
-	NodesFiltered int
-
-	// NodesInPool is the number of nodes in the node pool used by the job.
-	NodesInPool int
-
-	// NodesAvailable is the number of nodes available for evaluation per DC.
-	NodesAvailable map[string]int
-
-	// ClassFiltered is the number of nodes filtered by class
-	ClassFiltered map[string]int
-
-	// ConstraintFiltered is the number of failures caused by constraint
-	ConstraintFiltered map[string]int
-
-	// NodesExhausted is the number of nodes skipped due to being
-	// exhausted of at least one resource
-	NodesExhausted int
-
-	// ClassExhausted is the number of nodes exhausted by class
-	ClassExhausted map[string]int
-
-	// DimensionExhausted provides the count by dimension or reason
-	DimensionExhausted map[string]int
-
-	// QuotaExhausted provides the exhausted dimensions
-	QuotaExhausted []string
-
-	// ResourcesExhausted provides the amount of resources exhausted by task
-	// during the allocation placement
-	ResourcesExhausted map[string]*Resources
-
-	// Scores is the scores of the final few nodes remaining
-	// for placement. The top score is typically selected.
-	// Deprecated: Replaced by ScoreMetaData in Nomad 0.9
-	Scores map[string]float64
-
-	// ScoreMetaData is a slice of top scoring nodes displayed in the CLI
-	ScoreMetaData []*NodeScoreMeta
-
-	// nodeScoreMeta is used to keep scores for a single node id. It is cleared out after
-	// we receive normalized score during the last step of the scoring stack.
-	nodeScoreMeta *NodeScoreMeta
-
-	// topScores is used to maintain a heap of the top K nodes with
-	// the highest normalized score
-	topScores *kheap.ScoreHeap
-
-	// AllocationTime is a measure of how long the allocation
-	// attempt took. This can affect performance and SLAs.
-	AllocationTime time.Duration
-
-	// CoalescedFailures indicates the number of other
-	// allocations that were coalesced into this failed allocation.
-	// This is to prevent creating many failed allocations for a
-	// single task group.
-	CoalescedFailures int
-}
-
-func (a *AllocMetric) Copy() *AllocMetric {
-	if a == nil {
-		return nil
-	}
-	na := new(AllocMetric)
-	*na = *a
-	na.NodesAvailable = maps.Clone(na.NodesAvailable)
-	na.ClassFiltered = maps.Clone(na.ClassFiltered)
-	na.ConstraintFiltered = maps.Clone(na.ConstraintFiltered)
-	na.ClassExhausted = maps.Clone(na.ClassExhausted)
-	na.DimensionExhausted = maps.Clone(na.DimensionExhausted)
-	na.QuotaExhausted = slices.Clone(na.QuotaExhausted)
-	na.Scores = maps.Clone(na.Scores)
-	na.ScoreMetaData = CopySliceNodeScoreMeta(na.ScoreMetaData)
-	return na
-}
-
-func (a *AllocMetric) EvaluateNode() {
-	a.NodesEvaluated += 1
-}
-
-func (a *AllocMetric) FilterNode(node *Node, constraint string) {
-	a.NodesFiltered += 1
-	if node != nil && node.NodeClass != "" {
-		if a.ClassFiltered == nil {
-			a.ClassFiltered = make(map[string]int)
-		}
-		a.ClassFiltered[node.NodeClass] += 1
-	}
-	if constraint != "" {
-		if a.ConstraintFiltered == nil {
-			a.ConstraintFiltered = make(map[string]int)
-		}
-		a.ConstraintFiltered[constraint] += 1
-	}
-}
-
-func (a *AllocMetric) ExhaustedNode(node *Node, dimension string) {
-	a.NodesExhausted += 1
-	if node != nil && node.NodeClass != "" {
-		if a.ClassExhausted == nil {
-			a.ClassExhausted = make(map[string]int)
-		}
-		a.ClassExhausted[node.NodeClass] += 1
-	}
-	if dimension != "" {
-		if a.DimensionExhausted == nil {
-			a.DimensionExhausted = make(map[string]int)
-		}
-		a.DimensionExhausted[dimension] += 1
-	}
-}
-
-func (a *AllocMetric) ExhaustQuota(dimensions []string) {
-	if a.QuotaExhausted == nil {
-		a.QuotaExhausted = make([]string, 0, len(dimensions))
-	}
-
-	a.QuotaExhausted = append(a.QuotaExhausted, dimensions...)
-}
-
-// ExhaustResources updates the amount of resources exhausted for the
-// allocation because of the given task group.
-func (a *AllocMetric) ExhaustResources(tg *TaskGroup) {
-	if a.DimensionExhausted == nil {
-		return
-	}
-
-	if a.ResourcesExhausted == nil {
-		a.ResourcesExhausted = make(map[string]*Resources)
-	}
-
-	for _, t := range tg.Tasks {
-		exhaustedResources := a.ResourcesExhausted[t.Name]
-		if exhaustedResources == nil {
-			exhaustedResources = &Resources{}
-		}
-
-		if a.DimensionExhausted["memory"] > 0 {
-			exhaustedResources.MemoryMB += t.Resources.MemoryMB
-		}
-
-		if a.DimensionExhausted["cpu"] > 0 {
-			exhaustedResources.CPU += t.Resources.CPU
-		}
-
-		a.ResourcesExhausted[t.Name] = exhaustedResources
-	}
-}
-
-// ScoreNode is used to gather top K scoring nodes in a heap
-func (a *AllocMetric) ScoreNode(node *Node, name string, score float64) {
-	// Create nodeScoreMeta lazily if its the first time or if its a new node
-	if a.nodeScoreMeta == nil || a.nodeScoreMeta.NodeID != node.ID {
-		a.nodeScoreMeta = &NodeScoreMeta{
-			NodeID: node.ID,
-			Scores: make(map[string]float64),
-		}
-	}
-	if name == NormScorerName {
-		a.nodeScoreMeta.NormScore = score
-		// Once we have the normalized score we can push to the heap
-		// that tracks top K by normalized score
-
-		// Create the heap if its not there already
-		if a.topScores == nil {
-			a.topScores = kheap.NewScoreHeap(MaxRetainedNodeScores)
-		}
-		heap.Push(a.topScores, a.nodeScoreMeta)
-
-		// Clear out this entry because its now in the heap
-		a.nodeScoreMeta = nil
-	} else {
-		a.nodeScoreMeta.Scores[name] = score
-	}
-}
-
-// PopulateScoreMetaData populates a map of scorer to scoring metadata
-// The map is populated by popping elements from a heap of top K scores
-// maintained per scorer
-func (a *AllocMetric) PopulateScoreMetaData() {
-	if a.topScores == nil {
-		return
-	}
-
-	if a.ScoreMetaData == nil {
-		a.ScoreMetaData = make([]*NodeScoreMeta, a.topScores.Len())
-	}
-	heapItems := a.topScores.GetItemsReverse()
-	for i, item := range heapItems {
-		a.ScoreMetaData[i] = item.(*NodeScoreMeta)
-	}
-}
-
-// MaxNormScore returns the ScoreMetaData entry with the highest normalized
-// score.
-func (a *AllocMetric) MaxNormScore() *NodeScoreMeta {
-	if a == nil || len(a.ScoreMetaData) == 0 {
-		return nil
-	}
-	return a.ScoreMetaData[0]
-}
-
 // NodeScoreMeta captures scoring meta data derived from
 // different scoring factors.
 type NodeScoreMeta struct {
@@ -12062,968 +10740,6 @@ func (s *NodeScoreMeta) Data() interface{} {
 	return s
 }
 
-// AllocNetworkStatus captures the status of an allocation's network during runtime.
-// Depending on the network mode, an allocation's address may need to be known to other
-// systems in Nomad such as service registration.
-type AllocNetworkStatus struct {
-	InterfaceName string
-	Address       string
-	AddressIPv6   string
-	DNS           *DNSConfig
-}
-
-func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
-	if a == nil {
-		return nil
-	}
-	return &AllocNetworkStatus{
-		InterfaceName: a.InterfaceName,
-		Address:       a.Address,
-		AddressIPv6:   a.AddressIPv6,
-		DNS:           a.DNS.Copy(),
-	}
-}
-
-func (a *AllocNetworkStatus) Equal(o *AllocNetworkStatus) bool {
-	// note: this accounts for when DNSConfig is non-nil but empty
-	switch {
-	case a == nil && o.IsZero():
-		return true
-	case o == nil && a.IsZero():
-		return true
-	case a == nil || o == nil:
-		return a == o
-	}
-
-	switch {
-	case a.InterfaceName != o.InterfaceName:
-		return false
-	case a.Address != o.Address:
-		return false
-	case a.AddressIPv6 != o.AddressIPv6:
-		return false
-	case !a.DNS.Equal(o.DNS):
-		return false
-	}
-	return true
-}
-
-func (a *AllocNetworkStatus) IsZero() bool {
-	if a == nil {
-		return true
-	}
-	if a.InterfaceName != "" || a.Address != "" {
-		return false
-	}
-	if !a.DNS.IsZero() {
-		return false
-	}
-	return true
-}
-
-// NetworkStatus is an interface satisfied by alloc runner, for acquiring the
-// network status of an allocation.
-type NetworkStatus interface {
-	NetworkStatus() *AllocNetworkStatus
-}
-
-// AllocDeploymentStatus captures the status of the allocation as part of the
-// deployment. This can include things like if the allocation has been marked as
-// healthy.
-type AllocDeploymentStatus struct {
-	// Healthy marks whether the allocation has been marked healthy or unhealthy
-	// as part of a deployment. It can be unset if it has neither been marked
-	// healthy or unhealthy.
-	Healthy *bool
-
-	// Timestamp is the time at which the health status was set.
-	Timestamp time.Time
-
-	// Canary marks whether the allocation is a canary or not. A canary that has
-	// been promoted will have this field set to false.
-	Canary bool
-
-	// ModifyIndex is the raft index in which the deployment status was last
-	// changed.
-	ModifyIndex uint64
-}
-
-// HasHealth returns true if the allocation has its health set.
-func (a *AllocDeploymentStatus) HasHealth() bool {
-	return a != nil && a.Healthy != nil
-}
-
-// IsHealthy returns if the allocation is marked as healthy as part of a
-// deployment
-func (a *AllocDeploymentStatus) IsHealthy() bool {
-	if a == nil {
-		return false
-	}
-
-	return a.Healthy != nil && *a.Healthy
-}
-
-// IsUnhealthy returns if the allocation is marked as unhealthy as part of a
-// deployment
-func (a *AllocDeploymentStatus) IsUnhealthy() bool {
-	if a == nil {
-		return false
-	}
-
-	return a.Healthy != nil && !*a.Healthy
-}
-
-// IsCanary returns if the allocation is marked as a canary
-func (a *AllocDeploymentStatus) IsCanary() bool {
-	if a == nil {
-		return false
-	}
-
-	return a.Canary
-}
-
-func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
-	if a == nil {
-		return nil
-	}
-
-	c := new(AllocDeploymentStatus)
-	*c = *a
-
-	if a.Healthy != nil {
-		c.Healthy = pointer.Of(*a.Healthy)
-	}
-
-	return c
-}
-
-func (a *AllocDeploymentStatus) Equal(o *AllocDeploymentStatus) bool {
-	if a == nil || o == nil {
-		return a == o
-	}
-
-	switch {
-	case !pointer.Eq(a.Healthy, o.Healthy):
-		return false
-	case a.Timestamp != o.Timestamp:
-		return false
-	case a.Canary != o.Canary:
-		return false
-	case a.ModifyIndex != o.ModifyIndex:
-		return false
-	}
-	return true
-}
-
-const (
-	EvalStatusBlocked   = "blocked"
-	EvalStatusPending   = "pending"
-	EvalStatusComplete  = "complete"
-	EvalStatusFailed    = "failed"
-	EvalStatusCancelled = "canceled"
-)
-
-const (
-	EvalTriggerJobRegister          = "job-register"
-	EvalTriggerJobDeregister        = "job-deregister"
-	EvalTriggerPeriodicJob          = "periodic-job"
-	EvalTriggerNodeDrain            = "node-drain"
-	EvalTriggerNodeUpdate           = "node-update"
-	EvalTriggerAllocStop            = "alloc-stop"
-	EvalTriggerScheduled            = "scheduled"
-	EvalTriggerRollingUpdate        = "rolling-update"
-	EvalTriggerDeploymentWatcher    = "deployment-watcher"
-	EvalTriggerFailedFollowUp       = "failed-follow-up"
-	EvalTriggerMaxPlans             = "max-plan-attempts"
-	EvalTriggerRetryFailedAlloc     = "alloc-failure"
-	EvalTriggerQueuedAllocs         = "queued-allocs"
-	EvalTriggerPreemption           = "preemption"
-	EvalTriggerScaling              = "job-scaling"
-	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
-	EvalTriggerReconnect            = "reconnect"
-)
-
-const (
-	// CoreJobEvalGC is used for the garbage collection of evaluations
-	// and allocations. We periodically scan evaluations in a terminal state,
-	// in which all the corresponding allocations are also terminal. We
-	// delete these out of the system to bound the state.
-	CoreJobEvalGC = "eval-gc"
-
-	// CoreJobNodeGC is used for the garbage collection of failed nodes.
-	// We periodically scan nodes in a terminal state, and if they have no
-	// corresponding allocations we delete these out of the system.
-	CoreJobNodeGC = "node-gc"
-
-	// CoreJobJobGC is used for the garbage collection of eligible jobs. We
-	// periodically scan garbage collectible jobs and check if both their
-	// evaluations and allocations are terminal. If so, we delete these out of
-	// the system.
-	CoreJobJobGC = "job-gc"
-
-	// CoreJobDeploymentGC is used for the garbage collection of eligible
-	// deployments. We periodically scan garbage collectible deployments and
-	// check if they are terminal. If so, we delete these out of the system.
-	CoreJobDeploymentGC = "deployment-gc"
-
-	// CoreJobCSIVolumeClaimGC is use for the garbage collection of CSI
-	// volume claims. We periodically scan volumes to see if no allocs are
-	// claiming them. If so, we unclaim the volume.
-	CoreJobCSIVolumeClaimGC = "csi-volume-claim-gc"
-
-	// CoreJobCSIPluginGC is use for the garbage collection of CSI plugins.
-	// We periodically scan plugins to see if they have no associated volumes
-	// or allocs running them. If so, we delete the plugin.
-	CoreJobCSIPluginGC = "csi-plugin-gc"
-
-	// CoreJobOneTimeTokenGC is use for the garbage collection of one-time
-	// tokens. We periodically scan for expired tokens and delete them.
-	CoreJobOneTimeTokenGC = "one-time-token-gc"
-
-	// CoreJobLocalTokenExpiredGC is used for the garbage collection of
-	// expired local ACL tokens. We periodically scan for expired tokens and
-	// delete them.
-	CoreJobLocalTokenExpiredGC = "local-token-expired-gc"
-
-	// CoreJobGlobalTokenExpiredGC is used for the garbage collection of
-	// expired global ACL tokens. We periodically scan for expired tokens and
-	// delete them.
-	CoreJobGlobalTokenExpiredGC = "global-token-expired-gc"
-
-	// CoreJobRootKeyRotateGC is used for periodic key rotation and
-	// garbage collection of unused encryption keys.
-	CoreJobRootKeyRotateOrGC = "root-key-rotate-gc"
-
-	// CoreJobVariablesRekey is used to fully rotate the encryption keys for
-	// variables by decrypting all variables and re-encrypting them with the
-	// active key
-	CoreJobVariablesRekey = "variables-rekey"
-
-	// CoreJobForceGC is used to force garbage collection of all GCable objects.
-	CoreJobForceGC = "force-gc"
-)
-
-// Evaluation is used anytime we need to apply business logic as a result
-// of a change to our desired state (job specification) or the emergent state
-// (registered nodes). When the inputs change, we need to "evaluate" them,
-// potentially taking action (allocation of work) or doing nothing if the state
-// of the world does not require it.
-type Evaluation struct {
-	// msgpack omit empty fields during serialization
-	_struct bool `codec:",omitempty"` // nolint: structcheck
-
-	// ID is a randomly generated UUID used for this evaluation. This
-	// is assigned upon the creation of the evaluation.
-	ID string
-
-	// Namespace is the namespace the evaluation is created in
-	Namespace string
-
-	// Priority is used to control scheduling importance and if this job
-	// can preempt other jobs.
-	Priority int
-
-	// Type is used to control which schedulers are available to handle
-	// this evaluation.
-	Type string
-
-	// TriggeredBy is used to give some insight into why this Eval
-	// was created. (Job change, node failure, alloc failure, etc).
-	TriggeredBy string
-
-	// JobID is the job this evaluation is scoped to. Evaluations cannot
-	// be run in parallel for a given JobID, so we serialize on this.
-	JobID string
-
-	// JobModifyIndex is the modify index of the job at the time
-	// the evaluation was created
-	JobModifyIndex uint64
-
-	// NodeID is the node that was affected triggering the evaluation.
-	NodeID string
-
-	// NodeModifyIndex is the modify index of the node at the time
-	// the evaluation was created
-	NodeModifyIndex uint64
-
-	// DeploymentID is the ID of the deployment that triggered the evaluation.
-	DeploymentID string
-
-	// Status of the evaluation
-	Status string
-
-	// StatusDescription is meant to provide more human useful information
-	StatusDescription string
-
-	// Wait is a minimum wait time for running the eval. This is used to
-	// support a rolling upgrade in versions prior to 0.7.0
-	// Deprecated
-	Wait time.Duration
-
-	// WaitUntil is the time when this eval should be run. This is used to
-	// supported delayed rescheduling of failed allocations, and delayed
-	// stopping of allocations that are configured with max_client_disconnect.
-	WaitUntil time.Time
-
-	// NextEval is the evaluation ID for the eval created to do a followup.
-	// This is used to support rolling upgrades and failed-follow-up evals, where
-	// we need a chain of evaluations.
-	NextEval string
-
-	// PreviousEval is the evaluation ID for the eval creating this one to do a followup.
-	// This is used to support rolling upgrades and failed-follow-up evals, where
-	// we need a chain of evaluations.
-	PreviousEval string
-
-	// BlockedEval is the evaluation ID for a created blocked eval. A
-	// blocked eval will be created if all allocations could not be placed due
-	// to constraints or lacking resources.
-	BlockedEval string
-
-	// RelatedEvals is a list of all the evaluations that are related (next,
-	// previous, or blocked) to this one. It may be nil if not requested.
-	RelatedEvals []*EvaluationStub
-
-	// FailedTGAllocs are task groups which have allocations that could not be
-	// made, but the metrics are persisted so that the user can use the feedback
-	// to determine the cause.
-	FailedTGAllocs map[string]*AllocMetric
-
-	// ClassEligibility tracks computed node classes that have been explicitly
-	// marked as eligible or ineligible.
-	ClassEligibility map[string]bool
-
-	// QuotaLimitReached marks whether a quota limit was reached for the
-	// evaluation.
-	QuotaLimitReached string
-
-	// EscapedComputedClass marks whether the job has constraints that are not
-	// captured by computed node classes.
-	EscapedComputedClass bool
-
-	// AnnotatePlan triggers the scheduler to provide additional annotations
-	// during the evaluation. This should not be set during normal operations.
-	AnnotatePlan bool
-
-	// QueuedAllocations is the number of unplaced allocations at the time the
-	// evaluation was processed. The map is keyed by Task Group names.
-	QueuedAllocations map[string]int
-
-	// LeaderACL provides the ACL token to when issuing RPCs back to the
-	// leader. This will be a valid management token as long as the leader is
-	// active. This should not ever be exposed via the API.
-	LeaderACL string
-
-	// SnapshotIndex is the Raft index of the snapshot used to process the
-	// evaluation. The index will either be set when it has gone through the
-	// scheduler or if a blocked evaluation is being created. The index is set
-	// in this case so we can determine if an early unblocking is required since
-	// capacity has changed since the evaluation was created. This can result in
-	// the SnapshotIndex being less than the CreateIndex.
-	SnapshotIndex uint64
-
-	// Raft Indexes
-	CreateIndex uint64
-	ModifyIndex uint64
-
-	// Creation and modification times stored as UnixNano
-	CreateTime int64
-	ModifyTime int64
-}
-
-type EvaluationStub struct {
-	ID                string
-	Namespace         string
-	Priority          int
-	Type              string
-	TriggeredBy       string
-	JobID             string
-	NodeID            string
-	DeploymentID      string
-	Status            string
-	StatusDescription string
-	WaitUntil         time.Time
-	NextEval          string
-	PreviousEval      string
-	BlockedEval       string
-	CreateIndex       uint64
-	ModifyIndex       uint64
-	CreateTime        int64
-	ModifyTime        int64
-}
-
-// GetID implements the IDGetter interface, required for pagination.
-func (e *Evaluation) GetID() string {
-	if e == nil {
-		return ""
-	}
-	return e.ID
-}
-
-// GetNamespace implements the NamespaceGetter interface, required for pagination.
-func (e *Evaluation) GetNamespace() string {
-	if e == nil {
-		return ""
-	}
-	return e.Namespace
-}
-
-// GetCreateIndex implements the CreateIndexGetter interface, required for
-// pagination.
-func (e *Evaluation) GetCreateIndex() uint64 {
-	if e == nil {
-		return 0
-	}
-	return e.CreateIndex
-}
-
-// TerminalStatus returns if the current status is terminal and
-// will no longer transition.
-func (e *Evaluation) TerminalStatus() bool {
-	switch e.Status {
-	case EvalStatusComplete, EvalStatusFailed, EvalStatusCancelled:
-		return true
-	default:
-		return false
-	}
-}
-
-func (e *Evaluation) GoString() string {
-	return fmt.Sprintf("<Eval %q JobID: %q Namespace: %q>", e.ID, e.JobID, e.Namespace)
-}
-
-func (e *Evaluation) RelatedIDs() []string {
-	if e == nil {
-		return nil
-	}
-
-	ids := []string{e.NextEval, e.PreviousEval, e.BlockedEval}
-	related := make([]string, 0, len(ids))
-
-	for _, id := range ids {
-		if id != "" {
-			related = append(related, id)
-		}
-	}
-
-	return related
-}
-
-func (e *Evaluation) Stub() *EvaluationStub {
-	if e == nil {
-		return nil
-	}
-
-	return &EvaluationStub{
-		ID:                e.ID,
-		Namespace:         e.Namespace,
-		Priority:          e.Priority,
-		Type:              e.Type,
-		TriggeredBy:       e.TriggeredBy,
-		JobID:             e.JobID,
-		NodeID:            e.NodeID,
-		DeploymentID:      e.DeploymentID,
-		Status:            e.Status,
-		StatusDescription: e.StatusDescription,
-		WaitUntil:         e.WaitUntil,
-		NextEval:          e.NextEval,
-		PreviousEval:      e.PreviousEval,
-		BlockedEval:       e.BlockedEval,
-		CreateIndex:       e.CreateIndex,
-		ModifyIndex:       e.ModifyIndex,
-		CreateTime:        e.CreateTime,
-		ModifyTime:        e.ModifyTime,
-	}
-}
-
-func (e *Evaluation) Copy() *Evaluation {
-	if e == nil {
-		return nil
-	}
-	ne := new(Evaluation)
-	*ne = *e
-
-	// Copy ClassEligibility
-	if e.ClassEligibility != nil {
-		classes := make(map[string]bool, len(e.ClassEligibility))
-		for class, elig := range e.ClassEligibility {
-			classes[class] = elig
-		}
-		ne.ClassEligibility = classes
-	}
-
-	// Copy FailedTGAllocs
-	if e.FailedTGAllocs != nil {
-		failedTGs := make(map[string]*AllocMetric, len(e.FailedTGAllocs))
-		for tg, metric := range e.FailedTGAllocs {
-			failedTGs[tg] = metric.Copy()
-		}
-		ne.FailedTGAllocs = failedTGs
-	}
-
-	// Copy queued allocations
-	if e.QueuedAllocations != nil {
-		queuedAllocations := make(map[string]int, len(e.QueuedAllocations))
-		for tg, num := range e.QueuedAllocations {
-			queuedAllocations[tg] = num
-		}
-		ne.QueuedAllocations = queuedAllocations
-	}
-
-	return ne
-}
-
-// ShouldEnqueue checks if a given evaluation should be enqueued into the
-// eval_broker
-func (e *Evaluation) ShouldEnqueue() bool {
-	switch e.Status {
-	case EvalStatusPending:
-		return true
-	case EvalStatusComplete, EvalStatusFailed, EvalStatusBlocked, EvalStatusCancelled:
-		return false
-	default:
-		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
-	}
-}
-
-// ShouldBlock checks if a given evaluation should be entered into the blocked
-// eval tracker.
-func (e *Evaluation) ShouldBlock() bool {
-	switch e.Status {
-	case EvalStatusBlocked:
-		return true
-	case EvalStatusComplete, EvalStatusFailed, EvalStatusPending, EvalStatusCancelled:
-		return false
-	default:
-		panic(fmt.Sprintf("unhandled evaluation (%s) status %s", e.ID, e.Status))
-	}
-}
-
-// MakePlan is used to make a plan from the given evaluation
-// for a given Job
-func (e *Evaluation) MakePlan(j *Job) *Plan {
-	p := &Plan{
-		EvalID:          e.ID,
-		Priority:        e.Priority,
-		Job:             j,
-		NodeUpdate:      make(map[string][]*Allocation),
-		NodeAllocation:  make(map[string][]*Allocation),
-		NodePreemptions: make(map[string][]*Allocation),
-	}
-	if j != nil {
-		p.AllAtOnce = j.AllAtOnce
-	}
-	return p
-}
-
-// NextRollingEval creates an evaluation to followup this eval for rolling updates
-func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
-	now := time.Now().UTC().UnixNano()
-	return &Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      e.Namespace,
-		Priority:       e.Priority,
-		Type:           e.Type,
-		TriggeredBy:    EvalTriggerRollingUpdate,
-		JobID:          e.JobID,
-		JobModifyIndex: e.JobModifyIndex,
-		Status:         EvalStatusPending,
-		Wait:           wait,
-		PreviousEval:   e.ID,
-		CreateTime:     now,
-		ModifyTime:     now,
-	}
-}
-
-// CreateBlockedEval creates a blocked evaluation to followup this eval to place any
-// failed allocations. It takes the classes marked explicitly eligible or
-// ineligible, whether the job has escaped computed node classes and whether the
-// quota limit was reached.
-func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
-	escaped bool, quotaReached string, failedTGAllocs map[string]*AllocMetric) *Evaluation {
-	now := time.Now().UTC().UnixNano()
-	return &Evaluation{
-		ID:                   uuid.Generate(),
-		Namespace:            e.Namespace,
-		Priority:             e.Priority,
-		Type:                 e.Type,
-		TriggeredBy:          EvalTriggerQueuedAllocs,
-		JobID:                e.JobID,
-		JobModifyIndex:       e.JobModifyIndex,
-		Status:               EvalStatusBlocked,
-		PreviousEval:         e.ID,
-		FailedTGAllocs:       failedTGAllocs,
-		ClassEligibility:     classEligibility,
-		EscapedComputedClass: escaped,
-		QuotaLimitReached:    quotaReached,
-		CreateTime:           now,
-		ModifyTime:           now,
-	}
-}
-
-// CreateFailedFollowUpEval creates a follow up evaluation when the current one
-// has been marked as failed because it has hit the delivery limit and will not
-// be retried by the eval_broker. Callers should copy the created eval's ID to
-// into the old eval's NextEval field.
-func (e *Evaluation) CreateFailedFollowUpEval(wait time.Duration) *Evaluation {
-	now := time.Now().UTC().UnixNano()
-	return &Evaluation{
-		ID:             uuid.Generate(),
-		Namespace:      e.Namespace,
-		Priority:       e.Priority,
-		Type:           e.Type,
-		TriggeredBy:    EvalTriggerFailedFollowUp,
-		JobID:          e.JobID,
-		JobModifyIndex: e.JobModifyIndex,
-		Status:         EvalStatusPending,
-		Wait:           wait,
-		PreviousEval:   e.ID,
-		CreateTime:     now,
-		ModifyTime:     now,
-	}
-}
-
-// UpdateModifyTime takes into account that clocks on different servers may be
-// slightly out of sync. Even in case of a leader change, this method will
-// guarantee that ModifyTime will always be after CreateTime.
-func (e *Evaluation) UpdateModifyTime() {
-	now := time.Now().UTC().UnixNano()
-	if now <= e.CreateTime {
-		e.ModifyTime = e.CreateTime + 1
-	} else {
-		e.ModifyTime = now
-	}
-}
-
-// Plan is used to submit a commit plan for task allocations. These
-// are submitted to the leader which verifies that resources have
-// not been overcommitted before admitting the plan.
-type Plan struct {
-	// msgpack omit empty fields during serialization
-	_struct bool `codec:",omitempty"` // nolint: structcheck
-
-	// EvalID is the evaluation ID this plan is associated with
-	EvalID string
-
-	// EvalToken is used to prevent a split-brain processing of
-	// an evaluation. There should only be a single scheduler running
-	// an Eval at a time, but this could be violated after a leadership
-	// transition. This unique token is used to reject plans that are
-	// being submitted from a different leader.
-	EvalToken string
-
-	// Priority is the priority of the upstream job
-	Priority int
-
-	// AllAtOnce is used to control if incremental scheduling of task groups
-	// is allowed or if we must do a gang scheduling of the entire job.
-	// If this is false, a plan may be partially applied. Otherwise, the
-	// entire plan must be able to make progress.
-	AllAtOnce bool
-
-	// Job is the parent job of all the allocations in the Plan.
-	// Since a Plan only involves a single Job, we can reduce the size
-	// of the plan by only including it once.
-	Job *Job
-
-	// NodeUpdate contains all the allocations to be stopped or evicted for
-	// each node.
-	NodeUpdate map[string][]*Allocation
-
-	// NodeAllocation contains all the allocations for each node.
-	// The evicts must be considered prior to the allocations.
-	NodeAllocation map[string][]*Allocation
-
-	// Annotations contains annotations by the scheduler to be used by operators
-	// to understand the decisions made by the scheduler.
-	Annotations *PlanAnnotations
-
-	// Deployment is the deployment created or updated by the scheduler that
-	// should be applied by the planner.
-	Deployment *Deployment
-
-	// DeploymentUpdates is a set of status updates to apply to the given
-	// deployments. This allows the scheduler to cancel any unneeded deployment
-	// because the job is stopped or the update block is removed.
-	DeploymentUpdates []*DeploymentStatusUpdate
-
-	// NodePreemptions is a map from node id to a set of allocations from other
-	// lower priority jobs that are preempted. Preempted allocations are marked
-	// as evicted.
-	NodePreemptions map[string][]*Allocation
-
-	// SnapshotIndex is the Raft index of the snapshot used to create the
-	// Plan. The leader will wait to evaluate the plan until its StateStore
-	// has reached at least this index.
-	SnapshotIndex uint64
-}
-
-func (p *Plan) GoString() string {
-	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
-	if p.Job != nil {
-		out += fmt.Sprintf(", job %s", p.Job.ID)
-	}
-	if p.Deployment != nil {
-		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
-	}
-	if len(p.NodeUpdate) > 0 {
-		out += ", NodeUpdates: "
-		for node, allocs := range p.NodeUpdate {
-			out += fmt.Sprintf("(node[%s]", node[:8])
-			for _, alloc := range allocs {
-				out += fmt.Sprintf(" (%s stop/evict)", alloc.ID[:8])
-			}
-			out += ")"
-		}
-	}
-	if len(p.NodeAllocation) > 0 {
-		out += ", NodeAllocations: "
-		for node, allocs := range p.NodeAllocation {
-			out += fmt.Sprintf("(node[%s]", node[:8])
-			for _, alloc := range allocs {
-				out += fmt.Sprintf(" (%s %s %s)",
-					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
-				)
-			}
-			out += ")"
-		}
-	}
-	if len(p.NodePreemptions) > 0 {
-		out += ", NodePreemptions: "
-		for node, allocs := range p.NodePreemptions {
-			out += fmt.Sprintf("(node[%s]", node[:8])
-			for _, alloc := range allocs {
-				out += fmt.Sprintf(" (%s %s %s)",
-					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
-				)
-			}
-			out += ")"
-		}
-	}
-	if len(p.DeploymentUpdates) > 0 {
-		out += ", DeploymentUpdates: "
-		for _, dupdate := range p.DeploymentUpdates {
-			out += fmt.Sprintf("(%s %s)",
-				dupdate.DeploymentID[:8], dupdate.Status)
-		}
-	}
-	if p.Annotations != nil {
-		out += ", Annotations: "
-		for tg, updates := range p.Annotations.DesiredTGUpdates {
-			out += fmt.Sprintf("(update[%s] %v)", tg, updates)
-		}
-		for _, preempted := range p.Annotations.PreemptedAllocs {
-			out += fmt.Sprintf("(preempt %s)", preempted.ID[:8])
-		}
-	}
-
-	out += ")"
-	return out
-}
-
-// AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the
-// allocation may be optionally set by passing in a non-empty value.
-func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, followupEvalID string) {
-	newAlloc := new(Allocation)
-	*newAlloc = *alloc
-
-	// If the job is not set in the plan we are deregistering a job so we
-	// extract the job from the allocation.
-	if p.Job == nil && newAlloc.Job != nil {
-		p.Job = newAlloc.Job
-	}
-
-	// Normalize the job
-	newAlloc.Job = nil
-
-	// Strip the resources as it can be rebuilt.
-	newAlloc.Resources = nil
-
-	newAlloc.DesiredStatus = AllocDesiredStatusStop
-	newAlloc.DesiredDescription = desiredDesc
-
-	if clientStatus != "" {
-		newAlloc.ClientStatus = clientStatus
-	}
-
-	newAlloc.AppendState(AllocStateFieldClientStatus, clientStatus)
-
-	if followupEvalID != "" {
-		newAlloc.FollowupEvalID = followupEvalID
-	}
-
-	node := alloc.NodeID
-	existing := p.NodeUpdate[node]
-	p.NodeUpdate[node] = append(existing, newAlloc)
-}
-
-// AppendPreemptedAlloc is used to append an allocation that's being preempted to the plan.
-// To minimize the size of the plan, this only sets a minimal set of fields in the allocation
-func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string) {
-	newAlloc := &Allocation{}
-	newAlloc.ID = alloc.ID
-	newAlloc.JobID = alloc.JobID
-	newAlloc.Namespace = alloc.Namespace
-	newAlloc.DesiredStatus = AllocDesiredStatusEvict
-	newAlloc.PreemptedByAllocation = preemptingAllocID
-
-	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
-	newAlloc.DesiredDescription = desiredDesc
-
-	// TaskResources are needed by the plan applier to check if allocations fit
-	// after removing preempted allocations
-	if alloc.AllocatedResources != nil {
-		newAlloc.AllocatedResources = alloc.AllocatedResources
-	} else {
-		// COMPAT Remove in version 0.11
-		newAlloc.TaskResources = alloc.TaskResources
-		newAlloc.SharedResources = alloc.SharedResources
-	}
-
-	// Append this alloc to slice for this node
-	node := alloc.NodeID
-	existing := p.NodePreemptions[node]
-	p.NodePreemptions[node] = append(existing, newAlloc)
-}
-
-// AppendUnknownAlloc marks an allocation as unknown.
-func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
-	// Strip the resources as they can be rebuilt.
-	alloc.Resources = nil
-
-	existing := p.NodeAllocation[alloc.NodeID]
-	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
-}
-
-func (p *Plan) PopUpdate(alloc *Allocation) {
-	existing := p.NodeUpdate[alloc.NodeID]
-	n := len(existing)
-	if n > 0 && existing[n-1].ID == alloc.ID {
-		existing = existing[:n-1]
-		if len(existing) > 0 {
-			p.NodeUpdate[alloc.NodeID] = existing
-		} else {
-			delete(p.NodeUpdate, alloc.NodeID)
-		}
-	}
-}
-
-// AppendAlloc appends the alloc to the plan allocations.
-// Uses the passed job if explicitly passed, otherwise
-// it is assumed the alloc will use the plan Job version.
-func (p *Plan) AppendAlloc(alloc *Allocation, job *Job) {
-	node := alloc.NodeID
-	existing := p.NodeAllocation[node]
-
-	alloc.Job = job
-
-	p.NodeAllocation[node] = append(existing, alloc)
-}
-
-// IsNoOp checks if this plan would do nothing
-func (p *Plan) IsNoOp() bool {
-	return len(p.NodeUpdate) == 0 &&
-		len(p.NodeAllocation) == 0 &&
-		p.Deployment == nil &&
-		len(p.DeploymentUpdates) == 0
-}
-
-// NormalizeAllocations normalizes allocations to remove fields that can
-// be fetched from the MemDB instead of sending over the wire
-func (p *Plan) NormalizeAllocations() {
-	for _, allocs := range p.NodeUpdate {
-		for i, alloc := range allocs {
-			allocs[i] = &Allocation{
-				ID:                 alloc.ID,
-				DesiredDescription: alloc.DesiredDescription,
-				ClientStatus:       alloc.ClientStatus,
-				FollowupEvalID:     alloc.FollowupEvalID,
-				RescheduleTracker:  alloc.RescheduleTracker,
-			}
-		}
-	}
-
-	for _, allocs := range p.NodePreemptions {
-		for i, alloc := range allocs {
-			allocs[i] = &Allocation{
-				ID:                    alloc.ID,
-				PreemptedByAllocation: alloc.PreemptedByAllocation,
-			}
-		}
-	}
-}
-
-// PlanResult is the result of a plan submitted to the leader.
-type PlanResult struct {
-	// NodeUpdate contains all the evictions and stops that were committed.
-	NodeUpdate map[string][]*Allocation
-
-	// NodeAllocation contains all the allocations that were committed.
-	NodeAllocation map[string][]*Allocation
-
-	// Deployment is the deployment that was committed.
-	Deployment *Deployment
-
-	// DeploymentUpdates is the set of deployment updates that were committed.
-	DeploymentUpdates []*DeploymentStatusUpdate
-
-	// NodePreemptions is a map from node id to a set of allocations from other
-	// lower priority jobs that are preempted. Preempted allocations are marked
-	// as stopped.
-	NodePreemptions map[string][]*Allocation
-
-	// RejectedNodes are nodes the scheduler worker has rejected placements for
-	// and should be considered for ineligibility by the plan applier to avoid
-	// retrying them repeatedly.
-	RejectedNodes []string
-
-	// IneligibleNodes are nodes the plan applier has repeatedly rejected
-	// placements for and should therefore be considered ineligible by workers
-	// to avoid retrying them repeatedly.
-	IneligibleNodes []string
-
-	// RefreshIndex is the index the worker should refresh state up to.
-	// This allows all evictions and allocations to be materialized.
-	// If any allocations were rejected due to stale data (node state,
-	// over committed) this can be used to force a worker refresh.
-	RefreshIndex uint64
-
-	// AllocIndex is the Raft index in which the evictions and
-	// allocations took place. This is used for the write index.
-	AllocIndex uint64
-}
-
-// IsNoOp checks if this plan result would do nothing
-func (p *PlanResult) IsNoOp() bool {
-	return len(p.IneligibleNodes) == 0 && len(p.NodeUpdate) == 0 &&
-		len(p.NodeAllocation) == 0 && len(p.DeploymentUpdates) == 0 &&
-		p.Deployment == nil
-}
-
-// FullCommit is used to check if all the allocations in a plan
-// were committed as part of the result. Returns if there was
-// a match, and the number of expected and actual allocations.
-func (p *PlanResult) FullCommit(plan *Plan) (bool, int, int) {
-	expected := 0
-	actual := 0
-	for name, allocList := range plan.NodeAllocation {
-		didAlloc := p.NodeAllocation[name]
-		expected += len(allocList)
-		actual += len(didAlloc)
-	}
-	return actual == expected, expected, actual
-}
-
-// PlanAnnotations holds annotations made by the scheduler to give further debug
-// information to operators.
-type PlanAnnotations struct {
-	// DesiredTGUpdates is the set of desired updates per task group.
-	DesiredTGUpdates map[string]*DesiredUpdates
-
-	// PreemptedAllocs is the set of allocations to be preempted to make the placement successful.
-	PreemptedAllocs []*AllocListStub
-}
-
 // DesiredUpdates is the set of changes the scheduler would like to make given
 // sufficient resources and cluster capacity.
 type DesiredUpdates struct {
@@ -13035,11 +10751,15 @@ type DesiredUpdates struct {
 	DestructiveUpdate uint64
 	Canary            uint64
 	Preemptions       uint64
+	Disconnect        uint64
+	Reconnect         uint64
+	RescheduleNow     uint64
+	RescheduleLater   uint64
 }
 
 func (d *DesiredUpdates) GoString() string {
-	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d)",
-		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary)
+	return fmt.Sprintf("(place %d) (inplace %d) (destructive %d) (stop %d) (migrate %d) (ignore %d) (canary %d) (reschedule now %d) (reschedule later %d) (disconnect %d) (reconnect %d)",
+		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary, d.RescheduleNow, d.RescheduleLater, d.Disconnect, d.Reconnect)
 }
 
 // msgpackHandle is a shared handle for encoding/decoding of structs
@@ -13187,435 +10907,6 @@ func IsServerSide(e error) bool {
 		return se.IsServerSide()
 	}
 	return false
-}
-
-// ACLPolicy is used to represent an ACL policy
-type ACLPolicy struct {
-	Name        string      // Unique name
-	Description string      // Human readable
-	Rules       string      // HCL or JSON format
-	RulesJSON   *acl.Policy // Generated from Rules on read
-	JobACL      *JobACL
-	Hash        []byte
-
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-// JobACL represents an ACL policy's attachment to a job, group, or task.
-type JobACL struct {
-	Namespace string // namespace of the job
-	JobID     string // ID of the job
-	Group     string // ID of the group
-	Task      string // ID of the task
-}
-
-// SetHash is used to compute and set the hash of the ACL policy
-func (a *ACLPolicy) SetHash() []byte {
-	// Initialize a 256bit Blake2 hash (32 bytes)
-	hash, err := blake2b.New256(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	// Write all the user set fields
-	_, _ = hash.Write([]byte(a.Name))
-	_, _ = hash.Write([]byte(a.Description))
-	_, _ = hash.Write([]byte(a.Rules))
-
-	if a.JobACL != nil {
-		_, _ = hash.Write([]byte(a.JobACL.Namespace))
-		_, _ = hash.Write([]byte(a.JobACL.JobID))
-		_, _ = hash.Write([]byte(a.JobACL.Group))
-		_, _ = hash.Write([]byte(a.JobACL.Task))
-	}
-
-	// Finalize the hash
-	hashVal := hash.Sum(nil)
-
-	// Set and return the hash
-	a.Hash = hashVal
-	return hashVal
-}
-
-func (a *ACLPolicy) Stub() *ACLPolicyListStub {
-	return &ACLPolicyListStub{
-		Name:        a.Name,
-		Description: a.Description,
-		JobACL:      a.JobACL,
-		Hash:        a.Hash,
-		CreateIndex: a.CreateIndex,
-		ModifyIndex: a.ModifyIndex,
-	}
-}
-
-func (a *ACLPolicy) Validate() error {
-	var mErr multierror.Error
-	if !ValidPolicyName.MatchString(a.Name) {
-		err := fmt.Errorf("invalid name '%s'", a.Name)
-		mErr.Errors = append(mErr.Errors, err)
-	}
-	if _, err := acl.Parse(a.Rules); err != nil {
-		err = fmt.Errorf("failed to parse rules: %v", err)
-		mErr.Errors = append(mErr.Errors, err)
-	}
-	if len(a.Description) > maxPolicyDescriptionLength {
-		err := fmt.Errorf("description longer than %d", maxPolicyDescriptionLength)
-		mErr.Errors = append(mErr.Errors, err)
-	}
-	if a.JobACL != nil {
-		if a.JobACL.JobID != "" && a.JobACL.Namespace == "" {
-			err := fmt.Errorf("namespace must be set to set job ID")
-			mErr.Errors = append(mErr.Errors, err)
-		}
-		if a.JobACL.Group != "" && a.JobACL.JobID == "" {
-			err := fmt.Errorf("job ID must be set to set group")
-			mErr.Errors = append(mErr.Errors, err)
-		}
-		if a.JobACL.Task != "" && a.JobACL.Group == "" {
-			err := fmt.Errorf("group must be set to set task")
-			mErr.Errors = append(mErr.Errors, err)
-		}
-	}
-
-	return mErr.ErrorOrNil()
-}
-
-// ACLPolicyListStub is used to for listing ACL policies
-type ACLPolicyListStub struct {
-	Name        string
-	Description string
-	JobACL      *JobACL
-	Hash        []byte
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-// ACLPolicyListRequest is used to request a list of policies
-type ACLPolicyListRequest struct {
-	QueryOptions
-}
-
-// ACLPolicySpecificRequest is used to query a specific policy
-type ACLPolicySpecificRequest struct {
-	Name string
-	QueryOptions
-}
-
-// ACLPolicySetRequest is used to query a set of policies
-type ACLPolicySetRequest struct {
-	Names []string
-	QueryOptions
-}
-
-// ACLPolicyListResponse is used for a list request
-type ACLPolicyListResponse struct {
-	Policies []*ACLPolicyListStub
-	QueryMeta
-}
-
-// SingleACLPolicyResponse is used to return a single policy
-type SingleACLPolicyResponse struct {
-	Policy *ACLPolicy
-	QueryMeta
-}
-
-// ACLPolicySetResponse is used to return a set of policies
-type ACLPolicySetResponse struct {
-	Policies map[string]*ACLPolicy
-	QueryMeta
-}
-
-// ACLPolicyDeleteRequest is used to delete a set of policies
-type ACLPolicyDeleteRequest struct {
-	Names []string
-	WriteRequest
-}
-
-// ACLPolicyUpsertRequest is used to upsert a set of policies
-type ACLPolicyUpsertRequest struct {
-	Policies []*ACLPolicy
-	WriteRequest
-}
-
-// ACLToken represents a client token which is used to Authenticate
-type ACLToken struct {
-	AccessorID string   // Public Accessor ID (UUID)
-	SecretID   string   // Secret ID, private (UUID)
-	Name       string   // Human friendly name
-	Type       string   // Client or Management
-	Policies   []string // Policies this token ties to
-
-	// Roles represents the ACL roles that this token is tied to. The token
-	// will inherit the permissions of all policies detailed within the role.
-	Roles []*ACLTokenRoleLink
-
-	Global     bool // Global or Region local
-	Hash       []byte
-	CreateTime time.Time // Time of creation
-
-	// ExpirationTime represents the point after which a token should be
-	// considered revoked and is eligible for destruction. This time should
-	// always use UTC to account for multi-region global tokens. It is a
-	// pointer, so we can store nil, rather than the zero value of time.Time.
-	ExpirationTime *time.Time
-
-	// ExpirationTTL is a convenience field for helping set ExpirationTime to a
-	// value of CreateTime+ExpirationTTL. This can only be set during token
-	// creation. This is a string version of a time.Duration like "2m".
-	ExpirationTTL time.Duration
-
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-// GetID implements the IDGetter interface, required for pagination.
-func (a *ACLToken) GetID() string {
-	if a == nil {
-		return ""
-	}
-	return a.AccessorID
-}
-
-// GetCreateIndex implements the CreateIndexGetter interface, required for
-// pagination.
-func (a *ACLToken) GetCreateIndex() uint64 {
-	if a == nil {
-		return 0
-	}
-	return a.CreateIndex
-}
-
-func (a *ACLToken) Copy() *ACLToken {
-	c := new(ACLToken)
-	*c = *a
-
-	c.Policies = make([]string, len(a.Policies))
-	copy(c.Policies, a.Policies)
-
-	c.Hash = make([]byte, len(a.Hash))
-	copy(c.Hash, a.Hash)
-
-	c.Roles = make([]*ACLTokenRoleLink, len(a.Roles))
-	copy(c.Roles, a.Roles)
-
-	return c
-}
-
-var (
-	// AnonymousACLToken is used when no SecretID is provided, and the request
-	// is made anonymously.
-	AnonymousACLToken = &ACLToken{
-		AccessorID: "anonymous",
-		Name:       "Anonymous Token",
-		Type:       ACLClientToken,
-		Policies:   []string{"anonymous"},
-		Global:     false,
-	}
-
-	// LeaderACLToken is used to represent a leader's own token; this object
-	// never gets used except on the leader
-	LeaderACLToken = &ACLToken{
-		AccessorID: "leader",
-		Name:       "Leader Token",
-		Type:       ACLManagementToken,
-	}
-
-	// ACLsDisabledToken is used when ACLs are disabled.
-	ACLsDisabledToken = &ACLToken{
-		AccessorID: "acls-disabled",
-		Name:       "ACLs disabled token",
-		Type:       ACLClientToken,
-		Global:     false,
-	}
-)
-
-type ACLTokenListStub struct {
-	AccessorID     string
-	Name           string
-	Type           string
-	Policies       []string
-	Roles          []*ACLTokenRoleLink
-	Global         bool
-	Hash           []byte
-	CreateTime     time.Time
-	ExpirationTime *time.Time
-	CreateIndex    uint64
-	ModifyIndex    uint64
-}
-
-// SetHash is used to compute and set the hash of the ACL token. It only hashes
-// fields which can be updated, and as such, does not hash fields such as
-// ExpirationTime.
-func (a *ACLToken) SetHash() []byte {
-	// Initialize a 256bit Blake2 hash (32 bytes)
-	hash, err := blake2b.New256(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	// Write all the user set fields
-	_, _ = hash.Write([]byte(a.Name))
-	_, _ = hash.Write([]byte(a.Type))
-	for _, policyName := range a.Policies {
-		_, _ = hash.Write([]byte(policyName))
-	}
-	if a.Global {
-		_, _ = hash.Write([]byte("global"))
-	} else {
-		_, _ = hash.Write([]byte("local"))
-	}
-
-	// Iterate the ACL role links and hash the ID. The ID is immutable and the
-	// canonical way to reference a role. The name can be modified by
-	// operators, but won't impact the ACL token resolution.
-	for _, roleLink := range a.Roles {
-		_, _ = hash.Write([]byte(roleLink.ID))
-	}
-
-	// Finalize the hash
-	hashVal := hash.Sum(nil)
-
-	// Set and return the hash
-	a.Hash = hashVal
-	return hashVal
-}
-
-func (a *ACLToken) Stub() (*ACLTokenListStub, error) {
-	return &ACLTokenListStub{
-		AccessorID:     a.AccessorID,
-		Name:           a.Name,
-		Type:           a.Type,
-		Policies:       a.Policies,
-		Roles:          a.Roles,
-		Global:         a.Global,
-		Hash:           a.Hash,
-		CreateTime:     a.CreateTime,
-		ExpirationTime: a.ExpirationTime,
-		CreateIndex:    a.CreateIndex,
-		ModifyIndex:    a.ModifyIndex,
-	}, nil
-}
-
-// ACLTokenListRequest is used to request a list of tokens
-type ACLTokenListRequest struct {
-	GlobalOnly bool
-	QueryOptions
-}
-
-// ACLTokenSpecificRequest is used to query a specific token
-type ACLTokenSpecificRequest struct {
-	AccessorID string
-	QueryOptions
-}
-
-// ACLTokenSetRequest is used to query a set of tokens
-type ACLTokenSetRequest struct {
-	AccessorIDS []string
-	QueryOptions
-}
-
-// ACLTokenListResponse is used for a list request
-type ACLTokenListResponse struct {
-	Tokens []*ACLTokenListStub
-	QueryMeta
-}
-
-// SingleACLTokenResponse is used to return a single token
-type SingleACLTokenResponse struct {
-	Token *ACLToken
-	QueryMeta
-}
-
-// ACLTokenSetResponse is used to return a set of token
-type ACLTokenSetResponse struct {
-	Tokens map[string]*ACLToken // Keyed by Accessor ID
-	QueryMeta
-}
-
-// ResolveACLTokenRequest is used to resolve a specific token
-type ResolveACLTokenRequest struct {
-	SecretID string
-	QueryOptions
-}
-
-// ResolveACLTokenResponse is used to resolve a single token
-type ResolveACLTokenResponse struct {
-	Token *ACLToken
-	QueryMeta
-}
-
-// ACLTokenDeleteRequest is used to delete a set of tokens
-type ACLTokenDeleteRequest struct {
-	AccessorIDs []string
-	WriteRequest
-}
-
-// ACLTokenBootstrapRequest is used to bootstrap ACLs
-type ACLTokenBootstrapRequest struct {
-	Token           *ACLToken // Not client specifiable
-	ResetIndex      uint64    // Reset index is used to clear the bootstrap token
-	BootstrapSecret string
-	WriteRequest
-}
-
-// ACLTokenUpsertRequest is used to upsert a set of tokens
-type ACLTokenUpsertRequest struct {
-	Tokens []*ACLToken
-	WriteRequest
-}
-
-// ACLTokenUpsertResponse is used to return from an ACLTokenUpsertRequest
-type ACLTokenUpsertResponse struct {
-	Tokens []*ACLToken
-	WriteMeta
-}
-
-// OneTimeToken is used to log into the web UI using a token provided by the
-// command line.
-type OneTimeToken struct {
-	OneTimeSecretID string
-	AccessorID      string
-	ExpiresAt       time.Time
-	CreateIndex     uint64
-	ModifyIndex     uint64
-}
-
-// OneTimeTokenUpsertRequest is the request for a UpsertOneTimeToken RPC
-type OneTimeTokenUpsertRequest struct {
-	WriteRequest
-}
-
-// OneTimeTokenUpsertResponse is the response to a UpsertOneTimeToken RPC.
-type OneTimeTokenUpsertResponse struct {
-	OneTimeToken *OneTimeToken
-	WriteMeta
-}
-
-// OneTimeTokenExchangeRequest is a request to swap the one-time token with
-// the backing ACL token
-type OneTimeTokenExchangeRequest struct {
-	OneTimeSecretID string
-	WriteRequest
-}
-
-// OneTimeTokenExchangeResponse is the response to swapping the one-time token
-// with the backing ACL token
-type OneTimeTokenExchangeResponse struct {
-	Token *ACLToken
-	WriteMeta
-}
-
-// OneTimeTokenDeleteRequest is a request to delete a group of one-time tokens
-type OneTimeTokenDeleteRequest struct {
-	AccessorIDs []string
-	WriteRequest
-}
-
-// OneTimeTokenExpireRequest is a request to delete all expired one-time tokens
-type OneTimeTokenExpireRequest struct {
-	Timestamp time.Time
-	WriteRequest
 }
 
 // RpcError is used for serializing errors with a potential error code

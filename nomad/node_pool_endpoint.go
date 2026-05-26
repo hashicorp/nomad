@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -190,8 +190,7 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		}
 	}
 
-	if !ServersMeetMinimumVersion(
-		n.srv.serf.Members(), n.srv.Region(), minNodePoolsVersion, true) {
+	if !n.srv.peersCache.ServersMeetMinimumVersion(n.srv.Region(), minNodePoolsVersion, true) {
 		return fmt.Errorf("all servers must be running version %v or later to upsert node pools", minNodePoolsVersion)
 	}
 
@@ -200,6 +199,9 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		return structs.NewErrRPCCodedf(http.StatusBadRequest, "must specify at least one node pool")
 	}
 	for _, pool := range args.NodePools {
+
+		pool.Canonicalize()
+
 		if err := pool.Validate(); err != nil {
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "invalid node pool %q: %v", pool.Name, err)
 		}
@@ -253,8 +255,7 @@ func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *s
 	// licensed, so they are allowed to be deleted.
 	_ = n.validateLicense(nil)
 
-	if !ServersMeetMinimumVersion(
-		n.srv.serf.Members(), n.srv.Region(), minNodePoolsVersion, true) {
+	if !n.srv.peersCache.ServersMeetMinimumVersion(n.srv.Region(), minNodePoolsVersion, true) {
 		return fmt.Errorf("all servers must be running version %v or later to delete node pools", minNodePoolsVersion)
 	}
 

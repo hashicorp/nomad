@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -40,7 +40,7 @@ export default class AgentSerializer extends ApplicationSerializer {
       store,
       typeClass,
       hash.Members || [],
-      ...args
+      ...args,
     );
   }
 
@@ -50,7 +50,7 @@ export default class AgentSerializer extends ApplicationSerializer {
       typeClass,
       hash.findBy('Name', id),
       id,
-      ...args
+      ...args,
     );
   }
 }

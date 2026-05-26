@@ -1,0 +1,3 @@
+```release-note:improvement
+config: Added job_max_count option to limit number of allocs for a single job
+```

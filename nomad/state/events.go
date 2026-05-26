@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -21,7 +21,7 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.JobDeregisterRequestType:                     structs.TypeJobDeregistered,
 	structs.JobBatchDeregisterRequestType:                structs.TypeJobBatchDeregistered,
 	structs.AllocUpdateDesiredTransitionRequestType:      structs.TypeAllocationUpdateDesiredStatus,
-	structs.NodeUpdateEligibilityRequestType:             structs.TypeNodeDrain,
+	structs.NodeUpdateEligibilityRequestType:             structs.TypeNodeEligibilityUpdate,
 	structs.NodeUpdateDrainRequestType:                   structs.TypeNodeDrain,
 	structs.BatchNodeUpdateDrainRequestType:              structs.TypeNodeDrain,
 	structs.DeploymentStatusUpdateRequestType:            structs.TypeDeploymentUpdate,
@@ -46,6 +46,7 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.CSIVolumeRegisterRequestType:                 structs.TypeCSIVolumeRegistered,
 	structs.CSIVolumeDeregisterRequestType:               structs.TypeCSIVolumeDeregistered,
 	structs.CSIVolumeClaimRequestType:                    structs.TypeCSIVolumeClaim,
+	structs.VarApplyStateRequestType:                     structs.TypeVariableUpdated,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -144,7 +145,8 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Key:       before.ID,
 				Namespace: before.Namespace,
 				Payload: &structs.JobEvent{
-					Job: before,
+					Job:     before,
+					Deleted: true,
 				},
 			}, true
 		case "nodes":
@@ -241,6 +243,20 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 					Plugin: before,
 				},
 			}, true
+		case TableVariables:
+			before, ok := change.Before.(*structs.VariableEncrypted)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic:     structs.TopicVariable,
+				Key:       before.Path,
+				Namespace: before.Namespace,
+				Payload: &structs.VariableEvent{
+					Metadata: &before.VariableMetadata,
+					Deleted:  true,
+				},
+			}, true
 		default:
 			return enterpriseEventFromChangeDeleted(change)
 		}
@@ -331,7 +347,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		if !ok {
 			return structs.Event{}, false
 		}
-		alloc := after.Copy()
+		alloc := after.Sanitize()
 
 		filterKeys := []string{
 			alloc.JobID,
@@ -341,14 +357,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		// remove job info to help keep size of alloc event down
 		alloc.Job = nil
 
+		allocEvent := &structs.AllocationEvent{Allocation: alloc}
+		if alloc.ClientStatus == structs.AllocClientStatusComplete &&
+			alloc.ClientDescription == structs.AllocTimeoutReasonMaxRunDuration {
+			allocEvent.Timeout = true
+			allocEvent.TimeoutReason = alloc.ClientDescription
+		}
+
 		return structs.Event{
 			Topic:      structs.TopicAllocation,
 			Key:        after.ID,
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
-			Payload: &structs.AllocationEvent{
-				Allocation: alloc.Sanitize(),
-			},
+			Payload:    allocEvent,
 		}, true
 	case "jobs":
 		after, ok := change.After.(*structs.Job)
@@ -470,6 +491,19 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			FilterKeys: []string{after.ID},
 			Payload: &structs.CSIPluginEvent{
 				Plugin: after,
+			},
+		}, true
+	case TableVariables:
+		after, ok := change.After.(*structs.VariableEncrypted)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic:     structs.TopicVariable,
+			Key:       after.Path,
+			Namespace: after.Namespace,
+			Payload: &structs.VariableEvent{
+				Metadata: &after.VariableMetadata,
 			},
 		}, true
 	default:

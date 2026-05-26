@@ -1,17 +1,16 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import Controller from '@ember/controller';
-import { getOwner } from '@ember/application';
+import { getOwner } from '@ember/owner';
 import { alias } from '@ember/object/computed';
 import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 import { tracked } from '@glimmer/tracking';
-import Ember from 'ember';
+import { macroCondition, isTesting } from '@embroider/macros';
 
 /**
  * @type {RegExp}
@@ -25,7 +24,7 @@ export default class Tokens extends Controller {
   @service router;
   @service system;
   @service notifications;
-  queryParams = ['code', 'state', 'jwtAuthMethod'];
+  queryParams = ['code', 'state', 'jwtAuthMethod', 'iss'];
 
   @tracked secret = this.token.secret;
 
@@ -62,7 +61,18 @@ export default class Tokens extends Controller {
   }
 
   get hasJWTAuthMethods() {
-    return this.authMethods.any((method) => method.type === 'JWT');
+    const methods = this.authMethods;
+
+    if (typeof methods?.some === 'function') {
+      return methods.some((method) => method.type === 'JWT');
+    }
+
+    if (typeof methods?.any === 'function') {
+      return methods.any((method) => method.type === 'JWT');
+    }
+
+    const methodList = methods?.toArray?.() || [];
+    return methodList.some((method) => method.type === 'JWT');
   }
 
   get nonTokenAuthMethods() {
@@ -86,6 +96,15 @@ export default class Tokens extends Controller {
     );
   }
 
+  /**
+   * @type {string}
+   */
+  @tracked jwtAuthMethod;
+
+  get selectedJWTAuthMethod() {
+    return this.jwtAuthMethod || this.defaultJWTAuthMethod?.name;
+  }
+
   @action
   setCurrentAuthMethod() {
     if (!this.jwtAuthMethod) {
@@ -93,10 +112,18 @@ export default class Tokens extends Controller {
     }
   }
 
-  /**
-   * @type {string}
-   */
-  @tracked jwtAuthMethod;
+  @action
+  handleSecretInput(event) {
+    const nextSecret = event?.target?.value;
+    this.secret = nextSecret;
+
+    const isJWT =
+      nextSecret?.length > 36 && nextSecret.match(JWT_MATCH_EXPRESSION);
+
+    if (isJWT && !this.jwtAuthMethod) {
+      this.jwtAuthMethod = this.defaultJWTAuthMethod?.name;
+    }
+  }
 
   /**
    * @type {boolean}
@@ -119,7 +146,7 @@ export default class Tokens extends Controller {
     const isJWT = secret.length > 36 && secret.match(JWT_MATCH_EXPRESSION);
 
     if (isJWT) {
-      const methodName = this.jwtAuthMethod;
+      const methodName = this.selectedJWTAuthMethod;
 
       // If user passes a JWT token, but there is no JWT auth method, throw an error
       if (!methodName) {
@@ -151,7 +178,7 @@ export default class Tokens extends Controller {
         () => {
           this.token.set('secret', undefined);
           this.signInStatus = 'failure';
-        }
+        },
       );
     } else {
       this.clearTokenProperties();
@@ -181,7 +208,7 @@ export default class Tokens extends Controller {
         () => {
           this.token.set('secret', undefined);
           this.signInStatus = 'failure';
-        }
+        },
       );
     }
   }
@@ -191,9 +218,16 @@ export default class Tokens extends Controller {
    * redirect them back to the page they were on.
    */
   optionallyRedirectPathAfterSignIn() {
-    if (this.token.postExpiryPath) {
-      this.router.transitionTo(this.token.postExpiryPath);
+    const redirectPath =
+      this.token.postExpiryPath &&
+      this.token.postExpiryPath !== '/settings/tokens'
+        ? this.token.postExpiryPath
+        : this.token.forbiddenReturnPath;
+
+    if (redirectPath && redirectPath !== '/settings/tokens') {
+      this.router.transitionTo(redirectPath);
       this.token.postExpiryPath = null;
+      this.token.forbiddenReturnPath = null;
 
       // Because they won't be on the page to see "Successfully signed in", use a toast.
       this.notifications.add({
@@ -206,12 +240,14 @@ export default class Tokens extends Controller {
     }
   }
 
-  // Generate a 20-char nonce, using window.crypto to
-  // create a sufficiently-large output then trimming
+  // Generate a 256-bit nonce and encode bytes as hex to preserve entropy.
   generateNonce() {
-    let randomArray = new Uint32Array(10);
-    crypto.getRandomValues(randomArray);
-    return randomArray.join('').slice(0, 20);
+    const randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+
+    return Array.from(randomBytes, (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('');
   }
 
   @action redirectToSSO(method) {
@@ -222,7 +258,7 @@ export default class Tokens extends Controller {
     window.localStorage.setItem('nomadOIDCAuthMethod', provider);
 
     let redirectURL;
-    if (Ember.testing) {
+    if (macroCondition(isTesting())) {
       redirectURL = this.router.currentURL;
     } else {
       redirectURL = new URL(window.location.toString());
@@ -237,7 +273,7 @@ export default class Tokens extends Controller {
         RedirectUri: redirectURL,
       })
       .then(({ AuthURL }) => {
-        if (Ember.testing) {
+        if (macroCondition(isTesting())) {
           this.router.transitionTo(AuthURL.split('/ui')[1]);
         } else {
           window.location = AuthURL;
@@ -247,6 +283,7 @@ export default class Tokens extends Controller {
 
   @tracked code = null;
   @tracked state = null;
+  @tracked iss = null;
 
   get isValidatingToken() {
     if (this.code && this.state) {
@@ -259,7 +296,7 @@ export default class Tokens extends Controller {
 
   async validateSSO() {
     let redirectURL;
-    if (Ember.testing) {
+    if (macroCondition(isTesting())) {
       redirectURL = this.router.currentURL;
     } else {
       redirectURL = new URL(window.location.toString());
@@ -277,8 +314,9 @@ export default class Tokens extends Controller {
           Code: this.code,
           State: this.state,
           RedirectURI: redirectURL,
+          Iss: this.iss,
         }),
-      }
+      },
     );
 
     if (res.ok) {
@@ -287,6 +325,7 @@ export default class Tokens extends Controller {
       this.token.set('secret', data.SecretID);
       this.state = null;
       this.code = null;
+      this.iss = null;
 
       // Refetch the token and associated policies
       this.token.get('fetchSelfTokenAndPolicies').perform().catch();
@@ -297,6 +336,7 @@ export default class Tokens extends Controller {
     } else {
       this.state = 'failure';
       this.code = null;
+      this.iss = null;
     }
   }
 

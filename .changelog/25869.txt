@@ -1,0 +1,3 @@
+```release-note:security
+identity: Fixed bug where workflow identity policies are matched by job ID prefix (CVE-2025-4922)
+```

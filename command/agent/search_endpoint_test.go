@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -344,8 +345,8 @@ func TestHTTP_PrefixSearch_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mockAlloc()
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
-		require.NoError(t, err)
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 6999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc}))
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
 		data := structs.SearchRequest{Prefix: prefix, Context: structs.Allocs}
@@ -375,8 +376,8 @@ func TestHTTP_FuzzySearch_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mockAlloc()
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
-		require.NoError(t, err)
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 6999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc}))
 
 		data := structs.FuzzySearchRequest{Text: "-job", Context: structs.Allocs}
 		req, err := http.NewRequest(http.MethodPost, "/v1/search/fuzzy", encodeReq(data))
@@ -637,7 +638,7 @@ func TestHTTP_PrefixSearch_Variables(t *testing.T) {
 
 		state := s.Agent.server.State()
 		sv.Path = testPath
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -670,7 +671,7 @@ func TestHTTP_FuzzySearch_Variables(t *testing.T) {
 		state := s.Agent.server.State()
 		sv := mock.VariableEncrypted()
 		sv.Path = testPath
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -711,12 +712,12 @@ func TestHTTP_PrefixSearch_Variables_ACL(t *testing.T) {
 		sv2.Namespace = ns.Name
 
 		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv1,
 		})
 		require.NoError(t, setResp.Error)
-		setResp = state.VarSet(8001, &structs.VarApplyStateRequest{
+		setResp = state.VarSet(structs.VarApplyStateRequestType, 8001, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})
@@ -825,12 +826,12 @@ func TestHTTP_FuzzySearch_Variables_ACL(t *testing.T) {
 		sv2.Namespace = ns.Name
 
 		require.NoError(t, state.UpsertNamespaces(7000, []*structs.Namespace{ns}))
-		setResp := state.VarSet(8000, &structs.VarApplyStateRequest{
+		setResp := state.VarSet(structs.VarApplyStateRequestType, 8000, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv1,
 		})
 		require.NoError(t, setResp.Error)
-		setResp = state.VarSet(8001, &structs.VarApplyStateRequest{
+		setResp = state.VarSet(structs.VarApplyStateRequestType, 8001, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: &sv2,
 		})

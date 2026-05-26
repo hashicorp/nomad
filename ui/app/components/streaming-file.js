@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -38,6 +38,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
       return;
     }
 
+    // Defer task start/stop so task state doesn't mutate during render.
     scheduleOnce('actions', this, this.performTask);
   }
 
@@ -72,7 +73,7 @@ export default class StreamingFile extends Component.extend(WindowResizable) {
         // If the scroll position is close enough to the bottom, autoscroll to the bottom
         this.set(
           'follow',
-          cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20
+          cli.scrollHeight - cli.scrollTop - cli.clientHeight < 20,
         );
         this.requestFrame = true;
       });

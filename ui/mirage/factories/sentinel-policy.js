@@ -1,16 +1,16 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
 
 export default Factory.extend({
   id: () =>
     `${faker.hacker.verb().replace(/\s/g, '-')}-${faker.random.alphaNumeric(
-      5
+      5,
     )}`,
   name() {
     return this.id;
@@ -22,6 +22,6 @@ export default Factory.extend({
 
   main = rule { false }`,
 
-  scope: pickOne(['submit-job', 'submit-host-volume']),
+  scope: pickOne(['submit-job', 'submit-host-volume', 'submit-csi-volume']),
   enforcementLevel: pickOne(['advisory', 'soft-mandatory', 'hard-mandatory']),
 });

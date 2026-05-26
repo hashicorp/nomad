@@ -1,9 +1,8 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import ApplicationSerializer from './application';
 
 export default ApplicationSerializer.extend({
@@ -21,7 +20,12 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeRole(role) {
-  role.Policies = (role.Policies || []).map((policy) => {
+  const policyIds = role.PolicyIDs || role.Policies || [];
+
+  role.Policies = policyIds.map((policy) => {
+    if (typeof policy === 'object') {
+      return policy;
+    }
     return { ID: policy, Name: policy };
   });
   delete role.PolicyIDs;

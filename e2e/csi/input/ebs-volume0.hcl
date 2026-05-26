@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 id        = "ebs-vol[0]"
@@ -21,6 +21,9 @@ capability {
 
 parameters {
   type = "gp2"
+
+  # ref https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/tagging.md#storageclass-tagging
+  tagSpecification_1 = "Name=e2e-testing-vol0"
 }
 
 topology_request {

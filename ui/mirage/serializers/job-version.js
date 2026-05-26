@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -14,7 +14,7 @@ export default ApplicationSerializer.extend({
     }
 
     return json
-      .sortBy('SubmitTime')
+      .sort((a, b) => a.SubmitTime - b.SubmitTime)
       .reverse()
       .reduce(
         (hash, version) => {
@@ -27,7 +27,7 @@ export default ApplicationSerializer.extend({
           hash.Versions.push(version);
           return hash;
         },
-        { Versions: [], Diffs: [] }
+        { Versions: [], Diffs: [] },
       );
   },
 });

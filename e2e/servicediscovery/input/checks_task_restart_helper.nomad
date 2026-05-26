@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 variable "nodeID" {
@@ -13,9 +13,12 @@ variable "delay" {
   type = string
 }
 
+variable "filename" {
+  type = string
+}
+
 job "checks_task_restart_helper" {
-  datacenters = ["dc1"]
-  type        = "batch"
+  type = "batch"
 
   group "group" {
 
@@ -25,7 +28,7 @@ job "checks_task_restart_helper" {
     }
 
     constraint {
-      attribute = "${node.unique_id}"
+      attribute = "${node.unique.id}"
       value     = "${var.nodeID}"
     }
 
@@ -38,7 +41,7 @@ job "checks_task_restart_helper" {
       driver = "raw_exec"
       config {
         command = "bash"
-        args    = ["-c", "sleep ${var.delay} && ${var.cmd} /tmp/nsd-checks-task-restart-test.txt"]
+        args    = ["-c", "sleep ${var.delay} && ${var.cmd} /tmp/${var.filename}"]
       }
       resources {
         cpu    = 50

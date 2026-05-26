@@ -1,10 +1,10 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { camelize, capitalize } from '@ember/string';
-import { RestSerializer } from 'ember-cli-mirage';
+import { RestSerializer } from 'miragejs';
 
 const keyCase = (str) =>
   str === 'id' ? 'ID' : capitalize(camelize(str)).replace(/Id/g, 'ID');

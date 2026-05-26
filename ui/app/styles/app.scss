@@ -1,12 +1,13 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-@import './core';
-
-@import 'ember-power-select';
-
-@import './components';
-@import '@hashicorp/design-system-components';
-@import './charts';
+@use "ember-basic-dropdown.css";
+@use "ember-power-select.css";
+@use "@hashicorp/design-system-components.css";
+@use "xterm.css";
+@use "codemirror.css";
+@import "./core";
+@import "./components";
+@import "./charts";

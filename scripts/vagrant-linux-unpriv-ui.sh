@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 
@@ -23,5 +23,5 @@ find ~/.nvm/versions/node -not -name "v${NODE_VERSION}" -depth 1 -exec rm -rf {}
 
 npm install -g ember-cli
 
-# Install Yarn for front-end dependency management
-curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.22.5
+# Install pnpm for front-end dependency management
+npm install -g pnpm@10.15.0

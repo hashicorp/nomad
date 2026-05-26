@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package fingerprint
@@ -43,6 +43,7 @@ var (
 		"nomad":               NewNomadFingerprint,
 		"plugins_cni":         NewPluginsCNIFingerprint,
 		"host_volume_plugins": NewPluginsHostVolumeFingerprint,
+		"secrets_plugins":     NewPluginsSecretsFingerprint,
 		"signal":              NewSignalFingerprint,
 		"storage":             NewStorageFingerprint,
 		"vault":               NewVaultFingerprint,

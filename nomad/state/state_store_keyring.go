@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -187,6 +187,15 @@ func (s *StateStore) IsRootKeyInUse(keyID string) (bool, error) {
 	}
 	variable := iter.Next()
 	if variable != nil {
+		return true, nil
+	}
+
+	iter, err = txn.Get(TableNodes, indexSigningKey, keyID)
+	if err != nil {
+		return false, err
+	}
+	node := iter.Next()
+	if node != nil {
 		return true, nil
 	}
 

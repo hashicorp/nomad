@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -64,6 +64,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		MemoryOversubscriptionEnabled: true,
 		RejectJobRegistration:         true,
 		PauseEvalBroker:               true,
+		NodeLimitForFeasibilityChecks: 123,
 	}
 
 	schedulerConfigUpdateResp, _, err := c.Operator().SchedulerSetConfiguration(&newSchedulerConfig, nil)
@@ -78,6 +79,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	must.True(t, schedulerConfig.SchedulerConfig.RejectJobRegistration)
 	must.True(t, schedulerConfig.SchedulerConfig.MemoryOversubscriptionEnabled)
 	must.Eq(t, schedulerConfig.SchedulerConfig.PreemptionConfig, newSchedulerConfig.PreemptionConfig)
+	must.Eq(t, schedulerConfig.SchedulerConfig.NodeLimitForFeasibilityChecks, newSchedulerConfig.NodeLimitForFeasibilityChecks)
 }
 
 func TestOperator_AutopilotState(t *testing.T) {

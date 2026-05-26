@@ -1,9 +1,9 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-env node */
+'use strict';
 
 let USE_MIRAGE = true;
 
@@ -11,26 +11,17 @@ if (process.env.USE_MIRAGE) {
   USE_MIRAGE = process.env.USE_MIRAGE == 'true';
 }
 
-let USE_PERCY = true;
-
-if (process.env.USE_PERCY) {
-  USE_PERCY = process.env.USE_PERCY == 'true';
-}
-
 module.exports = function (environment) {
-  let ENV = {
+  const ENV = {
     modulePrefix: 'nomad-ui',
-    environment: environment,
+    environment,
     rootURL: '/ui/',
-    locationType: 'auto',
+    locationType: 'history',
     EmberENV: {
+      EXTEND_PROTOTYPES: false,
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
         // e.g. EMBER_NATIVE_DECORATOR_SUPPORT: true
-      },
-      EXTEND_PROTOTYPES: {
-        // Prevent Ember Data from overriding Date.parse.
-        Date: false,
       },
     },
     emberFlightIcons: {
@@ -42,10 +33,6 @@ module.exports = function (environment) {
       mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,
-    },
-
-    percy: {
-      enabled: USE_PERCY,
     },
   };
 
@@ -72,18 +59,11 @@ module.exports = function (environment) {
 
     ENV.APP.rootElement = '#ember-testing';
     ENV.APP.autoboot = false;
-
-    ENV.browserify = {
-      tests: true,
-    };
-
-    ENV['ember-cli-mirage'] = {
-      trackRequests: true,
-    };
   }
 
-  // if (environment === 'production') {
-  // }
+  if (environment === 'production') {
+    // here you can enable a production-specific feature
+  }
 
   return ENV;
 };

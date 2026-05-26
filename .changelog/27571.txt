@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fix a potential panic in the system scheduler when deploying jobs with multiple task groups and infeasible nodes that become feasible
+```

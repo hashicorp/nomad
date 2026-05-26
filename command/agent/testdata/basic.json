@@ -94,6 +94,7 @@
       "gc_interval": "6s",
       "gc_max_allocs": 50,
       "gc_parallel_destroys": 6,
+      "gc_volumes_on_node_gc": true,
       "host_volume": [
         {
           "tmp": [
@@ -141,6 +142,17 @@
       "servers": [
         "a.b.c:80",
         "127.0.0.1:1234"
+      ],
+      "fingerprint": [
+        {
+          "env_aws": [
+            {
+              "retry_interval": "1s",
+              "retry_attempts": 3,
+              "exit_on_failure": true
+            }
+          ]
+        }
       ],
       "state_dir": "/tmp/client-state",
       "stats": [
@@ -209,7 +221,12 @@
     "awskms": {
       "active": true,
       "region": "us-east-1",
-      "kms_key_id": "alias/kms-nomad-keyring"
+      "kms_key_id": "alias/kms-nomad-keyring-us"
+    },
+    "awskms": {
+      "active": true,
+      "region": "eu-west-2",
+      "kms_key_id": "alias/kms-nomad-keyring-eu"
     },
     "aead": {}
   },
@@ -294,6 +311,7 @@
   ],
   "server": [
     {
+      "non_production": true,
       "acl_token_gc_threshold": "12h",
       "authoritative_region": "foobar",
       "bootstrap_expect": 5,
@@ -360,10 +378,16 @@
           ]
         }
       ],
+      "client_introduction": {
+        "enforcement": "warn",
+        "default_identity_ttl": "5m",
+        "max_identity_ttl": "30m"
+      },
       "upgrade_version": "0.8.0",
       "license_path": "/tmp/nomad.hclic",
       "job_default_priority": 100,
       "job_max_priority": 200,
+      "job_max_count": 1000,
       "start_timeout": "1m"
     }
   ],

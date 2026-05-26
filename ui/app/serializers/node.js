@@ -1,9 +1,9 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import ApplicationSerializer from './application';
 
 export default class NodeSerializer extends ApplicationSerializer {
@@ -35,7 +35,7 @@ export default class NodeSerializer extends ApplicationSerializer {
         modelName,
         this.extractId(modelClass, hash),
         hash,
-        'findRecord'
+        'findRecord',
       );
 
     return {

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -18,8 +18,12 @@ import (
 	"github.com/distribution/reference"
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/cli/cli/config/types"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/registry"
+	registrytypes "github.com/moby/moby/api/types/registry"
+)
+
+const (
+	dockerRegistryIndexName   = "docker.io"
+	dockerRegistryIndexServer = "https://index.docker.io/v1/"
 )
 
 var (
@@ -73,17 +77,30 @@ func loadDockerConfig(file string) (*configfile.ConfigFile, error) {
 	return cfile, nil
 }
 
-// parseRepositoryInfo takes a repo and returns the Docker RepositoryInfo. This
-// is useful for interacting with a Docker config object.
-func parseRepositoryInfo(repo string) (*registry.RepositoryInfo, error) {
+// repositoryInfo contains the subset of repository metadata needed for auth
+// lookup against Docker config files and credential helpers.
+type repositoryInfo struct {
+	Index *registrytypes.IndexInfo
+}
+
+// parseRepositoryInfo takes a repo and returns the repository metadata needed
+// for interacting with a Docker config object.
+func parseRepositoryInfo(repo string) (*repositoryInfo, error) {
 	name, err := reference.ParseNormalizedNamed(repo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse named repo %q: %v", repo, err)
 	}
 
-	repoInfo, err := registry.ParseRepositoryInfo(name)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse repository: %v", err)
+	domain := reference.Domain(name)
+	indexName := normalizeRegistryIndexName(domain)
+
+	repoInfo := &repositoryInfo{
+		Index: &registrytypes.IndexInfo{
+			Name:     indexName,
+			Mirrors:  []string{},
+			Secure:   true,
+			Official: indexName == dockerRegistryIndexName,
+		},
 	}
 
 	return repoInfo, nil
@@ -104,14 +121,13 @@ func firstValidAuth(repo string, backends []authBackend) (*registrytypes.AuthCon
 func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 	return func(string) (*registrytypes.AuthConfig, error) {
 		// If all auth fields are empty, return
-		if len(driverConfig.Auth.Username) == 0 && len(driverConfig.Auth.Password) == 0 && len(driverConfig.Auth.Email) == 0 && len(driverConfig.Auth.ServerAddr) == 0 {
+		if len(driverConfig.Auth.Username) == 0 && len(driverConfig.Auth.Password) == 0 && len(driverConfig.Auth.ServerAddr) == 0 {
 			return nil, nil
 		}
 
 		authConfig := &registrytypes.AuthConfig{
 			Username:      driverConfig.Auth.Username,
 			Password:      driverConfig.Auth.Password,
-			Email:         driverConfig.Auth.Email,
 			ServerAddress: driverConfig.Auth.ServerAddr,
 		}
 
@@ -147,7 +163,6 @@ func authFromDockerConfig(file string) authBackend {
 				auth := &registrytypes.AuthConfig{
 					Username:      dockerAuthConfig.Username,
 					Password:      dockerAuthConfig.Password,
-					Email:         dockerAuthConfig.Email,
 					ServerAddress: dockerAuthConfig.ServerAddress,
 					IdentityToken: dockerAuthConfig.IdentityToken,
 					RegistryToken: dockerAuthConfig.RegistryToken,
@@ -162,7 +177,7 @@ func authFromDockerConfig(file string) authBackend {
 				}
 				return auth, nil
 			},
-			authFromHelper(cfile.CredentialHelpers[registry.GetAuthConfigKey(repoInfo.Index)]),
+			authFromHelper(cfile.CredentialHelpers[registryGetAuthConfigKey(repoInfo.Index)]),
 			authFromHelper(cfile.CredentialsStore),
 		})
 	}
@@ -237,7 +252,6 @@ func authIsEmpty(auth *registrytypes.AuthConfig) bool {
 	}
 	return auth.Username == "" &&
 		auth.Password == "" &&
-		auth.Email == "" &&
 		auth.ServerAddress == ""
 }
 
@@ -329,11 +343,10 @@ func parseVolumeSpecLinux(volBind string) (hostPath string, containerPath string
 	return parts[0], parts[1], m, nil
 }
 
-// ResolveAuthConfig matches an auth configuration to a server address or a URL
 // copied from https://github.com/moby/moby/blob/ca20bc4214e6a13a5f134fb0d2f67c38065283a8/registry/auth.go#L217-L235
 // but with the CLI types.AuthConfig type rather than api/types
 func registryResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
-	configKey := registry.GetAuthConfigKey(index)
+	configKey := registryGetAuthConfigKey(index)
 	// First try the happy case
 	if c, found := authConfigs[configKey]; found || index.Official {
 		return c
@@ -342,13 +355,41 @@ func registryResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *r
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
 	for r, ac := range authConfigs {
-		if configKey == registry.ConvertToHostname(r) {
+		if configKey == registryConvertToHostname(r) {
 			return ac
 		}
 	}
 
 	// When all else fails, return an empty auth config
 	return types.AuthConfig{}
+}
+
+func registryGetAuthConfigKey(index *registrytypes.IndexInfo) string {
+	if index != nil && index.Official {
+		return dockerRegistryIndexServer
+	}
+	if index == nil {
+		return ""
+	}
+	return index.Name
+}
+
+func registryConvertToHostname(rawURL string) string {
+	stripped := rawURL
+	if strings.HasPrefix(stripped, "http://") {
+		stripped = strings.TrimPrefix(stripped, "http://")
+	} else if strings.HasPrefix(stripped, "https://") {
+		stripped = strings.TrimPrefix(stripped, "https://")
+	}
+	stripped, _, _ = strings.Cut(stripped, "/")
+	return stripped
+}
+
+func normalizeRegistryIndexName(domain string) string {
+	if domain == "index.docker.io" {
+		return dockerRegistryIndexName
+	}
+	return domain
 }
 
 // getValue returns the val if provided, or returns the defaultVal as a fallback

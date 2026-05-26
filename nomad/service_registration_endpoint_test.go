@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -12,6 +12,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -63,6 +64,10 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, node)
 
+				for _, service := range services {
+					service.NodeID = node.ID
+				}
+
 				serviceRegReq.WriteRequest.AuthToken = node.SecretID
 				err = msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationUpsertRPCMethod, serviceRegReq, &serviceRegResp)
@@ -93,6 +98,10 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				node, err := s.State().NodeByID(ws, node.ID)
 				require.NoError(t, err)
 				require.NotNil(t, node)
+
+				for _, service := range services {
+					service.NodeID = node.ID
+				}
 
 				serviceRegReq := &structs.ServiceRegistrationUpsertRequest{
 					Services: services,
@@ -145,6 +154,10 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, node)
 
+				for _, service := range services {
+					service.NodeID = node.ID
+				}
+
 				serviceRegReq.WriteRequest.AuthToken = node.SecretID
 				err = msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationUpsertRPCMethod, serviceRegReq, &serviceRegResp)
@@ -174,6 +187,10 @@ func TestServiceRegistration_Upsert(t *testing.T) {
 				node, err := s.State().NodeByID(ws, node.ID)
 				require.NoError(t, err)
 				require.NotNil(t, node)
+
+				for _, service := range services {
+					service.NodeID = node.ID
+				}
 
 				serviceRegReq := &structs.ServiceRegistrationUpsertRequest{
 					Services: services,
@@ -373,6 +390,40 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 
 				// Create a token using submit-job capability.
 				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-service-reg-delete",
+					mock.NamespacePolicy(services[0].Namespace, "", []string{acl.NamespaceCapabilityDeleteServiceRegistration})).SecretID
+
+				// Try and delete one of the services that exist but don't set
+				// an auth token.
+				serviceRegReq := &structs.ServiceRegistrationDeleteByIDRequest{
+					ID: services[0].ID,
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						Namespace: services[0].Namespace,
+						AuthToken: authToken,
+					},
+				}
+
+				var serviceRegResp structs.ServiceRegistrationDeleteByIDResponse
+				err := msgpackrpc.CallWithCodec(
+					codec, structs.ServiceRegistrationDeleteByIDRPCMethod, serviceRegReq, &serviceRegResp)
+				require.NoError(t, err)
+			},
+			name: "ACLs enabled known service with delete-service-registration namespace token",
+		},
+		{
+			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
+				return TestACLServer(t, nil)
+			},
+			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
+				codec := rpcClient(t, s)
+				testutil.WaitForKeyring(t, s.RPC, "global")
+
+				// Generate and upsert some service registrations.
+				services := mock.ServiceRegistrations()
+				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
+
+				// Create a token using submit-job capability.
+				authToken := mock.CreatePolicyAndToken(t, s.State(), 30, "test-service-reg-delete",
 					mock.NamespacePolicy(services[0].Namespace, "", []string{acl.NamespaceCapabilityReadJob})).SecretID
 
 				// Try and delete one of the services that exist but don't set
@@ -403,6 +454,52 @@ func TestServiceRegistration_DeleteByID(t *testing.T) {
 			tc.testFn(t, server, aclToken)
 		})
 	}
+}
+
+func TestServiceRegistration_DeleteByID_NodePoolScoped(t *testing.T) {
+	ci.Parallel(t)
+
+	s, _, cleanup := TestACLServer(t, nil)
+	defer cleanup()
+
+	codec := rpcClient(t, s)
+	testutil.WaitForKeyring(t, s.RPC, "global")
+
+	nodeA := mock.Node()
+	nodeA.NodePool = "pool-a"
+	must.NoError(t, s.State().UpsertNode(structs.MsgTypeTestSetup, 10, nodeA))
+
+	nodeB := mock.Node()
+	nodeB.NodePool = "pool-b"
+	must.NoError(t, s.State().UpsertNode(structs.MsgTypeTestSetup, 11, nodeB))
+
+	ws := memdb.NewWatchSet()
+	nodeA, err := s.State().NodeByID(ws, nodeA.ID)
+	must.NoError(t, err)
+	must.NotNil(t, nodeA)
+
+	services := mock.ServiceRegistrations()
+	services[0].Namespace = "default"
+	services[1].Namespace = "default"
+	services[0].NodeID = nodeA.ID
+	services[1].NodeID = nodeB.ID
+	services[0].ID = uuid.Generate()
+	services[1].ID = uuid.Generate()
+	must.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
+
+	req := &structs.ServiceRegistrationDeleteByIDRequest{
+		ID: services[1].ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			Namespace: services[1].Namespace,
+			AuthToken: nodeA.SecretID,
+		},
+	}
+
+	var resp structs.ServiceRegistrationDeleteByIDResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ServiceRegistrationDeleteByIDRPCMethod, req, &resp)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Permission denied")
 }
 
 func TestServiceRegistration_List(t *testing.T) {

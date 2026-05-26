@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 # this unnamed (default) config should merge cleanly onto the basic config
@@ -10,7 +10,7 @@ vault {
 # these alternate configs should be added as an extra vault configs
 vault {
   name                  = "alternate"
-  address               = "127.0.0.1:9501"
+  address               = "[0:0::1F]:9501"
   allow_unauthenticated = true
   task_token_ttl        = "5s"
   enabled               = true

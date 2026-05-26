@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -10,7 +10,7 @@ import { attributeBindings } from '@ember-decorators/component';
 @classic
 @attributeBindings(
   'data-test-controller-allocation',
-  'data-test-node-allocation'
+  'data-test-node-allocation',
 )
 export default class PluginAllocationRow extends AllocationRow {
   pluginAllocation = null;

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -36,6 +36,7 @@ const (
 	TopicCSIPlugin      Topic = "CSIPlugin"
 	TopicOperator       Topic = "Operator"
 	TopicAll            Topic = "*"
+	TopicVariable       Topic = "Variable"
 
 	TypeNodeRegistration              = "NodeRegistration"
 	TypeNodeDeregistration            = "NodeDeregistration"
@@ -73,6 +74,8 @@ const (
 	TypeCSIVolumeDeregistered         = "CSIVolumeDeregistered"
 	TypeCSIVolumeClaim                = "CSIVolumeClaim"
 	TypeUtilizationSnapshotUpserted   = "UtilizationSnapshotUpserted"
+
+	TypeVariableUpdated = "VariableUpdated"
 )
 
 // Event represents a change in Nomads state.
@@ -123,6 +126,10 @@ func (j *EventJson) Copy() *EventJson {
 // JobEvent holds a newly updated Job.
 type JobEvent struct {
 	Job *Job
+
+	// Deleted indicates whether the job was deleted from the state store. This
+	// field is only set for JobDeregistered events.
+	Deleted bool `json:",omitempty"`
 }
 
 // EvaluationEvent holds a newly updated Eval.
@@ -134,6 +141,14 @@ type EvaluationEvent struct {
 // Allocs embedded Job has been removed to reduce size.
 type AllocationEvent struct {
 	Allocation *Allocation
+
+	// Timeout indicates the allocation was stopped because it exceeded its
+	// configured max_run_duration.
+	Timeout bool `json:",omitempty"`
+
+	// TimeoutReason is a human-readable explanation for timeout-triggered
+	// allocation stops.
+	TimeoutReason string `json:",omitempty"`
 }
 
 // DeploymentEvent holds a newly updated Deployment.
@@ -215,4 +230,9 @@ type CSIVolumeEvent struct {
 // used as an event in the event stream
 type CSIPluginEvent struct {
 	Plugin *CSIPlugin
+}
+
+type VariableEvent struct {
+	Metadata *VariableMetadata
+	Deleted  bool
 }

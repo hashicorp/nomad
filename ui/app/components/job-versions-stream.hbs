@@ -1,0 +1,21 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#each this.annotatedVersions key="version.id" as |record|}}
+  {{#if record.meta.showDate}}
+    <li data-test-version-time class="timeline-note">
+      {{format-date record.version.submitTime}}
+    </li>
+  {{/if}}
+  <li data-test-version class="timeline-object">
+    <JobVersion
+      @version={{record.version}}
+      @diff={{record.diff}}
+      @verbose={{this.verbose}}
+      @handleError={{@handleError}}
+      @diffsExpanded={{@diffsExpanded}}
+    />
+  </li>
+{{/each}}

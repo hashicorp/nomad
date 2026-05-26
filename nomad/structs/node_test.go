@@ -1,15 +1,105 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNode_meetsMinimumVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name           string
+		nodeVersion    string
+		minVersion     *version.Version
+		expectedOutput bool
+	}{
+		{
+			name:           "missing version attribute",
+			nodeVersion:    "",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "invalid version attribute",
+			nodeVersion:    "not-a-semver",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "node version less than minimum",
+			nodeVersion:    "1.10.5",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "node version equal to minimum",
+			nodeVersion:    "1.10.6-dev",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "node version greater than minimum",
+			nodeVersion:    "1.10.7",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "prerelease",
+			nodeVersion:    "1.10.6-dev",
+			minVersion:     version.Must(version.NewVersion("1.10.6")),
+			expectedOutput: true,
+		},
+		{
+			name:           "enterprise node version less than minimum",
+			nodeVersion:    "1.10.5+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: false,
+		},
+		{
+			name:           "enterprise node version equal to minimum",
+			nodeVersion:    "1.10.6-dev+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "enterprise node version greater than minimum",
+			nodeVersion:    "1.10.7+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6-dev")),
+			expectedOutput: true,
+		},
+		{
+			name:           "enterprise prerelease",
+			nodeVersion:    "1.10.6-dev+ent",
+			minVersion:     version.Must(version.NewVersion("1.10.6")),
+			expectedOutput: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			testNode := &Node{
+				Attributes: map[string]string{
+					"nomad.version": tc.nodeVersion,
+				},
+			}
+
+			actualOutput := testNode.meetsMinimumVersion(tc.minVersion)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
 
 func TestDriverInfoEquals(t *testing.T) {
 	ci.Parallel(t)
@@ -253,4 +343,801 @@ func TestCSITopology_Contains(t *testing.T) {
 		})
 	}
 
+}
+
+func TestGenerateNodeIdentityClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	node := &Node{
+		ID:         "node-id-1",
+		NodePool:   "custom-pool",
+		NodeClass:  "custom-class",
+		Datacenter: "euw2",
+	}
+
+	claims := GenerateNodeIdentityClaims(node, "euw", 10*time.Minute)
+
+	must.Eq(t, "node-id-1", claims.NodeIdentityClaims.NodeID)
+	must.Eq(t, "custom-pool", claims.NodeIdentityClaims.NodePool)
+	must.Eq(t, "custom-class", claims.NodeIdentityClaims.NodeClass)
+	must.Eq(t, "euw2", claims.NodeIdentityClaims.NodeDatacenter)
+	must.StrEqFold(t, "node:euw:custom-pool:node-id-1:default", claims.Subject)
+	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
+	must.NotNil(t, claims.ID)
+	must.NotNil(t, claims.IssuedAt)
+	must.NotNil(t, claims.NotBefore)
+	must.NotNil(t, claims.Expiry)
+}
+
+func TestNodeIdentityClaims_LoggingPairs(t *testing.T) {
+	ci.Parallel(t)
+
+	claims := GenerateNodeIdentityClaims(
+		&Node{
+			ID:         "node-id-1",
+			NodePool:   "custom-pool",
+			NodeClass:  "custom-class",
+			Datacenter: "euw2",
+		},
+		"euw",
+		10*time.Minute,
+	)
+	must.Eq(
+		t,
+		[]any{
+			"claim_node_id", "node-id-1",
+			"claim_node_pool", "custom-pool",
+			"claim_node_class", "custom-class",
+			"claim_node_datacenter", "euw2",
+		},
+		claims.NodeIdentityClaims.LoggingPairs(),
+	)
+}
+
+func TestNodeRegisterRequest_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name          string
+		request       *NodeRegisterRequest
+		errorContains string
+	}{
+		{
+			name: "valid",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "",
+		},
+		{
+			name: "nil node",
+			request: &NodeRegisterRequest{
+				Node: nil,
+			},
+			errorContains: "missing node for client registration",
+		},
+		{
+			name: "missing ID",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing node ID for client registration",
+		},
+		{
+			name: "missing datacenter",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing datacenter for client registration",
+		},
+		{
+			name: "missing name",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing node name for client registration",
+		},
+		{
+			name: "missing attributes",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{},
+				},
+			},
+			errorContains: "missing attributes for client registration",
+		},
+		{
+			name: "missing secret ID",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "",
+					Name:       "node-name",
+					NodePool:   "node-pool",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: "missing node secret ID for client registration",
+		},
+		{
+			name: "invalid node pool name",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   "****",
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: `invalid node pool: invalid name "****"`,
+		},
+		{
+			name: "invalid node pool all use",
+			request: &NodeRegisterRequest{
+				Node: &Node{
+					ID:         "node-id",
+					SecretID:   "node-secret-id",
+					Name:       "node-name",
+					NodePool:   NodePoolAll,
+					NodeClass:  "node-class",
+					Datacenter: "node-datacenter",
+					Attributes: map[string]string{"key1": "value1"},
+				},
+			},
+			errorContains: `node is not allowed to register in node pool "all"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.request.Validate()
+			if tc.errorContains != "" {
+				must.ErrorContains(t, actualError, tc.errorContains)
+			} else {
+				must.NoError(t, actualError)
+			}
+		})
+	}
+}
+
+func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	// Generate a stable mock node for testing.
+	mockNode := MockNode()
+
+	testCases := []struct {
+		name                     string
+		inputNodeRegisterRequest *NodeRegisterRequest
+		inputAuthErr             error
+		inputTime                time.Time
+		inputTTL                 time.Duration
+		inputNomadVersionAttr    string
+		expectedOutput           bool
+	}{
+		{
+			name:                     "expired node identity",
+			inputNodeRegisterRequest: &NodeRegisterRequest{},
+			inputAuthErr:             jwt.ErrExpired,
+			inputTime:                time.Now(),
+			inputTTL:                 10 * time.Minute,
+			inputNomadVersionAttr:    "1.11.0",
+			expectedOutput:           true,
+		},
+		{
+			name: "first time node registration",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ACLToken: AnonymousACLToken,
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now(),
+			inputTTL:              10 * time.Minute,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "registration using node secret ID",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id-1",
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now(),
+			inputTTL:              10 * time.Minute,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "modified node node pool configuration",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{
+								NodeID:         mockNode.ID,
+								NodePool:       "new-pool",
+								NodeClass:      mockNode.NodeClass,
+								NodeDatacenter: mockNode.Datacenter,
+							},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(23 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "modified node class configuration",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{
+								NodeID:         mockNode.ID,
+								NodePool:       mockNode.NodePool,
+								NodeClass:      "new-class",
+								NodeDatacenter: mockNode.Datacenter,
+							},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(23 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "modified node datacenter configuration",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{
+								NodeID:         mockNode.ID,
+								NodePool:       mockNode.NodePool,
+								NodeClass:      mockNode.NodeClass,
+								NodeDatacenter: "new-datacenter",
+							},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(23 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "expiring node identity",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{
+								NodeID:         mockNode.ID,
+								NodePool:       mockNode.NodePool,
+								NodeClass:      mockNode.NodeClass,
+								NodeDatacenter: mockNode.Datacenter,
+							},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(5 * time.Minute)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "old client version",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{
+								NodeID:         mockNode.ID,
+								NodePool:       mockNode.NodePool,
+								NodeClass:      mockNode.NodeClass,
+								NodeDatacenter: mockNode.Datacenter,
+							},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.8.17",
+			expectedOutput:        false,
+		},
+		{
+			name: "no generation",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				Node: mockNode,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{
+								NodeID:         mockNode.ID,
+								NodePool:       mockNode.NodePool,
+								NodeClass:      mockNode.NodeClass,
+								NodeDatacenter: mockNode.Datacenter,
+							},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:          nil,
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Set the nomad.version attribute on the mock node.
+			mockNode.Attributes["nomad.version"] = tc.inputNomadVersionAttr
+
+			actualOutput := tc.inputNodeRegisterRequest.ShouldGenerateNodeIdentity(
+				tc.inputAuthErr,
+				tc.inputTime,
+				tc.inputTTL,
+			)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	// Generate a stable mock node for testing.
+	mockNode := MockNode()
+
+	testCases := []struct {
+		name                     string
+		inputNodeRegisterRequest *NodeUpdateStatusRequest
+		inputTime                time.Time
+		inputTTL                 time.Duration
+		inputNomadVersionAttr    string
+		expectedOutput           bool
+	}{
+		{
+			name: "authenticated by node secret ID",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id-1",
+					},
+				},
+			},
+			inputTime:             time.Now(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "expiring node identity",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(1 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "not expiring node identity",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        false,
+		},
+		{
+			name: "not expiring forced renewal node identity",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				ForceIdentityRenewal: true,
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        true,
+		},
+		{
+			name: "server authenticated request",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ACLToken: LeaderACLToken,
+					},
+				},
+			},
+			inputTime:             time.Now().UTC(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.11.0",
+			expectedOutput:        false,
+		},
+		{
+			name: "old client version",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id-1",
+					},
+				},
+			},
+			inputTime:             time.Now(),
+			inputTTL:              24 * time.Hour,
+			inputNomadVersionAttr: "1.8.17",
+			expectedOutput:        false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Set the nomad.version attribute on the mock node.
+			mockNode.Attributes["nomad.version"] = tc.inputNomadVersionAttr
+
+			actualOutput := tc.inputNodeRegisterRequest.ShouldGenerateNodeIdentity(
+				mockNode,
+				tc.inputTime,
+				tc.inputTTL,
+			)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+func TestNodeUpdateStatusRequest_IdentitySigningErrorIsTerminal(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                     string
+		inputNodeRegisterRequest *NodeUpdateStatusRequest
+		inputTime                time.Time
+		expectedOutput           bool
+	}{
+		{
+			name: "not close to expiring",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour).UTC()),
+							},
+						},
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			expectedOutput: false,
+		},
+		{
+			name: "very close to expiring",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC()),
+							},
+						},
+					},
+				},
+			},
+			inputTime:      time.Now().Add(1 * time.Minute).UTC(),
+			expectedOutput: true,
+		},
+		{
+			name: "server authenticated request",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ACLToken: LeaderACLToken,
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			expectedOutput: false,
+		},
+		{
+			name: "client secret ID authenticated request",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id",
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			expectedOutput: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputNodeRegisterRequest.IdentitySigningErrorIsTerminal(tc.inputTime)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestNodeIdentityGetReq_QueryOptions(t *testing.T) {
+	ci.Parallel(t)
+
+	req := &NodeIdentityGetReq{}
+	must.True(t, req.IsRead())
+}
+
+func Test_DefaultNodeIntroductionConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	expected := &NodeIntroductionConfig{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+	must.Eq(t, expected, DefaultNodeIntroductionConfig())
+}
+
+func TestNodeIntroductionConfig_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	nodeIntro := &NodeIntroductionConfig{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+
+	copiedNodeIntro := nodeIntro.Copy()
+
+	// Ensure the copied object contains the same values, but the underlying
+	// pointer address is different.
+	must.Eq(t, nodeIntro, copiedNodeIntro)
+	must.NotEq(t, fmt.Sprintf("%p", nodeIntro), fmt.Sprintf("%p", copiedNodeIntro))
+}
+
+func TestNodeIntroductionConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                        string
+		inputNodeIntroductionConfig *NodeIntroductionConfig
+		expectedErrorContains       string
+	}{
+		{
+			name:                        "nil config",
+			inputNodeIntroductionConfig: nil,
+			expectedErrorContains:       "cannot be empty",
+		},
+		{
+			name: "incorrect enforcement",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        "invalid",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedErrorContains: "invalid enforcement",
+		},
+		{
+			name: "incorrect default identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 0,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedErrorContains: "default_identity_ttl must be greater than 0",
+		},
+		{
+			name: "incorrect max identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedErrorContains: "max_identity_ttl must be greater than 0",
+		},
+		{
+			name: "incorrect max identity TTL greater than default identity TTL",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedErrorContains: "max_identity_ttl must be greater than or equal to default_identity_ttl",
+		},
+		{
+			name: "valid",
+			inputNodeIntroductionConfig: &NodeIntroductionConfig{
+				Enforcement:        NodeIntroductionEnforcementStrict,
+				DefaultIdentityTTL: 15 * time.Minute,
+				MaxIdentityTTL:     45 * time.Minute,
+			},
+			expectedErrorContains: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputNodeIntroductionConfig.Validate()
+			if tc.expectedErrorContains == "" {
+				must.NoError(t, actualError)
+			} else {
+				must.ErrorContains(t, actualError, tc.expectedErrorContains)
+			}
+		})
+	}
+}
+
+func TestGenerateNodeIntroductionIdentityClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	claims := GenerateNodeIntroductionIdentityClaims(
+		"node-name-1", "custom-pool", "euw", 10*time.Minute)
+
+	must.Eq(t, "node-name-1", claims.NodeIntroductionIdentityClaims.NodeName)
+	must.Eq(t, "custom-pool", claims.NodeIntroductionIdentityClaims.NodePool)
+	must.StrEqFold(t, "node-introduction:euw:custom-pool:node-name-1:default", claims.Subject)
+	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
+	must.NotNil(t, claims.ID)
+	must.NotNil(t, claims.IssuedAt)
+	must.NotNil(t, claims.NotBefore)
+	must.NotNil(t, claims.Expiry)
+}
+
+func TestNodeIntroductionIdentityClaims_LoggingPairs(t *testing.T) {
+	ci.Parallel(t)
+
+	claims := &NodeIntroductionIdentityClaims{
+		NodeName: "node-name-1",
+		NodePool: "custom-pool",
+	}
+
+	must.SliceContainsAll(t, []any{
+		"claim_node_name", "node-name-1",
+		"claim_node_pool", "custom-pool",
+	}, claims.LoggingPairs())
+}
+
+func TestNodeIntroductionIdentityClaims_string(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("empty node name", func(t *testing.T) {
+
+		claims := &NodeIntroductionIdentityClaims{
+			NodeName: "",
+			NodePool: "custom-pool",
+		}
+
+		must.Eq(t, "custom-pool", claims.String())
+	})
+
+	t.Run("non-empty node name", func(t *testing.T) {
+
+		claims := &NodeIntroductionIdentityClaims{
+			NodeName: "node-name-1",
+			NodePool: "custom-pool",
+		}
+
+		must.Eq(t, "custom-pool:node-name-1", claims.String())
+	})
 }

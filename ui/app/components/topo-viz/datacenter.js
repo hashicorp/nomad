@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -10,7 +10,7 @@ export default class TopoVizDatacenter extends Component {
     return this.args.datacenter.nodes.reduce(
       (all, node) =>
         all.concat(node.allocations.filterBy('allocation.isScheduled')),
-      []
+      [],
     );
   }
 
@@ -21,7 +21,7 @@ export default class TopoVizDatacenter extends Component {
         totals.memory += allocation.memory;
         return totals;
       },
-      { cpu: 0, memory: 0 }
+      { cpu: 0, memory: 0 },
     );
   }
 
@@ -32,7 +32,7 @@ export default class TopoVizDatacenter extends Component {
         totals.memory += node.memory;
         return totals;
       },
-      { cpu: 0, memory: 0 }
+      { cpu: 0, memory: 0 },
     );
   }
 }

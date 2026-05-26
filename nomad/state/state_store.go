@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -19,8 +19,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -374,12 +372,6 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 		return err
 	}
 
-	// COMPAT 0.11: Remove this denormalization when NodePreemptions is removed
-	results.NodePreemptions, err = snapshot.DenormalizeAllocationSlice(results.NodePreemptions)
-	if err != nil {
-		return err
-	}
-
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
@@ -400,6 +392,23 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Upsert the newly created or updated deployment
 	if results.Deployment != nil {
+
+		// We need to ensure that UpsertPlanResults doesn't overwrite fields
+		// that are owned by the client, like HealthyAllocs
+		existing, err := s.deploymentByIDImpl(nil, results.Deployment.ID, txn)
+		if err != nil {
+			return fmt.Errorf("deployment lookup failed: %v", err)
+		}
+		if existing != nil {
+			for tgName, existDstate := range existing.TaskGroups {
+				if dstate := results.Deployment.TaskGroups[tgName]; dstate != nil {
+					dstate.MergeClientValues(existDstate)
+				} else {
+					results.Deployment.TaskGroups[tgName] = existDstate
+				}
+			}
+		}
+
 		if err := s.upsertDeploymentImpl(index, results.Deployment, txn); err != nil {
 			return err
 		}
@@ -418,29 +427,17 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	}
 
 	numAllocs := 0
-	if len(results.Alloc) > 0 || len(results.NodePreemptions) > 0 {
-		// COMPAT 0.11: This branch will be removed, when Alloc is removed
-		// Attach the job to all the allocations. It is pulled out in the payload to
-		// avoid the redundancy of encoding, but should be denormalized prior to
-		// being inserted into MemDB.
-		addComputedAllocAttrs(results.Alloc, results.Job)
-		numAllocs = len(results.Alloc) + len(results.NodePreemptions)
-	} else {
-		// Attach the job to all the allocations. It is pulled out in the payload to
-		// avoid the redundancy of encoding, but should be denormalized prior to
-		// being inserted into MemDB.
-		addComputedAllocAttrs(results.AllocsUpdated, results.Job)
-		numAllocs = len(allocsStopped) + len(results.AllocsUpdated) + len(allocsPreempted)
-	}
+
+	// Attach the job to all the allocations. It is pulled out in the payload to
+	// avoid the redundancy of encoding, but should be denormalized prior to
+	// being inserted into MemDB.
+	addComputedAllocAttrs(results.AllocsUpdated, results.Job)
+	addComputedAllocAttrs(allocsStopped, results.Job)
+	numAllocs = len(allocsStopped) + len(results.AllocsUpdated) + len(allocsPreempted)
 
 	allocsToUpsert := make([]*structs.Allocation, 0, numAllocs)
-
-	// COMPAT 0.11: Both these appends should be removed when Alloc and NodePreemptions are removed
-	allocsToUpsert = append(allocsToUpsert, results.Alloc...)
-	allocsToUpsert = append(allocsToUpsert, results.NodePreemptions...)
-
-	allocsToUpsert = append(allocsToUpsert, allocsStopped...)
 	allocsToUpsert = append(allocsToUpsert, results.AllocsUpdated...)
+	allocsToUpsert = append(allocsToUpsert, allocsStopped...)
 	allocsToUpsert = append(allocsToUpsert, allocsPreempted...)
 
 	// handle upgrade path
@@ -578,20 +575,26 @@ func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployme
 
 func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, txn *txn) error {
 	// Check if the deployment already exists
-	existing, err := txn.First("deployment", "id", deployment.ID)
+	raw, err := txn.First("deployment", "id", deployment.ID)
 	if err != nil {
 		return fmt.Errorf("deployment lookup failed: %v", err)
 	}
 
 	// Setup the indexes and timestamps correctly
-	if existing != nil {
-		deployment.CreateIndex = existing.(*structs.Deployment).CreateIndex
+	if raw != nil {
+		existing := raw.(*structs.Deployment)
+		deployment.CreateIndex = existing.CreateIndex
 		deployment.ModifyIndex = index
+		for tg, dstate := range existing.TaskGroups {
+			newDstate := deployment.TaskGroups[tg]
+			if dstate != nil && newDstate != nil && dstate.Promoted && !newDstate.Promoted {
+				return errors.New("deployment promotion cannot be undone") // write skew
+			}
+		}
 	} else {
 		deployment.CreateIndex = index
 		deployment.ModifyIndex = index
 	}
-
 	// Insert the deployment
 	if err := txn.Insert("deployment", deployment); err != nil {
 		return err
@@ -758,8 +761,8 @@ func (s *StateStore) DeploymentsByJobID(ws memdb.WatchSet, namespace, jobID stri
 		}
 		d := raw.(*structs.Deployment)
 
-		// If the allocation belongs to a job with the same ID but a different
-		// create index and we are not getting all the allocations whose Jobs
+		// If the deployment belongs to a job with the same ID but a different
+		// create index and we are not getting all the deployments whose Jobs
 		// matches the same Job ID then we skip it
 		if !all && job != nil && d.JobCreateIndex != job.CreateIndex {
 			continue
@@ -1052,14 +1055,14 @@ func (s *StateStore) DeleteNode(msgType structs.MessageType, index uint64, nodes
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	err := deleteNodeTxn(txn, index, nodes)
+	err := s.deleteNodeTxn(txn, index, nodes)
 	if err != nil {
 		return nil
 	}
 	return txn.Commit()
 }
 
-func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
+func (s *StateStore) deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
 	if len(nodes) == 0 {
 		return fmt.Errorf("node ids missing")
 	}
@@ -1082,6 +1085,11 @@ func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
 		if err := deleteNodeCSIPlugins(txn, node, index); err != nil {
 			return fmt.Errorf("csi plugin delete failed: %v", err)
 		}
+		if node.GCVolumesOnNodeGC {
+			if err := s.deleteHostVolumesOnNode(txn, index, node.ID); err != nil {
+				return fmt.Errorf("dynamic host volume delete failed: %v", err)
+			}
+		}
 	}
 
 	if err := txn.Insert("index", &IndexEntry{"nodes", index}); err != nil {
@@ -1092,21 +1100,26 @@ func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
 }
 
 // UpdateNodeStatus is used to update the status of a node
-func (s *StateStore) UpdateNodeStatus(msgType structs.MessageType, index uint64, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) UpdateNodeStatus(
+	msgType structs.MessageType,
+	index uint64,
+	req *structs.NodeUpdateStatusRequest,
+) error {
+
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	if err := s.updateNodeStatusTxn(txn, nodeID, status, updatedAt, event); err != nil {
+	if err := s.updateNodeStatusTxn(txn, req); err != nil {
 		return err
 	}
 
 	return txn.Commit()
 }
 
-func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, updatedAt int64, event *structs.NodeEvent) error {
+func (s *StateStore) updateNodeStatusTxn(txn *txn, req *structs.NodeUpdateStatusRequest) error {
 
 	// Lookup the node
-	existing, err := txn.First("nodes", "id", nodeID)
+	existing, err := txn.First(TableNodes, indexID, req.NodeID)
 	if err != nil {
 		return fmt.Errorf("node lookup failed: %v", err)
 	}
@@ -1117,15 +1130,23 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	// Copy the existing node
 	existingNode := existing.(*structs.Node)
 	copyNode := existingNode.Copy()
-	copyNode.StatusUpdatedAt = updatedAt
+	copyNode.StatusUpdatedAt = req.UpdatedAt
+
+	// If the request has a signing key ID, we should update the node reference
+	// to this. We need to check for the empty string, as a new identity won't
+	// always be generated, and we don't want to overwrite the exiting entry
+	// with an empty string.
+	if req.IdentitySigningKeyID != "" {
+		copyNode.IdentitySigningKeyID = req.IdentitySigningKeyID
+	}
 
 	// Add the event if given
-	if event != nil {
-		appendNodeEvents(txn.Index, copyNode, []*structs.NodeEvent{event})
+	if req.NodeEvent != nil {
+		appendNodeEvents(txn.Index, copyNode, []*structs.NodeEvent{req.NodeEvent})
 	}
 
 	// Update the status in the copy
-	copyNode.Status = status
+	copyNode.Status = req.Status
 	copyNode.ModifyIndex = txn.Index
 
 	// Update last missed heartbeat if the node became unresponsive or reset it
@@ -1138,16 +1159,11 @@ func (s *StateStore) updateNodeStatusTxn(txn *txn, nodeID, status string, update
 	}
 
 	// Insert the node
-	if err := txn.Insert("nodes", copyNode); err != nil {
+	if err := txn.Insert(TableNodes, copyNode); err != nil {
 		return fmt.Errorf("node update failed: %v", err)
 	}
-	if err := txn.Insert("index", &IndexEntry{"nodes", txn.Index}); err != nil {
+	if err := txn.Insert(tableIndex, &IndexEntry{TableNodes, txn.Index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	// Deregister any services on the node in the same transaction
-	if copyNode.Status == structs.NodeStatusDown {
-		s.deleteServiceRegistrationByNodeIDTxn(txn, txn.Index, copyNode.ID)
 	}
 
 	return nil
@@ -1677,6 +1693,23 @@ func (s *StateStore) NodeByID(ws memdb.WatchSet, nodeID string) (*structs.Node, 
 	return nil, nil
 }
 
+// NodePoolByNodeID determines the node pool for a given node ID.
+func (s *StateStore) NodePoolByNodeID(ws memdb.WatchSet, nodeID string) (string, bool, error) {
+	if nodeID == "" {
+		return "", false, nil
+	}
+
+	node, err := s.NodeByID(ws, nodeID)
+	if err != nil {
+		return "", false, err
+	}
+	if node == nil || node.NodePool == "" {
+		return "", false, nil
+	}
+
+	return node.NodePool, true, nil
+}
+
 // NodesByIDPrefix is used to lookup nodes by prefix
 func (s *StateStore) NodesByIDPrefix(ws memdb.WatchSet, nodeID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
@@ -1737,7 +1770,7 @@ func (s *StateStore) Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, sub *structs.JobSubmission, job *structs.Job) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
-	if err := s.upsertJobImpl(index, sub, job, false, txn); err != nil {
+	if err := s.upsertJobImpl(index, sub, job, false, txn, nil); err != nil {
 		return err
 	}
 	return txn.Commit()
@@ -1746,11 +1779,23 @@ func (s *StateStore) UpsertJob(msgType structs.MessageType, index uint64, sub *s
 // UpsertJobTxn is used to register a job or update a job definition, like UpsertJob,
 // but in a transaction.  Useful for when making multiple modifications atomically
 func (s *StateStore) UpsertJobTxn(index uint64, sub *structs.JobSubmission, job *structs.Job, txn Txn) error {
-	return s.upsertJobImpl(index, sub, job, false, txn)
+	return s.upsertJobImpl(index, sub, job, false, txn, nil)
+}
+
+// UpsertJobWithRequest is used to register a job or update a job definition
+// using the JobRegisterRequest. It allows flags to be set and used within the
+// upsert job action
+func (s *StateStore) UpsertJobWithRequest(msgType structs.MessageType, index uint64, req *structs.JobRegisterRequest) error {
+	txn := s.db.WriteTxnMsgT(msgType, index)
+	defer txn.Abort()
+	if err := s.upsertJobImpl(index, req.Submission, req.Job, false, txn, req); err != nil {
+		return err
+	}
+	return txn.Commit()
 }
 
 // upsertJobImpl is the implementation for registering a job or updating a job definition
-func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job *structs.Job, keepVersion bool, txn *txn) error {
+func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job *structs.Job, keepVersion bool, txn *txn, req *structs.JobRegisterRequest) error {
 	// Assert the namespace exists
 	if exists, err := s.namespaceExists(txn, job.Namespace); err != nil {
 		return err
@@ -1771,17 +1816,25 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 
 	// Check if the job already exists
 	existing, err := txn.First("jobs", "id", job.Namespace, job.ID)
-	var existingJob *structs.Job
 	if err != nil {
 		return fmt.Errorf("job lookup failed: %v", err)
 	}
 
-	// Setup the indexes correctly
+	var existingJob *structs.Job
 	if existing != nil {
-		job.CreateIndex = existing.(*structs.Job).CreateIndex
-		job.ModifyIndex = index
-
 		existingJob = existing.(*structs.Job)
+	}
+
+	if req != nil && req.EnforceIndex {
+		if err := existingJob.EnforceIndex(req.JobModifyIndex); err != nil {
+			return err
+		}
+	}
+
+	// Setup the indexes correctly
+	if existingJob != nil {
+		job.CreateIndex = existingJob.CreateIndex
+		job.ModifyIndex = index
 
 		// Bump the version unless asked to keep it. This should only be done
 		// when changing an internal field such as Stable. A spec change should
@@ -1847,6 +1900,10 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		return fmt.Errorf("unable to update job submission: %v", err)
 	}
 
+	if err := s.updatePreservedValues(job, existingJob, req); err != nil {
+		return fmt.Errorf("unable to update preserved values: %v", err)
+	}
+
 	// Insert the job
 	if err := txn.Insert("jobs", job); err != nil {
 		return fmt.Errorf("job insert failed: %v", err)
@@ -1856,6 +1913,32 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 	}
 
 	return nil
+}
+
+// CheckIdempotencyToken finds all children of the parent job ID and checks to
+// make sure none of them were dispatched with the idempotency token passed as
+// an argument. Returns the child job found, if any.
+func (s *StateStore) CheckIdempotencyToken(ns, parentID, idempotencyToken string) (*structs.Job, error) {
+	iter, err := s.JobsByIDPrefix(nil, ns, parentID, SortDefault)
+	if err != nil {
+		return nil, errors.New("failed to retrieve jobs for idempotency check")
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		existingDispatch := raw.(*structs.Job)
+		if existingDispatch.ParentID != parentID {
+			continue
+		}
+		if existingDispatch.DispatchIdempotencyToken == idempotencyToken {
+			return existingDispatch, nil
+		}
+	}
+
+	return nil, nil
 }
 
 // DeleteJob is used to deregister a job
@@ -2818,13 +2901,13 @@ func (s *StateStore) CSIVolumeClaim(index uint64, now int64, namespace, id strin
 		return err
 	}
 
-	// in the case of a job deregistration, there will be no allocation ID
+	// In the case of a job deregistration, there will be no allocation ID
 	// for the claim but we still want to write an updated index to the volume
 	// so that volume reaping is triggered
 	if claim.AllocationID != "" {
 		err = volume.Claim(claim, alloc)
 		if err != nil {
-			return err
+			return fmt.Errorf("alloc %q failed to claim volume %q: %w", claim.AllocationID, volume.ID, err)
 		}
 	}
 
@@ -2905,6 +2988,7 @@ func (s *StateStore) volSafeToForce(txn Txn, v *structs.CSIVolume) bool {
 	}
 
 	for _, alloc := range vol.ReadAllocs {
+		// note we check that both server and client agree on terminal status
 		if alloc != nil && !alloc.TerminalStatus() {
 			return false
 		}
@@ -3016,7 +3100,7 @@ func (s *StateStore) csiVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *st
 			}
 
 			currentAllocs[id] = a
-			if (a == nil || a.TerminalStatus()) && pastClaim == nil {
+			if (a == nil || a.ClientTerminalStatus()) && pastClaim == nil {
 				// the alloc is garbage collected but nothing has written a PastClaim,
 				// so create one now
 				pastClaim = &structs.CSIVolumeClaim{
@@ -3862,6 +3946,11 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 
 		e := raw.(*structs.Evaluation)
 
+		// The prefix lookup could return evals for another job with the same prefix
+		if e.JobID != jobID {
+			continue
+		}
+
 		out = append(out, e)
 	}
 	return out, nil
@@ -3938,20 +4027,52 @@ func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
 // from clients.
-func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64,
+	req structs.AllocUpdateRequest) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
+
+	allocs := req.Alloc
+	evals := req.Evals
 
 	// Capture all nodes being affected. Alloc updates from clients are batched
 	// so this request may include allocs from several nodes.
 	nodeIDs := set.New[string](1)
-
+	populatedAllocs := []*structs.Allocation{}
 	// Handle each of the updated allocations
-	for _, alloc := range allocs {
-		nodeIDs.Insert(alloc.NodeID)
-		if err := s.nestedUpdateAllocFromClient(txn, index, alloc); err != nil {
-			return err
+	for _, a := range allocs {
+		nodeIDs.Insert(a.NodeID)
+		ca, err := s.nestedUpdateAllocFromClient(txn, index, a)
+		if ca == nil {
+			continue
 		}
+
+		if err != nil {
+			return fmt.Errorf("updating alloc failed: %v", err)
+		}
+		populatedAllocs = append(populatedAllocs, ca)
+	}
+
+	if len(req.Evals) > 0 {
+		err := s.UpsertEvalsTxn(index, evals, txn)
+		if err != nil {
+			return fmt.Errorf("upserting evals failed: %v", err)
+		}
+	}
+
+	jobs := map[structs.NamespacedID]string{}
+
+	for _, alloc := range populatedAllocs {
+		tuple := structs.NamespacedID{
+			ID:        alloc.JobID,
+			Namespace: alloc.Namespace,
+		}
+
+		jobs[tuple] = ""
+	}
+
+	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
+		return fmt.Errorf("setting job status failed: %v", err)
 	}
 
 	// Update the indexes
@@ -3969,17 +4090,20 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	return txn.Commit()
 }
 
-// nestedUpdateAllocFromClient is used to nest an update of an allocation with client status
-func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *structs.Allocation) error {
+// NestedUpdateAllocFromClient is used to nest an update of an allocation with
+// client status.
+// It returns an allocation fully populated with the values from the state store.
+func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
+	alloc *structs.Allocation) (*structs.Allocation, error) {
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
 	if err != nil {
-		return fmt.Errorf("alloc lookup failed: %v", err)
+		return nil, fmt.Errorf("alloc lookup failed: %v", err)
 	}
 
 	// Nothing to do if this does not exist
 	if existing == nil {
-		return nil
+		return nil, nil
 	}
 	exist := existing.(*structs.Allocation)
 
@@ -4001,7 +4125,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		// We got new health information from the client
 		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
 			// Updated deployment health and timestamp
-			copyAlloc.DeploymentStatus.Healthy = pointer.Of(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Healthy = new(*alloc.DeploymentStatus.Healthy)
 			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
 			copyAlloc.DeploymentStatus.ModifyIndex = index
 		}
@@ -4019,48 +4143,81 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 	copyAlloc.ModifyTime = alloc.ModifyTime
 
 	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return fmt.Errorf("error updating deployment: %v", err)
+		return nil, fmt.Errorf("error updating deployment: %v", err)
 	}
 
 	if err := s.updateSummaryWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return fmt.Errorf("error updating job summary: %v", err)
+		return nil, fmt.Errorf("error updating job summary: %v", err)
 	}
 
 	if err := s.updateEntWithAlloc(index, copyAlloc, exist, txn); err != nil {
-		return err
+		return nil, fmt.Errorf("error updating enterprise features: %v", err)
 	}
 
 	if err := s.updatePluginForTerminalAlloc(index, copyAlloc, txn); err != nil {
-		return err
+		return nil, fmt.Errorf("error updating plugin for terminal alloc: %v", err)
+	}
+
+	if err := s.cancelFollowupEvalsForReconnect(txn, index, copyAlloc, alloc); err != nil {
+		return nil, err
 	}
 
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
-		return fmt.Errorf("alloc insert failed: %v", err)
+		return nil, fmt.Errorf("alloc insert failed: %v", err)
 	}
 
-	// Set the job's status
-	forceStatus := ""
-	if !copyAlloc.TerminalStatus() {
-		forceStatus = structs.JobStatusRunning
+	if err := s.deregisterServicesForTerminalAllocs(txn, index, copyAlloc); err != nil {
+		return nil, fmt.Errorf("error deregistering services for terminal allocs: %v", err)
 	}
 
-	tuple := structs.NamespacedID{
-		ID:        exist.JobID,
-		Namespace: exist.Namespace,
-	}
-	jobs := map[structs.NamespacedID]string{tuple: forceStatus}
+	return copyAlloc, nil
+}
 
-	if err := s.setJobStatuses(index, txn, jobs, false); err != nil {
-		return fmt.Errorf("setting job status failed: %v", err)
+// cancelFollowupEvalsForReconnect cancels any follow-up evals for an allocation
+// that was awaiting reconnect and gets an update from the client that its
+// status is now known
+func (s *StateStore) cancelFollowupEvalsForReconnect(txn *txn, index uint64, copyAlloc, alloc *structs.Allocation) error {
+
+	evalID, ok := copyAlloc.FollowupEvalForReconnect(alloc)
+	if !ok {
+		return nil
 	}
 
-	if copyAlloc.ClientTerminalStatus() {
-		if err := s.deleteServiceRegistrationByAllocIDTxn(txn, index, copyAlloc.ID); err != nil {
-			return err
+	copyAlloc.FollowupEvalID = ""
+
+	allJobAllocs, err := s.AllocsByJob(nil, alloc.Namespace, alloc.JobID, true)
+	if err != nil {
+		return fmt.Errorf("could not lookup allocs: %w", err)
+	}
+
+	for _, jobAlloc := range allJobAllocs {
+		if jobAlloc.ID != copyAlloc.ID && jobAlloc.FollowupEvalID == evalID && !jobAlloc.TerminalStatus() {
+			// follow-up eval was created for multiple non-terminal allocs in
+			// the job at the same time, so we leave it alone
+			return nil
 		}
 	}
 
+	raw, err := txn.First("evals", "id", evalID)
+	if err != nil {
+		return fmt.Errorf("followup eval lookup failed: %v", err)
+	}
+	if raw == nil {
+		return nil // eval was deleted by user
+	}
+	eval := raw.(*structs.Evaluation)
+	eval = eval.Copy()
+	eval.Status = structs.EvalStatusCancelled
+	eval.StatusDescription = "allocs reconnected"
+	eval.ModifyIndex = index
+	err = txn.Insert("evals", eval)
+	if err != nil {
+		return err
+	}
+	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
 	return nil
 }
 
@@ -4132,53 +4289,33 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 				return fmt.Errorf("attempting to upsert allocation %q without a job", alloc.ID)
 			}
 
+			// Read the job directly from state. This ensures we do not
+			// encounter an order of operations issue where the job was stopped
+			// after the worker started processing the evaluation but before the
+			// allocation was upserted.
+			existingJob, err := txn.First("jobs", indexID, alloc.Namespace, alloc.JobID)
+			if err != nil {
+				return fmt.Errorf("job lookup failed: %v", err)
+			}
+
+			existingJobReal, _ := existingJob.(*structs.Job)
+
+			// Do not return this check as an error. If we did, the scheduler
+			// would retry the scheduling process using the same state snapshot
+			// that showed the job as running. This would lead to a retry loop
+			// that would waste CPU time and scheduling worker time.
+			if existingJobReal == nil || existingJobReal.Stopped() {
+				s.logger.Info("attempted to create allocation for stopped or non-existent job",
+					"alloc_id", alloc.ID, "job_id", alloc.JobID, "namespace", alloc.Namespace)
+				continue
+			}
+
 			// Check if the alloc requires sticky volumes. If yes, find a node
 			// that has the right volume and update the task group volume
 			// claims table
-			for _, tg := range alloc.Job.TaskGroups {
-				for _, v := range tg.Volumes {
-					if !v.Sticky {
-						continue
-					}
-					sv := &structs.TaskGroupHostVolumeClaim{
-						ID:            uuid.Generate(),
-						Namespace:     alloc.Namespace,
-						JobID:         alloc.JobID,
-						TaskGroupName: tg.Name,
-						AllocID:       alloc.ID,
-						VolumeName:    v.Source,
-					}
-
-					allocNode, err := s.NodeByID(nil, alloc.NodeID)
-					if err != nil {
-						return err
-					}
-
-					// since there's no existing claim, find a volume and register a claim
-					for _, v := range allocNode.HostVolumes {
-						if v.Name != sv.VolumeName {
-							continue
-						}
-
-						sv.VolumeID = v.ID
-
-						// has this volume been claimed already?
-						existingClaim, err := s.GetTaskGroupHostVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName, v.ID)
-						if err != nil {
-							return err
-						}
-
-						// if the volume has already been claimed, we don't have to do anything. The
-						// feasibility checker in the scheduler will verify alloc placement.
-						if existingClaim != nil {
-							continue
-						}
-
-						if err := s.upsertTaskGroupHostVolumeClaimImpl(index, sv, txn); err != nil {
-							return err
-						}
-					}
-				}
+			err = s.updateStickyVolumeClaimsFromAlloc(txn, index, alloc)
+			if err != nil {
+				return err
 			}
 		} else {
 			alloc.CreateIndex = exist.CreateIndex
@@ -4224,6 +4361,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 		}
 
 		if err := s.updatePluginForTerminalAlloc(index, alloc, txn); err != nil {
+			return err
+		}
+
+		if err := s.deregisterServicesForTerminalAllocs(txn, index, alloc); err != nil {
 			return err
 		}
 
@@ -4640,7 +4781,7 @@ func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index u
 	// On failed deployments with auto_revert set to true, a new eval and job will be included on the request.
 	// We should upsert them both
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
+		if err := s.upsertJobImpl(index, nil, req.Job, false, txn, nil); err != nil {
 			return err
 		}
 	}
@@ -4673,6 +4814,17 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.ModifyIndex = index
 	copy.ModifyTime = u.UpdatedAt
 
+	// check each TaskGroup for ProgressDeadline and reset RequireProgressBy
+	// to u.UpdatedAt + ProgressDeadline if neither equal 0
+	for _, dState := range copy.TaskGroups {
+		if dState == nil {
+			continue
+		}
+		if u.UpdatedAt != 0 && dState.ProgressDeadline != 0 {
+			updateTime := time.Unix(0, u.UpdatedAt)
+			dState.RequireProgressBy = updateTime.Add(dState.ProgressDeadline)
+		}
+	}
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
 		return err
@@ -4726,12 +4878,20 @@ func (s *StateStore) updateJobStabilityImpl(index uint64, namespace, jobID strin
 
 	copy := job.Copy()
 	copy.Stable = stable
-	return s.upsertJobImpl(index, nil, copy, true, txn)
+	return s.upsertJobImpl(index, nil, copy, true, txn, nil)
 }
 
 func (s *StateStore) UpdateJobVersionTag(index uint64, namespace string, req *structs.JobApplyTagRequest) error {
 	jobID := req.JobID
 	jobVersion := req.Version
+	if jobVersion == 0 && req.Latest {
+		job, err := s.JobByID(nil, namespace, jobID)
+		if err != nil {
+			return err
+		}
+		jobVersion = job.Version
+	}
+
 	tag := req.Tag
 	name := req.Name
 
@@ -5005,7 +5165,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 			if copy.DeploymentStatus == nil {
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
-			copy.DeploymentStatus.Healthy = pointer.Of(healthy)
+			copy.DeploymentStatus.Healthy = new(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 			copy.ModifyTime = req.Timestamp.UnixNano()
@@ -5048,7 +5208,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 
 	// Upsert the job if necessary
 	if req.Job != nil {
-		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
+		if err := s.upsertJobImpl(index, nil, req.Job, false, txn, nil); err != nil {
 			return err
 		}
 	}
@@ -5282,7 +5442,6 @@ func (s *StateStore) ReconcileJobSummaries(index uint64) error {
 func (s *StateStore) setJobStatuses(index uint64, txn *txn,
 	jobs map[structs.NamespacedID]string, evalDelete bool) error {
 	for tuple, forceStatus := range jobs {
-
 		existing, err := txn.First("jobs", "id", tuple.Namespace, tuple.ID)
 		if err != nil {
 			return fmt.Errorf("job lookup failed: %v", err)
@@ -5430,13 +5589,24 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		return structs.JobStatusRunning, nil
 	}
 
+	deployments, err := txn.Get("deployment", "job", job.Namespace, job.ID)
+	if err != nil {
+		return "", err
+	}
+
+	// If there is a non-terminal deployment, the job is running.
+	for deployment := deployments.Next(); deployment != nil; deployment = deployments.Next() {
+		if !deployment.(*structs.Deployment).IsTerminal() {
+			return structs.JobStatusRunning, nil
+		}
+	}
+
 	allocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
 	if err != nil {
 		return "", err
 	}
 
 	// If there is a non-terminal allocation, the job is running.
-	hasAlloc := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
 		if !alloc.(*structs.Allocation).TerminalStatus() {
 			return structs.JobStatusRunning, nil
@@ -5450,16 +5620,20 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 
 	hasEval := false
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
-		hasEval = true
-		if !raw.(*structs.Evaluation).TerminalStatus() {
+		eval := raw.(*structs.Evaluation)
+		if eval.JobID != job.ID {
+			continue
+		}
+		if !eval.TerminalStatus() {
 			return structs.JobStatusPending, nil
 		}
+		hasEval = true
 	}
 
 	// The job is dead if all allocations for this version are terminal,
-	// all evals are terminal. In the event a jobs allocs and evals
+	// and all evals are terminal. In the event a jobs allocs and evals
 	// are all GC'd, we don't want the job to be marked pending.
-	if evalDelete || hasEval || hasAlloc || job.Stop {
+	if evalDelete || hasEval || job.Stop {
 		return structs.JobStatusDead, nil
 	}
 
@@ -5519,6 +5693,46 @@ func (s *StateStore) updateSummaryWithJob(index uint64, job *structs.Job,
 		}
 		if err := txn.Insert("job_summary", summary); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// updatePreservedValues preserves the existing task group counts and resources,
+// if requested. This avoids race conditions when registering and scaling jobs.
+func (s *StateStore) updatePreservedValues(job *structs.Job, prev *structs.Job, req *structs.JobRegisterRequest) error {
+	if req == nil || prev == nil {
+		return nil
+	}
+	if req.PreserveCounts || req.PreserveResources {
+		if req.PreserveCounts {
+			prevCounts := make(map[string]int)
+			for _, tg := range prev.TaskGroups {
+				prevCounts[tg.Name] = tg.Count
+			}
+			for _, tg := range job.TaskGroups {
+				if count, ok := prevCounts[tg.Name]; ok {
+					tg.Count = count
+				}
+			}
+		}
+
+		if req.PreserveResources {
+			prevResources := make(map[string]map[string]*structs.Resources)
+			for _, tg := range prev.TaskGroups {
+				prevResources[tg.Name] = make(map[string]*structs.Resources)
+				for _, task := range tg.Tasks {
+					prevResources[tg.Name][task.Name] = task.Resources
+				}
+			}
+			for _, tg := range job.TaskGroups {
+				for _, task := range tg.Tasks {
+					if res, ok := prevResources[tg.Name][task.Name]; ok {
+						task.Resources = res.Copy()
+					}
+				}
+			}
 		}
 	}
 
@@ -6118,7 +6332,7 @@ func (s *StateStore) ACLPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (me
 func (s *StateStore) ACLPolicyByJob(ws memdb.WatchSet, ns, jobID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("acl_policy", "job_prefix", ns, jobID)
+	iter, err := txn.Get("acl_policy", "job", ns, jobID)
 	if err != nil {
 		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
 	}
@@ -7253,6 +7467,7 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			// If alloc is a stopped alloc
 			allocCopy.DesiredDescription = allocDiff.DesiredDescription
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusStop
+			allocCopy.AllocStates = allocDiff.AllocStates
 			if allocDiff.ClientStatus != "" {
 				allocCopy.ClientStatus = allocDiff.ClientStatus
 			}

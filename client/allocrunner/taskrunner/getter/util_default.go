@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !linux && !windows
@@ -7,10 +7,17 @@ package getter
 
 import (
 	"path/filepath"
+
+	log "github.com/hashicorp/go-hclog"
 )
 
+// lockdown is not available by default
+func lockdownAvailable() bool {
+	return false
+}
+
 // lockdown is not implemented by default
-func lockdown(string, string, []string) error {
+func lockdown(log.Logger, string, string, []string) error {
 	return nil
 }
 

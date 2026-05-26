@@ -1,0 +1,9 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
+
+rules:
+  - id: disallow-strings-title-function-use
+    languages: [go]
+    message: "strings.Title is deprecated, use cases.Title instead."
+    severity: ERROR
+    pattern: strings.Title(...)

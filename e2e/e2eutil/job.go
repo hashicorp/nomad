@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package e2eutil
@@ -235,6 +235,20 @@ func MaybeCleanupJobsAndGC(jobIDs *[]string) func() {
 	return func() {
 		for _, jobID := range *jobIDs {
 			_ = StopJob(jobID, "-purge", "-detach")
+		}
+		_, _ = Command("nomad", "system", "gc")
+	}
+}
+
+// MaybeCleanupNamespacedJobsAndGC stops and purges the list of jobIDs in the namespace and runs a
+// system gc. Returns a func so that the return value can be used
+// in t.Cleanup. Similar to CleanupJobsAndGC, but this one does not assert
+// on a successful stop and gc, which is useful for tests that want to stop and
+// gc the jobs themselves but we want a backup Cleanup just in case.
+func MaybeCleanupNamespacedJobsAndGC(ns string, jobIDs []string) func() {
+	return func() {
+		for _, jobID := range jobIDs {
+			_ = StopJob(jobID, "-namespace", ns, "-purge", "-detach")
 		}
 		_, _ = Command("nomad", "system", "gc")
 	}

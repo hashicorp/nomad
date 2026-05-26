@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -24,7 +24,8 @@ Usage: nomad operator root keyring rotate [options]
 
   Generate a new encryption key for all future variables.
 
-  If ACLs are enabled, this command requires a management token.
+  If ACLs are enabled, this command requires a token with the operator:write
+  policy or the operator:keyring-rotate capability.
 
 General Options:
 
@@ -94,7 +95,7 @@ func (c *OperatorRootKeyringRotateCommand) Run(args []string) int {
 
 	args = flags.Args()
 	if len(args) != 0 {
-		c.Ui.Error("This command requires no arguments.")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

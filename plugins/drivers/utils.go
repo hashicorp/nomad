@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package drivers
@@ -290,6 +290,7 @@ func MountFromProto(mount *proto.Mount) *MountConfig {
 	}
 
 	return &MountConfig{
+		RequestName:     mount.RequestName,
 		TaskPath:        mount.TaskPath,
 		HostPath:        mount.HostPath,
 		Readonly:        mount.Readonly,
@@ -342,6 +343,7 @@ func MountToProto(mount *MountConfig) *proto.Mount {
 	}
 
 	return &proto.Mount{
+		RequestName:     mount.RequestName,
 		TaskPath:        mount.TaskPath,
 		HostPath:        mount.HostPath,
 		Readonly:        mount.Readonly,
@@ -469,6 +471,10 @@ func TaskStatsFromProto(pb *proto.TaskStats) (*TaskResourceUsage, error) {
 }
 
 func resourceUsageToProto(ru *ResourceUsage) *proto.TaskResourceUsage {
+	if ru == nil {
+		return &proto.TaskResourceUsage{}
+	}
+
 	cpu := &proto.CPUUsage{
 		MeasuredFields:   cpuUsageMeasuredFieldsToProto(ru.CpuStats.Measured),
 		SystemMode:       ru.CpuStats.SystemMode,

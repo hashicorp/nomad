@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -6,6 +6,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -222,16 +224,19 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 		job := MockRunnableJob()
 
 		resp, _, err := client.Jobs().Register(job, nil)
-		require.NoError(t, err)
-		require.NotEmpty(t, resp.EvalID)
+		must.NoError(t, err)
+		must.NotEq(t, "", resp.EvalID)
 
 		alloc := mock.Alloc()
 		alloc.Job = ApiJobToStructJob(job)
 		alloc.JobID = *job.ID
 		alloc.NodeID = srv.client.NodeID()
+		alloc.Namespace = *job.Namespace
+		alloc.Job.Namespace = *job.Namespace
+		alloc.Job.NodePool = srv.client.Node().NodePool
 
-		require.Nil(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID)))
-		require.Nil(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+		must.NoError(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
 
 		running := false
 		testutil.WaitForResult(func() (bool, error) {
@@ -245,10 +250,10 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 			}
 			return false, nil
 		}, func(err error) {
-			require.NoError(t, err, "allocation query failed")
+			must.NoError(t, err, must.Sprintf("allocation query failed"))
 		})
 
-		require.True(t, running)
+		must.True(t, running)
 
 		topics := map[api.Topic][]string{
 			api.TopicAllocation: {*job.ID},
@@ -259,7 +264,7 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 
 		events := client.EventStream()
 		streamCh, err := events.Stream(ctx, topics, 1, nil)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		var allocEvents []api.Event
 		// gather job alloc events
@@ -275,7 +280,8 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 					}
 					allocEvents = append(allocEvents, event.Events...)
 				case <-time.After(10 * time.Second):
-					require.Fail(t, "failed waiting for event stream event")
+					must.Unreachable(t, must.Sprintf("failed waiting for event stream event"))
+					return
 				}
 			}
 		}()
@@ -299,11 +305,45 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 			}
 			return false, nil
 		}, func(e error) {
-			require.NoError(t, err)
+			must.NoError(t, e)
 		})
 
-		require.NotNil(t, networkResource)
-		require.Equal(t, 5000, networkResource.ReservedPorts[0].Value)
-		require.NotEqual(t, 0, networkResource.DynamicPorts[0].Value)
+		must.NotNil(t, networkResource)
+		must.Eq(t, 5000, networkResource.ReservedPorts[0].Value)
+		must.NotEq(t, 0, networkResource.DynamicPorts[0].Value)
+	})
+}
+
+func TestEventStream_ProtoVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+
+		// Make a raw TCP connection to the agent's HTTP listener so that the
+		// real net/http server handles the request. Unlike
+		// httptest.NewRecorder, the real ResponseWriter implements
+		// http.Hijacker.
+		conn, err := net.DialTimeout("tcp", s.Server.Addr, 5*time.Second)
+		must.NoError(t, err)
+		defer conn.Close()
+
+		reqLine := "GET /v1/event/stream HTTP/1.1\r\nHost: localhost\r\n\r\n"
+		_, err = conn.Write([]byte(reqLine))
+		must.NoError(t, err)
+
+		// Set a read deadline so we don't block forever; we only need the
+		// status line which arrives immediately.
+		must.NoError(t, conn.SetReadDeadline(time.Now().Add(1*time.Second)))
+
+		// The response is only 17 bytes, but give a little room for future
+		// proofing subtle changes to the response format.
+		buf := make([]byte, 46)
+		n, err := conn.Read(buf)
+		must.NoError(t, err)
+		must.Greater(t, 0, n)
+
+		// The status line should be HTTP/1.1 200 OK, which indicates that the
+		// server is responding with the same protocol version as the request.
+		must.StrContains(t, string(buf[:n]), "HTTP/1.1 200 OK")
 	})
 }

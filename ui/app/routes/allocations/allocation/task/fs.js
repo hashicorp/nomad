@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -47,7 +47,7 @@ export default class FsRoute extends Route {
 
   setupController(
     controller,
-    { path, taskState, directoryEntries, isFile, stat } = {}
+    { path, taskState, directoryEntries, isFile, stat } = {},
   ) {
     super.setupController(...arguments);
     controller.setProperties({

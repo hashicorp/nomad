@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package acl
@@ -8,8 +8,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCapabilitySet(t *testing.T) {
@@ -102,16 +100,16 @@ func TestACLManagement(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
 	must.True(t, acl.AllowServerOp())
-	must.True(t, acl.AllowClientOp())
+	must.False(t, acl.AllowClientOp("my-pool"))
 }
 
 func TestACLMerge(t *testing.T) {
 	ci.Parallel(t)
 
 	// Merge read + write policy
-	p1, err := Parse(readAll)
+	p1, err := Parse(readAll, PolicyParseStrict)
 	must.NoError(t, err)
-	p2, err := Parse(writeAll)
+	p2, err := Parse(writeAll, PolicyParseStrict)
 	must.NoError(t, err)
 	acl, err := NewACL(false, []*Policy{p1, p2})
 	must.NoError(t, err)
@@ -146,10 +144,10 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
-	must.False(t, acl.AllowClientOp())
+	must.False(t, acl.AllowClientOp("my-pool"))
 
 	// Merge read + blank
-	p3, err := Parse("")
+	p3, err := Parse("", PolicyParseStrict)
 	must.NoError(t, err)
 	acl, err = NewACL(false, []*Policy{p1, p3})
 	must.NoError(t, err)
@@ -184,10 +182,9 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowQuotaRead())
 	must.False(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
-	must.False(t, acl.AllowClientOp())
 
 	// Merge read + deny
-	p4, err := Parse(denyAll)
+	p4, err := Parse(denyAll, PolicyParseStrict)
 	must.NoError(t, err)
 	acl, err = NewACL(false, []*Policy{p1, p4})
 	must.NoError(t, err)
@@ -220,6 +217,63 @@ func TestACLMerge(t *testing.T) {
 	must.False(t, acl.AllowQuotaRead())
 	must.False(t, acl.AllowQuotaWrite())
 	must.False(t, acl.AllowServerOp())
+}
+
+func TestACLAllowClientOp_NodePoolScoped(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("client acl works with node pool 'all'", func(t *testing.T) {
+		acl := NewClientACL("test-pool")
+
+		must.True(t, acl.AllowClientOp("test-pool"))
+		must.True(t, acl.AllowClientOp("all")) // tests node_pool = "all"
+		must.False(t, acl.AllowClientOp("test-not-my-pool"))
+	})
+
+	t.Run("management", func(t *testing.T) {
+		acl, err := NewACL(true, nil)
+		must.NoError(t, err)
+
+		must.False(t, acl.AllowClientOp("my-pool"))
+		must.False(t, acl.AllowClientOp("other-pool"))
+	})
+
+	t.Run("acls disabled", func(t *testing.T) {
+		must.True(t, ACLsDisabledACL.AllowClientOp("my-pool"))
+		must.True(t, ACLsDisabledACL.AllowClientOp("other-pool"))
+	})
+
+	t.Run("matching client pool allows client op", func(t *testing.T) {
+		acl, err := NewACL(false, nil)
+		must.NoError(t, err)
+
+		acl.client = PolicyWrite
+		acl.pool = "my-pool"
+
+		must.True(t, acl.AllowClientOp("my-pool"))
+		must.False(t, acl.AllowClientOp("other-pool"))
+	})
+
+	t.Run("client deny denies client op", func(t *testing.T) {
+		acl, err := NewACL(false, nil)
+		must.NoError(t, err)
+
+		acl.client = PolicyDeny
+		acl.pool = "my-pool"
+
+		must.False(t, acl.AllowClientOp("my-pool"))
+		must.False(t, acl.AllowClientOp("other-pool"))
+	})
+
+	t.Run("empty client pool denies client op", func(t *testing.T) {
+		acl, err := NewACL(false, nil)
+		must.NoError(t, err)
+
+		acl.client = PolicyWrite
+
+		must.False(t, acl.AllowClientOp("my-pool"))
+		must.False(t, acl.AllowClientOp("other-pool"))
+	})
 }
 
 var readAll = `
@@ -364,14 +418,14 @@ func TestAllowNamespace(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
-			require.NoError(t, err)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
+			must.NoError(t, err)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			got := acl.AllowNamespace(tc.namespace)
-			require.Equal(t, tc.allow, got)
+			must.Eq(t, tc.allow, got)
 		})
 	}
 }
@@ -436,15 +490,15 @@ func TestWildcardNamespaceMatching(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
-			require.NoError(t, err)
-			require.NotNil(t, policy.Namespaces)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			got := acl.AllowNamespace(tc.namespace)
-			require.Equal(t, tc.allow, got)
+			must.Eq(t, tc.allow, got)
 		})
 	}
 }
@@ -631,7 +685,7 @@ node_pool "*" {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
 			must.NoError(t, err)
 			must.NotNil(t, policy.NodePools)
 
@@ -640,12 +694,12 @@ node_pool "*" {
 
 			for _, op := range tc.allowOps {
 				got := acl.AllowNodePoolOperation(tc.pool, op)
-				assert.True(t, got, must.Sprintf("expected operation %q to be allowed", op))
+				must.True(t, got, must.Sprintf("expected operation %q to be allowed", op))
 			}
 
 			for _, op := range tc.denyOps {
 				got := acl.AllowNodePoolOperation(tc.pool, op)
-				assert.False(t, got, must.Sprintf("expected operation %q to be denied", op))
+				must.False(t, got, must.Sprintf("expected operation %q to be denied", op))
 			}
 
 			if tc.allow {
@@ -696,16 +750,14 @@ func TestWildcardHostVolumeMatching(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
-			policy, err := Parse(tc.Policy)
-			assert.NoError(err)
-			assert.NotNil(policy.HostVolumes)
+			policy, err := Parse(tc.Policy, PolicyParseStrict)
+			must.NoError(t, err)
+			must.NotNil(t, policy.HostVolumes)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			must.NoError(t, err)
 
-			assert.Equal(tc.Allow, acl.AllowHostVolume("prod-api-services"))
+			must.Eq(t, tc.Allow, acl.AllowHostVolume("prod-api-services"))
 		})
 	}
 }
@@ -909,29 +961,28 @@ func TestVariablesMatching(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			policy, err := Parse(tc.policy)
-			require.NoError(t, err)
-			require.NotNil(t, policy.Namespaces[0].Variables)
+			policy, err := Parse(tc.policy, PolicyParseStrict)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces[0].Variables)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			require.NoError(t, err)
+			must.NoError(t, err)
 			allowed := acl.AllowVariableOperation(tc.ns, tc.path, tc.op, tc.claim)
-			require.Equal(t, tc.allow, allowed)
+			must.Eq(t, tc.allow, allowed)
 		})
 	}
 
 	t.Run("search over namespace", func(t *testing.T) {
 		policy, err := Parse(`namespace "ns" {
-					variables { path "foo/bar" { capabilities = ["read"] }}}`)
-		require.NoError(t, err)
-		require.NotNil(t, policy.Namespaces[0].Variables)
+					variables { path "foo/bar" { capabilities = ["read"] }}}`, PolicyParseStrict)
+		must.NoError(t, err)
+		must.NotNil(t, policy.Namespaces[0].Variables)
 
 		acl, err := NewACL(false, []*Policy{policy})
-		require.NoError(t, err)
-		require.True(t, acl.AllowVariableSearch("ns"))
-		require.False(t, acl.AllowVariableSearch("no-access"))
+		must.NoError(t, err)
+		must.True(t, acl.AllowVariableSearch("ns"))
+		must.False(t, acl.AllowVariableSearch("no-access"))
 	})
-
 }
 
 func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
@@ -963,21 +1014,19 @@ func TestACL_matchingCapabilitySet_returnsAllMatches(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
-			policy, err := Parse(tc.Policy)
-			assert.NoError(err)
-			assert.NotNil(policy.Namespaces)
+			policy, err := Parse(tc.Policy, PolicyParseStrict)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			must.NoError(t, err)
 
 			var namespaces []string
 			for _, cs := range findAllMatchingWildcards(acl.wildcardNamespaces, tc.NS) {
 				namespaces = append(namespaces, cs.name)
 			}
 
-			assert.Equal(tc.MatchingGlobs, namespaces)
+			must.Eq(t, tc.MatchingGlobs, namespaces)
 		})
 	}
 }
@@ -1019,17 +1068,15 @@ func TestACL_matchingCapabilitySet_difference(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Policy, func(t *testing.T) {
-			assert := assert.New(t)
-
-			policy, err := Parse(tc.Policy)
-			assert.NoError(err)
-			assert.NotNil(policy.Namespaces)
+			policy, err := Parse(tc.Policy, PolicyParseStrict)
+			must.NoError(t, err)
+			must.NotNil(t, policy.Namespaces)
 
 			acl, err := NewACL(false, []*Policy{policy})
-			assert.Nil(err)
+			must.NoError(t, err)
 
 			matches := findAllMatchingWildcards(acl.wildcardNamespaces, tc.NS)
-			assert.Equal(tc.Difference, matches[0].difference)
+			must.Eq(t, tc.Difference, matches[0].difference)
 		})
 	}
 
@@ -1088,7 +1135,7 @@ func TestAgentDebug(t *testing.T) {
 
 			acl := ACLsDisabledACL
 			if !tc.aclsDisabled {
-				policy, err := Parse(tc.policy)
+				policy, err := Parse(tc.policy, PolicyParseStrict)
 				must.NoError(t, err)
 
 				acl, err = NewACL(false, []*Policy{policy})
@@ -1098,4 +1145,309 @@ func TestAgentDebug(t *testing.T) {
 			must.Eq(t, tc.expect, acl.AllowAgentDebug(tc.isDebugEnabled))
 		})
 	}
+}
+
+func TestAllowOperatorOperation(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name      string
+		policy    string
+		operation string
+		expect    bool
+	}{
+		{
+			name:      "policy write allows snapshot-save",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows license-read",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows keyring-rotate",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows keyring-read",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityKeyringRead,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows keyring-delete",
+			policy:    `operator { policy = "write" }`,
+			operation: OperatorCapabilityKeyringDelete,
+			expect:    true,
+		},
+		{
+			name:      "policy read allows license-read",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    true,
+		},
+		{
+			name:      "policy read allows keyring-read",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityKeyringRead,
+			expect:    true,
+		},
+		{
+			name:      "policy read denies snapshot-save",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    false,
+		},
+		{
+			name:      "policy read denies keyring-rotate",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    false,
+		},
+		{
+			name:      "policy read denies keyring-delete",
+			policy:    `operator { policy = "read" }`,
+			operation: OperatorCapabilityKeyringDelete,
+			expect:    false,
+		},
+		{
+			name: "policy deny overrides all capabilities",
+			policy: `operator { policy = "deny"
+                                capabilities = ["license-read"] }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    false,
+		},
+		{
+			name: "capability snapshot-save allows snapshot-save over read policy",
+			policy: `operator { policy = "read"
+                                capabilities = ["snapshot-save"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    true,
+		},
+		{
+			name:      "capability license-read allows license-read",
+			policy:    `operator { capabilities = ["license-read"] }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    true,
+		},
+		{
+			name:      "capability keyring-rotate allows keyring-rotate",
+			policy:    `operator { capabilities = ["keyring-rotate"] }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    true,
+		},
+		{
+			name:      "capability keyring-read allows keyring-read",
+			policy:    `operator { capabilities = ["keyring-read"] }`,
+			operation: OperatorCapabilityKeyringRead,
+			expect:    true,
+		},
+		{
+			name:      "capability keyring-delete allows keyring-delete",
+			policy:    `operator { capabilities = ["keyring-delete"] }`,
+			operation: OperatorCapabilityKeyringDelete,
+			expect:    true,
+		},
+		{
+			name:      "multiple capabilities allow respective operations",
+			policy:    `operator { capabilities = ["snapshot-save", "license-read"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    true,
+		},
+		{
+			name:      "capability snapshot-save does not permit keyring-rotate",
+			policy:    `operator { capabilities = ["snapshot-save"] }`,
+			operation: OperatorCapabilityKeyringRotate,
+			expect:    false,
+		},
+		{
+			name:      "capability deny denies all operations",
+			policy:    `operator { capabilities = ["deny"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    false,
+		},
+		{
+			name:      "capability deny takes precedence over other capabilities",
+			policy:    `operator { capabilities = ["snapshot-save", "deny"] }`,
+			operation: OperatorCapabilitySnapshotSave,
+			expect:    false,
+		},
+		{
+			name:      "deny everything without an operator policy",
+			policy:    `agent { policy = "read" }`,
+			operation: OperatorCapabilityLicenseRead,
+			expect:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := Parse(tc.policy, PolicyParseStrict)
+			must.NoError(t, err)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			must.NoError(t, err)
+
+			got := acl.AllowOperatorOperation(tc.operation)
+			must.Eq(t, tc.expect, got)
+		})
+	}
+
+	t.Run("nil ACL denies all operations", func(t *testing.T) {
+		var acl *ACL
+		must.False(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
+	})
+
+	t.Run("management token allows all operations", func(t *testing.T) {
+		acl, err := NewACL(true, nil)
+		must.NoError(t, err)
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityLicenseRead))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityKeyringRotate))
+	})
+
+	t.Run("ACLs disabled allows all operations", func(t *testing.T) {
+		acl := &ACL{aclsDisabled: true}
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilitySnapshotSave))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityLicenseRead))
+		must.True(t, acl.AllowOperatorOperation(OperatorCapabilityKeyringRotate))
+	})
+}
+
+func TestAllowSentinelOperation(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name      string
+		policy    string
+		operation string
+		expect    bool
+	}{
+		{
+			name:      "policy write allows sentinel-read",
+			policy:    `sentinel { policy = "write" }`,
+			operation: SentinelCapabilityRead,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows sentinel-submit",
+			policy:    `sentinel { policy = "write" }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    true,
+		},
+		{
+			name:      "policy write allows sentinel-delete",
+			policy:    `sentinel { policy = "write" }`,
+			operation: SentinelCapabilityDelete,
+			expect:    true,
+		},
+		{
+			name:      "policy read allows sentinel-read",
+			policy:    `sentinel { policy = "read" }`,
+			operation: SentinelCapabilityRead,
+			expect:    true,
+		},
+		{
+			name:      "policy read denies sentinel-submit",
+			policy:    `sentinel { policy = "read" }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    false,
+		},
+		{
+			name:      "policy read denies sentinel-delete",
+			policy:    `sentinel { policy = "read" }`,
+			operation: SentinelCapabilityDelete,
+			expect:    false,
+		},
+		{
+			name: "policy deny overrides all capabilities",
+			policy: `sentinel { policy = "deny"
+                                capabilities = ["sentinel-read"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+		{
+			name: "capability sentinel-submit allows sentinel-submit over read policy",
+			policy: `sentinel { policy = "read"
+                                capabilities = ["sentinel-submit"] }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    true,
+		},
+		{
+			name:      "capability sentinel-read allows sentinel-read",
+			policy:    `sentinel { capabilities = ["sentinel-read"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    true,
+		},
+		{
+			name:      "multiple capabilities allow respective operations",
+			policy:    `sentinel { capabilities = ["sentinel-read", "sentinel-submit"] }`,
+			operation: SentinelCapabilitySubmit,
+			expect:    true,
+		},
+		{
+			name:      "capability deny denies all operations",
+			policy:    `sentinel { capabilities = ["deny"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+		{
+			name:      "capability deny takes precedence over other capabilities",
+			policy:    `sentinel { capabilities = ["sentinel-read", "deny"] }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+		{
+			name:      "deny everything without a sentinel policy",
+			policy:    `agent { policy = "read" }`,
+			operation: SentinelCapabilityRead,
+			expect:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			policy, err := Parse(tc.policy, PolicyParseStrict)
+			must.NoError(t, err)
+
+			acl, err := NewACL(false, []*Policy{policy})
+			must.NoError(t, err)
+
+			got := acl.AllowSentinelOperation(tc.operation)
+			must.Eq(t, tc.expect, got)
+		})
+	}
+
+	t.Run("nil ACL denies all operations", func(t *testing.T) {
+		var acl *ACL
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+	})
+
+	t.Run("management token allows all operations", func(t *testing.T) {
+		acl, err := NewACL(true, nil)
+		must.NoError(t, err)
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilitySubmit))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityDelete))
+	})
+
+	t.Run("ACLs disabled denies all operations", func(t *testing.T) {
+		acl := &ACL{aclsDisabled: true}
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilitySubmit))
+		must.False(t, acl.AllowSentinelOperation(SentinelCapabilityDelete))
+	})
+
+	t.Run("server write policy allows all operations", func(t *testing.T) {
+		acl := &ACL{server: PolicyWrite}
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityRead))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilitySubmit))
+		must.True(t, acl.AllowSentinelOperation(SentinelCapabilityDelete))
+	})
 }

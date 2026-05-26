@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -28,12 +27,12 @@ func TestDrainConfig_Copy(t *testing.T) {
 		{
 			name: "partial config",
 			inputDrainConfig: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
+				Deadline:         new("5m"),
 				IgnoreSystemJobs: nil,
 				Force:            nil,
 			},
 			expectedOutput: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
+				Deadline:         new("5m"),
 				IgnoreSystemJobs: nil,
 				Force:            nil,
 			},
@@ -41,14 +40,14 @@ func TestDrainConfig_Copy(t *testing.T) {
 		{
 			name: "full config",
 			inputDrainConfig: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
-				Force:            pointer.Of(true),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
+				Force:            new(true),
 			},
 			expectedOutput: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
-				Force:            pointer.Of(true),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
+				Force:            new(true),
 			},
 		},
 	}
@@ -84,46 +83,46 @@ func TestDrainConfig_Merge(t *testing.T) {
 			name:             "nil input",
 			inputDrainConfig: nil,
 			mergeDrainConfig: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
-				Force:            pointer.Of(true),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
+				Force:            new(true),
 			},
 			expectedOutput: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
-				Force:            pointer.Of(true),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
+				Force:            new(true),
 			},
 		},
 		{
 			name: "nil merge",
 			inputDrainConfig: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
-				Force:            pointer.Of(true),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
+				Force:            new(true),
 			},
 			mergeDrainConfig: nil,
 			expectedOutput: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
-				Force:            pointer.Of(true),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
+				Force:            new(true),
 			},
 		},
 		{
 			name: "partial",
 			inputDrainConfig: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
 				Force:            nil,
 			},
 			mergeDrainConfig: &DrainConfig{
 				Deadline:         nil,
 				IgnoreSystemJobs: nil,
-				Force:            pointer.Of(true),
+				Force:            new(true),
 			},
 			expectedOutput: &DrainConfig{
-				Deadline:         pointer.Of("5m"),
-				IgnoreSystemJobs: pointer.Of(false),
-				Force:            pointer.Of(true),
+				Deadline:         new("5m"),
+				IgnoreSystemJobs: new(false),
+				Force:            new(true),
 			},
 		},
 	}

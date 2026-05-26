@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -93,7 +93,7 @@ func (s *ScalingPolicyListCommand) Run(args []string) int {
 	}
 
 	if args = flags.Args(); len(args) > 0 {
-		s.Ui.Error("This command takes no arguments")
+		s.Ui.Error(uiMessageNoArguments)
 		s.Ui.Error(commandErrorText(s))
 		return 1
 	}

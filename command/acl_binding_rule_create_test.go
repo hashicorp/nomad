@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -39,7 +39,7 @@ func TestACLBindingRuleCreateCommand_Run(t *testing.T) {
 
 	// Test the basic validation on the command.
 	must.Eq(t, 1, cmd.Run([]string{"-address=" + url, "this-command-does-not-take-args"}))
-	must.StrContains(t, ui.ErrorWriter.String(), "This command takes no arguments")
+	must.StrContains(t, ui.ErrorWriter.String(), uiMessageNoArguments)
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()

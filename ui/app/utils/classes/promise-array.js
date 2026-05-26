@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -9,5 +9,5 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class PromiseArray extends ArrayProxy.extend(
-  PromiseProxyMixin
+  PromiseProxyMixin,
 ) {}

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package client
@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -261,7 +260,7 @@ func TestClient_ACL_ResolveToken_Expired(t *testing.T) {
 
 	// Create and upsert a token which has just expired.
 	mockExpiredToken := mock.ACLToken()
-	mockExpiredToken.ExpirationTime = pointer.Of(time.Now().Add(-5 * time.Minute))
+	mockExpiredToken.ExpirationTime = new(time.Now().Add(-5 * time.Minute))
 
 	err := s1.State().UpsertACLTokens(structs.MsgTypeTestSetup, 120, []*structs.ACLToken{mockExpiredToken})
 	must.NoError(t, err)

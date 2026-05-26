@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -279,6 +279,8 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 
 	taskScheduleTaskGroups := j.RequiredScheduleTask()
 
+	secretBlocks := j.Secrets()
+
 	// Hot path where none of our things require constraints.
 	//
 	// [UPDATE THIS] if you are adding a new constraint thing!
@@ -286,7 +288,8 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
 		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() &&
 		transparentProxyTaskGroups.Empty() &&
-		taskScheduleTaskGroups.Empty() {
+		taskScheduleTaskGroups.Empty() &&
+		len(secretBlocks) == 0 {
 		return j, nil, nil
 	}
 
@@ -300,6 +303,12 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		for _, vaultTask := range vaultTasks {
 			vaultBlock := vaultBlocks[tg.Name][vaultTask]
 			mutateConstraint(constraintMatcherLeft, tg, vaultConstraintFn(vaultBlock))
+		}
+
+		for _, secretProviders := range secretBlocks {
+			for _, provider := range secretProviders {
+				mutateConstraint(constraintMatcherLeft, tg, secretsConstraintFn(provider))
+			}
 		}
 
 		// If the task group utilizes NUMA resources, run the mutator.
@@ -380,6 +389,17 @@ func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
 		}
 	}
 	return vaultConstraint
+}
+
+// secretsConstraintFn returns a constraint that checks for the existence of a
+// fingerprinted secrets plugin. This is to support upgrades to 1.11 where a nomad
+// server follower may not be upgraded yet and attempt to place a job on a client
+// that has not been upgraded. This should be removed in Nomad 1.14.
+func secretsConstraintFn(provider string) *structs.Constraint {
+	return &structs.Constraint{
+		LTarget: fmt.Sprintf("${attr.plugins.secrets.%s.version}", provider),
+		Operand: structs.ConstraintAttributeIsSet,
+	}
 }
 
 // consulConstraintFn returns a service discovery constraint that matches the
@@ -501,7 +521,10 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	okForIdentity := v.isEligibleForMultiIdentity()
 
+	totalCount := 0
 	for _, tg := range job.TaskGroups {
+		totalCount += tg.Count
+
 		for _, s := range tg.Services {
 			serviceErrs := v.validateServiceIdentity(
 				s, fmt.Sprintf("task group %s", tg.Name), okForIdentity)
@@ -523,6 +546,10 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 			warnings = append(warnings, vaultWarns...)
 		}
 	}
+	if v.srv.config.JobMaxCount > 0 && totalCount > v.srv.config.JobMaxCount {
+		err := fmt.Errorf("total count was greater than configured job_max_count: %d > %d", totalCount, v.srv.config.JobMaxCount)
+		multierror.Append(validationErrors, err)
+	}
 
 	return warnings, validationErrors.ErrorOrNil()
 }
@@ -531,8 +558,8 @@ func (v *jobValidate) isEligibleForMultiIdentity() bool {
 	if v.srv == nil || v.srv.serf == nil {
 		return true // handle tests w/o real servers safely
 	}
-	return ServersMeetMinimumVersion(
-		v.srv.Members(), v.srv.Region(), minVersionMultiIdentities, true)
+	return v.srv.peersCache.ServersMeetMinimumVersion(
+		v.srv.Region(), minVersionMultiIdentities, true)
 }
 
 func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string, okForIdentity bool) error {

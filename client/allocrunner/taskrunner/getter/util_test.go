@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package getter
@@ -6,6 +6,9 @@ package getter
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/hashicorp/go-getter"
@@ -77,7 +80,7 @@ func TestUtil_getDestination(t *testing.T) {
 			RelativeDest: "local/downloads",
 		})
 		must.NoError(t, err)
-		must.Eq(t, "/path/to/task/local/downloads", result)
+		must.Eq(t, "/path/to/task/local/downloads", filepath.ToSlash(result))
 	})
 
 	t.Run("escapes", func(t *testing.T) {
@@ -141,8 +144,8 @@ func TestUtil_getTaskDir(t *testing.T) {
 
 	env := noopTaskEnv("/path/to/alloc/task")
 	allocDir, taskDir := getWritableDirs(env)
-	must.Eq(t, "/path/to/alloc", allocDir)
-	must.Eq(t, "/path/to/alloc/task", taskDir)
+	must.Eq(t, "/path/to/alloc", filepath.ToSlash(allocDir))
+	must.Eq(t, "/path/to/alloc/task", filepath.ToSlash(taskDir))
 }
 
 func TestUtil_environment(t *testing.T) {
@@ -238,5 +241,65 @@ func TestUtil_environment(t *testing.T) {
 			"PATH=/usr/local/bin:/usr/bin:/bin",
 			"TMPDIR=/a/b/c/tmp",
 		}, result)
+	})
+}
+
+func TestUtil_isPathWithin(t *testing.T) {
+	tdir := t.TempDir()
+	pathFn := func(parent string) string {
+		dir, err := os.MkdirTemp(parent, "testing-path")
+		must.NoError(t, err, must.Sprint("failed to create temporary directory"))
+		return dir
+	}
+
+	t.Run("when path not within root", func(t *testing.T) {
+		root := pathFn(tdir)
+		check := pathFn(tdir)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.False(t, result)
+	})
+
+	t.Run("when path within root", func(t *testing.T) {
+		root := pathFn(tdir)
+		check := pathFn(root)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.True(t, result)
+	})
+
+	t.Run("when root within path", func(t *testing.T) {
+		check := pathFn(tdir)
+		root := pathFn(check)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.False(t, result)
+	})
+
+	t.Run("when path does not exist", func(t *testing.T) {
+		root := filepath.Join(tdir, "missing")
+		check := filepath.Join(root, "unknown")
+		result, err := isPathWithin(root, check)
+
+		if runtime.GOOS != "windows" {
+			must.ErrorContains(t, err, "no such file or directory")
+		} else {
+			must.ErrorContains(t, err, "cannot find the file")
+		}
+		must.False(t, result)
+	})
+
+	t.Run("when path not within root but shorter", func(t *testing.T) {
+		root, err := os.MkdirTemp(tdir, "testing-path-XXX")
+		must.NoError(t, err)
+		check, err := os.MkdirTemp(tdir, "testing-path-XXXX")
+		must.NoError(t, err)
+		result, err := isPathWithin(root, check)
+
+		must.NoError(t, err)
+		must.False(t, result)
 	})
 }

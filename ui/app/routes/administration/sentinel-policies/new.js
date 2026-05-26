@@ -1,10 +1,10 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import TEMPLATES from 'nomad-ui/utils/default-sentinel-policy-templates';
 
 export default class NewRoute extends Route {
@@ -42,8 +42,12 @@ export default class NewRoute extends Route {
   resetController(controller, isExiting) {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
-      if (controller.model.isNew) {
-        controller.model.destroyRecord();
+      if (controller?.model?.isNew) {
+        try {
+          controller.model.unloadRecord();
+        } catch {
+          // Record may already be disconnected during teardown.
+        }
         controller.set('template', null);
       }
     }

@@ -1,9 +1,8 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
@@ -19,7 +18,6 @@ import {
 
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import faker from 'nomad-ui/mirage/faker';
-import percySnapshot from '@percy/ember';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 // TODO: Mirage is not type-friendly / assigns "server" as a global. Try to work around this shortcoming.
 
@@ -28,13 +26,13 @@ module('Acceptance | job status panel', function (hooks) {
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
-    server.create('node-pool');
-    server.create('node');
+    this.server.create('node-pool');
+    this.server.create('node');
   });
 
   test('Status panel lets you switch between Current and Historical', async function (assert) {
-    assert.expect(5);
-    let job = server.create('job', {
+    faker.seed(1);
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -45,11 +43,6 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
     await a11yAudit(assert);
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
 
     assert
       .dom('[data-test-status-mode="current"]')
@@ -69,8 +62,7 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status panel observes query parameters for current/historical', async function (assert) {
-    assert.expect(2);
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -87,13 +79,11 @@ module('Acceptance | job status panel', function (hooks) {
   });
 
   test('Status Panel shows accurate number and types of ungrouped allocation blocks', async function (assert) {
-    assert.expect(7);
-
     faker.seed(1);
 
     let groupAllocCount = 10;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -112,25 +102,25 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    let jobAllocCount = server.db.allocations.where({
+    let jobAllocCount = this.server.db.allocations.where({
       jobId: job.id,
     }).length;
 
-    assert.equal(
+    assert.deepEqual(
       jobAllocCount,
       groupAllocCount * job.taskGroups.length,
-      'Correect number of allocs generated (metatest)'
+      'Correect number of allocs generated (metatest)',
     );
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: jobAllocCount },
-        `All ${jobAllocCount} allocations are represented in the status panel`
+        `All ${jobAllocCount} allocations are represented in the status panel`,
       );
 
     groupAllocCount = 20;
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -150,43 +140,38 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    let runningAllocCount = server.db.allocations.where({
+    let runningAllocCount = this.server.db.allocations.where({
       jobId: job.id,
       clientStatus: 'running',
     }).length;
 
-    let failedAllocCount = server.db.allocations.where({
+    let failedAllocCount = this.server.db.allocations.where({
       jobId: job.id,
       clientStatus: 'failed',
     }).length;
 
-    assert.equal(
+    assert.deepEqual(
       runningAllocCount + failedAllocCount,
       groupAllocCount * job.taskGroups.length,
-      'Correect number of allocs generated (metatest)'
+      'Correect number of allocs generated (metatest)',
     );
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: runningAllocCount },
-        `All ${runningAllocCount} running allocations are represented in the status panel`
+        `All ${runningAllocCount} running allocations are represented in the status panel`,
       );
     assert
       .dom('.ungrouped-allocs .represented-allocation.failed')
       .exists(
         { count: failedAllocCount },
-        `All ${failedAllocCount} failed allocations are represented in the status panel`
+        `All ${failedAllocCount} failed allocations are represented in the status panel`,
       );
-    await percySnapshot(assert, {
-      percyCSS: `
-          .allocation-row td { display: none; }
-        `,
-    });
   });
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending', async function (assert) {
-    assert.expect(9);
-    let job = server.create('job', {
+    faker.seed(1);
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -197,27 +182,27 @@ module('Acceptance | job status panel', function (hooks) {
       version: 5,
     });
 
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'pending',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 3,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'failed',
       jobVersion: 4,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'lost',
       jobVersion: 5,
@@ -255,16 +240,11 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.job-status-panel .versions > ul > li > a[data-version="4"]')
       .doesNotExist();
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
   });
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending (batch)', async function (assert) {
-    assert.expect(7);
-    let job = server.create('job', {
+    faker.seed(1);
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'batch',
@@ -283,32 +263,32 @@ module('Acceptance | job status panel', function (hooks) {
       noActiveDeployment: true,
     });
 
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'pending',
       jobVersion: 5,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
       jobVersion: 3,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'failed',
       jobVersion: 4,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'complete',
       jobVersion: 4,
     });
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'lost',
       jobVersion: 5,
@@ -342,21 +322,14 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.ungrouped-allocs .represented-allocation.failed')
       .doesNotExist();
 
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
   });
 
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
-    assert.expect(6);
-
     faker.seed(1);
 
     let groupAllocCount = 20;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -375,7 +348,7 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    let jobAllocCount = server.db.allocations.where({
+    let jobAllocCount = this.server.db.allocations.where({
       jobId: job.id,
     }).length;
 
@@ -383,12 +356,12 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: jobAllocCount },
-        `All ${jobAllocCount} allocations are represented in the status panel, ungrouped`
+        `All ${jobAllocCount} allocations are represented in the status panel, ungrouped`,
       );
 
     groupAllocCount = 40;
 
-    job = server.create('job', {
+    job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -407,7 +380,7 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
 
-    jobAllocCount = server.db.allocations.where({
+    jobAllocCount = this.server.db.allocations.where({
       jobId: job.id,
     }).length;
 
@@ -417,7 +390,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.ungrouped-allocs .represented-allocation.running')
       .exists(
         { count: desiredUngroupedAllocCount },
-        `${desiredUngroupedAllocCount} allocations are represented ungrouped`
+        `${desiredUngroupedAllocCount} allocations are represented ungrouped`,
       );
 
     assert
@@ -427,20 +400,16 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.represented-allocation.rest')
       .hasText(
         `+${groupAllocCount - desiredUngroupedAllocCount}`,
-        'Summary block has the correct number of grouped allocs'
+        'Summary block has the correct number of grouped allocs',
       );
 
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
   });
 
   test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
+    faker.seed(1);
     let groupAllocCount = 50;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -472,13 +441,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.running')
       .exists(
-        'Running allocations are numerous enough that a summary block exists'
+        'Running allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.running')
       .hasText(
         '+16',
-        'Summary block has the correct number of grouped running allocs'
+        'Summary block has the correct number of grouped running allocs',
       );
 
     assert
@@ -487,13 +456,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.failed')
       .exists(
-        'Failed allocations are numerous enough that a summary block exists'
+        'Failed allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.failed')
       .hasText(
         '+10',
-        'Summary block has the correct number of grouped failed allocs'
+        'Summary block has the correct number of grouped failed allocs',
       );
 
     assert
@@ -502,13 +471,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.pending')
       .exists(
-        'pending allocations are numerous enough that a summary block exists'
+        'pending allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.pending')
       .hasText(
         '5',
-        'Summary block has the correct number of grouped pending allocs'
+        'Summary block has the correct number of grouped pending allocs',
       );
 
     assert
@@ -517,23 +486,14 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.unplaced')
       .exists(
-        'Unplaced allocations are numerous enough that a summary block exists'
+        'Unplaced allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.unplaced')
       .hasText(
         '5',
-        'Summary block has the correct number of grouped unplaced allocs'
+        'Summary block has the correct number of grouped unplaced allocs',
       );
-    await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (full width)',
-      {
-        percyCSS: `
-          .allocation-row td { display: none; }
-          .inline-chart { visibility: hidden; }
-        `,
-      }
-    );
 
     // Simulate a window resize event; will recompute how many of each ought to be grouped.
 
@@ -541,15 +501,6 @@ module('Acceptance | job status panel', function (hooks) {
     find('.page-body').style.width = '1100px';
     await triggerEvent(window, 'resize');
 
-    await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (1100px)',
-      {
-        percyCSS: `
-          .allocation-row td { display: none; }
-          .inline-chart { visibility: hidden; }
-        `,
-      }
-    );
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
@@ -557,13 +508,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.running')
       .exists(
-        'Running allocations are numerous enough that a summary block exists'
+        'Running allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.running')
       .hasText(
         '+18',
-        'Summary block has the correct number of grouped running allocs'
+        'Summary block has the correct number of grouped running allocs',
       );
 
     assert
@@ -572,28 +523,18 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.failed')
       .exists(
-        'Failed allocations are numerous enough that a summary block exists'
+        'Failed allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.failed')
       .hasText(
         '+11',
-        'Summary block has the correct number of grouped failed allocs'
+        'Summary block has the correct number of grouped failed allocs',
       );
 
     // At 500px, only running allocations have some ungrouped allocs. The rest are all fully grouped.
     find('.page-body').style.width = '800px';
     await triggerEvent(window, 'resize');
-
-    await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (500px)',
-      {
-        percyCSS: `
-          .allocation-row td { display: none; }
-          .inline-chart { visibility: hidden; }
-        `,
-      }
-    );
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
@@ -601,13 +542,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.running')
       .exists(
-        'Running allocations are numerous enough that a summary block exists'
+        'Running allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.running')
       .hasText(
         '+21',
-        'Summary block has the correct number of grouped running allocs'
+        'Summary block has the correct number of grouped running allocs',
       );
 
     assert
@@ -616,13 +557,13 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.represented-allocation.rest.failed')
       .exists(
-        'Failed allocations are numerous enough that a summary block exists'
+        'Failed allocations are numerous enough that a summary block exists',
       );
     assert
       .dom('.represented-allocation.rest.failed')
       .hasText(
         '15',
-        'Summary block has the correct number of grouped failed allocs'
+        'Summary block has the correct number of grouped failed allocs',
       );
   });
 
@@ -631,7 +572,7 @@ module('Acceptance | job status panel', function (hooks) {
 
     let groupAllocCount = 10;
 
-    let job = server.create('job', {
+    let job = this.server.create('job', {
       status: 'running',
       datacenters: ['*'],
       type: 'service',
@@ -649,9 +590,11 @@ module('Acceptance | job status panel', function (hooks) {
       version: 0,
     });
 
-    let state = server.create('task-state');
-    state.events = server.schema.taskEvents.where({ taskStateId: state.id });
-    server.schema.allocations.where({ jobId: job.id }).update({
+    let state = this.server.create('task-state');
+    state.events = this.server.schema.taskEvents.where({
+      taskStateId: state.id,
+    });
+    this.server.schema.allocations.where({ jobId: job.id }).update({
       taskStateIds: [state.id],
       jobVersion: 0,
     });
@@ -701,7 +644,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(restartedCell)
       .hasText(
         '1 Restarted',
-        'Restarted cell updates when a task event with type "Restarting" is added'
+        'Restarted cell updates when a task event with type "Restarting" is added',
       );
 
     this.store
@@ -722,7 +665,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(restartedCell)
       .hasText(
         '2 Restarted',
-        'Restarted cell updates when a second task event with type "Restarting" is added'
+        'Restarted cell updates when a second task event with type "Restarting" is added',
       );
 
     this.store
@@ -739,7 +682,7 @@ module('Acceptance | job status panel', function (hooks) {
       .dom(rescheduledCell)
       .hasText(
         '1 Rescheduled',
-        'Rescheduled cell updates when desiredTransition is set'
+        'Rescheduled cell updates when desiredTransition is set',
       );
     assert
       .dom(rescheduledCell.querySelector('a'))
@@ -752,7 +695,7 @@ module('Acceptance | job status panel', function (hooks) {
 
       let groupAllocCount = 10;
 
-      let job = server.create('job', {
+      let job = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'service',
@@ -770,10 +713,12 @@ module('Acceptance | job status panel', function (hooks) {
         version: 0,
       });
 
-      let state = server.create('task-state');
-      state.events = server.schema.taskEvents.where({ taskStateId: state.id });
+      let state = this.server.create('task-state');
+      state.events = this.server.schema.taskEvents.where({
+        taskStateId: state.id,
+      });
 
-      server.schema.allocations.where({ jobId: job.id }).update({
+      this.server.schema.allocations.where({ jobId: job.id }).update({
         taskStateIds: [state.id],
         jobVersion: 0,
       });
@@ -781,25 +726,27 @@ module('Acceptance | job status panel', function (hooks) {
       await visit(`/jobs/${job.id}`);
       assert.dom('.job-status-panel').exists();
 
-      const serverEvents = server.schema.taskEvents.where({
+      const serverEvents = this.server.schema.taskEvents.where({
         taskStateId: state.id,
       });
       const shownEvents = findAll('.timeline-object');
-      const jobAllocations = server.db.allocations.where({ jobId: job.id });
-      assert.equal(
+      const jobAllocations = this.server.db.allocations.where({
+        jobId: job.id,
+      });
+      assert.deepEqual(
         shownEvents.length,
         serverEvents.length * jobAllocations.length,
-        'All events are shown'
+        'All events are shown',
       );
 
       await fillIn(
         '[data-test-history-search] input',
-        serverEvents.models[0].displayMessage
+        serverEvents.models[0].displayMessage,
       );
-      assert.equal(
+      assert.deepEqual(
         findAll('.timeline-object').length,
         jobAllocations.length,
-        'Only events matching the search are shown'
+        'Only events matching the search are shown',
       );
 
       await fillIn('[data-test-history-search] input', 'foo bar baz');
@@ -813,7 +760,7 @@ module('Acceptance | job status panel', function (hooks) {
     test('Batch jobs have a valid Completed status', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
-      let batchJob = server.create('job', {
+      let batchJob = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'batch',
@@ -832,7 +779,7 @@ module('Acceptance | job status panel', function (hooks) {
         version: 1,
       });
 
-      let serviceJob = server.create('job', {
+      let serviceJob = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'service',
@@ -858,13 +805,13 @@ module('Acceptance | job status panel', function (hooks) {
         .dom('.running-allocs-title')
         .hasText(
           '5/8 Remaining Allocations Running',
-          'Completed allocations do not count toward the Remaining denominator'
+          'Completed allocations do not count toward the Remaining denominator',
         );
       assert
         .dom('.ungrouped-allocs .represented-allocation.complete')
         .exists(
           { count: 2 },
-          `2 complete allocations are represented in the status panel`
+          `2 complete allocations are represented in the status panel`,
         );
 
       // Service job should have 5 running, 3 failed, 2 unplaced
@@ -875,13 +822,13 @@ module('Acceptance | job status panel', function (hooks) {
       assert
         .dom('.ungrouped-allocs .represented-allocation.complete')
         .doesNotExist(
-          'For a service job, no copmlete allocations are represented in the status panel'
+          'For a service job, no copmlete allocations are represented in the status panel',
         );
       assert
         .dom('.ungrouped-allocs .represented-allocation.unplaced')
         .exists(
           { count: 2 },
-          `2 unplaced allocations are represented in the status panel`
+          `2 unplaced allocations are represented in the status panel`,
         );
     });
   });
@@ -890,7 +837,7 @@ module('Acceptance | job status panel', function (hooks) {
     test('System jobs show restarted but not rescheduled allocs', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
-      let job = server.create('job', {
+      let job = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'system',
@@ -906,9 +853,11 @@ module('Acceptance | job status panel', function (hooks) {
         version: 0,
       });
 
-      let state = server.create('task-state');
-      state.events = server.schema.taskEvents.where({ taskStateId: state.id });
-      server.schema.allocations.where({ jobId: job.id }).update({
+      let state = this.server.create('task-state');
+      state.events = this.server.schema.taskEvents.where({
+        taskStateId: state.id,
+      });
+      this.server.schema.allocations.where({ jobId: job.id }).update({
         taskStateIds: [state.id],
         jobVersion: 0,
       });
@@ -939,22 +888,22 @@ module('Acceptance | job status panel', function (hooks) {
         .dom('.failed-or-lost-links > span')
         .hasText(
           '1 Restarted',
-          'Restarted cell updates when a task event with type "Restarting" is added'
+          'Restarted cell updates when a task event with type "Restarting" is added',
         );
     });
 
     test('System jobs do not have a sense of Desired/Total allocs', async function (assert) {
       this.store = this.owner.lookup('service:store');
 
-      server.db.nodes.remove();
+      this.server.db.nodes.remove();
 
-      server.createList('node', 3, {
+      this.server.createList('node', 3, {
         status: 'ready',
         drain: false,
         schedulingEligibility: 'eligible',
       });
 
-      let job = server.create('job', {
+      let job = this.server.create('job', {
         status: 'running',
         datacenters: ['*'],
         type: 'system',
@@ -965,8 +914,8 @@ module('Acceptance | job status panel', function (hooks) {
       });
 
       // Create an allocation on this job for each node
-      server.schema.nodes.all().models.forEach((node) => {
-        server.create('allocation', {
+      this.server.schema.nodes.all().models.forEach((node) => {
+        this.server.create('allocation', {
           jobId: job.id,
           jobVersion: 0,
           clientStatus: 'running',
@@ -977,7 +926,7 @@ module('Acceptance | job status panel', function (hooks) {
       await visit(`/jobs/${job.id}`);
       let storedJob = await this.store.find(
         'job',
-        JSON.stringify([job.id, 'default'])
+        JSON.stringify([job.id, 'default']),
       );
 
       await settled();
@@ -985,22 +934,22 @@ module('Acceptance | job status panel', function (hooks) {
       assert.dom('.job-status-panel').exists();
       assert.dom('.running-allocs-title').hasText(
         `${
-          server.schema.allocations.where({
+          this.server.schema.allocations.where({
             jobId: job.id,
             clientStatus: 'running',
           }).length
-        } Allocations Running`
+        } Allocations Running`,
       );
 
       // Let's bring another node online!
-      let newNode = server.create('node', {
+      let newNode = this.server.create('node', {
         status: 'ready',
         drain: false,
         schedulingEligibility: 'eligible',
       });
 
       // Let's expect our scheduler to have therefore added an alloc to it
-      server.create('allocation', {
+      this.server.create('allocation', {
         jobId: job.id,
         jobVersion: 0,
         clientStatus: 'running',
@@ -1012,6 +961,175 @@ module('Acceptance | job status panel', function (hooks) {
       await settled();
 
       assert.dom('.running-allocs-title').hasText('4 Allocations Running');
+    });
+
+    test('System jobs display deployments', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+
+      this.server.db.nodes.remove();
+
+      this.server.createList('node', 3, {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      let job = this.server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'system',
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      await visit(`/jobs/${job.id}`);
+
+      assert.dom('.job-status-panel').exists().hasClass('active-deployment');
+      assert.dom('[data-test-tab="deployments"]').exists();
+
+      assert.dom('.job-status-panel h2').hasTextContaining('Status: Deploying');
+
+      const allocCount = this.server.schema.allocations.where({
+        jobId: job.id,
+        clientStatus: 'running',
+      }).length;
+
+      assert
+        .dom('.previous-allocations .represented-allocation')
+        .exists({ count: allocCount });
+
+      assert.dom('.job-status-panel').exists();
+
+      assert
+        .dom('.previous-allocations-heading')
+        .hasTextContaining(`Previous allocations: ${allocCount} running`);
+    });
+
+    test('Fail/Promote Deployment buttons are present if permissions allow', async function (assert) {
+      this.store = this.owner.lookup('service:store');
+      this.server.create('token');
+
+      this.server.createList('namespace', 3);
+      this.server.db.nodes.remove();
+
+      this.server.createList('node', 3, {
+        status: 'ready',
+        drain: false,
+        schedulingEligibility: 'eligible',
+      });
+
+      const job1 = this.server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'system',
+        namespace: this.server.db.namespaces[0].id,
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      const job2 = this.server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        namespace: this.server.db.namespaces[1].id,
+        type: 'system',
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      const job3 = this.server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        namespace: this.server.db.namespaces[2].id,
+        type: 'system',
+        activeDeployment: true,
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 0.5,
+          failed: 0.5,
+          unknown: 0,
+          lost: 0,
+        },
+        shallow: true,
+        version: 0,
+      });
+
+      this.server.db.allocations.update({
+        jobVersion: 0,
+        clientStatus: 'running',
+        deploymentStatus: {
+          Healthy: true,
+          Canary: true,
+        },
+      });
+
+      const policy = this.server.create('policy', {
+        id: 'deployment-policy',
+        name: 'deployment-policy',
+        rulesJSON: {
+          Namespaces: [
+            {
+              Name: job1.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'submit-job'],
+            },
+            {
+              Name: job2.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'fail-deployment'],
+            },
+            {
+              Name: job3.namespaceId,
+              Capabilities: ['read-job', 'list-jobs', 'promote-deployment'],
+            },
+          ],
+        },
+      });
+
+      const clientToken = this.server.create('token');
+      clientToken.policyIds = [policy.id];
+      clientToken.save();
+
+      window.localStorage.nomadTokenSecret = clientToken.secretId;
+
+      await visit(`/jobs/${job1.id}@${job1.namespaceId}`);
+      assert.dom('[data-test-fail]').exists().doesNotHaveAttribute('disabled');
+      assert
+        .dom('[data-test-promote-canary]')
+        .exists()
+        .doesNotHaveAttribute('disabled');
+
+      await visit(`/jobs/${job2.id}@${job2.namespaceId}`);
+      assert.dom('[data-test-fail]').exists().doesNotHaveAttribute('disabled');
+      assert.dom('[data-test-promote-canary]').doesNotExist();
+
+      await visit(`/jobs/${job3.id}@${job3.namespaceId}`);
+      assert.dom('[data-test-fail]').doesNotExist();
+      assert
+        .dom('[data-test-promote-canary]')
+        .exists()
+        .doesNotHaveAttribute('disabled');
     });
   });
 });

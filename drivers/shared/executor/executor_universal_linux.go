@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 //go:build linux
@@ -17,40 +17,39 @@ import (
 	"github.com/hashicorp/nomad/client/lib/nsutil"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/opencontainers/runc/libcontainer/cgroups"
+	"github.com/opencontainers/cgroups"
 	"golang.org/x/sys/unix"
-)
-
-const (
-	// memoryNoLimit is a sentinel value for memory_max that indicates the
-	// raw_exec driver should not enforce a maximum memory limit
-	memoryNoLimit = -1
 )
 
 // setSubCmdCgroup sets the cgroup for non-Task child processes of the
 // executor.Executor (since in cg2 it lives outside the task's cgroup)
 func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(), error) {
+
+	// no extra setup needed for cg v1 or when cgroups are "off"
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF, cgroupslib.CG1:
+		return func() {}, nil
+	default:
+		// continue for cg v2
+	}
+
 	if cgroup == "" {
-		panic("cgroup must be set")
+		return nil, fmt.Errorf("error setting up exec subcommand: %w", ErrCgroupMustBeSet)
+	}
+
+	fd, cleanup, err := e.statCG(cgroup)
+	if err != nil {
+		return nil, err
 	}
 
 	// make sure attrs struct has been set
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = new(syscall.SysProcAttr)
 	}
+	cmd.SysProcAttr.UseCgroupFD = true
+	cmd.SysProcAttr.CgroupFD = fd
 
-	switch cgroupslib.GetMode() {
-	case cgroupslib.CG2:
-		fd, cleanup, err := e.statCG(cgroup)
-		if err != nil {
-			return nil, err
-		}
-		cmd.SysProcAttr.UseCgroupFD = true
-		cmd.SysProcAttr.CgroupFD = fd
-		return cleanup, nil
-	default:
-		return func() {}, nil
-	}
+	return cleanup, nil
 }
 
 func (e *UniversalExecutor) ListProcesses() set.Collection[procstats.ProcessID] {
@@ -93,11 +92,8 @@ func (e *UniversalExecutor) configureResourceContainer(
 ) (runningFunc, cleanupFunc, error) {
 	cgroup := command.StatsCgroup()
 
-	// ensure tasks get the desired oom_score_adj value set
-	if err := e.setOomAdj(command.OOMScoreAdj); err != nil {
-		return nil, nil, err
-	}
-
+	// we specify these return funcs as empty but non-nil,
+	// because callers may call them even if this function errors.
 	// deleteCgroup will be called after the task has been launched
 	// v1: remove the executor process from the task's cgroups
 	// v2: let go of the file descriptor of the task's cgroup
@@ -106,6 +102,11 @@ func (e *UniversalExecutor) configureResourceContainer(
 		moveProcess  = func() error { return nil }
 	)
 
+	// ensure tasks get the desired oom_score_adj value set
+	if err := e.setOomAdj(command.OOMScoreAdj); err != nil {
+		return moveProcess, deleteCgroup, err
+	}
+
 	// manually configure cgroup for cpu / memory constraints
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
@@ -113,9 +114,10 @@ func (e *UniversalExecutor) configureResourceContainer(
 			return moveProcess, deleteCgroup, err
 		}
 		moveProcess, deleteCgroup = e.enterCG1(cgroup, command.CpusetCgroup())
+
 	case cgroupslib.OFF:
-		deleteCgroup = func() {}
-		moveProcess = func() error { return nil }
+		// do nothing
+
 	default:
 		e.configureCG2(cgroup, command)
 		// configure child process to spawn in the cgroup
@@ -199,11 +201,11 @@ func (e *UniversalExecutor) configureCG1(cgroup string, command *ExecCommand) er
 	}
 
 	// write memory limits
-	memHard, memSoft := e.computeMemory(command)
+	memHard, memReserved := memoryLimits(command.Resources.NomadResources.Memory)
 	ed := cgroupslib.OpenFromFreezerCG1(cgroup, "memory")
 	_ = ed.Write("memory.limit_in_bytes", strconv.FormatInt(memHard, 10))
-	if memSoft > 0 {
-		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memSoft, 10))
+	if memReserved > 0 {
+		_ = ed.Write("memory.soft_limit_in_bytes", strconv.FormatInt(memReserved, 10))
 	}
 
 	// write memory swappiness
@@ -235,16 +237,16 @@ func (e *UniversalExecutor) configureCG2(cgroup string, command *ExecCommand) {
 	}
 
 	// write memory cgroup files
-	memHard, memSoft := e.computeMemory(command)
+	memHard, memReserved := memoryLimits(command.Resources.NomadResources.Memory)
 	ed := cgroupslib.OpenPath(cgroup)
-	if memHard == memoryNoLimit {
+	if memHard == MemoryNoLimit {
 		_ = ed.Write("memory.max", "max")
 	} else {
 		_ = ed.Write("memory.max", strconv.FormatInt(memHard, 10))
 	}
-	if memSoft > 0 {
+	if memReserved > 0 {
 		ed = cgroupslib.OpenPath(cgroup)
-		_ = ed.Write("memory.low", strconv.FormatInt(memSoft, 10))
+		_ = ed.Write("memory.low", strconv.FormatInt(memReserved, 10))
 	}
 
 	// set memory swappiness
@@ -275,31 +277,6 @@ func (*UniversalExecutor) computeCPU(command *ExecCommand) uint64 {
 	cpuShares := command.Resources.LinuxResources.CPUShares
 	cpuWeight := cgroups.ConvertCPUSharesToCgroupV2Value(uint64(cpuShares))
 	return cpuWeight
-}
-
-func mbToBytes(n int64) int64 {
-	return n * 1024 * 1024
-}
-
-// computeMemory returns the hard and soft memory limits for the task
-func (*UniversalExecutor) computeMemory(command *ExecCommand) (int64, int64) {
-	mem := command.Resources.NomadResources.Memory
-	memHard, memSoft := mem.MemoryMaxMB, mem.MemoryMB
-
-	switch memHard {
-	case 0:
-		// typical case where 'memory' is the hard limit
-		memHard = mem.MemoryMB
-		return mbToBytes(memHard), 0
-	case memoryNoLimit:
-		// special oversub case where 'memory' is soft limit and there is no
-		// hard limit - helping re-create old raw_exec behavior
-		return memoryNoLimit, mbToBytes(memSoft)
-	default:
-		// typical oversub case where 'memory' is soft limit and 'memory_max'
-		// is hard limit
-		return mbToBytes(memHard), mbToBytes(memSoft)
-	}
 }
 
 // withNetworkIsolation calls the passed function the network namespace `spec`

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -52,7 +52,7 @@ export default class CodeMirrorModifier extends Modifier {
     this.args.named.onUpdate(
       editor.getValue(),
       this._editor,
-      this.args.named.type
+      this.args.named.type,
     );
   }
 

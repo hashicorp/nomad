@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -126,7 +126,7 @@ func (n *Nodes) UpdateDrain(nodeID string, spec *DrainSpec, markEligible bool, q
 	return resp, err
 }
 
-// UpdateDrainWithMeta is used to update the drain strategy for a given node. If
+// UpdateDrainOpts is used to update the drain strategy for a given node. If
 // markEligible is true and the drain is being removed, the node will be marked
 // as having its scheduling being eligible
 func (n *Nodes) UpdateDrainOpts(nodeID string, opts *DrainOptions, q *WriteOptions) (*NodeDrainUpdateResponse,
@@ -478,7 +478,7 @@ func (n *Nodes) GC(nodeID string, q *QueryOptions) error {
 	return err
 }
 
-// TODO Add tests
+// GcAlloc - TODO Add tests
 func (n *Nodes) GcAlloc(allocID string, q *QueryOptions) error {
 	path := fmt.Sprintf("/v1/client/allocation/%s/gc", allocID)
 	_, err := n.client.query(path, nil, q)
@@ -542,14 +542,19 @@ type DrainMetadata struct {
 
 // Node is used to deserialize a node entry.
 type Node struct {
-	ID                    string
-	Datacenter            string
-	Name                  string
-	HTTPAddr              string
-	TLSEnabled            bool
-	Attributes            map[string]string
-	Resources             *Resources
-	Reserved              *Resources
+	ID         string
+	Datacenter string
+	Name       string
+	HTTPAddr   string
+	TLSEnabled bool
+	Attributes map[string]string
+
+	// DEPRECATED: will be removed in Nomad 1.12.0. Use NodeResources.
+	Resources *Resources
+
+	// DEPRECATED: will be removed in Nomad 1.12.0. Use ReservedResources.
+	Reserved *Resources
+
 	NodeResources         *NodeResources
 	ReservedResources     *NodeReservedResources
 	Links                 map[string]string
@@ -566,12 +571,14 @@ type Node struct {
 	Events                []*NodeEvent
 	Drivers               map[string]*DriverInfo
 	HostVolumes           map[string]*HostVolumeInfo
+	GCVolumesOnNodeGC     bool
 	HostNetworks          map[string]*HostNetworkInfo
 	CSIControllerPlugins  map[string]*CSIInfo
 	CSINodePlugins        map[string]*CSIInfo
 	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
+	NodeMaxAllocs         int
 }
 
 type NodeResources struct {

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package benchmarks
@@ -15,8 +15,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/helper/raftutil"
-	"github.com/hashicorp/nomad/scheduler"
-	"github.com/stretchr/testify/require"
+	"github.com/hashicorp/nomad/scheduler/tests"
+	"github.com/shoenig/test/must"
 )
 
 // NewBenchmarkingHarness creates a starting test harness with state
@@ -25,27 +25,27 @@ import (
 // - NOMAD_BENCHMARK_DATADIR: path to data directory
 // - NOMAD_BENCHMARK_SNAPSHOT: path to raft snapshot
 // - neither: empty starting state
-func NewBenchmarkingHarness(t testing.TB) *scheduler.Harness {
+func NewBenchmarkingHarness(t testing.TB) *tests.Harness {
 	// create the Harness and starting state.
 	datadir := os.Getenv("NOMAD_BENCHMARK_DATADIR")
 	if datadir != "" {
 		h, err := NewHarnessFromDataDir(t, datadir)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		return h
 	} else {
 		snapshotPath := os.Getenv("NOMAD_BENCHMARK_SNAPSHOT")
 		if snapshotPath != "" {
 			h, err := NewHarnessFromSnapshot(t, snapshotPath)
-			require.NoError(t, err)
+			must.NoError(t, err)
 			return h
 		}
 	}
-	return scheduler.NewHarness(t)
+	return tests.NewHarness(t)
 }
 
 // NewHarnessFromDataDir creates a new scheduler test harness with
 // state loaded from an existing datadir.
-func NewHarnessFromDataDir(t testing.TB, datadirPath string) (*scheduler.Harness, error) {
+func NewHarnessFromDataDir(t testing.TB, datadirPath string) (*tests.Harness, error) {
 	if datadirPath == "" {
 		return nil, errors.New("datadir path was not set")
 	}
@@ -58,12 +58,12 @@ func NewHarnessFromDataDir(t testing.TB, datadirPath string) (*scheduler.Harness
 		return nil, err
 	}
 
-	return scheduler.NewHarnessWithState(t, fsm.State()), nil
+	return tests.NewHarnessWithState(t, fsm.State()), nil
 }
 
 // NewHarnessFromDataDir creates a new harness with state loaded
 // from an existing raft snapshot.
-func NewHarnessFromSnapshot(t testing.TB, snapshotPath string) (*scheduler.Harness, error) {
+func NewHarnessFromSnapshot(t testing.TB, snapshotPath string) (*tests.Harness, error) {
 	if snapshotPath == "" {
 		return nil, errors.New("snapshot path was not set")
 	}
@@ -78,5 +78,5 @@ func NewHarnessFromSnapshot(t testing.TB, snapshotPath string) (*scheduler.Harne
 		return nil, err
 	}
 
-	return scheduler.NewHarnessWithState(t, state), nil
+	return tests.NewHarnessWithState(t, state), nil
 }

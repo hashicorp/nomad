@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -101,14 +101,7 @@ prod-1  <none>`,
 				"-filter", `Name == "prod-1"`,
 			},
 			expectedOut: `
-[
-    {
-        "Description": "",
-        "Meta": null,
-        "Name": "prod-1",
-        "SchedulerConfiguration": null
-    }
-]`,
+"NodeIdentityTTL":"24h0m0s","Name":"prod-1","Description":"","Meta":null,"SchedulerConfiguration":null`,
 			expectedCode: 0,
 		},
 		{
@@ -122,7 +115,7 @@ prod-1  <none>`,
 		{
 			name:         "fail because of arg",
 			args:         []string{"invalid"},
-			expectedErr:  "This command takes no arguments",
+			expectedErr:  uiMessageNoArguments,
 			expectedCode: 1,
 		},
 		{

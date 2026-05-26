@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -22,7 +22,7 @@ export default class DeploymentAdapter extends Watchable {
     const id = deployment.get('id');
     const url = urlForAction(
       this.urlForFindRecord(id, 'deployment'),
-      '/promote'
+      '/promote',
     );
     return this.ajax(url, 'POST', {
       data: {

@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 schema = "1"
@@ -7,7 +7,7 @@ project "nomad" {
   team = "nomad"
 
   slack {
-    notification_channel = "C03B5EWFW01"
+    notification_channel = "C09LCJBBNE5" #feed-nomad-releases
   }
 
   github {

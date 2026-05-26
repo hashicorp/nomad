@@ -1,0 +1,3 @@
+```release-note:improvement
+acl: Added fine-grained ACL capabilities for saving snapshots and reading the Enterprise license
+```

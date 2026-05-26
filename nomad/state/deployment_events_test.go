@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -30,7 +30,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx, nil))
 	must.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()

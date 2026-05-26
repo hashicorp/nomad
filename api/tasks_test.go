@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -344,9 +344,35 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 		{
 			name: "empty",
 			task: &Task{
-				Lifecycle: &TaskLifecycle{},
+				Lifecycle: nil,
 			},
 			expected: nil,
+		},
+		{
+			name: "missing hook",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{},
+			},
+			expected: &TaskLifecycle{},
+		},
+		{
+			name: "with sidecar",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{
+					Sidecar: true,
+				},
+			},
+			expected: &TaskLifecycle{Sidecar: true},
+		},
+		{
+			name: "valid",
+			task: &Task{
+				Lifecycle: &TaskLifecycle{
+					Hook:    "prestart",
+					Sidecar: true,
+				},
+			},
+			expected: &TaskLifecycle{Hook: "prestart", Sidecar: true},
 		},
 	}
 
@@ -478,6 +504,29 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 			must.Eq(t, tc.expected, tc.input)
 		})
 	}
+}
+
+func TestTask_Canonicalize_Secret(t *testing.T) {
+	testutil.Parallel(t)
+
+	testSecret := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config:   make(map[string]any),
+		Env:      make(map[string]string),
+	}
+
+	expected := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config:   nil,
+		Env:      nil,
+	}
+
+	testSecret.Canonicalize()
+	must.Eq(t, expected, testSecret)
 }
 
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132

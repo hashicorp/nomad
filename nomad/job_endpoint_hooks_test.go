@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -9,12 +9,39 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
+
+func Test_jobValidate_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("error if task group count exceeds job_max_count", func(t *testing.T) {
+		impl := jobValidate{srv: &Server{config: &Config{JobMaxCount: 10, JobMaxPriority: 100}}}
+		job := mock.Job()
+		job.TaskGroups[0].Count = 11
+		_, err := impl.Validate(job)
+		must.ErrorContains(t, err, "total count was greater than configured job_max_count: 11 > 10")
+	})
+
+	t.Run("no error if task group count equals job_max_count", func(t *testing.T) {
+		impl := jobValidate{srv: &Server{config: &Config{JobMaxCount: 10, JobMaxPriority: 100}}}
+		job := mock.Job()
+		job.TaskGroups[0].Count = 10
+		_, err := impl.Validate(job)
+		must.NoError(t, err)
+	})
+
+	t.Run("no error if job_max_count is zero (i.e. unlimited)", func(t *testing.T) {
+		impl := jobValidate{srv: &Server{config: &Config{JobMaxCount: 0, JobMaxPriority: 100}}}
+		job := mock.Job()
+		job.TaskGroups[0].Count = structs.JobDefaultMaxCount + 1
+		_, err := impl.Validate(job)
+		must.NoError(t, err)
+	})
+}
 
 func Test_jobValidate_Validate_consul_service(t *testing.T) {
 	ci.Parallel(t)
@@ -47,7 +74,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					structs.ConsulDefaultCluster: {
 						ServiceIdentity: &config.WorkloadIdentityConfig{
 							Audience: []string{"consul.io"},
-							TTL:      pointer.Of(time.Hour),
+							TTL:      new(time.Hour),
 						},
 					},
 				},
@@ -103,6 +130,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 			job := mock.Job()
 			job.TaskGroups[0].Services = []*structs.Service{tc.inputService}
 			job.TaskGroups[0].Tasks[0].Services = []*structs.Service{tc.inputService}
+			job.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
 
 			warns, err := impl.Validate(job)
 
@@ -149,7 +177,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				structs.VaultDefaultCluster: {
 					DefaultIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"vault.io"},
-						TTL:      pointer.Of(time.Hour),
+						TTL:      new(time.Hour),
 					},
 				},
 			},
@@ -165,7 +193,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				"other": {
 					DefaultIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"vault.io"},
-						TTL:      pointer.Of(time.Hour),
+						TTL:      new(time.Hour),
 					},
 				},
 			},
@@ -231,6 +259,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 
 			job := mock.Job()
 			task := job.TaskGroups[0].Tasks[0]
+			task.ShutdownDelay = time.Minute
 
 			task.Identities = tc.inputTaskIdentities
 			task.Vault = tc.inputTaskVault
@@ -1279,6 +1308,122 @@ func Test_jobImpliedConstraints_Mutate(t *testing.T) {
 			},
 			expectedOutputWarnings: nil,
 			expectedOutputError:    nil,
+		},
+		{
+			name: "task with secret",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-secret",
+						Tasks: []*structs.Task{
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "test",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-secret",
+						Tasks: []*structs.Task{
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "test",
+									},
+								},
+							},
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${attr.plugins.secrets.test.version}",
+								Operand: structs.ConstraintAttributeIsSet,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "tasks with overlapping secrets",
+			inputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-secret",
+						Tasks: []*structs.Task{
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "foo",
+									},
+								},
+							},
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "foo",
+									},
+									{
+										Provider: "bar",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				Name: "example",
+				TaskGroups: []*structs.TaskGroup{
+					{
+						Name: "group-with-secret",
+						Tasks: []*structs.Task{
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "foo",
+									},
+								},
+							},
+							{
+								Name: "task-with-secret",
+								Secrets: []*structs.Secret{
+									{
+										Provider: "foo",
+									},
+									{
+										Provider: "bar",
+									},
+								},
+							},
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${attr.plugins.secrets.foo.version}",
+								Operand: structs.ConstraintAttributeIsSet,
+							},
+							{
+								LTarget: "${attr.plugins.secrets.bar.version}",
+								Operand: structs.ConstraintAttributeIsSet,
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 

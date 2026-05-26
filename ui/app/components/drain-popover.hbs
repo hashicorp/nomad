@@ -1,0 +1,135 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{! template-lint-disable require-input-label }}
+<PopoverMenu
+  data-test-drain-popover
+  @isDisabled={{this.isDisabled}}
+  @label={{if this.client.isDraining "Update Drain" "Drain"}}
+  @tooltip={{if this.isDisabled "Not allowed to drain clients"}}
+  @triggerClass={{concat
+    "is-small "
+    (if this.drain.isRunning "is-loading ")
+    (if this.isDisabled "tooltip is-right-aligned")
+  }}
+  as |m|
+>
+  <form
+    data-test-drain-popover-form
+    {{on
+      "submit"
+      (queue this.preventDefault (perform this.drain m.actions.close))
+    }}
+    class="form is-small"
+  >
+    <h4 class="group-heading">Drain Options</h4>
+    <div class="field">
+      <label class="label is-interactive">
+        <Toggle
+          data-test-drain-deadline-toggle
+          @isActive={{this.deadlineEnabled}}
+          @onToggle={{pick "target.checked" (fn (mut this.deadlineEnabled))}}
+        >
+          Deadline
+        </Toggle>
+        <span
+          class="tooltip multiline"
+          aria-label="The amount of time a drain must complete within."
+        >
+          <Hds::Icon @name="info" @color="faint" @isInline={{true}} />
+        </span>
+      </label>
+    </div>
+    {{#if this.deadlineEnabled}}
+      <div
+        class="field is-sub-field"
+        data-test-drain-deadline-option-select-parent
+      >
+        <PowerSelect
+          data-test-drain-deadline-option-select
+          @ariaLabel="label-drain-deadline-option-select"
+          @ariaLabelledBy="label-drain-deadline-option-select"
+          @tagName="div"
+          @options={{this.durationQuickOptions}}
+          @selected={{this.selectedDurationQuickOption}}
+          @onChange={{fn (mut this.selectedDurationQuickOption)}}
+          as |opt|
+        >
+          {{opt.label}}
+        </PowerSelect>
+      </div>
+      {{#if this.durationIsCustom}}
+        <div class="field is-sub-field">
+          <label class="label" for="drain-custom-deadline-input">Deadline</label>
+          <input
+            id="drain-custom-deadline-input"
+            data-test-drain-custom-deadline
+            type="text"
+            class="input {{if this.parseError 'is-danger'}}"
+            placeholder="1h30m"
+            value={{if (eq this.customDuration 0) "" this.customDuration}}
+            oninput={{queue
+              (fn (mut this.parseError) "")
+              (pick "target.value" (fn (mut this.customDuration)))
+            }}
+          />
+          {{#if this.parseError}}
+            <em class="help is-danger">{{this.parseError}}</em>
+          {{/if}}
+        </div>
+      {{/if}}
+    {{/if}}
+    <div class="field">
+      <label class="label is-interactive">
+        <Toggle
+          data-test-force-drain-toggle
+          @isActive={{this.forceDrain}}
+          @onToggle={{pick "target.checked" (fn (mut this.forceDrain))}}
+        >
+          Force Drain
+        </Toggle>
+        <span
+          class="tooltip multiline"
+          aria-label="Immediately remove allocations from the client."
+        >
+          <Hds::Icon @name="info" @color="faint" @isInline={{true}} />
+        </span>
+      </label>
+    </div>
+    <div class="field">
+      <label class="label is-interactive">
+        <Toggle
+          data-test-system-jobs-toggle
+          @isActive={{this.drainSystemJobs}}
+          @onToggle={{pick "target.checked" (fn (mut this.drainSystemJobs))}}
+        >
+          Drain System Jobs
+        </Toggle>
+        <span
+          class="tooltip multiline"
+          aria-label="Stop allocations for system jobs."
+        >
+          <Hds::Icon @name="info" @color="faint" @isInline={{true}} />
+        </span>
+      </label>
+    </div>
+    <div class="popover-actions">
+      <button
+        data-test-drain-submit
+        type="button"
+        class="popover-action is-primary"
+        {{on "click" (perform this.drain m.actions.close)}}
+      >
+        Drain
+      </button>
+      <button
+        data-test-drain-cancel
+        type="button"
+        class="popover-action"
+        {{on "click" m.actions.close}}
+      >Cancel</button>
+    </div>
+  </form>
+</PopoverMenu>

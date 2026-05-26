@@ -1,0 +1,3 @@
+```release-note:bug
+config: Fixed a bug where the keyring block could only be specified a maximum of two times
+```

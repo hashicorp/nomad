@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -161,7 +161,7 @@ func TestSetQueryOptions(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	r, _ := c.newRequest("GET", "/v1/jobs")
+	r, _ := c.newRequest("GET", "/v1/jobs?format=baz")
 	q := &QueryOptions{
 		Region:     "foo",
 		Namespace:  "bar",
@@ -188,6 +188,7 @@ func TestSetQueryOptions(t *testing.T) {
 	try("index", "1000")
 	try("wait", "100000ms")
 	try("reverse", "true")
+	try("format", "baz")
 }
 
 func TestQueryOptionsContext(t *testing.T) {

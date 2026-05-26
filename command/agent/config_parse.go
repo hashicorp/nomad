@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -11,15 +11,17 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/ipaddr"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/mitchellh/mapstructure"
 )
 
 // ParseConfigFile returns an agent.Config from parsed from a file.
@@ -53,6 +55,7 @@ func ParseConfigFile(path string) (*Config, error) {
 			},
 		},
 		Server: &ServerConfig{
+			ClientIntroduction:   &ClientIntroduction{},
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
 		},
@@ -188,10 +191,31 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"rpc.connection_write_timeout", &c.RPC.ConnectionWriteTimeout, &c.RPC.ConnectionWriteTimeoutHCL, nil},
 		{"rpc.stream_open_timeout", &c.RPC.StreamOpenTimeout, &c.RPC.StreamOpenTimeoutHCL, nil},
 		{"rpc.stream_close_timeout", &c.RPC.StreamCloseTimeout, &c.RPC.StreamCloseTimeoutHCL, nil},
+		{"rpc.dial_timeout", &c.RPC.DialTimeout, &c.RPC.DialTimeoutHCL, nil},
+		{
+			"server.client_introduction.default_identity_ttl",
+			&c.Server.ClientIntroduction.DefaultIdentityTTL,
+			&c.Server.ClientIntroduction.DefaultIdentityTTLHCL,
+			nil,
+		},
+		{
+			"server.client_introduction.max_identity_ttl",
+			&c.Server.ClientIntroduction.MaxIdentityTTL,
+			&c.Server.ClientIntroduction.MaxIdentityTTLHCL,
+			nil,
+		},
 	}
 
-	// Parse durations for Consul and Vault config blocks if provided.
+	// Parse durations and env tokens for Consul config blocks if provided
 	for _, consulConfig := range c.Consuls {
+
+		if consulConfig.Token == "" {
+			// The default consul config looks for "CONSUL_HTTP_TOKEN". Here we allow for cluster
+			// specific tokens by looking for a consul token env with the cluster name as a suffix.
+			if token := os.Getenv(fmt.Sprintf("CONSUL_HTTP_TOKEN_%s", consulConfig.Name)); token != "" {
+				consulConfig.Token = token
+			}
+		}
 
 		if consulConfig.ServiceIdentity != nil {
 			tds = append(tds, durationConversionMap{
@@ -212,6 +236,7 @@ func ParseConfigFile(path string) (*Config, error) {
 		}
 	}
 
+	// Parse durations for Vault config blocks if provided.
 	for _, vaultConfig := range c.Vaults {
 
 		if vaultConfig.DefaultIdentity != nil {
@@ -228,6 +253,12 @@ func ParseConfigFile(path string) (*Config, error) {
 	for i, sink := range c.Audit.Sinks {
 		tds = append(tds, durationConversionMap{
 			fmt.Sprintf("audit.sink.%d", i), &sink.RotateDuration, &sink.RotateDurationHCL, nil})
+	}
+
+	// Add fingerprint retry_interval for time.Duration parsing
+	for _, fp := range c.Client.Fingerprinters {
+		tds = append(tds, durationConversionMap{
+			fmt.Sprintf("client.fingerprint.%s.retry_interval", fp.Name), &fp.RetryInterval, &fp.RetryIntervalHCL, nil})
 	}
 
 	// convert strings to time.Durations
@@ -347,9 +378,13 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
-	helper.RemoveEqualFold(&c.ExtraKeysHCL, "keyring")
+	// The `keyring` blocks are parsed separately from the Decode method, as we
+	// support multiple entries. The decoder will put the "keyring" key in the
+	// ExtraKeysHCL slice, so we need to remove it here.
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return strings.EqualFold(s, "keyring") })
+
 	for _, provider := range c.KEKProviders {
-		helper.RemoveEqualFold(&c.ExtraKeysHCL, provider.Provider)
+		helper.RemoveEqualFold(&c.ExtraKeysHCL, provider.Provider.String())
 	}
 
 	// Remove reporting extra keys
@@ -359,6 +394,22 @@ func extraKeys(c *Config) error {
 	// will incorrectly report them as extra keys, of which there may be multiple
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
+
+	// When using JSON object format (vs array format) for consul/vault blocks,
+	// HCL1 also leaks the sub-block keys to the top-level ExtraKeysHCL.
+	for _, k := range []string{"service_identity", "task_identity", "default_identity"} {
+		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
+	}
+
+	// The fingerprinter labels will be added to the ExtraKeysHCL slice by
+	// hcl.Decode, so we need to remove them here.
+	//
+	// When parsing JSON, each block will also add "fingerprint" to the
+	// ExtraKeysHCL slice, so we need to remove that as well.
+	for _, p := range c.Client.Fingerprinters {
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, p.Name)
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "fingerprint")
+	}
 
 	if len(c.ExtraKeysHCL) == 0 {
 		c.ExtraKeysHCL = nil
@@ -434,6 +485,10 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			c.Vaults = append(c.Vaults, v)
 		}
 
+		for _, conf := range c.Vaults {
+			conf.Addr = ipaddr.NormalizeAddr(conf.Addr)
+		}
+
 		// Decode the default identity.
 		var listVal *ast.ObjectList
 		if ot, ok := obj.Val.(*ast.ObjectType); ok {
@@ -503,6 +558,11 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 		if !consulFound {
 			c.Consuls = append(c.Consuls, cc)
+		}
+
+		for _, conf := range c.Consuls {
+			conf.Addr = ipaddr.NormalizeAddr(conf.Addr)
+			conf.GRPCAddr = ipaddr.NormalizeAddr(conf.GRPCAddr)
 		}
 
 		// decode service and template identity blocks

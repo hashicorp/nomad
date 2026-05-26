@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -19,7 +19,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -78,7 +77,7 @@ func TestHTTP_OperatorRaftTransferLeadership(t *testing.T) {
 	ci.Parallel(t)
 	configCB := func(c *Config) {
 		c.Client.Enabled = false
-		c.Server.NumSchedulers = pointer.Of(0)
+		c.Server.NumSchedulers = new(0)
 	}
 
 	httpTest(t, configCB, func(s *TestAgent) {
@@ -496,6 +495,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 {
   "MemoryOversubscriptionEnabled": true,
   "PauseEvalBroker": true,
+  "NodeLimitForFeasibilityChecks": 123,
   "PreemptionConfig": {
     "SystemSchedulerEnabled": true,
     "ServiceSchedulerEnabled": true
@@ -525,6 +525,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 		require.True(t, reply.SchedulerConfig.PreemptionConfig.ServiceSchedulerEnabled)
 		require.True(t, reply.SchedulerConfig.MemoryOversubscriptionEnabled)
 		require.True(t, reply.SchedulerConfig.PauseEvalBroker)
+		require.Equal(t, reply.SchedulerConfig.GetNodeLimitForFeasibilityChecks(), uint(123))
 	})
 }
 
@@ -702,7 +703,7 @@ func TestOperator_SnapshotRequests(t *testing.T) {
 func TestOperator_UpgradeCheckRequest_VaultWorkloadIdentity(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, func(c *Config) {
-		c.Vaults[0].Enabled = pointer.Of(true)
+		c.Vaults[0].Enabled = new(true)
 		c.Vaults[0].Name = "default"
 	}, func(s *TestAgent) {
 		// Create a test job with a Vault block but without an identity.

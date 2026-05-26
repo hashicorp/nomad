@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -57,9 +56,9 @@ func TestStopCommand_multi(t *testing.T) {
 
 	for _, jobID := range jobIDs {
 		job := testJob(jobID)
-		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
-		job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
-		job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
+		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = new(16)
+		job.TaskGroups[0].Tasks[0].Resources.DiskMB = new(32)
+		job.TaskGroups[0].Tasks[0].Resources.CPU = new(10)
 		job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
 			"run_for": "30s",
 		}

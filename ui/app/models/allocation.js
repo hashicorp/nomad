@@ -1,15 +1,15 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { computed } from '@ember/object';
 import { equal, none } from '@ember/object/computed';
 import Model from '@ember-data/model';
 import { attr, belongsTo, hasMany } from '@ember-data/model';
 import { fragment, fragmentArray } from 'ember-data-model-fragments/attributes';
-import isEqual from 'lodash.isequal';
+import isEqual from 'fast-deep-equal';
 import intersection from 'lodash.intersection';
 import shortUUIDProperty from '../utils/properties/short-uuid';
 import classic from 'ember-classic-decorator';
@@ -23,14 +23,16 @@ const STATUS_ORDER = {
   lost: 6,
 };
 
+const NANOSECONDS_IN_MILLISECOND = 1000000;
+
 @classic
 export default class Allocation extends Model {
   @service token;
   @service store;
 
   @shortUUIDProperty('id') shortId;
-  @belongsTo('job') job;
-  @belongsTo('node') node;
+  @belongsTo('job', { async: true, inverse: 'allocations' }) job;
+  @belongsTo('node', { async: true, inverse: 'allocations' }) node;
   @attr('string') namespace;
   @attr('string') nodeID;
   @attr('string') name;
@@ -80,11 +82,10 @@ export default class Allocation extends Model {
     return this.get('followUpEvaluation.content');
   }
 
+  @computed('states.@each.hasRestartingEvent')
   get hasBeenRestarted() {
-    return this.states
-      .map((s) => s.events?.content)
-      .flat()
-      .find((e) => e?.type === 'Restarting');
+    const states = this.states?.toArray?.() || this.states || [];
+    return states.some((state) => state?.hasRestartingEvent);
   }
 
   @attr healthChecks;
@@ -123,16 +124,18 @@ export default class Allocation extends Model {
 
   // When allocations are server-side rescheduled, a paper trail
   // is left linking all reschedule attempts.
-  @belongsTo('allocation', { inverse: 'nextAllocation' }) previousAllocation;
-  @belongsTo('allocation', { inverse: 'previousAllocation' }) nextAllocation;
+  @belongsTo('allocation', { async: true, inverse: 'nextAllocation' })
+  previousAllocation;
+  @belongsTo('allocation', { async: true, inverse: 'previousAllocation' })
+  nextAllocation;
 
-  @hasMany('allocation', { inverse: 'preemptedByAllocation' })
+  @hasMany('allocation', { async: true, inverse: 'preemptedByAllocation' })
   preemptedAllocations;
-  @belongsTo('allocation', { inverse: 'preemptedAllocations' })
+  @belongsTo('allocation', { async: true, inverse: 'preemptedAllocations' })
   preemptedByAllocation;
   @attr('boolean') wasPreempted;
 
-  @belongsTo('evaluation') followUpEvaluation;
+  @belongsTo('evaluation', { async: true, inverse: null }) followUpEvaluation;
 
   @computed('clientStatus')
   get statusClass() {
@@ -155,7 +158,10 @@ export default class Allocation extends Model {
 
   @computed('isOld', 'jobTaskGroup', 'allocationTaskGroup')
   get taskGroup() {
-    if (!this.isOld) return this.jobTaskGroup;
+    if (!this.isOld) {
+      return this.jobTaskGroup;
+    }
+
     return this.allocationTaskGroup;
   }
 
@@ -166,6 +172,48 @@ export default class Allocation extends Model {
   }
 
   @fragment('task-group', { defaultValue: null }) allocationTaskGroup;
+
+  @computed('taskGroup.{hasMaxRunDeadline,maxRunDuration}')
+  get maxRunDuration() {
+    if (!this.taskGroup?.hasMaxRunDeadline) {
+      return null;
+    }
+
+    return this.taskGroup.maxRunDuration;
+  }
+
+  @computed('states.@each.startedAt')
+  get fullyStartedAt() {
+    const states = this.states?.toArray?.() || this.states || [];
+    if (!states.length) {
+      return null;
+    }
+
+    let latest = null;
+    for (const taskState of states) {
+      if (!taskState.startedAt) {
+        return null;
+      }
+
+      if (!latest || taskState.startedAt > latest) {
+        latest = taskState.startedAt;
+      }
+    }
+
+    return latest;
+  }
+
+  @computed('maxRunDuration', 'fullyStartedAt')
+  get maxRunDeadline() {
+    if (!this.maxRunDuration || !this.fullyStartedAt) {
+      return null;
+    }
+
+    return new Date(
+      this.fullyStartedAt.getTime() +
+        this.maxRunDuration / NANOSECONDS_IN_MILLISECOND
+    );
+  }
 
   @computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]')
   get unhealthyDrivers() {
@@ -197,7 +245,7 @@ export default class Allocation extends Model {
   @computed(
     'clientStatus',
     'followUpEvaluation.content',
-    'nextAllocation.content'
+    'nextAllocation.content',
   )
   get hasStoppedRescheduling() {
     return (

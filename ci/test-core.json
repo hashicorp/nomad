@@ -1,9 +1,6 @@
 {
   "nomad": ["nomad"],
-  "client": [
-    "client",
-    "client/allocrunner/..."
-  ],
+  "client": ["client", "client/allocrunner/..."],
   "command": ["command"],
   "drivers": ["drivers/..."],
   "quick": [
@@ -11,6 +8,7 @@
     "client/allocdir/...",
     "client/allochealth/...",
     "client/allocwatcher/...",
+    "client/commonplugins/...",
     "client/config/...",
     "client/consul/...",
     "client/devicemanager/...",
@@ -40,12 +38,16 @@
     "nomad/drainer/...",
     "nomad/reporting/...",
     "nomad/lock/...",
+    "nomad/peers/...",
     "nomad/state/...",
     "nomad/stream/...",
     "nomad/structs/...",
     "nomad/volumewatcher/...",
     "plugins/...",
     "scheduler/...",
+    "scheduler/feasible/...",
+    "scheduler/integration/...",
+    "scheduler/reconciler/...",
     "testutil/..."
   ]
 }

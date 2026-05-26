@@ -1,25 +1,26 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class DispatchRoute extends Route {
-  @service can;
+  @service abilities;
+  @service router;
 
   beforeModel() {
     const job = this.modelFor('jobs.job');
     const namespace = job.namespace.get('name');
-    if (this.can.cannot('dispatch job', null, { namespace })) {
-      this.transitionTo('jobs.job');
+    if (this.abilities.cannot('dispatch job', null, { namespace })) {
+      this.router.transitionTo('jobs.job');
     }
   }
 
   model() {
     const job = this.modelFor('jobs.job');
-    if (!job) return this.transitionTo('jobs.job');
+    if (!job) return this.router.transitionTo('jobs.job');
     return job;
   }
 }

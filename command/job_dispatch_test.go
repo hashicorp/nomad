@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
@@ -309,4 +310,152 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestJobDispatchCommand_ComputeDeploymentStates(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a mock job with task groups
+	tgName1 := "web"
+	tgName2 := "api"
+	count1 := 3
+	count2 := 2
+
+	job := &api.Job{
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  &tgName1,
+				Count: &count1,
+			},
+			{
+				Name:  &tgName2,
+				Count: &count2,
+			},
+		},
+	}
+
+	// Create mock allocations
+	now := time.Now()
+	later := now.Add(time.Minute)
+
+	allocs := []*api.AllocationListStub{
+		{
+			TaskGroup:    "web",
+			ClientStatus: api.AllocClientStatusRunning,
+			ModifyTime:   now.UnixNano(),
+		},
+		{
+			TaskGroup:    "web",
+			ClientStatus: api.AllocClientStatusRunning,
+			ModifyTime:   later.UnixNano(), // Latest update
+		},
+		{
+			TaskGroup:    "web",
+			ClientStatus: api.AllocClientStatusFailed,
+			ModifyTime:   now.UnixNano(),
+		},
+		{
+			TaskGroup:    "api",
+			ClientStatus: api.AllocClientStatusRunning,
+			ModifyTime:   now.UnixNano(),
+		},
+		{
+			TaskGroup:    "api",
+			ClientStatus: api.AllocClientStatusPending,
+			ModifyTime:   now.UnixNano(),
+		},
+	}
+
+	// Compute deployment states
+	states := computeDispatchedJobStates(job, allocs)
+
+	// Verify web task group
+	must.NotNil(t, states["web"])
+	must.Eq(t, 3, states["web"].DesiredTotal)
+	must.Eq(t, 3, states["web"].PlacedAllocs)
+	// Progress deadline should be the latest update time
+	must.True(t, states["web"].RequireProgressBy.Equal(later))
+
+	// Verify api task group
+	must.NotNil(t, states["api"])
+	must.Eq(t, 2, states["api"].DesiredTotal)
+	must.Eq(t, 2, states["api"].PlacedAllocs)
+	must.True(t, states["api"].RequireProgressBy.Equal(now))
+}
+
+func TestJobDispatchCommand_ComputeDeploymentStates_NoAllocations(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a mock job with task groups
+	tgName := "web"
+	count := 3
+
+	job := &api.Job{
+		TaskGroups: []*api.TaskGroup{
+			{
+				Name:  &tgName,
+				Count: &count,
+			},
+		},
+	}
+
+	// No allocations yet
+	allocs := []*api.AllocationListStub{}
+
+	// Compute deployment states
+	states := computeDispatchedJobStates(job, allocs)
+
+	// Verify task group state is initialized but counts are zero
+	must.NotNil(t, states["web"])
+	must.Eq(t, 3, states["web"].DesiredTotal)
+	must.Eq(t, 0, states["web"].PlacedAllocs)
+	must.True(t, states["web"].RequireProgressBy.IsZero())
+}
+
+func TestJobDispatchCommand_ComputeDeploymentStates_MultipleTaskGroups(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a job with multiple task groups
+	tg1Name := "web"
+	tg2Name := "api"
+	tg3Name := "worker"
+	count1 := 5
+	count2 := 3
+	count3 := 2
+
+	job := &api.Job{
+		TaskGroups: []*api.TaskGroup{
+			{Name: &tg1Name, Count: &count1},
+			{Name: &tg2Name, Count: &count2},
+			{Name: &tg3Name, Count: &count3},
+		},
+	}
+
+	now := time.Now()
+	allocs := []*api.AllocationListStub{
+		{TaskGroup: "web", ClientStatus: api.AllocClientStatusRunning, ModifyTime: now.UnixNano()},
+		{TaskGroup: "web", ClientStatus: api.AllocClientStatusRunning, ModifyTime: now.UnixNano()},
+		{TaskGroup: "api", ClientStatus: api.AllocClientStatusRunning, ModifyTime: now.UnixNano()},
+		{TaskGroup: "worker", ClientStatus: api.AllocClientStatusFailed, ModifyTime: now.UnixNano()},
+	}
+
+	states := computeDispatchedJobStates(job, allocs)
+
+	// Verify all task groups are present
+	must.MapLen(t, 3, states)
+	must.NotNil(t, states["web"])
+	must.NotNil(t, states["api"])
+	must.NotNil(t, states["worker"])
+
+	// Verify web group
+	must.Eq(t, 5, states["web"].DesiredTotal)
+	must.Eq(t, 2, states["web"].PlacedAllocs)
+
+	// Verify api group
+	must.Eq(t, 3, states["api"].DesiredTotal)
+	must.Eq(t, 1, states["api"].PlacedAllocs)
+
+	// Verify worker group
+	must.Eq(t, 2, states["worker"].DesiredTotal)
+	must.Eq(t, 1, states["worker"].PlacedAllocs)
 }

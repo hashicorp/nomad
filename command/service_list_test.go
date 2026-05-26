@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -51,7 +51,7 @@ func TestServiceListCommand_Run(t *testing.T) {
 	// Run the command with some random arguments to ensure we are performing
 	// this check.
 	must.One(t, cmd.Run([]string{"-address=" + url, "pretty-please"}))
-	must.StrContains(t, ui.ErrorWriter.String(), "This command takes no arguments")
+	must.StrContains(t, ui.ErrorWriter.String(), uiMessageNoArguments)
 	ui.ErrorWriter.Reset()
 
 	// Create a test job with a Nomad service.

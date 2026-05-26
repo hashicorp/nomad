@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -716,6 +718,81 @@ func TestScoreFitBinPack(t *testing.T) {
 	}
 }
 
+func TestAllocsFit_MaxNodeAllocs(t *testing.T) {
+	ci.Parallel(t)
+	baseAlloc := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     1000,
+						ReservedCores: []uint16{},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+			Shared: AllocatedSharedResources{
+				DiskMB: 5000,
+				Networks: Networks{
+					{
+						Mode:          "host",
+						IP:            "10.0.0.1",
+						ReservedPorts: []Port{{Label: "main", Value: 8000}},
+					},
+				},
+				Ports: AllocatedPorts{
+					{
+						Label:  "main",
+						Value:  8000,
+						HostIP: "10.0.0.1",
+					},
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name        string
+		allocations []*Allocation
+		expectErr   bool
+		maxAllocs   int
+	}{
+		{
+			name:        "happy_path",
+			allocations: []*Allocation{baseAlloc},
+			expectErr:   false,
+			maxAllocs:   2,
+		},
+		{
+			name:        "too many allocs",
+			allocations: []*Allocation{baseAlloc, baseAlloc, baseAlloc},
+			expectErr:   true,
+			maxAllocs:   2,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			n := node2k()
+			n.NodeMaxAllocs = tc.maxAllocs
+			fit, dim, used, err := AllocsFit(n, tc.allocations, nil, false)
+			if !tc.expectErr {
+				must.NoError(t, err)
+				must.True(t, fit)
+				must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+				must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+			} else {
+				must.False(t, fit)
+				must.StrContains(t, dim, "max allocation exceeded")
+				must.ErrorContains(t, err, "plan exceeds max allocation")
+				must.Eq(t, 0, used.Flattened.Cpu.CpuShares)
+				must.Eq(t, 0, used.Flattened.Memory.MemoryMB)
+			}
+		})
+	}
+}
 func TestACLPolicyListHash(t *testing.T) {
 	ci.Parallel(t)
 
@@ -891,14 +968,16 @@ func TestVaultNamespaceSet(t *testing.T) {
 	require.ElementsMatch(t, expected, got)
 }
 
-// TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges.
+// TestParsePortRanges asserts ParsePortRanges errors on invalid port ranges and
+// returns the expected values
 func TestParsePortRanges(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		name string
-		spec string
-		err  string
+		name   string
+		spec   string
+		expect []uint64
+		err    string
 	}{
 		{
 			name: "UnmatchedDash",
@@ -920,14 +999,73 @@ func TestParsePortRanges(t *testing.T) {
 			spec: "9223372036854775807", // (2**63)-1
 			err:  "port must be < 65536 but found 9223372036854775807",
 		},
+		{
+			name:   "OverlappingRanges",
+			spec:   "1-3,2-4",
+			expect: []uint64{1, 2, 3, 2, 3, 4}, // we don't care about dupes
+		},
+		{
+			name: "ReversedRange",
+			spec: "3-1",
+			err:  "invalid range: ending value (1) less than starting (3) value",
+		},
+		{
+			name: "ZeroRange",
+			spec: "0-1",
+			err:  "port must be > 0",
+		},
+		{
+			name:   "OverlappingOutOfOrderRanges",
+			spec:   "2-4,1-3",
+			expect: []uint64{2, 3, 4, 1, 2, 3}, // we don't care about dupes
+		},
+		{
+			name: "HugeRange",
+			spec: "1-65536,1-65536",
+			err:  "maximum of 65536 ports can be reserved",
+		},
 	}
 
-	for i := range cases {
-		tc := cases[i]
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			results, err := ParsePortRanges(tc.spec)
-			require.Nil(t, results)
-			require.EqualError(t, err, tc.err)
+			if tc.err == "" {
+				must.NoError(t, err)
+				must.Eq(t, tc.expect, results)
+			} else {
+				must.Nil(t, results)
+				must.EqError(t, err, tc.err)
+			}
 		})
+	}
+}
+
+func TestParentIDFromJobID(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		jobID  string
+		expect string
+	}{
+		{
+			jobID:  DispatchedID("example", "", time.Now()),
+			expect: "example",
+		},
+		{
+			jobID: fmt.Sprintf(
+				"example/whatever%s%d", PeriodicLaunchSuffix, time.Now().Unix()),
+			expect: "example/whatever",
+		},
+		{
+			jobID:  "example/whatever",
+			expect: "example/whatever",
+		},
+		{
+			jobID:  "example",
+			expect: "example",
+		},
+	}
+	for _, tc := range cases {
+		test.Eq(t, tc.expect, ParentIDFromJobID(tc.jobID))
 	}
 }

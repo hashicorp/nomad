@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -88,7 +88,7 @@ func (k *UnwrappedRootKey) Copy() *UnwrappedRootKey {
 	}
 }
 
-// MakeInactive returns a copy of the RootKey with the meta state set to active
+// MakeActive returns a copy of the RootKey with the meta state set to active
 func (k *UnwrappedRootKey) MakeActive() *UnwrappedRootKey {
 	meta := k.Meta.Copy()
 	meta.State = RootKeyStateActive
@@ -274,19 +274,23 @@ type RootKeyMeta struct {
 // KEKProviderName enum are the built-in KEK providers.
 type KEKProviderName string
 
+// String returns the string representation of the KEKProviderName and satisfies
+// the fmt.Stringer interface.
+func (n KEKProviderName) String() string { return string(n) }
+
 const (
 	KEKProviderAEAD          KEKProviderName = "aead"
-	KEKProviderAWSKMS                        = "awskms"
-	KEKProviderAzureKeyVault                 = "azurekeyvault"
-	KEKProviderGCPCloudKMS                   = "gcpckms"
-	KEKProviderVaultTransit                  = "transit"
+	KEKProviderAWSKMS        KEKProviderName = "awskms"
+	KEKProviderAzureKeyVault KEKProviderName = "azurekeyvault"
+	KEKProviderGCPCloudKMS   KEKProviderName = "gcpckms"
+	KEKProviderVaultTransit  KEKProviderName = "transit"
 )
 
 // KEKProviderConfig is the server configuration for an external KMS provider
 // the server will use as a Key Encryption Key (KEK) for encrypting/decrypting
 // the DEK.
 type KEKProviderConfig struct {
-	Provider string            `hcl:",key"`
+	Provider KEKProviderName   `hcl:",key"`
 	Name     string            `hcl:"name"`
 	Active   bool              `hcl:"active"`
 	Config   map[string]string `hcl:"-" json:"-"`
@@ -295,6 +299,22 @@ type KEKProviderConfig struct {
 	// then read these keys to create the Config map, so that we don't need a
 	// nested "config" block/map in the config file
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+}
+
+// Validate checks that the KEKProviderConfig is valid.
+func (c *KEKProviderConfig) Validate() error {
+
+	if c == nil {
+		return nil
+	}
+
+	switch c.Provider {
+	case KEKProviderAEAD, KEKProviderAWSKMS, KEKProviderAzureKeyVault,
+		KEKProviderGCPCloudKMS, KEKProviderVaultTransit:
+		return nil
+	default:
+		return fmt.Errorf("unknown keyring provider: %q", c.Provider)
+	}
 }
 
 func (c *KEKProviderConfig) Copy() *KEKProviderConfig {
@@ -319,9 +339,9 @@ func (c *KEKProviderConfig) Merge(o *KEKProviderConfig) *KEKProviderConfig {
 
 func (c *KEKProviderConfig) ID() string {
 	if c.Name == "" {
-		return c.Provider
+		return c.Provider.String()
 	}
-	return c.Provider + "." + c.Name
+	return c.Provider.String() + "." + c.Name
 }
 
 // RootKeyState enum describes the lifecycle of a root key.
@@ -329,14 +349,14 @@ type RootKeyState string
 
 const (
 	RootKeyStateInactive     RootKeyState = "inactive"
-	RootKeyStateActive                    = "active"
-	RootKeyStateRekeying                  = "rekeying"
-	RootKeyStatePrepublished              = "prepublished"
+	RootKeyStateActive       RootKeyState = "active"
+	RootKeyStateRekeying     RootKeyState = "rekeying"
+	RootKeyStatePrepublished RootKeyState = "prepublished"
 
 	// RootKeyStateDeprecated is, itself, deprecated and is no longer in
 	// use. For backwards compatibility, any existing keys with this state will
 	// be treated as RootKeyStateInactive
-	RootKeyStateDeprecated = "deprecated"
+	RootKeyStateDeprecated RootKeyState = "deprecated"
 )
 
 // NewRootKeyMeta returns a new RootKeyMeta with default values

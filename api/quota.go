@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -51,7 +51,7 @@ func (q *Quotas) ListUsage(qo *QueryOptions) ([]*QuotaUsage, *QueryMeta, error) 
 	return resp, qm, nil
 }
 
-// PrefixList is used to do a PrefixList search over quota usages
+// PrefixListUsage is used to do a PrefixList search over quota usages
 func (q *Quotas) PrefixListUsage(prefix string, qo *QueryOptions) ([]*QuotaUsage, *QueryMeta, error) {
 	if qo == nil {
 		qo = &QueryOptions{Prefix: prefix}
@@ -142,6 +142,20 @@ type QuotaLimit struct {
 }
 
 type QuotaResources struct {
+	CPU         *int                   `hcl:"cpu,optional"`
+	Cores       *int                   `hcl:"cores,optional"`
+	MemoryMB    *int                   `mapstructure:"memory" hcl:"memory,optional"`
+	MemoryMaxMB *int                   `mapstructure:"memory_max" hcl:"memory_max,optional"`
+	Devices     []*RequestedDevice     `hcl:"device,block"`
+	NUMA        *NUMAResource          `hcl:"numa,block"`
+	SecretsMB   *int                   `mapstructure:"secrets" hcl:"secrets,optional"`
+	Storage     *QuotaStorageResources `mapstructure:"storage" hcl:"storage,block"`
+	NodePools   []*NodePoolLimit       `hcl:"node_pool,block"`
+}
+
+// NodePoolLimit is used to set quota limits on a per-node-pool basis.
+type NodePoolLimit struct {
+	NodePool    string                 `hcl:",label"`
 	CPU         *int                   `hcl:"cpu,optional"`
 	Cores       *int                   `hcl:"cores,optional"`
 	MemoryMB    *int                   `mapstructure:"memory" hcl:"memory,optional"`

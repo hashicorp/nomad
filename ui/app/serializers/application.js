@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -9,7 +9,6 @@ import { makeArray } from '@ember/array';
 import JSONSerializer from '@ember-data/serializer/json';
 import { pluralize, singularize } from 'ember-inflector';
 import removeRecord from '../utils/remove-record';
-import { assign } from '@ember/polyfills';
 import classic from 'ember-classic-decorator';
 import { camelize, capitalize, dasherize } from '@ember/string';
 @classic
@@ -134,7 +133,7 @@ export default class Application extends JSONSerializer {
               const propertiesForKey = map[mapKey] || {};
               const convertedMap = { Name: mapKey };
 
-              assign(convertedMap, propertiesForKey);
+              Object.assign(convertedMap, propertiesForKey);
 
               return convertedMap;
             });
@@ -169,7 +168,7 @@ export default class Application extends JSONSerializer {
       .filter(storeFilter)
       .forEach((old) => {
         const newRecord = newRecords.find(
-          (record) => get(record, 'id') === get(old, 'id')
+          (record) => get(record, 'id') === get(old, 'id'),
         );
         if (!newRecord) {
           removeRecord(store, old);

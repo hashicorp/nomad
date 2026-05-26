@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
@@ -88,7 +88,8 @@ var basicConfig = &Config{
 		GCDiskUsageThreshold:  82,
 		GCInodeUsageThreshold: 91,
 		GCMaxAllocs:           50,
-		NoHostUUID:            pointer.Of(false),
+		GCVolumesOnNodeGC:     true,
+		NoHostUUID:            new(false),
 		DisableRemoteExec:     true,
 		HostVolumes: []*structs.ClientHostVolumeConfig{
 			{Name: "tmp", Path: "/tmp"},
@@ -97,6 +98,15 @@ var basicConfig = &Config{
 		BridgeNetworkName:       "custom_bridge_name",
 		BridgeNetworkSubnet:     "custom_bridge_subnet",
 		BridgeNetworkSubnetIPv6: "custom_bridge_subnet_ipv6",
+		Fingerprinters: []*client.Fingerprint{
+			{
+				Name:             "env_aws",
+				RetryInterval:    1 * time.Second,
+				RetryIntervalHCL: "1s",
+				RetryAttempts:    3,
+				ExitOnFailure:    new(true),
+			},
+		},
 	},
 	Server: &ServerConfig{
 		Enabled:                   true,
@@ -104,8 +114,8 @@ var basicConfig = &Config{
 		BootstrapExpect:           5,
 		DataDir:                   "/tmp/data",
 		RaftProtocol:              3,
-		RaftMultiplier:            pointer.Of(4),
-		NumSchedulers:             pointer.Of(2),
+		RaftMultiplier:            new(4),
+		NumSchedulers:             new(2),
 		EnabledSchedulers:         []string{"test"},
 		NodeGCThreshold:           "12h",
 		EvalGCThreshold:           "12h",
@@ -133,10 +143,10 @@ var basicConfig = &Config{
 		RedundancyZone:            "foo",
 		UpgradeVersion:            "0.8.0",
 		EncryptKey:                "abc",
-		EnableEventBroker:         pointer.Of(false),
-		EventBufferSize:           pointer.Of(200),
+		EnableEventBroker:         new(false),
+		EventBufferSize:           new(200),
 		PlanRejectionTracker: &PlanRejectionTracker{
-			Enabled:       pointer.Of(true),
+			Enabled:       new(true),
 			NodeThreshold: 100,
 			NodeWindow:    41 * time.Minute,
 			NodeWindowHCL: "41m",
@@ -156,9 +166,18 @@ var basicConfig = &Config{
 			},
 		},
 		LicensePath:        "/tmp/nomad.hclic",
-		JobDefaultPriority: pointer.Of(100),
-		JobMaxPriority:     pointer.Of(200),
+		JobDefaultPriority: new(100),
+		JobMaxPriority:     new(200),
+		JobMaxCount:        new(1000),
 		StartTimeout:       "1m",
+		ClientIntroduction: &ClientIntroduction{
+			Enforcement:           "warn",
+			DefaultIdentityTTLHCL: "5m",
+			DefaultIdentityTTL:    5 * time.Minute,
+			MaxIdentityTTLHCL:     "30m",
+			MaxIdentityTTL:        30 * time.Minute,
+		},
+		NonProduction: true,
 	},
 	ACL: &ACLConfig{
 		Enabled:                  true,
@@ -175,7 +194,7 @@ var basicConfig = &Config{
 		ReplicationToken:         "foobar",
 	},
 	Audit: &config.AuditConfig{
-		Enabled: pointer.Of(true),
+		Enabled: new(true),
 		Sinks: []*config.AuditSink{
 			{
 				DeliveryGuarantee: "enforced",
@@ -200,7 +219,7 @@ var basicConfig = &Config{
 		},
 	},
 	Telemetry: &Telemetry{
-		DisableAllocationHookMetrics: pointer.Of(true),
+		DisableAllocationHookMetrics: new(true),
 		StatsiteAddr:                 "127.0.0.1:1234",
 		StatsdAddr:                   "127.0.0.1:2345",
 		PrometheusMetrics:            true,
@@ -219,7 +238,7 @@ var basicConfig = &Config{
 	LeaveOnTerm:               true,
 	EnableSyslog:              true,
 	SyslogFacility:            "LOCAL1",
-	DisableUpdateCheck:        pointer.Of(true),
+	DisableUpdateCheck:        new(true),
 	DisableAnonymousSignature: true,
 	Consuls: []*config.ConsulConfig{{
 		Name:                      structs.ConsulDefaultCluster,
@@ -246,17 +265,17 @@ var basicConfig = &Config{
 		ServiceIdentityAuthMethod: "nomad-services",
 		ServiceIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io", "nomad.dev"},
-			Env:      pointer.Of(false),
-			File:     pointer.Of(true),
-			TTL:      pointer.Of(1 * time.Hour),
+			Env:      new(false),
+			File:     new(true),
+			TTL:      new(1 * time.Hour),
 			TTLHCL:   "1h",
 		},
 		TaskIdentityAuthMethod: "nomad-tasks",
 		TaskIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"consul.io"},
-			Env:      pointer.Of(true),
-			File:     pointer.Of(false),
-			TTL:      pointer.Of(2 * time.Hour),
+			Env:      new(true),
+			File:     new(false),
+			TTL:      new(2 * time.Hour),
 			TTLHCL:   "2h",
 		},
 	}},
@@ -275,9 +294,9 @@ var basicConfig = &Config{
 		TLSSkipVerify:       &trueValue,
 		DefaultIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"vault.io", "nomad.io"},
-			Env:      pointer.Of(false),
-			File:     pointer.Of(true),
-			TTL:      pointer.Of(3 * time.Hour),
+			Env:      new(false),
+			File:     new(true),
+			TTL:      new(3 * time.Hour),
 			TTLHCL:   "3h",
 		},
 	}},
@@ -349,7 +368,7 @@ var basicConfig = &Config{
 		SnapshotRetentionTime:    time.Hour * 24,
 		SnapshotRetentionTimeHCL: "24h",
 		License: &config.LicenseReportingConfig{
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 		},
 	},
 	KEKProviders: []*structs.KEKProviderConfig{
@@ -362,7 +381,15 @@ var basicConfig = &Config{
 			Active:   true,
 			Config: map[string]string{
 				"region":     "us-east-1",
-				"kms_key_id": "alias/kms-nomad-keyring",
+				"kms_key_id": "alias/kms-nomad-keyring-us",
+			},
+		},
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "eu-west-2",
+				"kms_key_id": "alias/kms-nomad-keyring-eu",
 			},
 		},
 	},
@@ -504,6 +531,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 	// The Vault connection retry interval is an internal only configuration
 	// option, and therefore needs to be added here to ensure the test passes.
 	actual.Vaults[0].ConnectionRetryIntv = config.DefaultVaultConnectRetryIntv
+	must.Eq(t, basicConfig.Client, actual.Client)
 	must.Eq(t, basicConfig, actual)
 
 	oldDefault := &Config{
@@ -619,10 +647,13 @@ func (c *Config) addDefaults() {
 	if c.Server.PlanRejectionTracker == nil {
 		c.Server.PlanRejectionTracker = &PlanRejectionTracker{}
 	}
+	if c.Server.ClientIntroduction == nil {
+		c.Server.ClientIntroduction = &ClientIntroduction{}
+	}
 	if c.Reporting == nil {
 		c.Reporting = &config.ReportingConfig{
 			License: &config.LicenseReportingConfig{
-				Enabled: pointer.Of(false),
+				Enabled: new(false),
 			},
 		}
 	}
@@ -696,7 +727,10 @@ var sample0 = &Config{
 		RPC:  "host.example.com",
 		Serf: "host.example.com",
 	},
-	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	Client: &ClientConfig{
+		ServerJoin:    &ServerJoin{},
+		NodeMaxAllocs: 5,
+	},
 	Server: &ServerConfig{
 		Enabled:         true,
 		BootstrapExpect: 3,
@@ -708,13 +742,14 @@ var sample0 = &Config{
 			NodeWindow:    31 * time.Minute,
 			NodeWindowHCL: "31m",
 		},
+		ClientIntroduction: &ClientIntroduction{},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,
 	},
 	RPC: &RPCConfig{},
 	Audit: &config.AuditConfig{
-		Enabled: pointer.Of(true),
+		Enabled: new(true),
 		Sinks: []*config.AuditSink{
 			{
 				DeliveryGuarantee: "enforced",
@@ -753,12 +788,12 @@ var sample0 = &Config{
 	Consuls: []*config.ConsulConfig{{
 		Name:           structs.ConsulDefaultCluster,
 		Token:          "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin: pointer.Of(false),
-		ClientAutoJoin: pointer.Of(false),
+		ServerAutoJoin: new(false),
+		ClientAutoJoin: new(false),
 	}},
 	Vaults: []*config.VaultConfig{{
 		Name:    structs.VaultDefaultCluster,
-		Enabled: pointer.Of(true),
+		Enabled: new(true),
 		Role:    "nomad-cluster",
 		Addr:    "http://host.example.com:8200",
 	}},
@@ -771,7 +806,7 @@ var sample0 = &Config{
 		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers: pointer.Of(true),
+		CleanupDeadServers: new(true),
 	},
 	Reporting: config.DefaultReporting(),
 	KEKProviders: []*structs.KEKProviderConfig{
@@ -817,6 +852,7 @@ var sample1 = &Config{
 			NodeWindow:    31 * time.Minute,
 			NodeWindowHCL: "31m",
 		},
+		ClientIntroduction: &ClientIntroduction{},
 	},
 	ACL: &ACLConfig{
 		Enabled: true,
@@ -831,9 +867,11 @@ var sample1 = &Config{
 		StreamOpenTimeoutHCL:      "75s",
 		StreamCloseTimeout:        5 * time.Minute,
 		StreamCloseTimeoutHCL:     "5m",
+		DialTimeout:               15 * time.Second,
+		DialTimeoutHCL:            "15s",
 	},
 	Audit: &config.AuditConfig{
-		Enabled: pointer.Of(true),
+		Enabled: new(true),
 		Sinks: []*config.AuditSink{
 			{
 				Name:              "file",
@@ -871,27 +909,27 @@ var sample1 = &Config{
 	SyslogFacility: "LOCAL0",
 	Consuls: []*config.ConsulConfig{{
 		Name:                      structs.ConsulDefaultCluster,
-		EnableSSL:                 pointer.Of(true),
+		EnableSSL:                 new(true),
 		Token:                     "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-		ServerAutoJoin:            pointer.Of(false),
-		ClientAutoJoin:            pointer.Of(false),
+		ServerAutoJoin:            new(false),
+		ClientAutoJoin:            new(false),
 		ServerServiceName:         "nomad",
 		ServerHTTPCheckName:       "Nomad Server HTTP Check",
 		ServerSerfCheckName:       "Nomad Server Serf Check",
 		ServerRPCCheckName:        "Nomad Server RPC Check",
 		ClientServiceName:         "nomad-client",
 		ClientHTTPCheckName:       "Nomad Client HTTP Check",
-		AutoAdvertise:             pointer.Of(true),
-		ChecksUseAdvertise:        pointer.Of(false),
+		AutoAdvertise:             new(true),
+		ChecksUseAdvertise:        new(false),
 		Timeout:                   5 * time.Second,
 		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
 		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
-		Addr:                      "127.0.0.1:8500",
-		VerifySSL:                 pointer.Of(true),
+		Addr:                      "localhost:8500",
+		VerifySSL:                 new(true),
 	}},
 	Vaults: []*config.VaultConfig{{
 		Name:                structs.VaultDefaultCluster,
-		Enabled:             pointer.Of(true),
+		Enabled:             new(true),
 		Role:                "nomad-cluster",
 		Addr:                "http://host.example.com:8200",
 		JWTAuthBackendPath:  "jwt-nomad",
@@ -906,7 +944,7 @@ var sample1 = &Config{
 		KeyFile:              "/opt/data/nomad/certs/server-key.pem",
 	},
 	Autopilot: &config.AutopilotConfig{
-		CleanupDeadServers: pointer.Of(true),
+		CleanupDeadServers: new(true),
 	},
 	Reporting: &config.ReportingConfig{
 		License: &config.LicenseReportingConfig{},
@@ -1067,12 +1105,12 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 			must.Eq(t, "alternate", cfg.Vaults[1].Name)
 			must.True(t, *cfg.Vaults[1].Enabled)
-			must.Eq(t, "127.0.0.1:9501", cfg.Vaults[1].Addr)
+			must.Eq(t, "[::1f]:9501", cfg.Vaults[1].Addr)
 
 			must.Eq(t, "other", cfg.Vaults[2].Name)
 			must.Nil(t, cfg.Vaults[2].Enabled)
 			must.Eq(t, "127.0.0.1:9502", cfg.Vaults[2].Addr)
-			must.Eq(t, pointer.Of(4*time.Hour), cfg.Vaults[2].DefaultIdentity.TTL)
+			must.Eq(t, new(4*time.Hour), cfg.Vaults[2].DefaultIdentity.TTL)
 
 			// check that extra Vault clusters have the defaults applied when not
 			// overridden
@@ -1092,7 +1130,7 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			defaultConsul := cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
 			must.Eq(t, config.DefaultConsulConfig(), defaultConsul)
-			must.Eq(t, "127.0.0.1:8500", defaultConsul.Addr)
+			must.Eq(t, "localhost:8500", defaultConsul.Addr)
 			must.Eq(t, "", defaultConsul.Token)
 
 			// merge in the user's configuration which overrides fields in the
@@ -1119,12 +1157,12 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			must.Eq(t, "abracadabra", defaultConsul.Token)
 
 			must.Eq(t, "alternate", cfg.Consuls[1].Name)
-			must.Eq(t, "127.0.0.2:8501", cfg.Consuls[1].Addr)
+			must.Eq(t, "[::1f]:8501", cfg.Consuls[1].Addr)
 			must.Eq(t, "xyzzy", cfg.Consuls[1].Token)
 
 			must.Eq(t, "other", cfg.Consuls[2].Name)
-			must.Eq(t, pointer.Of(3*time.Hour), cfg.Consuls[2].ServiceIdentity.TTL)
-			must.Eq(t, pointer.Of(5*time.Hour), cfg.Consuls[2].TaskIdentity.TTL)
+			must.Eq(t, new(3*time.Hour), cfg.Consuls[2].ServiceIdentity.TTL)
+			must.Eq(t, new(5*time.Hour), cfg.Consuls[2].TaskIdentity.TTL)
 
 			// check that extra Consul clusters have the defaults applied when
 			// not overridden
@@ -1147,7 +1185,7 @@ func TestConfig_Telemetry(t *testing.T) {
 	inputTelemetry2 := &Telemetry{
 		inMemoryCollectionInterval:   1 * time.Second,
 		inMemoryRetentionPeriod:      10 * time.Second,
-		DisableAllocationHookMetrics: pointer.Of(true),
+		DisableAllocationHookMetrics: new(true),
 	}
 	mergedTelemetry2 := mergedTelemetry1.Merge(inputTelemetry2)
 	must.Eq(t, mergedTelemetry2.inMemoryCollectionInterval, 1*time.Second)
@@ -1167,31 +1205,111 @@ func TestConfig_Template(t *testing.T) {
 
 			must.Eq(t, []string{"plugin"}, cfg.Client.TemplateConfig.FunctionDenylist)
 			must.True(t, cfg.Client.TemplateConfig.DisableSandbox)
-			must.Eq(t, pointer.Of(7600*time.Hour), cfg.Client.TemplateConfig.MaxStale)
-			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.BlockQueryWaitTime)
+			must.Eq(t, new(7600*time.Hour), cfg.Client.TemplateConfig.MaxStale)
+			must.Eq(t, new(10*time.Minute), cfg.Client.TemplateConfig.BlockQueryWaitTime)
 
 			must.NotNil(t, cfg.Client.TemplateConfig.Wait)
-			must.Eq(t, pointer.Of(10*time.Second), cfg.Client.TemplateConfig.Wait.Min)
-			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.Wait.Max)
+			must.Eq(t, new(10*time.Second), cfg.Client.TemplateConfig.Wait.Min)
+			must.Eq(t, new(10*time.Minute), cfg.Client.TemplateConfig.Wait.Max)
 
 			must.NotNil(t, cfg.Client.TemplateConfig.WaitBounds)
-			must.Eq(t, pointer.Of(1*time.Second), cfg.Client.TemplateConfig.WaitBounds.Min)
-			must.Eq(t, pointer.Of(10*time.Hour), cfg.Client.TemplateConfig.WaitBounds.Max)
+			must.Eq(t, new(1*time.Second), cfg.Client.TemplateConfig.WaitBounds.Min)
+			must.Eq(t, new(10*time.Hour), cfg.Client.TemplateConfig.WaitBounds.Max)
 
 			must.NotNil(t, cfg.Client.TemplateConfig.ConsulRetry)
 			must.Eq(t, 6, *cfg.Client.TemplateConfig.ConsulRetry.Attempts)
-			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.ConsulRetry.Backoff)
-			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.ConsulRetry.MaxBackoff)
+			must.Eq(t, new(550*time.Millisecond), cfg.Client.TemplateConfig.ConsulRetry.Backoff)
+			must.Eq(t, new(10*time.Minute), cfg.Client.TemplateConfig.ConsulRetry.MaxBackoff)
 
 			must.NotNil(t, cfg.Client.TemplateConfig.VaultRetry)
 			must.Eq(t, 6, *cfg.Client.TemplateConfig.VaultRetry.Attempts)
-			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.VaultRetry.Backoff)
-			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.VaultRetry.MaxBackoff)
+			must.Eq(t, new(550*time.Millisecond), cfg.Client.TemplateConfig.VaultRetry.Backoff)
+			must.Eq(t, new(10*time.Minute), cfg.Client.TemplateConfig.VaultRetry.MaxBackoff)
 
 			must.NotNil(t, cfg.Client.TemplateConfig.NomadRetry)
 			must.Eq(t, 6, *cfg.Client.TemplateConfig.NomadRetry.Attempts)
-			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.NomadRetry.Backoff)
-			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.NomadRetry.MaxBackoff)
+			must.Eq(t, new(550*time.Millisecond), cfg.Client.TemplateConfig.NomadRetry.Backoff)
+			must.Eq(t, new(10*time.Minute), cfg.Client.TemplateConfig.NomadRetry.MaxBackoff)
 		})
 	}
+}
+
+func TestConfig_Fingerprint(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, suffix := range []string{"hcl", "json"} {
+		t.Run(suffix, func(t *testing.T) {
+			cfg := DefaultConfig()
+			fc, err := LoadConfig("testdata/fingerprint." + suffix)
+			must.NoError(t, err)
+			cfg = cfg.Merge(fc)
+
+			must.True(t, cfg.Client.Enabled)
+			must.Len(t, 4, cfg.Client.Fingerprinters)
+
+			var awsConfig, azureConfig, gceConfig, doConfig *client.Fingerprint
+
+			for _, fp := range cfg.Client.Fingerprinters {
+				switch fp.Name {
+				case "env_aws":
+					awsConfig = fp
+				case "env_azure":
+					azureConfig = fp
+				case "env_gce":
+					gceConfig = fp
+				case "env_digitalocean":
+					doConfig = fp
+				default:
+					t.Fatalf("unexpected fingerprint name: %s", fp.Name)
+				}
+			}
+
+			must.NotNil(t, awsConfig)
+			must.Eq(t, "env_aws", awsConfig.Name)
+			must.Eq(t, 5*time.Minute, awsConfig.RetryInterval)
+			must.Eq(t, "5m", awsConfig.RetryIntervalHCL)
+			must.Eq(t, 3, awsConfig.RetryAttempts)
+			must.NotNil(t, awsConfig.ExitOnFailure)
+			must.True(t, *awsConfig.ExitOnFailure)
+
+			must.NotNil(t, azureConfig)
+			must.Eq(t, "env_azure", azureConfig.Name)
+			must.Eq(t, 10*time.Minute, azureConfig.RetryInterval)
+			must.Eq(t, "10m", azureConfig.RetryIntervalHCL)
+			must.Eq(t, 5, azureConfig.RetryAttempts)
+			must.NotNil(t, azureConfig.ExitOnFailure)
+			must.False(t, *azureConfig.ExitOnFailure)
+
+			must.NotNil(t, gceConfig)
+			must.Eq(t, "env_gce", gceConfig.Name)
+			must.Eq(t, 2*time.Minute, gceConfig.RetryInterval)
+			must.Eq(t, "2m", gceConfig.RetryIntervalHCL)
+			must.Eq(t, -1, gceConfig.RetryAttempts)
+			must.Nil(t, gceConfig.ExitOnFailure)
+
+			must.NotNil(t, doConfig)
+			must.Eq(t, "env_digitalocean", doConfig.Name)
+			must.Eq(t, 1*time.Minute, doConfig.RetryInterval)
+			must.Eq(t, "1m", doConfig.RetryIntervalHCL)
+			must.Eq(t, 0, doConfig.RetryAttempts)
+			must.Nil(t, doConfig.ExitOnFailure)
+		})
+	}
+}
+
+func TestConfig_ParseConsulEnv(t *testing.T) {
+	t.Setenv("CONSUL_HTTP_TOKEN_other", "other-consul-cluster-token")
+	cfg := DefaultConfig()
+	fc, err := LoadConfig("testdata/extra-consul.hcl")
+	must.NoError(t, err)
+	cfg = cfg.Merge(fc)
+
+	found := false
+	for _, cc := range cfg.Consuls {
+		if cc.Name == "other" {
+			must.Eq(t, cc.Token, "other-consul-cluster-token")
+			found = true
+		}
+	}
+	must.True(t, found)
 }

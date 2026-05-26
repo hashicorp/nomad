@@ -252,7 +252,7 @@ and eventually need to be garbage collected.
 
 
 
-[Scheduling in Nomad]: https://developer.hashicorp.com/nomad/docs/internals/scheduling/scheduling
+[Scheduling in Nomad]: https://developer.hashicorp.com/nomad/docs/concepts/scheduling/how-scheduling-works
 [`structs.go`]: https://github.com/hashicorp/nomad/blob/v1.4.0-beta.1/nomad/structs/structs.go#L10857-L10875
 [`update`]: https://developer.hashicorp.com/nomad/docs/job-specification/update
 [`restart` attempts]: https://developer.hashicorp.com/nomad/docs/job-specification/restart

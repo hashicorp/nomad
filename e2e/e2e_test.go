@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 // This package exists to wrap our e2e provisioning and test framework so that it
@@ -23,10 +23,8 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/parameterized"
 	_ "github.com/hashicorp/nomad/e2e/periodic"
 	_ "github.com/hashicorp/nomad/e2e/quotas"
-	_ "github.com/hashicorp/nomad/e2e/scaling"
 	_ "github.com/hashicorp/nomad/e2e/scalingpolicies"
 	_ "github.com/hashicorp/nomad/e2e/scheduler_sysbatch"
-	_ "github.com/hashicorp/nomad/e2e/scheduler_system"
 	_ "github.com/hashicorp/nomad/e2e/taskevents"
 
 	// these are no longer on the old framework but by importing them
@@ -44,6 +42,9 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/oversubscription"
 	_ "github.com/hashicorp/nomad/e2e/podman"
 	_ "github.com/hashicorp/nomad/e2e/rescheduling"
+	_ "github.com/hashicorp/nomad/e2e/scaling"
+	_ "github.com/hashicorp/nomad/e2e/scheduler_system"
+	_ "github.com/hashicorp/nomad/e2e/secret"
 	_ "github.com/hashicorp/nomad/e2e/spread"
 	_ "github.com/hashicorp/nomad/e2e/vaultsecrets"
 	_ "github.com/hashicorp/nomad/e2e/volume_mounts"

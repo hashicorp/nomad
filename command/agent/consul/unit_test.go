@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package consul
@@ -404,8 +404,11 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	}
 	require.NoError(ctx.ServiceClient.RegisterAgent("client", agentServices))
 	require.Eventually(ctx.ServiceClient.hasSeen, time.Second, 10*time.Millisecond)
+
+	ctx.FakeConsul.mu.Lock()
 	require.Len(ctx.FakeConsul.services["default"], 1, "expected agent service to be registered")
 	require.Len(ctx.FakeConsul.checks["default"], 1, "expected agent check to be registered")
+	ctx.FakeConsul.mu.Unlock()
 
 	// prevent normal shutdown by blocking Consul. the shutdown should wait
 	// until agent deregistration has finished
@@ -1043,6 +1046,45 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 			must.SliceLen(t, 1, s.Checks)
 		case s.Name == "worst-service":
 			must.SliceEmpty(t, s.Checks)
+		}
+	}
+}
+
+func TestConsul_ServiceKind(t *testing.T) {
+	ci.Parallel(t)
+	ctx := setupFake(t)
+
+	ctx.Workload.Services = []*structs.Service{
+		{
+			Name:      "best-service",
+			PortLabel: "x",
+			Kind:      "api-gateway",
+		},
+		{
+			Name:      "service",
+			PortLabel: "y",
+		},
+		{
+			Name:      "worst-service",
+			PortLabel: "y",
+			Kind:      "terminating-gateway",
+		},
+	}
+
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 3, ctx.FakeConsul.services["default"])
+
+	for _, s := range ctx.FakeConsul.services["default"] {
+		switch {
+		case s.Name == "best-service":
+			must.Eq(t, "api-gateway", s.Kind)
+		case s.Name == "service" && s.Port == yPort:
+			must.Eq(t, "", s.Kind)
+		case s.Name == "worst-service":
+			must.Eq(t, "terminating-gateway", s.Kind)
+		default:
+			t.Fatalf("unexpected service: %s", s.Name)
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -21,7 +21,7 @@ Usage: nomad sentinel list [options]
   List is used to display all the installed Sentinel policies.
 
   Sentinel commands are only available when ACLs are enabled. This command
-  requires a management token.
+  requires a token with the sentinel-read capability.
 
 General Options:
 
@@ -54,7 +54,7 @@ func (c *SentinelListCommand) Run(args []string) int {
 	}
 
 	if args = flags.Args(); len(args) > 0 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 	}
 	// Get the HTTP client

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -54,10 +53,10 @@ Alias: nomad run
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the job's region is used.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace. Jobs that mount CSI volumes require a
-  token with the 'csi-mount-volume' capability for the volume's
-  namespace. Jobs that mount host volumes require a token with the
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'register-job' capability for the job's namespace. Jobs that
+  mount CSI volumes require a token with the 'csi-mount-volume' capability for
+  the volume's namespace. Jobs that mount host volumes require a token with the
   'host_volume' capability for that volume.
 
 General Options:
@@ -106,6 +105,9 @@ Run Options:
   -preserve-counts
     If set, the existing task group counts will be preserved when updating a job.
 
+  -preserve-resources
+    If set, the existing task resources will be preserved when updating a job.
+
   -consul-namespace
     (Enterprise only) If set, any services in the job will be registered into
     the specified Consul namespace. Any template block reading from Consul KV
@@ -137,20 +139,21 @@ func (c *JobRunCommand) Synopsis() string {
 func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-check-index":      complete.PredictNothing,
-			"-detach":           complete.PredictNothing,
-			"-verbose":          complete.PredictNothing,
-			"-consul-namespace": complete.PredictAnything,
-			"-vault-namespace":  complete.PredictAnything,
-			"-output":           complete.PredictNothing,
-			"-policy-override":  complete.PredictNothing,
-			"-preserve-counts":  complete.PredictNothing,
-			"-json":             complete.PredictNothing,
-			"-hcl2-strict":      complete.PredictNothing,
-			"-var":              complete.PredictAnything,
-			"-var-file":         complete.PredictFiles("*.var"),
-			"-eval-priority":    complete.PredictNothing,
-			"-ui":               complete.PredictNothing,
+			"-check-index":        complete.PredictNothing,
+			"-detach":             complete.PredictNothing,
+			"-verbose":            complete.PredictNothing,
+			"-consul-namespace":   complete.PredictAnything,
+			"-vault-namespace":    complete.PredictAnything,
+			"-output":             complete.PredictNothing,
+			"-policy-override":    complete.PredictNothing,
+			"-preserve-counts":    complete.PredictNothing,
+			"-preserve-resources": complete.PredictNothing,
+			"-json":               complete.PredictNothing,
+			"-hcl2-strict":        complete.PredictNothing,
+			"-var":                complete.PredictAnything,
+			"-var-file":           complete.PredictFiles("*.var"),
+			"-eval-priority":      complete.PredictNothing,
+			"-ui":                 complete.PredictNothing,
 		})
 }
 
@@ -165,7 +168,7 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
-	var detach, verbose, output, override, preserveCounts, openURL bool
+	var detach, verbose, output, override, preserveCounts, preserveResources, openURL bool
 	var checkIndexStr, consulNamespace, vaultNamespace string
 	var evalPriority int
 
@@ -176,6 +179,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.BoolVar(&output, "output", false, "")
 	flagSet.BoolVar(&override, "policy-override", false, "")
 	flagSet.BoolVar(&preserveCounts, "preserve-counts", false, "")
+	flagSet.BoolVar(&preserveResources, "preserve-resources", false, "")
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
 	flagSet.StringVar(&checkIndexStr, "check-index", "", "")
@@ -239,11 +243,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	multiregion := job.IsMultiregion()
 
 	if consulNamespace != "" {
-		job.ConsulNamespace = pointer.Of(consulNamespace)
+		job.ConsulNamespace = new(consulNamespace)
 	}
 
 	if vaultNamespace != "" {
-		job.VaultNamespace = pointer.Of(vaultNamespace)
+		job.VaultNamespace = new(vaultNamespace)
 	}
 
 	if output {
@@ -272,10 +276,11 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	// Set the register options
 	opts := &api.RegisterOptions{
-		PolicyOverride: override,
-		PreserveCounts: preserveCounts,
-		EvalPriority:   evalPriority,
-		Submission:     sub,
+		PolicyOverride:    override,
+		PreserveCounts:    preserveCounts,
+		PreserveResources: preserveResources,
+		EvalPriority:      evalPriority,
+		Submission:        sub,
 	}
 	if enforce {
 		opts.EnforceIndex = true
@@ -362,7 +367,7 @@ func (c *JobRunCommand) Run(args []string) int {
 		c.Ui.Warn("")
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(evalID)
 
 }

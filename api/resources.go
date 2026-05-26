@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -181,8 +181,10 @@ type NetworkResource struct {
 	CNI   *CNIConfig `hcl:"cni,block"`
 }
 
+// Megabits should not be used.
+//
 // COMPAT(0.13)
-// XXX Deprecated. Please do not use. The method will be removed in Nomad
+// Deprecated. Please do not use. The method will be removed in Nomad
 // 0.13 and is only being kept to allow any references to be removed before
 // then.
 func (n *NetworkResource) Megabits() int {

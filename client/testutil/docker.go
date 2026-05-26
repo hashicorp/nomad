@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package testutil
@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	docker "github.com/docker/docker/client"
 	"github.com/hashicorp/nomad/testutil"
+	docker "github.com/moby/moby/client"
 )
 
 // DockerIsConnected checks to see if a docker daemon is available (local or remote)

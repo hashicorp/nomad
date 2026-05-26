@@ -1,11 +1,11 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory, trait } from 'miragejs';
 import faker from 'nomad-ui/mirage/faker';
-import { provide, pickOne } from '../utils';
+import { pickOne } from '../utils';
 
 export default Factory.extend({
   name: () => pickOne(['vault', 'auth0', 'github', 'cognito', 'okta']),
@@ -17,4 +17,10 @@ export default Factory.extend({
   createIndex: () => faker.random.number(),
   modifyTime: () => faker.date.past(),
   modifyIndex: () => faker.random.number(),
+
+  issuerRequired: trait({
+    type: 'OIDC',
+    issRequired: true,
+    issuer: () => faker.internet.url(),
+  }),
 });

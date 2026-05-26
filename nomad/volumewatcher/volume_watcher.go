@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package volumewatcher
@@ -182,10 +182,6 @@ func (vw *volumeWatcher) volumeReap(vol *structs.CSIVolume) {
 	if err != nil {
 		vw.logger.Error("error releasing volume claims", "error", err)
 	}
-}
-
-func (vw *volumeWatcher) isUnclaimed(vol *structs.CSIVolume) bool {
-	return len(vol.ReadClaims) == 0 && len(vol.WriteClaims) == 0 && len(vol.PastClaims) == 0
 }
 
 // volumeReapImpl unpublished all the volume's PastClaims. PastClaims

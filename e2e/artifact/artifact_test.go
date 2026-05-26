@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package artifact
@@ -46,8 +46,6 @@ func artifactCheckLogContents(t *testing.T, nomad *api.Client, group, task strin
 }
 
 func testWindows(t *testing.T) {
-	t.Skip("SKIP WINDOWS TEST") // TODO restore when windows client is fixed
-
 	nomad := e2eutil.NomadClient(t)
 	jobID := "artifact-windows-" + uuid.Short()
 	jobIDs := []string{jobID}

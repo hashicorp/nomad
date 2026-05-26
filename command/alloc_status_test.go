@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -123,6 +124,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 		"prestart_sidecar": {State: "running"},
 	}
 
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	code := cmd.Run([]string{"-address=" + url, a.ID})
@@ -202,6 +204,64 @@ func TestAllocStatusCommand_Run(t *testing.T) {
 	must.StrNotContains(t, out, `Nomad Service Checks:`)
 }
 
+func TestFormatAllocBasicInfo_MaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	version := uint64(1)
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
+
+	alloc := &api.Allocation{
+		ID:                 "alloc-id",
+		EvalID:             "eval-id",
+		Name:               "alloc-name",
+		NodeID:             "node-id",
+		NodeName:           "node-name",
+		JobID:              "job-id",
+		Job:                &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
+		TaskGroup:          groupName,
+		CreateTime:         createtime.UnixNano(),
+		ClientStatus:       "running",
+		ClientDescription:  "running",
+		DesiredStatus:      "run",
+		DesiredDescription: "run",
+		TaskStates: map[string]*api.TaskState{
+			"task-a": {State: "running", StartedAt: createtime.Add(-1 * time.Minute)},
+			"task-b": {State: "dead", StartedAt: createtime},
+		},
+		Metrics: &api.AllocationMetric{},
+	}
+
+	out, err := formatAllocBasicInfo(alloc, nil, fullId, true)
+	must.NoError(t, err)
+	must.StrContains(t, out, "Max Run Deadline")
+	must.StrContains(t, out, formatTime(deadline))
+}
+
+func TestFormatAllocShortInfo_MaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	version := uint64(1)
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+	createtime := time.Now().Add(-5 * time.Minute).UnixNano()
+
+	alloc := &api.Allocation{
+		ID:         "alloc-id",
+		Name:       "alloc-name",
+		Job:        &api.Job{Type: &jobType, Version: &version, TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}}},
+		TaskGroup:  groupName,
+		CreateTime: createtime,
+	}
+
+	out := formatAllocShortInfo(alloc)
+	must.StrContains(t, out, "Max Run Deadline")
+}
+
 func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 	ci.Parallel(t)
 	srv, client, url := testServer(t, true, nil)
@@ -226,6 +286,8 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 			},
 		},
 	}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
@@ -269,6 +331,8 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 			},
 		},
 	}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID})
@@ -296,6 +360,7 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
@@ -358,6 +423,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, alloc.Job))
 	must.NoError(t, state.UpsertJobSummary(1004, summary))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
@@ -434,6 +500,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1003, nil, alloc.Job))
 	must.NoError(t, state.UpsertJobSummary(1004, summary))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 

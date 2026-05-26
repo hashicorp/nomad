@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build linux
@@ -16,7 +16,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -70,7 +69,7 @@ func TestDockerDriver_PluginConfig_PidsLimit(t *testing.T) {
 	cfg.PidsLimit = 3
 	opts, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
 	must.NoError(t, err)
-	must.Eq(t, pointer.Of(int64(3)), opts.Host.PidsLimit)
+	must.Eq(t, new(int64(3)), opts.Host.PidsLimit)
 }
 
 func TestDockerDriver_PidsLimit(t *testing.T) {
@@ -113,4 +112,29 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 		wait.Timeout(5*time.Second),
 		wait.Gap(50*time.Millisecond),
 	))
+}
+
+func TestDockerDriver_NormalizeCPUShares(t *testing.T) {
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.compute.TotalCompute = 12000
+
+	must.Eq(t, maxCPUShares, driver.cpuResources(maxCPUShares))
+	must.Eq(t, 1000, driver.cpuResources(1000))
+
+	driver.compute.TotalCompute = maxCPUShares
+	must.Eq(t, maxCPUShares, driver.cpuResources(maxCPUShares))
+
+	driver.compute.TotalCompute = maxCPUShares + 1
+	must.Eq(t, 262143, driver.cpuResources(maxCPUShares))
+
+	driver.compute.TotalCompute = maxCPUShares + 1
+	must.Eq(t, 2, driver.cpuResources(2))
+
+	driver.compute.TotalCompute = maxCPUShares + 1
+	must.Eq(t, 2, driver.cpuResources(1))
+
+	driver.compute.TotalCompute = maxCPUShares * 2
+	must.Eq(t, 500, driver.cpuResources(1000))
+	must.Eq(t, maxCPUShares/2, driver.cpuResources(maxCPUShares))
 }

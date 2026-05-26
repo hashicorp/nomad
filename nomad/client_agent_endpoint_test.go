@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -838,8 +840,7 @@ func TestAgentHost_Server(t *testing.T) {
 	defer cleanup()
 
 	TestJoin(t, s1, s2)
-	testutil.WaitForLeader(t, s1.RPC)
-	testutil.WaitForLeader(t, s2.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// determine leader and nonleader
 	servers := []*Server{s1, s2}
@@ -854,16 +855,19 @@ func TestAgentHost_Server(t *testing.T) {
 	}
 
 	c, cleanupC := client.TestClient(t, func(c *config.Config) {
-		c.Servers = []string{s2.GetConfig().RPCAddr.String()}
+		c.Servers = []string{
+			s1.GetConfig().RPCAddr.String(),
+			s2.GetConfig().RPCAddr.String(),
+		}
 		c.EnableDebug = true
 	})
 	defer cleanupC()
 
 	testutil.WaitForResult(func() (bool, error) {
-		nodes := s2.connectedNodes()
-		return len(nodes) == 1, nil
+		numNodes := len(s1.connectedNodes()) + len(s2.connectedNodes())
+		return numNodes > 0, nil
 	}, func(err error) {
-		t.Fatalf("should have a clients")
+		t.Fatalf("client should be connected to a server")
 	})
 
 	cases := []struct {
@@ -933,13 +937,14 @@ func TestAgentHost_Server(t *testing.T) {
 
 			err := tc.origin.RPC("Agent.Host", &req, &reply)
 			if tc.expectedErr != "" {
-				require.Contains(t, err.Error(), tc.expectedErr)
+				must.ErrorContains(t, err, tc.expectedErr)
 			} else {
-				require.Nil(t, err)
-				require.NotEmpty(t, reply.HostData)
+				must.NoError(t, err)
+				must.NotNil(t, reply.HostData)
 			}
 
-			require.Equal(t, tc.expectedAgentID, reply.AgentID)
+			// note: we expect this to be populated even on error
+			must.Eq(t, tc.expectedAgentID, reply.AgentID)
 		})
 	}
 }
@@ -1022,4 +1027,80 @@ func TestAgentHost_ACLDebugRequired(t *testing.T) {
 
 	err := s.RPC("Agent.Host", &req, &resp)
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+}
+
+func TestMonitor_MonitorExport(t *testing.T) {
+	ci.Parallel(t)
+	const (
+		shortText = "log log log log log"
+	)
+	// Create test file
+	longFilePath := monitor.PrepFile(t).Name()
+	longFileContents, err := os.ReadFile(longFilePath)
+	must.NoError(t, err)
+
+	// start server
+	s, root, cleanupS := TestACLServer(t, func(c *Config) {
+		c.LogFile = longFilePath
+	})
+	defer cleanupS()
+	defer os.Remove(longFilePath)
+	testutil.WaitForLeader(t, s.RPC)
+
+	cases := []struct {
+		name         string
+		expected     string
+		nomadLogPath string
+		serviceName  string
+		token        *structs.ACLToken
+		onDisk       bool
+		expectErr    bool
+	}{
+		{
+			name:     "happy_path_long_file",
+			onDisk:   true,
+			expected: string(longFileContents),
+			token:    root,
+		},
+		{
+			name:      "token_error",
+			onDisk:    true,
+			expected:  string(longFileContents),
+			token:     &structs.ACLToken{},
+			expectErr: true,
+		},
+		{
+			name:        "invalid_service_name",
+			serviceName: "nomad$",
+			expected:    string(longFileContents),
+			token:       &structs.ACLToken{},
+			expectErr:   true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// No NodeID set to force server use
+			req := cstructs.MonitorExportRequest{
+				LogsSince:    "72",
+				NomadLogPath: tc.nomadLogPath,
+				OnDisk:       tc.onDisk,
+
+				ServiceName: tc.serviceName,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token.SecretID,
+				},
+			}
+
+			builder, finalError := monitor.ExportMonitorClient_TestHelper(req, s, time.After(3*time.Second))
+			if tc.expectErr {
+				must.Error(t, finalError)
+				return
+			}
+			must.NoError(t, err)
+			must.NotNil(t, builder)
+			must.Eq(t, strings.TrimSpace(tc.expected), strings.TrimSpace(builder.String()))
+		})
+	}
 }

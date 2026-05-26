@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -47,6 +47,7 @@ type MockClientCSI struct {
 	NextNodeDetachError                error
 	NextNodeExpandError                error
 	LastNodeExpandRequest              *cstructs.ClientCSINodeExpandVolumeRequest
+	LastDeleteSnapshotRequest          *cstructs.ClientCSIControllerDeleteSnapshotRequest
 }
 
 func newMockClientCSI() *MockClientCSI {
@@ -93,6 +94,7 @@ func (c *MockClientCSI) ControllerCreateSnapshot(req *cstructs.ClientCSIControll
 }
 
 func (c *MockClientCSI) ControllerDeleteSnapshot(req *cstructs.ClientCSIControllerDeleteSnapshotRequest, resp *cstructs.ClientCSIControllerDeleteSnapshotResponse) error {
+	c.LastDeleteSnapshotRequest = req
 	return c.NextDeleteSnapshotError
 }
 
@@ -472,6 +474,7 @@ func setupLocal(t *testing.T) rpc.ClientCodec {
 	t.Cleanup(cleanupS1)
 
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
 	codec := rpcClient(t, s1)
 
 	mockCSI := newMockClientCSI()

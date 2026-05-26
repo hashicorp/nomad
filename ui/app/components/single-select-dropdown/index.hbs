@@ -1,19 +1,25 @@
 {{!
-  Copyright (c) HashiCorp, Inc.
+  Copyright IBM Corp. 2015, 2026
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <div data-test-single-select-dropdown class="dropdown" ...attributes>
   <PowerSelect
+    @ariaLabel="label-single-select-dropdown-{{@label}}"
+    @ariaLabelledBy="label-single-select-dropdown-{{@label}}"
     @options={{@options}}
     @disabled={{@disabled}}
     @selected={{this.activeOption}}
     @searchEnabled={{gt @options.length 10}}
     @searchField="label"
-    @onChange={{action this.setSelection}}
+    @onChange={{this.setSelection}}
     @dropdownClass="dropdown-options"
-    as |option|>
+    as |option|
+  >
     <span class="ember-power-select-prefix">{{@label}}: </span>
-    <span class="dropdown-label" data-test-dropdown-option={{option.key}}>{{option.label}}</span>
+    <span
+      class="dropdown-label"
+      data-test-dropdown-option={{option.key}}
+    >{{option.label}}</span>
   </PowerSelect>
 </div>

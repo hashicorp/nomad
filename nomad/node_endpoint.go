@@ -1,15 +1,17 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"reflect"
 	"sync"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -91,9 +94,10 @@ func NewNodeEndpoint(srv *Server, ctx *RPCContext) *Node {
 
 // Register is used to upsert a client that is available for scheduling
 func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUpdateResponse) error {
-	// note that we trust-on-first use and the identity will be anonymous for
-	// that initial request; we lean on mTLS for handling that safely
-	authErr := n.srv.Authenticate(n.ctx, args)
+
+	// The node register RPC is responsible for generating node identities, so
+	// we use the custom authentication method shared with UpdateStatus.
+	authErr := n.srv.AuthenticateNodeIdentityGenerator(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.Register", args, args, reply); done {
@@ -108,39 +112,23 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if authErr != nil {
+
+	// The authentication error can be because the identity is expired. If we
+	// stopped the handler execution here, the node would never be able to
+	// register after being disconnected.
+	//
+	// Further within the RPC we check the supplied SecretID against the stored
+	// value in state. This acts as a secondary check and can be seen as a
+	// refresh token, in the event the identity is expired.
+	if authErr != nil && !errors.Is(authErr, jwt.ErrExpired) {
 		return structs.ErrPermissionDenied
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "register"}, time.Now())
 
-	// Validate the arguments
-	if args.Node == nil {
-		return fmt.Errorf("missing node for client registration")
-	}
-	if args.Node.ID == "" {
-		return fmt.Errorf("missing node ID for client registration")
-	}
-	if args.Node.Datacenter == "" {
-		return fmt.Errorf("missing datacenter for client registration")
-	}
-	if args.Node.Name == "" {
-		return fmt.Errorf("missing node name for client registration")
-	}
-	if len(args.Node.Attributes) == 0 {
-		return fmt.Errorf("missing attributes for client registration")
-	}
-	if args.Node.SecretID == "" {
-		return fmt.Errorf("missing node secret ID for client registration")
-	}
-	if args.Node.NodePool != "" {
-		err := structs.ValidateNodePoolName(args.Node.NodePool)
-		if err != nil {
-			return fmt.Errorf("invalid node pool: %v", err)
-		}
-		if args.Node.NodePool == structs.NodePoolAll {
-			return fmt.Errorf("node is not allowed to register in node pool %q", structs.NodePoolAll)
-		}
+	// Perform validation of the base provided request.
+	if err := args.Validate(); err != nil {
+		return err
 	}
 
 	// Default the status if none is given
@@ -161,8 +149,13 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		args.Node.NodePool = structs.NodePoolDefault
 	}
 
+	// The current time is used at a number of places in the registration
+	// workflow. Generating it once avoids multiple calls to time.Now() and also
+	// means the same time is used across all checks and sets.
+	timeNow := time.Now()
+
 	// Set the timestamp when the node is registered
-	args.Node.StatusUpdatedAt = time.Now().Unix()
+	args.Node.StatusUpdatedAt = timeNow.Unix()
 
 	// Compute the node class
 	if err := args.Node.ComputeClass(); err != nil {
@@ -181,6 +174,10 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
+	// If the node has an entry in the state store, we perform a check to ensure
+	// the secret ID matches the one stored. If there is no entry, we perform a
+	// check to ensure the node is allowed to register given the request and the
+	// server introduction enforcement configuration.
 	if originalNode != nil {
 		// Check if the SecretID has been tampered with
 		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
@@ -192,6 +189,10 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		if originalNode.Status != "" {
 			args.Node.Status = originalNode.Status
 		}
+		// The called function performs all the required logging and metric
+		// emitting, so we only need to check the return value.
+	} else if !n.newRegistrationAllowed(args, authErr) {
+		return structs.ErrPermissionDenied
 	}
 
 	// We have a valid node connection, so add the mapping to cache the
@@ -214,6 +215,51 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if n.srv.Region() == n.srv.config.AuthoritativeRegion {
 		args.CreateNodePool = true
 	}
+
+	// Only perform the node identity work if all the servers meet the minimum
+	// version that supports it.
+	if n.srv.peersCache.ServersMeetMinimumVersion(
+		n.srv.Region(),
+		minVersionNodeIdentity,
+		true,
+	) {
+
+		// Track the TTL that will be used for the node identity.
+		var identityTTL time.Duration
+
+		// The identity TTL is determined by the node pool the node is registered
+		// in. In the event the node registration is triggering creation of a new
+		// node pool, it will be created with the default TTL, so we use this for
+		// the identity.
+		nodePool, err := snap.NodePoolByName(ws, args.Node.NodePool)
+		if err != nil {
+			return fmt.Errorf("failed to query node pool: %v", err)
+		}
+		if nodePool == nil {
+			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+		} else {
+			identityTTL = nodePool.NodeIdentityTTL
+		}
+
+		// Check if we need to generate a node identity. This must happen before we
+		// send the Raft message, as the signing key ID is set on the node if we
+		// generate one.
+		if args.ShouldGenerateNodeIdentity(authErr, timeNow.UTC(), identityTTL) {
+
+			claims := structs.GenerateNodeIdentityClaims(args.Node, n.srv.Region(), identityTTL)
+
+			signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
+			if err != nil {
+				return fmt.Errorf("failed to sign node identity claims: %v", err)
+			}
+
+			reply.SignedIdentity = &signedJWT
+			args.Node.IdentitySigningKeyID = signingKeyID
+		} else if originalNode != nil {
+			args.Node.IdentitySigningKeyID = originalNode.IdentitySigningKeyID
+		}
+	}
+
 	_, index, err := n.srv.raftApply(structs.NodeRegisterRequestType, args)
 	if err != nil {
 		n.logger.Error("register failed", "error", err)
@@ -249,14 +295,119 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		return err
 	}
 
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(args.Node.ID, snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
 	}
 
 	return nil
+}
+
+// newRegistrationAllowed determines whether the node registration is allowed to
+// proceed based on the node introduction enforcement level and the
+// authenticated identity of the request.
+//
+// The function handles logging and emitting metrics based on the enforcement
+// level, so the caller only needs to check the return value.
+func (n *Node) newRegistrationAllowed(
+	args *structs.NodeRegisterRequest,
+	authErr error,
+) bool {
+
+	enforcementLvl := n.srv.config.NodeIntroductionConfig.Enforcement
+
+	// If the enforcement level is set to "none", we allow the registration to
+	// proceed without any checks. This is the pre-1.11 workflow that won't emit
+	// any metrics or logs for node registrations.
+	if enforcementLvl == structs.NodeIntroductionEnforcementNone {
+		return true
+	}
+
+	claims := args.GetIdentity().GetClaims()
+
+	// If the request was made with a node introduction identity, check whether
+	// the claims match the node's claims.
+	var claimsMatch bool
+
+	if claims.IsNodeIntroduction() {
+		claimsMatch = claims.NodeIntroductionIdentityClaims.NodePool == args.Node.NodePool &&
+			(claims.NodeIntroductionIdentityClaims.NodeName == "" ||
+				claims.NodeIntroductionIdentityClaims.NodeName == args.Node.Name)
+	}
+
+	// In a less happy path, a node could be making a registration request after
+	// its state object has been removed via garbage collection. In this case,
+	// it will be using its existing node identity, and we can perform a check
+	// on the claim here.
+	//
+	// It's possible while it was down, the nodes configuration changed, so we
+	// only check the node ID in this case. Later in the RPC handler, we will
+	// check if a new identity needs to be generated based on change
+	// configuration.
+	if claims.IsNode() {
+		claimsMatch = claims.NodeIdentityClaims.NodeID == args.Node.ID
+	}
+
+	// If there was no authentication error and the identity claims match the
+	// node's claims, the registration is allowed to proceed.
+	if authErr == nil && claimsMatch {
+		return true
+	}
+
+	// If we have reached this point, we know that the registration is dependent
+	// on the enforcement level and that this request does not have suitable
+	// claims. Emit our metric to indicate a node registration not using a valid
+	// introduction token.
+	metrics.IncrCounter([]string{"nomad", "client", "introduction_violation_num"}, 1)
+
+	// Build a base set of logging pairs that will be used for the logging
+	// message. This provides operators with information about the node that is
+	// attempting to register without a valid introduction token.
+	loggingPairs := []any{
+		"enforcement_level", enforcementLvl,
+		"node_id", args.Node.ID,
+		"node_pool", args.Node.NodePool,
+		"node_name", args.Node.Name,
+	}
+
+	// If the node used a node introduction identity or node identity, add the
+	// claims for comparison to the logging pairs.
+	if claims.IsNodeIntroduction() {
+		loggingPairs = append(loggingPairs, claims.NodeIntroductionIdentityClaims.LoggingPairs()...)
+	} else if claims.IsNode() {
+		loggingPairs = append(loggingPairs, claims.NodeIdentityClaims.LoggingPairs()...)
+	}
+
+	// Make some effort to log a message that indicates why the node is failing
+	// to introduce itself properly.
+	msg := "node registration introduction claims mismatch"
+
+	if authErr != nil {
+		msg = "node registration introduction authentication failure"
+		loggingPairs = append(loggingPairs, "error", authErr)
+	} else if args.GetIdentity().ACLToken == structs.AnonymousACLToken {
+		msg = "node registration without introduction token"
+	}
+
+	// If there was an authentication error or the claims do not match, the node
+	// registration is not allowed to proceed. This is considered an invalid
+	// request and does not take into account the enforcement level.
+	if authErr != nil || (!claimsMatch && claims.IsNodeIntroduction()) {
+		n.logger.Error(msg, loggingPairs...)
+		return false
+	}
+
+	// Based on the enforcement level, log the message and return whether the
+	// handler should allow the registration to proceed. The default is a
+	// catchall that includes the strict enforcement level.
+	switch enforcementLvl {
+	case structs.NodeIntroductionEnforcementWarn:
+		n.logger.Warn(msg, loggingPairs...)
+		return true
+	default:
+		n.logger.Error(msg, loggingPairs...)
+		return false
+	}
 }
 
 // shouldCreateNodeEval returns true if the node update may result into
@@ -315,14 +466,7 @@ func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateS
 	reply.LeaderRPCAddr = string(leaderAddr)
 
 	// Reply with config information required for future RPC requests
-	reply.Servers = make([]*structs.NodeServerInfo, 0, len(n.srv.localPeers))
-	for _, v := range n.srv.localPeers {
-		reply.Servers = append(reply.Servers,
-			&structs.NodeServerInfo{
-				RPCAdvertiseAddr: v.RPCAddr.String(),
-				Datacenter:       v.Datacenter,
-			})
-	}
+	reply.Servers = n.srv.peersCache.LocalPeersServerInfo()
 
 	ws := memdb.NewWatchSet()
 
@@ -509,9 +653,13 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 //	                                             │                │
 //	                                             └──── ready ─────┘
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
-	// UpdateStatus receives requests from client and servers that mark failed
-	// heartbeats, so we can't use AuthenticateClientOnly
-	authErr := n.srv.Authenticate(n.ctx, args)
+
+	// The node update status RPC is responsible for generating node identities,
+	// so we use the custom authentication method shared with Register.
+	//
+	// Note; UpdateStatus receives requests from clients and servers that mark
+	// failed heartbeats.
+	authErr := n.srv.AuthenticateNodeIdentityGenerator(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.UpdateStatus", args, args, reply); done {
@@ -534,9 +682,17 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
-	} else if !(aclObj.AllowClientOp() || aclObj.AllowServerOp()) {
-		return structs.ErrPermissionDenied
+	} else {
+		if aclObj.AllowServerOp() || args.GetIdentity().GetACLToken() == structs.LeaderACLToken {
+			goto VERIFY_ARGS
+		}
+
+		if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+			return err
+		}
 	}
+
+VERIFY_ARGS:
 
 	// Verify the arguments
 	if args.NodeID == "" {
@@ -573,14 +729,74 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// to track SecretIDs.
 
 	// Update the timestamp of when the node status was updated
-	args.UpdatedAt = time.Now().Unix()
+	timeNow := time.Now()
+	args.UpdatedAt = timeNow.Unix()
+
+	// The identity TTL is determined by the node pool the node is registered
+	// in. The pool should already exist, as the node is already registered. If
+	// it does not, we use the default TTL as we have no better value to use.
+	//
+	// Once the node pool is created, the node's identity will have the TTL set
+	// by the node pool on its renewal.
+	nodePool, err := snap.NodePoolByName(ws, node.NodePool)
+	if err != nil {
+		return fmt.Errorf("failed to query node pool: %v", err)
+	}
+	nodePoolExists := nodePool != nil || node.NodePool == structs.NodePoolDefault
+
+	// Only perform the node identity work if all the servers meet the minimum
+	// version that supports it.
+	if n.srv.peersCache.ServersMeetMinimumVersion(
+		n.srv.Region(),
+		minVersionNodeIdentity,
+		true,
+	) {
+		// Track the TTL that will be used for the node identity.
+		var identityTTL time.Duration
+
+		if !nodePoolExists {
+			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+		} else if nodePool == nil {
+			identityTTL = structs.DefaultNodePoolNodeIdentityTTL
+		} else {
+			identityTTL = nodePool.NodeIdentityTTL
+		}
+
+		// Check and generate a node identity if needed.
+		if args.ShouldGenerateNodeIdentity(node, timeNow.UTC(), identityTTL) {
+
+			claims := structs.GenerateNodeIdentityClaims(node, n.srv.Region(), identityTTL)
+
+			// Sign the claims with the encrypter and conditionally handle the
+			// error. The IdentitySigningErrorTerminal method has a description of
+			// why we do this.
+			signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
+			if err != nil {
+				if args.IdentitySigningErrorIsTerminal(timeNow) {
+					return fmt.Errorf("failed to sign node identity claims: %v", err)
+				} else {
+					n.logger.Warn(
+						"failed to sign node identity claims, will retry on next heartbeat",
+						"error", err, "node_id", node.ID)
+				}
+			}
+
+			reply.SignedIdentity = &signedJWT
+			args.IdentitySigningKeyID = signingKeyID
+		} else {
+			// Ensure the IdentitySigningKeyID is cleared if we are not generating a
+			// new identity. This is important to ensure that we do not cause Raft
+			// updates unless we need to.
+			args.IdentitySigningKeyID = ""
+		}
+	}
 
 	// Compute next status.
 	switch node.Status {
 	case structs.NodeStatusInit:
 		if args.Status == structs.NodeStatusReady {
-			// Keep node in the initializing status if it has allocations but
-			// they are not updated.
+			// Keep the node in the initializing status if it has allocations,
+			// but they are not updated.
 			allocs, err := snap.AllocsByNodeTerminal(ws, args.NodeID, false)
 			if err != nil {
 				return fmt.Errorf("failed to query node allocs: %v", err)
@@ -592,13 +808,9 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 				args.Status = structs.NodeStatusInit
 			}
 
-			// Keep node in the initialing status if it's in a node pool that
-			// doesn't exist.
-			pool, err := snap.NodePoolByName(ws, node.NodePool)
-			if err != nil {
-				return fmt.Errorf("failed to query node pool: %v", err)
-			}
-			if pool == nil {
+			// Keep the node in the initializing status if it's in a non-default
+			// node pool that doesn't exist.
+			if !nodePoolExists {
 				n.logger.Debug(fmt.Sprintf("marking node as %s due to missing node pool", structs.NodeStatusInit))
 				args.Status = structs.NodeStatusInit
 				if !node.HasEvent(NodeWaitingForNodePool) {
@@ -617,7 +829,19 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Commit this update via Raft
 	var index uint64
-	if node.Status != args.Status || args.NodeEvent != nil {
+
+	// Only perform a Raft apply if we really have to, so we avoid unnecessary
+	// cluster traffic and CPU load.
+	//
+	// We must update state if:
+	// - The node informed us of a new status.
+	// - The node informed us of a new event.
+	// - We have generated an identity which has been signed with a different
+	//   key ID compared to the last identity generated for the node.
+	if node.Status != args.Status ||
+		args.NodeEvent != nil ||
+		node.IdentitySigningKeyID != args.IdentitySigningKeyID && args.IdentitySigningKeyID != "" {
+
 		// Attach an event if we are updating the node status to ready when it
 		// is down via a heartbeat
 		if node.Status == structs.NodeStatusDown && args.NodeEvent == nil {
@@ -658,8 +882,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	// Set the reply index and leader
 	reply.Index = index
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
@@ -695,9 +917,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNodeWrite() &&
-		!(aclObj.AllowClientOp() && args.GetIdentity().ClientID == args.NodeID) {
-		return structs.ErrPermissionDenied
+	} else if err := n.checkNodeDrainAuth(aclObj, args); err != nil {
+		return err
 	}
 
 	// Verify the arguments
@@ -779,6 +1000,21 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 
 	// Set the reply index
 	reply.Index = index
+	return nil
+}
+
+// checkNodeDrainAuth is a helper function to provide the authentication logic
+// for the UpdateDrain RPC.
+func (n *Node) checkNodeDrainAuth(aclObj *acl.ACL, args *structs.NodeUpdateDrainRequest) error {
+
+	if aclObj.AllowNodeWrite() {
+		return nil
+	}
+
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -937,8 +1173,6 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	// Set the reply index
 	reply.Index = evalIndex
 
-	n.srv.peerLock.RLock()
-	defer n.srv.peerLock.RUnlock()
 	if err := n.constructNodeServerInfoResponse(node.GetID(), snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
@@ -964,8 +1198,19 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowClientOp() && !aclObj.AllowNodeRead() {
-		return structs.ErrPermissionDenied
+
+	if args.NodeID == "" {
+		return fmt.Errorf("missing node ID")
+	}
+
+	if !aclObj.AllowNodeRead() {
+		pool, ok, err := n.srv.State().NodePoolByNodeID(nil, args.NodeID)
+		if err != nil {
+			return err
+		}
+		if !ok || !aclObj.AllowClientOp(pool) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// Setup the blocking query
@@ -973,11 +1218,6 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Verify the arguments
-			if args.NodeID == "" {
-				return fmt.Errorf("missing node ID")
-			}
-
 			// Look for the node
 			out, err := state.NodeByID(ws, args.NodeID)
 			if err != nil {
@@ -986,6 +1226,9 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 
 			// Setup the output
 			if out != nil {
+				if !aclObj.AllowNodeRead() && !aclObj.AllowClientOp(out.NodePool) {
+					return structs.ErrPermissionDenied
+				}
 				out = out.Sanitize()
 				reply.Node = out
 				reply.Index = out.ModifyIndex
@@ -1101,7 +1344,11 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeClientAllocsResponse) error {
 
-	authErr := n.srv.Authenticate(n.ctx, args)
+	// This RPC is only ever called by Nomad clients, so we can use the tightly
+	// scoped AuthenticateClientOnly method to authenticate and authorize the
+	// request.
+	_, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
+
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
@@ -1120,9 +1367,28 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
 
-	// Verify the arguments
 	if args.NodeID == "" {
-		return fmt.Errorf("missing node ID")
+		return errors.New("missing node ID")
+	}
+
+	node, err := n.srv.State().NodeByID(nil, args.NodeID)
+	if err != nil {
+		return err
+	}
+
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
+		return err
+	}
+
+	if node != nil {
+		// We have a valid node connection, so add the mapping to cache the
+		// connection and allow the server to send RPCs to the client. We only
+		// cache the connection if it is not being forwarded from another
+		// server.
+		if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
+			n.ctx.NodeID = args.NodeID
+			n.srv.addNodeConn(n.ctx)
+		}
 	}
 
 	// numOldAllocs is used to detect if there is a garbage collection event
@@ -1144,20 +1410,6 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			var allocs []*structs.Allocation
 			if node != nil {
-				if args.SecretID == "" {
-					return fmt.Errorf("missing node secret ID for client status update")
-				} else if args.SecretID != node.SecretID {
-					return fmt.Errorf("node secret ID does not match")
-				}
-
-				// We have a valid node connection, so add the mapping to cache the
-				// connection and allow the server to send RPCs to the client. We only cache
-				// the connection if it is not being forwarded from another server.
-				if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
-					n.ctx.NodeID = args.NodeID
-					n.srv.addNodeConn(n.ctx)
-				}
-
 				var err error
 				allocs, err = state.AllocsByNode(ws, args.NodeID)
 				if err != nil {
@@ -1252,19 +1504,15 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
 	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
+	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
+		return err
+	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
 
-	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
-		return err
-	}
-
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
-	}
 
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
@@ -1273,20 +1521,26 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 
 	// Ensure the node is allowed to update allocs.
 	// The node needs to successfully heartbeat before updating its allocs.
-	nodeID := args.Alloc[0].NodeID
-	if nodeID == "" {
+	targetNodeID := args.Alloc[0].NodeID
+	if targetNodeID == "" {
 		return fmt.Errorf("missing node ID")
 	}
 
-	node, err := n.srv.State().NodeByID(nil, nodeID)
+	node, err := n.srv.State().NodeByID(nil, targetNodeID)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve node %s: %v", nodeID, err)
+		return fmt.Errorf("failed to retrieve node %s: %v", targetNodeID, err)
 	}
 	if node == nil {
-		return fmt.Errorf("node %s not found", nodeID)
+		return fmt.Errorf("node %s not found", targetNodeID)
+	}
+	if !aclObj.AllowClientOp(node.NodePool) {
+		return structs.ErrPermissionDenied
+	}
+	if err := auth.AuthorizeSameNode(args.GetIdentity(), targetNodeID); err != nil {
+		return err
 	}
 	if node.UnresponsiveStatus() {
-		return fmt.Errorf("node %s is not allowed to update allocs while in status %s", nodeID, node.Status)
+		return fmt.Errorf("node %s is not allowed to update allocs while in status %s", targetNodeID, node.Status)
 	}
 
 	// Ensure that evals aren't set from client RPCs
@@ -1338,11 +1592,14 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			taskGroup = job.LookupTaskGroup(alloc.TaskGroup)
 		}
 
-		// If we cannot find the task group for a failed alloc we cannot continue, unless it is an orphan.
+		// Add an evaluation if this is a failed alloc that is currently
+		// eligible for rescheduling
 		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
 			allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
 			alloc.FollowupEvalID == "" {
 
+			// If we cannot find the task group for a failed alloc we cannot
+			// continue, unless it is an orphan.
 			if taskGroup == nil {
 				n.logger.Debug("UpdateAlloc unable to find task group for job", "job", alloc.JobID, "alloc", alloc.ID, "task_group", alloc.TaskGroup)
 				continue
@@ -1567,7 +1824,9 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		// node pool. We could perform an entire feasibility check here, but
 		// datacenter/pool is a good optimization to start with as their
 		// cardinality tends to be low so the check shouldn't add much work.
-		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) {
+		// If the job is stopped, skip it as well, otherwise we will create an
+		// eval with state and broker overhead that will be an immediate no-op.
+		if node.IsInPool(job.NodePool) && node.IsInAnyDC(job.Datacenters) && !job.Stopped() {
 			sysJobs = append(sysJobs, job)
 		}
 	}
@@ -1584,18 +1843,57 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	now := time.Now().UTC().UnixNano()
 
 	for _, alloc := range allocs {
-		// Deduplicate on JobID
+
+		// Perform the deduplication first. This means that if we have decided
+		// to create an evalaution for a job, we won't skip it even if
+		// subsequent allocations for the same job would not create an eval.
 		if _, ok := jobIDs[alloc.JobNamespacedID()]; ok {
 			continue
 		}
-		jobIDs[alloc.JobNamespacedID()] = struct{}{}
+
+		switch alloc.Job.Type {
+
+		// Skip allocations that are fully terminal on both server and client
+		// side. We require BOTH to be terminal (not just TerminalStatus which
+		// is an OR) because we only want to skip when the server has stopped
+		// the alloc AND the client has finished stopping it. This is a fairly
+		// defensive check and we prefer to err on the side of creating an eval
+		// that may be a no-op rather than skipping eval creation when it should
+		// be created.
+		case structs.JobTypeService:
+			if alloc.ServerTerminalStatus() && alloc.ClientTerminalStatus() {
+				continue
+			}
+
+		// For batch jobs, we only want to create evals for non-terminal
+		// allocations. Terminal batch allocations should not be retried
+		// otherwise the job status will flap between dead and pending each time
+		// the node updates while the allocation is still held in state.
+		case structs.JobTypeBatch:
+			if alloc.Terminated() {
+				continue
+			}
 
 		// If it's a sysbatch job, skip it. Sysbatch job evals should only ever
 		// be created by periodic-job if they are periodic, and job-register or
 		// job-scaling if they are not. Calling the system scheduler by
 		// node-update trigger can cause unnecessary or premature allocations
 		// to be created.
-		if alloc.Job.Type == structs.JobTypeSysBatch {
+		case structs.JobTypeSysBatch:
+			continue
+
+		// Skip system jobs as they are handled by the next loop below.
+		case structs.JobTypeSystem:
+			continue
+
+		// Skip creation for all other job types as a catch-all. This is only
+		// core jobs as all other types are matched above, and these job types
+		// should never hit this code path.
+		//
+		// This is primarily future-proofing to ensure that if new job types
+		// are added, they don't accidentally get evals created for them here.
+		// New job types should have their own explicit handling above.
+		default:
 			continue
 		}
 
@@ -1616,6 +1914,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
+		jobIDs[alloc.JobNamespacedID()] = struct{}{}
 	}
 
 	// Create an evaluation for each system job.
@@ -1624,7 +1923,6 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		if _, ok := jobIDs[job.NamespacedID()]; ok {
 			continue
 		}
-		jobIDs[job.NamespacedID()] = struct{}{}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -1642,6 +1940,7 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		}
 		evals = append(evals, eval)
 		evalIDs = append(evalIDs, eval.ID)
+		jobIDs[job.NamespacedID()] = struct{}{}
 	}
 
 	// Create the Raft transaction
@@ -1662,26 +1961,38 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
 	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
+	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
+		return err
+	}
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-
-	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
-
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
-	}
 
 	if len(args.NodeEvents) == 0 {
 		return fmt.Errorf("no node events given")
 	}
+
+	callerNodeID := auth.AuthenticatedNodeID(args.GetIdentity())
+	if callerNodeID == "" {
+		return structs.ErrPermissionDenied
+	}
+
 	for nodeID, events := range args.NodeEvents {
 		if len(events) == 0 {
 			return fmt.Errorf("no node events given for node %q", nodeID)
+		}
+
+		node, err := n.srv.State().NodeByID(nil, nodeID)
+		if err != nil {
+			return err
+		}
+		if node == nil || !aclObj.AllowClientOp(node.NodePool) {
+			return structs.ErrPermissionDenied
+		}
+		if nodeID != callerNodeID {
+			return structs.ErrPermissionDenied
 		}
 	}
 

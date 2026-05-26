@@ -1,9 +1,8 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import { assert } from '@ember/debug';
 import Component from '@glimmer/component';
 

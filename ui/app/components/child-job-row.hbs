@@ -1,14 +1,12 @@
 {{!
-  Copyright (c) HashiCorp, Inc.
+  Copyright IBM Corp. 2015, 2026
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <tr data-test-job-row data-test-child-job-row>
-  <td data-test-job-name
-    {{keyboard-shortcut
-      enumerated=true
-      action=(action "gotoJob" @job)
-    }}
+  <td
+    data-test-job-name
+    {{keyboard-shortcut enumerated=true action=(fn this.gotoJob @job)}}
   >
     <LinkTo
       @route="jobs.job.index"
@@ -31,7 +29,11 @@
   </td>
   <td data-test-job-status>
     <span class="{{@job.aggregateAllocStatus.label}}">
-      <Hds::Badge @text="{{capitalize @job.aggregateAllocStatus.label}}" @color={{@job.aggregateAllocStatus.state}} @size="large" />
+      <Hds::Badge
+        @text="{{capitalize @job.aggregateAllocStatus.label}}"
+        @color={{@job.aggregateAllocStatus.state}}
+        @size="large"
+      />
     </span>
   </td>
   <td data-test-job-allocations>

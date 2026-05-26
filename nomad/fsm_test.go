@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -18,11 +18,11 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -141,7 +141,7 @@ func TestFSM_UpsertNode(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	req := structs.NodeRegisterRequest{
 		Node: node,
@@ -245,7 +245,7 @@ func TestFSM_UpsertNode_NodePool(t *testing.T) {
 		validateFn func(*testing.T, *structs.Node, *structs.NodePool)
 	}{
 		{
-			name: "node with empty node pool is placed in defualt",
+			name: "node with empty node pool is placed in default",
 			setupReqFn: func(req *structs.NodeRegisterRequest) {
 				req.Node.NodePool = ""
 			},
@@ -374,7 +374,7 @@ func TestFSM_UpdateNodeStatus(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	event := &structs.NodeEvent{
 		Message:   "Node ready foo",
@@ -603,7 +603,7 @@ func TestFSM_UpdateNodeEligibility_Unblock(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	// Set eligible
 	req4 := structs.NodeUpdateEligibilityRequest{
@@ -724,7 +724,31 @@ func TestFSM_NodePoolUpsert(t *testing.T) {
 		structs.NodePool{},
 		"CreateIndex",
 		"ModifyIndex",
+		"NodeIdentityTTL",
+		"Hash",
 	)))
+
+	// Nomad 1.11 introduced the NodeIdentityTTL field for node pools. To test
+	// the upgrade path, we upsert a node pool without the TTL set which mimics
+	// a server applying a pre-1.11 object.
+	preTTLNodePool := mock.NodePool()
+	preTTLNodePool.NodeIdentityTTL = 0
+	preTTLNodePool.SetHash()
+
+	req = structs.NodePoolUpsertRequest{
+		NodePools: []*structs.NodePool{preTTLNodePool},
+	}
+	buf, err = structs.Encode(structs.NodePoolUpsertRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// Verify the apply function set the NodeIdentityTTL to the default value
+	// and recalculated the hash.
+	ws = memdb.NewWatchSet()
+	preTTLNodePoolResp, err := fsm.State().NodePoolByName(ws, preTTLNodePool.Name)
+	must.NoError(t, err)
+	must.NonZero(t, preTTLNodePoolResp.NodeIdentityTTL)
+	must.NotEq(t, preTTLNodePool.Hash, preTTLNodePoolResp.Hash)
 }
 
 func TestFSM_RegisterJob(t *testing.T) {
@@ -977,12 +1001,19 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
+
+	job.TaskGroups[0].Scaling = &structs.ScalingPolicy{
+		ID:      "mockID",
+		Enabled: true,
+	}
+
 	req := structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
 			Namespace: job.Namespace,
 		},
 	}
+
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1039,6 +1070,11 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	}
 	if launchOut == nil {
 		t.Fatalf("launch not found!")
+	}
+
+	// Verify the scaling policies were disabled
+	for _, policy := range jobOut.GetScalingPolicies() {
+		must.False(t, policy.Enabled)
 	}
 }
 
@@ -1197,14 +1233,20 @@ func TestFSM_UpdateEval_Blocked(t *testing.T) {
 	// Verify the eval wasn't enqueued
 	stats := fsm.evalBroker.Stats()
 	if stats.TotalReady != 0 {
-		t.Fatalf("bad: %#v %#v", stats, out)
+		t.Fatalf("bad: %#v", stats)
 	}
 
-	// Verify the eval was added to the blocked tracker.
-	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v %#v", bStats, out)
-	}
+	// Verify the eval was added to the blocked tracker
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 1 {
+			return fmt.Errorf("expected eval to be blocked: %#v", bStats)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 }
 
 func TestFSM_UpdateEval_Untrack(t *testing.T) {
@@ -1216,7 +1258,7 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 	// Mark an eval as blocked.
 	bEval := mock.Eval()
 	bEval.ClassEligibility = map[string]bool{"v1:123": true}
-	fsm.blockedEvals.Block(bEval)
+	<-fsm.blockedEvals.Block(bEval)
 
 	// Create a successful eval for the same job
 	eval := mock.Eval()
@@ -1256,10 +1298,16 @@ func TestFSM_UpdateEval_Untrack(t *testing.T) {
 	}
 
 	// Verify the eval was untracked in the blocked tracker.
-	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 0 {
-		t.Fatalf("bad: %#v %#v", bStats, out)
-	}
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 0 {
+			return fmt.Errorf("expected eval to be untracked: %#v %#v", bStats, out)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 }
 
 func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
@@ -1271,7 +1319,7 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 	// Mark an eval as blocked.
 	bEval := mock.Eval()
 	bEval.ClassEligibility = map[string]bool{"v1:123": true}
-	fsm.blockedEvals.Block(bEval)
+	<-fsm.blockedEvals.Block(bEval)
 
 	// Create a successful eval for the same job but with placement failures
 	eval := mock.Eval()
@@ -1313,10 +1361,16 @@ func TestFSM_UpdateEval_NoUntrack(t *testing.T) {
 	}
 
 	// Verify the eval was not untracked in the blocked tracker.
-	bStats := fsm.blockedEvals.Stats()
-	if bStats.TotalBlocked != 1 {
-		t.Fatalf("bad: %#v %#v", bStats, out)
-	}
+	must.Wait(t, wait.ContinualSuccess(wait.ErrorFunc(func() error {
+		bStats := fsm.blockedEvals.Stats()
+		if bStats.TotalBlocked != 1 {
+			return fmt.Errorf("expected eval not to be untracked: %#v %#v", bStats, out)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 }
 
 func TestFSM_DeleteEval(t *testing.T) {
@@ -1373,7 +1427,7 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	// Mark an eval as blocked.
 	eval := mock.Eval()
 	eval.ClassEligibility = map[string]bool{node.ComputedClass: true}
-	fsm.blockedEvals.Block(eval)
+	<-fsm.blockedEvals.Block(eval)
 
 	bStats := fsm.blockedEvals.Stats()
 	if bStats.TotalBlocked != 1 {
@@ -1385,9 +1439,11 @@ func TestFSM_UpdateAllocFromClient_Unblock(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = node.ID
-	state.UpsertJobSummary(8, mock.JobSummary(alloc.JobID))
-	state.UpsertJobSummary(9, mock.JobSummary(alloc2.JobID))
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
+	must.NoError(t, state.UpsertJobSummary(8, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJobSummary(9, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 8, nil, alloc.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 9, nil, alloc2.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2}))
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1454,8 +1510,9 @@ func TestFSM_UpdateAllocFromClient(t *testing.T) {
 	require := require.New(t)
 
 	alloc := mock.Alloc()
-	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 9, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
 
 	clientAlloc := new(structs.Allocation)
 	*clientAlloc = *alloc
@@ -1505,11 +1562,13 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 	alloc2 := mock.Alloc()
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
-	state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc, alloc2})
+	must.NoError(t, state.UpsertJobSummary(9, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 9, nil, alloc.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 10, nil, alloc2.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc, alloc2}))
 
 	t1 := &structs.DesiredTransition{
-		Migrate: pointer.Of(true),
+		Migrate: new(true),
 	}
 
 	eval := &structs.Evaluation{
@@ -1574,10 +1633,14 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval})
 
 	fsm.State().UpsertJobSummary(1, mock.JobSummary(alloc.JobID))
+	must.NoError(t, fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
 
 	// set up preempted jobs and allocs
 	job1 := mock.Job()
+	must.NoError(t, fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1, nil, job1))
+
 	job2 := mock.Job()
+	must.NoError(t, fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1, nil, job2))
 
 	alloc1 := mock.Alloc()
 	alloc1.Job = job1
@@ -1599,13 +1662,12 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	eval2.JobID = job2.ID
 
 	req := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
-			Alloc: []*structs.Allocation{alloc},
-		},
-		Deployment:      d,
-		EvalID:          eval.ID,
-		NodePreemptions: []*structs.Allocation{alloc1, alloc2},
+		Job:           job,
+		AllocsUpdated: []*structs.Allocation{alloc},
+		Deployment:    d,
+		EvalID:        eval.ID,
+		AllocsPreempted: []*structs.AllocationDiff{
+			alloc1.AllocationDiff(), alloc2.AllocationDiff()},
 		PreemptionEvals: []*structs.Evaluation{eval1, eval2},
 	}
 	buf, err := structs.Encode(structs.ApplyPlanResultsRequestType, req)
@@ -1667,11 +1729,9 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	evictAlloc.Job = nil
 	evictAlloc.DesiredStatus = structs.AllocDesiredStatusEvict
 	req2 := structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Job:   job,
-			Alloc: []*structs.Allocation{evictAlloc},
-		},
-		EvalID: eval.ID,
+		Job:           job,
+		AllocsUpdated: []*structs.Allocation{evictAlloc},
+		EvalID:        eval.ID,
 	}
 	buf, err = structs.Encode(structs.ApplyPlanResultsRequestType, req2)
 	assert.Nil(err)
@@ -1844,7 +1904,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -1852,7 +1912,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
@@ -1927,9 +1987,12 @@ func TestFSM_DeploymentAllocHealth(t *testing.T) {
 	a1.DeploymentID = d.ID
 	a2 := mock.Alloc()
 	a2.DeploymentID = d.ID
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{a1, a2}); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	a2.Job = a1.Job
+	a2.JobID = a1.JobID
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 2, nil, a1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 3, nil, a2.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a1, a2}))
 
 	// Create a job to roll back to
 	j := mock.Job()
@@ -2261,16 +2324,50 @@ func TestFSM_SnapshotRestore_NodePools(t *testing.T) {
 	ci.Parallel(t)
 
 	// Add some state
-	fsm := testFSM(t)
-	state := fsm.State()
+	testFSM := testFSM(t)
+	testState := testFSM.State()
 	pool := mock.NodePool()
-	state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, []*structs.NodePool{pool})
+	must.NoError(t,
+		testState.UpsertNodePools(
+			structs.MsgTypeTestSetup,
+			1000, []*structs.NodePool{pool},
+		))
 
 	// Verify the contents
-	fsm2 := testSnapshotRestore(t, fsm)
-	state2 := fsm2.State()
-	out, _ := state2.NodePoolByName(nil, pool.Name)
+	testFSM2 := testSnapshotRestore(t, testFSM)
+	testState2 := testFSM2.State()
+	out, err := testState2.NodePoolByName(nil, pool.Name)
+	must.NoError(t, err)
 	must.Eq(t, pool, out)
+}
+
+func TestFSM_SnapshotRestore_NodePoolsPreTTL(t *testing.T) {
+	ci.Parallel(t)
+
+	testFSM := testFSM(t)
+	testState := testFSM.State()
+
+	// Nomad 1.11 introduced the NodeIdentityTTL field for node pools. To test
+	// the upgrade path, we upsert a node pool without the TTL set which mimics
+	// a server restoring a pre-1.11 snapshot.
+	pool := mock.NodePool()
+	pool.NodeIdentityTTL = 0
+	pool.SetHash()
+
+	must.NoError(t,
+		testState.UpsertNodePools(
+			structs.MsgTypeTestSetup,
+			1000, []*structs.NodePool{pool},
+		))
+
+	// Verify the apply function set the NodeIdentityTTL to the default value
+	// and recalculated the hash.
+	testFSM2 := testSnapshotRestore(t, testFSM)
+	testState2 := testFSM2.State()
+	out, err := testState2.NodePoolByName(nil, pool.Name)
+	must.NoError(t, err)
+	must.NonZero(t, out.NodeIdentityTTL)
+	must.NotEq(t, pool.Hash, out.Hash)
 }
 
 func TestFSM_SnapshotRestore_Jobs(t *testing.T) {
@@ -2328,8 +2425,10 @@ func TestFSM_SnapshotRestore_Allocs(t *testing.T) {
 	state := fsm.State()
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
-	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+	must.NoError(t, state.UpsertJobSummary(996, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(997, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, alloc1.Job))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc2})
 
@@ -2357,8 +2456,9 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 	// remove old versions to force migration path
 	alloc.AllocatedResources = nil
 
-	state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	// Verify the contents
 	fsm2 := testSnapshotRestore(t, fsm)
@@ -3281,7 +3381,7 @@ func TestFSM_SnapshotRestore_Variables(t *testing.T) {
 	svs := msvs.List()
 
 	for _, sv := range svs {
-		setResp := testState.VarSet(10, &structs.VarApplyStateRequest{
+		setResp := testState.VarSet(structs.VarApplyStateRequestType, 10, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -3697,4 +3797,81 @@ func TestFSM_DeleteACLBindingRules(t *testing.T) {
 	out, err = fsm.State().GetACLBindingRule(ws, aclBindingRule2.ID)
 	must.NoError(t, err)
 	must.Nil(t, out)
+}
+
+func TestFSM_ApplyJob_IdempotencyToken(t *testing.T) {
+	ci.Parallel(t)
+	fsm := testFSM(t)
+	store := fsm.State()
+
+	parent := mock.BatchJob()
+	parent.ParameterizedJob = &structs.ParameterizedJobConfig{
+		Payload:      "payload.txt",
+		MetaOptional: []string{"example"},
+	}
+	parent.ID = "parent"
+	index, _ := store.LatestIndex()
+
+	req := &structs.JobRegisterRequest{
+		Job:            parent,
+		JobModifyIndex: index,
+		Eval:           nil, // we'll fill this in later
+		WriteRequest: structs.WriteRequest{
+			IdempotencyToken: "",
+			Namespace:        parent.Namespace,
+		},
+	}
+
+	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// no eval should be created for a parameterized batch job
+	iter, err := store.Evals(nil, state.SortDefault)
+	must.NoError(t, err)
+	must.Nil(t, iter.Next())
+
+	token := uuid.Generate()
+	dispatch1 := parent.Copy()
+	dispatch1.ParentID = parent.ID
+	dispatch1.ID = structs.DispatchedID(parent.ID, "", time.Now())
+	dispatch1.DispatchIdempotencyToken = token
+
+	eval := mock.Eval()
+	eval.JobID = dispatch1.ID
+	req.Job = dispatch1
+	req.Eval = eval
+	req.IdempotencyToken = token // required but redundant with field in dispatched job
+
+	buf, err = structs.Encode(structs.JobRegisterRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	dispatch1, err = store.JobByID(nil, dispatch1.Namespace, dispatch1.ID)
+	must.NoError(t, err)
+	must.NotNil(t, dispatch1)
+	iter, err = store.Evals(nil, state.SortDefault)
+	must.NoError(t, err)
+	must.Eq(t, 1, store.IterCount(iter))
+
+	dispatch2 := parent.Copy()
+	dispatch2.ParentID = parent.ID
+	dispatch2.ID = structs.DispatchedID(parent.ID, "", time.Now())
+	dispatch2.DispatchIdempotencyToken = token
+	eval = mock.Eval()
+	eval.JobID = dispatch2.ID
+	req.Job = dispatch2
+	req.Eval = eval
+
+	buf, err = structs.Encode(structs.JobRegisterRequestType, req)
+	must.NoError(t, err)
+	must.Nil(t, fsm.Apply(makeLog(buf)))
+
+	// no new dispatch or evals created
+	dispatch2, err = store.JobByID(nil, dispatch2.Namespace, dispatch2.ID)
+	must.NoError(t, err)
+	must.Nil(t, dispatch2)
+	iter, err = store.Evals(nil, state.SortDefault)
+	must.NoError(t, err)
+	must.Eq(t, 1, store.IterCount(iter))
 }

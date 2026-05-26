@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -83,6 +83,8 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	// Register alloc, deployment and deployment update
 	alloc := mock.Alloc()
 	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
+
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
@@ -102,7 +104,11 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
-		Job:               alloc.Job,
+		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		Deployment:        dnew,
 		DeploymentUpdates: updates,
 		EvalID:            eval.ID,
@@ -162,6 +168,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	allocEvict.Job = nil
 	alloc2 := mock.Alloc()
 	must.NoError(t, s1.State().UpsertJobSummary(1500, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1501, nil, alloc2.Job))
 	planRes = &structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
@@ -177,7 +184,11 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Apply the plan
 	plan = &structs.Plan{
-		Job:    job,
+		Job: job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+		},
 		EvalID: eval.ID,
 	}
 	future, err = s1.applyPlan(plan, planRes, snap)
@@ -209,12 +220,36 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, allocOut)
 	must.NotNil(t, allocOut.Job)
+	must.Eq(t, alloc2.Job.ID, allocOut.Job.ID)
+	must.Eq(t, alloc2.Job.Namespace, allocOut.Job.Namespace)
 
 	// Lookup updated eval
 	evalOut, err = fsmState.EvalByID(ws, eval.ID)
 	must.NoError(t, err)
 	must.NotNil(t, evalOut)
 	must.Eq(t, index, evalOut.ModifyIndex)
+}
+
+func TestPlanApply_applyPlan_RequiresEmbeddedJob(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, nil)
+	defer cleanup()
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	plan := &structs.Plan{
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: "default",
+			ID:        "example",
+		},
+		EvalID: uuid.Generate(),
+	}
+	planRes := &structs.PlanResult{}
+	snap, err := srv.State().Snapshot()
+	must.NoError(t, err)
+
+	_, err = srv.applyPlan(plan, planRes, snap)
+	must.EqError(t, err, "plan missing embedded job")
 }
 
 // Verifies that applyPlan properly updates the constituent objects in MemDB,
@@ -265,6 +300,9 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		PreemptedByAllocation: alloc.ID,
 	}
 	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1002, nil, stoppedAlloc.Job))
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1003, nil, preemptedAlloc.Job))
 	must.NoError(t, s1.State().UpsertAllocs(structs.MsgTypeTestSetup, 1100, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 
 	// Create an eval
@@ -295,11 +333,16 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
-		Job:               alloc.Job,
+		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		Deployment:        dnew,
 		DeploymentUpdates: updates,
 		EvalID:            eval.ID,
 	}
+	must.NoError(t, s1.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
 
 	// Apply the plan
 	future, err := s1.applyPlan(plan, planRes, snap)
@@ -325,6 +368,9 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 	allocOut, err = fsmState.AllocByID(ws, alloc.ID)
 	must.NoError(t, err)
 	must.NotNil(t, allocOut)
+	must.NotNil(t, allocOut.Job)
+	must.Eq(t, alloc.Job.ID, allocOut.Job.ID)
+	must.Eq(t, alloc.Job.Namespace, allocOut.Job.Namespace)
 	must.True(t, allocOut.CreateTime > 0)
 	must.True(t, allocOut.ModifyTime > 0)
 	must.Eq(t, allocOut.CreateTime, allocOut.ModifyTime)
@@ -464,12 +510,17 @@ func TestPlanApply_KeyringNotReady(t *testing.T) {
 	}
 	plan := &structs.Plan{
 		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
 		Deployment:        deploy,
 		DeploymentUpdates: dupdates,
 	}
+	must.NoError(t, srv.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
 
 	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -495,7 +546,10 @@ func TestPlanApply_EvalPlan_Simple(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -586,6 +640,7 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 	}
 
 	// Insert a preempted alloc such that the alloc will fit only after preemption
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, preemptedAlloc.Job))
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{preemptedAlloc})
 
 	alloc := mock.Alloc()
@@ -614,7 +669,11 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 		},
 	}
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
+		EvalID: uuid.Generate(),
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -666,7 +725,10 @@ func TestPlanApply_EvalPlan_Partial(t *testing.T) {
 	d.TaskGroups["web"].PlacedCanaries = []string{alloc.ID, alloc2.ID}
 
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID:  {alloc},
 			node2.ID: {alloc2},
@@ -719,7 +781,10 @@ func TestPlanApply_EvalPlan_Partial_AllAtOnce(t *testing.T) {
 	alloc2 := mock.Alloc() // Ensure alloc2 does not fit
 	alloc2.AllocatedResources = structs.NodeResourcesToAllocatedResources(node2.NodeResources)
 	plan := &structs.Plan{
-		Job:       alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		AllAtOnce: true, // Require all to make progress
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID:  {alloc},
@@ -766,7 +831,10 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -794,7 +862,10 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -821,7 +892,10 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -847,7 +921,10 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 	nodeID := "12345678-abcd-efab-cdef-123456789abc"
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			nodeID: {alloc},
 		},
@@ -875,7 +952,8 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}))
 
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = node.ID
@@ -883,7 +961,10 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 
 	snap, _ := state.Snapshot()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
 		},
@@ -923,9 +1004,10 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 		},
 	}
 
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Alloc2 tries to use the same device
 	alloc2 := mock.Alloc()
@@ -943,7 +1025,10 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 
 	snap, _ := state.Snapshot()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
 		},
@@ -961,7 +1046,6 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
-	node.Reserved = nil
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
@@ -969,7 +1053,10 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 	snap, _ := state.Snapshot()
 
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -993,16 +1080,19 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	node.ReservedResources = nil
-	node.Reserved = nil
 	node.SchedulingEligibility = structs.NodeSchedulingIneligible
 	alloc.NodeID = node.ID
 	alloc.AllocatedResources = structs.NodeResourcesToAllocatedResources(node.NodeResources)
-	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 99, node))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 	snap, _ := state.Snapshot()
 
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
@@ -1037,7 +1127,10 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
 		},
@@ -1073,7 +1166,10 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 
 	alloc2 := mock.Alloc()
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc2},
 		},
@@ -1108,7 +1204,10 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 	*allocEvict = *alloc
 	allocEvict.DesiredStatus = structs.AllocDesiredStatusEvict
 	plan := &structs.Plan{
-		Job: alloc.Job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
 		},
@@ -1190,7 +1289,10 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			plan := &structs.Plan{
-				Job:            job,
+				JobInfo: &structs.PlanJobTuple{
+					Namespace: job.Namespace,
+					ID:        job.ID,
+				},
 				NodeAllocation: tc.nodeAllocs,
 			}
 

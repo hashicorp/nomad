@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -9,7 +9,9 @@ import { action } from '@ember/object';
 
 export default class MetadataKvComponent extends Component {
   @tracked editing = false;
+  // eslint-disable-next-line ember/no-tracked-properties-from-args
   @tracked value = this.args.value;
+
   get prefixedKey() {
     return this.args.prefix
       ? `${this.args.prefix}.${this.args.key}`

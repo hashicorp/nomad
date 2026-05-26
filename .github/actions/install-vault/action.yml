@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 name: install-vault
@@ -19,6 +19,7 @@ runs:
         linux*)  os="linux" ;;
         darwin*) os="darwin" ;;
         msys*)   os="windows" ;;
+        cygwin*)  os="windows" ;;
         *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
       esac
 

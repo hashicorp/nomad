@@ -1,5 +1,5 @@
 #!/usr/bin/env ash
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 
@@ -9,7 +9,7 @@ case "$1" in
     then
       echo "======================================================================================================================================="
       echo "!! Running Nomad clients inside Docker containers is not supported.                                                                  !!"
-      echo "!! Refer to https://developer.hashicorp.com/nomad/docs/install/production/requirements#running-nomad-in-docker for more information. !!"
+      echo "!! Refer to https://developer.hashicorp.com/nomad/docs/deploy/production/requirements#running-nomad-in-docker for more information. !!"
       echo "!! Set the NOMAD_SKIP_DOCKER_IMAGE_WARN environment variable to skip this warning.                                                   !!"
       echo "======================================================================================================================================="
       echo ""

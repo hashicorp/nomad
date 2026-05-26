@@ -1,14 +1,13 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click, find, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { click, find, render, settled } from '@ember/test-helpers';
+import { hbs } from 'ember-cli-htmlbars';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import {
   startJob,
   stopJob,
@@ -29,10 +28,13 @@ module('Integration | Component | job-page/service', function (hooks) {
     fragmentSerializerInitializer(this.owner);
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
+    this.token = this.owner.lookup('service:token');
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node-pool');
     this.server.create('node');
+    let managementToken = this.server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
   hooks.afterEach(function () {
@@ -42,13 +44,13 @@ module('Integration | Component | job-page/service', function (hooks) {
 
   const commonTemplate = hbs`
     <JobPage::Service
-      @job={{job}}
-      @sortProperty={{sortProperty}}
-      @sortDescending={{sortDescending}}
-      @currentPage={{currentPage}}
-      @gotoJob={{gotoJob}}
-      @statusMode={{statusMode}}
-      @setStatusMode={{setStatusMode}}
+      @job={{this.job}}
+      @sortProperty={{this.sortProperty}}
+      @sortDescending={{this.sortDescending}}
+      @currentPage={{this.currentPage}}
+      @gotoJob={{this.gotoJob}}
+      @statusMode={{this.statusMode}}
+      @setStatusMode={{this.setStatusMode}}
       />
   `;
 
@@ -65,18 +67,18 @@ module('Integration | Component | job-page/service', function (hooks) {
   const makeMirageJob = (server, props = {}) =>
     server.create(
       'job',
-      assign(
+      Object.assign(
         {
           type: 'service',
           createAllocations: false,
           status: 'running',
         },
-        props
-      )
+        props,
+      ),
     );
 
   test('Stopping a job sends a delete request for the job', async function (assert) {
-    assert.expect(1);
+    this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = makeMirageJob(this.server);
     await this.store.findAll('job');
@@ -88,11 +90,10 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await stopJob();
     expectDeleteRequest(assert, this.server, job);
+    await settled();
   });
 
-  test('Stopping a job without proper permissions shows an error message', async function (assert) {
-    assert.expect(4);
-
+  test('Stopping a job without proper permissions disables the button', async function (assert) {
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = makeMirageJob(this.server);
@@ -103,14 +104,15 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await stopJob();
-    expectError(assert, 'Could Not Stop Job');
+    assert.ok(
+      find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
+    );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
-    assert.expect(1);
+    this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = makeMirageJob(this.server, {
       status: 'dead',
@@ -125,12 +127,11 @@ module('Integration | Component | job-page/service', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-    expectStartRequest(assert, this.server, job);
+    await expectStartRequest(assert, this.server, job);
+    await settled();
   });
 
-  test('Starting a job without proper permissions shows an error message', async function (assert) {
-    assert.expect(3);
-
+  test('Starting a job without proper permissions disables the button', async function (assert) {
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = makeMirageJob(this.server, {
@@ -145,12 +146,18 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await startJob();
-    await expectError(assert, 'Could Not Start Job');
+    assert.ok(
+      find('[data-test-start] [data-test-idle-button]').hasAttribute(
+        'disabled',
+      ),
+    );
   });
 
   test('Purging a job sends a purge request for the job', async function (assert) {
-    assert.expect(1);
+    this.token.fetchSelfTokenAndPolicies.perform();
+    const router = this.owner.lookup('service:router');
+    const transitionTo = router.transitionTo;
+    router.transitionTo = () => {};
 
     const mirageJob = makeMirageJob(this.server, {
       status: 'dead',
@@ -163,13 +170,16 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await purgeJob();
-    expectPurgeRequest(assert, this.server, job);
+    try {
+      await purgeJob();
+      expectPurgeRequest(assert, this.server, job);
+      await settled();
+    } finally {
+      router.transitionTo = transitionTo;
+    }
   });
 
   test('Recent allocations shows allocations in the job context', async function (assert) {
-    assert.expect(3);
-
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { createAllocations: true });
     await this.store.findAll('job');
@@ -184,11 +194,11 @@ module('Integration | Component | job-page/service', function (hooks) {
       .reverse()[0];
     const allocationRow = Job.allocations.objectAt(0);
 
-    assert.equal(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
-    assert.equal(
+    assert.deepEqual(allocationRow.shortId, allocation.id.split('-')[0], 'ID');
+    assert.deepEqual(
       allocationRow.taskGroup,
       allocation.taskGroup,
-      'Task Group name'
+      'Task Group name',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -206,16 +216,14 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    assert.equal(Job.allocations.length, 5, 'Capped at 5 allocations');
+    assert.deepEqual(Job.allocations.length, 5, 'Capped at 5 allocations');
     assert.ok(
       Job.viewAllAllocations.includes(job.get('allocations.length') + ''),
-      `View link mentions ${job.get('allocations.length')} allocations`
+      `View link mentions ${job.get('allocations.length')} allocations`,
     );
   });
 
   test('Recent allocations shows an empty message when the job has no allocations', async function (assert) {
-    assert.expect(2);
-
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server);
 
@@ -228,7 +236,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     assert.ok(
       Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
-      'No allocations empty message'
+      'No allocations empty message',
     );
 
     await componentA11yAudit(this.element, assert);
@@ -236,6 +244,7 @@ module('Integration | Component | job-page/service', function (hooks) {
 
   test('Active deployment can be promoted', async function (assert) {
     this.server.create('node');
+    this.token.fetchSelfTokenAndPolicies.perform();
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
     const fullId = JSON.stringify([mirageJob.name, 'default']);
@@ -248,7 +257,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     });
     const deployment = await job.get('latestDeployment');
 
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: mirageJob.id,
       deploymentId: deployment.id,
       clientStatus: 'running',
@@ -268,13 +277,12 @@ module('Integration | Component | job-page/service', function (hooks) {
       requests
         .filterBy('method', 'POST')
         .findBy('url', `/v1/deployment/promote/${deployment.get('id')}`),
-      'A promote POST request was made'
+      'A promote POST request was made',
     );
   });
 
   test('When promoting the active deployment fails, an error is shown', async function (assert) {
-    assert.expect(4);
-
+    this.token.fetchSelfTokenAndPolicies.perform();
     this.server.pretender.post('/v1/deployment/promote/:id', () => [
       403,
       {},
@@ -294,7 +302,7 @@ module('Integration | Component | job-page/service', function (hooks) {
     });
     const deployment = await job.get('latestDeployment');
 
-    server.create('allocation', {
+    this.server.create('allocation', {
       jobId: mirageJob.id,
       deploymentId: deployment.id,
       clientStatus: 'running',
@@ -309,32 +317,18 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await click('[data-test-promote-canary]');
 
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Promote Deployment',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
+    await expectError(assert, 'Could Not Promote Deployment');
 
     await componentA11yAudit(
       this.element,
       assert,
-      'scrollable-region-focusable'
+      'scrollable-region-focusable',
     ); //keyframe animation fades from opacity 0
-
-    await click('[data-test-job-error-close]');
-
-    assert.notOk(
-      find('[data-test-job-error-title]'),
-      'Error message is dismissable'
-    );
   });
 
   test('Active deployment can be failed', async function (assert) {
     this.server.create('node');
+    this.token.fetchSelfTokenAndPolicies.perform();
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
     await this.store.findAll('job');
@@ -353,13 +347,12 @@ module('Integration | Component | job-page/service', function (hooks) {
       requests
         .filterBy('method', 'POST')
         .findBy('url', `/v1/deployment/fail/${deployment.get('id')}`),
-      'A fail POST request was made'
+      'A fail POST request was made',
     );
   });
 
   test('When failing the active deployment fails, an error is shown', async function (assert) {
-    assert.expect(4);
-
+    this.token.fetchSelfTokenAndPolicies.perform();
     this.server.pretender.post('/v1/deployment/fail/:id', () => [403, {}, '']);
 
     this.server.create('node');
@@ -374,27 +367,12 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     await click('.active-deployment [data-test-fail]');
 
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Fail Deployment',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
+    await expectError(assert, 'Could Not Fail Deployment');
 
     await componentA11yAudit(
       this.element,
       assert,
-      'scrollable-region-focusable'
+      'scrollable-region-focusable',
     ); //keyframe animation fades from opacity 0
-
-    await click('[data-test-job-error-close]');
-
-    assert.notOk(
-      find('[data-test-job-error-title]'),
-      'Error message is dismissable'
-    );
   });
 });

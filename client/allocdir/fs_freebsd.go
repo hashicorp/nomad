@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocdir
@@ -9,7 +9,7 @@ import (
 )
 
 // linkDir hardlinks src to dst. The src and dst must be on the same filesystem.
-func linkDir(src, dst string) error {
+func linkDir(src, dst string, _ bool) error {
 	return syscall.Link(src, dst)
 }
 

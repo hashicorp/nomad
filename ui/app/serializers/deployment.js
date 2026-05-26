@@ -1,10 +1,9 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { get } from '@ember/object';
-import { assign } from '@ember/polyfills';
 import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
 
@@ -41,7 +40,7 @@ export default class DeploymentSerializer extends ApplicationSerializer {
       .get('namespace');
     const id = this.extractId(modelClass, hash);
 
-    return assign(
+    return Object.assign(
       {
         allocations: {
           links: {
@@ -49,7 +48,7 @@ export default class DeploymentSerializer extends ApplicationSerializer {
           },
         },
       },
-      super.extractRelationships(modelClass, hash)
+      super.extractRelationships(modelClass, hash),
     );
   }
 }

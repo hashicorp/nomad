@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -126,13 +126,34 @@ func (a *ACLTokens) List(q *QueryOptions) ([]*ACLTokenListStub, *QueryMeta, erro
 	return resp, qm, nil
 }
 
-// Create is used to create a token
+// Create is used to create a token with server-generated AccessorID and
+// SecretID. Use Upload to create a token with pre-specified IDs.
 func (a *ACLTokens) Create(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
 	if token.AccessorID != "" {
 		return nil, nil, errors.New("cannot specify Accessor ID")
 	}
 	var resp ACLToken
 	wm, err := a.client.put("/v1/acl/token", token, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// Upload is used to create a client token with pre-specified AccessorID and
+// SecretID. Management tokens cannot be uploaded and must be created with Create.
+func (a *ACLTokens) Upload(token *ACLToken, q *WriteOptions) (*ACLToken, *WriteMeta, error) {
+	if token.AccessorID == "" {
+		return nil, nil, errors.New("missing accessor ID")
+	}
+	if token.SecretID == "" {
+		return nil, nil, errors.New("missing secret ID")
+	}
+	if token.Type == "management" {
+		return nil, nil, errors.New("cannot upload management tokens")
+	}
+	var resp ACLToken
+	wm, err := a.client.put("/v1/acl/token/"+token.AccessorID, token, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1232,6 +1253,8 @@ type ACLOIDCCompleteAuthRequest struct {
 	State       string
 	Code        string
 
+	Iss string
+
 	// RedirectURI is the URL that authorization should redirect to. This is a
 	// required parameter.
 	RedirectURI string
@@ -1245,4 +1268,55 @@ type ACLLoginRequest struct {
 	AuthMethodName string
 	// LoginToken is the token used to login. This is a required parameter.
 	LoginToken string
+}
+
+// ACLIdentity is used to query the ACL identity endpoints.
+type ACLIdentity struct {
+	client *Client
+}
+
+// ACLIdentity returns a new handle on the ACL identity API client.
+func (c *Client) ACLIdentity() *ACLIdentity {
+	return &ACLIdentity{client: c}
+}
+
+// CreateClientIntroductionToken is the API endpoint used to generate a JWT
+// token to be used for introducing a new client node into the cluster.
+func (a *ACLIdentity) CreateClientIntroductionToken(
+	req *ACLIdentityClientIntroductionTokenRequest,
+	writeOpts *WriteOptions) (*ACLIdentityClientIntroductionTokenResponse, *WriteMeta, error) {
+
+	var resp ACLIdentityClientIntroductionTokenResponse
+	wm, err := a.client.put("/v1/acl/identity/client-introduction-token", req, &resp, writeOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, wm, nil
+}
+
+// ACLIdentityClientIntroductionTokenRequest is the request object used within
+// the ACL client introduction API request. This is used to generate a JWT token
+// that can be used to register a new client node into the cluster.
+type ACLIdentityClientIntroductionTokenRequest struct {
+
+	// TTL is the requested TTL for the identity token. This is an optional
+	// parameter and if not set, defaults to the server defined default TTL.
+	TTL time.Duration
+
+	// NodeName is the name of the node that is being introduced. This is added
+	// to the token as a claim when present, but is optional.
+	NodeName string
+
+	// NodePool is the name of the node pool that this node belongs to. This is
+	// an optional parameter, and if not set, defaults to "default".
+	NodePool string
+}
+
+// ACLIdentityClientIntroductionTokenResponse is the response object used within
+// the ACL client introduction HTTP endpoint.
+type ACLIdentityClientIntroductionTokenResponse struct {
+
+	// JWT is the signed identity token that can be used as an introduction
+	// token for a new client node to register with the Nomad cluster.
+	JWT string
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocdir
@@ -28,7 +28,7 @@ func linkOrCopy(src, dst string, uid, gid int, perm os.FileMode) error {
 }
 
 // The windows version does nothing currently.
-func linkDir(src, dst string) error {
+func linkDir(src, dst string, _ bool) error {
 	return nil
 }
 

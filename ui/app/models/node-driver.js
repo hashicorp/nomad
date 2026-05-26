@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -19,7 +19,7 @@ export default class NodeDriver extends Fragment {
   @computed('name', 'attributes.structured')
   get attributesShort() {
     const attributes = this.get(
-      `attributes.structured.root.children.driver.children.${this.name}`
+      `attributes.structured.root.children.driver.children.${this.name}`,
     );
     return attributes;
   }

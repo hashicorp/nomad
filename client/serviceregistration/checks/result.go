@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package checks
@@ -40,7 +40,7 @@ type Query struct {
 
 	Timeout time.Duration // connection / request timeout
 
-	AddressMode string // host, driver, or alloc
+	AddressMode string // host, driver, alloc or alloc_advertise_ipv6
 	PortLabel   string // label or value
 
 	Protocol      string      // http checks only (http or https)

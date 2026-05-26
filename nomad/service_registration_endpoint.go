@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -40,26 +41,31 @@ func (s *ServiceRegistration) Upsert(
 	args *structs.ServiceRegistrationUpsertRequest,
 	reply *structs.ServiceRegistrationUpsertResponse) error {
 
-	aclObj, err := s.srv.AuthenticateClientOnly(s.ctx, args)
+	_, err := s.srv.AuthenticateClientOnly(s.ctx, args)
+	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
+		return err
+	}
 	s.srv.MeasureRPCRate("service_registration", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
 	}
-
-	if done, err := s.srv.forward(structs.ServiceRegistrationUpsertRPCMethod, args, args, reply); done {
-		return err
-	}
 	defer metrics.MeasureSince([]string{"nomad", "service_registration", "upsert"}, time.Now())
 
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
+	if err := auth.AuthorizeSameNodeServiceRegistrations(args.GetIdentity(), args.Services); err != nil {
+		return err
 	}
 
 	// Nomad service registrations can only be used once all servers, in the
 	// local region, have been upgraded to 1.3.0 or greater.
-	if !ServersMeetMinimumVersion(s.srv.Members(), s.srv.Region(), minNomadServiceRegistrationVersion, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use the Nomad service provider",
-			minNomadServiceRegistrationVersion)
+	if !s.srv.peersCache.ServersMeetMinimumVersion(
+		s.srv.Region(),
+		minNomadServiceRegistrationVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use the Nomad service provider",
+			minNomadServiceRegistrationVersion,
+		)
 	}
 
 	// Use a multierror, so we can capture all validation errors and pass this
@@ -108,16 +114,30 @@ func (s *ServiceRegistration) DeleteByID(
 
 	// Nomad service registrations can only be used once all servers, in the
 	// local region, have been upgraded to 1.3.0 or greater.
-	if !ServersMeetMinimumVersion(s.srv.Members(), s.srv.Region(), minNomadServiceRegistrationVersion, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use the Nomad service provider",
-			minNomadServiceRegistrationVersion)
+	if !s.srv.peersCache.ServersMeetMinimumVersion(
+		s.srv.Region(),
+		minNomadServiceRegistrationVersion,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use the Nomad service provider",
+			minNomadServiceRegistrationVersion,
+		)
 	}
 
 	if aclObj, err := s.srv.ResolveACL(args); err != nil {
 		return structs.ErrPermissionDenied
-	} else if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) &&
-		!aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
+	} else if !aclObj.AllowNsOpAnyOf(args.RequestNamespace(),
+		acl.NamespaceCapabilitySubmitJob,
+		acl.NamespaceCapabilityDeleteServiceRegistration,
+	) {
+		if _, err := s.srv.ResolveAuthorizedClientNodePoolByServiceRegistrationID(
+			aclObj,
+			args.RequestNamespace(),
+			args.ID,
+		); err != nil {
+			return err
+		}
 	}
 
 	// Update via Raft.

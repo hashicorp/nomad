@@ -1,10 +1,10 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { trimPath } from '../../../../helpers/trim-path';
@@ -32,7 +32,8 @@ export default class JobsRunTemplatesNewController extends Controller {
     return !!templates
       .without(this.model)
       .find(
-        (v) => v.path === templateName && v.namespace === this.templateNamespace
+        (v) =>
+          v.path === templateName && v.namespace === this.templateNamespace,
       );
   }
 

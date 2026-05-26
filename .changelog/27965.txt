@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Adds default_ineligible configuration option
+```

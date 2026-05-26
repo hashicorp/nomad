@@ -1,5 +1,5 @@
 {{!
-  Copyright (c) HashiCorp, Inc.
+  Copyright IBM Corp. 2015, 2026
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 <ConditionalLinkTo
@@ -8,9 +8,10 @@
   @model={{@allocation.id}}
   @class="represented-allocation {{@status}} {{@health}} {{@canary}}"
   @label="View allocation"
-  @tooltip={{if this.tooltipText
+  @tooltip={{if
+    this.tooltipText
     (hash
-      text=(or this.tooltipText '')
+      text=(or this.tooltipText "")
       extraTippyOptions=(hash trigger=(if (eq @status "unplaced") "manual"))
     )
     null

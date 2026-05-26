@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -155,6 +155,22 @@ func (n NoopDB) GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error) {
 }
 func (n NoopDB) DeleteDynamicHostVolume(_ string) error {
 	return nil
+}
+
+func (n NoopDB) PutNodeIdentity(_ string) error {
+	return nil
+}
+
+func (n NoopDB) GetNodeIdentity() (string, error) {
+	return "", nil
+}
+
+func (n NoopDB) PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error {
+	return nil
+}
+
+func (n NoopDB) GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error) {
+	return nil, nil
 }
 
 func (n NoopDB) Close() error {

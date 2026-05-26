@@ -1,9 +1,8 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable */
 export default `# Use Nomad Variables to modify this job's output:
 # run "nomad var put nomad/jobs/variables-example name=YOUR_NAME" to get started
 

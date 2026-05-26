@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -18,9 +18,9 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -47,6 +47,7 @@ func TestConfig_Merge(t *testing.T) {
 		AdvertiseAddrs: &AdvertiseAddrs{},
 		Sentinel:       &config.SentinelConfig{},
 		Autopilot:      &config.AutopilotConfig{},
+		Eventlog:       &Eventlog{},
 	}
 
 	c2 := &Config{
@@ -63,7 +64,7 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               false,
 		EnableSyslog:              false,
 		SyslogFacility:            "local0.info",
-		DisableUpdateCheck:        pointer.Of(false),
+		DisableUpdateCheck:        new(false),
 		DisableAnonymousSignature: false,
 		BindAddr:                  "127.0.0.1",
 		Telemetry: &Telemetry{
@@ -73,7 +74,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    false,
-			DisableAllocationHookMetrics:       pointer.Of(false),
+			DisableAllocationHookMetrics:       new(false),
 			CirconusAPIToken:                   "0",
 			CirconusAPIApp:                     "nomadic",
 			CirconusAPIURL:                     "http://api.circonus.com/v2",
@@ -90,7 +91,7 @@ func TestConfig_Merge(t *testing.T) {
 			PrefixFilter:                       []string{"filter1", "filter2"},
 		},
 		Audit: &config.AuditConfig{
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 			Sinks: []*config.AuditSink{
 				{
 					DeliveryGuarantee: "enforced",
@@ -132,7 +133,7 @@ func TestConfig_Merge(t *testing.T) {
 				DiskMB:        10,
 				ReservedPorts: "1,10-30,55",
 			},
-			NomadServiceDiscovery: pointer.Of(false),
+			NomadServiceDiscovery: new(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                false,
@@ -141,11 +142,11 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
 			RaftProtocol:           1,
-			RaftMultiplier:         pointer.Of(5),
-			RaftSnapshotThreshold:  pointer.Of(100),
-			RaftSnapshotInterval:   pointer.Of("30m"),
-			RaftTrailingLogs:       pointer.Of(200),
-			NumSchedulers:          pointer.Of(1),
+			RaftMultiplier:         new(5),
+			RaftSnapshotThreshold:  new(100),
+			RaftSnapshotInterval:   new("30m"),
+			RaftTrailingLogs:       new(200),
+			NumSchedulers:          new(1),
 			NodeGCThreshold:        "1h",
 			BatchEvalGCThreshold:   "4h",
 			HeartbeatGrace:         30 * time.Second,
@@ -153,10 +154,10 @@ func TestConfig_Merge(t *testing.T) {
 			MaxHeartbeatsPerSecond: 30.0,
 			RedundancyZone:         "foo",
 			UpgradeVersion:         "foo",
-			EnableEventBroker:      pointer.Of(false),
-			EventBufferSize:        pointer.Of(0),
+			EnableEventBroker:      new(false),
+			EventBufferSize:        new(0),
 			PlanRejectionTracker: &PlanRejectionTracker{
-				Enabled:       pointer.Of(true),
+				Enabled:       new(true),
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
@@ -235,6 +236,10 @@ func TestConfig_Merge(t *testing.T) {
 				},
 			},
 		},
+		Eventlog: &Eventlog{
+			Enabled: true,
+			Level:   "INFO",
+		},
 	}
 
 	c3 := &Config{
@@ -251,11 +256,11 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               true,
 		EnableSyslog:              true,
 		SyslogFacility:            "local0.debug",
-		DisableUpdateCheck:        pointer.Of(true),
+		DisableUpdateCheck:        new(true),
 		DisableAnonymousSignature: true,
 		BindAddr:                  "127.0.0.2",
 		Audit: &config.AuditConfig{
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 			Sinks: []*config.AuditSink{
 				{
 					DeliveryGuarantee: "enforced",
@@ -277,7 +282,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    true,
-			DisableAllocationHookMetrics:       pointer.Of(true),
+			DisableAllocationHookMetrics:       new(true),
 			PublishNodeMetrics:                 true,
 			PublishAllocationMetrics:           true,
 			CirconusAPIToken:                   "1",
@@ -297,7 +302,7 @@ func TestConfig_Merge(t *testing.T) {
 			DisableDispatchedJobSummaryMetrics: true,
 			DisableQuotaUtilizationMetrics:     false,
 			DisableRPCRateMetricsLabels:        true,
-			FilterDefault:                      pointer.Of(false),
+			FilterDefault:                      new(false),
 		},
 		Client: &ClientConfig{
 			Enabled:   true,
@@ -326,15 +331,15 @@ func TestConfig_Merge(t *testing.T) {
 			TemplateConfig: &client.ClientTemplateConfig{
 				FunctionDenylist:   client.DefaultTemplateFunctionDenylist,
 				DisableSandbox:     false,
-				BlockQueryWaitTime: pointer.Of(5 * time.Minute),
-				MaxStale:           pointer.Of(client.DefaultTemplateMaxStale),
+				BlockQueryWaitTime: new(5 * time.Minute),
+				MaxStale:           new(client.DefaultTemplateMaxStale),
 				Wait: &client.WaitConfig{
-					Min: pointer.Of(5 * time.Second),
-					Max: pointer.Of(4 * time.Minute),
+					Min: new(5 * time.Second),
+					Max: new(4 * time.Minute),
 				},
-				ConsulRetry: &client.RetryConfig{Attempts: pointer.Of(0)},
-				VaultRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
-				NomadRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
+				ConsulRetry: &client.RetryConfig{Attempts: new(0)},
+				VaultRetry:  &client.RetryConfig{Attempts: new(0)},
+				NomadRetry:  &client.RetryConfig{Attempts: new(0)},
 			},
 			Reserved: &Resources{
 				CPU:           15,
@@ -346,7 +351,7 @@ func TestConfig_Merge(t *testing.T) {
 			GCParallelDestroys:    6,
 			GCDiskUsageThreshold:  71,
 			GCInodeUsageThreshold: 86,
-			NomadServiceDiscovery: pointer.Of(false),
+			NomadServiceDiscovery: new(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                true,
@@ -355,11 +360,11 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
 			RaftProtocol:           2,
-			RaftMultiplier:         pointer.Of(6),
-			RaftSnapshotThreshold:  pointer.Of(100),
-			RaftSnapshotInterval:   pointer.Of("30m"),
-			RaftTrailingLogs:       pointer.Of(200),
-			NumSchedulers:          pointer.Of(2),
+			RaftMultiplier:         new(6),
+			RaftSnapshotThreshold:  new(100),
+			RaftSnapshotInterval:   new("30m"),
+			RaftTrailingLogs:       new(200),
+			NumSchedulers:          new(2),
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
 			BatchEvalGCThreshold:   "4h",
@@ -373,15 +378,16 @@ func TestConfig_Merge(t *testing.T) {
 			NonVotingServer:        true,
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
-			EnableEventBroker:      pointer.Of(true),
-			EventBufferSize:        pointer.Of(100),
+			EnableEventBroker:      new(true),
+			EventBufferSize:        new(100),
 			PlanRejectionTracker: &PlanRejectionTracker{
-				Enabled:       pointer.Of(true),
+				Enabled:       new(true),
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
-			JobMaxPriority:     pointer.Of(200),
-			JobDefaultPriority: pointer.Of(100),
+			JobMaxPriority:     new(200),
+			JobDefaultPriority: new(100),
+			JobMaxCount:        new(1000),
 			OIDCIssuer:         "https://oidc.test.nomadproject.io",
 			StartTimeout:       "1m",
 		},
@@ -485,8 +491,12 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Reporting: &config.ReportingConfig{
 			License: &config.LicenseReportingConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 			},
+		},
+		Eventlog: &Eventlog{
+			Enabled: true,
+			Level:   "ERROR",
 		},
 	}
 
@@ -956,6 +966,33 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 	}
 }
 
+// TestConfig_normalizeAddrs_IPv6 asserts that bind and advertise addrs conform
+// to RFC 5942 §4: https://www.rfc-editor.org/rfc/rfc5942.html#section-4
+// Full coverage is provided by tests for ipaddr.NormalizeAddr
+func TestConfig_normalizeAddrs_IPv6(t *testing.T) {
+	c := &Config{
+		Addresses: &Addresses{},
+
+		BindAddr: "0:0::1F",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			HTTP: "[A110::0:0:C8]:8080",
+			RPC:  "0:00FA:0:0:0::CE",
+		},
+		DevMode: false,
+	}
+	must.NoError(t, c.normalizeAddrs())
+	test.Eq(t, "::1f", c.Addresses.HTTP, test.Sprint("bind HTTP"))
+	test.Eq(t, "::1f", c.Addresses.RPC, test.Sprint("bind RPC"))
+	test.Eq(t, []string{"[::1f]:4646"}, c.normalizedAddrs.HTTP, test.Sprint("normalized HTTP"))
+	test.Eq(t, "[::1f]:4647", c.normalizedAddrs.RPC, test.Sprint("normalized RPC"))
+	test.Eq(t, "[a110::c8]:8080", c.AdvertiseAddrs.HTTP, test.Sprint("advertise HTTP"))
+	test.Eq(t, "[0:fa::ce]:4647", c.AdvertiseAddrs.RPC, test.Sprint("advertise RPC"))
+}
+
 // TestConfig_normalizeAddrs_MultipleInterface asserts that normalizeAddrs will
 // handle normalizing multiple interfaces in a single protocol.
 func TestConfig_normalizeAddrs_MultipleInterfaces(t *testing.T) {
@@ -1232,6 +1269,123 @@ func TestIsMissingPort(t *testing.T) {
 	}
 }
 
+func TestClientIntroduction_Copy(t *testing.T) {
+	ci.Parallel(t)
+
+	clientIntro := &ClientIntroduction{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+	}
+
+	copiedClientIntro := clientIntro.Copy()
+
+	// Ensure the copied object contains the same values, but the underlying
+	// pointer address is different.
+	must.Eq(t, clientIntro, copiedClientIntro)
+	must.NotEq(t, fmt.Sprintf("%p", clientIntro), fmt.Sprintf("%p", copiedClientIntro))
+}
+
+func TestClientIntroduction_Merge(t *testing.T) {
+	ci.Parallel(t)
+
+	clientIntro1 := &ClientIntroduction{
+		Enforcement:        "warn",
+		DefaultIdentityTTL: 5 * time.Minute,
+		MaxIdentityTTL:     30 * time.Minute,
+		ExtraKeysHCL:       []string{"key1", "key2"},
+	}
+	clientIntro2 := &ClientIntroduction{
+		Enforcement:        "strict",
+		DefaultIdentityTTL: 30 * time.Minute,
+		MaxIdentityTTL:     60 * time.Minute,
+		ExtraKeysHCL:       []string{"key3", "key4"},
+	}
+	expectedClientIntro := &ClientIntroduction{
+		Enforcement:        "strict",
+		DefaultIdentityTTL: 30 * time.Minute,
+		MaxIdentityTTL:     60 * time.Minute,
+		ExtraKeysHCL:       []string{"key1", "key2", "key3", "key4"},
+	}
+	must.Eq(t, expectedClientIntro, clientIntro1.Merge(clientIntro2))
+}
+
+func TestClientIntroduction_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                    string
+		inputClientIntroduction *ClientIntroduction
+		expectedError           bool
+	}{
+		{
+			name:                    "nil block",
+			inputClientIntroduction: nil,
+			expectedError:           false,
+		},
+		{
+			name: "empty enforcement",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement: "",
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid enforcement",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement: "nuclear",
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid default_identity_ttl",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 0,
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid max_identity_ttl",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     0,
+			},
+			expectedError: true,
+		},
+		{
+			name: "invalid ttl combination",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     4 * time.Minute,
+			},
+			expectedError: true,
+		},
+		{
+			name: "valid",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+			expectedError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputClientIntroduction.Validate()
+			if tc.expectedError {
+				must.Error(t, actualOutput)
+			} else {
+				must.NoError(t, actualOutput)
+			}
+		})
+	}
+}
+
 func TestMergeServerJoin(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1472,8 +1626,8 @@ func TestEventBroker_Parse(t *testing.T) {
 	require := require.New(t)
 	{
 		a := &ServerConfig{
-			EnableEventBroker: pointer.Of(false),
-			EventBufferSize:   pointer.Of(0),
+			EnableEventBroker: new(false),
+			EventBufferSize:   new(0),
 		}
 		b := DefaultConfig().Server
 		b.EnableEventBroker = nil
@@ -1486,8 +1640,8 @@ func TestEventBroker_Parse(t *testing.T) {
 
 	{
 		a := &ServerConfig{
-			EnableEventBroker: pointer.Of(true),
-			EventBufferSize:   pointer.Of(5000),
+			EnableEventBroker: new(true),
+			EventBufferSize:   new(5000),
 		}
 		b := DefaultConfig().Server
 		b.EnableEventBroker = nil
@@ -1500,12 +1654,12 @@ func TestEventBroker_Parse(t *testing.T) {
 
 	{
 		a := &ServerConfig{
-			EnableEventBroker: pointer.Of(false),
-			EventBufferSize:   pointer.Of(0),
+			EnableEventBroker: new(false),
+			EventBufferSize:   new(0),
 		}
 		b := DefaultConfig().Server
-		b.EnableEventBroker = pointer.Of(true)
-		b.EventBufferSize = pointer.Of(20000)
+		b.EnableEventBroker = new(true)
+		b.EventBufferSize = new(20000)
 
 		result := a.Merge(b)
 		require.Equal(true, *result.EnableEventBroker)
@@ -1757,11 +1911,11 @@ func Test_mergeConsulConfigs(t *testing.T) {
 			{
 				ServiceIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"consul.io"},
-					TTL:      pointer.Of(time.Hour),
+					TTL:      new(time.Hour),
 				},
 				TaskIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"consul.io"},
-					TTL:      pointer.Of(time.Hour),
+					TTL:      new(time.Hour),
 				},
 			},
 		},
@@ -1843,4 +1997,160 @@ func Test_mergeKEKProviderConfigs(t *testing.T) {
 			},
 		},
 	}, result)
+}
+
+func Test_mergeClientFingerprinterConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	left := []*client.Fingerprint{
+		{
+			Name:          "env_aws",
+			RetryAttempts: 2,
+		},
+		{
+			Name:          "env_gce",
+			ExitOnFailure: new(false),
+		},
+	}
+	right := []*client.Fingerprint{
+		{
+			Name:          "env_aws",
+			RetryInterval: 10 * time.Second,
+		},
+		{
+			Name:          "env_gce",
+			RetryAttempts: 10,
+			RetryInterval: 10 * time.Second,
+			ExitOnFailure: new(true),
+		},
+		{
+			Name:          "env_azure",
+			ExitOnFailure: new(true),
+		},
+	}
+
+	must.Eq(t, []*client.Fingerprint{
+		{
+			Name:          "env_aws",
+			RetryAttempts: 2,
+			RetryInterval: 10 * time.Second,
+		},
+		{
+			Name:          "env_gce",
+			RetryAttempts: 10,
+			RetryInterval: 10 * time.Second,
+			ExitOnFailure: new(true),
+		},
+		{
+			Name:          "env_azure",
+			ExitOnFailure: new(true),
+		},
+	}, mergeClientFingerprinterConfigs(left, right))
+}
+
+func TestConfig_LoadClientNodeMaxAllocs(t *testing.T) {
+	ci.Parallel(t)
+	testCases := []struct {
+		fileName string
+	}{
+		{
+			fileName: "test-resources/client_with_maxallocs.hcl",
+		},
+		{
+			fileName: "test-resources/client_with_maxallocs.json",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run("minimal client expect defaults", func(t *testing.T) {
+			defaultConfig := DefaultConfig()
+			agentConfig, err := LoadConfig(tc.fileName)
+			must.NoError(t, err)
+			agentConfig = defaultConfig.Merge(agentConfig)
+			must.Eq(t, 5, agentConfig.Client.NodeMaxAllocs)
+		})
+	}
+
+}
+
+func TestEventlog_Merge(t *testing.T) {
+	t.Run("nil rhs merge", func(t *testing.T) {
+		var c1, c2 *Eventlog
+		c1 = &Eventlog{
+			Enabled: true,
+			Level:   "info",
+		}
+		result := c1.Merge(c2)
+		must.Eq(t, result, c1)
+	})
+
+	t.Run("nil lhs merge", func(t *testing.T) {
+		var c1, c2 *Eventlog
+		c2 = &Eventlog{
+			Enabled: true,
+			Level:   "info",
+		}
+		result := c1.Merge(c2)
+		must.Eq(t, result, c2)
+	})
+
+	t.Run("full merge", func(t *testing.T) {
+		c1 := &Eventlog{
+			Enabled: false,
+			Level:   "info",
+		}
+		c2 := &Eventlog{
+			Enabled: true,
+			Level:   "error",
+		}
+		result := c1.Merge(c2)
+		must.True(t, result.Enabled)
+		must.Eq(t, result.Level, "error")
+	})
+
+	t.Run("enabled merge", func(t *testing.T) {
+		// NOTE: Can only be enabled, not disabled
+		c1 := &Eventlog{
+			Enabled: true,
+		}
+		c2 := &Eventlog{
+			Enabled: false,
+		}
+		result := c1.Merge(c2)
+		must.True(t, result.Enabled)
+
+	})
+}
+
+func TestEventlog_Validate(t *testing.T) {
+	ci.Parallel(t)
+	testCases := []struct {
+		desc      string
+		eventlog  *Eventlog
+		shouldErr bool
+	}{
+		{
+			desc:     "valid level",
+			eventlog: &Eventlog{Level: "info"},
+		},
+		{
+			desc:      "invalid level",
+			eventlog:  &Eventlog{Level: "debug"},
+			shouldErr: true,
+		},
+		{
+			desc: "nil eventlog",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			ci.Parallel(t)
+
+			if tc.shouldErr {
+				must.Error(t, tc.eventlog.Validate())
+			} else {
+				must.NoError(t, tc.eventlog.Validate())
+			}
+		})
+	}
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 )
 
 // HostVolume is the server RPC endpoint for host volumes
@@ -192,8 +192,15 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "create"}, time.Now())
 
-	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	if !v.srv.peersCache.ServersMeetMinimumVersion(
+		v.srv.Region(),
+		minVersionDynamicHostVolumes,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use dynamic host volumes",
+			minVersionDynamicHostVolumes,
+		)
 	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeCreate)
@@ -212,6 +219,12 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	}
 	if !allowVolume(aclObj, vol.Namespace) {
 		return structs.ErrPermissionDenied
+	}
+	// Check if override is set and we do not have permissions
+	if args.PolicyOverride {
+		if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	// ensure we only try to create a valid volume or make valid updates to a
@@ -294,8 +307,15 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "register"}, time.Now())
 
-	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	if !v.srv.peersCache.ServersMeetMinimumVersion(
+		v.srv.Region(),
+		minVersionDynamicHostVolumes,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use dynamic host volumes",
+			minVersionDynamicHostVolumes,
+		)
 	}
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRegister)
@@ -314,6 +334,12 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	}
 	if !allowVolume(aclObj, vol.Namespace) {
 		return structs.ErrPermissionDenied
+	}
+	// Check if override is set and we do not have permissions
+	if args.PolicyOverride {
+		if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+			return structs.ErrPermissionDenied
+		}
 	}
 
 	snap, err := v.srv.State().Snapshot()
@@ -507,6 +533,18 @@ func (v *HostVolume) registerVolume(vol *structs.HostVolume) error {
 // by that name. It returns the node (for testing) and an error indicating
 // placement failed.
 func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.HostVolume) (*structs.Node, error) {
+	ctx := &placementContext{
+		regexpCache:  make(map[string]*regexp.Regexp),
+		versionCache: make(map[string]feasible.VerConstraints),
+		semverCache:  make(map[string]feasible.VerConstraints),
+	}
+	constraints := []*structs.Constraint{{
+		LTarget: fmt.Sprintf("${attr.plugins.host_volume.%s.version}", vol.PluginID),
+		Operand: "is_set",
+	}}
+	constraints = append(constraints, vol.Constraints...)
+	checker := feasible.NewConstraintChecker(ctx, constraints)
+
 	if vol.NodeID != "" {
 		node, err := snap.NodeByID(nil, vol.NodeID)
 		if err != nil {
@@ -515,6 +553,10 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		if node == nil {
 			return nil, fmt.Errorf("no such node %s", vol.NodeID)
 		}
+		if ok := checker.Feasible(node); !ok {
+			return nil, fmt.Errorf("node %s is not feasible for volume", vol.NodeID)
+		}
+
 		vol.NodePool = node.NodePool
 		return node, nil
 	}
@@ -537,19 +579,6 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 	if err != nil {
 		return nil, err
 	}
-
-	var checker *scheduler.ConstraintChecker
-	ctx := &placementContext{
-		regexpCache:  make(map[string]*regexp.Regexp),
-		versionCache: make(map[string]scheduler.VerConstraints),
-		semverCache:  make(map[string]scheduler.VerConstraints),
-	}
-	constraints := []*structs.Constraint{{
-		LTarget: fmt.Sprintf("${attr.plugins.host_volume.%s.version}", vol.PluginID),
-		Operand: "is_set",
-	}}
-	constraints = append(constraints, vol.Constraints...)
-	checker = scheduler.NewConstraintChecker(ctx, constraints)
 
 	var (
 		filteredByExisting    int
@@ -602,18 +631,18 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 // feasibility checker for constraints
 type placementContext struct {
 	regexpCache  map[string]*regexp.Regexp
-	versionCache map[string]scheduler.VerConstraints
-	semverCache  map[string]scheduler.VerConstraints
+	versionCache map[string]feasible.VerConstraints
+	semverCache  map[string]feasible.VerConstraints
 }
 
 func (ctx *placementContext) Metrics() *structs.AllocMetric          { return &structs.AllocMetric{} }
 func (ctx *placementContext) RegexpCache() map[string]*regexp.Regexp { return ctx.regexpCache }
 
-func (ctx *placementContext) VersionConstraintCache() map[string]scheduler.VerConstraints {
+func (ctx *placementContext) VersionConstraintCache() map[string]feasible.VerConstraints {
 	return ctx.versionCache
 }
 
-func (ctx *placementContext) SemverConstraintCache() map[string]scheduler.VerConstraints {
+func (ctx *placementContext) SemverConstraintCache() map[string]feasible.VerConstraints {
 	return ctx.semverCache
 }
 
@@ -629,8 +658,15 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "delete"}, time.Now())
 
-	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
-		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	if !v.srv.peersCache.ServersMeetMinimumVersion(
+		v.srv.Region(),
+		minVersionDynamicHostVolumes,
+		false,
+	) {
+		return fmt.Errorf(
+			"all servers should be running version %v or later to use dynamic host volumes",
+			minVersionDynamicHostVolumes,
+		)
 	}
 
 	// Note that all deleted volumes need to be in the same namespace
@@ -671,7 +707,7 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 	// serialize client RPC and raft write per volume ID
 	index, err := v.serializeCall(vol.ID, "delete", func() (uint64, error) {
 		if err := v.deleteVolume(vol); err != nil {
-			if structs.IsErrUnknownNode(err) {
+			if structs.IsErrUnknownNode(err) || structs.IsErrNoNodeConn(err) {
 				if !args.Force {
 					return 0, fmt.Errorf(
 						"volume cannot be removed from unknown node without force=true")

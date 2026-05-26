@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -13,7 +13,7 @@ export default class JobPlan extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     hash.PreemptionIDs = (get(hash, 'Annotations.PreemptedAllocs') || []).mapBy(
-      'ID'
+      'ID',
     );
     return super.normalize(...arguments);
   }

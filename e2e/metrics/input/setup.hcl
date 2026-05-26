@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 job "setup-podman-auth" {
@@ -10,10 +10,6 @@ job "setup-podman-auth" {
   }
 
   group "create-files" {
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
 
     restart {
       attempts = 0

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -1091,4 +1091,43 @@ func TestTaskCSIPluginConfig_Equal(t *testing.T) {
 		Field: "HealthTimeout",
 		Apply: func(c *TaskCSIPluginConfig) { c.HealthTimeout = 1 * time.Second },
 	}})
+}
+
+func TestCSIVolumeSanitize(t *testing.T) {
+	ci.Parallel(t)
+
+	orig := &CSIVolume{
+		ID: "foo",
+		MountOptions: &CSIMountOptions{
+			FSType:     "ext4",
+			MountFlags: []string{"ro", "noatime"},
+		},
+		Secrets: CSISecrets{
+			"foo": "bar",
+			"baz": "qux",
+		},
+		Parameters: map[string]string{"example": "unchanged"},
+	}
+
+	sanitized := orig.Sanitize()
+	must.Eq(t, []string{"[REDACTED]"}, sanitized.MountOptions.MountFlags)
+	must.Nil(t, sanitized.Secrets)
+
+	orig.Parameters["example"] = "different"
+	must.Eq(t, "unchanged", sanitized.Parameters["example"])
+}
+
+func TestCSIMountOptionsSanitize(t *testing.T) {
+	ci.Parallel(t)
+
+	orig := &CSIMountOptions{
+		FSType:     "ext4",
+		MountFlags: []string{"ro", "noatime"},
+	}
+
+	sanitized := orig.Sanitize()
+	must.NotEq(t, orig, sanitized)
+
+	must.Eq(t, sanitized.FSType, orig.FSType)
+	must.Eq(t, sanitized.MountFlags, []string{"[REDACTED]"})
 }

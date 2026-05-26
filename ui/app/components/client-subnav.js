@@ -1,11 +1,11 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Component from '@ember/component';
 import { tagName } from '@ember-decorators/component';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 @tagName('')
 export default class ClientSubnav extends Component {

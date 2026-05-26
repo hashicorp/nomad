@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -68,7 +68,7 @@ func (c *OperatorGossipKeyringListCommand) Run(args []string) int {
 
 	args = flags.Args()
 	if len(args) != 0 {
-		c.Ui.Error("This command requires no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

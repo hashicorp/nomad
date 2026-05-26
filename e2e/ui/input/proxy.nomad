@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 job "nomad-proxy" {
@@ -72,6 +72,24 @@ job "nomad-proxy" {
       resources {
         cpu    = 256
         memory = 128
+      }
+
+      action "get_proxy_public_address" {
+        command = "/bin/bash"
+        args    = ["-c", "local/get_proxy_public_ip.sh"]
+      }
+
+      template {
+        destination = "local/get_proxy_public_ip.sh"
+        perms       = "0755"
+        data        = <<EOT
+#!/usr/bin/env bash
+
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+
+curl -s -H "X-aws-ec2-metadata-token: $TOKEN" "http://169.254.169.254/latest/meta-data/public-ipv4"
+EOT
       }
 
       # this template is mostly lifted from the Learn Guide:

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -60,6 +61,11 @@ type rpcHandler struct {
 	streamLimiter *connlimit.Limiter
 	streamLimit   int
 
+	// yamuxCfg is the configuration for the Yamux server. This is passed from
+	// the server and stored once it has been modified for use on all RPC
+	// handlers. It should not be modified outside of newRpcHandler.
+	yamuxCfg *yamux.Config
+
 	logger   log.Logger
 	gologger *golog.Logger
 }
@@ -73,6 +79,17 @@ func newRpcHandler(s *Server) *rpcHandler {
 		logger:    logger,
 		gologger:  logger.StandardLoggerIntercept(&log.StandardLoggerOptions{InferLevels: true}),
 	}
+
+	// The server yamux config is a shared object, so we do not want to modify
+	// it directly. Instead, clone it and set up the logger to avoid data races.
+	//
+	// Performing this work here avoids doing this per new connection handle in
+	// handleMultiplex and handleMultiplexV2.
+	poolMUXCfg := s.config.RPCSessionConfig.Clone()
+	poolMUXCfg.LogOutput = nil
+	poolMUXCfg.Logger = r.gologger
+
+	r.yamuxCfg = poolMUXCfg
 
 	// Setup connection limits
 	if r.connLimit > 0 {
@@ -106,9 +123,6 @@ type RPCContext struct {
 
 	// NodeID marks the NodeID that initiated the connection.
 	NodeID string
-
-	// SessionConfig allowing to change default yamux configs value for advanced configuration
-	SessionConfig *yamux.Config
 }
 
 func (ctx *RPCContext) IsTLS() bool {
@@ -221,7 +235,7 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			conn = connlimit.Wrap(conn, free)
 		}
 
-		go r.handleConn(ctx, conn, &RPCContext{Conn: conn, SessionConfig: r.srv.GetConfig().RPCSessionConfig})
+		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
 }
@@ -409,10 +423,7 @@ func (r *rpcHandler) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx 
 		conn.Close()
 	}()
 
-	conf := rpcCtx.SessionConfig
-	conf.LogOutput = nil
-	conf.Logger = r.gologger
-	server, err := yamux.Server(conn, conf)
+	server, err := yamux.Server(conn, r.yamuxCfg)
 	if err != nil {
 		r.logger.Error("multiplex failed to create yamux server", "error", err)
 		return
@@ -518,10 +529,7 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 		conn.Close()
 	}()
 
-	conf := rpcCtx.SessionConfig
-	conf.LogOutput = nil
-	conf.Logger = r.gologger
-	server, err := yamux.Server(conn, conf)
+	server, err := yamux.Server(conn, r.yamuxCfg)
 	if err != nil {
 		r.logger.Error("multiplex_v2 failed to create yamux server", "error", err)
 		return
@@ -614,7 +622,7 @@ func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface
 // nil if this server is the current leader.  If the local server is the leader
 // it blocks until it is ready to handle consistent RPC invocations.  If leader
 // is not known or consistency isn't guaranteed, an error is returned.
-func (r *rpcHandler) getLeaderForRPC() (*serverParts, error) {
+func (r *rpcHandler) getLeaderForRPC() (*peers.Parts, error) {
 	var firstCheck time.Time
 
 CHECK_LEADER:
@@ -656,7 +664,7 @@ CHECK_LEADER:
 // getLeader returns if the current node is the leader, and if not
 // then it returns the leader which is potentially nil if the cluster
 // has not yet elected a leader.
-func (s *Server) getLeader() (bool, *serverParts) {
+func (s *Server) getLeader() (bool, *peers.Parts) {
 	// Check if we are the leader
 	if s.IsLeader() {
 		return true, nil
@@ -668,17 +676,13 @@ func (s *Server) getLeader() (bool, *serverParts) {
 		return false, nil
 	}
 
-	// Lookup the server
-	s.peerLock.RLock()
-	server := s.localPeers[leader]
-	s.peerLock.RUnlock()
-
-	// Server could be nil
-	return false, server
+	// Lookup the server and return it. We do not check the cache response, so
+	// the server could be nil.
+	return false, s.peersCache.LocalPeer(leader)
 }
 
 // forwardLeader is used to forward an RPC call to the leader, or fail if no leader
-func (r *rpcHandler) forwardLeader(server *serverParts, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardLeader(server *peers.Parts, method string, args interface{}, reply interface{}) error {
 	// Handle a missing server
 	if server == nil {
 		return structs.ErrNoLeader
@@ -687,7 +691,7 @@ func (r *rpcHandler) forwardLeader(server *serverParts, method string, args inte
 }
 
 // forwardServer is used to forward an RPC call to a particular server
-func (r *rpcHandler) forwardServer(server *serverParts, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardServer(server *peers.Parts, method string, args interface{}, reply interface{}) error {
 	// Handle a missing server
 	if server == nil {
 		return errors.New("must be given a valid server address")
@@ -695,11 +699,9 @@ func (r *rpcHandler) forwardServer(server *serverParts, method string, args inte
 	return r.srv.connPool.RPC(r.srv.config.Region, server.Addr, method, args, reply)
 }
 
-func (r *rpcHandler) findRegionServer(region string) (*serverParts, error) {
-	r.srv.peerLock.RLock()
-	defer r.srv.peerLock.RUnlock()
+func (r *rpcHandler) findRegionServer(region string) (*peers.Parts, error) {
 
-	servers := r.srv.peers[region]
+	servers := r.srv.peersCache.RegionPeers(region)
 	if len(servers) == 0 {
 		r.logger.Warn("no path found to region", "region", region)
 		return nil, structs.ErrNoRegionPath
@@ -722,12 +724,9 @@ func (r *rpcHandler) forwardRegion(region, method string, args interface{}, repl
 	return r.srv.connPool.RPC(region, server.Addr, method, args, reply)
 }
 
-func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
-	// Bail if we can't find any servers
-	r.srv.peerLock.RLock()
-	defer r.srv.peerLock.RUnlock()
+func (r *rpcHandler) getServer(region, serverID string) (*peers.Parts, error) {
 
-	servers := r.srv.peers[region]
+	servers := r.srv.peersCache.RegionPeers(region)
 	if len(servers) == 0 {
 		r.logger.Warn("no path found to region", "region", region)
 		return nil, structs.ErrNoRegionPath
@@ -746,7 +745,7 @@ func (r *rpcHandler) getServer(region, serverID string) (*serverParts, error) {
 // streamingRpc creates a connection to the given server and conducts the
 // initial handshake, returning the connection or an error. It is the callers
 // responsibility to close the connection if there is no returned error.
-func (r *rpcHandler) streamingRpc(server *serverParts, method string) (net.Conn, error) {
+func (r *rpcHandler) streamingRpc(server *peers.Parts, method string) (net.Conn, error) {
 	c, err := r.srv.connPool.StreamingRPC(r.srv.config.Region, server.Addr)
 	if err != nil {
 		return nil, err

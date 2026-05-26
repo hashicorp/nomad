@@ -1,10 +1,11 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
@@ -95,6 +96,43 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 
 	ui.OutputWriter.Reset()
 	ui.ErrorWriter.Reset()
+}
+
+func TestJobAllocsCommand_MaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &JobAllocsCommand{Meta: Meta{Ui: ui}}
+	state := srv.Agent.Server().State()
+
+	job := mock.BatchJob()
+	maxRunDuration := 10 * time.Minute
+	job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
+
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	deadline := createtime.Add(maxRunDuration)
+
+	a := mock.Alloc()
+	a.Job = job
+	a.JobID = job.ID
+	a.TaskGroup = job.TaskGroups[0].Name
+	a.Metrics = &structs.AllocMetric{}
+	a.DesiredStatus = structs.AllocDesiredStatusRun
+	a.ClientStatus = structs.AllocClientStatusRunning
+	a.CreateTime = createtime.UnixNano()
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{a}))
+
+	code := cmd.Run([]string{"-address=" + url, "-verbose", job.ID})
+	out := ui.OutputWriter.String()
+	outerr := ui.ErrorWriter.String()
+
+	must.Zero(t, code)
+	must.Eq(t, "", outerr)
+	must.StrContains(t, out, "Max Run Deadline")
+	must.StrContains(t, out, formatTime(deadline))
 }
 
 func TestJobAllocsCommand_Template(t *testing.T) {

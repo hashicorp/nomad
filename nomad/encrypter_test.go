@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -10,10 +10,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"net/http"
+	"net/http/httptest"
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,9 +26,9 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -40,6 +44,13 @@ var (
 		WorkloadIdentifier: "web",
 		WorkloadType:       structs.WorkloadTypeTask,
 	}
+)
+
+// Assert that the Encrypter implements the claimSigner and auth.Encrypter
+// interfaces.
+var (
+	_ claimSigner    = &Encrypter{}
+	_ auth.Encrypter = &Encrypter{}
 )
 
 type mockSigner struct {
@@ -121,6 +132,45 @@ func TestEncrypter_LoadSave(t *testing.T) {
 		must.Greater(t, 0, len(gotKey.RSAKey))
 	})
 
+	t.Run("legacy wrapper HA", func(t *testing.T) {
+		key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+		must.NoError(t, err)
+
+		// create a wrapper file identical to those before we had external KMS
+		wrappedKey, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+
+		writeWrapper := func(i int) {
+			var diskWrapper *structs.KeyEncryptionKeyWrapper
+			if i == 1 {
+				diskWrapper = &structs.KeyEncryptionKeyWrapper{
+					Meta:                       key.Meta,
+					KeyEncryptionKey:           wrappedKey.KeyEncryptionKey,
+					EncryptedDataEncryptionKey: wrappedKey.WrappedDataEncryptionKey.Ciphertext,
+					EncryptedRSAKey:            wrappedKey.WrappedRSAKey.Ciphertext,
+				}
+			} else {
+				diskWrapper = &structs.KeyEncryptionKeyWrapper{
+					Meta:                       key.Meta,
+					KeyEncryptionKey:           []byte{}, // garbage
+					EncryptedDataEncryptionKey: wrappedKey.WrappedDataEncryptionKey.Ciphertext,
+					EncryptedRSAKey:            wrappedKey.WrappedRSAKey.Ciphertext,
+				}
+			}
+
+			buf, err := json.Marshal(diskWrapper)
+			must.NoError(t, err)
+			name := fmt.Sprintf("%s.%d.nks.json", key.Meta.KeyID, i)
+			path := filepath.Join(tmpDir, name)
+			err = os.WriteFile(path, buf, 0o600)
+			must.NoError(t, err)
+		}
+
+		writeWrapper(1)
+		writeWrapper(0)
+
+		must.NoError(t, encrypter.loadKeystore())
+	})
+
 }
 
 // TestEncrypter_loadKeyFromStore_emptyRSA tests a panic seen by some
@@ -182,6 +232,104 @@ func TestEncrypter_loadKeyFromStore_emptyRSA(t *testing.T) {
 	unwrappedKey, err := encrypter.loadKeyFromStore(path)
 	must.NoError(t, err)
 	must.NotNil(t, unwrappedKey)
+}
+
+// TestEncrypter_HAFailedWrites exercises the behavior of keyring rotation with
+// HA KMS (for Nomad Enterprise) when one of the KMS is down. We want to fail
+// the rotation here and not persist the keys.
+func TestEncrypter_HAFailedWrites(t *testing.T) {
+
+	srv := &Server{
+		logger:      testlog.HCLogger(t),
+		config:      &Config{},
+		shutdownCtx: t.Context(),
+	}
+
+	tmpDir := t.TempDir()
+	encrypter, err := NewEncrypter(srv, tmpDir)
+	must.NoError(t, err)
+
+	// build two fake Vault transit encryption servers so we can control the
+	// failed responses
+	newMockVaultServer := func(name string, enabled *atomic.Bool) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Logf("vault %s got %s", name, r.URL)
+			if !enabled.Load() {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				json.NewEncoder(w).Encode(map[string]any{
+					"errors": []string{"Vault is sealed or unavailable"},
+				})
+				return
+			}
+			if strings.Contains(r.URL.Path, "/transit/encrypt/") {
+				var req map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+
+				plaintext, _ := req["plaintext"].(string)
+				w.WriteHeader(http.StatusOK)
+				json.NewEncoder(w).Encode(map[string]any{
+					"data": map[string]any{ // note: not actually encrypted!
+						"ciphertext":  fmt.Sprintf("vault:v1:%s", plaintext),
+						"key_version": 1,
+					},
+				})
+				return
+			}
+		}))
+	}
+
+	var fakeVault1Enabled atomic.Bool
+	fakeVault1Enabled.Store(true)
+	fakeVault1 := newMockVaultServer("fake_vault1", &fakeVault1Enabled)
+	t.Cleanup(fakeVault1.Close)
+
+	var fakeVault2Enabled atomic.Bool
+	fakeVault2Enabled.Store(false)
+	fakeVault2 := newMockVaultServer("fake_vault2", &fakeVault2Enabled)
+	t.Cleanup(fakeVault2.Close)
+
+	// Nomad CE doesn't support multiple providers, so override the logic in
+	// getProviderConfigs; unfortunately this makes causing this test to fail in
+	// the correct order flaky, because the map iteration will be random
+	encrypter.providerConfigs = map[string]*structs.KEKProviderConfig{
+		"transit.fake_vault1": {
+			Provider: structs.KEKProviderVaultTransit,
+			Name:     "fake_vault1",
+			Active:   true,
+			Config: map[string]string{
+				"address":    fakeVault1.URL,
+				"key_name":   "transit_key_name",
+				"mount_path": "transit/",
+			},
+		},
+		"transit.fake_vault2": {
+			Provider: structs.KEKProviderVaultTransit,
+			Name:     "fake_vault2",
+			Active:   true,
+			Config: map[string]string{
+				"address":    fakeVault2.URL,
+				"key_name":   "transit_key_name",
+				"mount_path": "transit/",
+			},
+		},
+	}
+
+	entries, err := os.ReadDir(tmpDir)
+	must.NoError(t, err)
+	must.Len(t, 0, entries)
+
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+	_, err = encrypter.AddUnwrappedKey(key, false)
+	must.ErrorContains(t, err, "Vault is sealed or unavailable")
+
+	// ensure we haven't left any legacy keystore files behind
+	entries, err = os.ReadDir(tmpDir)
+	must.NoError(t, err)
+	must.Len(t, 0, entries)
 }
 
 // TestEncrypter_Restore exercises the entire reload of a keystore,
@@ -697,10 +845,12 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 
 	// Create a 1.6 style workload identity
 	claims := &structs.IdentityClaims{
-		Namespace:    "default",
-		JobID:        "fakejob",
-		AllocationID: uuid.Generate(),
-		TaskName:     "faketask",
+		WorkloadIdentityClaims: &structs.WorkloadIdentityClaims{
+			Namespace:    "default",
+			JobID:        "fakejob",
+			AllocationID: uuid.Generate(),
+			TaskName:     "faketask",
+		},
 	}
 
 	// Sign the claims and assert they were signed with EdDSA (the 1.6 signing
@@ -787,7 +937,7 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 				TLSCaPath:     "/etc/certs/ca",
 				TLSCertFile:   "/var/certs/vault.crt",
 				TLSKeyFile:    "/var/certs/vault.key",
-				TLSSkipVerify: pointer.Of(true),
+				TLSSkipVerify: new(true),
 				TLSServerName: "foo",
 				Token:         "vault-token",
 			}},
@@ -807,11 +957,15 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 				},
 				{
 					Provider: "transit",
-					Name:     "fallback-to-vault-block",
+					Name:     "use-vault-config-if-set",
 				},
 				{
 					Provider: "transit",
-					Name:     "fallback-to-env",
+					Name:     "use-env-if-no-config",
+				},
+				{
+					Provider: "transit",
+					Name:     "use-fallback-if-no-env",
 				},
 			},
 		},
@@ -836,6 +990,10 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 
 	fallbackVaultConfig(providers[2], &config.VaultConfig{})
 	must.Eq(t, expect, providers[2].Config, must.Sprint("expected fallback to env"))
+
+	t.Setenv("VAULT_SKIP_VERIFY", "")
+	fallbackVaultConfig(providers[3], &config.VaultConfig{})
+	must.Eq(t, "false", providers[3].Config["tls_skip_verify"])
 }
 
 func TestEncrypter_IsReady_noTasks(t *testing.T) {

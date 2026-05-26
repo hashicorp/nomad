@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocrunner
@@ -15,7 +15,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -73,7 +72,7 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].ShutdownDelay = pointer.Of(10 * time.Second)
+	alloc.Job.TaskGroups[0].ShutdownDelay = new(10 * time.Second)
 
 	logger := testlog.HCLogger(t)
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
@@ -95,7 +94,7 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 	must.NoError(t, h.Prerun(env))
 
 	// Incease shutdown Delay
-	alloc.Job.TaskGroups[0].ShutdownDelay = pointer.Of(15 * time.Second)
+	alloc.Job.TaskGroups[0].ShutdownDelay = new(15 * time.Second)
 	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
 	must.NoError(t, h.Update(req))
 
@@ -149,6 +148,84 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	must.Eq(t, "update", ops[1].Op) // Update
 	must.Eq(t, "remove", ops[2].Op) // Postrun
 	must.Eq(t, "add", ops[3].Op)    // Restart -> preRun
+}
+
+// TestGroupServiceHook_GroupServices asserts group service hooks with group
+// services does not error.
+func TestGroupServiceHook_GroupServicesCheckUpdates(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.ConnectAlloc()
+	alloc.Job.TaskGroups[0].Services[0].Checks = []*structs.ServiceCheck{
+		{
+			Name:     "zero",
+			Type:     structs.ServiceCheckScript,
+			Command:  "true",
+			Interval: 30 * time.Second,
+			Timeout:  5 * time.Second,
+		},
+		{
+			Name:     "one",
+			Type:     structs.ServiceCheckScript,
+			Command:  "true",
+			Interval: 30 * time.Second,
+			Timeout:  5 * time.Second,
+		},
+		{
+			Name:        "two",
+			Type:        "http",
+			Path:        "/hang",
+			Protocol:    "http",
+			PortLabel:   "www",
+			AddressMode: "auto",
+			Interval:    250 * time.Millisecond,
+			Timeout:     500 * time.Millisecond,
+			Method:      "GET",
+		},
+	}
+	alloc.Job.Canonicalize()
+	logger := testlog.HCLogger(t)
+	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	regWrapper := wrapper.NewHandlerWrapper(
+		logger,
+		consulMockClient,
+		regMock.NewServiceRegistrationHandler(logger))
+
+	resources := cstructs.NewAllocHookResources()
+
+	h := newGroupServiceHook(groupServiceHookConfig{
+		alloc:             alloc,
+		serviceRegWrapper: regWrapper,
+		restarter:         agentconsul.NoopRestarter(),
+		logger:            logger,
+		hookResources:     resources,
+	})
+	must.NoError(t, h.Prerun(env))
+	must.Len(t, 1, resources.GetConsulCheckIDs())
+	must.Len(t, 3, resources.GetConsulCheckIDs()[0])
+	checkID0 := resources.GetConsulCheckIDs()[0][0]
+	checkID1 := resources.GetConsulCheckIDs()[0][1]
+
+	// change one, delete two
+	alloc.Job.TaskGroups[0].Services[0].Checks[1].Name = "one-changed"
+	alloc.Job.TaskGroups[0].Services[0].Checks = alloc.Job.TaskGroups[0].Services[0].Checks[:2]
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
+	must.NoError(t, h.Update(req))
+
+	must.Len(t, 1, resources.GetConsulCheckIDs())
+	must.Len(t, 2, resources.GetConsulCheckIDs()[0])
+	updatedCheckID0 := resources.GetConsulCheckIDs()[0][0]
+	updatedCheckID1 := resources.GetConsulCheckIDs()[0][1]
+
+	must.Eq(t, checkID0, updatedCheckID0)
+	must.NotEq(t, checkID1, updatedCheckID1)
+
+	ops := consulMockClient.GetOps()
+	must.Len(t, 2, ops)
+	must.Eq(t, "add", ops[0].Op)    // Prerun
+	must.Eq(t, "update", ops[1].Op) // Update
 }
 
 // TestGroupServiceHook_GroupServices_Nomad asserts group service hooks with

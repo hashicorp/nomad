@@ -1,15 +1,12 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable ember-a11y-testing/a11y-audit-called */
-import { setComponentTemplate } from '@ember/component';
-import templateOnlyComponent from '@ember/component/template-only';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { findAll, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { hbs } from 'ember-cli-htmlbars';
 
 module('Integration | Component | app breadcrumbs', function (hooks) {
   setupRenderingTest(hooks);
@@ -20,7 +17,6 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
   ];
 
   test('every breadcrumb is rendered correctly', async function (assert) {
-    assert.expect(3);
     this.set('commonCrumbs', commonCrumbs);
     await render(hbs`
       <AppBreadcrumbs />
@@ -32,52 +28,38 @@ module('Integration | Component | app breadcrumbs', function (hooks) {
     assert
       .dom('[data-test-breadcrumb-default]')
       .exists(
-        'We register the default breadcrumb component if no type is specified on the crumb'
+        'We register the default breadcrumb component if no type is specified on the crumb',
       );
 
     const renderedCrumbs = findAll('[data-test-breadcrumb]');
 
     renderedCrumbs.forEach((crumb, index) => {
-      assert.equal(
+      assert.deepEqual(
         crumb.textContent.trim(),
         commonCrumbs[index].label,
-        `Crumb ${index} is ${commonCrumbs[index].label}`
+        `Crumb ${index} is ${commonCrumbs[index].label}`,
       );
     });
   });
 
-  test('when we register a crumb with a type property, a dedicated breadcrumb/<type> component renders', async function (assert) {
-    const crumbs = [
+  test('crumbs without a type default to the default breadcrumb component', async function (assert) {
+    this.set('crumbs', [
       { label: 'Jobs', args: ['jobs.index'] },
-      { type: 'special', label: 'Job', args: ['jobs.job.index'] },
-    ];
-    this.set('crumbs', crumbs);
-
-    this.owner.register(
-      'component:breadcrumbs/special',
-      setComponentTemplate(
-        hbs`
-        <div data-test-breadcrumb-special>Test</div>
-      `,
-        templateOnlyComponent()
-      )
-    );
+      { label: 'Job', args: ['jobs.job.index'] },
+    ]);
 
     await render(hbs`
-    <AppBreadcrumbs />
-    {{#each this.crumbs as |crumb|}}
-      <Breadcrumb @crumb={{hash type=crumb.type label=crumb.label args=crumb.args }} />
-    {{/each}}
-  `);
-
-    assert
-      .dom('[data-test-breadcrumb-special]')
-      .exists(
-        'We can create a new type of breadcrumb component and AppBreadcrumbs will handle rendering by type'
-      );
+      <AppBreadcrumbs />
+      {{#each this.crumbs as |crumb|}}
+        <Breadcrumb @crumb={{hash label=crumb.label args=crumb.args}} />
+      {{/each}}
+    `);
 
     assert
       .dom('[data-test-breadcrumb-default]')
-      .exists('Default breadcrumb registers if no type is specified');
+      .exists(
+        { count: 2 },
+        'All crumbs without a type render as default breadcrumbs',
+      );
   });
 });

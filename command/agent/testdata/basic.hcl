@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 # This file was used to generate basic.json from https://www.hcl2json.com/
@@ -95,6 +95,7 @@ client {
   gc_disk_usage_threshold  = 82
   gc_inode_usage_threshold = 91
   gc_max_allocs            = 50
+  gc_volumes_on_node_gc    = true
   no_host_uuid             = false
   disable_remote_exec      = true
 
@@ -106,6 +107,12 @@ client {
   bridge_network_name        = "custom_bridge_name"
   bridge_network_subnet      = "custom_bridge_subnet"
   bridge_network_subnet_ipv6 = "custom_bridge_subnet_ipv6"
+
+  fingerprint "env_aws" {
+    retry_interval  = "1s"
+    retry_attempts  = 3
+    exit_on_failure = true
+  }
 }
 
 server {
@@ -143,7 +150,9 @@ server {
   event_buffer_size             = 200
   job_default_priority          = 100
   job_max_priority              = 200
+  job_max_count                 = 1000
   start_timeout                 = "1m"
+  non_production                = true
 
   plan_rejection_tracker {
     enabled        = true
@@ -165,6 +174,12 @@ server {
       system_scheduler_enabled  = true
       service_scheduler_enabled = true
     }
+  }
+
+  client_introduction {
+    enforcement          = "warn"
+    default_identity_ttl = "5m"
+    max_identity_ttl     = "30m"
   }
 
   license_path = "/tmp/nomad.hclic"
@@ -356,7 +371,13 @@ reporting {
 keyring "awskms" {
   active     = true
   region     = "us-east-1"
-  kms_key_id = "alias/kms-nomad-keyring"
+  kms_key_id = "alias/kms-nomad-keyring-us"
+}
+
+keyring "awskms" {
+  active     = true
+  region     = "eu-west-2"
+  kms_key_id = "alias/kms-nomad-keyring-eu"
 }
 
 keyring "aead" {

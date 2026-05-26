@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package drivers
@@ -83,6 +83,7 @@ func TestTaskConfigRoundTrip(t *testing.T) {
 		},
 		Mounts: []*MountConfig{
 			{
+				RequestName:     "volume",
 				TaskPath:        "task",
 				HostPath:        "host",
 				Readonly:        true,

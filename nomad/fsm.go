@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -16,11 +16,11 @@ import (
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/raft"
 )
 
@@ -497,7 +497,7 @@ func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, in
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeStatus(msgType, index, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeStatus(msgType, index, &req); err != nil {
 		n.logger.Error("UpdateNodeStatus failed", "error", err)
 		return err
 	}
@@ -513,7 +513,7 @@ func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, in
 
 		}
 		n.blockedEvals.Unblock(node.ComputedClass, index)
-		n.blockedEvals.UnblockNode(req.NodeID, index)
+		n.blockedEvals.UnblockNode(req.NodeID)
 	}
 
 	return nil
@@ -526,11 +526,27 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Lookup the existing node, so we have the existing scheduling eligibility
+	// before writing an update to the store.
+	node, err := n.state.NodeByID(nil, req.NodeID)
+	if err != nil {
+		n.logger.Error("apply drain update failed to lookup node", "node_id", req.NodeID, "error", err)
+		return err
+	}
+
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
 		req.NodeEvent, req.Meta, req.UpdatedBy); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
+
+	// Unblock evals for the nodes computed node class if it is in a ready state
+	// and we are updating its eligibility to eligible.
+	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible && req.MarkEligible {
+		n.blockedEvals.Unblock(node.ComputedClass, index)
+		n.blockedEvals.UnblockNode(req.NodeID)
+	}
+
 	return nil
 }
 
@@ -541,10 +557,39 @@ func (n *nomadFSM) applyBatchDrainUpdate(msgType structs.MessageType, buf []byte
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
+	// Lookup nodes before perform the state update to check previous
+	// eligibility state and collect nodes that should be unblocked. Doing the
+	// collection here mimimizes the looping we need to do over the nodes, since
+	// we can check eligibility and readiness before the update, and then batch
+	// unblock by class after the update.
+	unblockClasses := make(map[string]struct{})
+	var unblockNodes []string
+
+	for nodeID, update := range req.Updates {
+		node, err := n.state.NodeByID(nil, nodeID)
+		if err != nil {
+			n.logger.Error("apply batch drain update failed to lookup node", "node_id", nodeID, "error", err)
+			return err
+		}
+		if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible && update.MarkEligible {
+			unblockClasses[node.ComputedClass] = struct{}{}
+			unblockNodes = append(unblockNodes, nodeID)
+		}
+	}
+
 	if err := n.state.BatchUpdateNodeDrain(msgType, index, req.UpdatedAt, req.Updates, req.NodeEvents); err != nil {
 		n.logger.Error("BatchUpdateNodeDrain failed", "error", err)
 		return err
 	}
+
+	// Unblock evals for nodes that are transitioning to eligible and are ready
+	for class := range unblockClasses {
+		n.blockedEvals.Unblock(class, index)
+	}
+	for _, nodeID := range unblockNodes {
+		n.blockedEvals.UnblockNode(nodeID)
+	}
+
 	return nil
 }
 
@@ -572,7 +617,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf [
 	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible &&
 		req.Eligibility == structs.NodeSchedulingEligible {
 		n.blockedEvals.Unblock(node.ComputedClass, index)
-		n.blockedEvals.UnblockNode(req.NodeID, index)
+		n.blockedEvals.UnblockNode(req.NodeID)
 	}
 
 	return nil
@@ -583,6 +628,15 @@ func (n *nomadFSM) applyNodePoolUpsert(msgType structs.MessageType, buf []byte, 
 	var req structs.NodePoolUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	// Nomad 1.11 added the NodeIdentityTTL field to NodePool. When the
+	// cluster is upgraded, we need to ensure that the field is set with
+	// its default value. The hash also needs to be recalculated since it would
+	// have changed.
+	for _, pool := range req.NodePools {
+		pool.Canonicalize()
+		_ = pool.SetHash()
 	}
 
 	if err := n.state.UpsertNodePools(msgType, index, req.NodePools); err != nil {
@@ -610,6 +664,7 @@ func (n *nomadFSM) applyNodePoolDelete(msgType structs.MessageType, buf []byte, 
 
 func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_job"}, time.Now())
+
 	var req structs.JobRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -624,7 +679,20 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	 */
 	req.Job.Canonicalize()
 
-	if err := n.state.UpsertJob(msgType, index, req.Submission, req.Job); err != nil {
+	if req.IdempotencyToken != "" {
+		found, err := n.state.CheckIdempotencyToken(
+			req.Job.Namespace, req.Job.ParentID, req.IdempotencyToken)
+		if err != nil {
+			n.logger.Error("failed to check idempotency token", "error", err)
+			return err
+		}
+		if found != nil {
+			// found a job matching the idempotency token, so bail out early
+			return nil
+		}
+	}
+
+	if err := n.state.UpsertJobWithRequest(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
 	}
@@ -724,8 +792,8 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		}
 	}
 
-	// COMPAT: Prior to Nomad 0.12.x evaluations were submitted in a separate Raft log,
-	// so this may be nil during server upgrades.
+	// Not all job registrations will include an eval (ex. registering a
+	// dispatch/periodic job)
 	if req.Eval != nil {
 		req.Eval.JobModifyIndex = index
 
@@ -800,6 +868,7 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
 func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, submitTime int64, noShutdownDelay bool, tx state.Txn) error {
+
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
@@ -811,7 +880,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		if err != nil {
 			return err
 		}
-		transition := &structs.DesiredTransition{NoShutdownDelay: pointer.Of(true)}
+		transition := &structs.DesiredTransition{NoShutdownDelay: new(true)}
 		for _, alloc := range allocs {
 			err := n.state.UpdateAllocDesiredTransitionTxn(tx, index, alloc.ID, transition)
 			if err != nil {
@@ -833,27 +902,34 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
 		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
-	} else {
-		// Get the current job and mark it as stopped and re-insert it.
-		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
-		if err != nil {
-			return fmt.Errorf("JobByID lookup failed: %w", err)
-		}
+		return nil
+	}
 
-		if current == nil {
-			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
-		}
+	// Get the current job and mark it as stopped and re-insert it.
+	ws := memdb.NewWatchSet()
+	current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
+	if err != nil {
+		return fmt.Errorf("JobByID lookup failed: %w", err)
+	}
 
-		stopped := current.Copy()
-		stopped.Stop = true
-		if submitTime != 0 {
-			stopped.SubmitTime = submitTime
-		}
+	if current == nil {
+		return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
+	}
 
-		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
-			return fmt.Errorf("UpsertJob failed: %w", err)
-		}
+	stopped := current.Copy()
+	stopped.Stop = true
+	if submitTime != 0 {
+		stopped.SubmitTime = submitTime
+	}
+
+	// Disable scaling policies to avoid monitoring stopped jobs
+	scalingPolicies := stopped.GetScalingPolicies()
+	for _, policy := range scalingPolicies {
+		policy.Enabled = false
+	}
+
+	if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
+		return fmt.Errorf("UpsertJob failed: %w", err)
 	}
 
 	return nil
@@ -861,6 +937,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 
 func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "update_eval"}, time.Now())
+
 	var req structs.EvalUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -936,6 +1013,7 @@ func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) i
 
 func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_client_update"}, time.Now())
+
 	var req structs.AllocUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -947,27 +1025,30 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 	// Create a watch set
 	ws := memdb.NewWatchSet()
 
+	followupEvalsToCancel := []string{}
 	// Updating the allocs with the job id and task group name
 	for _, alloc := range req.Alloc {
 		if existing, _ := n.state.AllocByID(ws, alloc.ID); existing != nil {
 			alloc.JobID = existing.JobID
 			alloc.TaskGroup = existing.TaskGroup
+
+			// a reconnecting alloc has a followup eval which will be stuck in
+			// pending, blocking new evals for failure of this alloc. The
+			// UpdateAllocsFromClient method will cancel the eval in the state
+			// store but we need to remove it from the broker too.
+			if eval, ok := existing.FollowupEvalForReconnect(alloc); ok {
+				followupEvalsToCancel = append(followupEvalsToCancel, eval)
+			}
 		}
 	}
 
-	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocsFromClient(msgType, index, req); err != nil {
 		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
 
-	// Update any evals
-	if len(req.Evals) > 0 {
-		if err := n.upsertEvals(msgType, index, req.Evals); err != nil {
-			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
-			return err
-		}
-	}
+	// Enqueue any evals that were added by the RPC handler
+	n.handleUpsertedEvals(req.Evals)
 
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.
@@ -990,7 +1071,24 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 			}
 
 			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
-			n.blockedEvals.UnblockNode(node.ID, index)
+			n.blockedEvals.UnblockNode(node.ID)
+		}
+	}
+
+	// It's possible that allocs on different nodes were marked unknown in the
+	// same eval and therefore have the same FollowupEvalID. If only one of
+	// those allocs reconnects, we need to ensure we keep around the waiting
+	// eval for the other allocs. Otherwise, drop it from the eval broker.
+	for _, evalID := range followupEvalsToCancel {
+		// ws is nil because we need the update done above
+		eval, err := n.state.EvalByID(nil, evalID)
+		if err != nil {
+			n.logger.Error("looking up followup eval failed",
+				"eval_id", evalID, "error", err)
+			return err
+		}
+		if eval != nil && !eval.ShouldEnqueue() {
+			n.evalBroker.DropWaiting(eval)
 		}
 	}
 
@@ -1864,6 +1962,13 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
+			// Nomad 1.11 added the NodeIdentityTTL field to NodePool. When the
+			// cluster is upgraded, we need to ensure that the field is set with
+			// its default value. The hash also needs to be recalculated since
+			// it would have changed.
+			pool.Canonicalize()
+			_ = pool.SetHash()
+
 			// Perform the restoration.
 			if err := restore.NodePoolRestore(pool); err != nil {
 				return err
@@ -2012,7 +2117,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 		if job.IsParameterized() || job.IsPeriodic() {
 			continue
 		}
-		planner := &scheduler.Harness{
+		planner := &sstructs.PlanBuilder{
 			State: &snap.StateStore,
 		}
 		// Create an eval and mark it as requiring annotations and insert that as well
@@ -2027,6 +2132,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 			Status:         structs.EvalStatusPending,
 			AnnotatePlan:   true,
 		}
+
 		// Ignore eval event creation during snapshot restore
 		snap.UpsertEvals(structs.IgnoreUnknownTypeFlag, 100, []*structs.Evaluation{eval})
 		// Create the scheduler and run it
@@ -2277,17 +2383,17 @@ func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byt
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
 	case structs.VarOpSet:
-		return n.state.VarSet(index, &req)
+		return n.state.VarSet(msgType, index, &req)
 	case structs.VarOpDelete:
-		return n.state.VarDelete(index, &req)
+		return n.state.VarDelete(msgType, index, &req)
 	case structs.VarOpDeleteCAS:
-		return n.state.VarDeleteCAS(index, &req)
+		return n.state.VarDeleteCAS(msgType, index, &req)
 	case structs.VarOpCAS:
-		return n.state.VarSetCAS(index, &req)
+		return n.state.VarSetCAS(msgType, index, &req)
 	case structs.VarOpLockAcquire:
-		return n.state.VarLockAcquire(index, &req)
+		return n.state.VarLockAcquire(msgType, index, &req)
 	case structs.VarOpLockRelease:
-		return n.state.VarLockRelease(index, &req)
+		return n.state.VarLockRelease(msgType, index, &req)
 	default:
 		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
 		n.logger.Warn("Invalid variable operation", "operation", req.Op)
@@ -3054,21 +3160,18 @@ func (s *nomadSnapshot) persistServiceRegistrations(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item.
-		for raw := serviceRegs.Next(); raw != nil; raw = serviceRegs.Next() {
+	for raw := serviceRegs.Next(); raw != nil; raw = serviceRegs.Next() {
 
-			// Prepare the request struct.
-			reg := raw.(*structs.ServiceRegistration)
+		// Prepare the request struct.
+		reg := raw.(*structs.ServiceRegistration)
 
-			// Write out a service registration snapshot.
-			sink.Write([]byte{byte(ServiceRegistrationSnapshot)})
-			if err := encoder.Encode(reg); err != nil {
-				return err
-			}
+		// Write out a service registration snapshot.
+		sink.Write([]byte{byte(ServiceRegistrationSnapshot)})
+		if err := encoder.Encode(reg); err != nil {
+			return err
 		}
-		return nil
 	}
+	return nil
 }
 
 func (s *nomadSnapshot) persistVariables(sink raft.SnapshotSink,

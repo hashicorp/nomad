@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -23,5 +23,10 @@ export default class DasDismissedComponent extends Component {
   understoodClicked() {
     this.explanationUnderstood = this.dismissInTheFuture;
     this.args.proceed({ manuallyDismissed: true });
+  }
+
+  @action
+  toggleDismissInTheFuture(event) {
+    this.dismissInTheFuture = event.target.checked;
   }
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+checks: Fixed a bug where script checks with task-level interpolation would fail to heartbeat to Consul
+```

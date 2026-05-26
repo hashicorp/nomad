@@ -53,31 +53,35 @@ region                           = "us-east-1"
 instance_type                    = "t2.medium"
 server_count                     = "3"
 client_count_linux               = "4"
-client_count_windows_2016        = "1"
+client_count_windows_2022        = "1"
 ```
 
-You will also need a Consul Enterprise license file and a Nomad Enterprise license file.
+You will also need a Consul Enterprise license file and a Nomad Enterprise
+license file, and a local Consul binary to provision Consul.
 
-Optionally, edit the `nomad_local_binary` variable in the
-`terraform.tfvars` file to change the path to the local binary of
-Nomad you'd like to upload, but keep in mind it has to match the OS and the CPU architecture of the nodes (amd64 linux). 
+Optionally, edit the `nomad_local_binary` variable in the `terraform.tfvars`
+file to change the path to the local binary of Nomad you'd like to upload, but
+keep in mind it has to match the OS and the CPU architecture of the nodes (amd64
+linux).
 
-NOTE: If you want to have a cluster with mixed CPU architectures, you need to specify the count and also provide the 
-corresponding binary using `var.nomad_local_binary_client_ubuntu_jammy` and or `var.nomad_local_binary_client_windows_2016`.
+NOTE: If you want to have a cluster with mixed CPU architectures,
+you need to specify the count and also provide the  corresponding
+binary using `var.nomad_local_binary_client_ubuntu_jammy` and or
+`var.nomad_local_binary_client_windows_2022`.
 
 Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
 terraform init
-terraform apply -var="consul_license=$(cat full_path_to_consul.hclic)" -var="nomad_license=$(cat full_path_to_nomad.hclic)"    
+terraform apply -var="consul_license=$(cat full_path_to_consul.hclic)" -var="nomad_license=$(cat full_path_to_nomad.hclic)"
 ```
- 
+
 Alternative you can also run `make apply_full` from the terraform directory:
 
 ```
 export NOMAD_LICENSE_PATH=./nomad.hclic
-export CONSUL_LICENSE_PATH=./consul.hclic 
+export CONSUL_LICENSE_PATH=./consul.hclic
 make apply_full
 ```
 

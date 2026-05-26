@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package testutil
@@ -13,7 +13,8 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-// Assert CA file exists and is a valid CA Returns the CA
+// IsValidCertificate asserts the CA file exists and is a valid CA Returns the
+// CA
 func IsValidCertificate(t *testing.T, caPath string) *x509.Certificate {
 	t.Helper()
 
@@ -28,7 +29,8 @@ func IsValidCertificate(t *testing.T, caPath string) *x509.Certificate {
 	return ca
 }
 
-// Assert key file exists and is a valid signer returns a bool
+// IsValidSigner asserts the key file exists and is a valid signer returns a
+// bool
 func IsValidSigner(t *testing.T, keyPath string) bool {
 	t.Helper()
 

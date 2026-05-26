@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 # This job runs after the private registry is up and running, when we know
@@ -46,9 +46,9 @@ job "registry-auths" {
   }
 
   group "create-files" {
-    reschedule {
-      attempts  = 0
-      unlimited = false
+
+    restart {
+      delay = "2s"
     }
 
     # write out the test.sh file into var.helper_dir

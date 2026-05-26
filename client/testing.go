@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package client
@@ -107,6 +107,7 @@ func TestRPCOnlyClient(t testing.TB, cb func(c *config.Config), srvAddr net.Addr
 	client := &Client{
 		config:           conf,
 		logger:           testLogger,
+		rpcLogger:        testLogger.Named("rpc"),
 		shutdownCh:       make(chan struct{}),
 		EnterpriseClient: newEnterpriseClient(testLogger),
 	}
@@ -119,7 +120,7 @@ func TestRPCOnlyClient(t testing.TB, cb func(c *config.Config), srvAddr net.Addr
 	}
 	client.heartbeatStop = newHeartbeatStop(
 		client.getAllocRunner, time.Second, client.logger, client.shutdownCh)
-	client.connPool = pool.NewPool(testlog.HCLogger(t), 10*time.Second, 10, nil, yamux.DefaultConfig())
+	client.connPool = pool.NewPool(testlog.HCLogger(t), 10*time.Second, 10, nil, yamux.DefaultConfig(), 10*time.Second)
 	client.init()
 
 	cancelFunc := func() {

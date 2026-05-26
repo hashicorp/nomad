@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
@@ -67,6 +67,6 @@ func (h jobConsulHook) validateCluster(name string) error {
 
 // Mutate ensures that the job's Consul cluster has been configured to be the
 // default Consul cluster if unset
-func (j jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
-	return j.mutateImpl(job, structs.ConsulDefaultCluster), nil, nil
+func (h jobConsulHook) Mutate(job *structs.Job) (*structs.Job, []error, error) {
+	return h.mutateImpl(job, structs.ConsulDefaultCluster), nil, nil
 }

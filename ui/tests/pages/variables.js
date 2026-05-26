@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -9,6 +9,6 @@ export default create({
   visit: visitable('/variables'),
   visitNew: visitable('/variables/new'),
   visitConflicting: visitable(
-    '/variables/var/Auto-conflicting%20Variable@default/edit'
+    '/variables/var/Auto-conflicting%20Variable@default/edit',
   ),
 });

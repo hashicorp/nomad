@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package client
@@ -317,10 +317,6 @@ func (c *Client) applyNodeUpdatesFromDriver(name string, info *structs.DriverInf
 func (c *Client) updateNodeFromDevices(devices []*structs.NodeDeviceResource) {
 	c.configLock.Lock()
 	defer c.configLock.Unlock()
-
-	// Not updating node.Resources: the field is deprecated and includes
-	// dispatched task resources and not appropriate for expressing
-	// node available device resources
 	if c.updateNodeFromDevicesLocked(devices) {
 		c.updateNode()
 	}

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -8,7 +8,7 @@ import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 
 export default class VariablesIndexRoute extends Route.extend(
-  WithForbiddenState
+  WithForbiddenState,
 ) {
   model() {
     if (this.modelFor('variables').errors) {

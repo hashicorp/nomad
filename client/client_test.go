@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package client
@@ -23,9 +23,11 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
+	"github.com/hashicorp/nomad/client/servers"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
 	cstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
@@ -703,6 +705,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	s1, _, cleanupS1 := testServer(t, nil)
 	t.Cleanup(cleanupS1)
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
@@ -1122,8 +1125,9 @@ func TestClient_BlockedAllocations(t *testing.T) {
 		"exit_signal": 0,
 	}
 
-	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
+	must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
 	// Wait until the client downloads and starts the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1392,6 +1396,38 @@ func TestClient_ReloadTLS_DowngradeTLSToPlaintext(t *testing.T) {
 	}
 }
 
+func TestClient_nodeAuthToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+		c.Node.ID = uuid.Generate()
+	})
+	defer func() {
+		_ = testClientCleanup()
+	}()
+
+	must.Eq(t, testClient.GetConfig().Node.SecretID, testClient.nodeAuthToken())
+
+	testClient.setNodeIdentityToken("my-identity-token")
+	must.Eq(t, "my-identity-token", testClient.nodeAuthToken())
+}
+
+func TestClient_setNodeIdentityToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+		c.Node.ID = uuid.Generate()
+	})
+	defer func() {
+		_ = testClientCleanup()
+	}()
+
+	must.Eq(t, "", testClient.nodeIdentityToken())
+
+	testClient.setNodeIdentityToken("my-identity-token")
+	must.Eq(t, "my-identity-token", testClient.nodeIdentityToken())
+}
+
 // TestClient_ServerList tests client methods that interact with the internal
 // nomad server list.
 func TestClient_ServerList(t *testing.T) {
@@ -1416,6 +1452,131 @@ func TestClient_ServerList(t *testing.T) {
 	if len(s) != 0 {
 		t.Fatalf("expected 2 servers but received: %+q", s)
 	}
+}
+
+func TestClient_getRegistrationToken(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("no intro initial register", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+		must.Eq(t, "", testClient.getRegistrationToken())
+	})
+
+	t.Run("intro initial register", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.IntroToken = "my-intro-token"
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+		must.Eq(t, "my-intro-token", testClient.getRegistrationToken())
+	})
+
+	t.Run("secret id registered", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		close(testClient.registeredCh)
+
+		must.Eq(t, testClient.Node().SecretID, testClient.getRegistrationToken())
+	})
+
+	t.Run("node identity registered", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		testClient.identity.Store("mylovelylovelyidentity")
+		close(testClient.registeredCh)
+
+		must.Eq(t, testClient.identity.Load().(string), testClient.getRegistrationToken())
+	})
+
+	t.Run("secret id registered state", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+				return cstate.NewMemDB(logger), nil
+			}
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		must.NoError(t, testClient.stateDB.PutNodeRegistration(
+			&cstructs.NodeRegistration{
+				HasRegistered: true,
+			},
+		))
+
+		must.Eq(t, testClient.Node().SecretID, testClient.getRegistrationToken())
+	})
+
+	t.Run("node identity registered state", func(t *testing.T) {
+		testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+			c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+				return cstate.NewMemDB(logger), nil
+			}
+		})
+		t.Cleanup(func() { _ = testClientCleanup() })
+
+		// Ensure the identity is written to state before marking as registered,
+		// as would happen in a real client.
+		must.NoError(t, testClient.stateDB.PutNodeIdentity("my-identity-token"))
+
+		must.NoError(t, testClient.stateDB.PutNodeRegistration(
+			&cstructs.NodeRegistration{
+				HasRegistered: true,
+			},
+		))
+
+		must.Eq(t, "my-identity-token", testClient.getRegistrationToken())
+	})
+}
+
+func TestClient_handleNodeUpdateResponse(t *testing.T) {
+	ci.Parallel(t)
+
+	testClient, testClientCleanup := TestClient(t, func(c *config.Config) {
+		c.StateDBFactory = func(logger hclog.Logger, stateDir string) (state.StateDB, error) {
+			return cstate.NewMemDB(logger), nil
+		}
+	})
+	defer func() {
+		_ = testClientCleanup()
+	}()
+
+	// Assert our starting state, so we can ensure we are not testing for values
+	// that already exist.
+	must.Eq(t, 0, testClient.servers.NumNodes())
+	must.Eq(t, 0, testClient.servers.NumServers())
+	must.Eq(t, []*servers.Server{}, testClient.servers.GetServers())
+	must.Eq(t, "", testClient.nodeIdentityToken())
+
+	stateIdentity, err := testClient.stateDB.GetNodeIdentity()
+	must.NoError(t, err)
+	must.Eq(t, "", stateIdentity)
+
+	updateResp := structs.NodeUpdateResponse{
+		NumNodes: 1010,
+		Servers: []*structs.NodeServerInfo{
+			{RPCAdvertiseAddr: "10.0.0.1:4647", Datacenter: "dc1"},
+			{RPCAdvertiseAddr: "10.0.0.2:4647", Datacenter: "dc1"},
+			{RPCAdvertiseAddr: "10.0.0.3:4647", Datacenter: "dc1"},
+		},
+		SignedIdentity: new("node-identity"),
+	}
+
+	// Perform the update and test the outcome.
+	must.NoError(t, testClient.handleNodeUpdateResponse(updateResp))
+
+	must.Eq(t, 1010, testClient.servers.NumNodes())
+	must.Eq(t, 3, testClient.servers.NumServers())
+	must.SliceContainsAllEqual(t, []*servers.Server{
+		{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 4647}},
+		{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.2"), Port: 4647}},
+		{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.3"), Port: 4647}},
+	}, testClient.servers.GetServers())
+	must.Eq(t, "node-identity", testClient.nodeIdentityToken())
+
+	stateIdentity, err = testClient.stateDB.GetNodeIdentity()
+	must.NoError(t, err)
+	must.Eq(t, "node-identity", stateIdentity)
 }
 
 func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
@@ -2132,6 +2293,91 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	require.NotNil(t, runner, "expected alloc runner")
 	require.False(t, invalid, "expected alloc to not be marked invalid")
 	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
+}
+
+func TestClient_DefaultIneligible(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.DevMode = false
+		c.DefaultIneligible = true
+		c.RPCHandler = s1
+	})
+	defer cleanupC1()
+
+	must.Eq(t, structs.NodeSchedulingIneligible, c1.Node().SchedulingEligibility)
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out structs.SingleNodeResponse
+
+	// Register should succeed
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			err := s1.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return err
+			}
+			if out.Node == nil {
+				return fmt.Errorf("missing reg")
+			}
+			return nil
+		}),
+	))
+
+	// Set node as eligible
+	req2 := structs.NodeUpdateEligibilityRequest{
+		NodeID:       c1.Node().ID,
+		Eligibility:  structs.NodeSchedulingEligible,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var out2 structs.NodeEligibilityUpdateResponse
+
+	err := s1.RPC("Node.UpdateEligibility", &req2, &out2)
+	must.NoError(t, err)
+	must.NotEq(t, out2.NodeModifyIndex, out.Index)
+
+	// Query node to confirm eligibility was toggled on
+	req3 := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out3 structs.SingleNodeResponse
+	err = s1.RPC("Node.GetNode", &req3, &out3)
+	must.NoError(t, err)
+	must.Eq(t, structs.NodeSchedulingEligible, out3.Node.SchedulingEligibility)
+
+	// Save client config, shutdown and start new client
+	c1Config := c1.config.Copy()
+	must.NoError(t, c1.Shutdown())
+	c2, err := NewClient(c1Config, c1.consulCatalog, nil, c1.consulServices, nil)
+	must.NoError(t, err)
+	t.Cleanup(func() {
+		test.NoError(t, c2.Shutdown())
+	})
+
+	// Assert new client and old client are same node
+	must.Eq(t, c1.NodeID(), c2.NodeID())
+
+	// Query to confirm restarted node is still eligible
+	req4 := structs.NodeSpecificRequest{
+		NodeID: c2.Node().ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: out3.Index + 1,
+		},
+	}
+	var out4 structs.SingleNodeResponse
+	err = s1.RPC("Node.GetNode", &req4, &out4)
+	must.NoError(t, err)
+	must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
+
 }
 
 // TestClient_AllocPrerunErrorDuringRestore ensures that a running allocation,

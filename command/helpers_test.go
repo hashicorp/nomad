@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/flatmap"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 )
@@ -235,19 +234,19 @@ const (
 
 var (
 	expectedApiJob = &api.Job{
-		ID:          pointer.Of("job1"),
-		Name:        pointer.Of("job1"),
-		Type:        pointer.Of("service"),
+		ID:          new("job1"),
+		Name:        new("job1"),
+		Type:        new("service"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  pointer.Of("group1"),
-				Count: pointer.Of(1),
+				Name:  new("group1"),
+				Count: new(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts:        pointer.Of(10),
-					Interval:        pointer.Of(15 * time.Second),
-					Mode:            pointer.Of("delay"),
-					RenderTemplates: pointer.Of(false),
+					Attempts:        new(10),
+					Interval:        new(15 * time.Second),
+					Mode:            new("delay"),
+					RenderTemplates: new(false),
 				},
 
 				Tasks: []*api.Task{
@@ -461,6 +460,45 @@ func TestJobGetter_Validate(t *testing.T) {
 
 		})
 	}
+}
+
+func TestJobTaskGroupMaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+
+	// The alloc was created 5 minutes ago.
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	expectedDeadline := createtime.Add(maxRunDuration)
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+
+	deadline, ok := jobTaskGroupMaxRunDeadline(job, groupName, createtime.UnixNano())
+	must.True(t, ok)
+	must.Eq(t, expectedDeadline.UTC(), deadline.UTC())
+}
+
+// TestJobTaskGroupMaxRunDeadline_ZeroCreateTime verifies that a zero CreateTime
+// (alloc not yet scheduled) produces no deadline.
+func TestJobTaskGroupMaxRunDeadline_ZeroCreateTime(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+
+	_, ok := jobTaskGroupMaxRunDeadline(job, groupName, 0)
+	must.False(t, ok)
 }
 
 func TestPrettyTimeDiff(t *testing.T) {
@@ -721,4 +759,127 @@ func TestHelperGetByPrefix(t *testing.T) {
 		})
 	}
 
+}
+
+// TestHelperStreamFrames tests the streamFrames command helper used
+// by the agent_monitor and fs_alloc endpoints to populate a reader
+// with data from the streamFrame channel passed to the function
+func TestHelperStreamFrames(t *testing.T) {
+	const loopCount = 50
+
+	// Create test file
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	writeLine := []byte("[INFO]log log log made of wood you are heavy but so good\n")
+	writeLength := len(writeLine)
+
+	for range loopCount {
+		_, _ = f.Write(writeLine)
+	}
+	f.Close()
+
+	// Create test file reader for streaming
+	goldenFilePath := f.Name()
+	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	must.NoError(t, err)
+
+	fileReader, err := os.Open(goldenFilePath)
+	must.NoError(t, err)
+
+	// Helper func to populate stream chan in test case
+	streamFunc := func() (chan *api.StreamFrame, chan error, chan struct{}) {
+		framesCh := make(chan *api.StreamFrame, 30)
+		errCh := make(chan error)
+		cancelCh := make(chan struct{})
+
+		offset := 0
+
+		r := io.LimitReader(fileReader, 64)
+		for {
+			bytesHolder := make([]byte, 64)
+			n, err := r.Read(bytesHolder)
+			if err != nil && err != io.EOF {
+				must.NoError(t, err)
+			}
+
+			if n == 0 && err == io.EOF {
+				break
+			}
+			offset += n
+			framesCh <- &api.StreamFrame{
+				Offset: int64(offset),
+				Data:   goldenFileContents,
+				File:   goldenFilePath,
+			}
+
+			if n != 0 && err == io.EOF {
+				//break after sending if we hit EOF with bytes in buffer
+				break
+			}
+		}
+
+		close(framesCh)
+		return framesCh, errCh, cancelCh
+	}
+	testErr := errors.New("isErr")
+	cases := []struct {
+		name      string
+		numLines  int
+		expectErr bool
+		err       error
+	}{
+		{
+			name:     "happy_no_limit",
+			numLines: -1,
+		},
+		{
+			name:     "happy_limit",
+			numLines: 25,
+		},
+		{
+			name:      "error",
+			numLines:  -1,
+			expectErr: true,
+			err:       testErr,
+		},
+	}
+
+	for _, tc := range cases {
+
+		t.Run(tc.name, func(t *testing.T) {
+
+			framesCh, errCh, cancelCh := streamFunc()
+
+			if tc.expectErr {
+				go func() {
+					time.Sleep(time.Nanosecond * 1)
+					errCh <- tc.err
+				}()
+			}
+
+			r, err := streamFrames(framesCh, errCh, int64(tc.numLines), cancelCh)
+			if !tc.expectErr {
+				must.NoError(t, err)
+			}
+
+			result, err := io.ReadAll(r)
+			if !tc.expectErr {
+				must.NoError(t, err)
+			}
+			if tc.numLines == -1 {
+				//expectedLength := writeLength * loopCount
+				must.Eq(t,
+					goldenFileContents,
+					result)
+			} else {
+				expectedLength := (writeLength * tc.numLines)
+				must.Eq(t,
+					expectedLength,
+					len(result))
+			}
+
+			r.Close()
+		})
+	}
 }

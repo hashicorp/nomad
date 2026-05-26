@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package consul
@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -546,7 +545,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		result := newConnectGateway(&structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:                  pointer.Of(1 * time.Second),
+					ConnectTimeout:                  new(1 * time.Second),
 					EnvoyGatewayBindTaggedAddresses: false,
 					EnvoyGatewayBindAddresses:       nil,
 					EnvoyGatewayNoDefaultBind:       false,
@@ -576,7 +575,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 		result := newConnectGateway(&structs.ConsulConnect{
 			Gateway: &structs.ConsulGateway{
 				Proxy: &structs.ConsulGatewayProxy{
-					ConnectTimeout:                  pointer.Of(1 * time.Second),
+					ConnectTimeout:                  new(1 * time.Second),
 					EnvoyGatewayBindTaggedAddresses: true,
 					EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 						"service1": {

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -44,8 +44,6 @@ const nomadKeystoreExtension = ".nks.json"
 type claimSigner interface {
 	SignClaims(*structs.IdentityClaims) (string, string, error)
 }
-
-var _ claimSigner = &Encrypter{}
 
 // Encrypter is the keyring for encrypting variables and signing workload
 // identities.
@@ -120,31 +118,34 @@ func NewEncrypter(srv *Server, keystorePath string) (*Encrypter, error) {
 // fields
 func fallbackVaultConfig(provider *structs.KEKProviderConfig, vaultcfg *config.VaultConfig) {
 
-	setFallback := func(key, fallback, env string) {
+	setFallback := func(key, cfg, env, fallback string) {
 		if provider.Config == nil {
 			provider.Config = map[string]string{}
 		}
 		if _, ok := provider.Config[key]; !ok {
-			if fallback != "" {
-				provider.Config[key] = fallback
+			if cfg != "" {
+				provider.Config[key] = cfg
+			} else if envVal := os.Getenv(env); envVal != "" {
+				provider.Config[key] = envVal
 			} else {
-				provider.Config[key] = os.Getenv(env)
+				provider.Config[key] = fallback
 			}
 		}
 	}
 
-	setFallback("address", vaultcfg.Addr, "VAULT_ADDR")
-	setFallback("token", vaultcfg.Token, "VAULT_TOKEN")
-	setFallback("tls_ca_cert", vaultcfg.TLSCaPath, "VAULT_CACERT")
-	setFallback("tls_client_cert", vaultcfg.TLSCertFile, "VAULT_CLIENT_CERT")
-	setFallback("tls_client_key", vaultcfg.TLSKeyFile, "VAULT_CLIENT_KEY")
-	setFallback("tls_server_name", vaultcfg.TLSServerName, "VAULT_TLS_SERVER_NAME")
+	setFallback("address", vaultcfg.Addr, "VAULT_ADDR", "")
+	setFallback("token", vaultcfg.Token, "VAULT_TOKEN", "")
+	setFallback("tls_ca_cert", vaultcfg.TLSCaPath, "VAULT_CACERT", "")
+	setFallback("tls_client_cert", vaultcfg.TLSCertFile, "VAULT_CLIENT_CERT", "")
+	setFallback("tls_client_key", vaultcfg.TLSKeyFile, "VAULT_CLIENT_KEY", "")
+	setFallback("tls_server_name", vaultcfg.TLSServerName, "VAULT_TLS_SERVER_NAME", "")
 
+	// default to false as this will be parsed by the go-kms-wrapping package
 	skipVerify := ""
 	if vaultcfg.TLSSkipVerify != nil {
 		skipVerify = fmt.Sprintf("%v", *vaultcfg.TLSSkipVerify)
 	}
-	setFallback("tls_skip_verify", skipVerify, "VAULT_SKIP_VERIFY")
+	setFallback("tls_skip_verify", skipVerify, "VAULT_SKIP_VERIFY", "false")
 }
 
 func (e *Encrypter) loadKeystore() error {
@@ -155,7 +156,7 @@ func (e *Encrypter) loadKeystore() error {
 
 	keyErrors := map[string]error{}
 
-	return filepath.Walk(e.keystorePath, func(path string, info fs.FileInfo, err error) error {
+	filepath.Walk(e.keystorePath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("could not read path %s from keystore: %v", path, err)
 		}
@@ -184,8 +185,8 @@ func (e *Encrypter) loadKeystore() error {
 
 		key, err := e.loadKeyFromStore(path)
 		if err != nil {
-			keyErrors[id] = err
-			return fmt.Errorf("could not load key file %s from keystore: %w", path, err)
+			keyErrors[id] = fmt.Errorf("could not load key file %s from keystore: %w", path, err)
+			return nil
 		}
 		if key.Meta.KeyID != id {
 			return fmt.Errorf("root key ID %s must match key file %s", key.Meta.KeyID, path)
@@ -201,6 +202,16 @@ func (e *Encrypter) loadKeystore() error {
 		delete(keyErrors, id)
 		return nil
 	})
+
+	if len(keyErrors) == 0 {
+		return nil
+	}
+
+	var mErr multierror.Error
+	for _, err := range keyErrors {
+		mErr = *multierror.Append(&mErr, err)
+	}
+	return mErr.ErrorOrNil()
 }
 
 // IsReady blocks until all in-flight decrypt tasks are complete, or the context
@@ -305,11 +316,12 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 // header name.
 const keyIDHeader = "kid"
 
-// SignClaims signs the identity claim for the task and returns an encoded JWT
-// (including both the claim and its signature) and the key ID of the key used
-// to sign it, or an error.
+// SignClaims signs the identity claim and returns an encoded JWT (including
+// both the claim and its signature) and the key ID of the key used to sign it,
+// or an error.
 //
-// SignClaims adds the Issuer claim prior to signing.
+// SignClaims adds the Issuer claim prior to signing if it is unset by the
+// caller.
 func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, error) {
 
 	if claims == nil {
@@ -326,7 +338,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		claims.Issuer = e.issuer
 	}
 
-	opts := (&jose.SignerOptions{}).WithHeader("kid", cs.rootKey.Meta.KeyID).WithType("JWT")
+	opts := (&jose.SignerOptions{}).WithHeader(keyIDHeader, cs.rootKey.Meta.KeyID).WithType("JWT")
 
 	var sig jose.Signer
 	if cs.rsaPrivateKey != nil {
@@ -351,8 +363,8 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 	return raw, cs.rootKey.Meta.KeyID, nil
 }
 
-// VerifyClaim accepts a previously-signed encoded claim and validates
-// it before returning the claim
+// VerifyClaim accepts a previously signed encoded claim and validates
+// it before returning the claim.
 func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, error) {
 
 	token, err := jwt.ParseSigned(tokenString)
@@ -377,21 +389,21 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 		return nil, err
 	}
 
+	claims := structs.IdentityClaims{}
+
 	// Validate the claims.
-	claims := &structs.IdentityClaims{}
-	if err := token.Claims(typedPubKey, claims); err != nil {
+	if err := token.Claims(typedPubKey, &claims); err != nil {
 		return nil, fmt.Errorf("invalid signature: %w", err)
 	}
 
-	//COMPAT Until we can guarantee there are no pre-1.7 JWTs in use we can only
-	//       validate the signature and have no further expectations of the
-	//       claims.
-	expect := jwt.Expected{}
-	if err := claims.Validate(expect); err != nil {
+	// COMPAT: Until we can guarantee there are no pre-1.7 JWTs in use, we can
+	// only validate the signature and have no further expectations of the
+	// claims.
+	if err := claims.Validate(jwt.Expected{}); err != nil {
 		return nil, fmt.Errorf("invalid claims: %w", err)
 	}
 
-	return claims, nil
+	return &claims, nil
 }
 
 // AddUnwrappedKey stores the key in the keystore and creates a new cipher for
@@ -790,30 +802,54 @@ func (e *Encrypter) wrapRootKey(rootKey *structs.UnwrappedRootKey, isUpgraded bo
 
 	wrappedKeys := structs.NewRootKey(rootKey.Meta)
 
+	// we need to ensure we don't leave unrecorded legacy keys on disk if we got
+	// any errors, so collect all the paths we write
+	paths := []string{}
+	cleanup := func() {
+		for _, path := range paths {
+			err := os.Remove(path)
+			if err != nil {
+				e.log.Error("could not remove uncommitted legacy key",
+					"path", path, "error", err)
+			}
+		}
+	}
+
 	for _, provider := range e.providerConfigs {
 		if !provider.Active {
 			continue
 		}
 		wrappedKey, err := e.encryptDEK(rootKey, provider)
 		if err != nil {
+			cleanup()
 			return nil, err
 		}
 
 		switch {
-		case isUpgraded && provider.Provider == string(structs.KEKProviderAEAD):
+		case isUpgraded && provider.Provider == structs.KEKProviderAEAD:
 			// nothing to do but don't want to hit next case
 
 		case isUpgraded:
 			wrappedKey.KeyEncryptionKey = nil
 
-		case provider.Provider == string(structs.KEKProviderAEAD): // !isUpgraded
+		case provider.Provider == structs.KEKProviderAEAD: // !isUpgraded
 			kek := wrappedKey.KeyEncryptionKey
 			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
+			path, err := e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, kek)
+			if err != nil {
+				cleanup()
+				return nil, err
+			}
+			paths = append(paths, path)
 
 		default: // !isUpgraded
 			wrappedKey.KeyEncryptionKey = nil
-			e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
+			path, err := e.writeKeyToDisk(rootKey.Meta, provider, wrappedKey, nil)
+			if err != nil {
+				cleanup()
+				return nil, err
+			}
+			paths = append(paths, path)
 		}
 
 		wrappedKeys.WrappedKeys = append(wrappedKeys.WrappedKeys, wrappedKey)
@@ -831,7 +867,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 	}
 	var kek []byte
 	var err error
-	if provider.Provider == string(structs.KEKProviderAEAD) || provider.Provider == "" {
+	if provider.Provider == structs.KEKProviderAEAD || provider.Provider == "" {
 		kek, err = crypto.Bytes(32)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate key wrapper key: %w", err)
@@ -848,7 +884,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 	}
 
 	kekWrapper := &structs.WrappedKey{
-		Provider:                 provider.Provider,
+		Provider:                 provider.Provider.String(),
 		ProviderID:               provider.ID(),
 		WrappedDataEncryptionKey: rootBlob,
 		WrappedRSAKey:            &kms.BlobInfo{},
@@ -869,7 +905,7 @@ func (e *Encrypter) encryptDEK(rootKey *structs.UnwrappedRootKey, provider *stru
 
 func (e *Encrypter) writeKeyToDisk(
 	meta *structs.RootKeyMeta, provider *structs.KEKProviderConfig,
-	wrappedKey *structs.WrappedKey, kek []byte) error {
+	wrappedKey *structs.WrappedKey, kek []byte) (string, error) {
 
 	// the on-disk keystore flattens the keys wrapped for the individual
 	// KMS providers out to their own files
@@ -884,7 +920,7 @@ func (e *Encrypter) writeKeyToDisk(
 
 	buf, err := json.Marshal(diskWrapper)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	filename := fmt.Sprintf("%s.%s%s",
@@ -892,9 +928,9 @@ func (e *Encrypter) writeKeyToDisk(
 	path := filepath.Join(e.keystorePath, filename)
 	err = os.WriteFile(path, buf, 0o600)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return nil
+	return path, nil
 }
 
 // loadKeyFromStore deserializes a root key from disk.
@@ -1186,7 +1222,7 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 		cfg := krr.srv.GetConfig()
 		self := fmt.Sprintf("%s.%s", cfg.NodeName, cfg.Region)
 
-		for _, peer := range krr.getAllPeers() {
+		for _, peer := range krr.srv.peersCache.LocalPeers() {
 			if peer.Name == self {
 				continue
 			}
@@ -1206,8 +1242,8 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 		return fmt.Errorf("failed to fetch key from any peer: %v", err)
 	}
 
-	isClusterUpgraded := ServersMeetMinimumVersion(
-		krr.srv.serf.Members(), krr.srv.Region(), minVersionKeyringInRaft, true)
+	isClusterUpgraded := krr.srv.peersCache.ServersMeetMinimumVersion(
+		krr.srv.Region(), minVersionKeyringInRaft, true)
 
 	// In the legacy replication, we toss out the wrapped key because it's
 	// always persisted to disk
@@ -1218,14 +1254,4 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 
 	krr.logger.Debug("added key", "key", keyID)
 	return nil
-}
-
-func (krr *KeyringReplicator) getAllPeers() []*serverParts {
-	krr.srv.peerLock.RLock()
-	defer krr.srv.peerLock.RUnlock()
-	peers := make([]*serverParts, 0, len(krr.srv.localPeers))
-	for _, peer := range krr.srv.localPeers {
-		peers = append(peers, peer.Copy())
-	}
-	return peers
 }

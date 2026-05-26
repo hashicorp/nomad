@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -391,8 +391,8 @@ func (vd VariableDecrypted) Validate() error {
 	return nil
 }
 
-// A new variable can be crated just to support a lock, it doesn't require to hold
-// any items and it will validate the lock.
+// ValidateForLock ensures a new variable can be created just to support a lock,
+// it doesn't require to hold any items and it will validate the lock.
 func (vd VariableDecrypted) ValidateForLock() error {
 	var mErr multierror.Error
 	if vd.Namespace == AllNamespacesSentinel {
@@ -427,12 +427,12 @@ func ValidatePath(path string) error {
 
 	// Don't allow a variable with path "nomad"
 	if len(parts) == 1 {
-		return fmt.Errorf("\"nomad\" is a reserved top-level directory path, but you may write variables to \"nomad/jobs\", \"nomad/job-templates\", or below")
+		return fmt.Errorf(`"nomad" is a reserved top-level directory path, but you may write variables to "nomad/jobs", "nomad/job-templates", "nomad/sentinel", or below`)
 	}
 
 	switch {
-	case parts[1] == "jobs":
-		// Any path including "nomad/jobs" is valid
+	case parts[1] == "jobs" || parts[1] == "sentinel":
+		// Any path including "nomad/jobs" or "nomad/sentinel" is valid
 		return nil
 	case parts[1] == "job-templates" && len(parts) == 3:
 		// Paths including "nomad/job-templates" is valid, provided they have single further path part

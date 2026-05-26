@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -305,7 +305,7 @@ func (sc *ServiceCheck) validateCommon(allowableTypes []string) error {
 
 	// validate address_mode
 	switch sc.AddressMode {
-	case "", AddressModeHost, AddressModeDriver, AddressModeAlloc:
+	case "", AddressModeHost, AddressModeDriver, AddressModeAlloc, AddressModeAllocIPv6:
 		// Ok
 	case AddressModeAuto:
 		return fmt.Errorf("invalid address_mode %q - %s only valid for services", sc.AddressMode, AddressModeAuto)
@@ -562,10 +562,11 @@ func hashHeader(h hash.Hash, m map[string][]string) {
 }
 
 const (
-	AddressModeAuto   = "auto"
-	AddressModeHost   = "host"
-	AddressModeDriver = "driver"
-	AddressModeAlloc  = "alloc"
+	AddressModeAuto      = "auto"
+	AddressModeHost      = "host"
+	AddressModeDriver    = "driver"
+	AddressModeAlloc     = "alloc"
+	AddressModeAllocIPv6 = "alloc_ipv6"
 
 	// ServiceProviderConsul is the default service provider and the way Nomad
 	// worked before native service discovery.
@@ -597,7 +598,8 @@ type Service struct {
 	PortLabel string
 
 	// AddressMode specifies how the address in service registration is
-	// determined. Must be "auto" (default), "host", "driver", or "alloc".
+	// determined. Must be "auto" (default), "host", "driver", "alloc" or
+	// "alloc_ipv6".
 	AddressMode string
 
 	// Address enables explicitly setting a custom address to use in service
@@ -646,6 +648,10 @@ type Service struct {
 	// Its name will be `consul-service/${service_name}`, and its contents will
 	// match the server's `consul.service_identity` configuration block.
 	Identity *WorkloadIdentity
+
+	// Kind defines the Consul service kind, valid only when provider is consul
+	// and a Consul Connect Gateway isn't defined for the service.
+	Kind string
 }
 
 // Copy the block recursively. Returns nil if nil.
@@ -674,6 +680,8 @@ func (s *Service) Copy() *Service {
 
 	ns.Weights = s.Weights.Copy()
 	ns.Identity = s.Identity.Copy()
+
+	ns.Kind = s.Kind
 
 	return ns
 }
@@ -762,7 +770,7 @@ func (s *Service) Validate() error {
 
 	switch s.AddressMode {
 	case "", AddressModeAuto:
-	case AddressModeHost, AddressModeDriver, AddressModeAlloc:
+	case AddressModeHost, AddressModeDriver, AddressModeAlloc, AddressModeAllocIPv6:
 		if s.Address != "" {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service address_mode must be %q if address is set", AddressModeAuto))
 		}
@@ -861,6 +869,17 @@ func (s *Service) validateConsulService(mErr *multierror.Error) {
 		}
 	}
 
+	// validate the consul service kind
+	switch api.ServiceKind(s.Kind) {
+	case api.ServiceKindTypical,
+		api.ServiceKindAPIGateway,
+		api.ServiceKindIngressGateway,
+		api.ServiceKindMeshGateway,
+		api.ServiceKindTerminatingGateway:
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s kind must be one of consul service kind or empty", s.Name))
+	}
+
 	// check connect
 	if s.Connect != nil {
 		if err := s.Connect.Validate(); err != nil {
@@ -957,6 +976,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashString(h, s.Namespace)
 	hashIdentity(h, s.Identity)
 	hashWeights(h, s.Weights)
+	hashString(h, s.Kind)
 
 	// Don't hash the provider parameter, so we don't cause churn of all
 	// registered services when upgrading Nomad versions. The provider is not
@@ -1134,6 +1154,10 @@ func (s *Service) Equal(o *Service) bool {
 	}
 
 	if !s.Weights.Equal(o.Weights) {
+		return false
+	}
+
+	if s.Kind != o.Kind {
 		return false
 	}
 
@@ -1433,6 +1457,9 @@ type SidecarTask struct {
 	// VolumeMounts is a list of Volume name <-> mount configurations that will be
 	// attached to this task.
 	VolumeMounts []*VolumeMount
+
+	// Identities is a list of Workload Identies to attach to this task
+	Identities []*WorkloadIdentity
 }
 
 func (t *SidecarTask) Equal(o *SidecarTask) bool {
@@ -1490,6 +1517,11 @@ func (t *SidecarTask) Equal(o *SidecarTask) bool {
 		return false
 	}
 
+	if !slices.EqualFunc(t.Identities, o.Identities,
+		func(tID, oID *WorkloadIdentity) bool { return tID.Equal(oID) }) {
+		return false
+	}
+
 	return true
 }
 
@@ -1512,14 +1544,16 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	}
 
 	if t.KillTimeout != nil {
-		nt.KillTimeout = pointer.Of(*t.KillTimeout)
+		nt.KillTimeout = new(*t.KillTimeout)
 	}
 
 	if t.ShutdownDelay != nil {
-		nt.ShutdownDelay = pointer.Of(*t.ShutdownDelay)
+		nt.ShutdownDelay = new(*t.ShutdownDelay)
 	}
 
 	nt.VolumeMounts = CopySliceVolumeMount(t.VolumeMounts)
+
+	nt.Identities = helper.CopySlice(t.Identities)
 
 	return nt
 }
@@ -1596,6 +1630,10 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 
 	if t.VolumeMounts != nil {
 		task.VolumeMounts = t.VolumeMounts
+	}
+
+	if t.Identities != nil {
+		task.Identities = t.Identities
 	}
 }
 
@@ -2021,7 +2059,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  pointer.Of(*p.ConnectTimeout),
+		ConnectTimeout:                  new(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       p.copyBindAddresses(),
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package helper
@@ -392,7 +392,6 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 //
 // Returns the time.Ticker and also a StopFunc, forcing the caller to deal
 // with stopping the time.Ticker to avoid leaking a goroutine.
-
 func NewSafeTicker(duration time.Duration) (*time.Ticker, StopFunc) {
 	if duration <= 0 {
 		// Avoid panic by using the smallest positive value. This is close enough
@@ -570,6 +569,11 @@ func FindExecutableFiles(path string) (map[string]string, error) {
 	return executables, nil
 }
 
-func IsExecutable(i os.FileInfo) bool {
-	return !i.IsDir() && i.Mode()&0o111 != 0
+// IsSubdirectory returns true if potentialParent is equal to or a parent directory of path.
+func IsSubdirectory(potentialParent, path string) bool {
+	rel, err := filepath.Rel(potentialParent, path)
+	if err != nil {
+		return false
+	}
+	return !strings.HasPrefix(rel, "..")
 }

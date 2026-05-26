@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -16,7 +16,7 @@ import classic from 'ember-classic-decorator';
 @classNames('two-step-button')
 @classNameBindings(
   'inlineText:has-inline-text',
-  'fadingBackground:has-fading-background'
+  'fadingBackground:has-fading-background',
 )
 export default class TwoStepButton extends Component {
   idleText = '';
@@ -27,6 +27,7 @@ export default class TwoStepButton extends Component {
   disabled = false;
   alignRight = false;
   inlineText = false;
+  title = '';
   onConfirm() {}
   onCancel() {}
   onPrompt() {}

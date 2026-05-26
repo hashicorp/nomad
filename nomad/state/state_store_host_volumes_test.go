@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -103,6 +103,7 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 
 	// simulate a node registering one of the volumes
 	nodes[2] = nodes[2].Copy()
+	nodes[2].GCVolumesOnNodeGC = true
 	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"example": {
 		Name: vols[2].Name,
 		Path: vols[2].HostPath,
@@ -133,12 +134,19 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.Eq(t, structs.HostVolumeStateReady, vol2.State, must.Sprint(
 		"expected volume state to be updated because its been fingerprinted by a node"))
 
-	alloc := mock.AllocForNode(nodes[2])
-	alloc.Job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"example": {
+	mockJob := mock.Job()
+	mockJob.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"example": {
 		Name:   "example",
 		Type:   structs.VolumeTypeHost,
 		Source: vols[2].Name,
 	}}
+
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, mockJob))
+
+	alloc := mock.AllocForNode(nodes[2])
+	alloc.Job = mockJob
+	alloc.JobID = mockJob.ID
+
 	index++
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup,
 		index, []*structs.Allocation{alloc}))
@@ -147,6 +155,23 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	err = store.DeleteHostVolume(index, vol2.Namespace, vols[2].ID)
 	must.EqError(t, err, fmt.Sprintf(
 		"could not delete volume %s in use by alloc %s", vols[2].ID, alloc.ID))
+
+	alloc = alloc.Copy()
+	alloc.DesiredStatus = structs.AllocDesiredStatusStop
+	index++
+
+	updateReq := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+	}
+
+	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup,
+		index, updateReq))
+
+	index++
+	err = store.DeleteHostVolume(index, vol2.Namespace, vols[2].ID)
+	must.EqError(t, err, fmt.Sprintf(
+		"could not delete volume %s in use by alloc %s", vols[2].ID, alloc.ID),
+		must.Sprint("allocs must be client-terminal to delete their volumes"))
 
 	err = store.DeleteHostVolume(index, vol2.Namespace, vols[1].ID)
 	must.NoError(t, err)
@@ -178,8 +203,19 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	alloc = alloc.Copy()
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 	index++
+
+	updateReq2 := structs.AllocUpdateRequest{
+		Alloc: []*structs.Allocation{alloc},
+	}
+
 	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup,
-		index, []*structs.Allocation{alloc}))
+		index, updateReq2))
+	index++
+	must.NoError(t, store.DeleteNode(structs.MsgTypeTestSetup, index, []string{vol2.NodeID}))
+	iter, err = store.HostVolumesByNodeID(nil, vol2.NodeID, SortDefault)
+	must.NoError(t, err)
+	must.Nil(t, iter.Next(), must.Sprint("expected volume to be GC'd with node"))
+
 	for _, v := range vols {
 		index++
 		must.NoError(t, store.DeleteHostVolume(index, v.Namespace, v.ID))

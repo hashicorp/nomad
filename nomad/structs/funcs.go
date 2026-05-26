@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -141,7 +142,11 @@ func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
 func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
 	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
-
+	if node.NodeMaxAllocs != 0 {
+		if node.NodeMaxAllocs < len(allocs) {
+			return false, "max allocation exceeded", used, fmt.Errorf("plan exceeds max allocation")
+		}
+	}
 	reservedCores := map[uint16]struct{}{}
 	var coreOverlap bool
 
@@ -206,11 +211,6 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		if collision, reason := netIdx.AddAllocs(allocs); collision {
 			return false, fmt.Sprintf("reserved alloc port collision: %v", reason), used, nil
 		}
-	}
-
-	// Check if the network is overcommitted
-	if netIdx.Overcommitted() {
-		return false, "bandwidth exceeded", used, nil
 	}
 
 	// Check devices and host volumes
@@ -433,7 +433,7 @@ func CompileACLObject(cache *ACLCache[*acl.ACL], policies []*ACLPolicy) (*acl.AC
 	// Parse the policies
 	parsed := make([]*acl.Policy, 0, len(policies))
 	for _, policy := range policies {
-		p, err := acl.Parse(policy.Rules)
+		p, err := acl.Parse(policy.Rules, acl.PolicyParseLenient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %q: %v", policy.Name, err)
 		}
@@ -486,7 +486,10 @@ func CompareMigrateToken(allocID, nodeSecretID, otherMigrateToken string) bool {
 // port ranges. A port number is a single integer and a port range is two
 // integers separated by a hyphen. As an example the following spec would
 // convert to: ParsePortRanges("10,12-14,16") -> []uint64{10, 12, 13, 14, 16}
+// This function may return duplicates or overlapping ranges, so we limit the
+// maximum number of ports returned to MaxValidPort.
 func ParsePortRanges(spec string) ([]uint64, error) {
+	count := 0
 	parts := strings.Split(spec, ",")
 
 	// Hot path the empty case
@@ -494,7 +497,7 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 		return nil, nil
 	}
 
-	ports := make(map[uint64]struct{})
+	ports := []uint64{}
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
 		rangeParts := strings.Split(part, "-")
@@ -508,11 +511,17 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 				if err != nil {
 					return nil, err
 				}
-
+				if port == 0 {
+					return nil, fmt.Errorf("port must be > 0")
+				}
 				if port > MaxValidPort {
 					return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
 				}
-				ports[port] = struct{}{}
+				count++
+				if count > MaxValidPort {
+					return nil, fmt.Errorf("maximum of %d ports can be reserved", MaxValidPort)
+				}
+				ports = append(ports, port)
 			}
 		case 2:
 			// We are parsing a range
@@ -527,36 +536,43 @@ func ParsePortRanges(spec string) ([]uint64, error) {
 			}
 
 			if end < start {
-				return nil, fmt.Errorf("invalid range: starting value (%v) less than ending (%v) value", end, start)
+				return nil, fmt.Errorf("invalid range: ending value (%v) less than starting (%v) value", end, start)
 			}
 
 			// Full range validation is below but prevent creating
 			// arbitrarily large arrays here
+			if start == 0 {
+				return nil, fmt.Errorf("port must be > 0")
+			}
 			if end > MaxValidPort {
 				return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, end)
 			}
-
+			count += int(end - start)
+			if count > MaxValidPort {
+				return nil, fmt.Errorf("maximum of %d ports can be reserved", MaxValidPort)
+			}
+			ports = slices.Grow(ports, int(end-start))
 			for i := start; i <= end; i++ {
-				ports[i] = struct{}{}
+				ports = append(ports, i)
 			}
 		default:
 			return nil, fmt.Errorf("can only parse single port numbers or port ranges (ex. 80,100-120,150)")
 		}
 	}
 
-	var results []uint64
-	for port := range ports {
-		if port == 0 {
-			return nil, fmt.Errorf("port must be > 0")
-		}
-		if port > MaxValidPort {
-			return nil, fmt.Errorf("port must be < %d but found %d", MaxValidPort, port)
-		}
-		results = append(results, port)
-	}
+	return ports, nil
+}
 
-	sort.Slice(results, func(i, j int) bool {
-		return results[i] < results[j]
-	})
-	return results, nil
+// ParentIDFromJobID returns the parent job ID of a given dispatch or periodic
+// job. Generally you should use the child job's Job.ParentID field instead, but
+// this is useful for contexts where the Job struct isn't present.
+func ParentIDFromJobID(jobID string) string {
+	if strings.Index(jobID, "/") == 0 {
+		// do a cheap O(n) check first before we do the more expensive Cut
+		// method
+		return jobID
+	}
+	jobID, _, _ = strings.Cut(jobID, DispatchLaunchSuffix)
+	jobID, _, _ = strings.Cut(jobID, PeriodicLaunchSuffix)
+	return jobID
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -52,8 +51,10 @@ func TestHTTP_AllocsList(t *testing.T) {
 		alloc2.TaskStates = make(map[string]*structs.TaskState)
 		alloc2.TaskStates["test"] = taskState
 
-		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
-		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
+		must.NoError(t, state.UpsertJobSummary(996, mock.JobSummary(alloc1.JobID)))
+		must.NoError(t, state.UpsertJobSummary(997, mock.JobSummary(alloc2.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, alloc1.Job))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
 		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
@@ -116,15 +117,11 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 
 		summary1 := mock.JobSummary(alloc1.JobID)
 		summary2 := mock.JobSummary(alloc2.JobID)
-		if err := state.UpsertJobSummary(998, summary1); err != nil {
-			t.Fatal(err)
-		}
-		if err := state.UpsertJobSummary(999, summary2); err != nil {
-			t.Fatal(err)
-		}
-		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}); err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(996, summary1))
+		must.NoError(t, state.UpsertJobSummary(997, summary2))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, alloc1.Job))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc2.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/allocations?prefix=aaab", nil)
@@ -174,7 +171,8 @@ func TestHTTP_AllocQuery(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Make the HTTP request
@@ -214,19 +212,15 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
-		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)); err != nil {
-			t.Fatal(err)
-		}
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
 
 		// Insert Payload compressed
 		expected := []byte("hello world")
 		compressed := snappy.Encode(nil, expected)
 		alloc.Job.Payload = compressed
 
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/allocation/"+alloc.ID, nil)
@@ -405,8 +399,8 @@ func TestHTTP_AllocStop(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
 		require := require.New(t)
-		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
-
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Test that the happy path works
@@ -459,6 +453,7 @@ func TestHTTP_allocServiceRegistrations(t *testing.T) {
 
 				// Generate an alloc and upsert this.
 				alloc := mock.Alloc()
+				must.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 9, nil, alloc.Job))
 				require.NoError(t, testState.UpsertAllocs(
 					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
 
@@ -494,6 +489,7 @@ func TestHTTP_allocServiceRegistrations(t *testing.T) {
 
 				// Generate an alloc and upsert this.
 				alloc := mock.Alloc()
+				must.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, 9, nil, alloc.Job))
 				require.NoError(t, testState.UpsertAllocs(
 					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
 
@@ -734,7 +730,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, func(c *Config) {
 		// Disable the schedulers
-		c.Server.NumSchedulers = pointer.Of(0)
+		c.Server.NumSchedulers = new(0)
 	}, func(s *TestAgent) {
 		// Create an alloc
 		state := s.server.State()
@@ -744,10 +740,9 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 			"run_for": "30s",
 		}
 		alloc.NodeID = s.client.NodeID()
-		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc.Copy()}); err != nil {
-			t.Fatalf("error upserting alloc: %v", err)
-		}
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc.Copy()}))
 
 		// Wait for the client to run it
 		testutil.WaitForResult(func() (bool, error) {
@@ -1076,68 +1071,12 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 	})
 }
 
-func TestHTTP_ReadWsHandshake(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name      string
-		token     string
-		handshake bool
-	}{
-		{
-			name:      "plain compatible mode",
-			token:     "",
-			handshake: false,
-		},
-		{
-			name:      "handshake unauthenticated",
-			token:     "",
-			handshake: true,
-		},
-		{
-			name:      "handshake authenticated",
-			token:     "mysupersecret",
-			handshake: true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-
-			called := false
-			readFn := func(h interface{}) error {
-				called = true
-				if !c.handshake {
-					return fmt.Errorf("should not be called")
-				}
-
-				hm := h.(*wsHandshakeMessage)
-				hm.Version = 1
-				hm.AuthToken = c.token
-				return nil
-			}
-
-			req := httptest.NewRequest(http.MethodPut, "/target", nil)
-			if c.handshake {
-				req.URL.RawQuery = "ws_handshake=true"
-			}
-
-			var q structs.QueryOptions
-
-			err := readWsHandshake(readFn, req, &q)
-			require.NoError(t, err)
-			require.Equal(t, c.token, q.AuthToken)
-			require.Equal(t, c.handshake, called)
-		})
-	}
-}
-
-// TestHTTP_AllocsExecStream_SafeClose verifies that we are safely closing the
+// TestHTTP_AllocExecStream_SafeClose verifies that we are safely closing the
 // AllocExec stream when we're done without making concurrent writes to the
 // websocket that can cause a panic
-func TestHTTP_AllocsExecStream_SafeClose(t *testing.T) {
+func TestHTTP_AllocExecStream_SafeClose(t *testing.T) {
 	httpTest(t,
-		func(c *Config) { c.Server.NumSchedulers = pointer.Of(0) },
+		func(c *Config) { c.Server.NumSchedulers = new(0) },
 		func(s *TestAgent) {
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

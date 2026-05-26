@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -7,9 +7,42 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
+
+func TestSchedulerConfiguration_GetNodeLimitForFeasibilityChecks(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		config   *SchedulerConfiguration
+		expected uint
+	}{
+		{
+			name:     "nil config returns default",
+			config:   nil,
+			expected: DefaultNodeLimitForFeasibilityChecks,
+		},
+		{
+			name:     "zero value returns default",
+			config:   &SchedulerConfiguration{},
+			expected: DefaultNodeLimitForFeasibilityChecks,
+		},
+		{
+			name: "positive value is returned",
+			config: &SchedulerConfiguration{
+				NodeLimitForFeasibilityChecks: 42,
+			},
+			expected: 42,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expected, tc.config.GetNodeLimitForFeasibilityChecks())
+		})
+	}
+}
 
 func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 	ci.Parallel(t)
@@ -51,7 +84,7 @@ func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 			},
 			pool: &NodePool{
 				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
-					MemoryOversubscriptionEnabled: pointer.Of(true),
+					MemoryOversubscriptionEnabled: new(true),
 				},
 			},
 			expected: &SchedulerConfiguration{

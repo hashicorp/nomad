@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -21,7 +21,7 @@ export default class NodePoolAdapter extends ApplicationAdapter {
       // doesn't have node pools and the request is handled by the nodes
       // endpoint.
       const isNodeRequest = error.message.includes(
-        'node lookup failed: index error: UUID must be 36 characters'
+        'node lookup failed: index error: UUID must be 36 characters',
       );
       if (isNodeRequest) {
         return [];

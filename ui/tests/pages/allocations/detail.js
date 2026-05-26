@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -38,6 +38,11 @@ export default create({
 
     client: text('[data-test-client-link]'),
     visitClient: clickable('[data-test-client-link]'),
+    maxRunDeadline: text('[data-test-max-run-deadline]'),
+    maxRunDeadlineTooltip: attribute(
+      'aria-label',
+      '[data-test-max-run-deadline] .tooltip',
+    ),
   },
 
   resourceCharts: collection('[data-test-primary-metric]', {
@@ -91,7 +96,7 @@ export default create({
   preempted: isPresent('[data-test-preemptions]'),
   ...allocations(
     '[data-test-preemptions] [data-test-allocation]',
-    'preemptions'
+    'preemptions',
   ),
 
   ports: collection('[data-test-allocation-port]', {

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -254,6 +254,9 @@ type Service struct {
 
 	// Cluster is valid only for Nomad Enterprise with provider: consul
 	Cluster string `hcl:"cluster,optional"`
+
+	// Kind defines the consul service kind, valid only when provider: consul
+	Kind string `hcl:"kind,optional"`
 }
 
 const (

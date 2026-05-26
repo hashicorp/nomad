@@ -1,14 +1,16 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/posener/complete"
 )
 
@@ -28,8 +30,8 @@ Alias: nomad start
  nodes. The monitor will end once job placement is done. It is safe to exit the
  monitor early using ctrl+c.
 
- When ACLs are enabled, this command requires a token with the 'submit-job'
- capability for the job's namespace.
+ When ACLs are enabled, this command requires a token with either the
+ 'submit-job' or 'register-job' capability for the job's namespace.
 
 General Options:
 
@@ -62,19 +64,9 @@ func (c *JobStartCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobStartCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
+
 func (c *JobStartCommand) Name() string { return "job start" }
 
 func (c *JobStartCommand) Run(args []string) int {
@@ -112,7 +104,7 @@ func (c *JobStartCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	job, err := c.JobByPrefix(client, jobIDPrefix, nil)
+	job, err := c.JobByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -131,6 +123,41 @@ func (c *JobStartCommand) Run(args []string) int {
 
 	// register the job in a not stopped state
 	*job.Stop = false
+
+	// When a job is stopped, all its scaling policies are disabled. Before
+	// starting the job again, set them back to the last user submitted state.
+	ps := job.GetScalingPoliciesPerTaskGroup()
+	if len(ps) > 0 {
+		sub, _, err := client.Jobs().Submission(*job.ID, int(*job.Version), &api.QueryOptions{
+			Region:    *job.Region,
+			Namespace: *job.Namespace,
+		})
+		if err != nil {
+			if _, ok := err.(api.UnexpectedResponseError); !ok {
+				c.Ui.Error(fmt.Sprintf("%+T\n", err) + err.Error())
+				return 1
+			}
+			// If the job was submitted using the API, there are no submissions stored.
+			c.Ui.Warn("All scaling policies for this job were disabled when it was stopped, resubmit it to enable them again.")
+		} else {
+			lastJob, err := parseFromSubmission(sub)
+			if err != nil {
+				c.Ui.Error(err.Error())
+				return 1
+			}
+
+			sps := lastJob.GetScalingPoliciesPerTaskGroup()
+			for _, tg := range job.TaskGroups {
+				// guard for nil values in case the tg doesn't have any scaling policy
+				if sps[*tg.Name] != nil {
+					if tg.Scaling == nil {
+						tg.Scaling = &api.ScalingPolicy{}
+					}
+					tg.Scaling.Enabled = sps[*tg.Name].Enabled
+				}
+			}
+		}
+	}
 
 	resp, _, err := client.Jobs().Register(job, nil)
 
@@ -159,6 +186,27 @@ func (c *JobStartCommand) Run(args []string) int {
 		return 0
 	}
 
-	mon := newMonitor(c.Ui, client, length)
+	mon := newMonitor(c.Meta, client, length)
 	return mon.monitor(resp.EvalID)
+}
+
+func parseFromSubmission(sub *api.JobSubmission) (*api.Job, error) {
+	var job *api.Job
+	var err error
+
+	switch sub.Format {
+	case "hcl2":
+		job, err = jobspec2.Parse("", strings.NewReader(sub.Source))
+		if err != nil {
+			return nil, fmt.Errorf("Unable to parse job submission to re-enable scaling policies: %w", err)
+		}
+
+	case "json":
+		err = json.Unmarshal([]byte(sub.Source), &job)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to parse job submission to re-enable scaling policies: %w", err)
+		}
+	}
+
+	return job, nil
 }

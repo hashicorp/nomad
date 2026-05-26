@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -31,7 +31,7 @@ export function handleRouteRedirects(transition, router) {
 
     if (shouldRedirect) {
       console.warn(
-        `This URL has changed. Please update your bookmark from ${currentPath} to ${targetPath}`
+        `This URL has changed. Please update your bookmark from ${currentPath} to ${targetPath}`,
       );
 
       router.replaceWith(targetPath, {

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -141,9 +141,20 @@ type StateDB interface {
 	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
 	DeleteDynamicHostVolume(string) error
 
+	// PutNodeIdentity stores the signed identity JWT for the client.
+	PutNodeIdentity(identity string) error
+
+	// GetNodeIdentity retrieves the signed identity JWT for the client. If the
+	// client has not generated an identity, this will return an empty string
+	// and no error.
+	GetNodeIdentity() (string, error)
+
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.
 	Close() error
+
+	PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error
+	GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error)
 }
 
 // WriteOptions adjusts the way the data is persisted by the StateDB above. Default is

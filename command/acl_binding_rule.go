@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -9,6 +9,8 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/posener/complete"
 )
 
 // Ensure ACLBindingRuleCommand satisfies the cli.Command interface.
@@ -26,7 +28,7 @@ Usage: nomad acl binding-rule <subcommand> [options] [args]
 
   This command groups subcommands for interacting with ACL binding rules.
   Nomad's ACL system can be used to control access to data and APIs. For a full
-  guide see: https://developer.hashicorp.com/nomad/tutorials/access-control
+  guide see: https://developer.hashicorp.com/nomad/docs/secure/acl
 
   Create an ACL binding rule:
 
@@ -67,6 +69,27 @@ func (a *ACLBindingRuleCommand) Name() string { return "acl binding-rule" }
 
 // Run satisfies the cli.Command Run function.
 func (a *ACLBindingRuleCommand) Run(_ []string) int { return cli.RunResultHelp }
+
+// ACLBindingRulePredictor returns an autocomplete predictor that can be used
+// across multiple binding rule commands
+func ACLBindingRulePredictor(factory ApiClientFactory) complete.Predictor {
+	return complete.PredictFunc(func(a complete.Args) []string {
+		client, err := factory()
+		if err != nil {
+			return nil
+		}
+
+		rules, _, err := client.ACLBindingRules().List(&api.QueryOptions{
+			Prefix: a.Last,
+		})
+		if err != nil {
+			return []string{}
+		}
+
+		return helper.ConvertSlice(rules,
+			func(r *api.ACLBindingRuleListStub) string { return r.ID })
+	})
+}
 
 // formatACLBindingRule formats and converts the ACL binding rule API object
 // into a string KV representation suitable for console output.

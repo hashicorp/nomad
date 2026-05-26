@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -12,7 +12,7 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class JobSummary extends Model {
-  @belongsTo('job') job;
+  @belongsTo('job', { async: true, inverse: 'summary' }) job;
 
   @fragmentArray('task-group-summary') taskGroupSummaries;
 
@@ -32,7 +32,7 @@ export default class JobSummary extends Model {
     'completeAllocs',
     'failedAllocs',
     'lostAllocs',
-    'unknownAllocs'
+    'unknownAllocs',
   )
   allocsList;
 

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -7,14 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type MonitorCommand struct {
@@ -70,6 +69,31 @@ func (c *MonitorCommand) Synopsis() string {
 
 func (c *MonitorCommand) Name() string { return "monitor" }
 
+func (c *MonitorCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-log-level":            complete.PredictSet("TRACE", "DEBUG", "INFO", "WARN", "ERROR"),
+			"-log-include-location": complete.PredictNothing,
+			"-node-id": complete.PredictFunc(func(a complete.Args) []string {
+				client, err := c.Meta.Client()
+				if err != nil {
+					return nil
+				}
+				resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+				if err != nil {
+					return []string{}
+				}
+				return resp.Matches[contexts.Nodes]
+			}),
+			"-server-id": complete.PredictAnything,
+			"-json":      complete.PredictNothing,
+		})
+}
+
+func (c *MonitorCommand) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
+
 func (c *MonitorCommand) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "    ",
@@ -92,7 +116,7 @@ func (c *MonitorCommand) Run(args []string) int {
 
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -127,31 +151,12 @@ func (c *MonitorCommand) Run(args []string) int {
 
 	eventDoneCh := make(chan struct{})
 	frames, errCh := client.Agent().Monitor(eventDoneCh, query)
-	select {
-	case err := <-errCh:
+	r, err := streamFrames(frames, errCh, -1, eventDoneCh)
+	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))
 		c.Ui.Error(commandErrorText(c))
 		return 1
-	default:
 	}
-
-	// Create a reader
-	var r io.ReadCloser
-	frameReader := api.NewFrameReader(frames, errCh, eventDoneCh)
-	frameReader.SetUnblockTime(500 * time.Millisecond)
-	r = frameReader
-
-	defer r.Close()
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-signalCh
-		// End the streaming
-		r.Close()
-	}()
-
 	_, err = io.Copy(os.Stdout, r)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("error monitoring logs: %s", err))

@@ -1,0 +1,3 @@
+```release-note:bug
+dispatch: Fixed a bug where evaluations were not created atomically with dispatched jobs, which could prevent dispatch jobs from creating allocations
+```

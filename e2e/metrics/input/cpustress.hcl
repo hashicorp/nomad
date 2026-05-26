@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 job "cpustress" {
@@ -28,12 +28,11 @@ job "cpustress" {
     }
 
     task "cpustress" {
-      driver = "pledge"
+      driver = "exec2"
 
       config {
-        command  = "stress"
-        args     = ["--cpu", "1"]
-        promises = "stdio rpath proc"
+        command = "stress"
+        args    = ["--cpu", "1"]
       }
 
       resources {
@@ -43,4 +42,3 @@ job "cpustress" {
     }
   }
 }
-

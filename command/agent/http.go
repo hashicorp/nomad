@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
@@ -115,8 +116,11 @@ type HTTPServer struct {
 // NewHTTPServers starts an HTTP server for every address.http configured in
 // the agent.
 func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
-	var srvs []*HTTPServer
-	var serverInitializationErrors error
+	var (
+		srvs                       []*HTTPServer
+		serverInitializationErrors error
+		connCount                  atomic.Int32
+	)
 
 	// Get connection handshake timeout limit
 	handshakeTimeout, err := time.ParseDuration(config.Limits.HTTPSHandshakeTimeout)
@@ -185,7 +189,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		httpServer := http.Server{
 			Addr:      srv.Addr,
 			Handler:   handlers.CompressHandler(srv.mux),
-			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, srv.logger),
+			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, &connCount, srv.logger),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
 		}
 
@@ -196,6 +200,19 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 		srvs = append(srvs, srv)
 	}
+
+	go func() {
+		ticker := time.NewTicker(config.Telemetry.collectionInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-agent.shutdownCh:
+				return
+			case <-ticker.C:
+				metrics.SetGauge([]string{"nomad", "agent", "http", "connections"}, float32(connCount.Load()))
+			}
+		}
+	}()
 
 	// Return early on errors
 	if serverInitializationErrors != nil {
@@ -250,44 +267,32 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 //
 // If limit > 0, a per-address connection limit will be enabled regardless of
 // TLS. If connLimit == 0 there is no connection limit.
-func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, logger log.Logger) func(conn net.Conn, state http.ConnState) {
+func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, connCount *atomic.Int32, logger log.Logger) func(conn net.Conn, state http.ConnState) {
 	connLimiter := connLimiter(connLimit, logger)
 	if !isTLS || handshakeTimeout == 0 {
-		if connLimit > 0 {
-			// Still return the connection limiter
-			return connLimiter
-		}
-		return nil
-	}
-
-	if connLimit > 0 {
-		// Return conn state callback with connection limiting and a
-		// handshake timeout.
-
 		return func(conn net.Conn, state http.ConnState) {
+
 			switch state {
 			case http.StateNew:
-				// Set deadline to prevent slow send before TLS handshake or first
-				// byte of request.
-				conn.SetDeadline(time.Now().Add(handshakeTimeout))
-			case http.StateActive:
-				// Clear read deadline. We should maybe set read timeouts more
-				// generally but that's a bigger task as some HTTP endpoints may
-				// stream large requests and responses (e.g. snapshot) so we can't
-				// set sensible blanket timeouts here.
-				conn.SetDeadline(time.Time{})
+				connCount.Add(1)
+			case http.StateClosed:
+				connCount.Add(-1)
 			}
 
-			// Call connection limiter
-			connLimiter(conn, state)
+			// Call connection limiter if enabled
+			if connLimit > 0 {
+				connLimiter(conn, state)
+			}
 		}
 	}
 
-	// Return conn state callback with just a handshake timeout
-	// (connection limiting disabled).
+	// Return conn state callback with connection limiting and a
+	// handshake timeout.
 	return func(conn net.Conn, state http.ConnState) {
+
 		switch state {
 		case http.StateNew:
+			connCount.Add(1)
 			// Set deadline to prevent slow send before TLS handshake or first
 			// byte of request.
 			conn.SetDeadline(time.Now().Add(handshakeTimeout))
@@ -297,6 +302,13 @@ func makeConnState(isTLS bool, handshakeTimeout time.Duration, connLimit int, lo
 			// stream large requests and responses (e.g. snapshot) so we can't
 			// set sensible blanket timeouts here.
 			conn.SetDeadline(time.Time{})
+		case http.StateClosed:
+			connCount.Add(-1)
+		}
+
+		// Call connection limiter if enabled
+		if connLimit > 0 {
+			connLimiter(conn, state)
 		}
 	}
 }
@@ -309,10 +321,10 @@ func connLimiter(connLimit int, logger log.Logger) func(conn net.Conn, state htt
 	limiter := rate.NewLimiter(10, 100)
 
 	tooManyConnsMsg := "Your IP is issuing too many concurrent connections, please rate limit your calls\n"
-	tooManyRequestsResponse := []byte(fmt.Sprintf("HTTP/1.1 429 Too Many Requests\r\n"+
+	tooManyRequestsResponse := fmt.Appendf(nil, "HTTP/1.1 429 Too Many Requests\r\n"+
 		"Content-Type: text/plain\r\n"+
 		"Content-Length: %d\r\n"+
-		"Connection: close\r\n\r\n%s", len(tooManyConnsMsg), tooManyConnsMsg))
+		"Connection: close\r\n\r\n%s", len(tooManyConnsMsg), tooManyConnsMsg)
 	return connlimit.NewLimiter(connlimit.Config{
 		MaxConnsPerClientIP: connLimit,
 	}).HTTPConnStateFuncWithErrorHandler(func(err error, conn net.Conn) {
@@ -366,7 +378,13 @@ func (s *HTTPServer) ResolveToken(req *http.Request) (*acl.ACL, error) {
 	var err error
 
 	if srv := s.agent.Server(); srv != nil {
-		aclObj, err = srv.ResolveToken(secret)
+		r := &structs.GenericRequest{}
+		r.AuthToken = secret
+		if authErr := srv.Authenticate(nil, r); authErr != nil {
+			return nil, fmt.Errorf("ACL token not found or invalid workload identity: %v", authErr)
+		}
+
+		aclObj, err = srv.ResolveACL(r)
 	} else {
 		// Not a Server, so use the Client for token resolution. Note
 		// this gets forwarded to a server with AllowStale = true if
@@ -444,12 +462,15 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/oidc/auth-url", s.wrap(s.ACLOIDCAuthURLRequest))
 	s.mux.HandleFunc("/v1/acl/oidc/complete-auth", s.wrap(s.ACLOIDCCompleteAuthRequest))
 	s.mux.HandleFunc("/v1/acl/login", s.wrap(s.ACLLoginRequest))
+	s.mux.HandleFunc("/v1/acl/identity/client-introduction-token", s.wrap(s.ACLCreateClientIntroductionTokenRequest))
 
 	s.mux.Handle("/v1/client/fs/", wrapCORS(s.wrap(s.FsRequest)))
 	s.mux.HandleFunc("/v1/client/gc", s.wrap(s.ClientGCRequest))
 	s.mux.Handle("/v1/client/stats", wrapCORS(s.wrap(s.ClientStatsRequest)))
 	s.mux.Handle("/v1/client/allocation/", wrapCORS(s.wrap(s.ClientAllocRequest)))
 	s.mux.Handle("/v1/client/metadata", wrapCORS(s.wrap(s.NodeMetaRequest)))
+	s.mux.Handle("/v1/client/identity", wrapCORS(s.wrap(s.NodeIdentityGetRequest)))
+	s.mux.Handle("/v1/client/identity/renew", wrapCORS(s.wrap(s.NodeIdentityRenewRequest)))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
@@ -472,6 +493,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	// "application/json" Content-Type depending on the ?plain= query
 	// parameter.
 	s.mux.HandleFunc("/v1/agent/monitor", s.wrap(s.AgentMonitor))
+	s.mux.HandleFunc("/v1/agent/monitor/export", s.wrap(s.AgentMonitorExport))
 
 	s.mux.HandleFunc("/v1/agent/pprof/", s.wrapNonJSON(s.AgentPprofRequest))
 
@@ -713,8 +735,8 @@ func errCodeFromHandler(err error) (int, string) {
 }
 
 // wrap is used to wrap functions to make them more convenient
-func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
-	f := func(resp http.ResponseWriter, req *http.Request) {
+func (s *HTTPServer) wrap(handler handlerFn) func(resp http.ResponseWriter, req *http.Request) {
+	return func(resp http.ResponseWriter, req *http.Request) {
 		setHeaders(resp, s.agent.GetConfig().HTTPAPIResponseHeaders)
 		// Invoke the handler
 		reqURL := req.URL.String()
@@ -722,7 +744,17 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		defer func() {
 			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
 		}()
-		obj, err := s.auditHandler(handler)(resp, req)
+
+		var obj any
+		var err error
+		if isWebsocketUpgrade(req) {
+			// Because the browser WebSocket API doesn't allow for setting the
+			// auth headers, we have to perform the upgrade and extract the auth
+			// token from the first message before we can audit the request
+			obj, err = s.wrapWebsocketHandler(s.auditHandler(handler))(resp, req)
+		} else {
+			obj, err = s.auditHandler(handler)(resp, req)
+		}
 
 		// Check for an error
 	HAS_ERR:
@@ -789,7 +821,6 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 			resp.Write(buf.Bytes())
 		}
 	}
-	return f
 }
 
 // wrapNonJSON is used to wrap functions returning non JSON
@@ -994,8 +1025,9 @@ func parseInt(req *http.Request, field string) (*int, error) {
 	return nil, nil
 }
 
-// parseToken is used to parse the X-Nomad-Token param
+// parseToken is used to get an authentication token from the request
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
+
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
 		*token = strings.TrimSpace(other)
 		return
@@ -1018,7 +1050,18 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 				// Since Bearer tokens shouldn't contain spaces (rfc6750#section-2.1)
 				// "value" is tokenized, only the first item is used
 				*token = strings.TrimSpace(strings.Split(value, " ")[0])
+				return
 			}
+		}
+	}
+
+	// Websocket requests may not have an auth header if they came from a
+	// browser, so extract the token from the request context added when we
+	// upgraded the connection instead
+	if ctxVal := req.Context().Value(ctxKeyWebSocketAuthToken); ctxVal != nil {
+		if ctxToken, ok := ctxVal.(string); ok && ctxToken != "" {
+			*token = ctxToken
+			return
 		}
 	}
 }

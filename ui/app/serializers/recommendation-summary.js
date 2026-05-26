@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -45,7 +45,7 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
     return {
       data: Object.values(slugToSummaryObject).map((summaryObject) => {
         const latest = Math.max(
-          ...summaryObject.recommendations.mapBy('SubmitTime')
+          ...summaryObject.recommendations.mapBy('SubmitTime'),
         );
 
         return {
@@ -80,8 +80,8 @@ export default class RecommendationSummarySerializer extends ApplicationSerializ
         (recommendationHash) =>
           recommendationSerializer.normalize(
             RecommendationModel,
-            recommendationHash
-          ).data
+            recommendationHash,
+          ).data,
       ),
     };
   }

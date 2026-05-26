@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -55,7 +55,7 @@ export default class Node extends Model {
     return this.httpAddr == null;
   }
 
-  @hasMany('allocations', { inverse: 'node' }) allocations;
+  @hasMany('allocations', { async: true, inverse: 'node' }) allocations;
 
   @computed('allocations.@each.clientStatus')
   get completeAllocations() {
@@ -70,7 +70,7 @@ export default class Node extends Model {
   @computed('allocations.@each.{isMigrating,isRunning}')
   get migratingAllocations() {
     return this.allocations.filter(
-      (alloc) => alloc.isRunning && alloc.isMigrating
+      (alloc) => alloc.isRunning && alloc.isMigrating,
     );
   }
 

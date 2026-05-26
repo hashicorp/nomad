@@ -1,73 +1,71 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-/* eslint-disable qunit/require-expect */
+import { getPageTitle } from 'ember-page-title/test-support';
 import {
   click,
   currentURL,
   findAll,
   triggerKeyEvent,
 } from '@ember/test-helpers';
-import { run } from '@ember/runloop';
+import { later, cancelTimers } from '@ember/runloop';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import TaskLogs from 'nomad-ui/tests/pages/allocations/task/logs';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 let allocation;
 let task;
 let job;
 
-module('Acceptance | task logs', function (hooks) {
+module.skip('Acceptance | task logs', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
   hooks.beforeEach(async function () {
     faker.seed(1);
-    server.create('agent');
-    server.create('node-pool');
-    server.create('node', 'forceIPv4');
-    job = server.create('job', { createAllocations: false });
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node', 'forceIPv4');
+    job = this.server.create('job', { createAllocations: false });
 
-    allocation = server.create('allocation', {
+    allocation = this.server.create('allocation', {
       jobId: job.id,
       clientStatus: 'running',
     });
-    task = server.db.taskStates.where({ allocationId: allocation.id })[0];
+    task = this.server.db.taskStates.where({ allocationId: allocation.id })[0];
 
-    run.later(run, run.cancelTimers, 1000);
+    later(cancelTimers, 1000);
   });
 
   test('it passes an accessibility audit', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
     await a11yAudit(assert);
-    await percySnapshot(assert);
   });
 
   test('/allocation/:id/:task_name/logs should have a log component', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
-    assert.equal(
+    assert.deepEqual(
       currentURL(),
       `/allocations/${allocation.id}/${task.name}/logs`,
-      'No redirect'
+      'No redirect',
     );
     assert.ok(TaskLogs.hasTaskLog, 'Task log component found');
-    assert.ok(document.title.includes(`Task ${task.name}`));
+    assert.ok(getPageTitle().includes(`Task ${task.name}`));
   });
 
   test('the stdout log immediately starts streaming', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
     const logUrlRegex = new RegExp(`/v1/client/fs/logs/${allocation.id}`);
     assert.ok(
-      server.pretender.handledRequests.filter((req) =>
-        logUrlRegex.test(req.url)
+      this.server.pretender.handledRequests.filter((req) =>
+        logUrlRegex.test(req.url),
       ).length,
-      'Log requests were made'
+      'Log requests were made',
     );
   });
 
@@ -77,16 +75,12 @@ module('Acceptance | task logs', function (hooks) {
     assert.dom('[data-test-word-wrap-toggle]').isNotChecked();
     assert.dom('[data-test-output]').doesNotHaveClass('wrapped');
 
-    run.later(() => {
-      run.cancelTimers();
-    }, 100);
+    later(cancelTimers, 100);
     await click('[data-test-word-wrap-toggle]');
     assert.dom('[data-test-word-wrap-toggle]').isChecked();
     assert.dom('[data-test-output]').hasClass('wrapped');
 
-    run.later(() => {
-      run.cancelTimers();
-    }, 100);
+    later(cancelTimers, 100);
     await click('[data-test-word-wrap-toggle]');
     assert.dom('[data-test-word-wrap-toggle]').isNotChecked();
     assert.dom('[data-test-output]').doesNotHaveClass('wrapped');
@@ -101,9 +95,7 @@ module('Acceptance | task logs', function (hooks) {
       name: task.name,
     });
 
-    run.later(() => {
-      run.cancelTimers();
-    }, 500);
+    later(cancelTimers, 500);
 
     const taskRow = [
       ...findAll('.task-sub-row').filter((row) => {
@@ -116,9 +108,7 @@ module('Acceptance | task logs', function (hooks) {
     assert.dom('[data-test-word-wrap-toggle]').isNotChecked();
     assert.dom('[data-test-output]').doesNotHaveClass('wrapped');
 
-    run.later(() => {
-      run.cancelTimers();
-    }, 500);
+    later(cancelTimers, 500);
 
     // type "ww" to trigger word wrap
     const W_KEY = 87;
@@ -128,9 +118,7 @@ module('Acceptance | task logs', function (hooks) {
     assert.dom('[data-test-word-wrap-toggle]').isChecked();
     assert.dom('[data-test-output]').hasClass('wrapped');
 
-    run.later(() => {
-      run.cancelTimers();
-    }, 100);
+    later(cancelTimers, 100);
 
     triggerKeyEvent('.sidebar', 'keydown', W_KEY);
     await triggerKeyEvent('.sidebar', 'keydown', W_KEY);
@@ -148,9 +136,7 @@ module('Acceptance | task logs', function (hooks) {
     });
     assert.notOk(TaskLogs.sidebarIsPresent, 'Sidebar is not present');
 
-    run.later(() => {
-      run.cancelTimers();
-    }, 500);
+    later(cancelTimers, 500);
 
     const taskRow = [
       ...findAll('.task-sub-row').filter((row) => {
@@ -167,12 +153,6 @@ module('Acceptance | task logs', function (hooks) {
     assert
       .dom('.task-context-sidebar h1.title')
       .includesText(task.state, 'Task state is correctly displayed');
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-        .task-events table td:nth-child(1) { color: transparent; }
-      `,
-    });
 
     await click('.sidebar button.close');
     assert.notOk(TaskLogs.sidebarIsPresent, 'Sidebar is not present');

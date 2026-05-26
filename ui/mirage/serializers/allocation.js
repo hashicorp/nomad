@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -28,9 +28,9 @@ function serializeAllocation(allocation) {
     : {};
   allocation.AllocatedResources = {
     Shared: { Ports, Networks },
-    Tasks: allocation.TaskResources.map(({ Name, Resources }) => ({ Name, ...Resources })).reduce(
-      arrToObj('Name'),
-      {}
-    ),
+    Tasks: allocation.TaskResources.map(({ Name, Resources }) => ({
+      Name,
+      ...Resources,
+    })).reduce(arrToObj('Name'), {}),
   };
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -15,7 +15,7 @@ export default class ParameterizedChild extends Component {
     let json;
     try {
       json = JSON.parse(this.payload);
-    } catch (e) {
+    } catch {
       // Swallow error and fall back to plain text rendering
     }
     return json;

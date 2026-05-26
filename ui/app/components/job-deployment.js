@@ -1,10 +1,11 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Component from '@ember/component';
 import { classNames } from '@ember-decorators/component';
+import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
 
 @classic
@@ -12,4 +13,9 @@ import classic from 'ember-classic-decorator';
 export default class JobDeployment extends Component {
   deployment = null;
   isOpen = false;
+
+  @action
+  toggleDetails() {
+    this.set('isOpen', !this.isOpen);
+  }
 }

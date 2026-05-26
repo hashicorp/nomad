@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package deploymentwatcher
@@ -374,7 +374,7 @@ func (w *Watcher) SetAllocHealth(req *structs.DeploymentAllocHealthRequest, resp
 		return err
 	}
 
-	return watcher.SetAllocHealth(req, resp)
+	return watcher.setAllocHealth(req, resp)
 }
 
 // PromoteDeployment is used to promote a deployment. If promote is false,

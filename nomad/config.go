@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -407,13 +407,22 @@ type Config struct {
 	// RPCSessionConfig configures the yamux session configuration for RPC
 	RPCSessionConfig *yamux.Config
 
+	// RPCDialTimeout is the timeout used when establishing new outbound RPC
+	// connections to peer servers. Defaults to 10s.
+	RPCDialTimeout time.Duration
+
 	// LicenseConfig stores information about the Enterprise license loaded for the server.
 	LicenseConfig *LicenseConfig
 
 	// SearchConfig provides knobs for Search API.
 	SearchConfig *structs.SearchConfig
 
+	// RaftLogStoreConfig configures the raft log store backend.
+	RaftLogStoreConfig *RaftLogStoreConfig
+
 	// RaftBoltNoFreelistSync configures whether freelist syncing is enabled.
+	//
+	// Deprecated: Use RaftLogStoreConfig.BoltDBNoFreelistSync instead.
 	RaftBoltNoFreelistSync bool
 
 	// AgentShutdown is used to call agent.Shutdown from the context of a Server
@@ -433,6 +442,9 @@ type Config struct {
 	// JobTrackedVersions is the number of historic Job versions that are kept.
 	JobTrackedVersions int
 
+	// JobMaxCount is the maximum total task group counts for a single Job.
+	JobMaxCount int
+
 	Reporting *config.ReportingConfig
 
 	// OIDCIssuer is the URL for the OIDC Issuer field in Workload Identity JWTs.
@@ -448,6 +460,44 @@ type Config struct {
 	// considered healthy. Without this, the server can hang indefinitely
 	// waiting for these.
 	StartTimeout time.Duration
+
+	// NodeIntroductionConfig is the configuration for the node introduction
+	// feature. This feature allows servers to validate node registration
+	// requests and perform the appropriate enforcement actions.
+	NodeIntroductionConfig *structs.NodeIntroductionConfig
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
+}
+
+const (
+	// LogStoreBackendBoltDB selects the original BoltDB raft log store.
+	LogStoreBackendBoltDB = "boltdb"
+
+	// LogStoreBackendWAL selects the raft-wal segment-based log store.
+	LogStoreBackendWAL = "wal"
+)
+
+// RaftLogStoreConfig holds the runtime configuration for the raft log store.
+type RaftLogStoreConfig struct {
+	// Backend selects the raft log store implementation: "boltdb" or "wal".
+	Backend string
+
+	// BoltDBNoFreelistSync controls whether BoltDB syncs its freelist to disk.
+	BoltDBNoFreelistSync bool
+
+	// WALSegmentSize is the soft segment size limit in bytes for the WAL backend.
+	WALSegmentSize int
+
+	// DisableLogCache disables the in-memory raft log cache.
+	DisableLogCache bool
+
+	// VerificationEnabled controls whether online log store verification is
+	// active.
+	VerificationEnabled bool
+
+	// VerificationInterval is how often log store verification runs.
+	VerificationInterval time.Duration
 }
 
 func (c *Config) Copy() *Config {
@@ -476,7 +526,9 @@ func (c *Config) Copy() *Config {
 	nc.AutopilotConfig = c.AutopilotConfig.Copy()
 	nc.LicenseConfig = c.LicenseConfig.Copy()
 	nc.SearchConfig = c.SearchConfig.Copy()
+	nc.RaftLogStoreConfig = pointer.Copy(c.RaftLogStoreConfig)
 	nc.KEKProviderConfigs = helper.CopySlice(c.KEKProviderConfigs)
+	nc.NodeIntroductionConfig = c.NodeIntroductionConfig.Copy()
 
 	return &nc
 }
@@ -574,17 +626,21 @@ func DefaultConfig() *Config {
 	}
 
 	c := &Config{
-		Region:                           DefaultRegion,
-		AuthoritativeRegion:              DefaultRegion,
-		Datacenter:                       DefaultDC,
-		NodeName:                         hostname,
-		NodeID:                           uuid.Generate(),
-		RaftConfig:                       raft.DefaultConfig(),
-		RaftTimeout:                      10 * time.Second,
-		LogOutput:                        os.Stderr,
-		RPCAddr:                          DefaultRPCAddr(),
-		SerfConfig:                       serf.DefaultConfig(),
-		NumSchedulers:                    1,
+		Region:              DefaultRegion,
+		AuthoritativeRegion: DefaultRegion,
+		Datacenter:          DefaultDC,
+		NodeName:            hostname,
+		NodeID:              uuid.Generate(),
+		RaftConfig:          raft.DefaultConfig(),
+		RaftTimeout:         10 * time.Second,
+		LogOutput:           os.Stderr,
+		RPCAddr:             DefaultRPCAddr(),
+		SerfConfig:          serf.DefaultConfig(),
+		NumSchedulers:       1,
+		RaftLogStoreConfig: &RaftLogStoreConfig{
+			Backend:        LogStoreBackendBoltDB,
+			WALSegmentSize: 64 * 1024 * 1024, // 64MB default
+		},
 		ReconcileInterval:                60 * time.Second,
 		EvalGCInterval:                   5 * time.Minute,
 		EvalGCThreshold:                  1 * time.Hour,
@@ -626,6 +682,7 @@ func DefaultConfig() *Config {
 			structs.VaultDefaultCluster: config.DefaultVaultConfig()},
 		RPCHoldTimeout:           5 * time.Second,
 		RPCSessionConfig:         yamux.DefaultConfig(),
+		RPCDialTimeout:           10 * time.Second,
 		StatsCollectionInterval:  1 * time.Minute,
 		TLSConfig:                &config.TLSConfig{},
 		ReplicationBackoff:       30 * time.Second,
@@ -655,8 +712,10 @@ func DefaultConfig() *Config {
 		DeploymentQueryRateLimit: deploymentwatcher.LimitStateQueriesPerSecond,
 		JobDefaultPriority:       structs.JobDefaultPriority,
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
+		JobMaxCount:              structs.JobDefaultMaxCount,
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
 		StartTimeout:             30 * time.Second,
+		NodeIntroductionConfig:   structs.DefaultNodeIntroductionConfig(),
 	}
 
 	// Enable all known schedulers by default

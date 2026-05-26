@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -184,6 +184,118 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	must.Eq(t, 0, status.TaskGroups["group1"].Desired) // present => as specified
 	must.Eq(t, 1, status.TaskGroups["group2"].Desired) // nil     => default (1)
 	must.Eq(t, 3, status.TaskGroups["group3"].Desired) // new     => as specified
+}
+
+func TestJobs_Register_PreserveResources(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/echo").
+		SetLogConfig(&LogConfig{
+			MaxFiles:      pointerOf(1),
+			MaxFileSizeMB: pointerOf(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: pointerOf(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	task.Resources = &Resources{
+		CPU:      pointerOf(50),
+		MemoryMB: pointerOf(128),
+	}
+
+	// Update the job, with PreserveResources = true
+	_, _, err = jobs.RegisterOpts(job, &RegisterOptions{
+		PreserveResources: true,
+	}, nil)
+	must.NoError(t, err)
+
+	// Query the job scale status
+	registered, _, err := jobs.Info(*job.ID, nil)
+	must.NoError(t, err)
+	must.Eq(t, 100, *registered.TaskGroups[0].Tasks[0].Resources.CPU)      // preserved
+	must.Eq(t, 300, *registered.TaskGroups[0].Tasks[0].Resources.MemoryMB) // preserved
+}
+
+func TestJobs_Register_NoPreserveResources(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	jobs := c.Jobs()
+
+	// Listing jobs before registering returns nothing
+	resp, _, err := jobs.List(nil)
+	must.NoError(t, err)
+	must.SliceEmpty(t, resp)
+
+	// Create a job
+	task := NewTask("task", "exec").
+		SetConfig("command", "/bin/echo").
+		SetLogConfig(&LogConfig{
+			MaxFiles:      pointerOf(1),
+			MaxFileSizeMB: pointerOf(2),
+		})
+
+	group1 := NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&EphemeralDisk{
+			SizeMB: pointerOf(25),
+		})
+
+	job := NewBatchJob("job", "redis", "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group1)
+
+	// Create a job and register it
+	resp2, wm, err := jobs.Register(job, nil)
+	must.NoError(t, err)
+	must.NotNil(t, resp2)
+	must.UUIDv4(t, resp2.EvalID)
+	assertWriteMeta(t, wm)
+
+	// Update the job, new groups to test PreserveCounts
+	task.Resources = &Resources{
+		CPU:      pointerOf(50),
+		MemoryMB: pointerOf(128),
+	}
+
+	// Update the job, with PreserveResources = true
+	_, _, err = jobs.RegisterOpts(job, &RegisterOptions{
+		PreserveResources: false,
+	}, nil)
+	must.NoError(t, err)
+
+	// Query the job scale status
+	registered, _, err := jobs.Info(*job.ID, nil)
+	must.NoError(t, err)
+	must.Eq(t, 50, *registered.TaskGroups[0].Tasks[0].Resources.CPU)       // updated
+	must.Eq(t, 128, *registered.TaskGroups[0].Tasks[0].Resources.MemoryMB) // updated
 }
 
 func TestJobs_Register_EvalPriority(t *testing.T) {
@@ -749,6 +861,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										Envvars:       pointerOf(false),
 										VaultGrace:    pointerOf(time.Duration(0)),
 										ErrMissingKey: pointerOf(false),
+										Once:          pointerOf(false),
 									},
 									{
 										SourcePath:    pointerOf(""),
@@ -763,6 +876,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										Envvars:       pointerOf(true),
 										VaultGrace:    pointerOf(time.Duration(0)),
 										ErrMissingKey: pointerOf(false),
+										Once:          pointerOf(false),
 									},
 								},
 							},
@@ -984,6 +1098,70 @@ func TestJobs_Canonicalize(t *testing.T) {
 							AutoPromote:      pointerOf(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
+						Tasks: []*Task{
+							{
+								Name:          "task1",
+								LogConfig:     DefaultLogConfig(),
+								Resources:     DefaultResources(),
+								KillTimeout:   pointerOf(5 * time.Second),
+								RestartPolicy: defaultServiceJobRestartPolicy(),
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "missing update for system job",
+			input: &Job{
+				Name:     pointerOf("foo"),
+				ID:       pointerOf("bar"),
+				ParentID: pointerOf("lol"),
+				Type:     pointerOf(JobTypeSystem),
+				TaskGroups: []*TaskGroup{
+					{
+						Name: pointerOf("bar"),
+						Tasks: []*Task{
+							{
+								Name: "task1",
+							},
+						},
+					},
+				},
+			},
+			expected: &Job{
+				Namespace:         pointerOf(DefaultNamespace),
+				ID:                pointerOf("bar"),
+				ParentID:          pointerOf("lol"),
+				Name:              pointerOf("foo"),
+				Region:            pointerOf("global"),
+				Type:              pointerOf(JobTypeSystem),
+				Priority:          pointerOf(JobDefaultPriority),
+				NodePool:          pointerOf(""),
+				AllAtOnce:         pointerOf(false),
+				ConsulNamespace:   pointerOf(""),
+				VaultNamespace:    pointerOf(""),
+				NomadTokenID:      pointerOf(""),
+				Stop:              pointerOf(false),
+				Stable:            pointerOf(false),
+				Version:           pointerOf(uint64(0)),
+				Status:            pointerOf(""),
+				StatusDescription: pointerOf(""),
+				CreateIndex:       pointerOf(uint64(0)),
+				ModifyIndex:       pointerOf(uint64(0)),
+				JobModifyIndex:    pointerOf(uint64(0)),
+				Update:            DefaultUpdateStrategy(),
+				TaskGroups: []*TaskGroup{
+					{
+						Name:          pointerOf("bar"),
+						Count:         pointerOf(1),
+						RestartPolicy: defaultServiceJobRestartPolicy(),
+						EphemeralDisk: &EphemeralDisk{
+							Sticky:  pointerOf(false),
+							Migrate: pointerOf(false),
+							SizeMB:  pointerOf(300),
+						},
+						Update: DefaultUpdateStrategy(),
 						Tasks: []*Task{
 							{
 								Name:          "task1",
@@ -1377,9 +1555,9 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 		value int
 		want  string
 	}{
-		{"", "", 1, "404"},
+		{"", "", 1, "400"},
 		{"i-dont-exist", "", 1, "400"},
-		{"", "i-dont-exist", 1, "404"},
+		{"", "i-dont-exist", 1, "400"},
 		{"i-dont-exist", "me-neither", 1, "404"},
 	}
 	for _, test := range tests {

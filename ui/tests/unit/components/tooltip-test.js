@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -15,6 +15,6 @@ module('Unit | Component | tooltip', function (hooks) {
     const tooltip = this.createComponent({
       text: 'reeeeeeeeeeeeeeeeeally long text',
     });
-    assert.equal(tooltip.text, 'reeeeeeeeeeeeee...long text');
+    assert.deepEqual(tooltip.text, 'reeeeeeeeeeeeee...long text');
   });
 });

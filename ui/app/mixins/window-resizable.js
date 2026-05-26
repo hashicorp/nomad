@@ -1,10 +1,9 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Mixin from '@ember/object/mixin';
-import { scheduleOnce } from '@ember/runloop';
 import { assert } from '@ember/debug';
 import { on } from '@ember/object/evented';
 
@@ -13,20 +12,29 @@ export default Mixin.create({
   windowResizeHandler() {
     assert(
       'windowResizeHandler needs to be overridden in the Component',
-      false
+      false,
     );
   },
 
   setupWindowResize: on('didInsertElement', function () {
-    scheduleOnce('afterRender', this, this.addResizeListener);
+    this.addResizeListener();
   }),
 
   addResizeListener() {
+    if (this._windowResizeHandler) {
+      return;
+    }
+
     this.set('_windowResizeHandler', this.windowResizeHandler.bind(this));
     window.addEventListener('resize', this._windowResizeHandler);
   },
 
   removeWindowResize: on('willDestroyElement', function () {
+    if (!this._windowResizeHandler) {
+      return;
+    }
+
     window.removeEventListener('resize', this._windowResizeHandler);
+    this.set('_windowResizeHandler', null);
   }),
 });

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	containerapi "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
@@ -22,6 +20,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	containerapi "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 )
 
 const (
@@ -369,6 +369,7 @@ var (
 		"auth_soft_fail": hclspec.NewAttr("auth_soft_fail", "bool", false),
 		"cap_add":        hclspec.NewAttr("cap_add", "list(string)", false),
 		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
+		"cgroupns":       hclspec.NewAttr("cgroupns", "string", false),
 		"command":        hclspec.NewAttr("command", "string", false),
 		"cpuset_cpus":    hclspec.NewAttr("cpuset_cpus", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
@@ -459,6 +460,7 @@ type TaskConfig struct {
 	AuthSoftFail            bool               `codec:"auth_soft_fail"`
 	CapAdd                  []string           `codec:"cap_add"`
 	CapDrop                 []string           `codec:"cap_drop"`
+	CgroupnsMode            string             `codec:"cgroupns"`
 	Command                 string             `codec:"command"`
 	ContainerExistsAttempts uint64             `codec:"container_exists_attempts"`
 	CPUCFSPeriod            int64              `codec:"cpu_cfs_period"`
@@ -516,7 +518,6 @@ type TaskConfig struct {
 type DockerAuth struct {
 	Username   string `codec:"username"`
 	Password   string `codec:"password"`
-	Email      string `codec:"email"`
 	ServerAddr string `codec:"server_address"`
 }
 

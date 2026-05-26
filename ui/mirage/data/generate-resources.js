@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -11,6 +11,7 @@ export default function generateResources() {
       SystemMode: 0,
       ThrottledPeriods: 0,
       ThrottledTime: 0,
+      // eslint-disable-next-line no-loss-of-precision
       TotalTicks: 300.256693934837093,
       UserMode: 0,
     },

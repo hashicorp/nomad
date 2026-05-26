@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where very low resources.cpu values could generate invalid cpu weights on hosts with very large client.cpu_total_compute values
+```

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -19,7 +18,7 @@ func TestUsersConfig_Copy(t *testing.T) {
 	must.Equal(t, a, b)
 	must.Equal(t, b, a)
 
-	a.MaxDynamicUser = pointer.Of(1000)
+	a.MaxDynamicUser = new(1000)
 	must.NotEqual(t, a, b)
 	must.NotEqual(t, b, a)
 }
@@ -36,40 +35,40 @@ func TestUsersConfig_Merge(t *testing.T) {
 		{
 			name: "merge all fields",
 			source: &UsersConfig{
-				MinDynamicUser: pointer.Of(100),
-				MaxDynamicUser: pointer.Of(200),
+				MinDynamicUser: new(100),
+				MaxDynamicUser: new(200),
 			},
 			other: &UsersConfig{
-				MinDynamicUser: pointer.Of(3000),
-				MaxDynamicUser: pointer.Of(4000),
+				MinDynamicUser: new(3000),
+				MaxDynamicUser: new(4000),
 			},
 			exp: &UsersConfig{
-				MinDynamicUser: pointer.Of(3000),
-				MaxDynamicUser: pointer.Of(4000),
+				MinDynamicUser: new(3000),
+				MaxDynamicUser: new(4000),
 			},
 		},
 		{
 			name:   "null source",
 			source: nil,
 			other: &UsersConfig{
-				MinDynamicUser: pointer.Of(100),
-				MaxDynamicUser: pointer.Of(200),
+				MinDynamicUser: new(100),
+				MaxDynamicUser: new(200),
 			},
 			exp: &UsersConfig{
-				MinDynamicUser: pointer.Of(100),
-				MaxDynamicUser: pointer.Of(200),
+				MinDynamicUser: new(100),
+				MaxDynamicUser: new(200),
 			},
 		},
 		{
 			name:  "null other",
 			other: nil,
 			source: &UsersConfig{
-				MinDynamicUser: pointer.Of(100),
-				MaxDynamicUser: pointer.Of(200),
+				MinDynamicUser: new(100),
+				MaxDynamicUser: new(200),
 			},
 			exp: &UsersConfig{
-				MinDynamicUser: pointer.Of(100),
-				MaxDynamicUser: pointer.Of(200),
+				MinDynamicUser: new(100),
+				MaxDynamicUser: new(200),
 			},
 		},
 	}
@@ -106,7 +105,7 @@ func TestUsersConfig_Validate(t *testing.T) {
 		{
 			name: "min dynamic user not valid",
 			modify: func(u *UsersConfig) {
-				u.MinDynamicUser = pointer.Of(-2)
+				u.MinDynamicUser = new(-2)
 			},
 			exp: errDynamicUserMinInvalid,
 		},
@@ -120,7 +119,7 @@ func TestUsersConfig_Validate(t *testing.T) {
 		{
 			name: "max dynamic user not valid",
 			modify: func(u *UsersConfig) {
-				u.MaxDynamicUser = pointer.Of(-2)
+				u.MaxDynamicUser = new(-2)
 			},
 			exp: errDynamicUserMaxInvalid,
 		},

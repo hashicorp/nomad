@@ -1,12 +1,15 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Route from '@ember/routing/route';
+import { service } from '@ember/service';
 
 export default class IndexRoute extends Route {
+  @service router;
+
   redirect() {
-    this.transitionTo('jobs');
+    this.router.transitionTo('jobs');
   }
 }

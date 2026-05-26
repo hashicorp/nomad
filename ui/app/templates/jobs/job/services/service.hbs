@@ -1,51 +1,79 @@
 {{!
-  Copyright (c) HashiCorp, Inc.
+  Copyright IBM Corp. 2015, 2026
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
 <section class="section service-list">
   <h1 class="title">
     <LinkTo class="back-link" @route="jobs.job.services">
-      <Hds::Icon @name="chevron-left" @title="Back to services" @size="24" @isInline={{true}} />
+      <Hds::Icon
+        @name="chevron-left"
+        @title="Back to services"
+        @size="24"
+        @isInline={{true}}
+      />
     </LinkTo>
     {{this.model.name}}
   </h1>
 
-  <ListTable @source={{this.model.instances}} as |t|>
-    <t.head>
-      <th>Allocation</th>
-      <th>Client</th>
-      <th>IP Address &amp; Port</th>
-    </t.head>
-    <t.body as |row|>
-      <tr data-test-service-row>
-        {{#let (format-id row.model "allocation") as |allocation|}}
-          <td
-            {{keyboard-shortcut
-              enumerated=true
-              action=(action "gotoAllocation" row.model.allocation)
-            }}
-          >
-            <LinkTo
-              @route="allocations.allocation"
-              @model={{allocation.id}}
-            >{{allocation.shortId}}</LinkTo>
-          </td>
-        {{/let}}
-		{{#let (async-escape-hatch row.model "node") as |node|}}
+  {{#if this.model.instances.length}}
+    <ListTable @source={{this.model.instances}} as |t|>
+      <t.head>
+        <th>Allocation</th>
+        <th>Client</th>
+        <th>IP Address &amp; Port</th>
+      </t.head>
+      <t.body as |row|>
+        <tr data-test-service-row>
+          {{#let (format-id row.model "allocation") as |allocation|}}
+            <td
+              {{keyboard-shortcut
+                enumerated=true
+                action=(fn this.gotoAllocation row.model.allocation)
+              }}
+            >
+              {{! Guard: allocation.id can be null if the underlying service
+                  record has been removed from the store (e.g. nomad service
+                  delete). Without this guard LinkTo throws while trying to
+                  generate a URL from a null model. }}
+              {{#if allocation.id}}
+                <LinkTo
+                  @route="allocations.allocation"
+                  @model={{allocation.id}}
+                >{{allocation.shortId}}</LinkTo>
+              {{/if}}
+            </td>
+          {{/let}}
+          {{#let (async-escape-hatch row.model "node") as |node|}}
+            <td>
+              {{! Guard: node can be null when the service's node relationship
+                  has been cleared or unloaded. }}
+              {{#if node}}
+                <Tooltip @text={{node.name}}>
+                  <LinkTo
+                    @route="clients.client"
+                    @model={{node.id}}
+                  >{{node.shortId}}</LinkTo>
+                </Tooltip>
+              {{/if}}
+            </td>
+          {{/let}}
           <td>
-            <Tooltip @text={{node.name}}>
-              <LinkTo
-                @route="clients.client"
-                @model={{node.id}}
-              >{{node.shortId}}</LinkTo>
-            </Tooltip>
+            {{row.model.address}}:{{row.model.port}}
           </td>
-        {{/let}}
-        <td>
-          {{row.model.address}}:{{row.model.port}}
-        </td>
-      </tr>
-    </t.body>
-  </ListTable>
+        </tr>
+      </t.body>
+    </ListTable>
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-service-instances>
+        <h3 class="empty-message-headline">No Running Instances</h3>
+        <p class="empty-message-body">
+          There are no running registrations for this service. The service is
+          defined in the job specification but no allocations are currently
+          registering it.
+        </p>
+      </div>
+    </div>
+  {{/if}}
 </section>

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
@@ -35,7 +35,7 @@ func (s *HTTPServer) auditHandler(h handlerFn) handlerFn {
 	return h
 }
 
-// auditHTTPHandler wraps  the passed handlerByteFn
+// auditNonJSONHandler wraps the passed handlerByteFn
 func (s *HTTPServer) auditNonJSONHandler(h handlerByteFn) handlerByteFn {
 	return h
 }

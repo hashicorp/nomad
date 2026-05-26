@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocrunner
@@ -12,6 +12,7 @@ import (
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -110,6 +111,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newMaxRunDurationHook(hookLogger, alloc, ar.clientBaseLabels, ar.EnforceMaxRunDurationTimeout),
 		newConsulHook(consulHookConfig{
 			alloc:                   ar.alloc,
 			allocdir:                ar.allocDir,
@@ -118,6 +120,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			consulClientConstructor: consul.NewConsulClientFactory(config),
 			hookResources:           ar.hookResources,
 			logger:                  hookLogger,
+			db:                      ar.stateDB,
 		}),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
@@ -254,6 +257,7 @@ func (ar *allocRunner) update(update *structs.Allocation) error {
 }
 
 // postrun is used to run the runners postrun hooks.
+// all hooks will run, even if any of them fail, and return a multierror, single error, or nil.
 func (ar *allocRunner) postrun() error {
 	if ar.logger.IsTrace() {
 		start := time.Now()
@@ -264,6 +268,7 @@ func (ar *allocRunner) postrun() error {
 		}()
 	}
 
+	var merr multierror.Error
 	for _, hook := range ar.runnerHooks {
 		post, ok := hook.(interfaces.RunnerPostrunHook)
 		if !ok {
@@ -278,7 +283,7 @@ func (ar *allocRunner) postrun() error {
 		}
 
 		if err := post.Postrun(); err != nil {
-			return fmt.Errorf("hook %q failed: %v", name, err)
+			merr.Errors = append(merr.Errors, fmt.Errorf("post-run hook %q failed: %w", name, err))
 		}
 
 		if ar.logger.IsTrace() {
@@ -287,7 +292,7 @@ func (ar *allocRunner) postrun() error {
 		}
 	}
 
-	return nil
+	return helper.FlattenMultierror(merr.ErrorOrNil())
 }
 
 // destroy is used to run the runners destroy hooks. All hooks are run and

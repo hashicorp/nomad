@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -9,7 +9,7 @@ module.exports = function (app, options) {
   const globSync = require('glob').sync;
   const mocks = globSync('./mocks/**/*.js', { cwd: __dirname }).map(require);
   const proxies = globSync('./proxies/**/*.js', { cwd: __dirname }).map(
-    require
+    require,
   );
 
   // Log proxy requests

@@ -1,0 +1,38 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="boxed-section">
+  <div class="boxed-section-head" data-test-level-switcher-parent>
+    <PowerSelect
+      data-test-level-switcher
+      @ariaLabel="label-level-switcher"
+      @ariaLabelledBy="label-level-switcher"
+      @tagName="div"
+      @triggerClass="is-compact pull-left"
+      @options={{this.levels}}
+      @selected={{this.level}}
+      @searchEnabled={{false}}
+      @onChange={{this.setLevel}}
+      as |level|
+    >
+      <span class="ember-power-select-prefix">Level: </span>{{capitalize level}}
+    </PowerSelect>
+    <button
+      data-test-toggle
+      class="button is-white is-compact pull-right"
+      {{on "click" this.toggleStream}}
+      type="button"
+      title="{{if this.logger.isStreaming 'Stop' 'Start'}} log streaming"
+    >
+      <Hds::Icon
+        @name={{if this.logger.isStreaming "pause" "play"}}
+        @isInline={{true}}
+      />
+    </button>
+  </div>
+  <div data-test-log-box class="boxed-section-body is-dark is-full-bleed">
+    <StreamingFile @logger={{this.logger}} @isStreaming={{this.isStreaming}} />
+  </div>
+</div>

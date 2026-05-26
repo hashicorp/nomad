@@ -82,7 +82,9 @@ rkt-*
 # Common editor config
 ./idea
 *.iml
-.vscode
+.vscode/*
+!.vscode/extensions.json
+.zed
 
 # UI rules
 
@@ -91,6 +93,7 @@ rkt-*
 /ui/tmp
 
 # dependencies
+/node_modules/
 /ui/node_modules
 /ui/bower_components
 

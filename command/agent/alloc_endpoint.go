@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -147,18 +147,24 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	noShutdownDelay := false
-	if noShutdownDelayQS := req.URL.Query().Get("no_shutdown_delay"); noShutdownDelayQS != "" {
-		var err error
-		noShutdownDelay, err = strconv.ParseBool(noShutdownDelayQS)
-		if err != nil {
-			return nil, fmt.Errorf("no_shutdown_delay value is not a boolean: %v", err)
-		}
+	noShutdownDelay, err := parseBool(req, "no_shutdown_delay")
+	if err != nil {
+		return nil, err
+	} else if noShutdownDelay == nil {
+		noShutdownDelay = new(false)
+	}
+
+	reschedule, err := parseBool(req, "reschedule")
+	if err != nil {
+		return nil, err
+	} else if reschedule == nil {
+		reschedule = new(false)
 	}
 
 	sr := &structs.AllocStopRequest{
 		AllocID:         allocID,
-		NoShutdownDelay: noShutdownDelay,
+		NoShutdownDelay: *noShutdownDelay,
+		Reschedule:      *reschedule,
 	}
 	s.parseWriteRequest(req, &sr.WriteRequest)
 
@@ -607,51 +613,12 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	conn, err := s.getWebsocketConnection(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
-	}
-
-	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
-		conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
 	}
 
 	return s.execStream(conn, &args)
-}
-
-// readWsHandshake reads the websocket handshake message and sets
-// query authentication token, if request requires a handshake
-func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
-
-	// Avoid handshake if request doesn't require one
-	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
-		return nil
-	} else if h, err := strconv.ParseBool(hv); err != nil {
-		return fmt.Errorf("ws_handshake value is not a boolean: %v", err)
-	} else if !h {
-		return nil
-	}
-
-	var h wsHandshakeMessage
-	err := readFn(&h)
-	if err != nil {
-		return err
-	}
-
-	supportedWSHandshakeVersion := 1
-	if h.Version != supportedWSHandshakeVersion {
-		return fmt.Errorf("unexpected handshake value: %v", h.Version)
-	}
-
-	q.AuthToken = h.AuthToken
-	return nil
-}
-
-type wsHandshakeMessage struct {
-	Version   int    `json:"version"`
-	AuthToken string `json:"auth_token"`
 }
 
 // execStream finds the appropriate RPC handler and then runs the bidirectional

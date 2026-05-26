@@ -1,17 +1,18 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -76,6 +77,46 @@ func TestACLToken_Canonicalize(t *testing.T) {
 				require.NotEmpty(t, mockToken.SecretID)
 				require.NotEmpty(t, mockToken.CreateTime)
 				require.NotEmpty(t, mockToken.ExpirationTime)
+			},
+		},
+		{
+			name: "token upload with both ids but no create time",
+			testFn: func() {
+				accessorID := uuid.Generate()
+				secretID := uuid.Generate()
+				mockToken := &ACLToken{
+					AccessorID:    accessorID,
+					SecretID:      secretID,
+					Name:          "uploaded token " + uuid.Generate(),
+					Type:          "client",
+					Policies:      []string{"foo"},
+					ExpirationTTL: 10 * time.Hour,
+				}
+
+				mockToken.Canonicalize()
+				require.Equal(t, accessorID, mockToken.AccessorID)
+				require.Equal(t, secretID, mockToken.SecretID)
+
+				require.NotEmpty(t, mockToken.CreateTime)
+				require.NotNil(t, mockToken.ExpirationTime)
+				require.Equal(t, 10*time.Hour, mockToken.ExpirationTime.Sub(mockToken.CreateTime))
+			},
+		},
+		{
+			name: "token with create time set",
+			testFn: func() {
+				originalCreateTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+				mockToken := &ACLToken{
+					AccessorID: uuid.Generate(),
+					SecretID:   uuid.Generate(),
+					Name:       "uploaded token " + uuid.Generate(),
+					Type:       "client",
+					Policies:   []string{"foo"},
+					CreateTime: originalCreateTime,
+				}
+
+				mockToken.Canonicalize()
+				require.Equal(t, originalCreateTime, mockToken.CreateTime)
 			},
 		},
 	}
@@ -154,7 +195,7 @@ func TestACLTokenValidate(t *testing.T) {
 				Type:           ACLManagementToken,
 				Name:           "foo",
 				CreateTime:     time.Date(2022, time.July, 11, 16, 23, 0, 0, time.UTC),
-				ExpirationTime: pointer.Of(time.Date(2022, time.July, 11, 16, 23, 10, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.July, 11, 16, 23, 10, 0, time.UTC)),
 			},
 			inputExistingACLToken: nil,
 			expectedErrorContains: "expiration time cannot be less than",
@@ -165,7 +206,7 @@ func TestACLTokenValidate(t *testing.T) {
 				Type:           ACLManagementToken,
 				Name:           "foo",
 				CreateTime:     time.Date(2022, time.July, 11, 16, 23, 0, 0, time.UTC),
-				ExpirationTime: pointer.Of(time.Date(2042, time.July, 11, 16, 23, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2042, time.July, 11, 16, 23, 0, 0, time.UTC)),
 			},
 			inputExistingACLToken: nil,
 			expectedErrorContains: "expiration time cannot be more than",
@@ -222,21 +263,21 @@ func TestACLToken_HasExpirationTime(t *testing.T) {
 		{
 			name: "expiration set to now",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Now().UTC()),
+				ExpirationTime: new(time.Now().UTC()),
 			},
 			expectedOutput: true,
 		},
 		{
 			name: "expiration set to past",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.February, 21, 19, 35, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.February, 21, 19, 35, 0, 0, time.UTC)),
 			},
 			expectedOutput: true,
 		},
 		{
 			name: "expiration set to future",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2087, time.April, 25, 12, 0, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2087, time.April, 25, 12, 0, 0, 0, time.UTC)),
 			},
 			expectedOutput: true,
 		},
@@ -272,7 +313,7 @@ func TestACLToken_IsExpired(t *testing.T) {
 		{
 			name: "token not expired",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
 			},
 			inputTime:      time.Date(2022, time.May, 9, 10, 26, 0, 0, time.UTC),
 			expectedOutput: false,
@@ -280,7 +321,7 @@ func TestACLToken_IsExpired(t *testing.T) {
 		{
 			name: "token expired",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
 			},
 			inputTime:      time.Date(2022, time.May, 9, 10, 28, 0, 0, time.UTC),
 			expectedOutput: true,
@@ -288,7 +329,7 @@ func TestACLToken_IsExpired(t *testing.T) {
 		{
 			name: "empty input time",
 			inputACLToken: &ACLToken{
-				ExpirationTime: pointer.Of(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
+				ExpirationTime: new(time.Date(2022, time.May, 9, 10, 27, 0, 0, time.UTC)),
 			},
 			inputTime:      time.Time{},
 			expectedOutput: true,
@@ -2154,4 +2195,194 @@ func validClientAssertion() *OIDCClientAssertion {
 		// clientSecret is ordinarily inherited from parent ACLAuthMethodConfig
 		ClientSecret: "test-client-secret",
 	}
+}
+
+func TestACLClientIntroductionTokenRequest_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                            string
+		inputClientIntroductionTokenReq *ACLCreateClientIntroductionTokenRequest
+		expectedResult                  *ACLCreateClientIntroductionTokenRequest
+	}{
+		{
+			name: "empty node pool",
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
+				NodePool: "",
+			},
+			expectedResult: &ACLCreateClientIntroductionTokenRequest{
+				NodePool: "default",
+			},
+		},
+		{
+			name: "node pool set",
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
+				NodePool: "custom-pool",
+			},
+			expectedResult: &ACLCreateClientIntroductionTokenRequest{
+				NodePool: "custom-pool",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputClientIntroductionTokenReq.Canonicalize()
+			must.Eq(t, tc.expectedResult, tc.inputClientIntroductionTokenReq)
+		})
+	}
+}
+
+func TestACLClientIntroductionTokenRequest_IdentityTTL(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                            string
+		inputClientIntroductionTokenReq *ACLCreateClientIntroductionTokenRequest
+		inputDefault                    time.Duration
+		inputMax                        time.Duration
+		expectedOutput                  time.Duration
+	}{
+		{
+			name:                            "no ttl set",
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{},
+			inputDefault:                    5 * time.Minute,
+			inputMax:                        30 * time.Minute,
+			expectedOutput:                  5 * time.Minute,
+		},
+		{
+			name: "ttl set in bounds",
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
+				TTL: 25 * time.Minute,
+			},
+			inputDefault:   5 * time.Minute,
+			inputMax:       30 * time.Minute,
+			expectedOutput: 25 * time.Minute,
+		},
+		{
+			name: "ttl set exceeds bounds",
+			inputClientIntroductionTokenReq: &ACLCreateClientIntroductionTokenRequest{
+				TTL: 35 * time.Minute,
+			},
+			inputDefault:   5 * time.Minute,
+			inputMax:       30 * time.Minute,
+			expectedOutput: 30 * time.Minute,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputClientIntroductionTokenReq.IdentityTTL(
+				hclog.NewNullLogger(),
+				tc.inputDefault,
+				tc.inputMax,
+			)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestACLCreateClientIntroductionTokenRequest_MarshalJSON(t *testing.T) {
+	ci.Parallel(t)
+
+	inputACLCreateClientIntroductionTokenRequest := ACLCreateClientIntroductionTokenRequest{
+		NodeName: "test-node",
+		NodePool: "test-node-pool",
+		TTL:      10 * time.Minute,
+	}
+
+	data, err := json.Marshal(&inputACLCreateClientIntroductionTokenRequest)
+	must.NoError(t, err)
+	must.SliceNotEmpty(t, data)
+}
+
+func TestACLCreateClientIntroductionTokenRequest_UnmarshalJSON(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("valid ttl", func(t *testing.T) {
+		input := []byte(`{"NodeName":"test-node","NodePool":"test-node-pool","TTL":"10m"}`)
+
+		var output ACLCreateClientIntroductionTokenRequest
+
+		must.NoError(t, json.Unmarshal(input, &output))
+
+		must.Eq(
+			t,
+			ACLCreateClientIntroductionTokenRequest{
+				NodeName: "test-node",
+				NodePool: "test-node-pool",
+				TTL:      10 * time.Minute,
+			},
+			output,
+		)
+	})
+
+	t.Run("invalid ttl", func(t *testing.T) {
+		input := []byte(`{"NodeName":"test-node","NodePool":"test-node-pool","TTL":["10m"]}`)
+
+		var output ACLCreateClientIntroductionTokenRequest
+
+		must.ErrorContains(t, json.Unmarshal(input, &output), "unexpected TTL type")
+	})
+
+	t.Run("empty ttl", func(t *testing.T) {
+		input := []byte(`{"NodeName":"test-node","NodePool":"test-node-pool","TTL":""}`)
+
+		var output ACLCreateClientIntroductionTokenRequest
+
+		must.NoError(t, json.Unmarshal(input, &output))
+
+		must.Eq(
+			t,
+			ACLCreateClientIntroductionTokenRequest{
+				NodeName: "test-node",
+				NodePool: "test-node-pool",
+				TTL:      0,
+			},
+			output,
+		)
+	})
+}
+
+func TestACLTokenSetHash(t *testing.T) {
+	ci.Parallel(t)
+
+	tk := &ACLToken{
+		Name:     "foo",
+		Type:     ACLClientToken,
+		Policies: []string{"foo", "bar"},
+		Global:   false,
+	}
+	out1 := tk.SetHash()
+	must.NotNil(t, out1)
+	must.NotNil(t, tk.Hash)
+	must.Eq(t, tk.Hash, out1)
+
+	tk.Policies = []string{"foo"}
+	out2 := tk.SetHash()
+	must.NotNil(t, out2)
+	must.NotNil(t, tk.Hash)
+	must.Eq(t, tk.Hash, out2)
+	must.NotEq(t, out1, out2)
+}
+
+func TestACLPolicySetHash(t *testing.T) {
+	ci.Parallel(t)
+
+	ap := &ACLPolicy{
+		Name:        "foo",
+		Description: "great policy",
+		Rules:       "node { policy = \"read\" }",
+	}
+	out1 := ap.SetHash()
+	must.NotNil(t, out1)
+	must.NotNil(t, ap.Hash)
+	must.Eq(t, ap.Hash, out1)
+
+	ap.Rules = "node { policy = \"write\" }"
+	out2 := ap.SetHash()
+	must.NotNil(t, out2)
+	must.NotNil(t, ap.Hash)
+	must.Eq(t, ap.Hash, out2)
+	must.NotEq(t, out1, out2)
 }

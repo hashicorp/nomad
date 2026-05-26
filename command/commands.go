@@ -1,11 +1,13 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
 	"fmt"
+	"maps"
 	"os"
+	"runtime"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/command/agent"
@@ -579,6 +581,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"monitor export": func() (cli.Command, error) {
+			return &MonitorExportCommand{
+				Meta: meta,
+			}, nil
+		},
 		"namespace": func() (cli.Command, error) {
 			return &NamespaceCommand{
 				Meta: meta,
@@ -631,6 +638,31 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"node eligibility": func() (cli.Command, error) {
 			return &NodeEligibilityCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node identity": func() (cli.Command, error) {
+			return &NodeIdentityCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node identity get": func() (cli.Command, error) {
+			return &NodeIdentityGetCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node identity renew": func() (cli.Command, error) {
+			return &NodeIdentityRenewCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node intro": func() (cli.Command, error) {
+			return &NodeIntroCommand{
+				Meta: meta,
+			}, nil
+		},
+		"node intro create": func() (cli.Command, error) {
+			return &NodeIntroCreateCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -819,6 +851,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator raft state": func() (cli.Command, error) {
 			return &OperatorRaftStateCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator raft migrate-backend": func() (cli.Command, error) {
+			return &OperatorRaftMigrateCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -1307,6 +1344,31 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+	}
+
+	if runtime.GOOS == "windows" {
+		maps.Copy(all, map[string]cli.CommandFactory{
+			"windows": func() (cli.Command, error) {
+				return &WindowsCommand{
+					Meta: meta,
+				}, nil
+			},
+			"windows service": func() (cli.Command, error) {
+				return &WindowsServiceCommand{
+					Meta: meta,
+				}, nil
+			},
+			"windows service install": func() (cli.Command, error) {
+				return &WindowsServiceInstallCommand{
+					Meta: meta,
+				}, nil
+			},
+			"windows service uninstall": func() (cli.Command, error) {
+				return &WindowsServiceUninstallCommand{
+					Meta: meta,
+				}, nil
+			},
+		})
 	}
 
 	deprecated := map[string]cli.CommandFactory{

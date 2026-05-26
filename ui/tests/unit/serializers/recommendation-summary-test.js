@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -213,9 +213,9 @@ module('Unit | Serializer | RecommendationSummary', function (hooks) {
         this.subject().normalizeArrayResponse(
           this.store,
           RecommendationSummaryModel,
-          testCase.in
+          testCase.in,
         ),
-        testCase.out
+        testCase.out,
       );
     });
   });

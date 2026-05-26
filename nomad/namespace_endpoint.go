@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -305,7 +305,7 @@ func (n *Namespace) namespaceNoAssociatedVarsLocally(namespace string, snap *sta
 func (n *Namespace) namespaceNoAssociatedQuotasLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
 	ns, _ := snap.NamespaceByName(nil, namespace)
 	if ns == nil {
-		return false, fmt.Errorf("namespace %s does not exist", ns.Name)
+		return false, fmt.Errorf("namespace %s does not exist", namespace)
 	}
 	if ns.Quota != "" {
 		return false, nil

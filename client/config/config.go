@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -108,6 +108,10 @@ type Config struct {
 	// should be owned  by root with file mode 0o755.
 	AllocMountsDir string
 
+	// IntroToken is the signed JWT token that should be used to introduce this
+	// client to the servers on first registration.
+	IntroToken string
+
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
 
@@ -139,6 +143,7 @@ type Config struct {
 	// determined dynamically.
 	DiskTotalMB int
 
+	// DEPRECATED: Remove in Nomad 1.13.0. Use Reserved.Disk instead.
 	// DiskFreeMB is the default node free disk space in megabytes if it cannot be
 	// determined dynamically.
 	DiskFreeMB int
@@ -242,6 +247,11 @@ type Config struct {
 	// before garbage collection is triggered.
 	GCMaxAllocs int
 
+	// GCVolumesOnNodeGC indicates that the server should GC any dynamic host
+	// volumes on this node when the node is GC'd. This should only be set if
+	// you know that a GC'd node can never come back
+	GCVolumesOnNodeGC bool
+
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID bool
@@ -274,6 +284,10 @@ type Config struct {
 
 	// RPCSessionConfig configures yamux multiplex
 	RPCSessionConfig *yamux.Config
+
+	// RPCDialTimeout is the timeout used when establishing new outbound RPC
+	// connections to servers. Defaults to 10s.
+	RPCDialTimeout time.Duration
 
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
@@ -331,6 +345,10 @@ type Config struct {
 	// HostNetworks is a map of the conigured host networks by name.
 	HostNetworks map[string]*structs.ClientHostNetworkConfig
 
+	// CommonPluginDir is the root directory for plugins that implement
+	// the common plugin interface
+	CommonPluginDir string
+
 	// BindWildcardDefaultHostNetwork toggles if the default host network should accept all
 	// destinations (true) or only filter on the IP of the default host network (false) when
 	// port mapping. This allows Nomad clients with no defined host networks to accept and
@@ -356,6 +374,9 @@ type Config struct {
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
 
+	// DefaultIneligible disables scheduling eligibility for newly-created nodes.
+	DefaultIneligible bool
+
 	// APIListenerRegistrar allows the client to register listeners created at
 	// runtime (eg the Task API) with the agent's HTTP server. Since the agent
 	// creates the HTTP *after* the client starts, we have to use this shim to
@@ -375,6 +396,17 @@ type Config struct {
 
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
+
+	// NodeMaxAllocs is an optional field that sets the maximum number of
+	// allocations a node can be assigned. Defaults to 0 and ignored if unset.
+	NodeMaxAllocs int
+
+	// LogFile is used by MonitorExport to stream a server's log file
+	LogFile string `hcl:"log_file"`
+
+	// Fingerprinters is a map of fingerprinter configurations by name. This
+	// currently only applies to env fingerprinters such as "env_aws".
+	Fingerprinters map[string]*Fingerprint
 }
 
 type APIListenerRegistrar interface {
@@ -462,26 +494,26 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 	return &ClientTemplateConfig{
 		FunctionDenylist:   DefaultTemplateFunctionDenylist,
 		DisableSandbox:     false,
-		BlockQueryWaitTime: pointer.Of(5 * time.Minute),         // match Consul default
-		MaxStale:           pointer.Of(DefaultTemplateMaxStale), // match Consul default
+		BlockQueryWaitTime: new(5 * time.Minute),         // match Consul default
+		MaxStale:           new(DefaultTemplateMaxStale), // match Consul default
 		Wait: &WaitConfig{
-			Min: pointer.Of(5 * time.Second),
-			Max: pointer.Of(4 * time.Minute),
+			Min: new(5 * time.Second),
+			Max: new(4 * time.Minute),
 		},
 		ConsulRetry: &RetryConfig{
-			Attempts:   pointer.Of(12),
-			Backoff:    pointer.Of(time.Millisecond * 250),
-			MaxBackoff: pointer.Of(time.Minute),
+			Attempts:   new(12),
+			Backoff:    new(time.Millisecond * 250),
+			MaxBackoff: new(time.Minute),
 		},
 		VaultRetry: &RetryConfig{
-			Attempts:   pointer.Of(12),
-			Backoff:    pointer.Of(time.Millisecond * 250),
-			MaxBackoff: pointer.Of(time.Minute),
+			Attempts:   new(12),
+			Backoff:    new(time.Millisecond * 250),
+			MaxBackoff: new(time.Minute),
 		},
 		NomadRetry: &RetryConfig{
-			Attempts:   pointer.Of(12),
-			Backoff:    pointer.Of(time.Millisecond * 250),
-			MaxBackoff: pointer.Of(time.Minute),
+			Attempts:   new(12),
+			Backoff:    new(time.Millisecond * 250),
+			MaxBackoff: new(time.Minute),
 		},
 	}
 }
@@ -700,7 +732,7 @@ func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
 	}
 
 	enabled := wc.Min == nil || *wc.Min != 0 || wc.Max == nil || *wc.Max != 0
-	result := &config.WaitConfig{Enabled: pointer.Of(enabled)}
+	result := &config.WaitConfig{Enabled: new(enabled)}
 
 	if wc.Min != nil {
 		result.Min = wc.Min
@@ -843,7 +875,7 @@ func (rc *RetryConfig) ToConsulTemplate() (*config.RetryConfig, error) {
 		return nil, err
 	}
 
-	result := &config.RetryConfig{Enabled: pointer.Of(true)}
+	result := &config.RetryConfig{Enabled: new(true)}
 
 	if rc.Attempts != nil {
 		result.Attempts = rc.Attempts
@@ -900,7 +932,8 @@ func DefaultConfig() *Config {
 		TemplateConfig:          DefaultTemplateConfig(),
 		RPCHoldTimeout:          5 * time.Second,
 		RPCSessionConfig:        yamux.DefaultConfig(),
-		CNIPath:                 "/opt/cni/bin",
+		RPCDialTimeout:          10 * time.Second,
+		CNIPath:                 DefaultCNIPath,
 		CNIConfigDir:            "/opt/cni/config",
 		CNIInterfacePrefix:      "eth",
 		HostNetworks:            map[string]*structs.ClientHostNetworkConfig{},
@@ -911,6 +944,7 @@ func DefaultConfig() *Config {
 			MinDynamicUser: 80_000,
 			MaxDynamicUser: 89_999,
 		},
+		Fingerprinters: map[string]*Fingerprint{},
 	}
 
 	return cfg

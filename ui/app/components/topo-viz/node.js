@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -130,7 +130,7 @@ export default class TopoVizNode extends Component {
     return this.args.node.allocations.some(
       (allocation) =>
         allocation.taskGroupName === this.args.activeTaskGroup &&
-        allocation.belongsTo('job').id() === this.args.activeJobId
+        allocation.belongsTo('job').id() === this.args.activeJobId,
     );
   }
 

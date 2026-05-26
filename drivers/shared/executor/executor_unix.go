@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 //go:build unix
@@ -101,8 +101,9 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 	cmd.SysProcAttr.Credential.Gid = uint32(gid)
 	cmd.SysProcAttr.Credential.Groups = gids
 
-	// Override HOME and USER environment variables
+	// Override USER, LOGNAME, and HOME environment variables.
 	cmd.Env = append(cmd.Env, fmt.Sprintf("USER=%s", u.Username))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("LOGNAME=%s", u.Username))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("HOME=%s", u.HomeDir))
 
 	return nil

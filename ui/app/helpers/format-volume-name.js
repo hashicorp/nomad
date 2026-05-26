@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -15,7 +15,7 @@ import { helper } from '@ember/component/helper';
  */
 export function formatVolumeName(
   _,
-  { source = '', isPerAlloc, volumeExtension }
+  { source = '', isPerAlloc, volumeExtension },
 ) {
   return `${source}${isPerAlloc ? volumeExtension : ''}`;
 }

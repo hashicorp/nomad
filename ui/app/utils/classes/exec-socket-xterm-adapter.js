@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -51,13 +51,13 @@ export default class ExecSocketXtermAdapter {
     this.socket.send(
       JSON.stringify({
         tty_size: { width: this.terminal.cols, height: this.terminal.rows },
-      })
+      }),
     );
   }
 
   sendWsHandshake() {
     this.socket.send(
-      JSON.stringify({ version: 1, auth_token: this.token || '' })
+      JSON.stringify({ version: 1, auth_token: this.token || '' }),
     );
   }
 
@@ -73,7 +73,7 @@ export default class ExecSocketXtermAdapter {
 
   handleData(data) {
     this.socket.send(
-      JSON.stringify({ stdin: { data: base64EncodeString(data) } })
+      JSON.stringify({ stdin: { data: base64EncodeString(data) } }),
     );
   }
 }

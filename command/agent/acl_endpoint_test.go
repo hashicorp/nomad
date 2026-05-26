@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -582,6 +582,44 @@ func TestHTTP_ACLTokenCreateExpirationTTL(t *testing.T) {
 	})
 }
 
+func TestHTTP_ACLTokenUpdate(t *testing.T) {
+	ci.Parallel(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		token := &structs.ACLToken{
+			AccessorID:    uuid.Generate(),
+			SecretID:      uuid.Generate(),
+			Name:          "test token",
+			Type:          "client",
+			Policies:      []string{"foo"},
+			ExpirationTTL: 10 * time.Hour,
+		}
+
+		buf := encodeReq(token)
+		req, err := http.NewRequest(http.MethodPut, "/v1/acl/token/"+token.AccessorID, buf)
+		must.NoError(t, err)
+		respW := httptest.NewRecorder()
+		setToken(req, s.RootToken)
+
+		// Make the request
+		obj, err := s.Server.ACLTokenSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.NotNil(t, obj)
+		outTK := obj.(*structs.ACLToken)
+
+		// Check for the index
+		must.NotEq(t, "", respW.Result().Header.Get("X-Nomad-Index"))
+
+		// Check token was created
+		state := s.Agent.server.State()
+		out, err := state.ACLTokenByAccessorID(nil, outTK.AccessorID)
+		must.NoError(t, err)
+		must.NotNil(t, out)
+		must.Eq(t, outTK, out)
+		must.Eq(t, token.AccessorID, out.AccessorID)
+		must.Eq(t, token.SecretID, out.SecretID)
+	})
+}
+
 func TestHTTP_ACLTokenDelete(t *testing.T) {
 	ci.Parallel(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
@@ -621,8 +659,8 @@ func TestHTTP_ACLTokenDelete(t *testing.T) {
 		// Check token was created
 		state := s.Agent.server.State()
 		out, err := state.ACLTokenByAccessorID(nil, ID)
-		assert.Nil(t, err)
-		assert.Nil(t, out)
+		must.NoError(t, err)
+		must.Nil(t, out)
 	})
 }
 
@@ -2125,4 +2163,141 @@ func requestAuthState(t *testing.T, server *HTTPServer, authMethod *structs.ACLA
 	u, err := url.Parse(authURLResp.(structs.ACLOIDCAuthURLResponse).AuthURL)
 	must.NoError(t, err)
 	return u.Query().Get("state")
+}
+
+func TestHTTPServer_ACLClientIntroductionTokenRequest(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		testFn func(srv *TestAgent)
+	}{
+		{
+			name: "incorrect method",
+			testFn: func(testAgent *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodConnect,
+					"/v1/acl/identity/client-introduction-token",
+					nil,
+				)
+				must.NoError(t, err)
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.Error(t, err)
+				must.ErrorContains(t, err, ErrInvalidMethod)
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "incorrect permissions",
+			testFn: func(testAgent *TestAgent) {
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodPost,
+					"/v1/acl/identity/client-introduction-token",
+					nil,
+				)
+				must.NoError(t, err)
+
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.Error(t, err)
+				must.ErrorContains(t, err, "Permission denied")
+				must.Nil(t, obj)
+			},
+		},
+		{
+			name: "valid request with body",
+			testFn: func(testAgent *TestAgent) {
+
+				nodeWriteToken := mock.CreatePolicyAndToken(
+					t,
+					testAgent.Agent.Server().State(),
+					10,
+					fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+					`node{policy = "write"}`,
+				)
+
+				requestBody := structs.ACLCreateClientIntroductionTokenRequest{
+					WriteRequest: structs.WriteRequest{
+						Region:    testAgent.config().Region,
+						AuthToken: nodeWriteToken.SecretID,
+					},
+				}
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodPost,
+					"/v1/acl/identity/client-introduction-token",
+					encodeReq(&requestBody),
+				)
+				must.NoError(t, err)
+
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.NoError(t, err)
+				must.NotNil(t, obj)
+
+				// We do not have access to the encrypter, so we cannot verify
+				// the JWT content. Tests in the RPC layer cover this.
+				nodeIntroTokenResp, ok := obj.(*structs.ACLCreateClientIntroductionTokenResponse)
+				must.True(t, ok)
+				must.NotNil(t, nodeIntroTokenResp)
+				must.NotEq(t, "", nodeIntroTokenResp.JWT)
+			},
+		},
+		{
+			name: "valid request with headers",
+			testFn: func(testAgent *TestAgent) {
+
+				nodeWriteToken := mock.CreatePolicyAndToken(
+					t,
+					testAgent.Agent.Server().State(),
+					10,
+					fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+					`node{policy = "write"}`,
+				)
+
+				// Build the HTTP request.
+				req, err := http.NewRequest(
+					http.MethodPost,
+					"/v1/acl/identity/client-introduction-token",
+					nil,
+				)
+				must.NoError(t, err)
+
+				req.Header.Add("X-Nomad-Token", nodeWriteToken.SecretID)
+				req.Header.Add("X-Nomad-Region", testAgent.config().Region)
+
+				respW := httptest.NewRecorder()
+
+				// Send the HTTP request.
+				obj, err := testAgent.Server.ACLCreateClientIntroductionTokenRequest(respW, req)
+				must.NoError(t, err)
+				must.NotNil(t, obj)
+
+				// We do not have access to the encrypter, so we cannot verify
+				// the JWT content. Tests in the RPC layer cover this.
+				nodeIntroTokenResp, ok := obj.(*structs.ACLCreateClientIntroductionTokenResponse)
+				must.True(t, ok)
+				must.NotNil(t, nodeIntroTokenResp)
+				must.NotEq(t, "", nodeIntroTokenResp.JWT)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			httpACLTest(t, nil, tc.testFn)
+		})
+	}
 }

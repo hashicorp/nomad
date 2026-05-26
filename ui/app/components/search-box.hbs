@@ -1,0 +1,23 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="control">
+  <span class="prefix-icon"><Hds::Icon @name="search" /></span>
+  <input
+    class="input {{this.inputClass}}"
+    type="text"
+    placeholder={{this.placeholder}}
+    aria-label={{this.placeholder}}
+    value={{this._searchTerm}}
+    {{on "input" this.setSearchTerm}}
+    size="1"
+  />
+  <button
+    class="suffix-icon"
+    {{on "click" this.clear}}
+    type="button"
+    title="Clear search"
+  ><Hds::Icon @name="x" /></button>
+</div>

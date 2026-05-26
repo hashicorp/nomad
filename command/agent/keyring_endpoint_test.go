@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -41,7 +41,7 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		state := s.server.State()
 		encryptedVar := mock.VariableEncrypted()
 		encryptedVar.KeyID = key0
-		varSetResp := state.VarSet(0, &structs.VarApplyStateRequest{Var: encryptedVar})
+		varSetResp := state.VarSet(structs.VarApplyStateRequestType, 0, &structs.VarApplyStateRequest{Var: encryptedVar})
 		must.NoError(t, varSetResp.Error)
 
 		// Rotate

@@ -1,12 +1,12 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Route from '@ember/routing/route';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
-const INITIAL_POLICY_RULES = `# See https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies for ACL Policy details
+const INITIAL_POLICY_RULES = `# See https://developer.hashicorp.com/nomad/docs/secure/acl/policies for ACL Policy details
 
 # Example policy structure:
 
@@ -90,11 +90,12 @@ operator {
 `;
 
 export default class AccessControlPoliciesNewRoute extends Route {
-  @service can;
+  @service store;
+  @service abilities;
   @service router;
 
   beforeModel() {
-    if (this.can.cannot('write policy')) {
+    if (this.abilities.cannot('write policy')) {
       this.router.transitionTo('/administration/policies');
     }
   }
@@ -109,8 +110,12 @@ export default class AccessControlPoliciesNewRoute extends Route {
   resetController(controller, isExiting) {
     if (isExiting) {
       // If user didn't save, delete the freshly created model
-      if (controller.model.isNew) {
-        controller.model.destroyRecord();
+      if (controller?.model?.isNew) {
+        try {
+          controller.model.unloadRecord();
+        } catch {
+          // Record may already be disconnected during teardown.
+        }
       }
     }
   }

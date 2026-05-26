@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 # This job stands up a private container registry for use in e2e tests.
@@ -26,11 +26,6 @@ job "registry" {
 
     update {
       min_healthy_time = "4s"
-    }
-
-    reschedule {
-      attempts  = 0
-      unlimited = false
     }
 
     restart {

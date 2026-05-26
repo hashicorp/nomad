@@ -1,10 +1,10 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { computed } from '@ember/object';
-import Service, { inject as service } from '@ember/service';
+import Service, { service } from '@ember/service';
 import { LRUMap } from 'lru_map';
 import NodeStatsTracker from 'nomad-ui/utils/classes/node-stats-tracker';
 import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';

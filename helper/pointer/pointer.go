@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 // Package pointer provides helper functions related to Go pointers.
@@ -10,11 +10,6 @@ import "cmp"
 // pointer dereference (checking nullity first).
 type Primitive interface {
 	cmp.Ordered | bool
-}
-
-// Of returns a pointer to a.
-func Of[A any](a A) *A {
-	return &a
 }
 
 // Copy returns a new pointer to a.

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -9,7 +9,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -113,7 +112,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx, nil))
 	must.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()
@@ -157,7 +156,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx, nil))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -180,7 +179,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -188,7 +187,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
@@ -234,7 +233,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx, nil))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -257,7 +256,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -265,7 +264,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
@@ -377,7 +376,7 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 		NodeEvent: &structs.NodeEvent{Message: "down"},
 	}
 
-	must.NoError(t, s.UpdateNodeStatus(msgType, 100, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent))
+	must.NoError(t, s.UpdateNodeStatus(msgType, 100, req))
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	must.Len(t, 1, events)
 
@@ -484,33 +483,33 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer s.StopEventBroker()
 
+	mockJob := mock.Job()
+	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, mockJob))
+
 	// setup
 	alloc := mock.Alloc()
 	alloc2 := mock.Alloc()
-	job := alloc.Job
+	alloc.JobID = mockJob.ID
 	alloc.Job = nil
+	alloc2.JobID = mockJob.ID
 	alloc2.Job = nil
 
 	d := mock.Deployment()
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, job))
-
 	eval := mock.Eval()
-	eval.JobID = job.ID
+	eval.JobID = mockJob.ID
 
 	// Create an eval
 	must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{eval}))
 
 	msgType := structs.ApplyPlanResultsRequestType
 	req := &structs.ApplyPlanResultsRequest{
-		AllocUpdateRequest: structs.AllocUpdateRequest{
-			Alloc: []*structs.Allocation{alloc, alloc2},
-			Job:   job,
-		},
-		Deployment: d,
-		EvalID:     eval.ID,
+		AllocsUpdated: []*structs.Allocation{alloc, alloc2},
+		Job:           mockJob,
+		Deployment:    d,
+		EvalID:        eval.ID,
 	}
 
 	must.NoError(t, s.UpsertPlanResults(msgType, 100, req))
@@ -538,6 +537,54 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	must.Len(t, 1, evals)
 	must.Len(t, 1, jobs)
 	must.Len(t, 1, deploys)
+
+	for _, e := range allocs {
+		allocEvent := e.Payload.(*structs.AllocationEvent)
+		must.False(t, allocEvent.Timeout)
+		must.Eq(t, "", allocEvent.TimeoutReason)
+	}
+}
+
+func TestEventFromChange_AllocationTimeoutFields(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	timeoutAlloc := mock.Alloc()
+	timeoutAlloc.ClientStatus = structs.AllocClientStatusComplete
+	timeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+
+	timeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  timeoutAlloc,
+	})
+	must.True(t, ok)
+
+	timeoutPayload, ok := timeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.True(t, timeoutPayload.Timeout)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusComplete, timeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.Allocation.ClientDescription)
+
+	nonTimeoutAlloc := mock.Alloc()
+	nonTimeoutAlloc.ClientStatus = structs.AllocClientStatusFailed
+	nonTimeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+
+	nonTimeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  nonTimeoutAlloc,
+	})
+	must.True(t, ok)
+
+	nonTimeoutPayload, ok := nonTimeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.False(t, nonTimeoutPayload.Timeout)
+	must.Eq(t, "", nonTimeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusFailed, nonTimeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, nonTimeoutPayload.Allocation.ClientDescription)
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
@@ -627,7 +674,7 @@ func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 
 	for _, e := range events {
 		must.Eq(t, 100, int(e.Index))
-		must.Eq(t, structs.TypeNodeDrain, e.Type)
+		must.Eq(t, structs.TypeNodeEligibilityUpdate, e.Type)
 		must.Eq(t, structs.TopicNode, e.Topic)
 		ne := e.Payload.(*structs.NodeStreamEvent)
 		must.Eq(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
@@ -661,7 +708,7 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 
 	req := &structs.AllocUpdateDesiredTransitionRequest{
 		Allocs: map[string]*structs.DesiredTransition{
-			alloc.ID: {Migrate: pointer.Of(true)},
+			alloc.ID: {Migrate: new(true)},
 		},
 		Evals: evals,
 	}
@@ -698,34 +745,44 @@ func TestEventsFromChanges_AllocClientUpdateRequestType(t *testing.T) {
 	t.SkipNow()
 }
 
-func TestEventsFromChanges_JobDeregisterRequestType(t *testing.T) {
-	t.SkipNow()
-}
-
 func TestEventsFromChanges_WithDeletion(t *testing.T) {
 	ci.Parallel(t)
+
+	upsertedJob := &structs.Job{ID: "upserted-job", Namespace: "default"}
+	purgedJob := &structs.Job{ID: "purged-job", Namespace: "default"}
 
 	changes := Changes{
 		Index: uint64(1),
 		Changes: memdb.Changes{
 			{
 				Table:  "jobs",
-				Before: &structs.Job{},
-				After:  &structs.Job{},
+				Before: upsertedJob,
+				After:  upsertedJob, // updated (stop, not purge)
 			},
 			{
 				Table:  "jobs",
-				Before: &structs.Job{},
-				After:  nil, // deleted
+				Before: purgedJob,
+				After:  nil, // deleted (or purged)
 			},
 		},
 		MsgType: structs.JobDeregisterRequestType,
 	}
 
-	event := eventsFromChanges(nil, changes)
-	must.NotNil(t, event)
+	events := eventsFromChanges(nil, changes)
+	must.NotNil(t, events)
+	must.Len(t, 2, events.Events)
 
-	must.Len(t, 2, event.Events)
+	// first event: upserted job (stop) — Deleted should be false
+	upsertEvent := events.Events[0]
+	upsertPayload, ok := upsertEvent.Payload.(*structs.JobEvent)
+	must.True(t, ok)
+	must.False(t, upsertPayload.Deleted)
+
+	// second event: deleted job (purge) — Deleted should be true
+	purgeEvent := events.Events[1]
+	purgePayload, ok := purgeEvent.Payload.(*structs.JobEvent)
+	must.True(t, ok)
+	must.True(t, purgePayload.Deleted)
 }
 
 func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
@@ -820,7 +877,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				return upsertNodeTxn(tx, tx.Index, testNode())
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
-				return deleteNodeTxn(tx, tx.Index, []string{testNodeID()})
+				return s.deleteNodeTxn(tx, tx.Index, []string{testNodeID()})
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
@@ -841,7 +898,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				return upsertNodeTxn(tx, tx.Index, testNode(nodeIDTwo))
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
-				return deleteNodeTxn(tx, tx.Index, []string{testNodeID(), testNodeIDTwo()})
+				return s.deleteNodeTxn(tx, tx.Index, []string{testNodeID(), testNodeIDTwo()})
 			},
 			WantEvents: []structs.Event{
 				{
@@ -1332,6 +1389,57 @@ func TestEvents_CSIPlugins(t *testing.T) {
 	must.Eq(t, "NodeRegistration", events[1].Type)
 	must.Eq(t, "CSIPlugin", events[2].Topic)
 	must.Eq(t, "NodeRegistration", events[2].Type)
+}
+
+func TestEvents_Variables(t *testing.T) {
+	ci.Parallel(t)
+	store := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer store.StopEventBroker()
+
+	variable := mock.VariableEncrypted()
+
+	// Upsert the variable straight into state.
+	writeTxn := store.db.WriteTxn(10)
+	resp := store.varSetTxn(writeTxn, 10, &structs.VarApplyStateRequest{Var: variable})
+	must.True(t, resp.IsOk())
+	writeTxn.Txn.Commit()
+
+	// Pull the events from the stream.
+	upsertChange := Changes{Changes: writeTxn.Changes(), Index: 10, MsgType: structs.VarApplyStateRequestType}
+	receivedChange := eventsFromChanges(writeTxn, upsertChange)
+	must.NotNil(t, receivedChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedChange.Events)
+	must.Eq(t, structs.TopicVariable, receivedChange.Events[0].Topic)
+	must.Eq(t, variable.Path, receivedChange.Events[0].Key)
+	must.Eq(t, structs.TypeVariableUpdated, receivedChange.Events[0].Type)
+	must.Eq(t, uint64(10), receivedChange.Events[0].Index)
+
+	eventPayload := receivedChange.Events[0].Payload.(*structs.VariableEvent)
+	must.Eq(t, variable.VariableMetadata, *eventPayload.Metadata)
+	must.False(t, eventPayload.Deleted)
+
+	// Delete the variable.
+	deleteTxn := store.db.WriteTxn(20)
+	deleteResp := store.svDeleteTxn(deleteTxn, 20, &structs.VarApplyStateRequest{Var: variable})
+	must.True(t, deleteResp.IsOk())
+	deleteTxn.Txn.Commit()
+
+	deleteChange := Changes{Changes: deleteTxn.Changes(), Index: 20, MsgType: structs.VarApplyStateRequestType}
+	receivedDeleteChange := eventsFromChanges(deleteTxn, deleteChange)
+	must.NotNil(t, receivedDeleteChange)
+
+	// Check the event, and its payload are what we are expecting.
+	must.Len(t, 1, receivedDeleteChange.Events)
+	must.Eq(t, structs.TopicVariable, receivedDeleteChange.Events[0].Topic)
+	must.Eq(t, variable.Path, receivedDeleteChange.Events[0].Key)
+	must.Eq(t, structs.TypeVariableUpdated, receivedDeleteChange.Events[0].Type)
+	must.Eq(t, uint64(20), receivedDeleteChange.Events[0].Index)
+
+	deletedEventPayload := receivedDeleteChange.Events[0].Payload.(*structs.VariableEvent)
+	must.Eq(t, variable.VariableMetadata, *deletedEventPayload.Metadata)
+	must.True(t, deletedEventPayload.Deleted)
 }
 
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {

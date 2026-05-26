@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -38,6 +38,11 @@ export default class Detail extends Component {
 
   get currentEvalDetail() {
     return this.statechart.state.context.evaluation;
+  }
+
+  get evaluationJSON() {
+    const evaluation = this.currentEvalDetail;
+    return evaluation?.serialize?.() || evaluation?.toJSON?.() || {};
   }
 
   get hierarchy() {

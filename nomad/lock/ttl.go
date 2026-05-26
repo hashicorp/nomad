@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package lock
@@ -98,7 +98,7 @@ func (t *TTLTimer) EmitMetrics(period time.Duration, shutdownCh chan struct{}) {
 	}
 }
 
-// timerNum returns the number of registered timers.
+// TimerNum returns the number of registered timers.
 func (t *TTLTimer) TimerNum() int {
 	t.lock.RLock()
 	defer t.lock.RUnlock()

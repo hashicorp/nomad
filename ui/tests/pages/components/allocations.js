@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -14,7 +14,7 @@ import { singularize } from 'ember-inflector';
 
 export default function (
   selector = '[data-test-allocation]',
-  propKey = 'allocations'
+  propKey = 'allocations',
 ) {
   const lookupKey = `${singularize(propKey)}For`;
   // Remove the bracket notation
@@ -27,9 +27,14 @@ export default function (
       createTime: text('[data-test-create-time]'),
       createTooltip: attribute(
         'aria-label',
-        '[data-test-create-time] .tooltip'
+        '[data-test-create-time] .tooltip',
       ),
       modifyTime: text('[data-test-modify-time]'),
+      maxRunDeadline: text('[data-test-max-run-deadline]'),
+      maxRunDeadlineTooltip: attribute(
+        'aria-label',
+        '[data-test-max-run-deadline] .tooltip'
+      ),
       health: text('[data-test-health]'),
       status: text('[data-test-client-status]'),
       job: text('[data-test-job]'),
@@ -43,7 +48,7 @@ export default function (
       mem: text('[data-test-mem]'),
       memTooltip: attribute('aria-label', '[data-test-mem] .tooltip'),
       rescheduled: isPresent(
-        '[data-test-indicators] [data-test-icon="reschedule"]'
+        '[data-test-indicators] [data-test-icon="reschedule"]',
       ),
 
       visit: clickable('[data-test-short-id] a'),

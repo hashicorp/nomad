@@ -1,0 +1,3 @@
+```release-note:security
+build: Update go-getter to 1.7.9 to address CVE-2025-8959. Nomad Client Agents with Landlock support are not impacted by this vulnerability.
+```

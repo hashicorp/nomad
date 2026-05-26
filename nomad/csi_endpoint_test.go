@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -15,7 +15,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/acl"
@@ -285,6 +284,7 @@ func TestCSIVolumeEndpoint_Register(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Register", req1, resp1)
 	must.NoError(t, err)
 	must.NotEq(t, uint64(0), resp1.Index)
+	must.Eq(t, "", resp1.Warnings)
 
 	// Get the volume back out
 	req2 := &structs.CSIVolumeGetRequest{
@@ -354,6 +354,10 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
+
+	index++
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
 	index++
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
@@ -438,15 +442,19 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 
 	// Make another writer claim for a different job
 	alloc2 := mock.Alloc()
-	alloc2.JobID = uuid.Generate()
+
 	summary = mock.JobSummary(alloc2.JobID)
 	index++
+
+	index++
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc2.Job))
+
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc2}))
 	claimReq.AllocationID = alloc2.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
-	require.EqualError(t, err, structs.ErrCSIVolumeMaxClaims.Error(),
+	require.ErrorContains(t, err, structs.ErrCSIVolumeMaxClaims.Error(),
 		"expected 'volume max claims reached' because we only allow 1 writer")
 
 	// Fix the mode and our claim will succeed
@@ -472,9 +480,13 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 
 	// Make a second reader claim
 	alloc3 := mock.Alloc()
-	alloc3.JobID = uuid.Generate()
+
 	summary = mock.JobSummary(alloc3.JobID)
 	index++
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc3.Job))
+	index++
+
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc3}))
@@ -488,6 +500,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	require.Equal(t, id0, volGetResp.Volume.ID)
 	require.Len(t, volGetResp.Volume.ReadAllocs, 2)
 	require.Len(t, volGetResp.Volume.WriteAllocs, 1)
+
 }
 
 // TestCSIVolumeEndpoint_ClaimWithController exercises the VolumeClaim RPC
@@ -546,6 +559,7 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 	alloc.NodeID = node.ID
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1004, nil, alloc.Job))
 	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	// Make the volume claim
@@ -695,9 +709,15 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			alloc.NodeID = tc.nodeID
 			alloc.ClientStatus = structs.AllocClientStatusRunning
 
+			index++
+			must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc.Job))
+
 			otherAlloc := mock.BatchAlloc()
 			otherAlloc.NodeID = tc.otherNodeID
 			otherAlloc.ClientStatus = structs.AllocClientStatusRunning
+
+			index++
+			must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, otherAlloc.Job))
 
 			index++
 			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
@@ -733,13 +753,18 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			// test: unpublish and check the results
 			claim.State = tc.startingState
+			authToken := accessToken.SecretID
+			if tc.name == "success" {
+				authToken = node.SecretID
+			}
+
 			req := &structs.CSIVolumeUnpublishRequest{
 				VolumeID: volID,
 				Claim:    claim,
 				WriteRequest: structs.WriteRequest{
 					Region:    "global",
 					Namespace: ns,
-					AuthToken: accessToken.SecretID,
+					AuthToken: authToken,
 				},
 			}
 
@@ -761,10 +786,10 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			if tc.expectedErrMsg == "" {
 				must.NoError(t, err)
-				assert.Len(t, vol.ReadAllocs, 1)
+				must.Eq(t, 1, len(vol.ReadAllocs))
 			} else {
 				must.Error(t, err)
-				assert.Len(t, vol.ReadAllocs, 2)
+				must.Eq(t, 2, len(vol.ReadAllocs))
 				test.True(t, strings.Contains(err.Error(), tc.expectedErrMsg),
 					test.Sprintf("error %v did not contain %q", err, tc.expectedErrMsg))
 				claim = vol.PastClaims[alloc.ID]
@@ -1136,12 +1161,13 @@ func TestCSIVolumeEndpoint_List_PaginationFiltering(t *testing.T) {
 func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	ci.Parallel(t)
 	var err error
-	srv, rootToken, shutdown := TestACLServer(t, func(c *Config) {
+	srv, _, shutdown := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
 	})
 	defer shutdown()
 
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 
 	fake := newMockClientCSI()
 	fake.NextValidateError = nil
@@ -1158,6 +1184,7 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	client, cleanup := client.TestClientWithRPCs(t,
 		func(c *cconfig.Config) {
 			c.Servers = []string{srv.config.RPCAddr.String()}
+			c.TLSConfig = srv.config.TLSConfig
 		},
 		map[string]interface{}{"CSI": fake},
 	)
@@ -1169,8 +1196,11 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	}).Node
 
 	req0 := &structs.NodeRegisterRequest{
-		Node:         node,
-		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: rootToken.SecretID},
+		Node: node,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
 	}
 	var resp0 structs.NodeUpdateResponse
 	err = client.RPC("Node.Register", req0, &resp0)
@@ -1277,25 +1307,11 @@ func TestCSIVolumeEndpoint_Create(t *testing.T) {
 	must.NoError(t, err)
 	must.NotEq(t, uint64(0), resp1.Index)
 
-	// Get the volume back out
-	req2 := &structs.CSIVolumeGetRequest{
-		ID: volID,
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			Namespace: ns,
-			AuthToken: validToken,
-		},
-	}
-	resp2 := &structs.CSIVolumeGetResponse{}
-	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Get", req2, resp2)
-	must.NoError(t, err)
-	must.Eq(t, resp1.Index, resp2.Index)
+	// Check the new volume in the response
+	must.Eq(t, 1, len(resp1.Volumes))
+	must.Eq(t, "", resp1.Warnings)
+	vol := resp1.Volumes[0]
 
-	vol := resp2.Volume
-	must.NotNil(t, vol)
-	must.Eq(t, volID, vol.ID)
-
-	// these fields are set from the args
 	must.Eq(t, "csi.CSISecrets(map[mysecret:[REDACTED]])",
 		vol.Secrets.String())
 	must.Eq(t, "csi.CSIOptions(FSType: ext4, MountFlags: [REDACTED])",
@@ -1693,7 +1709,7 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 	}
 	var resp0 structs.NodeUpdateResponse
 	err = client.RPC("Node.Register", req0, &resp0)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := srv.connectedNodes()
@@ -1721,7 +1737,7 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 		}
 	}).Node
 	index++
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	// Delete the snapshot request
 	req1 := &structs.CSISnapshotDeleteRequest{
@@ -1733,6 +1749,7 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 			{
 				ID:       "snap-34567",
 				PluginID: "minnie",
+				Secrets:  map[string]string{"super": "secret"},
 			},
 		},
 		WriteRequest: structs.WriteRequest{
@@ -1743,7 +1760,16 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 
 	resp1 := &structs.CSISnapshotDeleteResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.DeleteSnapshot", req1, resp1)
-	require.NoError(t, err)
+	must.NoError(t, err)
+
+	must.Eq(t, &cstructs.ClientCSIControllerDeleteSnapshotRequest{
+		ID:      "snap-34567",
+		Secrets: map[string]string{"super": "secret"},
+		CSIControllerQuery: cstructs.CSIControllerQuery{
+			ControllerNodeID: node.ID,
+			PluginID:         "minnie",
+		},
+	}, fake.LastDeleteSnapshotRequest)
 }
 
 func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
@@ -2499,7 +2525,7 @@ func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
 	codec := rpcClient(t, srv)
 	listJob := mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityReadJob})
 	policy := mock.PluginPolicy("read") + listJob
-	getToken := mock.CreatePolicyAndToken(t, s, 1001, "plugin-read", policy)
+	getToken := mock.CreatePolicyAndToken(t, s, 1000, "plugin-read", policy)
 
 	// Create the plugin and then some allocations to pretend to be the allocs that are
 	// running the plugin tasks
@@ -2509,18 +2535,26 @@ func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
 	plug, _ := s.CSIPluginByID(memdb.NewWatchSet(), "foo")
 	var allocs []*structs.Allocation
 	for _, info := range plug.Controllers {
+
 		a := mock.Alloc()
 		a.ID = info.AllocID
+
+		if len(allocs) == 0 {
+			a.Namespace = ns1.Name
+			a.Job.Namespace = ns1.Name
+		}
+
 		allocs = append(allocs, a)
+		must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, a.Job))
 	}
 	for _, info := range plug.Nodes {
 		a := mock.Alloc()
 		a.ID = info.AllocID
 		allocs = append(allocs, a)
+		must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, a.Job))
 	}
 
 	must.Eq(t, 3, len(allocs))
-	allocs[0].Namespace = ns1.Name
 
 	err := s.UpsertAllocs(structs.MsgTypeTestSetup, 1003, allocs)
 	must.NoError(t, err)

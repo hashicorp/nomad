@@ -122,6 +122,17 @@ job "countdash" {
         auth_soft_fail = true
       }
 
+      # Specifies the duration to wait when killing a task between removing its
+      # service registrations from Consul or Nomad, and sending it a shutdown
+      # signal. Ideally services would fail health checks once they receive a
+      # shutdown signal.
+      #
+      # For more information on the "shutdown_delay" parameter, refer to:
+      #
+      #     https://developer.hashicorp.com/nomad/docs/job-specification/task#shutdown_delay
+      #
+      shutdown_delay = "10s"
+
       # The "resources" block describes the requirements a task needs to
       # execute. Resource requirements include attributes such as memory, cpu,
       # cores, and devices.
@@ -156,7 +167,7 @@ job "countdash" {
     #   config {
     #     image = "${meta.connect.sidecar_image}"
     #     args  = [
-    #      "-c", "${NOMAD_TASK_DIR}/bootstrap.json",
+    #      "-c", "${NOMAD_SECRETS_DIR}/envoy_bootstrap.json",
     #      "-l", "${meta.connect.log_level}"
     #     ]
     #   }
@@ -232,6 +243,17 @@ job "countdash" {
         image          = "hashicorpdev/counter-dashboard:v3"
         auth_soft_fail = true
       }
+
+      # Specifies the duration to wait when killing a task between removing its
+      # service registrations from Consul or Nomad, and sending it a shutdown
+      # signal. Ideally services would fail health checks once they receive a
+      # shutdown signal.
+      #
+      # For more information on the "shutdown_delay" parameter, refer to:
+      #
+      #     https://developer.hashicorp.com/nomad/docs/job-specification/task#shutdown_delay
+      #
+      shutdown_delay = "10s"
     }
   }
 }

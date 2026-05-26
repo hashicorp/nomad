@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package consul
@@ -264,7 +264,7 @@ func connectProxyConfig(cfg map[string]interface{}, port int, info structs.Alloc
 
 func connectProxyBindAddress(networks structs.Networks) string {
 	for _, n := range networks {
-		if n.Mode == "bridge" && n.IsIPv6() {
+		if n.IsIPv6() && (n.Mode == "bridge" || strings.HasPrefix(n.Mode, "cni/")) {
 			return "::"
 		}
 	}

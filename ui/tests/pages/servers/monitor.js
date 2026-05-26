@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -10,7 +10,7 @@ import {
   text,
   visitable,
 } from 'ember-cli-page-object';
-import { run } from '@ember/runloop';
+import { later, cancelTimers } from '@ember/runloop';
 import {
   selectOpen,
   selectOpenChoose,
@@ -30,7 +30,7 @@ export default create({
 
   async selectLogLevel(level) {
     const contentId = await selectOpen('[data-test-level-switcher-parent]');
-    run.later(run, run.cancelTimers, 500);
+    later(cancelTimers, 500);
     await selectOpenChoose(contentId, level);
   },
 });

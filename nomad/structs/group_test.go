@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -52,7 +51,7 @@ func TestDisconnectStrategy_Validate(t *testing.T) {
 		{
 			name: "negative-stop-after",
 			strategy: &DisconnectStrategy{
-				StopOnClientAfter: pointer.Of(-1 * time.Second),
+				StopOnClientAfter: new(-1 * time.Second),
 			},
 			jobType: JobTypeService,
 			err:     errNegativeStopAfter,
@@ -60,7 +59,7 @@ func TestDisconnectStrategy_Validate(t *testing.T) {
 		{
 			name: "stop-after-on-system",
 			strategy: &DisconnectStrategy{
-				StopOnClientAfter: pointer.Of(1 * time.Second),
+				StopOnClientAfter: new(1 * time.Second),
 			},
 			jobType: JobTypeSystem,
 			err:     errStopAfterNonService,
@@ -77,7 +76,7 @@ func TestDisconnectStrategy_Validate(t *testing.T) {
 			name: "lost-after-and-stop-after-enabled",
 			strategy: &DisconnectStrategy{
 				LostAfter:         1 * time.Second,
-				StopOnClientAfter: pointer.Of(1 * time.Second),
+				StopOnClientAfter: new(1 * time.Second),
 			},
 			jobType: JobTypeService,
 			err:     errStopAndLost,
@@ -96,7 +95,7 @@ func TestDisconnectStrategy_Validate(t *testing.T) {
 			strategy: &DisconnectStrategy{
 				LostAfter:         1 * time.Second,
 				Reconcile:         ReconcileOptionKeepOriginal,
-				Replace:           pointer.Of(true),
+				Replace:           new(true),
 				StopOnClientAfter: nil,
 			},
 			jobType: JobTypeService,
@@ -199,7 +198,7 @@ func TestJob_Validate_DisconnectRescheduleLost(t *testing.T) {
 				Name: "cache",
 				Disconnect: &DisconnectStrategy{
 					LostAfter: 1 * time.Hour,
-					Replace:   pointer.Of(false),
+					Replace:   new(false),
 				},
 				Tasks: []*Task{
 					{

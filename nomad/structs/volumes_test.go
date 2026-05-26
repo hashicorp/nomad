@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -94,6 +94,16 @@ func TestVolumeRequest_Validate(t *testing.T) {
 				Type:     VolumeTypeCSI,
 				PerAlloc: true,
 				Sticky:   true,
+			},
+		},
+		{
+			name: "incorrect host access mode",
+			expected: []string{
+				"host volumes cannot be mounted with invalid-access-mode access mode",
+			},
+			req: &VolumeRequest{
+				Type:       VolumeTypeHost,
+				AccessMode: "invalid-access-mode",
 			},
 		},
 	}

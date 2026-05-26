@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 )
 
@@ -66,8 +66,8 @@ Alias: nomad plan
     * 1: Allocations created or destroyed.
     * 255: Error determining plan results.
 
-  When ACLs are enabled, this command requires a token with the 'submit-job'
-  capability for the job's namespace.
+  When ACLs are enabled, this command requires a token with either the
+  'submit-job' or 'plan-job' capability for the job's namespace.
 
 General Options:
 
@@ -194,7 +194,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	//  Set the vault namespace.
 	if vaultNamespace != "" {
-		job.VaultNamespace = pointer.Of(vaultNamespace)
+		job.VaultNamespace = new(vaultNamespace)
 	}
 
 	// Setup the options
@@ -228,6 +228,13 @@ func (c *JobPlanCommand) Run(args []string) int {
 
 	if c.namespace != "" {
 		runArgs.WriteString(fmt.Sprintf("-namespace=%q ", c.namespace))
+	}
+
+	// -hcl2-strict defaults to true. If the user opted out for plan, the
+	// follow-up `nomad job run -check-index ...` invocation needs the same
+	// flag or the parser will reject the file again.
+	if !c.JobGetter.Strict {
+		runArgs.WriteString("-hcl2-strict=false ")
 	}
 
 	exitCode := c.outputPlannedJob(job, resp, diff, verbose)
@@ -278,7 +285,7 @@ func (c *JobPlanCommand) outputPlannedJob(job *api.Job, resp *api.JobPlanRespons
 
 	// Print the scheduler dry-run output
 	c.Ui.Output(c.Colorize().Color("[bold]Scheduler dry-run:[reset]"))
-	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job)))
+	c.Ui.Output(c.Colorize().Color(formatDryRun(resp, job, c.Colorize())))
 	c.Ui.Output("")
 
 	// Print any warnings if there are any
@@ -382,7 +389,7 @@ func formatJobModifyIndex(jobModifyIndex uint64, args string, jobName string) st
 }
 
 // formatDryRun produces a string explaining the results of the dry run.
-func formatDryRun(resp *api.JobPlanResponse, job *api.Job) string {
+func formatDryRun(resp *api.JobPlanResponse, job *api.Job, colorize *colorstring.Colorize) string {
 	var rolling *api.Evaluation
 	for _, eval := range resp.CreatedEvals {
 		if eval.TriggeredBy == "rolling-update" {
@@ -409,7 +416,7 @@ func formatDryRun(resp *api.JobPlanResponse, job *api.Job) string {
 				noun += "s"
 			}
 			out += fmt.Sprintf("%s[yellow]Task Group %q (failed to place %d %s):\n[reset]", strings.Repeat(" ", 2), tg, metrics.CoalescedFailures+1, noun)
-			out += fmt.Sprintf("[yellow]%s[reset]\n\n", formatAllocMetrics(metrics, false, strings.Repeat(" ", 4)))
+			out += fmt.Sprintf("[yellow]%s[reset]\n\n", formatAllocMetrics(metrics, colorize, false, strings.Repeat(" ", 4)))
 		}
 		if rolling == nil {
 			out = strings.TrimSuffix(out, "\n")

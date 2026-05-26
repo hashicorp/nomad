@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -55,7 +55,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
       this,
       this.store,
       typeHash,
-      normalizedHash
+      normalizedHash,
     );
   }
 
@@ -84,7 +84,7 @@ export default class VolumeSerializer extends ApplicationSerializer {
         const { data, included } = this.normalizeEmbeddedRelationship(
           store,
           relationshipMeta,
-          alloc
+          alloc,
         );
 
         // In JSONAPI, embedded records go in the included array.

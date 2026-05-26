@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -15,6 +15,7 @@ import sumAggregation from '../utils/properties/sum-aggregation';
 import classic from 'ember-classic-decorator';
 
 const maybe = (arr) => arr || [];
+const JOB_TYPES_WITH_MAX_RUN_DEADLINE = ['batch', 'sysbatch'];
 
 @classic
 export default class TaskGroup extends Fragment {
@@ -22,18 +23,39 @@ export default class TaskGroup extends Fragment {
 
   @attr('string') name;
   @attr('number') count;
+  @attr('number') maxRunDuration;
+
+  @computed('job.type')
+  get ownerJobType() {
+    return this.job?.type;
+  }
+
+  @computed('job.job.type')
+  get allocationOwnerJobType() {
+    return this.job?.job?.type;
+  }
+
+  @computed('ownerJobType', 'allocationOwnerJobType', 'maxRunDuration')
+  get hasMaxRunDeadline() {
+    const jobType = this.ownerJobType || this.allocationOwnerJobType;
+
+    return (
+      JOB_TYPES_WITH_MAX_RUN_DEADLINE.includes(jobType) &&
+      this.maxRunDuration > 0
+    );
+  }
 
   @computed('job.{variables,parent,plainId}', 'name')
   get pathLinkedVariable() {
     if (this.job.parent.get('id')) {
       return this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
       );
     } else {
       return this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`
+        `nomad/jobs/${this.job.plainId}/${this.name}`,
       );
     }
   }
@@ -44,19 +66,19 @@ export default class TaskGroup extends Fragment {
     if (this.job.parent.get('id')) {
       return await this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`
+        `nomad/jobs/${this.job.parent.get('plainId')}/${this.name}`,
       );
     } else {
       return await this.job.variables?.findBy(
         'path',
-        `nomad/jobs/${this.job.plainId}/${this.name}`
+        `nomad/jobs/${this.job.plainId}/${this.name}`,
       );
     }
   }
 
   @fragmentArray('task') tasks;
 
-  @fragmentArray('service-fragment') services;
+  @fragmentArray('service-fragment', { defaultValue: () => [] }) services;
 
   @fragmentArray('volume-definition') volumes;
 
@@ -81,7 +103,7 @@ export default class TaskGroup extends Fragment {
   get allocations() {
     return maybe(this.get('job.allocations')).filterBy(
       'taskGroupName',
-      this.name
+      this.name,
     );
   }
 
@@ -101,7 +123,7 @@ export default class TaskGroup extends Fragment {
   @computed('job.latestFailureEvaluation.failedTGAllocs.[]', 'name')
   get placementFailures() {
     const placementFailures = this.get(
-      'job.latestFailureEvaluation.failedTGAllocs'
+      'job.latestFailureEvaluation.failedTGAllocs',
     );
     return placementFailures && placementFailures.findBy('name', this.name);
   }
@@ -122,7 +144,7 @@ export default class TaskGroup extends Fragment {
   get scaleState() {
     return maybe(this.get('job.scaleState.taskGroupScales')).findBy(
       'name',
-      this.name
+      this.name,
     );
   }
 

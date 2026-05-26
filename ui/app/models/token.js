@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -14,8 +14,8 @@ export default class Token extends Model {
   @attr('boolean') global;
   @attr('date') createTime;
   @attr('string') type;
-  @hasMany('policy') policies;
-  @hasMany('role') roles;
+  @hasMany('policy', { async: true, inverse: null }) policies;
+  @hasMany('role', { async: true, inverse: null }) roles;
   @attr() policyNames;
   @attr('date') expirationTime;
 

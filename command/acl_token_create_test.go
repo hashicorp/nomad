@@ -1,10 +1,11 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -92,6 +93,129 @@ func TestACLTokenCreateCommand(t *testing.T) {
 		ui.OutputWriter.Reset()
 		ui.ErrorWriter.Reset()
 	}
+}
+
+func TestACLTokenCreateCommand_UploadFromFile(t *testing.T) {
+	ci.Parallel(t)
+
+	config := func(c *agent.Config) {
+		c.ACL.Enabled = true
+	}
+
+	srv, _, url := testServer(t, true, config)
+	defer srv.Shutdown()
+
+	token := srv.RootToken
+	must.NotNil(t, token)
+
+	ui := cli.NewMockUi()
+	cmd := &ACLTokenCreateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	accessorID := "b306571d-a3fa-42d2-ac5b-bbe49d8c3c7f"
+	secretID := "c28ba0f6-ab8d-4e4d-b9f0-7f9f5d1c2e3a"
+
+	// Write the SecretID to a temp file
+	secretFile := t.TempDir() + "/secret.txt"
+	must.NoError(t, os.WriteFile(secretFile, []byte(secretID), 0600))
+
+	// Write the SecretID to a temp file
+	invalidSecretFile := t.TempDir() + "/secret.txt"
+	must.NoError(t, os.WriteFile(invalidSecretFile, []byte("invalid-uuid"), 0600))
+
+	testCases := []struct {
+		desc        string
+		args        []string
+		expectedErr bool
+		errorMsg    string
+	}{
+		{
+			desc:        "providing -accessor without a SecretID file should fail",
+			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", "-accessor=" + accessorID},
+			expectedErr: true,
+			errorMsg:    "-accessor requires a SecretID",
+		},
+		{
+			desc:        "providing a SecretID file without -accessor should fail",
+			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", secretFile},
+			expectedErr: true,
+			errorMsg:    "-accessor was not set",
+		},
+		{
+			desc:        "providing -accessor that is not a valid UUID should fail",
+			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", "-accessor=invalid-uuid", secretFile},
+			expectedErr: true,
+			errorMsg:    "-accessor value must be a valid UUID",
+		},
+		{
+			desc:        "providing a SecretID that is not a valid UUID should fail",
+			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", "-accessor=" + accessorID, invalidSecretFile},
+			expectedErr: true,
+			errorMsg:    "SecretID must be a valid UUID",
+		},
+		{
+			desc:        "successfully upload a client token with pre-specified IDs",
+			args:        []string{"-address=" + url, "-token=" + token.SecretID, "-type=client", "-policy=foo", "-accessor=" + accessorID, secretFile},
+			expectedErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			code := cmd.Run(tc.args)
+			if tc.expectedErr {
+				must.One(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.errorMsg)
+			} else {
+				must.Zero(t, code)
+			}
+			ui.OutputWriter.Reset()
+			ui.ErrorWriter.Reset()
+		})
+	}
+}
+
+func TestACLTokenCreateCommand_UploadFromStdin(t *testing.T) {
+	config := func(c *agent.Config) {
+		c.ACL.Enabled = true
+	}
+
+	srv, _, url := testServer(t, true, config)
+	defer srv.Shutdown()
+
+	token := srv.RootToken
+	must.NotNil(t, token)
+
+	ui := cli.NewMockUi()
+	cmd := &ACLTokenCreateCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	accessorID := "fe7d9be4-4419-4c3a-b942-7e616c7f6f1f"
+	secretID := "2a1c0e84-0db7-45c7-bec0-5b9f3a0e0b49"
+
+	fakeStdin, err := os.CreateTemp("", "nomad-acl-token-secret")
+	must.NoError(t, err)
+	defer os.Remove(fakeStdin.Name())
+	defer fakeStdin.Close()
+
+	_, err = fakeStdin.WriteString(secretID + "\n")
+	must.NoError(t, err)
+	_, err = fakeStdin.Seek(0, 0)
+	must.NoError(t, err)
+
+	oldStdin := os.Stdin
+	os.Stdin = fakeStdin
+	defer func() { os.Stdin = oldStdin }()
+
+	code := cmd.Run([]string{
+		"-address=" + url,
+		"-token=" + token.SecretID,
+		"-type=client",
+		"-policy=foo",
+		"-accessor=" + accessorID,
+		"-",
+	})
+	must.Zero(t, code)
+	must.StrContains(t, ui.OutputWriter.String(), accessorID)
+	must.StrContains(t, ui.OutputWriter.String(), secretID)
 }
 
 func Test_generateACLTokenRoleLinks(t *testing.T) {

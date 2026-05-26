@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -15,7 +15,7 @@ export default class EvaluationAdapter extends ApplicationAdapter {
   }
 
   urlForFindRecord(_id, _modelName, snapshot) {
-    const namespace = snapshot.attr('namespace') || 'default';
+    const namespace = snapshot?.adapterOptions?.namespace || 'default';
     const baseURL = super.urlForFindRecord(...arguments);
     const url = `${baseURL}?namespace=${namespace}`;
 

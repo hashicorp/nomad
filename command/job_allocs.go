@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
@@ -63,18 +62,7 @@ func (c *JobAllocsCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *JobAllocsCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobAllocsCommand) Name() string { return "job allocs" }
@@ -111,13 +99,24 @@ func (c *JobAllocsCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
 	q := &api.QueryOptions{Namespace: namespace}
+
+	// Fetch job info to enrich allocations output (e.g. Max Run Deadline
+	// column). This is best-effort: when the jobID was returned as a raw
+	// prefix by JobIDByPrefix (e.g. because the token lacks list-jobs), the
+	// Info call may fail. In that case we continue with a nil job so that
+	// formatJobAllocListStubs still works — it omits the deadline column.
+	job, _, err := client.Jobs().Info(jobID, q)
+	if err != nil && strings.Contains(err.Error(), api.PermissionDeniedErrorContent) {
+		c.Ui.Error(fmt.Sprintf("Error querying job: %s", err))
+		return 1
+	}
 
 	allocs, _, err := client.Jobs().Allocations(jobID, all, q)
 	if err != nil {
@@ -142,6 +141,6 @@ func (c *JobAllocsCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	c.Ui.Output(formatAllocListStubs(allocs, verbose, length))
+	c.Ui.Output(formatJobAllocListStubs(allocs, job, verbose, length))
 	return 0
 }

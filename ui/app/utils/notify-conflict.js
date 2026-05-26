@@ -1,9 +1,8 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 // Catches errors with conflicts (409)
 // and allow the route to handle them.
 import { set } from '@ember/object';

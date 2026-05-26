@@ -27,7 +27,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Returns an object representing the current OS thread's network namespace
+// GetCurrentNS returns an object representing the current OS thread's network
+// namespace
 func GetCurrentNS() (NetNS, error) {
 	// Lock the thread in case other goroutine executes in it and changes its
 	// network namespace after getCurrentThreadNetNSPath(), otherwise it might
@@ -140,7 +141,7 @@ func IsNSorErr(nspath string) error {
 	}
 }
 
-// Returns an object representing the namespace referred to by @path
+// GetNS returns an object representing the namespace referred to by @path
 func GetNS(nspath string) (NetNS, error) {
 	err := IsNSorErr(nspath)
 	if err != nil {

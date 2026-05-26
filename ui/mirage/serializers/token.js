@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -17,7 +17,7 @@ export default ApplicationSerializer.extend({
     }
     return ApplicationSerializer.prototype.keyForRelationshipIds.apply(
       this,
-      arguments
+      arguments,
     );
   },
 
@@ -34,6 +34,10 @@ export default ApplicationSerializer.extend({
 
 function serializeToken(token) {
   token.Roles = (token.Roles || []).map((role) => {
+    if (typeof role === 'object') {
+      return role;
+    }
+
     return { ID: role, Name: role };
   });
   return token;

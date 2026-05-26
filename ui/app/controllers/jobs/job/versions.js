@@ -1,9 +1,7 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
-
-// @ts-check
 
 import Controller from '@ember/controller';
 import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
@@ -23,7 +21,7 @@ const errorLevelToAlertClass = {
 
 @classic
 export default class VersionsController extends Controller.extend(
-  WithNamespaceResetting
+  WithNamespaceResetting,
 ) {
   error = null;
 
@@ -38,6 +36,7 @@ export default class VersionsController extends Controller.extend(
     );
   }
 
+  @action
   onDismiss() {
     this.set('error', null);
   }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -36,7 +36,8 @@ allocations/
 	 |--> network_status -> networkStatusEntry{*structs.AllocNetworkStatus}
 	 |--> acknowledged_state -> acknowledgedStateEntry{*arstate.State}
 	 |--> alloc_volumes -> allocVolumeStatesEntry{arstate.AllocVolumes}
-     |--> identities -> allocIdentitiesEntry{}
+     |--> alloc_identities -> allocIdentitiesEntry{}
+     |--> alloc_consul_acl_token_identities -> consulACLTokensEntry{}
    |--> task-<name>/
       |--> local_state -> *trstate.LocalState # Local-only state
       |--> task_state  -> *structs.TaskState  # Syncs to servers
@@ -100,6 +101,10 @@ var (
 	// under
 	allocIdentityKey = []byte("alloc_identities")
 
+	// allocConsulACLTokeKey is the key []*structs.ConsulACLTokens is stored
+	// under
+	allocConsulACLTokenKey = []byte("alloc_consul_acl_token_identities")
+
 	// checkResultsBucket is the bucket name in which check query results are stored
 	checkResultsBucket = []byte("check_results")
 
@@ -140,6 +145,12 @@ var (
 	nodeRegistrationKey = []byte("node_registration")
 
 	hostVolBucket = []byte("host_volumes_to_create")
+
+	// nodeIdentityBucket and nodeIdentityBucketStateKey are used to persist
+	// the client identity and its state. Each client will only have a single
+	// identity, so we use a single key value for the storage.
+	nodeIdentityBucket         = []byte("node_identity")
+	nodeIdentityBucketStateKey = []byte("node_identity_state")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -568,6 +579,55 @@ func (s *BoltStateDB) GetAllocIdentities(allocID string) ([]*structs.SignedWorkl
 	}
 
 	return entry.Identities, nil
+}
+
+// allocConsulACLTokenEntry wraps the ACLtokens so we can safely add more
+// state in the future without needing a new entry type
+type allocConsulACLTokenEntry struct {
+	Tokens []*cstructs.ConsulACLToken
+}
+
+// PutAllocConsulACLTokens strores all Consul ACL tokens for an alloc.
+func (s *BoltStateDB) PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error {
+	return s.updateWithOptions(opts, func(tx *boltdd.Tx) error {
+		allocBkt, err := getAllocationBucket(tx, allocID)
+		if err != nil {
+			return err
+		}
+
+		entry := allocConsulACLTokenEntry{
+			Tokens: tokens,
+		}
+		return allocBkt.Put(allocConsulACLTokenKey, &entry)
+	})
+}
+
+// GetAllocConsulACLTokens returns all Consul ACL tokens for an alloc.
+func (s *BoltStateDB) GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error) {
+	var entry allocConsulACLTokenEntry
+
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		allAllocsBkt := tx.Bucket(allocationsBucketName)
+		if allAllocsBkt == nil {
+			return nil // No previous state at all
+		}
+
+		allocBkt := allAllocsBkt.Bucket([]byte(allocID))
+		if allocBkt == nil {
+			return nil // No previous state for this alloc
+		}
+
+		return allocBkt.Get(allocConsulACLTokenKey, &entry)
+	})
+
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil // There may not be any previously created tokens
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return entry.Tokens, nil
 }
 
 // GetTaskRunnerState returns the LocalState and TaskState for a
@@ -1087,6 +1147,42 @@ func (s *BoltStateDB) DeleteDynamicHostVolume(id string) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		return tx.Bucket(hostVolBucket).Delete([]byte(id))
 	})
+}
+
+// clientIdentity wraps the signed client identity so we can safely add more
+// state in the future without needing a new entry type.
+type clientIdentity struct {
+	SignedIdentity string
+}
+
+func (s *BoltStateDB) PutNodeIdentity(identity string) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(nodeIdentityBucket)
+		if err != nil {
+			return err
+		}
+
+		identityWrapper := clientIdentity{SignedIdentity: identity}
+
+		return b.Put(nodeIdentityBucketStateKey, &identityWrapper)
+	})
+}
+
+func (s *BoltStateDB) GetNodeIdentity() (string, error) {
+	var identityWrapper clientIdentity
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		b := tx.Bucket(nodeIdentityBucket)
+		if b == nil {
+			return nil
+		}
+		return b.Get(nodeIdentityBucketStateKey, &identityWrapper)
+	})
+
+	if boltdd.IsErrNotFound(err) {
+		return "", nil
+	}
+
+	return identityWrapper.SignedIdentity, err
 }
 
 // init initializes metadata entries in a newly created state database.

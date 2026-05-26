@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -33,13 +33,13 @@ import (
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
+	raftwal "github.com/hashicorp/raft-wal"
 	"github.com/hashicorp/yamux"
 )
 
@@ -133,6 +133,11 @@ type Agent struct {
 	taskAPIServer *builtinAPI
 
 	inmemSink *metrics.InmemSink
+
+	// tlsMetrics is the process that handles periodically emitting agent TLS
+	// certificate expiry metrics. If the agent is not configured within TLS,
+	// this will be nil, so callers should check before attempting to use it.
+	tlsMetrics *tlsMetrics
 }
 
 // NewAgent is used to create a new agent with the given configuration
@@ -167,6 +172,17 @@ func NewAgent(config *Config, logger log.InterceptLogger, logOutput io.Writer, i
 	}
 	if a.client == nil && a.server == nil {
 		return nil, fmt.Errorf("must have at least client or server mode enabled")
+	}
+
+	// If the agent is configured with TLS, set up the TLS metrics process to
+	// emit certificate expiry metrics and start this.
+	if !a.config.TLSConfig.IsEmpty() {
+		tlsMetrics, err := newTLSMetrics(a.logger, a.config.TLSConfig, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to set up TLS expiration metrics: %w", err)
+		}
+		a.tlsMetrics = tlsMetrics
+		tlsMetrics.start(a.config.Telemetry.collectionInterval)
 	}
 
 	return a, nil
@@ -351,6 +367,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	}
 	conf.JobMaxPriority = jobMaxPriority
 	conf.JobDefaultPriority = jobDefaultPriority
+
+	jobMaxCount := structs.JobDefaultMaxCount
+	if agentConfig.Server.JobMaxCount != nil {
+		jobMaxCount = *agentConfig.Server.JobMaxCount
+		if jobMaxCount < 0 {
+			return nil, fmt.Errorf("job_max_count (%d) cannot be negative", jobMaxCount)
+		}
+	}
+	conf.JobMaxCount = jobMaxCount
 
 	if agentConfig.Server.JobTrackedVersions != nil {
 		if *agentConfig.Server.JobTrackedVersions <= 0 {
@@ -547,6 +572,9 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		if agentConfig.RPC.StreamOpenTimeout > 0 {
 			conf.RPCSessionConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
 		}
+		if agentConfig.RPC.DialTimeout > 0 {
+			conf.RPCDialTimeout = agentConfig.RPC.DialTimeout
+		}
 	}
 
 	// Set the TLS config
@@ -606,6 +634,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		AdditionalPubKeys: agentConfig.Server.licenseAdditionalPublicKeys,
 		LicenseEnvBytes:   agentConfig.Server.LicenseEnv,
 		LicensePath:       agentConfig.Server.LicensePath,
+		NonProduction:     agentConfig.Server.NonProduction,
 	}
 
 	// Add the search configuration
@@ -618,14 +647,52 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 	}
 
-	// Set the raft bolt parameters
-	if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
-		conf.RaftBoltNoFreelistSync = bolt.NoFreelistSync
+	// Validate that legacy and new raft config aren't both set
+	if agentConfig.Server.RaftBoltConfig != nil && agentConfig.Server.RaftLogStoreConfig != nil {
+		return nil, fmt.Errorf("cannot specify both deprecated 'raft_boltdb' and 'raft_logstore' blocks; use 'raft_logstore' only")
+	}
+
+	// Set the raft log store parameters. The new raft_logstore block takes
+	// precedence, but we still support the deprecated top-level raft_boltdb
+	// block for backwards compatibility.
+	conf.RaftLogStoreConfig = &nomad.RaftLogStoreConfig{
+		Backend:              nomad.LogStoreBackendBoltDB,
+		WALSegmentSize:       raftwal.DefaultSegmentSize, // 64MB by default
+		VerificationEnabled:  false,
+		VerificationInterval: 5 * time.Minute,
+	}
+	if lsc := agentConfig.Server.RaftLogStoreConfig; lsc != nil {
+		if lsc.Backend != "" {
+			conf.RaftLogStoreConfig.Backend = lsc.Backend
+		}
+		conf.RaftLogStoreConfig.DisableLogCache = lsc.DisableLogCache
+		if lsc.BoltDB != nil {
+			conf.RaftLogStoreConfig.BoltDBNoFreelistSync = lsc.BoltDB.NoFreelistSync
+		}
+		if lsc.WAL != nil && lsc.WAL.SegmentSizeMB > 0 {
+			conf.RaftLogStoreConfig.WALSegmentSize = lsc.WAL.SegmentSizeMB * 1024 * 1024
+		}
+		if lsc.Verification != nil {
+			conf.RaftLogStoreConfig.VerificationEnabled = lsc.Verification.Enabled
+			if lsc.Verification.Interval != "" {
+				dur, err := time.ParseDuration(lsc.Verification.Interval)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse raft_logstore verification interval %q: %w",
+						lsc.Verification.Interval, err)
+				}
+				conf.RaftLogStoreConfig.VerificationInterval = dur
+			}
+		}
+	} else if bolt := agentConfig.Server.RaftBoltConfig; bolt != nil {
+		// Backwards compatibility: migrate deprecated raft_boltdb settings
+		conf.RaftLogStoreConfig.BoltDBNoFreelistSync = bolt.NoFreelistSync
+		// Clear the legacy field after migration
+		agentConfig.Server.RaftBoltConfig = nil
 	}
 
 	// Interpret job_max_source_size as bytes from string value
 	if agentConfig.Server.JobMaxSourceSize == nil {
-		agentConfig.Server.JobMaxSourceSize = pointer.Of("1M")
+		agentConfig.Server.JobMaxSourceSize = new("1M")
 	}
 	jobMaxSourceBytes, err := humanize.ParseBytes(*agentConfig.Server.JobMaxSourceSize)
 	if err != nil {
@@ -634,6 +701,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.JobMaxSourceSize = int(jobMaxSourceBytes)
 
 	conf.Reporting = agentConfig.Reporting
+	// Pass the server's production status through to the reporting config
+	conf.Reporting.NonProduction = agentConfig.Server.NonProduction
 
 	conf.KEKProviderConfigs = agentConfig.KEKProviders
 
@@ -655,6 +724,27 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		return nil, fmt.Errorf("number of schedulers should be between 0 and %d",
 			runtime.NumCPU())
 	}
+
+	// If the operator has specified a client introduction server config block,
+	// translate this into the internal server configuration object.
+	if agentConfig.Server.ClientIntroduction != nil {
+		if agentConfig.Server.ClientIntroduction.Enforcement != "" {
+			conf.NodeIntroductionConfig.Enforcement = agentConfig.Server.ClientIntroduction.Enforcement
+		}
+		if agentConfig.Server.ClientIntroduction.DefaultIdentityTTL > 0 {
+			conf.NodeIntroductionConfig.DefaultIdentityTTL = agentConfig.Server.ClientIntroduction.DefaultIdentityTTL
+		}
+		if agentConfig.Server.ClientIntroduction.MaxIdentityTTL > 0 {
+			conf.NodeIntroductionConfig.MaxIdentityTTL = agentConfig.Server.ClientIntroduction.MaxIdentityTTL
+		}
+	}
+
+	if err := conf.NodeIntroductionConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid server.client_introduction configuration: %w", err)
+	}
+
+	// Copy LogFile config value
+	conf.LogFile = agentConfig.LogFile
 
 	return conf, nil
 }
@@ -741,6 +831,53 @@ func (a *Agent) finalizeClientConfig(c *clientconfig.Config) error {
 		to configure Nomad to work with Consul.`)
 	}
 
+	// Log deprecation message about setting disk_free_mb
+	if c.DiskFreeMB != 0 {
+		a.logger.Warn(`disk_free_mb is deprecated and ignored by Nomad.
+		Please use client.reserved.disk to configure reservable disk for scheduling.`)
+	}
+
+	// If the operator has not set an intro token via the CLI or an environment
+	// variable, attempt to read the intro token from the file system. This
+	// cannot be used as a CLI override.
+	if c.IntroToken == "" {
+		if err := a.readIntroTokenFile(c); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// readIntroTokenFile attempts to read the intro token from the file system.
+func (a *Agent) readIntroTokenFile(cfg *clientconfig.Config) error {
+
+	rootFile, err := os.OpenInRoot(cfg.StateDir, "intro_token.jwt")
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	fileStat, err := rootFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat intro token file: %w", err)
+	}
+
+	// If the file exists and is a file, attempt to read the contents and set
+	// the intro token. Any error is logged for the operator to investigate but
+	// does not block the agent from starting.
+	if fileStat.IsDir() {
+		return fmt.Errorf("intro token file is a directory")
+	}
+
+	content, err := helper.ReadFileContent(rootFile)
+	if err != nil {
+		return fmt.Errorf("failed to read intro token file: %w", err)
+	}
+
+	cfg.IntroToken = strings.TrimSpace(string(content))
 	return nil
 }
 
@@ -753,10 +890,10 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if conf == nil {
 		conf = clientconfig.DefaultConfig()
 	}
-
 	conf.Servers = agentConfig.Client.Servers
 	conf.DevMode = agentConfig.DevMode
 	conf.EnableDebug = agentConfig.EnableDebug
+	conf.IntroToken = agentConfig.Client.IntroToken
 
 	if agentConfig.Region != "" {
 		conf.Region = agentConfig.Region
@@ -766,6 +903,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.AllocDir = filepath.Join(agentConfig.DataDir, "alloc")
 		conf.HostVolumesDir = filepath.Join(agentConfig.DataDir, "host_volumes")
 		conf.HostVolumePluginDir = filepath.Join(agentConfig.DataDir, "host_volume_plugins")
+		conf.CommonPluginDir = filepath.Join(agentConfig.DataDir, "common_plugins")
 		dataParent := filepath.Dir(agentConfig.DataDir)
 		conf.AllocMountsDir = filepath.Join(dataParent, "alloc_mounts")
 	}
@@ -784,9 +922,13 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.Client.HostVolumesDir != "" {
 		conf.HostVolumesDir = agentConfig.Client.HostVolumesDir
 	}
+	if agentConfig.Client.CommonPluginDir != "" {
+		conf.CommonPluginDir = agentConfig.Client.CommonPluginDir
+	}
 	if agentConfig.Client.NetworkInterface != "" {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
 	}
+	conf.NodeMaxAllocs = agentConfig.Client.NodeMaxAllocs
 
 	// handle rpc yamux configuration
 	conf.RPCSessionConfig = yamux.DefaultConfig()
@@ -805,6 +947,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		}
 		if agentConfig.RPC.StreamOpenTimeout > 0 {
 			conf.RPCSessionConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
+		}
+		if agentConfig.RPC.DialTimeout > 0 {
+			conf.RPCDialTimeout = agentConfig.RPC.DialTimeout
 		}
 	}
 
@@ -866,17 +1011,6 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	// Canonicalize Node struct
 	conf.Node.Canonicalize()
-
-	// Reserve resources on the node.
-	// COMPAT(0.10): Remove in 0.10
-	r := conf.Node.Reserved
-	if r == nil {
-		r = new(structs.Resources)
-		conf.Node.Reserved = r
-	}
-	r.CPU = agentConfig.Client.Reserved.CPU
-	r.MemoryMB = agentConfig.Client.Reserved.MemoryMB
-	r.DiskMB = agentConfig.Client.Reserved.DiskMB
 
 	res := conf.Node.ReservedResources
 	if res == nil {
@@ -946,6 +1080,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.GCDiskUsageThreshold = agentConfig.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = agentConfig.Client.GCInodeUsageThreshold
 	conf.GCMaxAllocs = agentConfig.Client.GCMaxAllocs
+	conf.GCVolumesOnNodeGC = agentConfig.Client.GCVolumesOnNodeGC
+
 	if agentConfig.Client.NoHostUUID != nil {
 		conf.NoHostUUID = *agentConfig.Client.NoHostUUID
 	} else {
@@ -1012,6 +1148,19 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Drain = drainConfig
 
 	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
+
+	// Iterate the fingerprinter configs and populate the client mapping. The
+	// validation function returns a suitable error that can be returned without
+	// formatting.
+	for _, fingerprinterCfg := range agentConfig.Client.Fingerprinters {
+		if err := fingerprinterCfg.Validate(); err != nil {
+			return nil, err
+		}
+		conf.Fingerprinters[fingerprinterCfg.Name] = fingerprinterCfg
+	}
+
+	conf.LogFile = agentConfig.LogFile
+	conf.DefaultIneligible = agentConfig.Client.DefaultIneligible
 
 	return conf, nil
 }
@@ -1361,6 +1510,15 @@ func (a *Agent) Shutdown() error {
 	}
 
 	a.logger.Info("requesting shutdown")
+
+	// Stop the TLS metrics emitter if it is running. In the background this
+	// closes the channel that the routine is polling on which is fine, but in
+	// the future the agent may also want to use waitgroups to ensure routines
+	// such as this one have fully stopped before allowing shutdown to complete.
+	if a.tlsMetrics != nil {
+		a.tlsMetrics.stop()
+	}
+
 	if a.client != nil {
 		// Task API must be closed separately from other HTTP servers and should
 		// happen before the client is shutdown
@@ -1498,6 +1656,32 @@ func (a *Agent) Reload(newConfig *Config) error {
 		current.TLSConfig = newConfig.TLSConfig.Copy()
 	}
 
+	// The metric reload function is used to stop/start the TLS metrics emitter
+	// when we are reloading the TLS configuration. We need to do this in both a
+	// full reload and a partial reload, so new certificates are picked up.
+	//
+	// A failure to initialize the TLS metrics emitter is not considered
+	// terminal to the reload but is logged. This error can only occur when we
+	// attempt to read the certificates, so it would indicate a problem with the
+	// certificate files/permissions that would also impact the agent TLS
+	// configuration as a whole. In fact, if we succeed in the ShouldReload
+	// check, we should succeed here as that too reads the files.
+	tlsMetricReloadFn := func() {
+		tlsMetrics, err := newTLSMetrics(a.logger, newConfig.TLSConfig, nil)
+		if err != nil {
+			a.logger.Error("failed to initialize TLS metrics emitter", "error", err)
+		} else {
+			// We have successfully initialized the new TLS metrics emitter, so
+			// we can stop the old one (if it exists) and start the new one.
+			if a.tlsMetrics != nil {
+				a.tlsMetrics.stop()
+			}
+
+			a.tlsMetrics = tlsMetrics
+			a.tlsMetrics.start(newConfig.Telemetry.collectionInterval)
+		}
+	}
+
 	if !current.TLSConfig.IsEmpty() && !newConfig.TLSConfig.IsEmpty() {
 		// This is just a TLS configuration reload, we don't need to refresh
 		// existing network connections
@@ -1513,6 +1697,8 @@ func (a *Agent) Reload(newConfig *Config) error {
 			return err
 		}
 
+		tlsMetricReloadFn()
+
 		current.TLSConfig = newConfig.TLSConfig
 		current.TLSConfig.KeyLoader = keyloader
 		a.config = current
@@ -1520,8 +1706,17 @@ func (a *Agent) Reload(newConfig *Config) error {
 	} else if newConfig.TLSConfig.IsEmpty() && !current.TLSConfig.IsEmpty() {
 		a.logger.Warn("downgrading agent's existing TLS configuration to plaintext")
 		fullUpdateTLSConfig()
+
+		// We are moving from TLS to non-TLS, so we should stop the TLS metrics
+		// emitter as it will no longer be relevant.
+		if a.tlsMetrics != nil {
+			a.tlsMetrics.stop()
+			a.tlsMetrics = nil
+		}
+
 	} else if !newConfig.TLSConfig.IsEmpty() && current.TLSConfig.IsEmpty() {
 		a.logger.Info("upgrading from plaintext configuration to TLS")
+		tlsMetricReloadFn()
 		fullUpdateTLSConfig()
 	}
 

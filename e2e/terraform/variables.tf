@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 variable "name" {
@@ -36,8 +36,8 @@ variable "client_count_linux" {
   default     = "4"
 }
 
-variable "client_count_windows_2016" {
-  description = "The number of windows 2016 clients to provision."
+variable "client_count_windows_2022" {
+  description = "The number of windows 2022 clients to provision."
   default     = "0"
 }
 
@@ -88,6 +88,12 @@ variable "hcp_vault_namespace" {
   default     = "admin"
 }
 
+variable "hcp_hvn_cidr" {
+  description = "The CIDR block of the HVN peered into the account."
+  type        = string
+  default     = "172.25.16.0/20"
+}
+
 variable "aws_kms_alias" {
   description = "The alias for the AWS KMS key ID"
   type        = string
@@ -111,7 +117,7 @@ variable "nomad_local_binary_client_ubuntu_jammy" {
   default     = ""
 }
 
-variable "nomad_local_binary_client_windows_2016" {
+variable "nomad_local_binary_client_windows_2022" {
   description = "A path to an alternative binary to deploy to windows clients, to override nomad_local_binary"
   type        = string
   default     = ""

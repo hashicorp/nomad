@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
@@ -33,7 +33,7 @@ sudo apt-get install -y \
      apt-transport-https ca-certificates gnupg2 stress
 
 # Install hc-install
-curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.9.0/hc-install_0.9.0_linux_amd64.zip
+curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.9.4/hc-install_0.9.4_linux_amd64.zip
 sudo unzip -d /usr/local/bin /tmp/hc-install.zip
 
 
@@ -96,11 +96,11 @@ sudo apt-get install -y openjdk-17-jdk-headless
 # CNI
 echo "Installing CNI plugins"
 wget -q -O - \
-     https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
+     https://github.com/containernetworking/plugins/releases/download/v1.9.0/cni-plugins-linux-amd64-v1.9.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
 
 echo "Installing consul-cni plugin"
-sudo hc-install install --path /opt/cni/bin --version 1.5.1 consul-cni
+sudo hc-install install --path /opt/cni/bin --version 1.9.5 consul-cni
 
 echo "Installing custom test plugins"
 # for .conf and .json config tests
@@ -109,12 +109,20 @@ sudo mv /tmp/linux/cni/loopback.* /opt/cni/config/
 sudo mv /tmp/linux/cni/cni_args.conflist /opt/cni/config/
 sudo mv /tmp/linux/cni/cni_args.sh /opt/cni/bin/
 
+echo "Installing additional CNI network configs"
+# copy of nomad's "bridge" for connect+cni test (e2e/connect/)
+sudo mv /tmp/linux/cni/nomad_bridge_copy.conflist /opt/cni/config/
+
+echo "Installing CPI test plugins"
+mkdir_for_root /opt/nomad/data/common_plugins/secrets
+sudo mv /tmp/linux/common-plugins/test_secret_plugin.sh /opt/nomad/data/common_plugins/secrets/test_secret_plugin
+
 # Podman
 echo "Installing Podman"
 sudo apt-get -y install podman catatonit
 
 echo "Installing Podman Driver"
-sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.5.0 nomad-driver-podman
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version 0.6.4 nomad-driver-podman
 
 # Pledge
 echo "Installing Pledge Driver"
@@ -127,12 +135,12 @@ sudo chmod +x /usr/local/bin/pledge
 
 # Exec2
 echo "Installing Exec2 Driver"
-sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0-alpha.2 nomad-driver-exec2
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0 nomad-driver-exec2
 sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
 
 # Envoy
 echo "Installing Envoy"
-sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.29.4/envoy-1.29.4-linux-x86_64
+sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.34.1/envoy-1.34.1-linux-x86_64
 sudo chmod +x /opt/bin/envoy
 
 echo "Updating boot parameters"

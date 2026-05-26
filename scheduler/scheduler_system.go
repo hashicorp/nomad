@@ -1,16 +1,22 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
 import (
 	"fmt"
+	"maps"
+	"math"
 	"runtime/debug"
+	"slices"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
+	"github.com/hashicorp/nomad/scheduler/reconciler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -18,60 +24,47 @@ const (
 	// we will attempt to schedule if we continue to hit conflicts for system
 	// jobs.
 	maxSystemScheduleAttempts = 5
-
-	// maxSysBatchScheduleAttempts is used to limit the number of times we will
-	// attempt to schedule if we continue to hit conflicts for sysbatch jobs.
-	maxSysBatchScheduleAttempts = 2
 )
 
-// SystemScheduler is used for 'system' and 'sysbatch' jobs. This scheduler is
-// designed for jobs that should be run on every client. The 'system' mode
-// will ensure those jobs continuously run regardless of successful task exits,
-// whereas 'sysbatch' considers the task complete on success.
+// SystemScheduler is used for 'system' jobs. This scheduler is designed for
+// jobs that should be run on every client. The 'system' mode will ensure those
+// jobs continuously run regardless of successful task exits, whereas 'sysbatch'
+// considers the task complete on success.
 type SystemScheduler struct {
 	logger   log.Logger
 	eventsCh chan<- interface{}
-	state    State
-	planner  Planner
-	sysbatch bool
+	state    sstructs.State
+	planner  sstructs.Planner
 
 	eval       *structs.Evaluation
 	job        *structs.Job
 	plan       *structs.Plan
 	planResult *structs.PlanResult
-	ctx        *EvalContext
-	stack      *SystemStack
+	ctx        *feasible.EvalContext
+	stack      *feasible.SystemStack
 
 	nodes         []*structs.Node
 	notReadyNodes map[string]struct{}
 	nodesByDC     map[string]int
 
-	limitReached bool
-	nextEval     *structs.Evaluation
+	deployment      *structs.Deployment
+	failedTGAllocs  map[string]*structs.AllocMetric
+	queuedAllocs    map[string]int
+	planAnnotations *structs.PlanAnnotations
 
-	failedTGAllocs map[string]*structs.AllocMetric
-	queuedAllocs   map[string]int
+	tgCandidateNodeCounts     map[string]int // count of candidate nodes for the task group
+	tgDestructiveUpdateCounts map[string]int // count of destructive updates for the task group
+	tgExistingCanaryCount     map[string]int // count of currently running canaries for the task group
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
+func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	return &SystemScheduler{
 		logger:   logger.Named("system_sched"),
 		eventsCh: eventsCh,
 		state:    state,
 		planner:  planner,
-		sysbatch: false,
-	}
-}
-
-func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
-	return &SystemScheduler{
-		logger:   logger.Named("sysbatch_sched"),
-		eventsCh: eventsCh,
-		state:    state,
-		planner:  planner,
-		sysbatch: true,
 	}
 }
 
@@ -94,28 +87,28 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	// Verify the evaluation trigger reason is understood
 	if !s.canHandle(eval.TriggeredBy) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
-			s.queuedAllocs, "")
+		return setStatus(s.logger, s.planner, s.eval, nil,
+			s.failedTGAllocs, s.planAnnotations, structs.EvalStatusFailed, desc,
+			s.queuedAllocs, s.deployment.GetID())
 	}
 
 	limit := maxSystemScheduleAttempts
-	if s.sysbatch {
-		limit = maxSysBatchScheduleAttempts
-	}
 
 	// Retry up to the maxSystemScheduleAttempts and reset if progress is made.
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(limit, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
-				s.queuedAllocs, "")
+			return setStatus(s.logger, s.planner, s.eval, nil,
+				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
+				s.queuedAllocs, s.deployment.GetID())
 		}
 		return err
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "",
-		s.queuedAllocs, "")
+	return setStatus(s.logger, s.planner, s.eval, nil,
+		s.failedTGAllocs, s.planAnnotations, structs.EvalStatusComplete, "",
+		s.queuedAllocs, s.deployment.GetID())
 }
 
 // process is wrapped in retryMax to iteratively run the handler until we have no
@@ -144,6 +137,14 @@ func (s *SystemScheduler) process() (bool, error) {
 		}
 	}
 
+	s.deployment, err = s.state.LatestDeploymentByJobID(ws, s.eval.Namespace, s.eval.JobID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get deployment for job %q: %w", s.eval.JobID, err)
+	}
+	// system deployments may be mutated in the reconciler because the node
+	// count can change between evaluations
+	s.deployment = s.deployment.Copy()
+
 	// Create a plan
 	s.plan = s.eval.MakePlan(s.job)
 
@@ -151,10 +152,10 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.failedTGAllocs = nil
 
 	// Create an evaluation context
-	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
+	s.ctx = feasible.NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = NewSystemStack(s.sysbatch, s.ctx)
+	s.stack = feasible.NewSystemStack(false, s.ctx)
 	if !s.job.Stopped() {
 		s.setJob(s.job)
 	}
@@ -171,18 +172,10 @@ func (s *SystemScheduler) process() (bool, error) {
 		return true, nil
 	}
 
-	// If the limit of placements was reached we need to create an evaluation
-	// to pickup from here after the stagger period.
-	if s.limitReached && s.nextEval == nil {
-		s.nextEval = s.eval.NextRollingEval(s.job.Update.Stagger)
-		if err := s.planner.CreateEval(s.nextEval); err != nil {
-			s.logger.Error("failed to make next eval for rolling update", "error", err)
-			return false, err
-		}
-		s.logger.Debug("rolling update limit reached, next eval created", "next_eval_id", s.nextEval.ID)
-	}
-
 	// Submit the plan
+	if s.eval.AnnotatePlan {
+		s.plan.Annotations = s.planAnnotations
+	}
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	s.planResult = result
 	if err != nil {
@@ -255,27 +248,35 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	diff := diffSystemAllocs(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
-		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
-	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", diff))
+	nr := reconciler.NewNodeReconciler(s.deployment)
+	reconciliationResult := nr.Compute(s.job, s.nodes, s.notReadyNodes, tainted,
+		live, term)
+	if s.logger.IsDebug() {
+		s.logger.Debug("reconciled current state with desired state", reconciliationResult.Fields()...)
+	}
+
+	// Update the stored deployment
+	if nr.DeploymentCurrent != nil {
+		s.deployment = nr.DeploymentCurrent
+	}
 
 	// Add all the allocs to stop
-	for _, e := range diff.stop {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocNotNeeded, "", "")
+	for _, e := range reconciliationResult.Stop {
+		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.StatusAllocNotNeeded, "", "")
 	}
 
 	// Add all the allocs to migrate
-	for _, e := range diff.migrate {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocNodeTainted, "", "")
+	for _, e := range reconciliationResult.Migrate {
+		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.StatusAllocNodeTainted, "", "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
-	for _, e := range diff.lost {
-		s.plan.AppendStoppedAlloc(e.Alloc, allocLost, structs.AllocClientStatusLost, "")
+	for _, e := range reconciliationResult.Lost {
+		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.StatusAllocLost, structs.AllocClientStatusLost, "")
 	}
 
-	for _, e := range diff.disconnecting {
+	for _, e := range reconciliationResult.Disconnecting {
 		s.plan.AppendUnknownAlloc(e.Alloc)
 	}
 
@@ -283,90 +284,208 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Attempt to do the upgrades in place.
 	// Reconnecting allocations need to be updated to persists alloc state
 	// changes.
-	updates := make([]allocTuple, 0, len(diff.update)+len(diff.reconnecting))
-	updates = append(updates, diff.update...)
-	updates = append(updates, diff.reconnecting...)
-	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates)
-	diff.update = destructiveUpdates
+	updates := make([]reconciler.AllocTuple, 0, len(reconciliationResult.Update)+len(reconciliationResult.Reconnecting))
+	updates = append(updates, reconciliationResult.Update...)
+	updates = append(updates, reconciliationResult.Reconnecting...)
+	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates, s.deployment.GetID())
+	reconciliationResult.Update = destructiveUpdates
 
-	for _, inplaceUpdate := range inplaceUpdates {
-		allocExistsForTaskGroup[inplaceUpdate.TaskGroup.Name] = true
+	s.planAnnotations = &structs.PlanAnnotations{
+		DesiredTGUpdates: desiredUpdates(reconciliationResult, inplaceUpdates, destructiveUpdates),
 	}
 
-	if s.eval.AnnotatePlan {
-		s.plan.Annotations = &structs.PlanAnnotations{
-			DesiredTGUpdates: desiredUpdates(diff, inplaceUpdates, destructiveUpdates),
-		}
-	}
-
-	// Check if a rolling upgrade strategy is being used
-	limit := len(diff.update)
-	if !s.job.Stopped() && s.job.Update.Rolling() {
-		limit = s.job.Update.MaxParallel
-	}
-
-	// Treat non in-place updates as an eviction and new placement.
-	s.limitReached = evictAndPlace(s.ctx, diff, diff.update, allocUpdating, &limit)
-
-	// Nothing remaining to do if placement is not required
-	if len(diff.place) == 0 {
-		if !s.job.Stopped() {
-			for _, tg := range s.job.TaskGroups {
-				s.queuedAllocs[tg.Name] = 0
-			}
-		}
-		return nil
-	}
-
-	// Record the number of allocations that needs to be placed per Task Group
-	for _, allocTuple := range diff.place {
-		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
-	}
-
-	for _, ignoredAlloc := range diff.ignore {
-		allocExistsForTaskGroup[ignoredAlloc.TaskGroup.Name] = true
-	}
-
-	// Compute the placements
-	return s.computePlacements(diff.place, allocExistsForTaskGroup)
-}
-
-func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
-	if acc == nil {
-		return curr.Copy()
-	}
-
-	acc.NodesEvaluated += curr.NodesEvaluated
-	acc.NodesFiltered += curr.NodesFiltered
-
-	if acc.ClassFiltered == nil {
-		acc.ClassFiltered = make(map[string]int)
-	}
-	for k, v := range curr.ClassFiltered {
-		acc.ClassFiltered[k] += v
-	}
-	if acc.ConstraintFiltered == nil {
-		acc.ConstraintFiltered = make(map[string]int)
-	}
-	for k, v := range curr.ConstraintFiltered {
-		acc.ConstraintFiltered[k] += v
-	}
-	acc.AllocationTime += curr.AllocationTime
-	return acc
-}
-
-// computePlacements computes placements for allocations
-func (s *SystemScheduler) computePlacements(place []allocTuple, existingByTaskGroup map[string]bool) error {
+	// Initialize all the counts to track and generate
+	// the node mapping so we can use it throughout.
+	// Then loop through the various buckets to set
+	// our initial counts.
+	s.tgCandidateNodeCounts = make(map[string]int)
+	s.tgExistingCanaryCount = make(map[string]int)
+	s.tgDestructiveUpdateCounts = make(map[string]int)
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
 	}
 
-	// track node filtering, to only report an error if all nodes have been filtered
-	var filteredMetrics map[string]*structs.AllocMetric
+	// Add every allocation within the place bucket to the
+	// candidate node count
+	for _, allocTuple := range reconciliationResult.Place {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+	}
 
+	// Add every allocation that was updated in place to the
+	// candidate node count. Also add them to the inplace
+	// update count so they can be included in the deployment's
+	// healthy alloc count.
+	for _, allocTuple := range inplaceUpdates {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+		allocExistsForTaskGroup[allocTuple.TaskGroup.Name] = true
+	}
+
+	// Add every allcation within the ignore bucket to the
+	// candidate node count. Find any canaries within the
+	// bucket and add them to the existing canary count so
+	// we can properly calculate required canaries.
+	for _, allocTuple := range reconciliationResult.Ignore {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+		if allocTuple.Alloc.DeploymentStatus != nil && allocTuple.Alloc.DeploymentStatus.Canary {
+			s.tgExistingCanaryCount[allocTuple.TaskGroup.Name]++
+		}
+	}
+
+	// Add every allcation within the update bucket to the
+	// candidate node count. The allocations within the
+	// update bucket are destructive updates, so add them
+	// to the destructive update count.
+	for _, allocTuple := range reconciliationResult.Update {
+		s.tgCandidateNodeCounts[allocTuple.TaskGroup.Name]++
+		s.tgDestructiveUpdateCounts[allocTuple.TaskGroup.Name]++
+	}
+
+	// Treat non in-place updates as an eviction and new placement, which will
+	// be limited by max_parallel
+	s.evictAndPlace(reconciliationResult, sstructs.StatusAllocUpdating)
+
+	if !s.job.Stopped() {
+		for _, tg := range s.job.TaskGroups {
+			s.queuedAllocs[tg.Name] = 0
+		}
+	}
+
+	// Record the number of allocations that needs to be placed per Task Group
+	for _, allocTuple := range reconciliationResult.Place {
+		s.queuedAllocs[allocTuple.TaskGroup.Name] += 1
+	}
+
+	// Record that allocs currently exist for a Task Group
+	for _, ignoredAlloc := range reconciliationResult.Ignore {
+		allocExistsForTaskGroup[ignoredAlloc.TaskGroup.Name] = true
+	}
+
+	// Compute the placements
+	if err := s.computePlacements(reconciliationResult, nodeByID, allocExistsForTaskGroup); err != nil {
+		return err
+	}
+
+	// Set the desired placements into the annotation using the computed counts.
+	for tgName := range s.tgCandidateNodeCounts {
+		s.planAnnotations.DesiredTGUpdates[tgName].Place = uint64(s.tgCandidateNodeCounts[tgName])
+	}
+
+	// if there is no deployment we're done at this point
+	if s.deployment == nil {
+		return nil
+	}
+
+	// we only know the total amount of placements once we filter out infeasible
+	// nodes, so for system jobs we do it backwards a bit: the "desired" total
+	// is the total we were able to place.
+	// track if any of the task groups is doing a canary update now
+	deploymentComplete := true
+	for _, tg := range s.job.TaskGroups {
+		candidateCount := s.tgCandidateNodeCounts[tg.Name]
+
+		if candidateCount < 1 {
+			// this will happen if we're seeing a TG that shouldn't be placed.
+			//
+			// in case the deployment is in a successful state, this indicate a
+			// noop eval due to infeasible nodes. In this case we set the dstate
+			// for this task group to nil.
+			if s.deployment.Status == structs.DeploymentStatusSuccessful {
+				s.deployment.TaskGroups[tg.Name] = nil
+			}
+
+			continue
+		}
+
+		// Grab the deployment state for this task group. If it doesn't exist,
+		// this means this task group is being placed for the first time, so we
+		// can skip the canary logic and just set the desired total. The entry
+		// can also be nil, if the node is infeasible.
+		dstate, ok := s.deployment.TaskGroups[tg.Name]
+		if !ok || dstate == nil {
+			continue
+		}
+
+		// a system job is canarying if:
+		// - it has a non-empty update block (just a sanity check, all
+		// submitted jobs should have a non-empty update block as part of
+		// canonicalization)
+		// - canary parameter in the update block has to be positive
+		// - deployment has to be non-nil and it cannot have been promoted
+		// - this cannot be the initial job version
+		isCanarying := !tg.Update.IsEmpty() &&
+			tg.Update.Canary > 0 &&
+			dstate != nil &&
+			!dstate.Promoted &&
+			s.job.Version != 0 &&
+			s.tgDestructiveUpdateCounts[tg.Name] > 0
+
+		// we can set the desired total now
+		s.deployment.TaskGroups[tg.Name].DesiredTotal = candidateCount
+
+		if isCanarying {
+			// we can now also set the desired canaries: it's the
+			// tg.Update.Canary percent of allocations that will
+			// be destructively updated, rounded up to the nearest
+			// int capped by the max_parallel
+			destructiveCount := s.tgDestructiveUpdateCounts[tg.Name] + s.tgExistingCanaryCount[tg.Name]
+			requiredCanaries := int(math.Ceil(float64(tg.Update.Canary) * float64(destructiveCount) / 100))
+			requiredCanaries = min(requiredCanaries, tg.Update.MaxParallel)
+
+			s.deployment.TaskGroups[tg.Name].DesiredCanaries = requiredCanaries
+
+			// Initially, if the job requires canaries, we place all of them on
+			// all eligible nodes. At this point we know which nodes are
+			// feasible, so we evict unnedded canaries.
+			placedCanaries := s.evictUnneededCanaries(requiredCanaries, tg.Name, reconciliationResult)
+
+			// Update deployment and plan annotation with canaries that were placed
+			s.deployment.TaskGroups[tg.Name].PlacedCanaries = placedCanaries
+			s.planAnnotations.DesiredTGUpdates[tg.Name].Canary = uint64(len(placedCanaries))
+		}
+
+		groupComplete := s.isDeploymentComplete(dstate, isCanarying)
+		deploymentComplete = deploymentComplete && groupComplete
+	}
+
+	// adjust the deployment updates and set the right deployment status
+	nr.DeploymentUpdates = append(nr.DeploymentUpdates, s.setDeploymentStatusAndUpdates(deploymentComplete, s.job)...)
+
+	// Check if perhaps we're dealing with a nil deployment, i.e., a deployment
+	// which is in successful state and where all task groups have a nil dstate.
+	// In this case, set the deployment to nil.
+	nilDstates := true
+	for _, tg := range s.deployment.TaskGroups {
+		if tg != nil {
+			nilDstates = false
+		}
+	}
+	if nilDstates {
+		s.deployment = nil
+		nr.DeploymentUpdates = nil
+	}
+
+	// Add the deployment changes to the plan
+	s.plan.Deployment = s.deployment
+	s.plan.DeploymentUpdates = nr.DeploymentUpdates
+
+	return nil
+}
+
+// computePlacements computes placements for allocations
+func (s *SystemScheduler) computePlacements(
+	reconcilerResult *reconciler.NodeReconcileResult, nodeByID map[string]*structs.Node, existingByTaskGroup map[string]bool,
+) error {
+
+	var deploymentID string
+	if s.deployment != nil && s.deployment.Active() {
+		deploymentID = s.deployment.ID
+	}
+
+	filteredMetrics := map[string]*structs.AllocMetric{}
 	nodes := make([]*structs.Node, 1)
-	for _, missing := range place {
+
+	for _, missing := range reconcilerResult.Place {
 		tgName := missing.TaskGroup.Name
 
 		node, ok := nodeByID[missing.Alloc.NodeID]
@@ -375,45 +494,41 @@ func (s *SystemScheduler) computePlacements(place []allocTuple, existingByTaskGr
 			continue
 		}
 
-		// Update the set of placement nodes
 		nodes[0] = node
 		s.stack.SetNodes(nodes)
 
-		// Attempt to match the task group
-		option := s.stack.Select(missing.TaskGroup, &SelectOptions{AllocName: missing.Name})
+		option := s.stack.Select(missing.TaskGroup, &feasible.SelectOptions{AllocName: missing.Name})
 
 		if option == nil {
 			// If the task can't be placed on this node, update reporting data
 			// and continue to short circuit the loop
 
+			// Since we are here, the node was not feasible. Decrement
+			// the candidate node counts for this task group.
+			s.tgCandidateNodeCounts[tgName]--
+
+			// If this was an allocation being updated and there are no feasible
+			// nodes, then it does not count as a destructive update so decrement
+			// the count.
+			if missing.Alloc.ID != "" {
+				s.tgDestructiveUpdateCounts[tgName]--
+			}
+
 			// If this node was filtered because of constraint
 			// mismatches and we couldn't create an allocation then
 			// decrement queuedAllocs for that task group.
-			if s.ctx.metrics.NodesFiltered > 0 {
-				queued := s.queuedAllocs[tgName] - 1
-				s.queuedAllocs[tgName] = queued
-
-				if filteredMetrics == nil {
-					filteredMetrics = map[string]*structs.AllocMetric{}
-				}
+			if s.ctx.Metrics().NodesFiltered > 0 {
+				s.queuedAllocs[tgName]--
 				filteredMetrics[tgName] = mergeNodeFiltered(filteredMetrics[tgName], s.ctx.Metrics())
 
 				// If no tasks have been placed and there aren't any previously
-				// existing (ignored or updated) tasks on the node, mark the alloc as failed to be placed
-				// if queued <= 0 && !existingByTaskGroup[tgName] {
-				if queued <= 0 && !existingByTaskGroup[tgName] {
+				// existing (ignored or updated) tasks on the node, mark the alloc
+				// as failed to be placed
+				if s.queuedAllocs[tgName] <= 0 && !existingByTaskGroup[tgName] {
 					if s.failedTGAllocs == nil {
 						s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 					}
 					s.failedTGAllocs[tgName] = filteredMetrics[tgName]
-				}
-
-				// If we are annotating the plan, then decrement the desired
-				// placements based on whether the node meets the constraints
-				if s.eval.AnnotatePlan && s.plan.Annotations != nil &&
-					s.plan.Annotations.DesiredTGUpdates != nil {
-					desired := s.plan.Annotations.DesiredTGUpdates[tgName]
-					desired.Place -= 1
 				}
 
 				// Filtered nodes are not reported to users, just omitted from the job status
@@ -430,6 +545,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple, existingByTaskGr
 			// Store the available nodes by datacenter
 			s.ctx.Metrics().NodesAvailable = s.nodesByDC
 			s.ctx.Metrics().NodesInPool = len(s.nodes)
+			s.ctx.Metrics().NodePool = s.job.NodePool
 
 			// Compute top K scoring node metadata
 			s.ctx.Metrics().PopulateScoreMetaData()
@@ -481,6 +597,7 @@ func (s *SystemScheduler) computePlacements(place []allocTuple, existingByTaskGr
 			Metrics:            s.ctx.Metrics(),
 			NodeID:             option.Node.ID,
 			NodeName:           option.Node.Name,
+			DeploymentID:       deploymentID,
 			TaskResources:      resources.OldTaskResources(),
 			AllocatedResources: resources,
 			DesiredStatus:      structs.AllocDesiredStatusRun,
@@ -499,6 +616,14 @@ func (s *SystemScheduler) computePlacements(place []allocTuple, existingByTaskGr
 			alloc.PreviousAllocation = missing.Alloc.ID
 		}
 
+		// If we are placing a canary, add the canary to the deployment state
+		// object and mark it as a canary.
+		if missing.Canary && s.deployment != nil {
+			alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
+				Canary: true,
+			}
+		}
+
 		// If this placement involves preemption, set DesiredState to evict for those allocations
 		if option.PreemptedAllocs != nil {
 			var preemptedAllocIDs []string
@@ -506,10 +631,10 @@ func (s *SystemScheduler) computePlacements(place []allocTuple, existingByTaskGr
 				s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 
 				preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
-				if s.eval.AnnotatePlan && s.plan.Annotations != nil {
-					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
-					if s.plan.Annotations.DesiredTGUpdates != nil {
-						desired := s.plan.Annotations.DesiredTGUpdates[tgName]
+				if s.eval.AnnotatePlan && s.planAnnotations != nil {
+					s.planAnnotations.PreemptedAllocs = append(s.planAnnotations.PreemptedAllocs, stop.Stub(nil))
+					if s.planAnnotations.DesiredTGUpdates != nil {
+						desired := s.planAnnotations.DesiredTGUpdates[tgName]
 						desired.Preemptions += 1
 					}
 				}
@@ -536,7 +661,7 @@ func (s *SystemScheduler) addBlocked(node *structs.Node) error {
 	}
 
 	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
-	blocked.StatusDescription = blockedEvalFailedPlacements
+	blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	blocked.NodeID = node.ID
 
 	return s.planner.CreateEval(blocked)
@@ -557,12 +682,230 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 	case structs.EvalTriggerScaling:
 	case structs.EvalTriggerReconnect:
 	default:
-		switch s.sysbatch {
-		case true:
-			return trigger == structs.EvalTriggerPeriodicJob
-		case false:
-			return false
-		}
+		return false
 	}
 	return true
+}
+
+// evictAndPlace is used to mark allocations for evicts and add them to the
+// placement queue. evictAndPlace modifies the reconciler result. It returns
+// true if the limit has been reached for any task group.
+func (s *SystemScheduler) evictAndPlace(reconciled *reconciler.NodeReconcileResult, desc string) {
+
+	limits := map[string]int{} // per task group limits
+	if !s.job.Stopped() {
+		jobLimit := len(reconciled.Update)
+		if s.job.Update.MaxParallel > 0 {
+			jobLimit = s.job.Update.MaxParallel
+		}
+		for _, tg := range s.job.TaskGroups {
+			if tg.Update != nil && tg.Update.MaxParallel > 0 {
+				limits[tg.Name] = tg.Update.MaxParallel
+			} else {
+				limits[tg.Name] = jobLimit
+			}
+		}
+	}
+
+	if s.deployment != nil {
+		for _, a := range reconciled.Ignore {
+			if a.Alloc == nil {
+				continue
+			}
+			if a.Alloc.DeploymentID != s.deployment.ID {
+				continue
+			}
+			// explicitly unhealthy don't count against max_parallel
+			if a.Alloc.DeploymentStatus.IsUnhealthy() {
+				continue
+			}
+			// If not yet explicitly set to healthy (nil) decrement.
+			if !a.Alloc.DeploymentStatus.IsHealthy() {
+				limits[a.Alloc.TaskGroup]--
+			}
+		}
+	}
+
+	for _, a := range reconciled.Update {
+		if limit := limits[a.Alloc.TaskGroup]; limit > 0 {
+			s.ctx.Plan().AppendStoppedAlloc(a.Alloc, desc, "", "")
+			reconciled.Place = append(reconciled.Place, a)
+
+			// canaries will get limited when we cancel unneeded canaries later on
+			if !a.Canary {
+				limits[a.Alloc.TaskGroup]--
+			}
+		}
+	}
+
+	// it may be the case that there are keys in the NodeUpdate that are empty.
+	// We should delete them, otherwise the plan won't be correctly recognize as
+	// a no-op.
+	maps.DeleteFunc(s.plan.NodeUpdate, func(k string, v []*structs.Allocation) bool {
+		return len(v) == 0
+	})
+}
+
+// evictAndPlaceCanaries checks how many canaries are needed against the amount
+// of feasible nodes, and removes unnecessary placements from the plan.
+func (s *SystemScheduler) evictUnneededCanaries(requiredCanaries int, tgName string, buckets *reconciler.NodeReconcileResult) []string {
+
+	desiredCanaries := make([]string, 0)
+
+	// no canaries to consider, quit early
+	if requiredCanaries == 0 {
+		return desiredCanaries
+	}
+
+	canaryCounter := requiredCanaries
+
+	// Start with finding any existing failed canaries
+	failedCanaries := map[string]struct{}{}
+	for _, alloc := range buckets.Place {
+		if alloc.Alloc != nil && alloc.Alloc.DeploymentStatus != nil && alloc.Alloc.DeploymentStatus.Canary {
+			failedCanaries[alloc.Alloc.ID] = struct{}{}
+		}
+	}
+
+	// Generate a list of preferred allocations for
+	// canaries. These are existing canary applications
+	// that are failed.
+	preferCanary := map[string]struct{}{}
+	for _, allocations := range s.plan.NodeAllocation {
+		for _, alloc := range allocations {
+			if _, ok := failedCanaries[alloc.PreviousAllocation]; ok {
+				preferCanary[alloc.ID] = struct{}{}
+			}
+		}
+	}
+
+	// Remove the number of preferred canaries found
+	// from the counter.
+	canaryCounter -= len(preferCanary)
+
+	// Check for any canaries that are already running. For any
+	// that are found, add to the desired list and decrement
+	// the counter.
+	for _, tuple := range buckets.Ignore {
+		if tuple.TaskGroup.Name == tgName && tuple.Alloc != nil &&
+			tuple.Alloc.DeploymentStatus != nil && tuple.Alloc.DeploymentStatus.Canary {
+			desiredCanaries = append(desiredCanaries, tuple.Alloc.ID)
+			canaryCounter--
+		}
+	}
+
+	// iterate over node allocations to find canary allocs
+	for node, allocations := range s.plan.NodeAllocation {
+		n := 0
+		for _, alloc := range allocations {
+			// these are the allocs we keep
+			if alloc.DeploymentStatus == nil || !alloc.DeploymentStatus.Canary || alloc.TaskGroup != tgName {
+				allocations[n] = alloc
+				n += 1
+				continue
+			}
+
+			// if it's a canary, we only keep up to desiredCanaries amount of
+			// them
+			if alloc.DeploymentStatus.Canary {
+				// Check that the canary is on an eligble node
+				if _, ineligibleNode := s.notReadyNodes[alloc.NodeID]; ineligibleNode {
+					continue
+				}
+
+				// Check if this is a preferred allocation for the canary
+				_, preferred := preferCanary[alloc.ID]
+
+				// If it is a preferred allocation, or the counter is not exhausted,
+				// keep the allocation
+				if canaryCounter > 0 || preferred {
+					canaryCounter -= 1
+					desiredCanaries = append(desiredCanaries, alloc.ID)
+					allocations[n] = alloc
+					n += 1
+				} else {
+					// If the counter has been exhausted the allocation will not be
+					// placed, but a stop will have been appended for the update.
+					// Locate it and remove it.
+					idx := slices.IndexFunc(s.plan.NodeUpdate[alloc.NodeID], func(a *structs.Allocation) bool {
+						return a.ID == alloc.PreviousAllocation
+					})
+					if idx > -1 {
+						s.plan.NodeUpdate[alloc.NodeID] = append(s.plan.NodeUpdate[alloc.NodeID][0:idx], s.plan.NodeUpdate[alloc.NodeID][idx+1:]...)
+					}
+				}
+			}
+		}
+
+		// because of this nifty trick we don't need to allocate an extra slice
+		s.plan.NodeAllocation[node] = allocations[:n]
+	}
+
+	return desiredCanaries
+}
+
+func (s *SystemScheduler) isDeploymentComplete(dstate *structs.DeploymentState, isCanarying bool) bool {
+	if s.deployment == nil || isCanarying {
+		return false
+	}
+
+	complete := true
+
+	// ensure everything is healthy
+	if dstate.HealthyAllocs < dstate.DesiredTotal { // Make sure we have enough healthy allocs
+		complete = false
+	}
+
+	return complete
+}
+
+func (s *SystemScheduler) setDeploymentStatusAndUpdates(deploymentComplete bool, job *structs.Job) []*structs.DeploymentStatusUpdate {
+	statusUpdates := []*structs.DeploymentStatusUpdate{}
+
+	if d := s.deployment; d != nil {
+
+		// Deployments that require promotion should have appropriate status set
+		// immediately, no matter their completness.
+		if d.RequiresPromotion() {
+			if d.HasAutoPromote() {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+			} else {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			}
+			return statusUpdates
+		}
+
+		// Mark the deployment as complete if possible
+		if deploymentComplete {
+			if job.IsMultiregion() {
+				// the unblocking/successful states come after blocked, so we
+				// need to make sure we don't revert those states
+				if d.Status != structs.DeploymentStatusUnblocking &&
+					d.Status != structs.DeploymentStatusSuccessful {
+					statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
+						DeploymentID:      s.deployment.ID,
+						Status:            structs.DeploymentStatusBlocked,
+						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+					})
+				}
+			} else {
+				statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
+					DeploymentID:      s.deployment.ID,
+					Status:            structs.DeploymentStatusSuccessful,
+					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+				})
+			}
+		}
+
+		// Mark the deployment as pending since its state is now computed.
+		if d.Status == structs.DeploymentStatusInitializing {
+			statusUpdates = append(statusUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      s.deployment.ID,
+				Status:            structs.DeploymentStatusPending,
+				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
+			})
+		}
+	}
+
+	return statusUpdates
 }

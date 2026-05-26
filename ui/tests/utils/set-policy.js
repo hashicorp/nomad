@@ -1,11 +1,11 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 export default function setPolicy(policy) {
-  const { id: policyId } = server.create('policy', policy);
-  const clientToken = server.create('token', { type: 'client' });
+  const { id: policyId } = this.server.create('policy', policy);
+  const clientToken = this.server.create('token', { type: 'client' });
   clientToken.policyIds = [policyId];
   clientToken.save();
 

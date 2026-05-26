@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -55,6 +55,37 @@ type MonitorRequest struct {
 
 	// ServerID is the server we want to track the logs of
 	ServerID string
+
+	// PlainText disables base64 encoding.
+	PlainText bool
+
+	structs.QueryOptions
+}
+
+type MonitorExportRequest struct {
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
+	// ServiceName is the systemd service for which we want to retrieve logs
+	// Cannot be used with OnDisk
+	ServiceName string
+
+	// Follow indicates that the monitor should continue to deliver logs until
+	// an outside interrupt. Cannot be used with OnDisk
+	Follow bool
+
+	// LogsSince sets the lookback time for monitorExport logs in hours
+	LogsSince string
+
+	// OnDisk indicates that nomad should export logs written to the configured nomad log path
+	OnDisk bool
+
+	// NomadLogPath is set to the nomad log path by the HTTP agent if OnDisk
+	// is true
+	NomadLogPath string
 
 	// PlainText disables base64 encoding.
 	PlainText bool
@@ -377,4 +408,10 @@ var DriverStatsNotImplemented = errors.New("stats not implemented for driver")
 // NodeRegistration stores data about the client's registration with the server
 type NodeRegistration struct {
 	HasRegistered bool
+}
+
+type ConsulACLToken struct {
+	Cluster  string
+	TokenID  string
+	ACLToken string
 }

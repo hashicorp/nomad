@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build linux
@@ -31,7 +31,7 @@ func (n *NodeResources) Compatibility() {
 		// the LegacyNodeCpuResources field, and so we synthesize a pseudo
 		// NodeProcessorResources field
 		n.Processors.Topology = topologyFromLegacy(n.Cpu)
-	} else if !n.Processors.empty() {
+	} else if !n.Processors.Empty() {
 		// When we receive a node update from a 1.7+ client it contains a
 		// NodeProcessorResources field, and we populate the LegacyNodeCpuResources
 		// field using that information.

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -13,8 +13,5 @@ export default function codesForError(error) {
     });
   }
 
-  return codes
-    .compact()
-    .uniq()
-    .map((code) => '' + code);
+  return [...new Set(codes.filter(Boolean))].map((code) => '' + code);
 }

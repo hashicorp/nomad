@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -14,13 +14,15 @@ import (
 // in the cluster.
 func (s *StateStore) nodePoolInit() error {
 	allNodePool := &structs.NodePool{
-		Name:        structs.NodePoolAll,
-		Description: structs.NodePoolAllDescription,
+		Name:            structs.NodePoolAll,
+		Description:     structs.NodePoolAllDescription,
+		NodeIdentityTTL: structs.DefaultNodePoolNodeIdentityTTL,
 	}
 
 	defaultNodePool := &structs.NodePool{
-		Name:        structs.NodePoolDefault,
-		Description: structs.NodePoolDefaultDescription,
+		Name:            structs.NodePoolDefault,
+		Description:     structs.NodePoolDefaultDescription,
+		NodeIdentityTTL: structs.DefaultNodePoolNodeIdentityTTL,
 	}
 
 	return s.UpsertNodePools(
@@ -157,8 +159,12 @@ func (s *StateStore) fetchOrCreateNodePoolTxn(txn *txn, index uint64, name strin
 		return nil, err
 	}
 
+	// If the node pool does not exist within state already, hydrate the object
+	// with the supplied name. Ensure we canonicalize the object before, so we
+	// set critical default values.
 	if pool == nil {
 		pool = &structs.NodePool{Name: name}
+		pool.Canonicalize()
 		err = s.upsertNodePoolTxn(txn, index, pool)
 		if err != nil {
 			return nil, err

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -16,7 +16,6 @@ import (
 	"github.com/shoenig/test/wait"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -63,7 +62,7 @@ func allocClientStateSimulator(t *testing.T, errCh chan<- error, ctx context.Con
 				}
 				newAlloc := alloc.Copy()
 				newAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-					Healthy:   pointer.Of(true),
+					Healthy:   new(true),
 					Timestamp: now,
 				}
 				updates = append(updates, newAlloc)
@@ -149,6 +148,7 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -220,6 +220,7 @@ func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -277,6 +278,7 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create an empty node
@@ -305,13 +307,14 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 	waitForNodeDrainComplete(t, store, n1.ID, nil, 3, "")
 }
 
-func TestDrainer_AllTypes_Deadline(t *testing.T) {
+func TestDrainer_AllTypes_Deadline_NoGCNode(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, cleanupSrv := TestServer(t, nil)
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -390,12 +393,12 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n2.SecretID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
 	// Wait for allocs to be replaced
 	finalAllocs := waitForAllocsStop(t, store, n1.ID, nil)
-	waitForPlacedAllocs(t, store, n2.ID, 5)
+	waitForPlacedAllocs(t, store, n2.ID, 3)
 
 	// Assert that the service finished before the batch and system
 	var serviceMax, batchMax uint64 = 0, 0
@@ -420,6 +423,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create two nodes, registering the second later
@@ -544,13 +548,14 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	waitForNodeDrainComplete(t, store, n1.ID, errCh, 3, "")
 }
 
-func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
+func TestDrainer_AllTypes_Deadline_GCNode(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, cleanupSrv := TestServer(t, nil)
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -653,7 +658,7 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 
 	// Wait for the allocs to be replaced
 	waitForAllocsStop(t, store, n1.ID, errCh)
-	waitForPlacedAllocs(t, store, n2.ID, 5)
+	waitForPlacedAllocs(t, store, n2.ID, 3)
 
 	// Wait for the node drain to be marked complete with the events we expect
 	waitForNodeDrainComplete(t, store, n1.ID, errCh, 3, drainer.NodeDrainEventDetailDeadlined)
@@ -668,6 +673,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -762,6 +768,7 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 			defer cleanupSrv()
 			codec := rpcClient(t, srv)
 			testutil.WaitForLeader(t, srv.RPC)
+			testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 			store := srv.State()
 
 			// Create a node

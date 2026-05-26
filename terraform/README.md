@@ -74,7 +74,7 @@ for an introduction to Vault.
 Use the following links to get started with Nomad and its HashiCorp integrations:
 
 * [Getting Started with Nomad](https://developer.hashicorp.com/nomad/intro/getting-started/jobs.html)
-* [Consul integration](https://developer.hashicorp.com/nomad/docs/service-discovery/index.html)
-* [Vault integration](https://developer.hashicorp.com/nomad/docs/vault-integration/index.html)
+* [Consul integration](https://developer.hashicorp.com/nomad/docs/networking/service-discovery)
+* [Vault integration](https://developer.hashicorp.com/nomad/docs/secure/vault)
 * [consul-template integration](https://developer.hashicorp.com/nomad/docs/job-specification/template.html)
 

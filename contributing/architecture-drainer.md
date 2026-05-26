@@ -116,8 +116,8 @@ flowchart TD
     JobWatcher -- "4. Drain(): allocs for job that need draining" --> NodeDrainer
     NodeDrainer -- "5. AllocUpdateDesiredTransition\n(raft shim)" --> StateStore
 
-    StateStore -. 6. EvalDequeue .-> scheduler
-    StateStore -. 7. GetAllocs .-> clients
+    StateStore -. "6. EvalDequeue" .-> scheduler
+    StateStore -. "7. GetAllocs" .-> clients
 ```
 
 The second is when allocation migrations are complete. The clients update the
@@ -175,8 +175,8 @@ flowchart TD
     NodeDrainer -- "4. NodesDrainComplete\n(raft shim)" --> StateStore
 ```
 
-[`nomad node drain`]: https://developer.hashicorp.com/nomad/docs/commands/node/drain
-[node drain tutorial]: https://developer.hashicorp.com/nomad/tutorials/manage-clusters/node-drain
+[`nomad node drain`]: https://developer.hashicorp.com/nomad/commands/node/drain
+[node drain tutorial]: https://developer.hashicorp.com/nomad/docs/manage/migrate-workloads
 [`nomad/drainer`]: https://github.com/hashicorp/nomad/tree/main/nomad/drainer
 [`watch_nodes.go`]: https://github.com/hashicorp/nomad/blob/main/nomad/drainer/watch_nodes.go
 [`watch_jobs.go`]: https://github.com/hashicorp/nomad/blob/main/nomad/drainer/watch_jobs.go

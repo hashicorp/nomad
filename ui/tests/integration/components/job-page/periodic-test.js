@@ -1,15 +1,15 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { click, find, findAll, render } from '@ember/test-helpers';
-import hbs from 'htmlbars-inline-precompile';
+import { click, find, findAll, render, settled } from '@ember/test-helpers';
+import { hbs } from 'ember-cli-htmlbars';
 import moment from 'moment';
 import { create, collection } from 'ember-cli-page-object';
-import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
+import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import pageSizeSelect from 'nomad-ui/tests/acceptance/behaviors/page-size-select';
 import pageSizeSelectPageObject from 'nomad-ui/tests/pages/components/page-size-select';
 import {
@@ -37,10 +37,13 @@ module('Integration | Component | job-page/periodic', function (hooks) {
   hooks.beforeEach(function () {
     window.localStorage.clear();
     this.store = this.owner.lookup('service:store');
+    this.token = this.owner.lookup('service:token');
     this.server = startMirage();
     this.server.create('namespace');
     this.server.create('node-pool');
     this.server.create('node');
+    let managementToken = this.server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
   });
 
   hooks.afterEach(function () {
@@ -50,11 +53,11 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
   const commonTemplate = hbs`
     <JobPage::Periodic
-      @job={{job}}
-      @sortProperty={{sortProperty}}
-      @sortDescending={{sortDescending}}
-      @currentPage={{currentPage}}
-      @childJobs={{job.children}}
+      @job={{this.job}}
+      @sortProperty={{this.sortProperty}}
+      @sortDescending={{this.sortDescending}}
+      @currentPage={{this.currentPage}}
+      @childJobs={{this.job.children}}
     />
   `;
 
@@ -81,12 +84,12 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    const currentJobCount = server.db.jobs.length;
+    const currentJobCount = this.server.db.jobs.length;
 
-    assert.equal(
+    assert.deepEqual(
       findAll('[data-test-job-row] [data-test-job-name]').length,
       childrenCount,
-      'The new periodic job launch is in the children list'
+      'The new periodic job launch is in the children list',
     );
 
     await click('[data-test-force-launch]');
@@ -97,13 +100,13 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       this.server.pretender.handledRequests
         .filterBy('method', 'POST')
         .find((req) => req.url === expectedURL),
-      'POST URL was correct'
+      'POST URL was correct',
     );
 
-    assert.equal(
-      server.db.jobs.length,
+    assert.deepEqual(
+      this.server.db.jobs.length,
       currentJobCount + 1,
-      'POST request was made'
+      'POST request was made',
     );
   });
 
@@ -132,26 +135,11 @@ module('Integration | Component | job-page/periodic', function (hooks) {
 
     await click('[data-test-force-launch]');
 
-    assert.equal(
-      find('[data-test-job-error-title]').textContent,
-      'Could Not Force Launch',
-      'Appropriate error is shown'
-    );
-    assert.ok(
-      find('[data-test-job-error-body]').textContent.includes('ACL'),
-      'The error message mentions ACLs'
-    );
-
-    await click('[data-test-job-error-close]');
-
-    assert.notOk(
-      find('[data-test-job-error-title]'),
-      'Error message is dismissable'
-    );
+    await expectError(assert, 'Could Not Force Launch');
   });
 
   test('Stopping a job sends a delete request for the job', async function (assert) {
-    assert.expect(1);
+    this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
@@ -169,11 +157,10 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await stopJob();
 
     expectDeleteRequest(assert, this.server, job);
+    await settled();
   });
 
-  test('Stopping a job without proper permissions shows an error message', async function (assert) {
-    assert.expect(4);
-
+  test('Stopping a job without proper permissions results in a disabled button', async function (assert) {
     this.server.pretender.delete('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -189,14 +176,15 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await stopJob();
-    expectError(assert, 'Could Not Stop Job');
+    assert.ok(
+      find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
+    );
 
     await componentA11yAudit(this.element, assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
-    assert.expect(1);
+    this.token.fetchSelfTokenAndPolicies.perform();
 
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
@@ -213,12 +201,11 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     await render(commonTemplate);
 
     await startJob();
-    expectStartRequest(assert, this.server, job);
+    await expectStartRequest(assert, this.server, job);
+    await settled();
   });
 
-  test('Starting a job without proper permissions shows an error message', async function (assert) {
-    assert.expect(3);
-
+  test('Starting a job without proper permissions disables the button', async function (assert) {
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
     const mirageJob = this.server.create('job', 'periodic', {
@@ -235,13 +222,18 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await startJob();
-
-    await expectError(assert, 'Could Not Start Job');
+    assert.ok(
+      find('[data-test-start] [data-test-idle-button]').hasAttribute(
+        'disabled',
+      ),
+    );
   });
 
   test('Purging a job sends a purge request for the job', async function (assert) {
-    assert.expect(1);
+    this.token.fetchSelfTokenAndPolicies.perform();
+    const router = this.owner.lookup('service:router');
+    const transitionTo = router.transitionTo;
+    router.transitionTo = () => {};
 
     const mirageJob = this.server.create('job', 'periodic', {
       childrenCount: 0,
@@ -257,8 +249,13 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    await purgeJob();
-    expectPurgeRequest(assert, this.server, job);
+    try {
+      await purgeJob();
+      expectPurgeRequest(assert, this.server, job);
+      await settled();
+    } finally {
+      router.transitionTo = transitionTo;
+    }
   });
 
   test('Each job row includes the submitted time', async function (assert) {
@@ -275,12 +272,12 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
-    assert.equal(
+    assert.deepEqual(
       find('[data-test-job-submit-time]').textContent.trim(),
       moment(job.get('children.firstObject.submitTime')).format(
-        'MMM DD HH:mm:ss ZZ'
+        'MMM DD HH:mm:ss ZZ',
       ),
-      'The new periodic job launch is in the children list'
+      'The new periodic job launch is in the children list',
     );
   });
 

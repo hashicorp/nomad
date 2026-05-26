@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -16,23 +16,24 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type NoopScheduler struct {
-	state    scheduler.State
-	planner  scheduler.Planner
+	state    sstructs.State
+	planner  sstructs.Planner
 	eval     *structs.Evaluation
-	eventsCh chan<- interface{}
+	eventsCh chan<- any
 	err      error
 }
 
@@ -48,7 +49,9 @@ func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
 }
 
 func init() {
-	scheduler.BuiltinSchedulers["noop"] = func(logger log.Logger, eventsCh chan<- interface{}, s scheduler.State, p scheduler.Planner) scheduler.Scheduler {
+	scheduler.BuiltinSchedulers["noop"] = func(
+		logger log.Logger, eventsCh chan<- any, s sstructs.State, p sstructs.Planner,
+	) sstructs.Scheduler {
 		n := &NoopScheduler{
 			state:   s,
 			planner: p,
@@ -465,22 +468,22 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	s1.evalBroker.Enqueue(eval1)
 
 	evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if evalOut != eval1 {
-		t.Fatalf("Bad eval")
-	}
+	must.NoError(t, err)
+	must.Eq(t, eval1, evalOut)
 
 	// Create an allocation plan
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job:    job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: alloc.Job.Namespace,
+			ID:        alloc.Job.ID,
+		},
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
 		},
 	}
+	s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1000, nil, alloc.Job)
 
 	// Attempt to submit a plan
 	poolArgs := getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy()
@@ -488,26 +491,16 @@ func TestWorker_SubmitPlan(t *testing.T) {
 	w.evalToken = token
 
 	result, state, err := w.SubmitPlan(plan)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Should have no update
-	if state != nil {
-		t.Fatalf("unexpected state update")
-	}
+	must.Nil(t, state)
 
 	// Result should have allocated
-	if result == nil {
-		t.Fatalf("missing result")
-	}
+	must.NotNil(t, result)
 
-	if result.AllocIndex == 0 {
-		t.Fatalf("Bad: %#v", result)
-	}
-	if len(result.NodeAllocation) != 1 {
-		t.Fatalf("Bad: %#v", result)
-	}
+	must.NonZero(t, result.AllocIndex)
+	must.MapLen(t, 1, result.NodeAllocation)
 }
 
 func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
@@ -520,6 +513,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -537,7 +531,10 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 
 	// Create an allocation plan
 	plan := &structs.Plan{
-		Job:             job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+		},
 		EvalID:          eval1.ID,
 		NodeUpdate:      make(map[string][]*structs.Allocation),
 		NodePreemptions: make(map[string][]*structs.Allocation),
@@ -563,6 +560,100 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	}, plan.NodeUpdate[stoppedAlloc.NodeID][0])
 }
 
+// TestWorker_SubmitPlan_JobVsJobInfo verifies that the worker handles Job vs
+// JobInfo in the Plan depending on the server version. This test is
+// parametrized to validate behavior against older servers (which require full
+// Job serialization) and newer servers (which support lean plans containing
+// only JobInfo).
+func TestWorker_SubmitPlan_JobVsJobInfo(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		Name       string
+		Build      string
+		ExpectLean bool
+	}{
+		{
+			Name:       "OldServers",
+			Build:      "1.11.0",
+			ExpectLean: false,
+		},
+		{
+			Name:       "NewServers",
+			Build:      minVersionPlanLeanJob.String() + "+unittest",
+			ExpectLean: true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			ci.Parallel(t)
+
+			s1, cleanupS1 := TestServer(t, func(c *Config) {
+				c.NumSchedulers = 0
+				c.EnabledSchedulers = []string{structs.JobTypeService}
+				c.Build = tc.Build
+			})
+			defer cleanupS1()
+			testutil.WaitForLeader(t, s1.RPC)
+			testutil.WaitForKeyring(t, s1.RPC, s1.Region())
+
+			node := mock.Node()
+			testRegisterNode(t, s1, node)
+
+			job := mock.Job()
+			eval1 := mock.Eval()
+			eval1.JobID = job.ID
+			store := s1.fsm.State()
+			must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
+			must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}))
+
+			s1.evalBroker.Enqueue(eval1)
+			evalOut, token, err := s1.evalBroker.Dequeue([]string{eval1.Type}, time.Second)
+			must.NoError(t, err)
+			must.Eq(t, eval1, evalOut)
+
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			plan := &structs.Plan{
+				Job:            job, // incoming plan always contains a full job
+				EvalID:         eval1.ID,
+				NodeAllocation: map[string][]*structs.Allocation{node.ID: {alloc}},
+			}
+
+			w := newWorker(s1.shutdownCtx, s1, getSchedulerWorkerPoolArgsFromConfigLocked(s1.config).Copy())
+			w.evalToken = token
+
+			// Sanity-check the peers cache version check aligns with the case.
+			if tc.ExpectLean {
+				must.True(t, s1.peersCache.ServersMeetMinimumVersion(s1.Region(), minVersionPlanLeanJob, false))
+			} else {
+				must.False(t, s1.peersCache.ServersMeetMinimumVersion(s1.Region(), minVersionPlanLeanJob, false))
+			}
+
+			result, _, err := w.SubmitPlan(plan)
+			must.NoError(t, err)
+			must.NotNil(t, result)
+
+			// Verify that the plan was transformed appropriately for newer servers.
+			if tc.ExpectLean {
+				// For lean-plan-capable servers the worker should convert the full
+				// Job into JobInfo before RPC. The plan endpoint then hydrates the
+				// embedded job for internal processing, so after SubmitPlan returns
+				// the original plan once again has Job populated alongside JobInfo.
+				must.NotNil(t, plan.Job)
+				must.NotNil(t, plan.JobInfo)
+			} else {
+				// For older servers the full Job should be preserved on the plan.
+				must.NotNil(t, plan.Job)
+				must.Nil(t, plan.JobInfo)
+			}
+		})
+	}
+}
+
 func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	ci.Parallel(t)
 
@@ -572,6 +663,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -598,7 +690,10 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	node2 := mock.Node()
 	alloc := mock.Alloc()
 	plan := &structs.Plan{
-		Job:    job,
+		JobInfo: &structs.PlanJobTuple{
+			Namespace: job.Namespace,
+			ID:        job.ID,
+		},
 		EvalID: eval1.ID,
 		NodeAllocation: map[string][]*structs.Allocation{
 			node2.ID: {alloc},
@@ -646,6 +741,7 @@ func TestWorker_UpdateEval(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -697,6 +793,7 @@ func TestWorker_CreateEval(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -788,18 +885,23 @@ func TestWorker_ReblockEval(t *testing.T) {
 	w.evalToken = token
 
 	err = w.ReblockEval(eval2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Ack the eval
 	w.sendAck(evalOut, token)
 
 	// Check that it is blocked
-	bStats := s1.blockedEvals.Stats()
-	if bStats.TotalBlocked+bStats.TotalEscaped != 1 {
-		t.Fatalf("ReblockEval didn't insert eval into the blocked eval tracker: %#v", bStats)
-	}
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		bStats := s1.blockedEvals.Stats()
+		if bStats.TotalBlocked+bStats.TotalEscaped != 1 {
+			return fmt.Errorf(
+				"ReblockEval didn't insert eval into the blocked eval tracker: %#v", bStats)
+		}
+		return nil
+	}),
+		wait.Timeout(100*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
+	))
 
 	// Check that the eval was updated
 	ws := memdb.NewWatchSet()
@@ -813,7 +915,7 @@ func TestWorker_ReblockEval(t *testing.T) {
 
 	// Check that the snapshot index was set properly by unblocking the eval and
 	// then dequeuing.
-	s1.blockedEvals.Unblock("foobar", 1000)
+	<-s1.blockedEvals.Unblock("foobar", 1000)
 
 	reblockedEval, _, err := s1.evalBroker.Dequeue([]string{eval1.Type}, 1*time.Second)
 	if err != nil {

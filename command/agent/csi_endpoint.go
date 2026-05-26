@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -146,7 +146,7 @@ func (s *HTTPServer) csiVolumeRegister(resp http.ResponseWriter, req *http.Reque
 
 	setMeta(resp, &out.QueryMeta)
 
-	return nil, nil
+	return out, nil
 }
 
 func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

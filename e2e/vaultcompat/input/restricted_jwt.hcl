@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 job "restricted_jwt" {
@@ -8,7 +8,7 @@ job "restricted_jwt" {
   group "success" {
     vault {}
 
-    count = 2
+    count = 3
 
     // Task default_identity uses the default workload identity injected by the
     // server and the inherits the Vault configuration from the group.

@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2025
 # SPDX-License-Identifier: BUSL-1.1
 
 # jobspec for running CSI plugin for AWS EBS, derived from
@@ -6,7 +6,6 @@
 # https://github.com/kubernetes-sigs/aws-ebs-csi-driver/tree/master/deploy/kubernetes
 
 job "plugin-aws-ebs-nodes" {
-  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -22,7 +21,7 @@ job "plugin-aws-ebs-nodes" {
       driver = "docker"
 
       config {
-        image = "public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.33.0"
+        image = "public.ecr.aws/ebs-csi-driver/aws-ebs-csi-driver:v1.48.0"
 
         args = [
           "node",

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocdir
@@ -98,28 +98,28 @@ type TaskDir struct {
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func (d *AllocDir) newTaskDir(taskName string, secretsInMB int) *TaskDir {
-	taskDir := filepath.Join(d.AllocDir, taskName)
-	taskUnique := filepath.Base(d.AllocDir) + "-" + taskName
+func (a *AllocDir) newTaskDir(taskName string, secretsInMB int) *TaskDir {
+	taskDir := filepath.Join(a.AllocDir, taskName)
+	taskUnique := filepath.Base(a.AllocDir) + "-" + taskName
 
 	if secretsInMB == 0 {
 		secretsInMB = defaultSecretDirTmpfsSize
 	}
 
 	return &TaskDir{
-		AllocDir:         d.AllocDir,
+		AllocDir:         a.AllocDir,
 		Dir:              taskDir,
-		SharedAllocDir:   filepath.Join(d.AllocDir, SharedAllocName),
-		LogDir:           filepath.Join(d.AllocDir, SharedAllocName, LogDirName),
+		SharedAllocDir:   filepath.Join(a.AllocDir, SharedAllocName),
+		LogDir:           filepath.Join(a.AllocDir, SharedAllocName, LogDirName),
 		SharedTaskDir:    filepath.Join(taskDir, SharedAllocName),
 		LocalDir:         filepath.Join(taskDir, TaskLocal),
 		SecretsDir:       filepath.Join(taskDir, TaskSecrets),
 		PrivateDir:       filepath.Join(taskDir, TaskPrivate),
-		MountsAllocDir:   filepath.Join(d.clientAllocMountsDir, taskUnique, "alloc"),
-		MountsTaskDir:    filepath.Join(d.clientAllocMountsDir, taskUnique),
-		MountsSecretsDir: filepath.Join(d.clientAllocMountsDir, taskUnique, "secrets"),
-		skip:             set.From[string]([]string{d.clientAllocDir, d.clientAllocMountsDir}),
-		logger:           d.logger.Named("task_dir").With("task_name", taskName),
+		MountsAllocDir:   filepath.Join(a.clientAllocMountsDir, taskUnique, "alloc"),
+		MountsTaskDir:    filepath.Join(a.clientAllocMountsDir, taskUnique),
+		MountsSecretsDir: filepath.Join(a.clientAllocMountsDir, taskUnique, "secrets"),
+		skip:             set.From[string]([]string{a.clientAllocDir, a.clientAllocMountsDir}),
+		logger:           a.logger.Named("task_dir").With("task_name", taskName),
 		secretsInMB:      secretsInMB,
 	}
 }
@@ -153,9 +153,13 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 		// If the path doesn't exist OR it exists and is empty, link it
 		empty, _ := pathEmpty(t.SharedTaskDir)
 		if !pathExists(t.SharedTaskDir) || empty {
-			if err := linkDir(t.SharedAllocDir, t.SharedTaskDir); err != nil {
+			if err := linkDir(t.SharedAllocDir, t.SharedTaskDir, false); err != nil {
 				return fmt.Errorf("Failed to mount shared directory for task: %w", err)
 			}
+			if err := linkDir(t.LogDir, filepath.Join(t.SharedTaskDir, "logs"), true); err != nil {
+				return fmt.Errorf("Failed to mount shared directory for task: %w", err)
+			}
+
 		}
 	}
 
@@ -326,6 +330,12 @@ func (t *TaskDir) Unmount() error {
 
 	// Check if the directory has the shared alloc mounted.
 	if pathExists(t.SharedTaskDir) {
+		if err := unlinkDir(filepath.Join(t.SharedTaskDir, "logs")); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to unmount logs dir %q: %w",
+					filepath.Join(t.SharedTaskDir, "logs"), err))
+		}
+
 		if err := unlinkDir(t.SharedTaskDir); err != nil {
 			mErr = multierror.Append(mErr,
 				fmt.Errorf("failed to unmount shared alloc dir %q: %w", t.SharedTaskDir, err))

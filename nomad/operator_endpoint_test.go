@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -327,11 +327,8 @@ func (tc testcluster) anyFollowerRaftServerID() raft.ServerID {
 
 	var tgtID raft.ServerID
 
-	s1.peerLock.Lock()
-	defer s1.peerLock.Unlock()
-
 	// Find the first non-leader server in the list.
-	for _, sp := range s1.localPeers {
+	for _, sp := range s1.peersCache.LocalPeers() {
 		tgtID = raft.ServerID(sp.ID)
 		if tgtID != ldrID {
 			break
@@ -346,12 +343,9 @@ func (tc testcluster) anyFollowerRaftServerAddress() raft.ServerAddress {
 
 	var addr raft.ServerAddress
 
-	s1.peerLock.Lock()
-	defer s1.peerLock.Unlock()
-
 	// Find the first non-leader server in the list.
-	for a := range s1.localPeers {
-		addr = a
+	for _, a := range s1.peersCache.LocalPeers() {
+		addr = raft.ServerAddress(a.Addr.String())
 		if addr != lAddr {
 			break
 		}
@@ -557,13 +551,14 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	rpcCodec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Disable preemption and pause the eval broker.
+	// Disable preemption, pause the eval broker, and set a custom node limit.
 	arg := structs.SchedulerSetConfigRequest{
 		Config: structs.SchedulerConfiguration{
 			PreemptionConfig: structs.PreemptionConfig{
 				SystemSchedulerEnabled: false,
 			},
-			PauseEvalBroker: true,
+			PauseEvalBroker:               true,
+			NodeLimitForFeasibilityChecks: 200,
 		},
 	}
 	arg.Region = s1.config.Region
@@ -587,6 +582,7 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	require.NotZero(t, reply.Index)
 	require.False(t, reply.SchedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	require.True(t, reply.SchedulerConfig.PauseEvalBroker)
+	require.Equal(t, uint(200), reply.SchedulerConfig.GetNodeLimitForFeasibilityChecks())
 
 	require.False(t, s1.evalBroker.Enabled())
 	require.False(t, s1.blockedEvals.Enabled())
@@ -812,6 +808,9 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 
 	deniedToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
+	snapshotSavePolicy := `operator { capabilities = ["snapshot-save"] }`
+	snapshotSaveToken := mock.CreatePolicyAndToken(t, s.fsm.State(), 1002, "test-snapshot-save", snapshotSavePolicy)
+
 	/////////  Actually run query now
 	cases := []struct {
 		name    string
@@ -820,6 +819,7 @@ func TestOperator_SnapshotSave_ACL(t *testing.T) {
 		err     error
 	}{
 		{"root", root.SecretID, 0, nil},
+		{"snapshot_save_capability", snapshotSaveToken.SecretID, 0, nil},
 		{"no_permission_token", deniedToken.SecretID, 403, structs.ErrPermissionDenied},
 		{"invalid token", uuid.Generate(), 403, structs.ErrPermissionDenied},
 		{"unauthenticated", "", 403, structs.ErrPermissionDenied},

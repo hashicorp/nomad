@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -17,6 +17,7 @@ export default () => ({
 
   plan: clickable('[data-test-plan]'),
   cancel: clickable('[data-test-cancel]'),
+  runIsPresent: isPresent('[data-test-run]'),
   run: clickable('[data-test-run]'),
 
   cancelEditing: clickable('[data-test-cancel-editing]'),

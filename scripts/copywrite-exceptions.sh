@@ -1,14 +1,10 @@
 #!/bin/sh
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
 
-# Used as a stopgap for copywrite bot in MPL-licensed subdirs, detects BUSL licensed
-# headers and deletes them, then runs the copywrite bot to utilize local subdir config
-# to inject correct headers.
+# Patches up MPL-licensed subdirs by replacing the BUSL-license headers for MPL
+# headers.
 
-find . -type f -name '*.go' | while read line; do
-  if grep "SPDX-License-Identifier: BUSL-1.1" $line; then
-    sed -i '/SPDX-License-Identifier: BUSL-1.1/d' $line
-    sed -i '/Copyright (c) HashiCorp, Inc./d' $line
-  fi
-done
-
-copywrite headers --plan
+find . \
+     -type f \( -name "*.go" -o -name "*.proto" \) \
+     -exec sed -i '0,/BUSL-1.1/s//MPL-2.0/' {} \;

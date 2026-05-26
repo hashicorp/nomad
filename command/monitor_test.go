@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -21,7 +20,7 @@ import (
 func TestMonitor_Update_Eval(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, nil, fullId)
+	mon := newMonitor(Meta{Ui: ui}, nil, fullId)
 
 	// Evals triggered by jobs log
 	state := &evalState{
@@ -75,7 +74,7 @@ func TestMonitor_Update_Eval(t *testing.T) {
 func TestMonitor_Update_Allocs(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, nil, fullId)
+	mon := newMonitor(Meta{Ui: ui}, nil, fullId)
 
 	// New allocations write new logs
 	state := &evalState{
@@ -146,7 +145,7 @@ func TestMonitor_Update_Allocs(t *testing.T) {
 func TestMonitor_Update_AllocModification(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, nil, fullId)
+	mon := newMonitor(Meta{Ui: ui}, nil, fullId)
 
 	// New allocs with a create index lower than the
 	// eval create index are logged as modifications
@@ -186,7 +185,7 @@ func TestMonitor_Monitor(t *testing.T) {
 
 	// Create the monitor
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, client, fullId)
+	mon := newMonitor(Meta{Ui: ui}, client, fullId)
 
 	// Submit a job - this creates a new evaluation we can monitor
 	job := testJob("job1")
@@ -233,12 +232,12 @@ func TestMonitor_MonitorBlockedEval(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	mon := newMonitor(ui, client, fullId)
+	mon := newMonitor(Meta{Ui: ui}, client, fullId)
 
 	// Submit a service job.
 	// Since there are no clients this will create a blocked eval.
 	job := testJob("job1")
-	job.Type = pointer.Of("service")
+	job.Type = new("service")
 	job.TaskGroups[0].Tasks[0].Config["run_for"] = "300s"
 
 	resp, _, err := client.Jobs().Register(job, nil)
@@ -377,7 +376,7 @@ node-3  0        0        0        4        3
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			got := formatAllocMetrics(tc.Metrics, true, "")
+			got := formatAllocMetrics(tc.Metrics, nil, true, "")
 			must.Eq(t, strings.TrimSpace(tc.Expected), got)
 		})
 	}

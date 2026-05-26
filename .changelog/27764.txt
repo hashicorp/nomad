@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Add "latest" flag for tagging the latest version of a job
+```

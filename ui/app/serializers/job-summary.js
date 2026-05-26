@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -25,7 +25,7 @@ export default class JobSummary extends ApplicationSerializer {
         const summary = { Name: key };
 
         Object.keys(allocStats).forEach(
-          (allocKey) => (summary[`${allocKey}Allocs`] = allocStats[allocKey])
+          (allocKey) => (summary[`${allocKey}Allocs`] = allocStats[allocKey]),
         );
 
         return summary;
@@ -36,7 +36,7 @@ export default class JobSummary extends ApplicationSerializer {
     if (childrenStats) {
       Object.keys(childrenStats).forEach(
         (childrenKey) =>
-          (hash[`${childrenKey}Children`] = childrenStats[childrenKey])
+          (hash[`${childrenKey}Children`] = childrenStats[childrenKey]),
       );
     }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -25,7 +25,7 @@ class NodeStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
 
   @computed('node.id')
   get url() {
-    return `/v1/client/stats?node_id=${this.get('node.id')}`;
+    return `/v1/client/stats?node_id=${this.node.id}`;
   }
 
   append(frame) {

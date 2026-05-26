@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -26,7 +26,7 @@ var (
 	taskEnvDefault = taskenv.NewTaskEnv(nil, nil, nil, map[string]string{
 		"meta.connect.sidecar_image": envoy.ImageFormat,
 		"meta.connect.gateway_image": envoy.ImageFormat,
-	}, "", "")
+	}, nil, "", "")
 )
 
 func TestEnvoyVersionHook_semver(t *testing.T) {
@@ -46,7 +46,7 @@ func TestEnvoyVersionHook_semver(t *testing.T) {
 
 	t.Run("unexpected", func(t *testing.T) {
 		_, err := semver("foo")
-		must.ErrorContains(t, err, "unexpected envoy version format: Malformed version: foo")
+		must.ErrorContains(t, err, "unexpected envoy version format: malformed version: foo")
 	})
 }
 
@@ -89,7 +89,7 @@ func TestEnvoyVersionHook_tweakImage(t *testing.T) {
 		_, err := (*envoyVersionHook)(nil).tweakImage(image, map[string][]string{
 			"envoy": {"foo", "bar", "baz"},
 		})
-		must.ErrorContains(t, err, "unexpected envoy version format: Malformed version: foo")
+		must.ErrorContains(t, err, "unexpected envoy version format: malformed version: foo")
 	})
 
 	t.Run("standard envoy", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 			"MY_ENVOY": "my/envoy",
 		}, map[string]string{
 			"MY_ENVOY": "my/envoy",
-		}, nil, nil, "", ""))
+		}, nil, nil, nil, "", ""))
 		must.Eq(t, "my/envoy", task.Config["image"])
 	})
 

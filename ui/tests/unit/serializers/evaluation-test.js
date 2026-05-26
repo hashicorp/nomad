@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -116,7 +116,7 @@ module('Unit | Serializer | Evaluation', function (hooks) {
     test(`normalization: ${testCase.name}`, async function (assert) {
       assert.deepEqual(
         this.subject().normalize(EvaluationModel, testCase.in),
-        testCase.out
+        testCase.out,
       );
     });
   });

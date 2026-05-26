@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -16,16 +16,18 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/ioutils"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/command/agent/host"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/serf/serf"
+	"github.com/moby/moby/v2/pkg/ioutils"
 )
 
 type Member struct {
@@ -211,6 +213,103 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.Monitor")
+
+	return nil, codedErr
+}
+
+func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Process and validate arguments
+	onDisk := false
+	onDiskBool, err := parseBool(req, "on_disk")
+	if err != nil {
+		return nil, CodedError(400, fmt.Sprintf("Unknown value for on-disk: %v", err))
+	}
+	if onDiskBool != nil {
+		onDisk = *onDiskBool
+	}
+
+	follow := false
+	followBool, err := parseBool(req, "follow")
+	if err != nil {
+		return nil, CodedError(400, fmt.Sprintf("Unknown value for follow: %v", err))
+	}
+	if followBool != nil {
+		follow = *followBool
+	}
+
+	plainText := false
+	plainTextBool, err := parseBool(req, "plain")
+	if err != nil {
+		return nil, CodedError(400, fmt.Sprintf("Unknown value for plain: %v", err))
+	}
+	if plainTextBool != nil {
+		plainText = *plainTextBool
+	}
+
+	logsSince := "72h" //default value
+	logsSinceStr := req.URL.Query().Get("logs_since")
+	if logsSinceStr != "" {
+		_, err := time.ParseDuration(logsSinceStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown value for logs-since: %v", err))
+		}
+		logsSince = logsSinceStr
+	}
+
+	serviceName := req.URL.Query().Get("service_name")
+
+	nodeID := req.URL.Query().Get("node_id")
+	serverID := req.URL.Query().Get("server_id")
+
+	if nodeID != "" && serverID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
+	}
+
+	if onDisk && serviceName != "" {
+		return nil, CodedError(400, "Cannot target journald and nomad log file simultaneously")
+	}
+
+	if !onDisk && serviceName == "" {
+		return nil, CodedError(400, "Either -service-name or -on-disk must be set")
+	}
+	if onDisk && follow {
+		return nil, CodedError(400, "Cannot follow log file")
+	}
+
+	if serviceName != "" {
+		if err := monitor.ScanServiceName(serviceName); err != nil {
+			return nil, CodedError(422, err.Error())
+		}
+	}
+
+	// Build the request and parse the ACL token
+	args := cstructs.MonitorExportRequest{
+		NodeID:      nodeID,
+		ServerID:    serverID,
+		LogsSince:   logsSince,
+		ServiceName: serviceName,
+		OnDisk:      onDisk,
+		Follow:      follow,
+		PlainText:   plainText,
+	}
+
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	if plainText {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
+	}
+
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+	codedErr := s.streamMonitor(resp, req, args, nodeID, "Agent.MonitorExport")
+
+	return nil, codedErr
+}
+
+func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
+	args any, nodeID string, endpoint string) error {
 
 	// Make the RPC
 	var handler structs.StreamingRpcHandler
@@ -219,24 +318,25 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		// Determine the handler to use
 		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
 		if useLocalClient {
-			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler(endpoint)
 		} else if useClientRPC {
-			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.Monitor")
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler(endpoint)
 		} else if useServerRPC {
-			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Monitor")
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler(endpoint)
 		} else {
-			handlerErr = CodedError(400, "No local Node and node_id not provided")
+			handlerErr = CodedError(400, "No local Node")
 		}
 		// No node id monitor current server/client
 	} else if srv := s.agent.Server(); srv != nil {
-		handler, handlerErr = srv.StreamingRpcHandler("Agent.Monitor")
+		handler, handlerErr = srv.StreamingRpcHandler(endpoint)
 	} else {
-		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Monitor")
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler(endpoint)
 	}
 
 	if handlerErr != nil {
-		return nil, CodedError(500, handlerErr.Error())
+		return CodedError(500, handlerErr.Error())
 	}
+
 	httpPipe, handlerPipe := net.Pipe()
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
@@ -256,7 +356,6 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	// stream response
 	go func() {
 		defer cancel()
-
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
 			errCh <- CodedError(500, err.Error())
@@ -293,7 +392,8 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	}()
 
 	handler(handlerPipe)
-	cancel()
+	cancel() //this seems like it should be wrong to me but removing it didn't
+	// affect either truncation or short returns
 	codedErr := <-errCh
 
 	if codedErr != nil &&
@@ -302,7 +402,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 			strings.Contains(codedErr.Error(), "EOF")) {
 		codedErr = nil
 	}
-	return nil, codedErr
+	return codedErr
 }
 
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -318,10 +418,8 @@ func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
 		return nil, err
-	} else if !aclObj.AllowAgentWrite() {
-		return nil, structs.ErrPermissionDenied
 	}
 
 	// Get the node to eject
@@ -508,10 +606,8 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := srv.ResolveToken(secret); err != nil {
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
 		return nil, err
-	} else if !aclObj.AllowAgentWrite() {
-		return nil, structs.ErrPermissionDenied
 	}
 
 	kmgr := srv.KeyManager()
@@ -758,10 +854,8 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if !aclObj.AllowAgentRead() {
-		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
+		return nil, err
 	}
 
 	schedulersInfo := srv.GetSchedulerWorkersInfo()
@@ -812,10 +906,8 @@ func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	s.parseToken(req, &secret)
 
 	// Check agent read permissions
-	if aclObj, err := s.agent.Server().ResolveToken(secret); err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if !aclObj.AllowAgentRead() {
-		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentRead() }); err != nil {
+		return nil, err
 	}
 
 	config := srv.GetSchedulerWorkerConfig()
@@ -838,10 +930,8 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	s.parseToken(req, &secret)
 
 	// Check agent write permissions
-	if aclObj, err := srv.ResolveToken(secret); err != nil {
-		return nil, CodedError(http.StatusInternalServerError, err.Error())
-	} else if !aclObj.AllowAgentWrite() {
-		return nil, CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
+		return nil, err
 	}
 
 	var args api.AgentSchedulerWorkerConfigRequest
@@ -867,4 +957,24 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	}
 
 	return response, nil
+}
+
+// aclPermissionCheckHelper takes a token string and checks it with Authenticate
+// and ResolveACL methods. If the token doesn't satisfy perm function, an error
+// is returned.
+func aclPermissionCheckHelper(srv *nomad.Server, secret string, perm func(acl *acl.ACL) bool) error {
+	r := &structs.GenericRequest{}
+	r.AuthToken = secret
+	if authErr := srv.Authenticate(nil, r); authErr != nil {
+		return CodedError(http.StatusForbidden, authErr.Error())
+	}
+
+	aclObj, err := srv.ResolveACL(r)
+	if err != nil {
+		return CodedError(http.StatusInternalServerError, err.Error())
+	} else if !perm(aclObj) {
+		return CodedError(http.StatusForbidden, structs.ErrPermissionDenied.Error())
+	}
+
+	return nil
 }

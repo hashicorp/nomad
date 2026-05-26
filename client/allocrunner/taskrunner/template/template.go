@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package template
@@ -18,14 +18,15 @@ import (
 
 	ctconf "github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/consul-template/manager"
+	"github.com/hashicorp/consul-template/renderer"
 	"github.com/hashicorp/consul-template/signals"
 	envparse "github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -132,6 +133,11 @@ type TaskTemplateManagerConfig struct {
 	TaskID string
 
 	Logger hclog.Logger
+
+	// RenderFunc allows custom rendering of templated data, and overrides the
+	// Nomad custom RenderFunc used for sandboxing. This is currently used by
+	// the secrets block to hold all templated data in memory.
+	RenderFunc renderer.Renderer
 }
 
 // Validate validates the configuration.
@@ -154,7 +160,22 @@ func (c *TaskTemplateManagerConfig) Validate() error {
 		return fmt.Errorf("Invalid max template event rate given")
 	}
 
+	// Once is a runner config, but in Nomad it is set per template, so all
+	// templates given to a runner should have the same value for Once.
+	var once bool
+	for i, t := range c.Templates {
+		if i == 0 {
+			once = t.Once
+		} else if t.Once != once {
+			return fmt.Errorf("All templates should have same Once value")
+		}
+	}
+
 	return nil
+}
+
+func (c *TaskTemplateManagerConfig) OnceModeEnabled() bool {
+	return len(c.Templates) > 0 && c.Templates[0].Once
 }
 
 func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
@@ -194,7 +215,6 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 	tm.runner = runner
 	tm.lookup = lookup
 
-	go tm.run()
 	return tm, nil
 }
 
@@ -216,8 +236,8 @@ func (tm *TaskTemplateManager) Stop() {
 	}
 }
 
-// run is the long lived loop that handles errors and templates being rendered
-func (tm *TaskTemplateManager) run() {
+// Run is the long lived loop that handles errors and templates being rendered
+func (tm *TaskTemplateManager) Run() {
 	// Runner is nil if there are no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
@@ -256,13 +276,12 @@ func (tm *TaskTemplateManager) run() {
 	// Unblock the task
 	close(tm.config.UnblockCh)
 
-	// If all our templates are change mode no-op, then we can exit here
-	if tm.allTemplatesNoop() {
-		return
-	}
-
 	// handle all subsequent render events.
 	tm.handleTemplateRerenders(time.Now())
+}
+
+func (tm *TaskTemplateManager) Templates() []*structs.Template {
+	return tm.config.Templates
 }
 
 // handleFirstRender blocks till all templates have been rendered
@@ -411,6 +430,8 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 		select {
 		case <-tm.shutdownCh:
 			return
+		case <-tm.runner.DoneCh:
+			return
 		case err, ok := <-tm.runner.ErrCh:
 			if !ok {
 				continue
@@ -533,6 +554,17 @@ func (tm *TaskTemplateManager) handleChangeModeSignal(signals map[string]struct{
 		s := tm.signals[signal]
 		event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
 		if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
+			// If the task is not running (e.g. it is mid-restart) do not
+			// permanently fail the allocation. When the task comes back up it
+			// will already have the latest rendered template data.
+			if errors.Is(err, te.ErrTaskNotRunning) {
+				tm.config.Events.EmitEvent(
+					structs.NewTaskEvent(structs.TaskHookMessage).
+						SetDisplayMessage(fmt.Sprintf(
+							"Template skipped signal %v: task is not running", s)),
+				)
+				continue
+			}
 			_ = multierror.Append(&mErr, err)
 		}
 	}
@@ -725,7 +757,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 
 			ct.Wait = &ctconf.WaitConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 				Min:     tmpl.Wait.Min,
 				Max:     tmpl.Wait.Max,
 			}
@@ -843,7 +875,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
 			verify := config.ConsulConfig.VerifySSL != nil && *config.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 				Verify:  &verify,
 				Cert:    &config.ConsulConfig.CertFile,
 				Key:     &config.ConsulConfig.KeyFile,
@@ -858,7 +890,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 
 			conf.Consul.Auth = &ctconf.AuthConfig{
-				Enabled:  pointer.Of(true),
+				Enabled:  new(true),
 				Username: &parts[0],
 				Password: &parts[1],
 			}
@@ -887,7 +919,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up the Vault config
 	// Always set these to ensure nothing is picked up from the environment
 	emptyStr := ""
-	conf.Vault.RenewToken = pointer.Of(false)
+	conf.Vault.RenewToken = new(false)
 	conf.Vault.Token = &emptyStr
 	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &config.VaultConfig.Addr
@@ -906,7 +938,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    pointer.Of(true),
+				Enabled:    new(true),
 				Verify:     &verify,
 				Cert:       &config.VaultConfig.TLSCertFile,
 				Key:        &config.VaultConfig.TLSKeyFile,
@@ -916,8 +948,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    pointer.Of(false),
-				Verify:     pointer.Of(false),
+				Enabled:    new(false),
+				Verify:     new(false),
 				Cert:       &emptyStr,
 				Key:        &emptyStr,
 				CaCert:     &emptyStr,
@@ -955,10 +987,16 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		}
 	}
 
+	conf.Once = config.OnceModeEnabled()
+
 	sandboxEnabled := isSandboxEnabled(config)
 	sandboxDir := filepath.Dir(config.TaskDir) // alloc working directory
 	conf.ReaderFunc = ReaderFn(config.TaskID, sandboxDir, sandboxEnabled)
-	conf.RendererFunc = RenderFn(config.TaskID, sandboxDir, sandboxEnabled)
+	if config.RenderFunc != nil {
+		conf.RendererFunc = config.RenderFunc
+	} else {
+		conf.RendererFunc = RenderFn(config.TaskID, sandboxDir, sandboxEnabled)
+	}
 	conf.Finalize()
 	return conf, nil
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build linux
@@ -22,11 +22,14 @@ const (
 
 // linkDir bind mounts src to dst as Linux doesn't support hardlinking
 // directories.
-func linkDir(src, dst string) error {
+func linkDir(src, dst string, ro bool) error {
 	if err := os.MkdirAll(dst, fileMode777); err != nil {
 		return err
 	}
 
+	if ro {
+		return syscall.Mount(src, dst, "", syscall.MS_BIND|syscall.MS_RDONLY, "")
+	}
 	return syscall.Mount(src, dst, "", syscall.MS_BIND, "")
 }
 

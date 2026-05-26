@@ -1,13 +1,11 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
 
 import (
-	"encoding/binary"
 	"fmt"
 	"maps"
-	"math/rand"
 	"slices"
 
 	log "github.com/hashicorp/go-hclog"
@@ -15,39 +13,14 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
+	"github.com/hashicorp/nomad/scheduler/reconciler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
-
-// allocTuple is a tuple of the allocation name and potential alloc ID
-type allocTuple struct {
-	Name      string
-	TaskGroup *structs.TaskGroup
-	Alloc     *structs.Allocation
-}
-
-// diffResult is used to return the sets that result from the diff
-type diffResult struct {
-	place, update, migrate, stop, ignore, lost, disconnecting, reconnecting []allocTuple
-}
-
-func (d *diffResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d) (lost %d) (disconnecting %d) (reconnecting %d)",
-		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore), len(d.lost), len(d.disconnecting), len(d.reconnecting))
-}
-
-func (d *diffResult) Append(other *diffResult) {
-	d.place = append(d.place, other.place...)
-	d.update = append(d.update, other.update...)
-	d.migrate = append(d.migrate, other.migrate...)
-	d.stop = append(d.stop, other.stop...)
-	d.ignore = append(d.ignore, other.ignore...)
-	d.lost = append(d.lost, other.lost...)
-	d.disconnecting = append(d.disconnecting, other.disconnecting...)
-	d.reconnecting = append(d.reconnecting, other.reconnecting...)
-}
 
 // readyNodesInDCsAndPool returns all the ready nodes in the given datacenters
 // and pool, and a mapping of each data center to the count of ready nodes.
-func readyNodesInDCsAndPool(state State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
+func readyNodesInDCsAndPool(state sstructs.State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
 	// Index the DCs
 	dcMap := make(map[string]int)
 
@@ -127,7 +100,7 @@ func progressMade(result *structs.PlanResult) bool {
 // underlying nodes are tainted, and should force a migration of the allocation,
 // or if the underlying nodes are disconnected, and should be used to calculate
 // the reconnect timeout of its allocations. All the nodes returned in the map are tainted.
-func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*structs.Node, error) {
+func taintedNodes(state sstructs.State, allocs []*structs.Allocation) (map[string]*structs.Node, error) {
 	out := make(map[string]*structs.Node)
 	for _, alloc := range allocs {
 		if _, ok := out[alloc.NodeID]; ok {
@@ -158,29 +131,6 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 	}
 
 	return out, nil
-}
-
-// shuffleNodes randomizes the slice order with the Fisher-Yates
-// algorithm. We seed the random source with the eval ID (which is
-// random) to aid in postmortem debugging of specific evaluations and
-// state snapshots.
-func shuffleNodes(plan *structs.Plan, index uint64, nodes []*structs.Node) {
-
-	// use the last 4 bytes because those are the random bits
-	// if we have sortable IDs
-	buf := []byte(plan.EvalID)
-	seed := binary.BigEndian.Uint64(buf[len(buf)-8:])
-
-	// for retried plans the index is the plan result's RefreshIndex
-	// so that we don't retry with the exact same shuffle
-	seed ^= index
-	r := rand.New(rand.NewSource(int64(seed >> 2)))
-
-	n := len(nodes)
-	for i := n - 1; i > 0; i-- {
-		j := r.Intn(i + 1)
-		nodes[i], nodes[j] = nodes[j], nodes[i]
-	}
 }
 
 // comparison records the _first_ detected difference between two groups during
@@ -279,6 +229,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		}
 		if !at.Vault.Equal(bt.Vault) {
 			return difference("task vault", at.Vault, bt.Vault)
+		}
+		if !slices.EqualFunc(at.Secrets, bt.Secrets, func(a, b *structs.Secret) bool { return a.Equal(b) }) {
+			return difference("task secrets", at.Secrets, bt.Secrets)
 		}
 		if c := consulUpdated(at.Consul, bt.Consul); c.modified {
 			return c
@@ -588,9 +541,11 @@ func renderTemplatesUpdated(a, b *structs.RestartPolicy, msg string) comparison 
 }
 
 // setStatus is used to update the status of the evaluation
-func setStatus(logger log.Logger, planner Planner,
-	eval, nextEval, spawnedBlocked *structs.Evaluation,
-	tgMetrics map[string]*structs.AllocMetric, status, desc string,
+func setStatus(logger log.Logger, planner sstructs.Planner,
+	eval, spawnedBlocked *structs.Evaluation,
+	tgMetrics map[string]*structs.AllocMetric,
+	annotations *structs.PlanAnnotations,
+	status, desc string,
 	queuedAllocs map[string]int, deploymentID string) error {
 
 	logger.Debug("setting eval status", "status", status)
@@ -599,23 +554,22 @@ func setStatus(logger log.Logger, planner Planner,
 	newEval.StatusDescription = desc
 	newEval.DeploymentID = deploymentID
 	newEval.FailedTGAllocs = tgMetrics
-	if nextEval != nil {
-		newEval.NextEval = nextEval.ID
-	}
+
 	if spawnedBlocked != nil {
 		newEval.BlockedEval = spawnedBlocked.ID
 	}
 	if queuedAllocs != nil {
 		newEval.QueuedAllocations = queuedAllocs
 	}
+	newEval.PlanAnnotations = annotations
 
 	return planner.UpdateEval(newEval)
 }
 
 // inplaceUpdate attempts to update allocations in-place where possible. It
 // returns the allocs that couldn't be done inplace and then those that could.
-func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
-	stack Stack, updates []allocTuple) (destructive, inplace []allocTuple) {
+func inplaceUpdate(ctx feasible.Context, eval *structs.Evaluation, job *structs.Job,
+	stack feasible.Stack, updates []reconciler.AllocTuple, dID string) (destructive, inplace []reconciler.AllocTuple) {
 
 	// doInplace manipulates the updates map to make the current allocation
 	// an inplace update.
@@ -675,11 +629,11 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "", "")
+		ctx.Plan().AppendStoppedAlloc(update.Alloc, sstructs.StatusAllocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup,
-			&SelectOptions{AllocName: update.Alloc.Name})
+			&feasible.SelectOptions{AllocName: update.Alloc.Name})
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(update.Alloc)
@@ -728,6 +682,12 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 			},
 		}
 		newAlloc.Metrics = ctx.Metrics()
+
+		// Update the deployment ID for the alloc and remove
+		// any preexisting deployment status
+		newAlloc.DeploymentID = dID
+		newAlloc.DeploymentStatus = nil
+
 		ctx.Plan().AppendAlloc(newAlloc, nil)
 
 		// Remove this allocation from the slice
@@ -735,7 +695,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 	}
 
 	if len(updates) > 0 {
-		ctx.Logger().Debug("made in-place updates", "in-place", inplaceCount, "total_updates", len(updates))
+		ctx.Logger().Debug("made updates", "in-place", inplaceCount, "total_updates", len(updates))
 	}
 	return updates[:n], updates[n:]
 }
@@ -743,22 +703,12 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 // desiredUpdates takes the diffResult as well as the set of inplace and
 // destructive updates and returns a map of task groups to their set of desired
 // updates.
-func desiredUpdates(diff *diffResult, inplaceUpdates,
-	destructiveUpdates []allocTuple) map[string]*structs.DesiredUpdates {
+func desiredUpdates(diff *reconciler.NodeReconcileResult, inplaceUpdates,
+	destructiveUpdates []reconciler.AllocTuple) map[string]*structs.DesiredUpdates {
 	desiredTgs := make(map[string]*structs.DesiredUpdates)
 
-	for _, tuple := range diff.place {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.Place++
-	}
-
-	for _, tuple := range diff.stop {
+	// diff.Stop may have a nil TaskGroup
+	for _, tuple := range diff.Stop {
 		name := tuple.Alloc.TaskGroup
 		des, ok := desiredTgs[name]
 		if !ok {
@@ -769,49 +719,26 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 		des.Stop++
 	}
 
-	for _, tuple := range diff.ignore {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
+	incUpdates := func(tuples []reconciler.AllocTuple, fn func(des *structs.DesiredUpdates)) {
+		for _, tuple := range tuples {
+			name := tuple.TaskGroup.Name
+			des, ok := desiredTgs[name]
+			if !ok {
+				des = &structs.DesiredUpdates{}
+				desiredTgs[name] = des
+			}
 
-		des.Ignore++
+			fn(des)
+		}
 	}
 
-	for _, tuple := range diff.migrate {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.Migrate++
-	}
-
-	for _, tuple := range inplaceUpdates {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.InPlaceUpdate++
-	}
-
-	for _, tuple := range destructiveUpdates {
-		name := tuple.TaskGroup.Name
-		des, ok := desiredTgs[name]
-		if !ok {
-			des = &structs.DesiredUpdates{}
-			desiredTgs[name] = des
-		}
-
-		des.DestructiveUpdate++
-	}
+	incUpdates(diff.Place, func(des *structs.DesiredUpdates) { des.Place++ })
+	incUpdates(diff.Ignore, func(des *structs.DesiredUpdates) { des.Ignore++ })
+	incUpdates(diff.Migrate, func(des *structs.DesiredUpdates) { des.Migrate++ })
+	incUpdates(inplaceUpdates, func(des *structs.DesiredUpdates) { des.InPlaceUpdate++ })
+	incUpdates(destructiveUpdates, func(des *structs.DesiredUpdates) { des.DestructiveUpdate++ })
+	incUpdates(diff.Disconnecting, func(des *structs.DesiredUpdates) { des.Disconnect++ })
+	incUpdates(diff.Reconnecting, func(des *structs.DesiredUpdates) { des.Reconnect++ })
 
 	return desiredTgs
 }
@@ -864,7 +791,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
-			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost, "")
+			plan.AppendStoppedAlloc(alloc, sstructs.StatusAllocLost, structs.AllocClientStatusLost, "")
 		}
 	}
 }
@@ -875,7 +802,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 // by the reconciler to make decisions about how to update an allocation. The
 // factory allows the reconciler to be unaware of how to determine the type of
 // update necessary and can minimize the set of objects it is exposed to.
-func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
+func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID string) reconciler.AllocUpdateType {
 	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
 		// Same index, so nothing to do
 		if existing.Job.JobModifyIndex == newJob.JobModifyIndex {
@@ -915,6 +842,22 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			return false, true, nil
 		}
 
+		// max_run_duration-only updates. This field does not affect placement
+		// or allocated resources, so we can update the alloc in place without
+		// re-running feasibility.
+		if existingTG := existing.Job.LookupTaskGroup(newTG.Name); existingTG != nil {
+			oldMax, oldOK := existing.MaxRunDuration()
+			newAlloc := existing.Copy()
+			newAlloc.EvalID = evalID
+			newAlloc.Job = nil
+			newAlloc.Resources = nil
+
+			newMax, newOK := newAlloc.MaxRunDuration()
+			if oldOK != newOK || oldMax != newMax {
+				return false, false, newAlloc
+			}
+		}
+
 		// Set the existing node as the base set
 		stack.SetNodes([]*structs.Node{node})
 
@@ -922,10 +865,10 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "", "")
+		ctx.Plan().AppendStoppedAlloc(existing, sstructs.StatusAllocInPlace, "", "")
 
 		// Attempt to match the task group
-		option := stack.Select(newTG, &SelectOptions{AllocName: existing.Name})
+		option := stack.Select(newTG, &feasible.SelectOptions{AllocName: existing.Name})
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(existing)
@@ -994,4 +937,29 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		newAlloc.Metrics = existing.Metrics.Copy()
 		return false, false, newAlloc
 	}
+}
+
+// mergeNodeFiltered merges allocation metrics for task group
+func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
+	if acc == nil {
+		return curr.Copy()
+	}
+
+	acc.NodesEvaluated += curr.NodesEvaluated
+	acc.NodesFiltered += curr.NodesFiltered
+
+	if acc.ClassFiltered == nil {
+		acc.ClassFiltered = make(map[string]int)
+	}
+	for k, v := range curr.ClassFiltered {
+		acc.ClassFiltered[k] += v
+	}
+	if acc.ConstraintFiltered == nil {
+		acc.ConstraintFiltered = make(map[string]int)
+	}
+	for k, v := range curr.ConstraintFiltered {
+		acc.ConstraintFiltered[k] += v
+	}
+	acc.AllocationTime += curr.AllocationTime
+	return acc
 }

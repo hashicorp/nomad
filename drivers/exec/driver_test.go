@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package exec
@@ -158,7 +158,7 @@ func TestExecDriver_WorkDir(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	must.NoError(t, os.WriteFile(filepath.Join(task.TaskDir().Dir, allocdir.TaskLocal, "foo.txt"), []byte("foo"), 660))
+	must.NoError(t, os.WriteFile(filepath.Join(task.TaskDir().Dir, allocdir.TaskLocal, "foo.txt"), []byte("foo"), 0660))
 
 	handle, _, err := harness.StartTask(task)
 	must.NoError(t, err)

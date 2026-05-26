@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -95,7 +95,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	job := registerMockJob(s, t, jobID, 0)
 
 	variable := mock.VariableEncrypted()
-	resp := store.VarSet(1001, &structs.VarApplyStateRequest{
+	resp := store.VarSet(structs.VarApplyStateRequestType, 1001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: variable,
 	})
@@ -109,7 +109,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 
 	disallowedVariable := mock.VariableEncrypted()
 	disallowedVariable.Namespace = "not-allowed"
-	resp = store.VarSet(2001, &structs.VarApplyStateRequest{
+	resp = store.VarSet(structs.VarApplyStateRequestType, 2001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: disallowedVariable,
 	})
@@ -460,7 +460,8 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertJobSummary(998, summary))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}))
 
 	prefix := alloc.ID[:len(alloc.ID)-2]
@@ -497,7 +498,8 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertJobSummary(998, summary))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	node := mock.Node()
@@ -1308,7 +1310,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 
 	variable := mock.VariableEncrypted()
 	variable.Path = "test-path/o"
-	resp := store.VarSet(1001, &structs.VarApplyStateRequest{
+	resp := store.VarSet(structs.VarApplyStateRequestType, 1001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: variable,
 	})
@@ -1323,7 +1325,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 
 	disallowedVariable := mock.VariableEncrypted()
 	disallowedVariable.Namespace = "not-allowed"
-	resp = store.VarSet(2001, &structs.VarApplyStateRequest{
+	resp = store.VarSet(structs.VarApplyStateRequestType, 2001, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: disallowedVariable,
 	})
@@ -1627,7 +1629,8 @@ func TestSearch_FuzzySearch_Allocation(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertJobSummary(998, summary))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}))
 
 	req := &structs.FuzzySearchRequest{

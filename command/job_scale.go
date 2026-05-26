@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -128,7 +127,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := j.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := j.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		j.Ui.Error(err.Error())
 		return 1
@@ -154,7 +153,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 	// Perform the scaling action.
 	w := &api.WriteOptions{Namespace: namespace}
 	req := &api.ScalingRequest{
-		Count: pointer.Of(int64(count)),
+		Count: new(int64(count)),
 		Target: map[string]string{
 			"Job":   jobID,
 			"Group": groupString,
@@ -216,7 +215,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 	}
 
 	// Detach was not specified, so start monitoring.
-	mon := newMonitor(j.Ui, client, length)
+	mon := newMonitor(j.Meta, client, length)
 	return mon.monitor(resp.EvalID)
 }
 

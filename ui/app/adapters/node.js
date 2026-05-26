@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -20,7 +20,7 @@ export default class NodeAdapter extends Watchable {
   setEligibility(node, isEligible) {
     const url = addToPath(
       this.urlForFindRecord(node.id, 'node'),
-      '/eligibility'
+      '/eligibility',
     );
     return this.ajax(url, 'POST', {
       data: {
@@ -42,7 +42,7 @@ export default class NodeAdapter extends Watchable {
             Deadline: 0,
             IgnoreSystemJobs: true,
           },
-          drainSpec
+          drainSpec,
         ),
       },
     });
@@ -53,7 +53,7 @@ export default class NodeAdapter extends Watchable {
       node,
       Object.assign({}, drainSpec, {
         Deadline: -1,
-      })
+      }),
     );
   }
 

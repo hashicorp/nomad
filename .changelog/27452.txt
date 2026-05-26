@@ -1,0 +1,3 @@
+```release-note:improvement
+fingerprint: Added support for reloading the cpu, memory, network, CNI plugin, and cloud provider fingerprints without restarting the client agent
+```

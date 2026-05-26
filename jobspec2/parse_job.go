@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package jobspec2
@@ -52,6 +52,12 @@ func normalizeJob(jc *jobConfig) {
 
 			if t.Vault == nil {
 				t.Vault = jc.Vault
+			}
+
+			if len(t.Secrets) == 0 {
+				t.Secrets = jc.Secrets
+			} else {
+				t.Secrets = append(t.Secrets, jc.Secrets...)
 			}
 
 			//COMPAT To preserve compatibility with pre-1.7 agents, move the default

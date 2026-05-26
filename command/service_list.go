@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -57,6 +57,7 @@ func (s *ServiceListCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-json": complete.PredictNothing,
 			"-t":    complete.PredictAnything,
+			"-name": complete.PredictAnything,
 		})
 }
 
@@ -81,7 +82,7 @@ func (s *ServiceListCommand) Run(args []string) int {
 	}
 
 	if args = flags.Args(); len(args) > 0 {
-		s.Ui.Error("This command takes no arguments")
+		s.Ui.Error(uiMessageNoArguments)
 		s.Ui.Error(commandErrorText(s))
 		return 1
 	}

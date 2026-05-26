@@ -1,0 +1,3 @@
+```release-note:bug
+keyring (Enterprise): Fixed a bug where in mixed-version clusters with pre-1.9 servers, a keyring rotation that returns an error for an unavailable KMS could prevent future server restarts
+```

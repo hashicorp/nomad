@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -115,7 +115,7 @@ func TestVariablesEndpoint_GetVariable_Blocking(t *testing.T) {
 	time.AfterFunc(delay, func() {
 		sv := mock.VariableEncrypted()
 		sv.Path = "bbb"
-		if resp := state.VarDelete(400, &structs.VarApplyStateRequest{Op: structs.VarOpDelete, Var: sv}); !resp.IsOk() {
+		if resp := state.VarDelete(structs.VarApplyStateRequestType, 400, &structs.VarApplyStateRequest{Op: structs.VarOpDelete, Var: sv}); !resp.IsOk() {
 			fmt.Println("\n *** resp", resp.Result, resp.Conflict.VariableMetadata)
 			t.Fatalf("err: %v", resp.Error)
 		}
@@ -162,7 +162,7 @@ func writeVarGet(t *testing.T, s *Server, idx uint64, ns, path string) {
 			KeyID: kID,
 		},
 	}
-	resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+	resp := store.VarSet(structs.VarApplyStateRequestType, idx, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: sve,
 	})
@@ -457,36 +457,41 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 
-	const ns = "nondefault-namespace"
+	namespace := mock.Namespace()
+	namespace.Name = "nondefault-namespace"
+	must.NoError(t, srv.fsm.State().UpsertNamespaces(100, []*structs.Namespace{namespace}))
 
 	alloc1 := mock.Alloc()
 	alloc1.ClientStatus = structs.AllocClientStatusFailed
-	alloc1.Job.Namespace = ns
-	alloc1.Namespace = ns
+	alloc1.Job.Namespace = namespace.Name
+	alloc1.Namespace = namespace.Name
 	jobID := alloc1.JobID
+	must.NoError(t, srv.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 900, nil, alloc1.Job))
 
 	// create an alloc that will have no access to variables we create
 	alloc2 := mock.Alloc()
 	alloc2.Job.TaskGroups[0].Name = "other-no-permissions"
 	alloc2.TaskGroup = "other-no-permissions"
 	alloc2.ClientStatus = structs.AllocClientStatusRunning
-	alloc2.Job.Namespace = ns
-	alloc2.Namespace = ns
+	alloc2.Job.Namespace = namespace.Name
+	alloc2.Namespace = namespace.Name
+	must.NoError(t, srv.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 901, nil, alloc2.Job))
 
 	alloc3 := mock.Alloc()
 	alloc3.ClientStatus = structs.AllocClientStatusRunning
-	alloc3.Job.Namespace = ns
-	alloc3.Namespace = ns
+	alloc3.Job.Namespace = namespace.Name
+	alloc3.Namespace = namespace.Name
 	parentID := uuid.Short()
 	alloc3.Job.ParentID = parentID
+	must.NoError(t, srv.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 902, nil, alloc3.Job))
 
 	alloc4 := mock.Alloc()
 	alloc4.ClientStatus = structs.AllocClientStatusRunning
-	alloc4.Job.Namespace = ns
-	alloc4.Namespace = ns
+	alloc4.Job.Namespace = namespace.Name
+	alloc4.Namespace = namespace.Name
+	must.NoError(t, srv.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 903, nil, alloc4.Job))
 
 	store := srv.fsm.State()
-	must.NoError(t, store.UpsertNamespaces(1000, []*structs.Namespace{{Name: ns}}))
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
 
@@ -550,7 +555,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		    path "other/path" { capabilities = ["read"] }
 		}}`, jobID, jobID)
 	policy.JobACL = &structs.JobACL{
-		Namespace: ns,
+		Namespace: namespace.Name,
 		JobID:     jobID,
 		Group:     alloc1.TaskGroup,
 	}
@@ -582,7 +587,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 
 	t.Run("terminal alloc should be denied", func(t *testing.T) {
 		err := testFn(
-			&structs.QueryOptions{AuthToken: idToken, Namespace: ns}, acl.PolicyList,
+			&structs.QueryOptions{AuthToken: idToken, Namespace: namespace.Name}, acl.PolicyList,
 			fmt.Sprintf("nomad/jobs/%s/web/web", jobID))
 		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
@@ -841,7 +846,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := testFn(
-				&structs.QueryOptions{AuthToken: tc.token, Namespace: ns},
+				&structs.QueryOptions{AuthToken: tc.token, Namespace: namespace.Name},
 				tc.cap, tc.path)
 			if tc.expectedErr == nil {
 				must.NoError(t, err)
@@ -861,8 +866,13 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
 
-	ns := "nondefault-namespace"
-	idx := uint64(1000)
+	idx := uint64(100)
+
+	namespace := mock.Namespace()
+	namespace.Name = "nondefault-namespace"
+	must.NoError(t, srv.fsm.State().UpsertNamespaces(idx, []*structs.Namespace{namespace}))
+
+	idx++
 
 	alloc := mock.Alloc()
 	alloc.Job.ID = "job1"
@@ -870,12 +880,14 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	alloc.TaskGroup = "group"
 	alloc.Job.TaskGroups[0].Name = "group"
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	alloc.Job.Namespace = ns
-	alloc.Namespace = ns
+	alloc.Job.Namespace = namespace.Name
+	alloc.Namespace = namespace.Name
 
 	store := srv.fsm.State()
-	must.NoError(t, store.UpsertNamespaces(idx, []*structs.Namespace{{Name: ns}}))
+
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, idx, nil, alloc.Job))
 	idx++
+
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
 
@@ -898,24 +910,24 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 		sv := mock.VariableEncrypted()
 		sv.Namespace = ns
 		sv.Path = path
-		resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+		resp := store.VarSet(structs.VarApplyStateRequestType, idx, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
 		must.NoError(t, resp.Error)
 	}
 
-	writeVar(ns, "nomad/jobs/job1/group/web")
-	writeVar(ns, "nomad/jobs/job1/group")
-	writeVar(ns, "nomad/jobs/job1")
+	writeVar(namespace.Name, "nomad/jobs/job1/group/web")
+	writeVar(namespace.Name, "nomad/jobs/job1/group")
+	writeVar(namespace.Name, "nomad/jobs/job1")
 
-	writeVar(ns, "nomad/jobs/job1/group/other")
-	writeVar(ns, "nomad/jobs/job1/other/web")
-	writeVar(ns, "nomad/jobs/job2/group/web")
+	writeVar(namespace.Name, "nomad/jobs/job1/group/other")
+	writeVar(namespace.Name, "nomad/jobs/job1/other/web")
+	writeVar(namespace.Name, "nomad/jobs/job2/group/web")
 
 	req := &structs.VariablesListRequest{
 		QueryOptions: structs.QueryOptions{
-			Namespace: ns,
+			Namespace: namespace.Name,
 			Prefix:    "nomad",
 			AuthToken: token,
 			Region:    "global",
@@ -937,10 +949,10 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	// Associate a policy with the identity's job to deny partial access.
 	policy := &structs.ACLPolicy{
 		Name: "policy-for-identity",
-		Rules: mock.NamespacePolicyWithVariables(ns, "read", []string{},
+		Rules: mock.NamespacePolicyWithVariables(namespace.Name, "read", []string{},
 			map[string][]string{"nomad/jobs/job1/group": []string{"deny"}}),
 		JobACL: &structs.JobACL{
-			Namespace: ns,
+			Namespace: namespace.Name,
 			JobID:     "job1",
 		},
 	}
@@ -1005,7 +1017,7 @@ namespace "*" {}
 		sv := mock.VariableEncrypted()
 		sv.Namespace = ns
 		sv.Path = path
-		resp := store.VarSet(idx, &structs.VarApplyStateRequest{
+		resp := store.VarSet(structs.VarApplyStateRequestType, idx, &structs.VarApplyStateRequest{
 			Op:  structs.VarOpSet,
 			Var: sv,
 		})
@@ -1438,7 +1450,7 @@ func TestVariablesEndpoint_List_Lock_ACL(t *testing.T) {
 
 	// Creating and locking the variable directly on the state store allows us to
 	// set up the lock ID and bypass the timers.
-	ssResp := state.VarLockAcquire(100, &structs.VarApplyStateRequest{
+	ssResp := state.VarLockAcquire(structs.VarApplyStateRequestType, 100, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpLockAcquire,
 		Var: sv1,
 	})
@@ -1590,7 +1602,7 @@ func TestVariablesEndpoint_RenewLock(t *testing.T) {
 
 	unlockedVar := mock.VariableEncrypted()
 	unlockedVar.Path = "/unlocked/var"
-	vsResp := state.VarSet(102, &structs.VarApplyStateRequest{
+	vsResp := state.VarSet(structs.VarApplyStateRequestType, 102, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: unlockedVar,
 	})
@@ -1606,7 +1618,7 @@ func TestVariablesEndpoint_RenewLock(t *testing.T) {
 
 	// Creating and locking the variable directly on the state store allows us to
 	// set up the lock ID and bypass the timers.
-	vlResp := state.VarLockAcquire(104, &structs.VarApplyStateRequest{
+	vlResp := state.VarLockAcquire(structs.VarApplyStateRequestType, 104, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpLockAcquire,
 		Var: lockedVar,
 	})

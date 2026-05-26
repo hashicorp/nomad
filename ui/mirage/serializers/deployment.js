@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -22,5 +22,8 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeDeployment(deployment) {
-  deployment.TaskGroups = deployment.DeploymentTaskGroupSummaries.reduce(arrToObj('Name'), {});
+  deployment.TaskGroups = deployment.DeploymentTaskGroupSummaries.reduce(
+    arrToObj('Name'),
+    {},
+  );
 }

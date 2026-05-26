@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -120,12 +120,13 @@ func (j *Jobs) Validate(job *Job, q *WriteOptions) (*JobValidateResponse, *Write
 
 // RegisterOptions is used to pass through job registration parameters
 type RegisterOptions struct {
-	EnforceIndex   bool
-	ModifyIndex    uint64
-	PolicyOverride bool
-	PreserveCounts bool
-	EvalPriority   int
-	Submission     *JobSubmission
+	EnforceIndex      bool
+	ModifyIndex       uint64
+	PolicyOverride    bool
+	PreserveCounts    bool
+	PreserveResources bool
+	EvalPriority      int
+	Submission        *JobSubmission
 }
 
 // Register is used to register a new job. It returns the ID
@@ -152,6 +153,7 @@ func (j *Jobs) RegisterOpts(job *Job, opts *RegisterOptions, q *WriteOptions) (*
 		}
 		req.PolicyOverride = opts.PolicyOverride
 		req.PreserveCounts = opts.PreserveCounts
+		req.PreserveResources = opts.PreserveResources
 		req.EvalPriority = opts.EvalPriority
 		req.Submission = opts.Submission
 	}
@@ -176,7 +178,7 @@ func (j *Jobs) List(q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	return j.ListOptions(nil, q)
 }
 
-// List is used to list all of the existing jobs.
+// ListOptions is used to list all of the existing jobs.
 func (j *Jobs) ListOptions(opts *JobListOptions, q *QueryOptions) ([]*JobListStub, *QueryMeta, error) {
 	var resp []*JobListStub
 
@@ -1227,7 +1229,7 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Update != nil {
 		j.Update.Canonicalize()
-	} else if *j.Type == JobTypeService {
+	} else if *j.Type == JobTypeService || *j.Type == JobTypeSystem {
 		j.Update = DefaultUpdateStrategy()
 	}
 	if j.Multiregion != nil {
@@ -1420,6 +1422,15 @@ func (j *Job) AddSpread(s *Spread) *Job {
 	return j
 }
 
+func (j *Job) GetScalingPoliciesPerTaskGroup() map[string]*ScalingPolicy {
+	ret := map[string]*ScalingPolicy{}
+	for _, tg := range j.TaskGroups {
+		ret[*tg.Name] = tg.Scaling
+	}
+
+	return ret
+}
+
 type WriteRequest struct {
 	// The target region for this write
 	Region string
@@ -1477,10 +1488,11 @@ type JobRegisterRequest struct {
 	// If EnforceIndex is set then the job will only be registered if the passed
 	// JobModifyIndex matches the current Jobs index. If the index is zero, the
 	// register only occurs if the job is new.
-	EnforceIndex   bool   `json:",omitempty"`
-	JobModifyIndex uint64 `json:",omitempty"`
-	PolicyOverride bool   `json:",omitempty"`
-	PreserveCounts bool   `json:",omitempty"`
+	EnforceIndex      bool   `json:",omitempty"`
+	JobModifyIndex    uint64 `json:",omitempty"`
+	PolicyOverride    bool   `json:",omitempty"`
+	PreserveCounts    bool   `json:",omitempty"`
+	PreserveResources bool   `json:",omitempty"`
 
 	// EvalPriority is an optional priority to use on any evaluation created as
 	// a result on this job registration. This value must be between 1-100
@@ -1587,6 +1599,10 @@ type DesiredUpdates struct {
 	DestructiveUpdate uint64
 	Canary            uint64
 	Preemptions       uint64
+	Disconnect        uint64
+	Reconnect         uint64
+	RescheduleNow     uint64
+	RescheduleLater   uint64
 }
 
 type JobDispatchRequest struct {
@@ -1685,18 +1701,22 @@ type JobStatusesRequest struct {
 }
 
 type TagVersionRequest struct {
-	Version     uint64
-	Description string
+	Version     uint64 // numeric version of the job to tag
+	Latest      bool   // tag the latest version of the job, if Version if zero/unset
+	Description string // description to add to the tag
 	WriteRequest
 }
 
+func (j *Jobs) TagVersionOpts(jobID, name string, req *TagVersionRequest, q *WriteOptions) (*WriteMeta, error) {
+	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", req, nil, q)
+}
+
 func (j *Jobs) TagVersion(jobID string, version uint64, name string, description string, q *WriteOptions) (*WriteMeta, error) {
-	var tagRequest = &TagVersionRequest{
+	var req = &TagVersionRequest{
 		Version:     version,
 		Description: description,
 	}
-
-	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", tagRequest, nil, q)
+	return j.TagVersionOpts(jobID, name, req, q)
 }
 
 func (j *Jobs) UntagVersion(jobID string, name string, q *WriteOptions) (*WriteMeta, error) {

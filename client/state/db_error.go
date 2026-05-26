@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -172,3 +172,15 @@ func (m *ErrDB) DeleteDynamicHostVolume(_ string) error {
 func (m *ErrDB) Close() error {
 	return fmt.Errorf("Error!")
 }
+
+func (m *ErrDB) PutAllocConsulACLTokens(allocID string, tokens []*cstructs.ConsulACLToken, opts ...WriteOption) error {
+	return fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) GetAllocConsulACLTokens(allocID string) ([]*cstructs.ConsulACLToken, error) {
+	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutNodeIdentity(_ string) error { return ErrDBError }
+
+func (m *ErrDB) GetNodeIdentity() (string, error) { return "", ErrDBError }

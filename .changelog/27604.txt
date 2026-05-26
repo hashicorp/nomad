@@ -1,0 +1,3 @@
+```release-note:bug
+deployments: Fixed a bug where a task group dropped from a system job could cause deployment state to be overwritten incorrectly
+```

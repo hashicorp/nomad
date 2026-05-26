@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package jobs3
@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/v3/util3"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -73,6 +72,30 @@ func (sub *Submission) Allocs() []*nomadapi.AllocationListStub {
 		Allocations(sub.jobID, true, sub.queryOptions())
 	must.NoError(sub.t, err, must.Sprint("could not get allocs"))
 	return allocs
+}
+
+// WaitForDeploymentFunc monitors a given deployment with provided fn and
+// returns success if the fn returns true.
+func (sub *Submission) WaitForDeploymentFunc(ctx context.Context,
+	deploymentID string, fn func(*nomadapi.Deployment) bool) {
+	sub.t.Helper()
+
+	deploymentsApi := sub.nomadClient.Deployments()
+	for {
+		select {
+		case <-ctx.Done():
+			must.Unreachable(sub.t, must.Sprint("timeout reached waiting for deployment"))
+		default:
+		}
+
+		deployment, _, err := deploymentsApi.Info(deploymentID, nil)
+		must.NoError(sub.t, err)
+		must.NotNil(sub.t, deployment)
+
+		if fn(deployment) {
+			return
+		}
+	}
 }
 
 type TaskEvents struct {
@@ -199,6 +222,14 @@ func (sub *Submission) AllocID(group string) string {
 	panic("bug")
 }
 
+func (sub *Submission) NodesApi() *nomadapi.Nodes {
+	return sub.nomadClient.Nodes()
+}
+
+func (sub *Submission) DeploymentsApi() *nomadapi.Deployments {
+	return sub.nomadClient.Deployments()
+}
+
 func (sub *Submission) logf(msg string, args ...any) {
 	sub.t.Helper()
 	util3.Log3(sub.t, sub.verbose, msg, args...)
@@ -236,6 +267,7 @@ type Cleanup func()
 
 func Submit(t *testing.T, filename string, opts ...Option) (*Submission, Cleanup) {
 	t.Helper()
+	t.Logf("submitting job: %q", filename)
 	sub := initialize(t, filename)
 
 	for _, opt := range opts {
@@ -300,7 +332,7 @@ func (sub *Submission) run() {
 	must.NotNil(sub.t, job)
 
 	if job.Type == nil {
-		job.Type = pointer.Of("service")
+		job.Type = new("service")
 	}
 
 	registerOpts := &nomadapi.RegisterOptions{
@@ -407,7 +439,7 @@ EVAL:
 	}
 
 	switch *job.Type {
-	case "service":
+	case "service", "system":
 		// need to monitor the deployment until it is complete
 		depAPI := sub.nomadClient.Deployments()
 	DEPLOY:
@@ -579,7 +611,7 @@ func Verbose(on bool) Option {
 	}
 }
 
-// Set an HCL variable.
+// Var sets a HCL variable.
 func Var(key, value string) Option {
 	return func(sub *Submission) {
 		sub.vars[key] = value

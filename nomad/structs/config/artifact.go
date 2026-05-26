@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -53,6 +53,12 @@ type ArtifactConfig struct {
 	// Default is 100GB.
 	DecompressionSizeLimit *string `hcl:"decompression_size_limit"`
 
+	// DisableArtifactInspection will turn off artifact inspection which checks
+	// the artifact contents for potential sandbox escapes. If the platform supports
+	// filesystem isolation, and it is not disabled, the check will not be run
+	// regardless of this value.
+	DisableArtifactInspection *bool `hcl:"disable_artifact_inspection"`
+
 	// DisableFilesystemIsolation will turn off the security feature where the
 	// artifact downloader can write only to the task sandbox directory, and can
 	// read only from specific locations on the host filesystem.
@@ -81,6 +87,7 @@ func (a *ArtifactConfig) Copy() *ArtifactConfig {
 		S3Timeout:                     pointer.Copy(a.S3Timeout),
 		DecompressionFileCountLimit:   pointer.Copy(a.DecompressionFileCountLimit),
 		DecompressionSizeLimit:        pointer.Copy(a.DecompressionSizeLimit),
+		DisableArtifactInspection:     pointer.Copy(a.DisableArtifactInspection),
 		DisableFilesystemIsolation:    pointer.Copy(a.DisableFilesystemIsolation),
 		FilesystemIsolationExtraPaths: slices.Clone(a.FilesystemIsolationExtraPaths),
 		SetEnvironmentVariables:       pointer.Copy(a.SetEnvironmentVariables),
@@ -103,6 +110,7 @@ func (a *ArtifactConfig) Merge(o *ArtifactConfig) *ArtifactConfig {
 			S3Timeout:                   pointer.Merge(a.S3Timeout, o.S3Timeout),
 			DecompressionFileCountLimit: pointer.Merge(a.DecompressionFileCountLimit, o.DecompressionFileCountLimit),
 			DecompressionSizeLimit:      pointer.Merge(a.DecompressionSizeLimit, o.DecompressionSizeLimit),
+			DisableArtifactInspection:   pointer.Merge(a.DisableArtifactInspection, o.DisableArtifactInspection),
 			DisableFilesystemIsolation:  pointer.Merge(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation),
 			SetEnvironmentVariables:     pointer.Merge(a.SetEnvironmentVariables, o.SetEnvironmentVariables),
 		}
@@ -137,6 +145,8 @@ func (a *ArtifactConfig) Equal(o *ArtifactConfig) bool {
 	case !pointer.Eq(a.DecompressionFileCountLimit, o.DecompressionFileCountLimit):
 		return false
 	case !pointer.Eq(a.DecompressionSizeLimit, o.DecompressionSizeLimit):
+		return false
+	case !pointer.Eq(a.DisableArtifactInspection, o.DisableArtifactInspection):
 		return false
 	case !pointer.Eq(a.DisableFilesystemIsolation, o.DisableFilesystemIsolation):
 		return false
@@ -223,6 +233,10 @@ func (a *ArtifactConfig) Validate() error {
 		return fmt.Errorf("decompression_size_limit must be < %d but found %d", int64(math.MaxInt64), v)
 	}
 
+	if a.DisableArtifactInspection == nil {
+		return fmt.Errorf("disable_artifact_inspection must be set")
+	}
+
 	if a.DisableFilesystemIsolation == nil {
 		return fmt.Errorf("disable_filesystem_isolation must be set")
 	}
@@ -244,44 +258,47 @@ func DefaultArtifactConfig() *ArtifactConfig {
 	return &ArtifactConfig{
 		// Read timeout for HTTP operations. Must be long enough to
 		// accommodate large/slow downloads.
-		HTTPReadTimeout: pointer.Of("30m"),
+		HTTPReadTimeout: new("30m"),
 
 		// Maximum download size. Must be large enough to accommodate
 		// large downloads.
-		HTTPMaxSize: pointer.Of("100GB"),
+		HTTPMaxSize: new("100GB"),
 
 		// Timeout for GCS operations. Must be long enough to
 		// accommodate large/slow downloads.
-		GCSTimeout: pointer.Of("30m"),
+		GCSTimeout: new("30m"),
 
 		// Timeout for Git operations. Must be long enough to
 		// accommodate large/slow clones.
-		GitTimeout: pointer.Of("30m"),
+		GitTimeout: new("30m"),
 
 		// Timeout for Hg operations. Must be long enough to
 		// accommodate large/slow clones.
-		HgTimeout: pointer.Of("30m"),
+		HgTimeout: new("30m"),
 
 		// Timeout for S3 operations. Must be long enough to
 		// accommodate large/slow downloads.
-		S3Timeout: pointer.Of("30m"),
+		S3Timeout: new("30m"),
 
 		// DecompressionFileCountLimit limits the number of files decompressed
 		// for a single artifact. Must be large enough for payloads with lots
 		// of files.
-		DecompressionFileCountLimit: pointer.Of(4096),
+		DecompressionFileCountLimit: new(4096),
 
 		// DecompressionSizeLimit limits the amount of data decompressed for
 		// a single artifact. Must be large enough to accommodate large payloads.
-		DecompressionSizeLimit: pointer.Of("100GB"),
+		DecompressionSizeLimit: new("100GB"),
+
+		// Toggle for disabling artifact inspection
+		DisableArtifactInspection: new(false),
 
 		// Toggle for disabling filesystem isolation, where available.
-		DisableFilesystemIsolation: pointer.Of(false),
+		DisableFilesystemIsolation: new(false),
 
 		// No Filesystem Isolation Extra Locations by default
 		FilesystemIsolationExtraPaths: nil,
 
 		// No environment variables are inherited from Client by default.
-		SetEnvironmentVariables: pointer.Of(""),
+		SetEnvironmentVariables: new(""),
 	}
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -49,7 +49,7 @@ export default create({
       memory: text('[data-test-memory]'),
       aggregateCpu: text('[data-test-aggregate-cpu]'),
       aggregateMemory: text('[data-test-aggregate-memory]'),
-    }
+    },
   ),
 
   empty: {

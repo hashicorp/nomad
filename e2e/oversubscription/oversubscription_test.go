@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package oversubscription
@@ -68,10 +68,11 @@ func testExec(t *testing.T) {
 		return nil
 	}
 
-	// wait for poststart to run, up to 20 seconds
+	// wait for poststart to run, up to 60 seconds.
+	// this accounts for variability in exec task start time.
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(testFunc),
-		wait.Timeout(time.Second*20),
+		wait.Timeout(time.Second*60),
 		wait.Gap(time.Second*2),
 	))
 }

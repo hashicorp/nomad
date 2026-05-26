@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package hostvolumemanager
@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -135,10 +136,29 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 		return nil, fmt.Errorf("error creating directory: %w", err)
 	}
 
-	// Chown note: A uid or gid of -1 means to not change that value.
-	if err = os.Chown(path, params.Uid, params.Gid); err != nil {
-		log.Error("error changing owner/group", "error", err, "uid", params.Uid, "gid", params.Gid)
-		return nil, fmt.Errorf("error changing owner/group: %w", err)
+	// os.MkdirAll perms are applied after umask, so the new directory may not
+	// have the exact permissions requested.
+	err = os.Chmod(path, params.Mode)
+	if err != nil {
+		log.Error("error setting directory permission mode", "error", err)
+		return nil, fmt.Errorf("error setting directory permission mode: %w", err)
+	}
+
+	if runtime.GOOS != "windows" {
+		// Chown note: A uid or gid of -1 means to not change that value.
+		if err = os.Chown(path, params.Uid, params.Gid); err != nil {
+			log.Error("error changing owner/group", "error", err, "uid", params.Uid, "gid", params.Gid)
+
+			// Failing to change ownership is fatal for this plugin. Since we have
+			// already created the directory, we should attempt to clean it.
+			// Otherwise, the operator must do this manually.
+			if err := os.RemoveAll(path); err != nil {
+				log.Error("failed to remove directory after create failure",
+					"error", err)
+			}
+
+			return nil, fmt.Errorf("error changing owner/group: %w", err)
+		}
 	}
 
 	log.Debug("plugin ran successfully")
@@ -203,20 +223,27 @@ var _ HostVolumePlugin = &HostVolumePluginExternal{}
 // if the specified executable exists on disk.
 func NewHostVolumePluginExternal(log hclog.Logger,
 	pluginDir, filename, volumesDir, nodePool string) (*HostVolumePluginExternal, error) {
-	// this should only be called with already-detected executables,
-	// but we'll double-check it anyway, so we can provide a tidy error message
-	// if it has changed between fingerprinting and execution.
-	executable := filepath.Join(pluginDir, filename)
-	f, err := os.Stat(executable)
+	// this should only be called with already-detected executables, but we'll
+	// double-check it anyway, so we can provide a tidy error message if it has
+	// changed between fingerprinting and execution and to ensure that the
+	// plugin ID can't traverse outside the plugin directory.
+	root, err := os.OpenRoot(pluginDir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
-		}
-		return nil, err
+		return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
+	}
+
+	f, err := root.Stat(filename)
+	if err != nil {
+		// note we intentionally obscure the root-escape error here and return a
+		// ErrPluginNotExists, because there's no legitimate reason to ever get
+		// this error
+		return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
 	}
 	if !helper.IsExecutable(f) {
 		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, filename)
 	}
+	executable := filepath.Join(pluginDir, filename)
+
 	return &HostVolumePluginExternal{
 		ID:         filename,
 		Executable: executable,

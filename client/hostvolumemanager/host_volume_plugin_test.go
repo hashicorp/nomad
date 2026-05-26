@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package hostvolumemanager
@@ -96,12 +96,12 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 					Parameters: map[string]string{
 						"uid":  currentUser.Uid,
 						"gid":  currentUser.Gid,
-						"mode": "0400",
+						"mode": "0777",
 					},
 				})
 			must.NoError(t, err)
 			must.DirExists(t, target)
-			must.DirMode(t, target, 0o400+os.ModeDir)
+			must.DirMode(t, target, 0o777+os.ModeDir)
 		}
 
 		err = plug.Delete(timeout(t),
@@ -216,6 +216,14 @@ func TestNewHostVolumePluginExternal(t *testing.T) {
 	var err error
 
 	_, err = NewHostVolumePluginExternal(log, ".", "non-existent", "target", "")
+	must.ErrorIs(t, err, ErrPluginNotExists)
+
+	// OpenRoot fails
+	_, err = NewHostVolumePluginExternal(log, "/xxxxxxxxxxxxxxxxx", "non-existent", "target", "")
+	must.ErrorIs(t, err, ErrPluginNotExists)
+
+	// tries to escape root
+	_, err = NewHostVolumePluginExternal(log, ".", "../non-existent", "target", "")
 	must.ErrorIs(t, err, ErrPluginNotExists)
 
 	_, err = NewHostVolumePluginExternal(log, ".", "host_volume_plugin_test.go", "target", "")

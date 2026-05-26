@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -37,6 +38,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -74,6 +77,7 @@ func (c *Command) readConfig() *Config {
 		ACL:       &ACLConfig{},
 		Audit:     &config.AuditConfig{},
 		Reporting: &config.ReportingConfig{},
+		Eventlog:  &Eventlog{},
 	}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
@@ -117,6 +121,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
 	flags.StringVar((*string)(&cmdConfig.Client.PreferredAddressFamily), "preferred-address-family", "", "ipv4 or ipv6")
 	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
+	flags.StringVar(&cmdConfig.Client.IntroToken, "client-intro-token", "", "")
 
 	// General options
 	flags.Var((*flaghelper.StringFlag)(&configPath), "config", "config")
@@ -129,6 +134,10 @@ func (c *Command) readConfig() *Config {
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
 	flags.BoolVar(&cmdConfig.LogIncludeLocation, "log-include-location", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
+
+	// Eventlog options
+	flags.BoolVar(&cmdConfig.Eventlog.Enabled, "eventlog", false, "")
+	flags.StringVar(&cmdConfig.Eventlog.Level, "eventlog-level", "", "")
 
 	// Consul options
 	defaultConsul := cmdConfig.defaultConsul()
@@ -217,6 +226,12 @@ func (c *Command) readConfig() *Config {
 			}
 			cmdConfig.Client.Meta[parts[0]] = parts[1]
 		}
+	}
+
+	// Perform an environment look for the client bootstrap token. If this is
+	// present, it will override the CLI flag.
+	if envToken, found := os.LookupEnv("NOMAD_CLIENT_INTRO_TOKEN"); found {
+		cmdConfig.Client.IntroToken = envToken
 	}
 
 	// Load the configuration
@@ -481,7 +496,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 	if err := config.RPC.Validate(); err != nil {
-		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v)", err))
+		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v", err))
+		return false
+	}
+
+	if err := config.Eventlog.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("eventlog block invalid: %v", err))
 		return false
 	}
 
@@ -538,6 +558,13 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		c.Ui.Warn("Please remove deprecated protocol_version field from config.")
 	}
 
+	for _, keyring := range config.KEKProviders {
+		if err := keyring.Validate(); err != nil {
+			c.Ui.Error(fmt.Sprintf("keyring %q invalid: %v", keyring.Name, err))
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -572,6 +599,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
 	if logLevel == "OFF" {
 		config.EnableSyslog = false
 	}
+
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		ui.Output(fmt.Sprintf("Config enable_syslog is `true` with log_level=%v", config.LogLevel))
@@ -581,6 +609,17 @@ func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
 			return nil, nil
 		}
 		writers = append(writers, newSyslogWriter(l, config.LogJson))
+	}
+
+	// Check if eventlog is enabled
+	if config.Eventlog != nil && config.Eventlog.Enabled {
+		l, err := winsvc.NewEventLogger(config.Eventlog.Level)
+		if err != nil {
+			ui.Error(fmt.Sprintf("Windows event logger setup failed: %s", err))
+			return nil, nil
+		}
+
+		writers = append(writers, l)
 	}
 
 	// Check if file logging is enabled
@@ -758,6 +797,8 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-vault-tls-server-name":                  complete.PredictAnything,
 		"-acl-enabled":                            complete.PredictNothing,
 		"-acl-replication-token":                  complete.PredictAnything,
+		"-eventlog":                               complete.PredictNothing,
+		"-eventlog-level":                         complete.PredictSet("INFO", "WARN", "ERROR"),
 	}
 }
 
@@ -888,7 +929,7 @@ func (c *Command) Run(args []string) int {
 		c.Ui.Info(fmt.Sprintf(
 			"%s%s: %s",
 			strings.Repeat(" ", padding-len(k)),
-			strings.Title(k),
+			cases.Title(language.English).String(k),
 			info[k]))
 	}
 	c.Ui.Output("")
@@ -904,6 +945,10 @@ func (c *Command) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
+
+	// Add events for the eventlog
+	winsvc.SendEvent(winsvc.NewEvent(winsvc.EventServiceReady))
+	defer func() { winsvc.SendEvent(winsvc.NewEvent(winsvc.EventServiceStopped)) }()
 
 	// Wait for exit
 	return c.handleSignals()
@@ -983,17 +1028,19 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 	sdNotify(sdSock, sdStopping)
 
 	gracefulCh := make(chan struct{})
-	defer close(gracefulCh)
+	gracefulClose := sync.OnceFunc(func() { close(gracefulCh) })
+	defer gracefulClose()
 
 	timeout := gracefulTimeout
 
-	config := c.agent.client.GetConfig()
-	if config == nil {
-		c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
-	}
+	if c.agent.client != nil {
+		config := c.agent.client.GetConfig()
 
-	if config.Drain != nil && config.Drain.Deadline != 0 {
-		timeout += config.Drain.Deadline
+		if config == nil {
+			c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
+		} else if config.Drain != nil && config.Drain.Deadline != 0 {
+			timeout += config.Drain.Deadline
+		}
 	}
 
 	c.Ui.Output("Gracefully shutting down agent...")
@@ -1002,18 +1049,30 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 			c.Ui.Error(fmt.Sprintf("Error: %s", err))
 			return
 		}
-		close(gracefulCh)
+		gracefulClose()
 	}()
 
 	delay := time.NewTimer(timeout)
 
-	// Wait for leave or another signal
-	select {
-	case <-signalCh:
-		return 1
-	case <-delay.C:
-		return 1
-	case <-gracefulCh:
+	// Wait for leave or another signal to be received
+	for {
+		select {
+		case sig := <-signalCh:
+			// If a SIGPIPE is received, ignore it and
+			// continue waiting
+			if sig == syscall.SIGPIPE {
+				c.agent.logger.Trace("caught SIGPIPE during graceful shutdown, ignoring")
+				continue
+			}
+			c.agent.logger.Trace("caught signal during graceful shutdown", "signal", sig)
+
+			return 1
+		case <-delay.C:
+			return 1
+		case <-gracefulCh:
+		}
+
+		break
 	}
 
 	return 0
@@ -1024,7 +1083,7 @@ func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	defer signal.Stop(signalCh)
 
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
 	// Signal readiness only once signal handlers are setup
 	sdSock, err := openNotify()
@@ -1040,12 +1099,14 @@ func (c *Command) handleSignals() int {
 	for {
 		select {
 		case sig := <-signalCh:
+			// Skip any SIGPIPE signal (see issues #1798, #3554)
+			if sig == syscall.SIGPIPE {
+				continue
+			}
+
 			c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
 
 			switch sig {
-			case syscall.SIGPIPE:
-				// Skip any SIGPIPE signal (see issues #1798, #3554)
-				continue
 			case syscall.SIGHUP:
 				sdNotifyReloading(sdSock)
 				err := c.handleReload()
@@ -1061,7 +1122,7 @@ func (c *Command) handleSignals() int {
 				}
 
 				return c.terminateGracefully(signalCh, sdSock)
-			case os.Interrupt:
+			case syscall.SIGINT:
 				if !c.agent.GetConfig().LeaveOnInt {
 					return 1
 				}
@@ -1450,6 +1511,14 @@ General Options (clients and servers):
   -log-include-location
     Include file and line information in each log line. The default is false.
 
+  -eventlog
+   Enable sending Nomad agent logs to the Windows Event Log.
+
+  -eventlog-level
+    Specifies the verbosity of logs the Nomad agent outputs. Valid log levels
+    include ERROR, WARN, or INFO in  order of verbosity. Level must be
+    of equal or less verbosity as defined for the -log-level parameter.
+
   -node=<name>
     The name of the local agent. This name is used to identify the node
     in the cluster. The name must be unique per region. The default is
@@ -1556,7 +1625,7 @@ Client Options:
 
   -network-interface
     Forces the network fingerprinter to use the specified network interface.
-  
+
   -preferred-address-family
     Specify which IP family to prefer when selecting an IP address of the
     network interface. Valid values are "ipv4" and "ipv6". When not specified,
@@ -1573,6 +1642,13 @@ Client Options:
   -host-volume-plugin-dir
     Directory containing dynamic host volume plugins. The default is
     <data-dir>/host_volume_plugins.
+
+  -client-intro-token
+    The JWT token used to authenticate with servers during the client's initial
+    registration. You may also set the token via the "NOMAD_CLIENT_INTRO_TOKEN"
+    environment variable, which overrides this flag. If neither are set, the
+    agent looks for an "intro_token.jwt" file within the client state
+    directory.
 
 ACL Options:
 

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -13,6 +13,7 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 )
@@ -142,7 +143,7 @@ func (s *Server) removeNodeConn(ctx *RPCContext) {
 // ErrNoNodeConn is returned if all local peers could be queried but did not
 // have a connection to the node. Otherwise if a connection could not be found
 // and there were RPC errors, an error is returned.
-func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error) {
+func (s *Server) serverWithNodeConn(nodeID, region string) (*peers.Parts, error) {
 	// We skip ourselves.
 	selfAddr := s.LocalMember().Addr.String()
 
@@ -155,32 +156,19 @@ func (s *Server) serverWithNodeConn(nodeID, region string) (*serverParts, error)
 	}
 
 	// Select the list of servers to check based on what region we are querying
-	s.peerLock.RLock()
-
-	var rawTargets []*serverParts
+	var targets []*peers.Parts
 	if region == s.Region() {
-		rawTargets = make([]*serverParts, 0, len(s.localPeers))
-		for _, srv := range s.localPeers {
-			rawTargets = append(rawTargets, srv)
-		}
+		targets = s.peersCache.LocalPeers()
 	} else {
-		peers, ok := s.peers[region]
-		if !ok {
-			s.peerLock.RUnlock()
+		targets = s.peersCache.RegionPeers(region)
+		if targets == nil {
 			return nil, structs.ErrNoRegionPath
 		}
-		rawTargets = peers
 	}
-
-	targets := make([]*serverParts, 0, len(rawTargets))
-	for _, target := range rawTargets {
-		targets = append(targets, target.Copy())
-	}
-	s.peerLock.RUnlock()
 
 	// connections is used to store the servers that have connections to the
 	// requested node.
-	var mostRecentServer *serverParts
+	var mostRecentServer *peers.Parts
 	var mostRecent time.Time
 
 	var rpcErr multierror.Error

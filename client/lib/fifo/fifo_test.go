@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package fifo
@@ -22,10 +22,12 @@ func TestFIFO(t *testing.T) {
 	require := require.New(t)
 	var path string
 
+	rootDir := t.TempDir()
+
 	if runtime.GOOS == "windows" {
 		path = "//./pipe/fifo"
 	} else {
-		path = filepath.Join(t.TempDir(), "fifo")
+		path = filepath.Join(rootDir, "fifo")
 	}
 
 	readerOpenFn, err := CreateAndRead(path)
@@ -82,10 +84,12 @@ func TestWriteClose(t *testing.T) {
 	require := require.New(t)
 	var path string
 
+	rootDir := t.TempDir()
+
 	if runtime.GOOS == "windows" {
 		path = "//./pipe/" + uuid.Generate()[:4]
 	} else {
-		path = filepath.Join(t.TempDir(), "fifo")
+		path = filepath.Join(rootDir, "fifo")
 	}
 
 	readerOpenFn, err := CreateAndRead(path)

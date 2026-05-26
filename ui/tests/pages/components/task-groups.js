@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -8,7 +8,7 @@ import { singularize } from 'ember-inflector';
 
 export default function (
   selector = '[data-test-task-group]',
-  propKey = 'taskGroups'
+  propKey = 'taskGroups',
 ) {
   const lookupKey = `${singularize(propKey)}For`;
 

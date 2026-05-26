@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -49,7 +49,7 @@ func TestDeployments_List(t *testing.T) {
 			return err
 		}
 		if len(resp3) != 1 {
-			return fmt.Errorf(fmt.Sprintf("expected 1 deployment, found %v", len(resp3)))
+			return fmt.Errorf("expected 1 deployment, found %v", len(resp3))
 		}
 		return nil
 	}
@@ -102,7 +102,7 @@ func TestDeployments_PrefixList(t *testing.T) {
 			return err
 		}
 		if len(resp5) != 1 {
-			return fmt.Errorf(fmt.Sprintf("expected 1 deployment, found %v", len(resp5)))
+			return fmt.Errorf("expected 1 deployment, found %v", len(resp5))
 		}
 		return nil
 	}
@@ -150,10 +150,10 @@ func TestDeployments_Info(t *testing.T) {
 			return err
 		}
 		if resp4.JobID != resp2[0].ID {
-			return fmt.Errorf(fmt.Sprintf("expected job id: %v, found %v", resp4.JobID, resp2[0].ID))
+			return fmt.Errorf("expected job id: %v, found %v", resp4.JobID, resp2[0].ID)
 		}
 		if resp4.Namespace != resp2[0].Namespace {
-			return fmt.Errorf(fmt.Sprintf("expected deployment namespace: %v, found %v", resp4.Namespace, resp2[0].Namespace))
+			return fmt.Errorf("expected deployment namespace: %v, found %v", resp4.Namespace, resp2[0].Namespace)
 		}
 		return nil
 	}

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -604,6 +604,88 @@ func TestACLEndpoint_ListPolicies_Unauthenticated(t *testing.T) {
 		require.Equal(t, "anonymous", resp.Policies[0].Name)
 		require.Equal(t, uint64(1001), resp.Index)
 	})
+}
+
+// TestACLEndpoint_GetListPolicies_WorkloadIdentity verifies that workload
+// identities can List and Get any workload-associated policies
+func TestACLEndpoint_GetListPolicies_WorkloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, cleanupSrv := TestACLServer(t, nil)
+	t.Cleanup(cleanupSrv)
+	codec := rpcClient(t, srv)
+	store := srv.fsm.State()
+
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	job := mock.MinJob()
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
+
+	// setup one policy associated with the job and one not
+	jobPolicy := mock.ACLPolicy()
+	jobPolicy.JobACL = &structs.JobACL{Namespace: job.Namespace, JobID: job.ID}
+	jobPolicy.SetHash()
+	nonJobPolicy := mock.ACLPolicy()
+	must.NoError(t, store.UpsertACLPolicies(structs.MsgTypeTestSetup, 150,
+		[]*structs.ACLPolicy{jobPolicy, nonJobPolicy}))
+
+	// create an alloc with a signed identity
+	alloc := mock.MinAllocForJob(job)
+	store.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc})
+	task := alloc.LookupTask("t")
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+		&structs.WIHandle{
+			WorkloadIdentifier: "t",
+			WorkloadType:       structs.WorkloadTypeTask,
+		},
+		task.Identity).
+		WithTask(task).
+		Build(time.Now().Add(-10 * time.Minute))
+	jwtToken, _, err := srv.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+
+	listReq := &structs.ACLPolicyListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    srv.Region(),
+			AuthToken: jwtToken,
+		},
+	}
+	var listResp structs.ACLPolicyListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.ListPolicies", listReq, &listResp))
+	must.Len(t, 1, listResp.Policies)
+	must.Eq(t, jobPolicy.Name, listResp.Policies[0].Name)
+
+	getReq := &structs.ACLPolicySpecificRequest{
+		Name: jobPolicy.Name,
+		QueryOptions: structs.QueryOptions{
+			Region:    srv.Region(),
+			AuthToken: jwtToken,
+		},
+	}
+	var getResp structs.SingleACLPolicyResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", getReq, &getResp))
+	must.NotNil(t, getResp.Policy)
+
+	// can't get other policies
+	getReq.Name = nonJobPolicy.Name
+	must.EqError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicy", getReq, &getResp),
+		structs.ErrPermissionDenied.Error())
+
+	getSetReq := &structs.ACLPolicySetRequest{
+		Names: []string{jobPolicy.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    srv.Region(),
+			AuthToken: jwtToken,
+		},
+	}
+	var getSetResp structs.ACLPolicySetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", getSetReq, &getSetResp))
+	must.MapLen(t, 1, getSetResp.Policies)
+
+	// can't get other policies, even if some of the set is ok
+	getSetReq.Names = append(getSetReq.Names, nonJobPolicy.Name)
+	must.EqError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", getSetReq, &getSetResp),
+		structs.ErrPermissionDenied.Error())
 }
 
 func TestACLEndpoint_ListPolicies_Blocking(t *testing.T) {
@@ -1877,6 +1959,57 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 					ID: aclRole1.ID, Name: aclRole1.Name}}, tokenResp1.Tokens[0].Roles)
 			},
 		},
+		{
+			name: "upload client token with pre-specified ids",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+				uploadToken := mock.ACLToken()
+				uploadToken.CreateIndex = 0
+				uploadToken.ModifyIndex = 0
+
+				req := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{uploadToken},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+				var resp structs.ACLTokenUpsertResponse
+				must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp))
+				must.Len(t, 1, resp.Tokens)
+
+				got := resp.Tokens[0]
+				must.Eq(t, uploadToken.AccessorID, got.AccessorID)
+				must.Eq(t, uploadToken.SecretID, got.SecretID)
+
+				out, err := testServer.fsm.State().ACLTokenByAccessorID(nil, uploadToken.AccessorID)
+				must.NoError(t, err)
+				must.NotNil(t, out)
+				must.Eq(t, uploadToken.AccessorID, out.AccessorID)
+				must.Eq(t, uploadToken.SecretID, out.SecretID)
+			},
+		},
+		{
+			name: "cannot upload management token",
+			testFn: func(testServer *Server, aclToken *structs.ACLToken) {
+				mgmtToken := &structs.ACLToken{
+					AccessorID: uuid.Generate(),
+					SecretID:   uuid.Generate(),
+					Name:       "my-mgmt-token-" + uuid.Generate(),
+					Type:       structs.ACLManagementToken,
+				}
+				req := &structs.ACLTokenUpsertRequest{
+					Tokens: []*structs.ACLToken{mgmtToken},
+					WriteRequest: structs.WriteRequest{
+						Region:    DefaultRegion,
+						AuthToken: aclToken.SecretID,
+					},
+				}
+				var resp structs.ACLTokenUpsertResponse
+				err := msgpackrpc.CallWithCodec(codec, structs.ACLUpsertTokensRPCMethod, req, &resp)
+				must.ErrorContains(t, err, "cannot find token")
+				must.Len(t, 0, resp.Tokens)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -1948,7 +2081,8 @@ func TestACLEndpoint_WhoAmI(t *testing.T) {
 
 	// Lookup identity claim
 	alloc := mock.Alloc()
-	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1500, []*structs.Allocation{alloc})
+	must.NoError(t, s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1100, nil, alloc.Job))
+	must.NoError(t, s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1500, []*structs.Allocation{alloc}))
 	task := alloc.LookupTask("web")
 	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
 		wiHandle, // see encrypter_test.go
@@ -3998,6 +4132,129 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	})
 }
 
+// TestACL_OIDCCompleteAuth_IssEnforcedProvider tests that when an OIDC provider
+// enforces the authorization_response_iss_parameter_supported configuration, the
+// `iss` parameter is properly validated.
+func TestACL_OIDCCompleteAuth_IssEnforcedProvider(t *testing.T) {
+	ci.Parallel(t)
+
+	// setup the ACL server with verbose logging
+	var buf bytes.Buffer
+	testServer, _, testServerCleanupFn := TestACLServer(t, func(c *Config) {
+		c.Logger = hclog.NewInterceptLogger(&hclog.LoggerOptions{
+			Level:  hclog.Debug,
+			Output: io.MultiWriter(&buf, os.Stderr),
+		})
+	})
+	defer testServerCleanupFn()
+	codec := rpcClient(t, testServer)
+	testutil.WaitForLeader(t, testServer.RPC)
+
+	// setup the test OIDC provider that requires iss parameter
+	oidcTestProvider := capOIDC.StartTestProvider(t)
+	defer oidcTestProvider.Stop()
+	oidcTestProvider.SetAllowedRedirectURIs([]string{"http://127.0.0.1:4649/oidc/callback"})
+	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
+	oidcTestProvider.SetExpectedAuthCode("codeABC")
+	oidcTestProvider.SetCustomAudience("mock")
+	oidcTestProvider.SetCustomClaims(map[string]interface{}{
+		"azp":                            "mock",
+		"http://nomad.internal/policies": []string{"engineering"},
+		"http://nomad.internal/roles":    []string{"engineering"},
+	})
+	oidcTestProvider.SetAdditionalConfiguration(map[string]interface{}{
+		"authorization_response_iss_parameter_supported": true,
+	})
+
+	// setup the OIDC auth method with our test values
+	mockedAuthMethod := mock.ACLOIDCAuthMethod()
+	mockedAuthMethod.Config.BoundAudiences = []string{"mock"}
+	mockedAuthMethod.Config.AllowedRedirectURIs = []string{"http://127.0.0.1:4649/oidc/callback"}
+	mockedAuthMethod.Config.OIDCDiscoveryURL = oidcTestProvider.Addr()
+	mockedAuthMethod.Config.SigningAlgs = []string{"ES256"}
+	mockedAuthMethod.Config.DiscoveryCaPem = []string{oidcTestProvider.CACert()}
+	mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+	mockedAuthMethod.Config.ListClaimMappings = map[string]string{
+		"http://nomad.internal/roles":    "roles",
+		"http://nomad.internal/policies": "policies",
+	}
+
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(10, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+	// upsert and bind ACL policy and role for use in tests
+	mockACLPolicy := mock.ACLPolicy()
+	must.NoError(t, testServer.fsm.State().UpsertACLPolicies(
+		structs.MsgTypeTestSetup, 20, []*structs.ACLPolicy{mockACLPolicy}))
+
+	mockACLRole := mock.ACLRole()
+	mockACLRole.Policies = []*structs.ACLRolePolicyLink{{Name: mockACLPolicy.Name}}
+	must.NoError(t, testServer.fsm.State().UpsertACLRoles(
+		structs.MsgTypeTestSetup, 30, []*structs.ACLRole{mockACLRole}, true))
+
+	mockBindingRule := mock.ACLBindingRule()
+	mockBindingRule.AuthMethod = mockedAuthMethod.Name
+	mockBindingRule.BindType = structs.ACLBindingRuleBindTypePolicy
+	mockBindingRule.Selector = "engineering in list.policies"
+	mockBindingRule.BindName = mockACLPolicy.Name
+
+	must.NoError(t, testServer.fsm.State().UpsertACLBindingRules(
+		40, []*structs.ACLBindingRule{mockBindingRule}, true))
+
+	// test a missing iss parameter
+	missingIssReq := structs.ACLOIDCCompleteAuthRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
+		State:          "st_someweirdstateid",
+		Code:           "codeABC",
+		WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+	}
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, missingIssReq)
+
+	var missingIssResp structs.ACLLoginResponse
+	err := msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &missingIssReq, &missingIssResp)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "invalid or missing issuer parameter")
+
+	// test an incorrect iss parameter
+	incorrectIssReq := structs.ACLOIDCCompleteAuthRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
+		State:          "st_someweirdstateid",
+		Code:           "codeABC",
+		Iss:            "incorrect-issuer",
+		WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+	}
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, incorrectIssReq)
+
+	var incorrectIssResp structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &incorrectIssReq, &incorrectIssResp)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "invalid or missing issuer parameter")
+
+	// test a valid iss parameter
+	req := structs.ACLOIDCCompleteAuthRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
+		State:          "st_someweirdstateid",
+		Code:           "codeABC",
+		Iss:            oidcTestProvider.Addr(),
+		WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+	}
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, req)
+
+	var resp structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &req, &resp)
+	must.NoError(t, err)
+	must.NotNil(t, resp.ACLToken)
+	must.Eq(t, structs.ACLClientToken, resp.ACLToken.Type)
+}
+
 // mockSerializer implements the capOIDC.JWTSerializer interface,
 // which is used to provide a client assertion JWT.
 type mockSerializer struct {
@@ -4204,6 +4461,9 @@ func TestACL_Login(t *testing.T) {
 // to prepare for a subsequent OIDCCompleteAuth call.
 func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOIDCCompleteAuthRequest, opts ...capOIDC.Option) {
 	t.Helper()
+	// make sure the cache is clean first
+	cache.LoadAndDelete(req.ClientNonce)
+
 	opts = append(opts,
 		capOIDC.WithNonce(req.ClientNonce),
 		capOIDC.WithState(req.State),
@@ -4211,12 +4471,158 @@ func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOID
 			return time.Now().Add(time.Minute) // expire in the future
 		}),
 	)
-	oidcReq, err := capOIDC.NewRequest(
-		time.Second, "http://127.0.0.1:4649/oidc/callback",
-		opts...,
-	)
+	_, err := cache.LoadOrAdd(req.ClientNonce, func() (*capOIDC.Req, error) {
+		return capOIDC.NewRequest(
+			time.Second, "http://127.0.0.1:4649/oidc/callback",
+			opts...,
+		)
+	})
 	must.NoError(t, err)
-	// make sure the cache is clean first
-	cache.LoadAndDelete(req.ClientNonce)
-	must.NoError(t, cache.Store(oidcReq))
+}
+
+func TestACL_ClientIntroductionToken(t *testing.T) {
+	ci.Parallel(t)
+
+	// Set up a test ACL server with a keyring and encrypter that are ready for
+	// use.
+	testACLServer, _, testACLServerCleanupFn := TestACLServer(t, nil)
+	t.Cleanup(testACLServerCleanupFn)
+	testutil.WaitForKeyring(t, testACLServer.RPC, testACLServer.Region())
+
+	aclCodec := rpcClient(t, testACLServer)
+
+	// Perform a test without setting an auth token, so that the RPC uses the
+	// anonymous token. This should fail with a permission denied error.
+	t.Run("acl_server_anonymous", func(t *testing.T) {
+		anonymousReq := structs.ACLCreateClientIntroductionTokenRequest{
+			WriteRequest: structs.WriteRequest{
+				Region: testACLServer.Region(),
+			},
+		}
+
+		must.EqError(t, msgpackrpc.CallWithCodec(
+			aclCodec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&anonymousReq,
+			&structs.ACLCreateClientIntroductionTokenResponse{},
+		), structs.ErrPermissionDenied.Error())
+
+	})
+
+	// Perform a test with token that only has node read permissions. This
+	// should fail with a permission denied error.
+	t.Run("acl_server_node_read", func(t *testing.T) {
+		nodeReadToken := mock.CreatePolicyAndToken(
+			t,
+			testACLServer.fsm.State(),
+			testACLServer.raft.LastIndex(),
+			fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+			`node{policy = "read"}`,
+		)
+
+		nodeReadReq := structs.ACLCreateClientIntroductionTokenRequest{
+			WriteRequest: structs.WriteRequest{
+				AuthToken: nodeReadToken.SecretID,
+				Region:    testACLServer.Region(),
+			},
+		}
+
+		must.EqError(t, msgpackrpc.CallWithCodec(
+			aclCodec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&nodeReadReq,
+			&structs.ACLCreateClientIntroductionTokenResponse{},
+		), structs.ErrPermissionDenied.Error())
+	})
+
+	// Perform a test with token that has node write permissions. This should
+	// succeed and return a valid JWT that matches the requested claims.
+	t.Run("acl_server_node_write", func(t *testing.T) {
+		nodeWriteToken := mock.CreatePolicyAndToken(
+			t,
+			testACLServer.fsm.State(),
+			testACLServer.raft.LastIndex(),
+			fmt.Sprintf("policy-%s-%s", t.Name(), uuid.Generate()),
+			`node{policy = "write"}`,
+		)
+
+		nodeWriteReq := structs.ACLCreateClientIntroductionTokenRequest{
+			NodeName: "test-node",
+			NodePool: "test-pool",
+			TTL:      15 * time.Minute,
+			WriteRequest: structs.WriteRequest{
+				AuthToken: nodeWriteToken.SecretID,
+				Region:    testACLServer.Region(),
+			},
+		}
+
+		timeNow := time.Now()
+		nodeWriteResp := structs.ACLCreateClientIntroductionTokenResponse{}
+
+		must.NoError(t, msgpackrpc.CallWithCodec(
+			aclCodec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&nodeWriteReq,
+			&nodeWriteResp,
+		))
+		must.NotEq(t, "", nodeWriteResp.JWT)
+
+		nodeWriteClaims, err := testACLServer.encrypter.VerifyClaim(nodeWriteResp.JWT)
+		must.NoError(t, err)
+		must.True(t, nodeWriteClaims.IsNodeIntroduction())
+		must.Eq(t, nodeWriteReq.NodeName, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeName)
+		must.Eq(t, nodeWriteReq.NodePool, nodeWriteClaims.NodeIntroductionIdentityClaims.NodePool)
+
+		// The JWT creation happens asynchronously in the RPC handler, so we
+		// need to verify the TTL is set using a bound check.
+		nodeWriteExpiry := nodeWriteClaims.Expiry.Time()
+		must.True(t, nodeWriteExpiry.Before(timeNow.Add(nodeWriteReq.TTL)))
+		must.True(t, nodeWriteExpiry.After(timeNow.Add(nodeWriteReq.TTL).Add(-10*time.Second)))
+	})
+
+	// Set up a test server without ACLs with a keyring and encrypter that are
+	// ready for use.
+	testServer, testServerCleanupFn := TestServer(t, nil)
+	t.Cleanup(testServerCleanupFn)
+	testutil.WaitForKeyring(t, testServer.RPC, testServer.Region())
+
+	codec := rpcClient(t, testServer)
+
+	// Perform a test without setting an auth token on a server not running
+	// ACLs. This should succeed and return a valid JWT that matches the
+	// requested claims.
+	t.Run("non_acl_server", func(t *testing.T) {
+
+		req := structs.ACLCreateClientIntroductionTokenRequest{
+			NodeName: "test-node",
+			NodePool: "test-pool",
+			TTL:      15 * time.Minute,
+			WriteRequest: structs.WriteRequest{
+				Region: testServer.Region(),
+			},
+		}
+
+		timeNow := time.Now()
+		resp := structs.ACLCreateClientIntroductionTokenResponse{}
+
+		must.NoError(t, msgpackrpc.CallWithCodec(
+			codec,
+			structs.ACLCreateClientIntroductionTokenRPCMethod,
+			&req,
+			&resp,
+		))
+		must.NotEq(t, "", resp.JWT)
+
+		nodeWriteClaims, err := testServer.encrypter.VerifyClaim(resp.JWT)
+		must.NoError(t, err)
+		must.True(t, nodeWriteClaims.IsNodeIntroduction())
+		must.Eq(t, req.NodeName, nodeWriteClaims.NodeIntroductionIdentityClaims.NodeName)
+		must.Eq(t, req.NodePool, nodeWriteClaims.NodeIntroductionIdentityClaims.NodePool)
+
+		// The JWT creation happens asynchronously in the RPC handler, so we
+		// need to verify the TTL is set using a bound check.
+		nodeWriteExpiry := nodeWriteClaims.Expiry.Time()
+		must.True(t, nodeWriteExpiry.Before(timeNow.Add(req.TTL)))
+		must.True(t, nodeWriteExpiry.After(timeNow.Add(req.TTL).Add(-10*time.Second)))
+	})
 }

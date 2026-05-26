@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -18,6 +18,11 @@ type State struct {
 	// ClientDescription is an optional human readable description of the
 	// allocations client state
 	ClientDescription string
+
+	// MaxRunDurationExceeded indicates the allocation exceeded its configured
+	// max_run_duration and should be reported as complete with a timeout reason
+	// regardless of task exit status.
+	MaxRunDurationExceeded bool
 
 	// DeploymentStatus captures the status of the deployment
 	DeploymentStatus *structs.AllocDeploymentStatus
@@ -60,11 +65,12 @@ func (s *State) Copy() *State {
 		taskStates[k] = v.Copy()
 	}
 	return &State{
-		ClientStatus:      s.ClientStatus,
-		ClientDescription: s.ClientDescription,
-		DeploymentStatus:  s.DeploymentStatus.Copy(),
-		TaskStates:        taskStates,
-		NetworkStatus:     s.NetworkStatus.Copy(),
+		ClientStatus:           s.ClientStatus,
+		ClientDescription:      s.ClientDescription,
+		MaxRunDurationExceeded: s.MaxRunDurationExceeded,
+		DeploymentStatus:       s.DeploymentStatus.Copy(),
+		TaskStates:             taskStates,
+		NetworkStatus:          s.NetworkStatus.Copy(),
 	}
 }
 

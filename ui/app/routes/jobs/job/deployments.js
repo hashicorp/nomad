@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -8,7 +8,7 @@ import RSVP from 'rsvp';
 import { collect } from '@ember/object/computed';
 import { watchRelationship } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 
 export default class DeploymentsRoute extends Route.extend(WithWatchers) {
   @service store;

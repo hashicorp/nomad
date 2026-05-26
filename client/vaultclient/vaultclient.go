@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package vaultclient
@@ -50,8 +50,9 @@ type VaultClient interface {
 	Stop()
 
 	// DeriveTokenWithJWT returns a Vault ACL token using the JWT login
-	// endpoint, along with whether or not the token is renewable.
-	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, bool, error)
+	// endpoint, along with whether or not the token is renewable and its lease
+	// duration.
+	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, bool, int, error)
 
 	// RenewToken renews a token with the given increment and adds it to
 	// the min-heap for periodic renewal.
@@ -237,12 +238,12 @@ func (c *vaultClient) unlockAndUnset() {
 }
 
 // DeriveTokenWithJWT returns a Vault ACL token using the JWT login endpoint.
-func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, error) {
+func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, int, error) {
 	if !c.config.IsEnabled() {
-		return "", false, fmt.Errorf("vault client not enabled")
+		return "", false, 0, fmt.Errorf("vault client not enabled")
 	}
 	if !c.isRunning() {
-		return "", false, fmt.Errorf("vault client is not running")
+		return "", false, 0, fmt.Errorf("vault client is not running")
 	}
 
 	c.lock.Lock()
@@ -263,20 +264,20 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 		},
 	)
 	if err != nil {
-		return "", false, fmt.Errorf("failed to login with JWT: %v", err)
+		return "", false, 0, fmt.Errorf("failed to login with JWT: %v", err)
 	}
 	if s == nil {
-		return "", false, errors.New("JWT login returned an empty secret")
+		return "", false, 0, errors.New("JWT login returned an empty secret")
 	}
 	if s.Auth == nil {
-		return "", false, errors.New("JWT login did not return a token")
+		return "", false, 0, errors.New("JWT login did not return a token")
 	}
 
 	for _, w := range s.Warnings {
 		c.logger.Warn("JWT login warning", "warning", w)
 	}
 
-	return s.Auth.ClientToken, s.Auth.Renewable, nil
+	return s.Auth.ClientToken, s.Auth.Renewable, s.Auth.LeaseDuration, nil
 }
 
 // RenewToken renews the supplied token for a given duration (in seconds) and
@@ -368,6 +369,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 		} else {
 			// Don't set this if renewal fails
 			leaseDuration = renewResp.Auth.LeaseDuration
+			req.increment = leaseDuration
 		}
 
 		// Reset the token in the API client before returning
@@ -407,6 +409,15 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			strings.Contains(errMsg, "token not found") {
 			fatal = true
 		} else {
+			// In the event of a non fatal error, retry in a maximum of 1 minute
+			// TODO: mismithhisler - This is a temporary fix until a followup
+			// refactor of the vault client is merged that contains proper
+			// exponential backoffs.
+			retry := time.Now().Add(time.Minute)
+			if retry.Before(next) {
+				next = retry
+			}
+
 			c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
 			c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
 				"error", renewalErr, "period", next)

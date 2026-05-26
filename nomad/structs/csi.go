@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -202,6 +202,15 @@ func (o *CSIMountOptions) String() string {
 
 func (o *CSIMountOptions) GoString() string {
 	return o.String()
+}
+
+// Sanitize returns a copy of the CSIMountOptions with sensitive data redacted
+func (o *CSIMountOptions) Sanitize() *CSIMountOptions {
+	redacted := *o
+	if len(o.MountFlags) != 0 {
+		redacted.MountFlags = []string{"[REDACTED]"}
+	}
+	return &redacted
 }
 
 // CSISecrets contain optional additional configuration that can be used
@@ -560,6 +569,27 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	return out
 }
 
+// Sanitize returns a deep copy of the volume, with sensitive fields redacted
+func (v *CSIVolume) Sanitize() *CSIVolume {
+	if v == nil {
+		return nil
+	}
+
+	clean := v.Copy()
+
+	// would be better not to have at all but left in and redacted for backwards
+	// compatibility with the existing API
+	clean.Secrets = nil
+
+	// MountFlags can contain secrets, so we always redact it but want to show
+	// the user that we have the value
+	if v.MountOptions != nil {
+		clean.MountOptions = clean.MountOptions.Sanitize()
+	}
+
+	return clean
+}
+
 // Claim updates the allocations and changes the volume state
 func (v *CSIVolume) Claim(claim *CSIVolumeClaim, alloc *Allocation) error {
 	// COMPAT: volumes registered prior to 1.1.0 will be missing caps for the
@@ -852,10 +882,19 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 type CSIVolumeRegisterRequest struct {
 	Volumes   []*CSIVolume
 	Timestamp int64 // UnixNano
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeRegisterResponse struct {
+	Volumes []*CSIVolume
+
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
 	QueryMeta
 }
 
@@ -872,11 +911,19 @@ type CSIVolumeDeregisterResponse struct {
 type CSIVolumeCreateRequest struct {
 	Volumes   []*CSIVolume
 	Timestamp int64 // UnixNano
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type CSIVolumeCreateResponse struct {
 	Volumes []*CSIVolume
+
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
 	QueryMeta
 }
 

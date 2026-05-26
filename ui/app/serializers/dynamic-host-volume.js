@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -24,7 +24,7 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
       this,
       this.store,
       typeHash,
-      normalizedHash
+      normalizedHash,
     );
   }
 
@@ -49,7 +49,7 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
         const { data, included } = this.normalizeEmbeddedRelationship(
           store,
           relationshipMeta,
-          alloc
+          alloc,
         );
 
         partial.included.push(data);

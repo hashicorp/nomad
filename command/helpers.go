@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -11,9 +11,11 @@ import (
 	"io"
 	"maps"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/cli"
@@ -31,6 +33,10 @@ const (
 	formatJSON = "json"
 	formatHCL2 = "hcl2"
 )
+
+// uiMessageNoArguments is the message to write to the UI when a command is
+// passed arguments, but it does not take any.
+const uiMessageNoArguments = "This command takes no arguments"
 
 // maxLineLength is the maximum width of any line.
 const maxLineLength int = 78
@@ -114,6 +120,45 @@ func formatUnixNanoTime(nano int64) string {
 // E.g. formatTimeDifference(first=1m22s33ms, second=1m28s55ms, time.Second) -> 6s
 func formatTimeDifference(first, second time.Time, d time.Duration) string {
 	return second.Truncate(d).Sub(first.Truncate(d)).String()
+}
+
+func formatMaxRunDeadline(deadline time.Time, verbose bool) string {
+	if verbose {
+		return formatTime(deadline)
+	}
+
+	return prettyTimeDiff(deadline, time.Now())
+}
+
+func jobTaskGroupMaxRunDeadline(job *api.Job, taskGroupName string, createTime int64) (time.Time, bool) {
+	maxRunDuration, ok := jobTaskGroupMaxRunDuration(job, taskGroupName)
+	if !ok {
+		return time.Time{}, false
+	}
+
+	if createTime == 0 {
+		return time.Time{}, false
+	}
+
+	return time.Unix(0, createTime).Add(maxRunDuration), true
+}
+
+func jobTaskGroupMaxRunDuration(job *api.Job, taskGroupName string) (time.Duration, bool) {
+	if job == nil || job.Type == nil {
+		return 0, false
+	}
+
+	tg := job.LookupTaskGroup(taskGroupName)
+	if tg == nil || tg.MaxRunDuration == nil || *tg.MaxRunDuration <= 0 {
+		return 0, false
+	}
+
+	switch *job.Type {
+	case api.JobTypeBatch, api.JobTypeSysbatch:
+		return *tg.MaxRunDuration, true
+	default:
+		return 0, false
+	}
 }
 
 // fmtInt formats v into the tail of buf.
@@ -777,4 +822,36 @@ func getByPrefix[T any](
 		}
 		return nil, objs, nil
 	}
+}
+
+func streamFrames(frames <-chan *api.StreamFrame, errCh <-chan error,
+	numLines int64, cancel chan struct{}) (io.ReadCloser, error) {
+
+	select {
+	case err := <-errCh:
+		return nil, err
+	default:
+	}
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
+
+	// Create a reader
+	var r io.ReadCloser
+	frameReader := api.NewFrameReader(frames, errCh, cancel)
+	frameReader.SetUnblockTime(500 * time.Millisecond)
+	r = frameReader
+
+	// If numLines is set, wrap the reader
+	if numLines != -1 {
+		r = NewLineLimitReader(r, int(numLines), int(numLines*bytesToLines), 1*time.Second)
+	} else {
+	}
+	go func() {
+		<-signalCh
+
+		// End the streaming
+		r.Close()
+	}()
+
+	return r, nil
 }

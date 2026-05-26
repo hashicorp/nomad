@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package pool
@@ -21,6 +21,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/yamux"
 )
+
+// defaultDialTimeout is the fallback timeout used when a ConnPool is
+// constructed without an explicit dial timeout.
+const defaultDialTimeout = 10 * time.Second
 
 // NewClientCodec returns a new rpc.ClientCodec to be used to make RPC calls.
 func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
@@ -185,6 +189,10 @@ type ConnPool struct {
 	// The maximum number of open streams to keep
 	maxStreams int
 
+	// dialTimeout is the timeout used when establishing new outbound
+	// connections. A zero value falls back to defaultDialTimeout.
+	dialTimeout time.Duration
+
 	// Pool maps an address to a open connection
 	pool map[string]*Conn
 
@@ -213,20 +221,39 @@ type ConnPool struct {
 // Maintain at most one connection per host, for up to maxTime.
 // Set maxTime to 0 to disable reaping. maxStreams is used to control
 // the number of idle streams allowed.
+// dialTimeout is the timeout used when establishing new outbound
+// connections. A zero value falls back to defaultDialTimeout.
 // If TLS settings are provided outgoing connections use TLS.
 func NewPool(
-	logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper, yamuxCfg *yamux.Config,
+	logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper,
+	yamuxCfg *yamux.Config, dialTimeout time.Duration,
 ) *ConnPool {
-	pool := &ConnPool{
-		logger:     logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
-		maxTime:    maxTime,
-		maxStreams: maxStreams,
-		pool:       make(map[string]*Conn),
-		limiter:    make(map[string]chan struct{}),
-		tlsWrap:    tlsWrap,
-		yamuxCfg:   yamuxCfg,
-		shutdownCh: make(chan struct{}),
+	if dialTimeout <= 0 {
+		dialTimeout = defaultDialTimeout
 	}
+	pool := &ConnPool{
+		logger:      logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
+		maxTime:     maxTime,
+		maxStreams:  maxStreams,
+		dialTimeout: dialTimeout,
+		pool:        make(map[string]*Conn),
+		limiter:     make(map[string]chan struct{}),
+		tlsWrap:     tlsWrap,
+		shutdownCh:  make(chan struct{}),
+	}
+
+	// The passed yamux config is the shared server object, so we do not want to
+	// modify it directly. Instead, clone it and set up the logger to avoid data
+	// races.
+	//
+	// Performing this work here avoids doing this per new connection within
+	// getNewConn.
+	poolMUXCfg := yamuxCfg.Clone()
+	poolMUXCfg.LogOutput = nil
+	poolMUXCfg.Logger = pool.logger
+
+	pool.yamuxCfg = poolMUXCfg
+
 	if maxTime > 0 {
 		go pool.reap()
 	}
@@ -360,7 +387,7 @@ func (p *ConnPool) acquire(region string, addr net.Addr) (*Conn, error) {
 // getNewConn is used to return a new connection
 func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 	// Try to dial the conn
-	conn, err := net.DialTimeout("tcp", addr.String(), 10*time.Second)
+	conn, err := net.DialTimeout("tcp", addr.String(), p.dialTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -394,13 +421,8 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 		return nil, err
 	}
 
-	// Setup the logger
-	conf := p.yamuxCfg
-	conf.LogOutput = nil
-	conf.Logger = p.logger
-
 	// Create a multiplexed session
-	session, err := yamux.Client(conn, conf)
+	session, err := yamux.Client(conn, p.yamuxCfg)
 	if err != nil {
 		conn.Close()
 		return nil, err

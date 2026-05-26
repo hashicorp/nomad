@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package acl
@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl"
@@ -57,6 +58,29 @@ const (
 	NamespaceCapabilityReadJobScaling       = "read-job-scaling"
 	NamespaceCapabilityScaleJob             = "scale-job"
 	NamespaceCapabilitySubmitRecommendation = "submit-recommendation"
+
+	// Fine-grained job capabilities separated from submit-job
+	NamespaceCapabilityRegisterJob   = "register-job"
+	NamespaceCapabilityRevertJob     = "revert-job"
+	NamespaceCapabilityDeregisterJob = "deregister-job"
+	NamespaceCapabilityPurgeJob      = "purge-job"
+	NamespaceCapabilityEvaluateJob   = "evaluate-job"
+	NamespaceCapabilityPlanJob       = "plan-job"
+	NamespaceCapabilityTagJobVersion = "tag-job-version"
+	NamespaceCapabilityStableJob     = "stable-job"
+
+	NamespaceCapabilityFailDeployment           = "fail-deployment"
+	NamespaceCapabilityPauseDeployment          = "pause-deployment"
+	NamespaceCapabilityPromoteDeployment        = "promote-deployment"
+	NamespaceCapabilityUnblockDeployment        = "unblock-deployment"
+	NamespaceCapabilityCancelDeployment         = "cancel-deployment"
+	NamespaceCapabilitySetAllocHealthDeployment = "set-alloc-health-deployment"
+
+	NamespaceCapabilityGCAllocation    = "gc-allocation"
+	NamespaceCapabilityPauseAllocation = "pause-allocation"
+
+	NamespaceCapabilityForcePeriodicJob          = "force-periodic-job"
+	NamespaceCapabilityDeleteServiceRegistration = "delete-service-registration"
 )
 
 var (
@@ -108,6 +132,28 @@ const (
 	VariablesCapabilityDeny    = "deny"
 )
 
+const (
+	// The following are the fine-grained capabilities that can be granted for
+	// operator-level operations. Deny takes precedence and overwrites all other
+	// capabilities.
+	OperatorCapabilityDeny          = "deny"
+	OperatorCapabilitySnapshotSave  = "snapshot-save"
+	OperatorCapabilityLicenseRead   = "license-read"
+	OperatorCapabilityKeyringRotate = "keyring-rotate"
+	OperatorCapabilityKeyringRead   = "keyring-read"
+	OperatorCapabilityKeyringDelete = "keyring-delete"
+)
+
+const (
+	// The following are the fine-grained capabilities that can be granted for
+	// Sentinel CRUD operations. Deny takes precedence and overwrites all other
+	// capabilities.
+	SentinelCapabilityDeny   = "deny"
+	SentinelCapabilityRead   = "sentinel-read"
+	SentinelCapabilitySubmit = "sentinel-submit"
+	SentinelCapabilityDelete = "sentinel-delete"
+)
+
 // Policy represents a parsed HCL or JSON policy.
 type Policy struct {
 	Namespaces  []*NamespacePolicy  `hcl:"namespace,expand"`
@@ -116,9 +162,21 @@ type Policy struct {
 	Agent       *AgentPolicy        `hcl:"agent"`
 	Node        *NodePolicy         `hcl:"node"`
 	Operator    *OperatorPolicy     `hcl:"operator"`
+	Sentinel    *SentinelPolicy     `hcl:"sentinel"`
 	Quota       *QuotaPolicy        `hcl:"quota"`
 	Plugin      *PluginPolicy       `hcl:"plugin"`
 	Raw         string              `hcl:"-"`
+
+	// ExtraKeysHCL is used to capture any extra keys in the HCL input, so we
+	// can return an error if the user specified something unknown.
+	//
+	// Unfortunately, due to our current HCL use, keys from known blocks
+	// (namespace, node pools, and host volumes) will appear here, so we need to
+	// remove those as we process them. If the policy contains multiple blocks
+	// of the same type (e.g. multiple namespace blocks), the extra keys will
+	// also include "namespace" for all but the first block, so we need to
+	// remove those as we process them too.
+	ExtraKeysHCL []string `hcl:",unusedKeys"`
 }
 
 // IsEmpty checks to make sure that at least one policy has been set and is not
@@ -130,8 +188,17 @@ func (p *Policy) IsEmpty() bool {
 		p.Agent == nil &&
 		p.Node == nil &&
 		p.Operator == nil &&
+		p.Sentinel == nil &&
 		p.Quota == nil &&
 		p.Plugin == nil
+}
+
+// removeExtraKey removes a single occurrence of the passed key from the
+// ExtraKeysHCL slice. If the key is not found, this is a no-op.
+func (p *Policy) removeExtraKey(key string) {
+	if idx := slices.Index(p.ExtraKeysHCL, key); idx > -1 {
+		p.ExtraKeysHCL = append(p.ExtraKeysHCL[:idx], p.ExtraKeysHCL[idx+1:]...)
+	}
 }
 
 // NamespacePolicy is the policy for a specific namespace
@@ -174,7 +241,13 @@ type NodePolicy struct {
 }
 
 type OperatorPolicy struct {
-	Policy string
+	Policy       string
+	Capabilities []string
+}
+
+type SentinelPolicy struct {
+	Policy       string
+	Capabilities []string
 }
 
 type QuotaPolicy struct {
@@ -207,12 +280,26 @@ func (p *PluginPolicy) isValid() bool {
 // isNamespaceCapabilityValid ensures the given capability is valid for a namespace policy
 func isNamespaceCapabilityValid(cap string) bool {
 	switch cap {
-	case NamespaceCapabilityDeny, NamespaceCapabilityParseJob, NamespaceCapabilityListJobs, NamespaceCapabilityReadJob,
-		NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob, NamespaceCapabilityReadLogs,
-		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
-		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
-		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin,
-		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob, NamespaceCapabilityHostVolumeCreate, NamespaceCapabilityHostVolumeRegister, NamespaceCapabilityHostVolumeWrite, NamespaceCapabilityHostVolumeRead:
+	case NamespaceCapabilityDeny, NamespaceCapabilityListJobs, NamespaceCapabilityParseJob,
+		NamespaceCapabilityReadJob, NamespaceCapabilitySubmitJob, NamespaceCapabilityDispatchJob,
+		NamespaceCapabilityReadLogs, NamespaceCapabilityReadFS, NamespaceCapabilityAllocExec,
+		NamespaceCapabilityAllocNodeExec, NamespaceCapabilityAllocLifecycle,
+		NamespaceCapabilityCSIRegisterPlugin, NamespaceCapabilityCSIWriteVolume,
+		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIListVolume,
+		NamespaceCapabilityCSIMountVolume, NamespaceCapabilityHostVolumeCreate,
+		NamespaceCapabilityHostVolumeRegister, NamespaceCapabilityHostVolumeRead,
+		NamespaceCapabilityHostVolumeWrite, NamespaceCapabilityHostVolumeDelete,
+		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy,
+		NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob,
+		NamespaceCapabilityRegisterJob, NamespaceCapabilityRevertJob,
+		NamespaceCapabilityDeregisterJob, NamespaceCapabilityPurgeJob,
+		NamespaceCapabilityEvaluateJob, NamespaceCapabilityPlanJob,
+		NamespaceCapabilityTagJobVersion, NamespaceCapabilityStableJob,
+		NamespaceCapabilityFailDeployment, NamespaceCapabilityPauseDeployment,
+		NamespaceCapabilityPromoteDeployment, NamespaceCapabilityUnblockDeployment,
+		NamespaceCapabilityCancelDeployment, NamespaceCapabilitySetAllocHealthDeployment,
+		NamespaceCapabilityGCAllocation, NamespaceCapabilityPauseAllocation,
+		NamespaceCapabilityForcePeriodicJob, NamespaceCapabilityDeleteServiceRegistration:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride, NamespaceCapabilitySubmitRecommendation:
@@ -279,6 +366,8 @@ func expandNamespacePolicy(policy string) []string {
 			NamespaceCapabilityReadScalingPolicy,
 			NamespaceCapabilityReadJobScaling,
 			NamespaceCapabilityScaleJob,
+			NamespaceCapabilityReadJob,
+			NamespaceCapabilitySubmitRecommendation,
 		}
 	default:
 		return nil
@@ -321,6 +410,29 @@ func isNodePoolCapabilityValid(cap string) bool {
 	}
 }
 
+// isOperatorCapabilityValid ensures the given capability is valid for an operator policy
+func isOperatorCapabilityValid(cap string) bool {
+	switch cap {
+	case OperatorCapabilityDeny, OperatorCapabilitySnapshotSave, OperatorCapabilityKeyringRotate,
+		OperatorCapabilityKeyringRead, OperatorCapabilityKeyringDelete,
+		OperatorCapabilityLicenseRead:
+		return true
+	default:
+		return false
+	}
+}
+
+// isSentinelCapabilityValid ensures the given capability is valid for a sentinel policy
+func isSentinelCapabilityValid(cap string) bool {
+	switch cap {
+	case SentinelCapabilityDeny, SentinelCapabilityRead,
+		SentinelCapabilitySubmit, SentinelCapabilityDelete:
+		return true
+	default:
+		return false
+	}
+}
+
 func expandNodePoolPolicy(policy string) []string {
 	switch policy {
 	case PolicyDeny:
@@ -333,6 +445,39 @@ func expandNodePoolPolicy(policy string) []string {
 			NodePoolCapabilityRead,
 			NodePoolCapabilityWrite,
 		}
+	default:
+		return nil
+	}
+}
+
+// expandOperatorPolicy provides the equivalent set of capabilities for
+// an operator policy
+func expandOperatorPolicy(policy string) []string {
+	switch policy {
+	case PolicyDeny:
+		return []string{OperatorCapabilityDeny}
+	case PolicyRead:
+		return []string{OperatorCapabilityLicenseRead, OperatorCapabilityKeyringRead}
+	case PolicyWrite:
+		return []string{
+			OperatorCapabilitySnapshotSave, OperatorCapabilityLicenseRead,
+			OperatorCapabilityKeyringRotate, OperatorCapabilityKeyringRead,
+			OperatorCapabilityKeyringDelete}
+	default:
+		return nil
+	}
+}
+
+// expandSentinelPolicy provides the equivalent set of capabilities for
+// a sentinel policy
+func expandSentinelPolicy(policy string) []string {
+	switch policy {
+	case PolicyDeny:
+		return []string{SentinelCapabilityDeny}
+	case PolicyRead:
+		return []string{SentinelCapabilityRead}
+	case PolicyWrite:
+		return []string{SentinelCapabilityRead, SentinelCapabilitySubmit, SentinelCapabilityDelete}
 	default:
 		return nil
 	}
@@ -378,10 +523,30 @@ func expandVariablesCapabilities(caps []string) []string {
 	return caps
 }
 
-// Parse is used to parse the specified ACL rules into an
-// intermediary set of policies, before being compiled into
-// the ACL
-func Parse(rules string) (*Policy, error) {
+const (
+	// PolicyParseStrict can be used to indicate that the policy should be
+	// parsed in strict mode, returning an error if there are any unknown keys.
+	// This should be used when creating or updating policies.
+	PolicyParseStrict = true
+
+	// PolicyParseLenient can be used to indicate that the policy should be
+	// parsed in lenient mode, ignoring any unknown keys. This should be used
+	// when evaluating policies, so we gracefully handle policies that were
+	// created before we added stricter validation.
+	PolicyParseLenient = false
+)
+
+// Parse is used to parse the specified ACL rules into an intermediary set of
+// policies, before being compiled into the ACL.
+//
+// The "strict" parameter should be set to true if the policy is being created
+// or updated, and false if it is being used for evaluation. This allowed us to
+// tighten restrictions around unknown keys when writing policies, while not
+// breaking existing policies that may have unknown keys when evaluating them,
+// since they may have been written before the restrictions were added. The
+// constants PolicyParseStrict and PolicyParseLenient can be used to make the
+// intent clear at the call site.
+func Parse(rules string, strict bool) (*Policy, error) {
 	// Decode the rules
 	p := &Policy{Raw: rules}
 	if rules == "" {
@@ -446,9 +611,10 @@ func Parse(rules string) (*Policy, error) {
 				pathPolicy.Capabilities = expandVariablesCapabilities(pathPolicy.Capabilities)
 
 			}
-
 		}
 
+		// Remove the namespace name from the extra key list.
+		p.removeExtraKey(ns.Name)
 	}
 
 	for _, np := range p.NodePools {
@@ -468,6 +634,9 @@ func Parse(rules string) (*Policy, error) {
 			extraCap := expandNodePoolPolicy(np.Policy)
 			np.Capabilities = append(np.Capabilities, extraCap...)
 		}
+
+		// Remove the node-pool name from the extra key list.
+		p.removeExtraKey(np.Name)
 	}
 
 	for _, hv := range p.HostVolumes {
@@ -489,7 +658,22 @@ func Parse(rules string) (*Policy, error) {
 			extraCap := expandHostVolumePolicy(hv.Policy)
 			hv.Capabilities = append(hv.Capabilities, extraCap...)
 		}
+
+		// Remove the host-volume name from the extra key list.
+		p.removeExtraKey(hv.Name)
 	}
+
+	// Now that we have processed all known keys, return an error if the
+	// operator wrote a policy with unknown keys if we are being strict. While
+	// these do not grant any extra privileges, it can be misleaing to allow
+	// these and cause problems later if we add new capabilities that collide
+	// with the unknown keys.
+	if len(p.ExtraKeysHCL) > 0 && strict {
+		return nil, fmt.Errorf("Invalid or duplicate policy keys: %v",
+			strings.Join(p.ExtraKeysHCL, ", "))
+	}
+
+	p.ExtraKeysHCL = nil
 
 	if p.Agent != nil && !isPolicyValid(p.Agent.Policy) {
 		return nil, fmt.Errorf("Invalid agent policy: %#v", p.Agent)
@@ -499,8 +683,40 @@ func Parse(rules string) (*Policy, error) {
 		return nil, fmt.Errorf("Invalid node policy: %#v", p.Node)
 	}
 
-	if p.Operator != nil && !isPolicyValid(p.Operator.Policy) {
-		return nil, fmt.Errorf("Invalid operator policy: %#v", p.Operator)
+	if p.Operator != nil {
+		if p.Operator.Policy != "" && !isPolicyValid(p.Operator.Policy) {
+			return nil, fmt.Errorf("Invalid operator policy: %#v", p.Operator)
+		}
+		for _, cap := range p.Operator.Capabilities {
+			if !isOperatorCapabilityValid(cap) {
+				return nil, fmt.Errorf("Invalid operator capability '%s'", cap)
+			}
+		}
+
+		// Expand the short hand policy to the capabilities and
+		// add to any existing capabilities
+		if p.Operator.Policy != "" {
+			extraCap := expandOperatorPolicy(p.Operator.Policy)
+			p.Operator.Capabilities = append(p.Operator.Capabilities, extraCap...)
+		}
+	}
+
+	if p.Sentinel != nil {
+		if p.Sentinel.Policy != "" && !isPolicyValid(p.Sentinel.Policy) {
+			return nil, fmt.Errorf("Invalid sentinel policy: %#v", p.Sentinel)
+		}
+		for _, cap := range p.Sentinel.Capabilities {
+			if !isSentinelCapabilityValid(cap) {
+				return nil, fmt.Errorf("Invalid sentinel capability '%s'", cap)
+			}
+		}
+
+		// Expand the short hand policy to the capabilities and
+		// add to any existing capabilities
+		if p.Sentinel.Policy != "" {
+			extraCap := expandSentinelPolicy(p.Sentinel.Policy)
+			p.Sentinel.Capabilities = append(p.Sentinel.Capabilities, extraCap...)
+		}
 	}
 
 	if p.Quota != nil && !isPolicyValid(p.Quota.Policy) {
@@ -550,6 +766,9 @@ func hclDecode(p *Policy, rules string) (err error) {
 		if len(nsObj.Keys) == 0 {
 			p.Namespaces[i].Name = ""
 		}
+		if i > 0 {
+			p.removeExtraKey("namespace")
+		}
 
 		// Fix missing variable paths.
 		nsOT, ok := nsObj.Val.(*ast.ObjectType)
@@ -579,6 +798,9 @@ func hclDecode(p *Policy, rules string) (err error) {
 		if len(npObj.Keys) == 0 {
 			p.NodePools[i].Name = ""
 		}
+		if i > 0 {
+			p.removeExtraKey("node_pool")
+		}
 	}
 
 	hvList := list.Filter("host_volume")
@@ -586,6 +808,9 @@ func hclDecode(p *Policy, rules string) (err error) {
 		// Fix missing host volume key.
 		if len(hvObj.Keys) == 0 {
 			p.HostVolumes[i].Name = ""
+		}
+		if i > 0 {
+			p.removeExtraKey("host_volume")
 		}
 	}
 

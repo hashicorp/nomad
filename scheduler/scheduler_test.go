@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -8,11 +8,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/iterator"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
+	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
 
@@ -25,12 +25,12 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 
 	poolWithMemOversub := mock.NodePool()
 	poolWithMemOversub.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-		MemoryOversubscriptionEnabled: pointer.Of(true),
+		MemoryOversubscriptionEnabled: new(true),
 	}
 
 	poolNoMemOversub := mock.NodePool()
 	poolNoMemOversub.SchedulerConfiguration = &structs.NodePoolSchedulerConfiguration{
-		MemoryOversubscriptionEnabled: pointer.Of(false),
+		MemoryOversubscriptionEnabled: new(false),
 	}
 
 	cases := []struct {
@@ -114,7 +114,7 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 	for _, jobType := range jobTypes {
 		for _, c := range cases {
 			t.Run(fmt.Sprintf("%s/%s", jobType, c.name), func(t *testing.T) {
-				h := NewHarness(t)
+				h := tests.NewHarness(t)
 
 				// Create node pools.
 				nodePools := []*structs.NodePool{
@@ -172,7 +172,7 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 				must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 				// Process the evaluation
-				var scheduler Factory
+				var scheduler sstructs.Factory
 				switch jobType {
 				case "batch":
 					scheduler = NewBatchScheduler
@@ -199,7 +199,10 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 				case "system", "sysbatch":
 					nodes, err := h.State.NodesByNodePool(nil, job.NodePool)
 					must.NoError(t, err)
-					expectedAllocCount = iterator.Len(nodes)
+					expectedAllocCount = 0
+					for raw := nodes.Next(); raw != nil; raw = nodes.Next() {
+						expectedAllocCount++
+					}
 				}
 				must.Len(t, expectedAllocCount, allocs)
 				alloc := allocs[0]

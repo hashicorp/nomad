@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package mock
@@ -246,9 +246,10 @@ func Namespace() *structs.Namespace {
 
 func NodePool() *structs.NodePool {
 	pool := &structs.NodePool{
-		Name:        fmt.Sprintf("pool-%s", uuid.Short()),
-		Description: "test node pool",
-		Meta:        map[string]string{"team": "test"},
+		Name:            fmt.Sprintf("pool-%s", uuid.Short()),
+		Description:     "test node pool",
+		NodeIdentityTTL: 720 * time.Hour,
+		Meta:            map[string]string{"team": "test"},
 	}
 	pool.SetHash()
 	return pool

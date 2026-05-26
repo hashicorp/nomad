@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -6,12 +6,13 @@ package nomad
 import (
 	"context"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -36,13 +37,13 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&args); err != nil {
-		handleJsonResultError(err, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(err, new(int64(500)), encoder)
 		return
 	}
 
 	authErr := e.srv.Authenticate(nil, &args)
 	if authErr != nil {
-		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		handleJsonResultError(structs.ErrPermissionDenied, new(int64(403)), encoder)
 		return
 	}
 
@@ -50,7 +51,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	if args.Region != e.srv.config.Region {
 		err := e.forwardStreamingRPC(args.Region, "Event.Stream", args, conn)
 		if err != nil {
-			handleJsonResultError(err, pointer.Of(int64(500)), encoder)
+			handleJsonResultError(err, new(int64(500)), encoder)
 		}
 		return
 	}
@@ -59,14 +60,30 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 
 	resolvedACL, err := e.srv.ResolveACL(&args)
 	if err != nil {
-		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		handleJsonResultError(structs.ErrPermissionDenied, new(int64(403)), encoder)
 		return
 	}
 
 	validatedNses, err := e.validateACL(args.Namespace, args.Topics, resolvedACL)
 	if err != nil {
-		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		handleJsonResultError(structs.ErrPermissionDenied, new(int64(403)), encoder)
 		return
+	}
+
+	var resolvedACLForFilter atomic.Value
+	resolvedACLForFilter.Store(resolvedACL)
+
+	var variableFilterFn func(structs.Event) bool
+	for topic := range args.Topics {
+		if topic == structs.TopicVariable || topic == structs.TopicAll {
+			variableFilterFn = func(event structs.Event) bool {
+				if event.Topic != structs.TopicVariable {
+					return true
+				}
+				return resolvedACLForFilter.Load().(*acl.ACL).AllowVariableOperation(event.Namespace, event.Key, acl.VariablesCapabilityList, nil)
+			}
+			break
+		}
 	}
 
 	// Generate the subscription request
@@ -77,6 +94,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		// Namespaces is set once, in the event a users ACL is updated to include
 		// more NSes, the current event stream will not include the new NSes.
 		Namespaces: validatedNses,
+		FilterFn:   variableFilterFn,
 		Authenticate: func() error {
 			if err := e.srv.Authenticate(nil, &args); err != nil {
 				return err
@@ -85,6 +103,8 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 			if err != nil {
 				return err
 			}
+			resolvedACLForFilter.Store(resolvedACL)
+
 			_, err = e.validateACL(args.Namespace, args.Topics, resolvedACL)
 			return err
 		},
@@ -93,7 +113,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	// Get the servers broker and subscribe
 	publisher, err := e.srv.State().EventBroker()
 	if err != nil {
-		handleJsonResultError(err, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(err, new(int64(500)), encoder)
 		return
 	}
 
@@ -103,7 +123,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 
 	subscription, subErr = publisher.Subscribe(subReq)
 	if subErr != nil {
-		handleJsonResultError(subErr, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(subErr, new(int64(500)), encoder)
 		return
 	}
 	defer subscription.Unsubscribe()
@@ -196,7 +216,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleJsonResultError(streamErr, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(streamErr, new(int64(500)), encoder)
 		return
 	}
 
@@ -211,7 +231,7 @@ func (e *Event) forwardStreamingRPC(region string, method string, args interface
 	return e.forwardStreamingRPCToServer(server, method, args, in)
 }
 
-func (e *Event) forwardStreamingRPCToServer(server *serverParts, method string, args interface{}, in io.ReadWriteCloser) error {
+func (e *Event) forwardStreamingRPCToServer(server *peers.Parts, method string, args interface{}, in io.ReadWriteCloser) error {
 	srvConn, err := e.srv.streamingRpc(server, method)
 	if err != nil {
 		return err
@@ -295,6 +315,12 @@ func validateNsOp(namespace string, topics map[structs.Topic][]string, aclObj *a
 			}
 		case structs.TopicOperator:
 			if ok := aclObj.AllowOperatorRead(); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case structs.TopicVariable:
+			// Require any variable access in the namespace; the per-event
+			// FilterFn on the subscription enforces path-level permissions.
+			if ok := aclObj.AllowVariableSearch(namespace); !ok {
 				return structs.ErrPermissionDenied
 			}
 		default: // including TopicAll

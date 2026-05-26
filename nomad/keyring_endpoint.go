@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -44,7 +45,7 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
+	} else if !aclObj.AllowOperatorOperation(acl.OperatorCapabilityKeyringRotate) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -67,8 +68,8 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 		unwrappedKey.Meta.State = structs.RootKeyStateActive
 	}
 
-	isClusterUpgraded := ServersMeetMinimumVersion(
-		k.srv.serf.Members(), k.srv.Region(), minVersionKeyringInRaft, true)
+	isClusterUpgraded := k.srv.peersCache.ServersMeetMinimumVersion(
+		k.srv.Region(), minVersionKeyringInRaft, true)
 
 	// wrap/encrypt the key before we write it to Raft
 	wrappedKey, err := k.encrypter.AddUnwrappedKey(unwrappedKey, isClusterUpgraded)
@@ -135,7 +136,7 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
+	} else if !aclObj.AllowOperatorOperation(acl.OperatorCapabilityKeyringRead) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -191,8 +192,8 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 		return err
 	}
 
-	isClusterUpgraded := ServersMeetMinimumVersion(
-		k.srv.serf.Members(), k.srv.Region(), minVersionKeyringInRaft, true)
+	isClusterUpgraded := k.srv.peersCache.ServersMeetMinimumVersion(
+		k.srv.Region(), minVersionKeyringInRaft, true)
 
 	// make sure it's been added to the local keystore before we write
 	// it to raft, so that followers don't try to Get a key that
@@ -326,7 +327,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.IsManagement() {
+	} else if !aclObj.AllowOperatorOperation(acl.OperatorCapabilityKeyringDelete) {
 		return structs.ErrPermissionDenied
 	}
 

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -24,7 +24,7 @@ Usage: nomad license <subcommand> [options] [args]
 
 This command has subcommands for managing the Nomad Enterprise license.
 For more detailed examples see:
-https://developer.hashicorp.com/nomad/docs/commands/license
+https://developer.hashicorp.com/nomad/commands/license
 
 Retrieve the server's license:
 
@@ -75,6 +75,7 @@ func outputLicenseInfo(ui cli.Ui, lic *api.License, expired, terminated bool) {
 	}
 	output := []string{
 		fmt.Sprintf("Product|%s", lic.Product),
+		fmt.Sprintf("NonProduction|%t", lic.NonProduction),
 		fmt.Sprintf("License Status|%s", validity),
 		fmt.Sprintf("License ID|%s", lic.LicenseID),
 		fmt.Sprintf("Customer ID|%s", lic.CustomerID),

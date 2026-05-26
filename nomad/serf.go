@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -9,6 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -26,21 +27,25 @@ const (
 	peerRetryBase = 1 * time.Second
 )
 
-// serfEventHandler is used to handle events from the serf cluster
+// serfEventHandler is used to handle events from the serf cluster.
+// It handles updating the cache of server peers for various member states
+// and notifies the main leader loop to add or remove raft peers when
+// nodes join/leave/reap via localMemberEvent.
 func (s *Server) serfEventHandler() {
 	for {
 		select {
 		case e := <-s.eventCh:
 			switch e.EventType() {
 			case serf.EventMemberJoin:
-				s.nodeJoin(e.(serf.MemberEvent))
+				s.updatePeer(e.(serf.MemberEvent))
+				s.maybeBootstrap()
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberLeave, serf.EventMemberFailed:
-				s.nodeFailed(e.(serf.MemberEvent))
+			case serf.EventMemberFailed, serf.EventMemberUpdate:
+				s.updatePeer(e.(serf.MemberEvent))
+			case serf.EventMemberLeave, serf.EventMemberReap:
+				s.deletePeer(e.(serf.MemberEvent))
 				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberReap:
-				s.localMemberEvent(e.(serf.MemberEvent))
-			case serf.EventMemberUpdate, serf.EventUser, serf.EventQuery: // Ignore
+			case serf.EventUser, serf.EventQuery: // Ignore
 			default:
 				s.logger.Warn("unhandled serf event", "event", log.Fmt("%#v", e))
 			}
@@ -51,51 +56,38 @@ func (s *Server) serfEventHandler() {
 	}
 }
 
-// nodeJoin is used to handle join events on the serf cluster
-func (s *Server) nodeJoin(me serf.MemberEvent) {
+// updatePeer is used to handle join/update events on the serf cluster
+func (s *Server) updatePeer(me serf.MemberEvent) {
 	for _, m := range me.Members {
-		ok, parts := isNomadServer(m)
+		ok, parts := peers.IsNomadServer(m)
 		if !ok {
 			s.logger.Warn("non-server in gossip pool", "member", m.Name)
 			continue
 		}
-		s.logger.Info("adding server", "server", parts)
+		s.logger.Info("server event", "type", me.EventType().String(), "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
 
-		// Check if this server is known
-		found := false
-		s.peerLock.Lock()
-		existing := s.peers[parts.Region]
-		for idx, e := range existing {
-			if e.Name == parts.Name {
-				existing[idx] = parts
-				found = true
-				break
-			}
-		}
+		s.peersCache.UpdatePeerSet(parts)
+	}
+}
 
-		// Add ot the list if not known
-		if !found {
-			s.peers[parts.Region] = append(existing, parts)
+// deletePeer is used to delete a peer from the cache when nodes leave or are reaped
+func (s *Server) deletePeer(me serf.MemberEvent) {
+	for _, m := range me.Members {
+		ok, parts := peers.IsNomadServer(m)
+		if !ok {
+			s.logger.Warn("non-server in gossip pool", "member", m.Name)
+			continue
 		}
+		s.logger.Info("server event", "type", me.EventType().String(), "name", parts.Name, "addr", parts.Addr, "dc", parts.Datacenter)
 
-		// Check if a local peer
-		if parts.Region == s.config.Region {
-			s.localPeers[raft.ServerAddress(parts.Addr.String())] = parts
-		}
-		s.peerLock.Unlock()
-
-		// If we still expecting to bootstrap, may need to handle this
-		if s.config.BootstrapExpect != 0 && !s.bootstrapped.Load() {
-			s.maybeBootstrap()
-		}
+		s.peersCache.PeerDelete(parts)
 	}
 }
 
 // maybeBootstrap is used to handle bootstrapping when a new server joins
 func (s *Server) maybeBootstrap() {
 
-	// redundant check to ease testing
-	if s.config.BootstrapExpect == 0 {
+	if s.config.BootstrapExpect == 0 || s.bootstrapped.Load() {
 		return
 	}
 
@@ -125,10 +117,10 @@ func (s *Server) maybeBootstrap() {
 
 	// Scan for all the known servers
 	members := s.serf.Members()
-	var servers []serverParts
+	var servers []peers.Parts
 	voters := 0
-	for _, member := range members {
-		valid, p := isNomadServer(member)
+	for _, serfMem := range members {
+		valid, p := peers.IsNomadServer(serfMem)
 		if !valid {
 			continue
 		}
@@ -136,11 +128,11 @@ func (s *Server) maybeBootstrap() {
 			continue
 		}
 		if p.Expect != 0 && p.Expect != s.config.BootstrapExpect {
-			s.logger.Error("peer has a conflicting expect value. All nodes should expect the same number", "member", member)
+			s.logger.Error("peer has a conflicting expect value. All nodes should expect the same number", "member", serfMem)
 			return
 		}
 		if p.Bootstrap {
-			s.logger.Error("peer has bootstrap mode. Expect disabled", "member", member)
+			s.logger.Error("peer has bootstrap mode. Expect disabled", "member", serfMem)
 			return
 		}
 		if !p.NonVoter {
@@ -234,43 +226,6 @@ func (s *Server) maybeBootstrap() {
 
 	// Bootstrapping complete, or failed for some reason, don't enter this again
 	s.bootstrapped.Store(true)
-}
-
-// nodeFailed is used to handle fail events on the serf cluster
-func (s *Server) nodeFailed(me serf.MemberEvent) {
-	for _, m := range me.Members {
-		ok, parts := isNomadServer(m)
-		if !ok {
-			continue
-		}
-		s.logger.Info("removing server", "server", parts)
-
-		// Remove the server if known
-		s.peerLock.Lock()
-		existing := s.peers[parts.Region]
-		n := len(existing)
-		for i := 0; i < n; i++ {
-			if existing[i].Name == parts.Name {
-				existing[i], existing[n-1] = existing[n-1], nil
-				existing = existing[:n-1]
-				n--
-				break
-			}
-		}
-
-		// Trim the list there are no known servers in a region
-		if n == 0 {
-			delete(s.peers, parts.Region)
-		} else {
-			s.peers[parts.Region] = existing
-		}
-
-		// Check if local peer
-		if parts.Region == s.config.Region {
-			delete(s.localPeers, raft.ServerAddress(parts.Addr.String()))
-		}
-		s.peerLock.Unlock()
-	}
 }
 
 // localMemberEvent is used to reconcile Serf events with the

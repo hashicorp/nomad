@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -310,6 +310,13 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if !allowVolume(aclObj, vol.Namespace) {
 			return structs.ErrPermissionDenied
 		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+				return structs.ErrPermissionDenied
+			}
+		}
+
 		if err = vol.Validate(); err != nil {
 			return err
 		}
@@ -354,6 +361,15 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		if err := v.controllerValidateVolume(args, vol, plugin); err != nil {
 			return err
 		}
+
+		warn, err := v.enforceEnterprisePolicy(snap, vol, existingVol, args.GetIdentity().GetACLToken(), args.PolicyOverride)
+		if warn != nil {
+			reply.Warnings = warn.Error()
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
 	_, index, err := v.srv.raftApply(structs.CSIVolumeRegisterRequestType, args)
@@ -362,6 +378,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return err
 	}
 
+	reply.Volumes = args.Volumes
 	reply.Index = index
 	v.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
@@ -443,8 +460,11 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowClientOp() {
-		return structs.ErrPermissionDenied
+
+	if !(args.Claim == structs.CSIVolumeClaimGC && aclObj.AllowServerOp()) {
+		if err := v.authorizeClaim(aclObj, args); err != nil {
+			return err
+		}
 	}
 
 	if args.VolumeID == "" {
@@ -681,12 +701,8 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	if err != nil {
 		return err
 	}
-	// this RPC is called by both clients and by `nomad volume detach`. we can't
-	// safely match the node ID for client RPCs because we may not have the node
-	// ID anymore
-	if !aclObj.AllowClientOp() &&
-		!(allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()) {
-		return structs.ErrPermissionDenied
+	if err := v.authorizeUnpublish(aclObj, args, allowVolume); err != nil {
+		return err
 	}
 
 	if args.VolumeID == "" {
@@ -1008,6 +1024,8 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 		State:        claim.State,
 		WriteRequest: structs.WriteRequest{
 			Namespace: vol.Namespace,
+			Region:    v.srv.Region(),
+			AuthToken: v.srv.getLeaderAcl(),
 		},
 	}
 	_, index, err := v.srv.raftApply(structs.CSIVolumeClaimRequestType, req)
@@ -1016,6 +1034,78 @@ func (v *CSIVolume) checkpointClaim(vol *structs.CSIVolume, claim *structs.CSIVo
 		return err
 	}
 	vol.ModifyIndex = index
+	return nil
+}
+
+func (v *CSIVolume) allowInternalCSIRequest(aclObj *acl.ACL, identity *structs.AuthenticatedIdentity) bool {
+	if aclObj.AllowServerOp() {
+		return true
+	}
+
+	return identity != nil &&
+		identity.GetACLToken() != nil &&
+		identity.GetACLToken().AccessorID == structs.LeaderACLToken.AccessorID
+}
+
+func (v *CSIVolume) authorizeClaim(aclObj *acl.ACL, args *structs.CSIVolumeClaimRequest) error {
+	if v.allowInternalCSIRequest(aclObj, args.GetIdentity()) {
+		return nil
+	}
+
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	pool := ""
+	if args.AllocationID != "" {
+		alloc, err := snap.AllocByID(memdb.NewWatchSet(), args.AllocationID)
+		if err == nil && alloc != nil && alloc.NodeID != "" {
+			if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), alloc.NodeID); err == nil && ok {
+				pool = resolvedPool
+			}
+		}
+	}
+	if pool == "" {
+		if resolvedPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.NodeID); err == nil && ok {
+			pool = resolvedPool
+		}
+	}
+	if pool == "" || !aclObj.AllowClientOp(pool) {
+		return structs.ErrPermissionDenied
+	}
+
+	return nil
+}
+
+func (v *CSIVolume) authorizeUnpublish(
+	aclObj *acl.ACL,
+	args *structs.CSIVolumeUnpublishRequest,
+	allowVolume func(*acl.ACL, string) bool,
+) error {
+	if v.allowInternalCSIRequest(aclObj, args.GetIdentity()) {
+		return nil
+	}
+
+	allowByNamespace := allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()
+	if allowByNamespace {
+		return nil
+	}
+
+	if args.Claim == nil {
+		return structs.ErrPermissionDenied
+	}
+
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	claimPool, ok, err := snap.NodePoolByNodeID(memdb.NewWatchSet(), args.Claim.NodeID)
+	if err != nil || !ok || !aclObj.AllowClientOp(claimPool) {
+		return structs.ErrPermissionDenied
+	}
+
 	return nil
 }
 
@@ -1070,6 +1160,13 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		if !allowVolume(aclObj, vol.Namespace) {
 			return structs.ErrPermissionDenied
 		}
+		// Check if override is set and we do not have permissions
+		if args.PolicyOverride {
+			if !aclObj.AllowNsOp(vol.Namespace, acl.NamespaceCapabilitySentinelOverride) {
+				return structs.ErrPermissionDenied
+			}
+		}
+
 		if err = vol.Validate(); err != nil {
 			return err
 		}
@@ -1093,6 +1190,15 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 
 		validatedVols = append(validatedVols,
 			validated{vol, plugin, current})
+
+		warn, err := v.enforceEnterprisePolicy(snap, vol, current, args.GetIdentity().GetACLToken(), args.PolicyOverride)
+		if warn != nil {
+			reply.Warnings = warn.Error()
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
 	// Attempt to create all the validated volumes and write only successfully
@@ -1627,7 +1733,10 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 
 		method := "ClientCSI.ControllerDeleteSnapshot"
 
-		cReq := &cstructs.ClientCSIControllerDeleteSnapshotRequest{ID: snap.ID}
+		cReq := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
+			ID:      snap.ID,
+			Secrets: snap.Secrets,
+		}
 		cReq.PluginID = plugin.ID
 		cResp := &cstructs.ClientCSIControllerDeleteSnapshotResponse{}
 		err = v.serializedControllerRPC(plugin.ID, func() error {

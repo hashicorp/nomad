@@ -39,5 +39,21 @@
 			"start_join": ["foo", "bar"],
 			"retry_join": ["foo", "bar"]
 		}
+	},
+	"consul": {
+		"service_identity": {
+			"aud": ["consul.io"],
+			"ttl": "1h"
+		},
+		"task_identity": {
+			"aud": ["consul.io"],
+			"ttl": "1h"
+		}
+	},
+	"vault": {
+		"default_identity": {
+			"aud": ["vault.io"],
+			"ttl": "2h"
+		}
 	}
 }

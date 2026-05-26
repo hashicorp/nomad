@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -19,6 +19,8 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeVolume(volume) {
-  volume.NodeID = volume.Node.ID;
+  if (volume.Node?.ID) {
+    volume.NodeID = volume.Node.ID;
+  }
   delete volume.Node;
 }

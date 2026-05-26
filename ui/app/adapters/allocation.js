@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -28,7 +28,7 @@ export default class AllocationAdapter extends Watchable {
   ls(model, path) {
     return this.token
       .authorizedRequest(
-        `/v1/client/fs/ls/${model.id}?path=${encodeURIComponent(path)}`
+        `/v1/client/fs/ls/${model.id}?path=${encodeURIComponent(path)}`,
       )
       .then(handleFSResponse);
   }
@@ -36,7 +36,7 @@ export default class AllocationAdapter extends Watchable {
   stat(model, path) {
     return this.token
       .authorizedRequest(
-        `/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`
+        `/v1/client/fs/stat/${model.id}?path=${encodeURIComponent(path)}`,
       )
       .then(handleFSResponse);
   }
@@ -66,7 +66,7 @@ export default class AllocationAdapter extends Watchable {
 
   async check(model) {
     const res = await this.token.authorizedRequest(
-      `/v1/client/allocation/${model.id}/checks`
+      `/v1/client/allocation/${model.id}/checks`,
     );
     const data = await res.json();
     // Append allocation ID to each check
@@ -95,7 +95,7 @@ function adapterAction(path, verb = 'POST') {
   return function (allocation) {
     const url = addToPath(
       this.urlForFindRecord(allocation.id, 'allocation'),
-      path
+      path,
     );
     return this.ajax(url, verb);
   };

@@ -1,11 +1,11 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Component from '@ember/component';
 import classic from 'ember-classic-decorator';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { attributeBindings } from '@ember-decorators/component';
 import { htmlSafe } from '@ember/template';
 
@@ -25,7 +25,7 @@ export default class GlobalHeader extends Component {
         background-color: ${
           this.system.agent.get('config')?.UI?.Label?.BackgroundColor
         };
-      `
+      `,
     );
   }
 }

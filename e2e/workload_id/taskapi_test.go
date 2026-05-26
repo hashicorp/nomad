@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package workload_id
@@ -10,7 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/v3/cluster3"
+	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -26,6 +29,7 @@ func TestTaskAPI(t *testing.T) {
 
 	t.Run("testTaskAPI_Auth", testTaskAPIAuth)
 	t.Run("testTaskAPI_Windows", testTaskAPIWindows)
+	t.Run("testTaskAPI_NomadCLI", testTaskAPINomadCLI)
 }
 
 func testTaskAPIAuth(t *testing.T) {
@@ -128,4 +132,33 @@ func testTaskAPIWindows(t *testing.T) {
 	logs := string(logBytes)
 
 	must.StrHasSuffix(t, `"ok":true}}`, logs)
+}
+
+func testTaskAPINomadCLI(t *testing.T) {
+	cluster3.Establish(t,
+		cluster3.LinuxClients(1),
+	)
+
+	nomad := e2eutil.NomadClient(t)
+	opts := &api.WriteOptions{Namespace: api.DefaultNamespace}
+	_, _, err := nomad.Variables().Create(&api.Variable{
+		Namespace: api.DefaultNamespace,
+		Path:      "nomad/jobs/task-api-nomad-cli",
+		Items:     map[string]string{"key": "xyzzy"},
+	}, opts)
+	must.NoError(t, err)
+
+	t.Cleanup(func() {
+		nomad.Variables().Delete("nomad/jobs/task-api-nomad-cli", nil)
+	})
+
+	sub, _ := jobs3.Submit(t,
+		"./input/api-nomad-cli.nomad.hcl",
+		jobs3.DisableRandomJobID(),
+		jobs3.WaitComplete("grp"),
+	)
+	logs := sub.TaskLogs("grp", "tsk")
+	test.StrContains(t, logs.Stdout, "unix:/") // from `echo $NOMAD_ADDR`
+	test.StrContains(t, logs.Stdout, "secrets/api.sock")
+	test.StrContains(t, logs.Stdout, "xyzzy") // api success
 }

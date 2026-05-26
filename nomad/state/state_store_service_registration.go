@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -183,6 +183,20 @@ func (s *StateStore) deleteServiceRegistrationByAllocIDTxn(
 		}
 	}
 	return nil
+}
+
+// deregisterServicesForTerminalAllocs deletes service registration instances
+// for allocations that have been marked client-terminal. This allows us to
+// remove services for an alloc even if the client hooks fail or the node goes
+// down.
+func (s *StateStore) deregisterServicesForTerminalAllocs(
+	txn *txn, index uint64, alloc *structs.Allocation) error {
+
+	if !alloc.ClientTerminalStatus() {
+		return nil
+	}
+
+	return s.deleteServiceRegistrationByAllocIDTxn(txn, index, alloc.ID)
 }
 
 // GetServiceRegistrations returns an iterator that contains all service

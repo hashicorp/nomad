@@ -1,5 +1,5 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -25,7 +25,7 @@ export default function styleString(target, name, descriptor) {
         .reduce(function (arr, key) {
           const val = styles[key];
           arr.push(
-            key + ':' + (typeof val === 'number' ? val.toFixed(2) + 'px' : val)
+            key + ':' + (typeof val === 'number' ? val.toFixed(2) + 'px' : val),
           );
           return arr;
         }, [])

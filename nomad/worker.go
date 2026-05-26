@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -181,7 +182,7 @@ func (w *Worker) Resume() {
 	}
 }
 
-// Resume transitions a worker to the stopping state. Check
+// Stop transitions a worker to the stopping state. Check
 // to see if the worker stopped by calling IsStopped()
 func (w *Worker) Stop() {
 	w.setStatus(WorkerStopping)
@@ -249,7 +250,7 @@ func (w *Worker) setWorkerStatusLocked(newStatus WorkerStatus) {
 	w.status = newStatus
 }
 
-// GetStatus returns the status of the Worker's Workload.
+// GetWorkloadStatus returns the status of the Worker's Workload.
 func (w *Worker) GetWorkloadStatus() SchedulerWorkerStatus {
 	w.statusLock.RLock()
 	defer w.statusLock.RUnlock()
@@ -577,7 +578,7 @@ type ErrMinIndexDeadlineExceeded struct {
 	timeout   time.Duration
 }
 
-// Unwrapping an ErrMinIndexDeadlineExceeded always return
+// Unwrap an ErrMinIndexDeadlineExceeded that always returns
 // context.DeadlineExceeded
 func (ErrMinIndexDeadlineExceeded) Unwrap() error {
 	return context.DeadlineExceeded
@@ -620,9 +621,9 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 	}
 
 	// Create the scheduler, or use the special core scheduler
-	var sched scheduler.Scheduler
+	var sched sstructs.Scheduler
 	if eval.Type == structs.JobTypeCore {
-		sched = NewCoreScheduler(w.srv, snap)
+		sched = NewCoreScheduler(w.srv, snap, w)
 	} else {
 		sched, err = scheduler.NewScheduler(eval.Type, w.logger, w.srv.workersEventCh, snap, w)
 		if err != nil {
@@ -642,18 +643,30 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 // other packages to perform server version checks without direct references to
 // the Nomad server.
 func (w *Worker) ServersMeetMinimumVersion(minVersion *version.Version, checkFailedServers bool) bool {
-	return ServersMeetMinimumVersion(w.srv.Members(), w.srv.Region(), minVersion, checkFailedServers)
+	return w.srv.peersCache.ServersMeetMinimumVersion(w.srv.Region(), minVersion, checkFailedServers)
 }
 
 // SubmitPlan is used to submit a plan for consideration. This allows
 // the worker to act as the planner for the scheduler.
-func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.State, error) {
+func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.State, error) {
 	// Check for a shutdown before plan submission. Checking server state rather than
 	// worker state to allow work in flight to complete before stopping.
 	if w.srv.IsShutdown() {
 		return nil, nil, fmt.Errorf("shutdown while planning")
 	}
 	defer metrics.MeasureSince([]string{"nomad", "worker", "submit_plan"}, time.Now())
+
+	// Figure out whether we need to submit a plan that contains a full job or
+	// a new, "lean" plan with just the basic job info (ns, id and ver)
+	if w.ServersMeetMinimumVersion(minVersionPlanLeanJob, false) {
+		if plan.Job != nil { // extra safety check
+			plan.JobInfo = &structs.PlanJobTuple{
+				Namespace: plan.Job.Namespace,
+				ID:        plan.Job.ID,
+			}
+		}
+		plan.Job = nil
+	}
 
 	// Add the evaluation token to the plan
 	plan.EvalToken = w.evalToken
@@ -663,10 +676,7 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 	plan.SnapshotIndex = w.snapshotIndex
 
 	// Normalize stopped and preempted allocs before RPC
-	normalizePlan := ServersMeetMinimumVersion(w.srv.Members(), w.srv.Region(), MinVersionPlanNormalization, true)
-	if normalizePlan {
-		plan.NormalizeAllocations()
-	}
+	plan.NormalizeAllocations()
 
 	// Setup the request
 	req := structs.PlanRequest{
@@ -700,7 +710,7 @@ SUBMIT:
 	// planned based on stale data, which is causing issues. For example, a
 	// node failure since the time we've started planning or conflicting task
 	// allocations.
-	var state scheduler.State
+	var state sstructs.State
 	if result.RefreshIndex != 0 {
 		// Wait for the raft log to catchup to the evaluation
 		w.logger.Debug("refreshing state", "refresh_index", result.RefreshIndex, "eval_id", plan.EvalID)

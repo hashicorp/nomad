@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package cluster3
@@ -148,7 +148,7 @@ func (c *Cluster) wait() {
 		errCh <- err
 	}()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		err := <-errCh
 		must.NoError(c.t, err)
 	}

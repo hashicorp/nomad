@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -7,18 +7,17 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 func MockJob() *api.Job {
 	job := &api.Job{
-		Region:      pointer.Of("global"),
-		ID:          pointer.Of(uuid.Generate()),
-		Name:        pointer.Of("my-job"),
-		Type:        pointer.Of("service"),
-		Priority:    pointer.Of(50),
-		AllAtOnce:   pointer.Of(false),
+		Region:      new("global"),
+		ID:          new(uuid.Generate()),
+		Name:        new("my-job"),
+		Type:        new("service"),
+		Priority:    new(50),
+		AllAtOnce:   new(false),
 		Datacenters: []string{"dc1"},
 		Constraints: []*api.Constraint{
 			{
@@ -29,17 +28,17 @@ func MockJob() *api.Job {
 		},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  pointer.Of("web"),
-				Count: pointer.Of(10),
+				Name:  new("web"),
+				Count: new(10),
 				EphemeralDisk: &api.EphemeralDisk{
-					SizeMB: pointer.Of(150),
+					SizeMB: new(150),
 				},
 				RestartPolicy: &api.RestartPolicy{
-					Attempts:        pointer.Of(3),
-					Interval:        pointer.Of(10 * time.Minute),
-					Delay:           pointer.Of(1 * time.Minute),
-					Mode:            pointer.Of("delay"),
-					RenderTemplates: pointer.Of(false),
+					Attempts:        new(3),
+					Interval:        new(10 * time.Minute),
+					Delay:           new(1 * time.Minute),
+					Mode:            new("delay"),
+					RenderTemplates: new(false),
 				},
 				Networks: []*api.NetworkResource{
 					{
@@ -93,8 +92,8 @@ func MockJob() *api.Job {
 						},
 						LogConfig: api.DefaultLogConfig(),
 						Resources: &api.Resources{
-							CPU:      pointer.Of(500),
-							MemoryMB: pointer.Of(256),
+							CPU:      new(500),
+							MemoryMB: new(256),
 						},
 						Meta: map[string]string{
 							"foo": "bar",
@@ -118,7 +117,7 @@ func MockJob() *api.Job {
 
 func MockRegionalJob() *api.Job {
 	j := MockJob()
-	j.Region = pointer.Of("north-america")
+	j.Region = new("north-america")
 	return j
 }
 
@@ -130,7 +129,7 @@ func MockRunnableJob() *api.Job {
 	// Configure job so it can be run on a TestAgent
 	job.Constraints = nil
 	job.TaskGroups[0].Constraints = nil
-	job.TaskGroups[0].Count = pointer.Of(1)
+	job.TaskGroups[0].Count = new(1)
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	job.TaskGroups[0].Tasks[0].Services = nil
 	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{

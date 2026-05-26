@@ -1,11 +1,11 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import Component from '@ember/component';
 import { computed as overridable } from 'ember-overridable-computed';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
 

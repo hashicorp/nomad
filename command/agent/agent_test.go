@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
@@ -43,6 +43,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	conf := DefaultConfig()
 	conf.DevMode = true // allow localhost for advertise addrs
 	conf.Server.Enabled = true
+	conf.Server.NonProduction = true
 	a := &Agent{config: conf}
 
 	conf.AdvertiseAddrs.Serf = "127.0.0.1:4000"
@@ -58,6 +59,7 @@ func TestAgent_ServerConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, out.EnableEventBroker)
+	require.True(t, out.Reporting.NonProduction)
 
 	serfAddr := out.SerfConfig.MemberlistConfig.AdvertiseAddr
 	require.Equal(t, "127.0.0.1", serfAddr)
@@ -264,7 +266,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "rpc_handshake_timeout must be >= 0",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "-5s",
-				RPCMaxConnsPerClient: pointer.Of(100),
+				RPCMaxConnsPerClient: new(100),
 			},
 		},
 		{
@@ -272,7 +274,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "error parsing rpc_handshake_timeout",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "s",
-				RPCMaxConnsPerClient: pointer.Of(100),
+				RPCMaxConnsPerClient: new(100),
 			},
 		},
 		{
@@ -280,7 +282,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "error parsing rpc_handshake_timeout",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "",
-				RPCMaxConnsPerClient: pointer.Of(100),
+				RPCMaxConnsPerClient: new(100),
 			},
 		},
 		{
@@ -288,7 +290,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "rpc_max_conns_per_client must be > 25; found: -100",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "5s",
-				RPCMaxConnsPerClient: pointer.Of(-100),
+				RPCMaxConnsPerClient: new(-100),
 			},
 		},
 		{
@@ -296,7 +298,7 @@ func TestAgent_ServerConfig_Limits_Error(t *testing.T) {
 			expectedErr: "rpc_max_conns_per_client must be > 25; found: 20",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "5s",
-				RPCMaxConnsPerClient: pointer.Of(config.LimitsNonStreamingConnsPerClient),
+				RPCMaxConnsPerClient: new(config.LimitsNonStreamingConnsPerClient),
 			},
 		},
 	}
@@ -340,21 +342,21 @@ func TestAgent_ServerConfig_Limits_OK(t *testing.T) {
 			name: "Zeros are valid",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "0s",
-				RPCMaxConnsPerClient: pointer.Of(0),
+				RPCMaxConnsPerClient: new(0),
 			},
 		},
 		{
 			name: "Low limits are valid",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "1ms",
-				RPCMaxConnsPerClient: pointer.Of(26),
+				RPCMaxConnsPerClient: new(26),
 			},
 		},
 		{
 			name: "High limits are valid",
 			limits: config.Limits{
 				RPCHandshakeTimeout:  "5h",
-				RPCMaxConnsPerClient: pointer.Of(100000),
+				RPCMaxConnsPerClient: new(100000),
 			},
 		},
 	}
@@ -394,12 +396,12 @@ func TestAgent_ServerConfig_PlanRejectionTracker(t *testing.T) {
 		{
 			name: "valid config",
 			trackerConfig: &PlanRejectionTracker{
-				Enabled:       pointer.Of(true),
+				Enabled:       new(true),
 				NodeThreshold: 123,
 				NodeWindow:    17 * time.Minute,
 			},
 			expectedConfig: &PlanRejectionTracker{
-				Enabled:       pointer.Of(true),
+				Enabled:       new(true),
 				NodeThreshold: 123,
 				NodeWindow:    17 * time.Minute,
 			},
@@ -471,7 +473,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 		},
 
 		{
-			multiplier: pointer.Of(0),
+			multiplier: new(0),
 
 			electionTimout:     1 * time.Second,
 			heartbeatTimeout:   1 * time.Second,
@@ -479,7 +481,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      50 * time.Millisecond,
 		},
 		{
-			multiplier: pointer.Of(1),
+			multiplier: new(1),
 
 			electionTimout:     1 * time.Second,
 			heartbeatTimeout:   1 * time.Second,
@@ -487,7 +489,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      50 * time.Millisecond,
 		},
 		{
-			multiplier: pointer.Of(5),
+			multiplier: new(5),
 
 			electionTimout:     5 * time.Second,
 			heartbeatTimeout:   5 * time.Second,
@@ -495,7 +497,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      250 * time.Millisecond,
 		},
 		{
-			multiplier: pointer.Of(6),
+			multiplier: new(6),
 
 			electionTimout:     6 * time.Second,
 			heartbeatTimeout:   6 * time.Second,
@@ -503,7 +505,7 @@ func TestAgent_ServerConfig_RaftMultiplier_Ok(t *testing.T) {
 			commitTimeout:      300 * time.Millisecond,
 		},
 		{
-			multiplier: pointer.Of(10),
+			multiplier: new(10),
 
 			electionTimout:     10 * time.Second,
 			heartbeatTimeout:   10 * time.Second,
@@ -567,13 +569,13 @@ func TestAgent_ServerConfig_RaftTrailingLogs(t *testing.T) {
 	}{
 		{
 			name:   "bad",
-			value:  pointer.Of(int(-1)),
+			value:  new(int(-1)),
 			isErr:  true,
 			expect: "raft_trailing_logs must be non-negative",
 		},
 		{
 			name:   "good",
-			value:  pointer.Of(int(10)),
+			value:  new(int(10)),
 			expect: uint64(10),
 		},
 		{
@@ -616,13 +618,13 @@ func TestAgent_ServerConfig_RaftSnapshotThreshold(t *testing.T) {
 	}{
 		{
 			name:   "bad",
-			value:  pointer.Of(int(-1)),
+			value:  new(int(-1)),
 			isErr:  true,
 			expect: "raft_snapshot_threshold must be non-negative",
 		},
 		{
 			name:   "good",
-			value:  pointer.Of(int(10)),
+			value:  new(int(10)),
 			expect: uint64(10),
 		},
 		{
@@ -702,21 +704,21 @@ func Test_convertServerConfig_errors(t *testing.T) {
 		{
 			name: "num schedulers too big",
 			inputConfig: overlayDefaultFunc(func(config *Config) {
-				config.Server.NumSchedulers = pointer.Of(1<<63 - 1)
+				config.Server.NumSchedulers = new(1<<63 - 1)
 			}),
 			expectErr: true,
 		},
 		{
 			name: "num schedulers negative",
 			inputConfig: overlayDefaultFunc(func(config *Config) {
-				config.Server.NumSchedulers = pointer.Of(-100)
+				config.Server.NumSchedulers = new(-100)
 			}),
 			expectErr: true,
 		},
 		{
 			name: "valid",
 			inputConfig: overlayDefaultFunc(func(config *Config) {
-				config.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
+				config.Server.NumSchedulers = new(runtime.NumCPU())
 			}),
 			expectErr: false,
 		},
@@ -799,7 +801,7 @@ func TestConvertClientConfig(t *testing.T) {
 		{
 			name: "hook metrics enabled (default value)",
 			modConfig: func(c *Config) {
-				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(false)
+				c.Telemetry.DisableAllocationHookMetrics = new(false)
 			},
 			assert: func(t *testing.T, cc *clientconfig.Config) {
 				must.False(t, cc.DisableAllocationHookMetrics)
@@ -808,10 +810,25 @@ func TestConvertClientConfig(t *testing.T) {
 		{
 			name: "hook metrics disabled",
 			modConfig: func(c *Config) {
-				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(true)
+				c.Telemetry.DisableAllocationHookMetrics = new(true)
 			},
 			assert: func(t *testing.T, cc *clientconfig.Config) {
 				must.True(t, cc.DisableAllocationHookMetrics)
+			},
+		},
+		{
+			name: "rpc dial timeout default",
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, 10*time.Second, cc.RPCDialTimeout)
+			},
+		},
+		{
+			name: "rpc dial timeout override",
+			modConfig: func(c *Config) {
+				c.RPC.DialTimeout = 25 * time.Second
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, 25*time.Second, cc.RPCDialTimeout)
 			},
 		},
 	}
@@ -835,6 +852,46 @@ func TestConvertClientConfig(t *testing.T) {
 			if tc.assert != nil {
 				tc.assert(t, cc)
 			}
+		})
+	}
+}
+
+// TestAgent_ServerConfig_RPCDialTimeout verifies that rpc.dial_timeout is
+// plumbed through to the nomad server config, falling back to the default
+// when unset.
+func TestAgent_ServerConfig_RPCDialTimeout(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name       string
+		modConfig  func(*Config)
+		expectedTO time.Duration
+	}{
+		{
+			name:       "default",
+			expectedTO: 10 * time.Second,
+		},
+		{
+			name: "override",
+			modConfig: func(c *Config) {
+				c.RPC.DialTimeout = 25 * time.Second
+			},
+			expectedTO: 25 * time.Second,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			conf := DevConfig(nil)
+			require.NoError(t, conf.normalizeAddrs())
+			if tc.modConfig != nil {
+				tc.modConfig(conf)
+			}
+
+			nc, err := convertServerConfig(conf)
+			must.NoError(t, err)
+			must.NotNil(t, nc)
+			must.Eq(t, tc.expectedTO, nc.RPCDialTimeout)
 		})
 	}
 }
@@ -885,7 +942,7 @@ func TestAgent_ClientConfig_discovery(t *testing.T) {
 	// Test the default, and then custom setting of the client service
 	// discovery boolean.
 	require.True(t, c.NomadServiceDiscovery)
-	conf.Client.NomadServiceDiscovery = pointer.Of(false)
+	conf.Client.NomadServiceDiscovery = new(false)
 	c, err = a.clientConfig()
 	require.NoError(t, err)
 	require.False(t, c.NomadServiceDiscovery)
@@ -895,7 +952,7 @@ func TestAgent_ClientConfig_JobMaxSourceSize(t *testing.T) {
 	ci.Parallel(t)
 
 	conf := DevConfig(nil)
-	must.Eq(t, conf.Server.JobMaxSourceSize, pointer.Of("1M"))
+	must.Eq(t, conf.Server.JobMaxSourceSize, new("1M"))
 	must.NoError(t, conf.normalizeAddrs())
 
 	// config conversion ensures value is set
@@ -938,7 +995,7 @@ func TestAgent_HTTPCheck(t *testing.T) {
 				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
 				Consuls: []*config.ConsulConfig{{
 					Name:                         "default",
-					ChecksUseAdvertise:           pointer.Of(false),
+					ChecksUseAdvertise:           new(false),
 					ClientFailuresBeforeCritical: 2,
 					ClientFailuresBeforeWarning:  1,
 				}},
@@ -966,16 +1023,16 @@ func TestAgent_HTTPCheck(t *testing.T) {
 			t.Errorf("expected normalized addr not %q", check.PortLabel)
 		}
 		if expected := 2; check.FailuresBeforeCritical != expected {
-			t.Errorf("expected failured before critical count not: %q", expected)
+			t.Errorf("expected failured before critical count not: %d", expected)
 		}
 		if expected := 1; check.FailuresBeforeWarning != expected {
-			t.Errorf("expected failured before warning count not: %q", expected)
+			t.Errorf("expected failured before warning count not: %d", expected)
 		}
 	})
 
 	t.Run("Plain HTTP + ChecksUseAdvertise", func(t *testing.T) {
 		a := agent()
-		a.config.Consuls[0].ChecksUseAdvertise = pointer.Of(true)
+		a.config.Consuls[0].ChecksUseAdvertise = new(true)
 		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
@@ -1040,10 +1097,10 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 	// ensure server failures before critical and warning are set
 	if expected := 4; check.FailuresBeforeCritical != expected {
-		t.Errorf("expected failured before critical count not: %q", expected)
+		t.Errorf("expected failured before critical count not: %d", expected)
 	}
 	if expected := 3; check.FailuresBeforeWarning != expected {
-		t.Errorf("expected failured before warning count not: %q", expected)
+		t.Errorf("expected failured before warning count not: %d", expected)
 	}
 
 	// Assert client check uses /v1/agent/health?type=client
@@ -1100,7 +1157,7 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
-			VerifyServerHostname: true,
+			VerifyServerHostname: false,
 			CAFile:               badca,
 			CertFile:             badcert,
 			KeyFile:              badkey,
@@ -1117,10 +1174,13 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 
 	// Switch to the correct certificates and reload
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
-			VerifyServerHostname: true,
+			VerifyServerHostname: false,
 			CAFile:               foocafile,
 			CertFile:             fooclientcert,
 			KeyFile:              fooclientkey,
@@ -1165,6 +1225,9 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	)
 
 	agentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1178,9 +1241,13 @@ func TestServer_Reload_TLS_Certificate(t *testing.T) {
 	agent := &Agent{
 		auditor: &noOpAuditor{},
 		config:  agentConfig,
+		logger:  testlog.HCLogger(t),
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1214,6 +1281,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	)
 
 	agentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1230,6 +1300,9 @@ func TestServer_Reload_TLS_Certificate_Invalid(t *testing.T) {
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1309,6 +1382,9 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	}
 
 	newConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1325,6 +1401,10 @@ func TestServer_Reload_TLS_UpgradeToTLS(t *testing.T) {
 	assert.Equal(agent.config.TLSConfig.CAFile, newConfig.TLSConfig.CAFile)
 	assert.Equal(agent.config.TLSConfig.CertFile, newConfig.TLSConfig.CertFile)
 	assert.Equal(agent.config.TLSConfig.KeyFile, newConfig.TLSConfig.KeyFile)
+
+	// Ensure that the TLS metric emitter has been initialized on the agent
+	// after enabling TLS.
+	must.NotNil(t, agent.tlsMetrics)
 }
 
 func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
@@ -1366,16 +1446,20 @@ func TestServer_Reload_TLS_DowngradeFromTLS(t *testing.T) {
 	assert.Nil(err)
 
 	assert.True(agent.config.TLSConfig.IsEmpty())
+
+	// Ensure that the TLS metric emitter has been cleaned up on the agent
+	// after disabling TLS.
+	must.Nil(t, agent.tlsMetrics)
 }
 
 func TestServer_Reload_VaultConfig(t *testing.T) {
 	ci.Parallel(t)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
-		c.Server.NumSchedulers = pointer.Of(0)
+		c.Server.NumSchedulers = new(0)
 		c.Vaults[0] = &config.VaultConfig{
 			Name:      "default",
-			Enabled:   pointer.Of(true),
+			Enabled:   new(true),
 			Namespace: "vault-namespace",
 			Addr:      "https://vault.consul:8200",
 		}
@@ -1385,7 +1469,7 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	newConfig := agent.GetConfig().Copy()
 	newConfig.Vaults[0] = &config.VaultConfig{
 		Name:      "default",
-		Enabled:   pointer.Of(true),
+		Enabled:   new(true),
 		Namespace: "another-namespace",
 		Addr:      "https://vault.consul:8200",
 	}
@@ -1399,6 +1483,52 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	// tests in nomad/server_test.go for verification of this code path's
 	// behavior on the VaultClient
 	must.NoError(t, agent.server.Reload(sconf))
+}
+
+func TestAgent_readIntroTokenFile(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("no file", func(t *testing.T) {
+
+		tmpDir := t.TempDir()
+		testAgent := &Agent{logger: testlog.HCLogger(t), config: &Config{}}
+
+		clientConfig := clientconfig.Config{StateDir: tmpDir}
+
+		must.NoError(t, testAgent.readIntroTokenFile(&clientConfig))
+		must.Eq(t, "", clientConfig.IntroToken)
+	})
+
+	t.Run("file", func(t *testing.T) {
+
+		tmpDir := t.TempDir()
+		must.NoError(
+			t,
+			os.WriteFile(
+				filepath.Join(tmpDir, "intro_token.jwt"),
+				[]byte("my-intro-token"),
+				0600,
+			),
+		)
+		testAgent := &Agent{logger: testlog.HCLogger(t), config: &Config{}}
+
+		clientConfig := clientconfig.Config{StateDir: tmpDir}
+
+		must.NoError(t, testAgent.readIntroTokenFile(&clientConfig))
+		must.Eq(t, "my-intro-token", clientConfig.IntroToken)
+	})
+
+	t.Run("directory", func(t *testing.T) {
+
+		tmpDir := t.TempDir()
+		must.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "intro_token.jwt"), os.ModeDir))
+
+		testAgent := &Agent{logger: testlog.HCLogger(t), config: &Config{}}
+
+		clientConfig := clientconfig.Config{StateDir: tmpDir}
+
+		must.Error(t, testAgent.readIntroTokenFile(&clientConfig))
+	})
 }
 
 func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
@@ -1423,6 +1553,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1461,6 +1592,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1528,6 +1660,7 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 	)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1667,6 +1800,9 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	)
 
 	sameAgentConfig := &Config{
+		Telemetry: &Telemetry{
+			collectionInterval: time.Second,
+		},
 		TLSConfig: &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1678,6 +1814,10 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
+		c.Telemetry = &Telemetry{
+			collectionInterval: time.Second,
+		}
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1767,19 +1907,19 @@ func TestAgent_ServerConfig_JobMaxPriority_Ok(t *testing.T) {
 		},
 
 		{
-			maxPriority:    pointer.Of(0),
+			maxPriority:    new(0),
 			jobMaxPriority: 100,
 		},
 		{
-			maxPriority:    pointer.Of(100),
+			maxPriority:    new(100),
 			jobMaxPriority: 100,
 		},
 		{
-			maxPriority:    pointer.Of(200),
+			maxPriority:    new(200),
 			jobMaxPriority: 200,
 		},
 		{
-			maxPriority:    pointer.Of(32766),
+			maxPriority:    new(32766),
 			jobMaxPriority: 32766,
 		},
 	}
@@ -1837,19 +1977,19 @@ func TestAgent_ServerConfig_JobDefaultPriority_Ok(t *testing.T) {
 		},
 
 		{
-			defaultPriority:    pointer.Of(0),
+			defaultPriority:    new(0),
 			jobDefaultPriority: 50,
 		},
 		{
-			defaultPriority:    pointer.Of(50),
+			defaultPriority:    new(50),
 			jobDefaultPriority: 50,
 		},
 		{
-			defaultPriority:    pointer.Of(60),
+			defaultPriority:    new(60),
 			jobDefaultPriority: 60,
 		},
 		{
-			defaultPriority:    pointer.Of(99),
+			defaultPriority:    new(99),
 			jobDefaultPriority: 99,
 		},
 	}
@@ -1893,4 +2033,254 @@ func TestAgent_ServerConfig_JobDefaultPriority_Bad(t *testing.T) {
 			must.ErrorContains(t, err, "job_default_priority cannot be")
 		})
 	}
+}
+
+func TestAgent_ServerConfig_JobMaxCount(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		configured  *int
+		expected    int
+		expectedErr string
+	}{
+		{
+			configured:  nil,
+			expected:    structs.JobDefaultMaxCount,
+			expectedErr: "",
+		},
+		{
+			configured:  new(1),
+			expected:    1,
+			expectedErr: "",
+		},
+		{
+			configured:  new(0),
+			expected:    0,
+			expectedErr: "",
+		},
+		{
+			configured:  new(structs.JobDefaultMaxCount),
+			expected:    structs.JobDefaultMaxCount,
+			expectedErr: "",
+		},
+		{
+			configured:  new(2 * structs.JobDefaultMaxCount),
+			expected:    2 * structs.JobDefaultMaxCount,
+			expectedErr: "",
+		},
+		{
+			configured:  new(-1),
+			expected:    0,
+			expectedErr: "job_max_count (-1) cannot be negative",
+		},
+		{
+			configured:  new(-3),
+			expected:    0,
+			expectedErr: "job_max_count (-3) cannot be negative",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(fmt.Sprint(tc.configured), func(t *testing.T) {
+			conf := DevConfig(nil)
+			must.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.JobMaxCount = tc.configured
+
+			serverConf, err := convertServerConfig(conf)
+
+			if tc.expectedErr != "" {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				must.NoError(t, err)
+				must.Eq(t, tc.expected, serverConf.JobMaxCount)
+			}
+		})
+	}
+}
+
+func Test_convertServerConfig_clientIntroduction(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                           string
+		inputClientIntroduction        *ClientIntroduction
+		expectedNodeIntroductionConfig *structs.NodeIntroductionConfig
+	}{
+		{
+			name:                    "nil client introduction",
+			inputClientIntroduction: nil,
+			expectedNodeIntroductionConfig: &structs.NodeIntroductionConfig{
+				Enforcement:        "warn",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+		},
+		{
+			name: "partial override",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement: "strict",
+			},
+			expectedNodeIntroductionConfig: &structs.NodeIntroductionConfig{
+				Enforcement:        "strict",
+				DefaultIdentityTTL: 5 * time.Minute,
+				MaxIdentityTTL:     30 * time.Minute,
+			},
+		},
+		{
+			name: "partial override",
+			inputClientIntroduction: &ClientIntroduction{
+				Enforcement:        "strict",
+				DefaultIdentityTTL: 50 * time.Minute,
+				MaxIdentityTTL:     300 * time.Minute,
+			},
+			expectedNodeIntroductionConfig: &structs.NodeIntroductionConfig{
+				Enforcement:        "strict",
+				DefaultIdentityTTL: 50 * time.Minute,
+				MaxIdentityTTL:     300 * time.Minute,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			baseConfig := DevConfig(nil)
+			must.NoError(t, baseConfig.normalizeAddrs())
+			baseConfig.Server.ClientIntroduction = tc.inputClientIntroduction
+
+			serverConf, err := convertServerConfig(baseConfig)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedNodeIntroductionConfig, serverConf.NodeIntroductionConfig)
+		})
+	}
+}
+
+func Test_convertServerConfig_RaftLogStore(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name                         string
+		raftLogStoreConfig           *RaftLogStoreConfig
+		raftBoltConfig               *RaftBoltConfig
+		expectedBackend              string
+		expectedBoltDBNoFreelistSync bool
+		expectedDisableLogCache      bool
+		expectedWALSegmentSize       int
+		expectedVerificationEnabled  bool
+	}{
+		{
+			name:                         "defaults when nothing is set",
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedDisableLogCache:      false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "deprecated raft_boltdb sets boltdb no_freelist_sync",
+			raftBoltConfig: &RaftBoltConfig{
+				NoFreelistSync: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: true,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "new raft_logstore with boltdb backend",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendBoltDB,
+				BoltDB: &RaftBoltConfig{
+					NoFreelistSync: true,
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: true,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "new raft_logstore with wal backend",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Backend: nomad.LogStoreBackendWAL,
+				WAL: &WALConfig{
+					SegmentSizeMB: 128,
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendWAL,
+			expectedBoltDBNoFreelistSync: false,
+			expectedDisableLogCache:      false,
+			expectedWALSegmentSize:       128 * 1024 * 1024,
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "disable log cache",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				DisableLogCache: true,
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedDisableLogCache:      true,
+			expectedBoltDBNoFreelistSync: false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  false,
+		},
+		{
+			name: "verification enabled",
+			raftLogStoreConfig: &RaftLogStoreConfig{
+				Verification: &LogStoreVerificationConfig{
+					Enabled:  true,
+					Interval: "10m",
+				},
+			},
+			expectedBackend:              nomad.LogStoreBackendBoltDB,
+			expectedBoltDBNoFreelistSync: false,
+			expectedWALSegmentSize:       64 * 1024 * 1024, // Default
+			expectedVerificationEnabled:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			conf := DevConfig(nil)
+			must.NoError(t, conf.normalizeAddrs())
+
+			conf.Server.RaftLogStoreConfig = tc.raftLogStoreConfig
+			conf.Server.RaftBoltConfig = tc.raftBoltConfig
+
+			serverConf, err := convertServerConfig(conf)
+			must.NoError(t, err)
+			must.NotNil(t, serverConf.RaftLogStoreConfig)
+			must.Eq(t, tc.expectedBackend, serverConf.RaftLogStoreConfig.Backend)
+			must.Eq(t, tc.expectedBoltDBNoFreelistSync, serverConf.RaftLogStoreConfig.BoltDBNoFreelistSync)
+			must.Eq(t, tc.expectedDisableLogCache, serverConf.RaftLogStoreConfig.DisableLogCache)
+			must.Eq(t, tc.expectedWALSegmentSize, serverConf.RaftLogStoreConfig.WALSegmentSize)
+			must.Eq(t, tc.expectedVerificationEnabled, serverConf.RaftLogStoreConfig.VerificationEnabled)
+
+			// After conversion, legacy field should be cleared
+			must.Nil(t, conf.Server.RaftBoltConfig)
+		})
+	}
+}
+
+func Test_convertServerConfig_RaftLogStore_RejectsMixedConfig(t *testing.T) {
+	ci.Parallel(t)
+
+	conf := DevConfig(nil)
+	must.NoError(t, conf.normalizeAddrs())
+
+	// Set both legacy and new config
+	conf.Server.RaftLogStoreConfig = &RaftLogStoreConfig{
+		Backend: nomad.LogStoreBackendBoltDB,
+		BoltDB: &RaftBoltConfig{
+			NoFreelistSync: false,
+		},
+	}
+	conf.Server.RaftBoltConfig = &RaftBoltConfig{
+		NoFreelistSync: true,
+	}
+
+	_, err := convertServerConfig(conf)
+	must.ErrorContains(t, err, "cannot specify both deprecated 'raft_boltdb' and 'raft_logstore'")
 }

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -120,7 +120,7 @@ func (s *SetupConsulCommand) Run(args []string) int {
 
 	// Check that we got no arguments.
 	if len(flags.Args()) != 0 {
-		s.Ui.Error("This command takes no arguments")
+		s.Ui.Error(uiMessageNoArguments)
 		s.Ui.Error(commandErrorText(s))
 		return 1
 	}

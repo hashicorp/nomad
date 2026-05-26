@@ -1,11 +1,10 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-// @ts-check
 import Controller from '@ember/controller';
-import { inject as service } from '@ember/service';
+import { service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { task } from 'ember-concurrency';
 
@@ -58,7 +57,7 @@ export default class AccessControlPoliciesPolicyController extends Controller {
     this.tokens = this.store
       .peekAll('token')
       .filter((token) =>
-        token.policyNames?.includes(decodeURIComponent(this.policy.name))
+        token.policyNames?.includes(decodeURIComponent(this.policy.name)),
       );
   }
 

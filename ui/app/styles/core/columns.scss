@@ -1,13 +1,12 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 .columns {
   .column {
     &.is-centered {
-      align-self: center;
-      justify-self: center;
+      place-self: center center;
       text-align: center;
     }
 

@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package acl
@@ -8,11 +8,16 @@ var ServerACL = initServerACL()
 var ACLsDisabledACL = initACLsDisabledACL()
 
 func initClientACL() *ACL {
+	return NewClientACL("*")
+}
+
+func NewClientACL(pool string) *ACL {
 	aclObj, err := NewACL(false, []*Policy{})
 	if err != nil {
 		panic(err)
 	}
 	aclObj.client = PolicyWrite
+	aclObj.pool = pool
 	aclObj.agent = PolicyRead
 	aclObj.server = PolicyRead
 	return aclObj

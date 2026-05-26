@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package exec
@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
@@ -276,14 +275,14 @@ func NewExecDriver(ctx context.Context, logger hclog.Logger) drivers.DriverPlugi
 // setFingerprintSuccess marks the driver as having fingerprinted successfully
 func (d *Driver) setFingerprintSuccess() {
 	d.fingerprintLock.Lock()
-	d.fingerprintSuccess = pointer.Of(true)
+	d.fingerprintSuccess = new(true)
 	d.fingerprintLock.Unlock()
 }
 
 // setFingerprintFailure marks the driver as having failed fingerprinting
 func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Lock()
-	d.fingerprintSuccess = pointer.Of(false)
+	d.fingerprintSuccess = new(false)
 	d.fingerprintLock.Unlock()
 }
 

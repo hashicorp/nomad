@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -97,13 +97,12 @@ func (c *EvalListCommand) AutocompleteArgs() complete.Predictor {
 func (c *EvalListCommand) Name() string { return "eval list" }
 
 func (c *EvalListCommand) Run(args []string) int {
-	var monitor, verbose, json, openURL bool
+	var verbose, json, openURL bool
 	var perPage int
 	var tmpl, pageToken, filter, filterJobID, filterStatus string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
@@ -121,7 +120,7 @@ func (c *EvalListCommand) Run(args []string) int {
 	// Check that we got no arguments
 	args = flags.Args()
 	if l := len(args); l != 0 {
-		c.Ui.Error("This command takes no arguments")
+		c.Ui.Error(uiMessageNoArguments)
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}

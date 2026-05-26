@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Add gc_volumes_on_node_gc configuration to delete host volumes when nodes are garbage collected
+```

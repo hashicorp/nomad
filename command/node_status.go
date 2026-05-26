@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -954,16 +953,21 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 		mem += *alloc.Resources.MemoryMB
 		disk += *alloc.Resources.DiskMB
 	}
+	allocCount := strconv.Itoa(len(runningAllocs))
 
+	if node.NodeMaxAllocs != 0 {
+		allocCount = fmt.Sprintf("%d/%d", len(runningAllocs), node.NodeMaxAllocs)
+	}
 	resources := make([]string, 2)
-	resources[0] = "CPU|Memory|Disk"
-	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s",
+	resources[0] = "CPU|Memory|Disk|Alloc Count"
+	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s|%s",
 		cpu,
 		*total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
 		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)),
 		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
-		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)))
+		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)),
+		allocCount)
 
 	return resources
 }
@@ -976,9 +980,9 @@ func computeNodeTotalResources(node *api.Node) api.Resources {
 	r := node.NodeResources
 	res := node.ReservedResources
 
-	total.CPU = pointer.Of[int](int(r.Cpu.CpuShares) - int(res.Cpu.CpuShares))
-	total.MemoryMB = pointer.Of[int](int(r.Memory.MemoryMB) - int(res.Memory.MemoryMB))
-	total.DiskMB = pointer.Of[int](int(r.Disk.DiskMB) - int(res.Disk.DiskMB))
+	total.CPU = new(int(r.Cpu.CpuShares) - int(res.Cpu.CpuShares))
+	total.MemoryMB = new(int(r.Memory.MemoryMB) - int(res.Memory.MemoryMB))
+	total.DiskMB = new(int(r.Disk.DiskMB) - int(res.Disk.DiskMB))
 	return total
 }
 

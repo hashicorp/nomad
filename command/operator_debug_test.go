@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -22,10 +22,11 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	clienttest "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent"
+	mon "github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -326,7 +327,7 @@ func TestDebug_Failures(t *testing.T) {
 			name:          "fails incorrect args",
 			args:          []string{"some", "bad", "args"},
 			expectedCode:  1,
-			expectedError: "This command takes no arguments",
+			expectedError: uiMessageNoArguments,
 		},
 		{
 			name:          "Fails illegal node ids",
@@ -597,7 +598,7 @@ func TestDebug_PprofVersionCheck(t *testing.T) {
 		{"0.11.3+ent", ""},
 		{"0.12.0", ""},
 		{"1.3.0", ""},
-		{"foo.bar", "error: Malformed version: foo.bar"},
+		{"foo.bar", "error: malformed version: foo.bar"},
 	}
 
 	for _, tc := range cases {
@@ -889,7 +890,7 @@ func testServerWithoutLeader(t *testing.T, runClient bool, cb func(*agent.Config
 	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
 		config.Client.Enabled = runClient
 		config.Server.Enabled = true
-		config.Server.NumSchedulers = pointer.Of(0)
+		config.Server.NumSchedulers = new(0)
 		config.Server.BootstrapExpect = 3
 
 		if cb != nil {
@@ -1069,4 +1070,125 @@ func extractArchiveName(captureOutput string) string {
 	}
 
 	return file
+}
+
+func TestDebug_MonitorExportFiles(t *testing.T) {
+	f := mon.PrepFile(t).Name()
+	setLogFile := func(c *agent.Config) {
+		c.LogFile = f
+	}
+	srv, _, url := testServer(t, true, setLogFile)
+	testutil.WaitForLeader(t, srv.Agent.RPC)
+	logFileContents, err := os.ReadFile(f)
+	must.NoError(t, err)
+	serverNodeName := srv.Config.NodeName
+	region := srv.Config.Region
+	serverName := fmt.Sprintf("%s.%s", serverNodeName, region)
+	clientID := srv.Agent.Client().NodeID()
+	testutil.WaitForClient(t, srv.Agent.Client().RPC, clientID, srv.Agent.Client().Region())
+
+	testDir := t.TempDir()
+	defer os.Remove(testDir)
+
+	duration := 2 * time.Second
+	interval := 750 * time.Millisecond
+	waitTime := 2 * duration
+
+	baseArgs := []string{
+		"-address", url,
+		"-output", testDir,
+		"-server-id", serverName,
+		"-node-id", clientID,
+		"-duration", duration.String(),
+		"-interval", interval.String(),
+	}
+
+	cases := []struct {
+		name         string
+		cmdArgs      []string
+		errString    string
+		runErr       bool
+		wantExporter bool
+	}{
+		{
+			name:         "exporter",
+			cmdArgs:      []string{"-log-file-export"},
+			wantExporter: true,
+		},
+		{
+			name:         "no_exporter",
+			wantExporter: false,
+		},
+		{
+			name:         "bad_value_for_log_lookback",
+			cmdArgs:      []string{"-log-lookback", "blue"},
+			errString:    "Error parsing -log-lookback",
+			runErr:       true,
+			wantExporter: false,
+		},
+		{
+			name: "set_both_flags",
+			cmdArgs: []string{
+				"-log-lookback", "5h",
+				"-log-file-export",
+			},
+			errString:    "Error parsing inputs, -log-file-export and -log-lookback cannot be used together",
+			runErr:       true,
+			wantExporter: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			clientFiles := []string{
+				"monitor.log",
+				"monitor_export.log",
+			}
+			args := baseArgs
+			if len(tc.cmdArgs) > 0 {
+				args = append(args, tc.cmdArgs...)
+			}
+
+			serverFiles := []string{
+				"monitor.log",
+				"monitor_export.log",
+			}
+			ui := cli.NewMockUi()
+			cmd := &OperatorDebugCommand{Meta: Meta{Ui: ui}}
+
+			code := cmd.Run(args)
+			if tc.runErr {
+				must.One(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.errString)
+				return
+			} else {
+				must.Zero(t, code)
+			}
+
+			// Wait until client's monitor.log file is written
+			clientPaths := buildPathSlice(cmd.path(clientDir, clientID), clientFiles)
+			t.Logf("Waiting for client files in path: %s", clientDir)
+
+			testutil.WaitForFilesUntil(t, clientPaths[:0], waitTime)
+
+			// Wait until server's monitor.log file is written
+			serverPaths := buildPathSlice(cmd.path(serverDir, serverName), serverFiles)
+			t.Logf("Waiting for server files in path: %s", serverDir)
+			testutil.WaitForFilesUntil(t, serverPaths[:0], waitTime)
+
+			// Validate historical log files exist and match expected value
+			clientLog, clientReadErr := os.ReadFile(clientPaths[1])
+			serverLog, serverReadErr := os.ReadFile(serverPaths[1])
+			if tc.wantExporter {
+				must.NoError(t, clientReadErr)
+				must.NoError(t, serverReadErr)
+				// Verify monitor export file contents as expected
+				must.Eq(t, logFileContents, serverLog)
+				must.Eq(t, logFileContents, clientLog)
+			} else {
+				must.NotNil(t, clientReadErr)
+				must.NotNil(t, serverReadErr)
+			}
+
+		})
+	}
 }

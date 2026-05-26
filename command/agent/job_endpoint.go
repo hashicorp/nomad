@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -14,11 +14,9 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
-	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -400,14 +398,8 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	conn, err := s.getWebsocketConnection(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
-	}
-
-	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
-		conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
 	}
 
@@ -435,6 +427,7 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 	rpcArgs := structs.JobApplyTagRequest{
 		JobID:   jobID,
 		Version: args.Version,
+		Latest:  args.Latest,
 		Name:    name,
 		Tag: &structs.JobVersionTag{
 			Name:        name,
@@ -603,12 +596,13 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobI
 		Job:        sJob,
 		Submission: submission,
 
-		EnforceIndex:   args.EnforceIndex,
-		JobModifyIndex: args.JobModifyIndex,
-		PolicyOverride: args.PolicyOverride,
-		PreserveCounts: args.PreserveCounts,
-		EvalPriority:   args.EvalPriority,
-		WriteRequest:   *writeReq,
+		EnforceIndex:      args.EnforceIndex,
+		JobModifyIndex:    args.JobModifyIndex,
+		PolicyOverride:    args.PolicyOverride,
+		PreserveCounts:    args.PreserveCounts,
+		PreserveResources: args.PreserveResources,
+		EvalPriority:      args.EvalPriority,
+		WriteRequest:      *writeReq,
 	}
 
 	var out structs.JobRegisterResponse
@@ -1050,7 +1044,7 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	// the namespace to be correct
 	queryNamespace := req.URL.Query().Get("namespace")
 	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
-	job.Namespace = pointer.Of(namespace)
+	job.Namespace = new(namespace)
 	writeReq.Namespace = namespace
 
 	sJob := ApiJobToStructJob(job)
@@ -1148,12 +1142,12 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Payload:        job.Payload,
 		Meta:           job.Meta,
 		VaultNamespace: *job.VaultNamespace,
+		Version:        *job.Version,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
 		UI:             ApiJobUIConfigToStructs(job.UI),
 		VersionTag:     ApiJobVersionTagToStructs(job.VersionTag),
 	}
-
 	// Update has been pushed into the task groups. stagger and max_parallel are
 	// preserved at the job level, but all other values are discarded. The job.Update
 	// api value is merged into TaskGroups already in api.Canonicalize
@@ -1250,6 +1244,10 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 
 	if taskGroup.ShutdownDelay != nil {
 		tg.ShutdownDelay = taskGroup.ShutdownDelay
+	}
+
+	if taskGroup.MaxRunDuration != nil {
+		tg.MaxRunDuration = taskGroup.MaxRunDuration
 	}
 
 	if taskGroup.ReschedulePolicy != nil {
@@ -1466,6 +1464,19 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
+	if len(apiTask.Secrets) > 0 {
+		structsTask.Secrets = []*structs.Secret{}
+		for _, s := range apiTask.Secrets {
+			structsTask.Secrets = append(structsTask.Secrets, &structs.Secret{
+				Name:     s.Name,
+				Provider: s.Provider,
+				Path:     s.Path,
+				Config:   s.Config,
+				Env:      s.Env,
+			})
+		}
+	}
+
 	if apiTask.Consul != nil {
 		structsTask.Consul = apiConsulToStructs(apiTask.Consul)
 	}
@@ -1481,6 +1492,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					ChangeMode:    *template.ChangeMode,
 					ChangeSignal:  *template.ChangeSignal,
 					ChangeScript:  apiChangeScriptToStructsChangeScript(template.ChangeScript),
+					Once:          *template.Once,
 					Splay:         *template.Splay,
 					Perms:         *template.Perms,
 					Uid:           template.Uid,
@@ -1624,6 +1636,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	if in.NUMA != nil {
 		out.NUMA = &structs.NUMA{
 			Affinity: in.NUMA.Affinity,
+			Devices:  slices.Clone(in.NUMA.Devices),
 		}
 	}
 
@@ -1712,6 +1725,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			OnUpdate:          s.OnUpdate,
 			Provider:          s.Provider,
 			Cluster:           s.Cluster,
+			Kind:              s.Kind,
 		}
 
 		if l := len(s.Checks); l != 0 {
@@ -2117,6 +2131,19 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		return nil
 	}
 
+	var identities []*structs.WorkloadIdentity
+
+	if ids := in.Identities; len(ids) > 0 {
+		identities = make([]*structs.WorkloadIdentity, 0, len(ids))
+		for _, id := range ids {
+			if id == nil {
+				continue
+			}
+
+			identities = append(identities, apiWorkloadIdentityToStructs(id))
+		}
+	}
+
 	return &structs.SidecarTask{
 		Name:          in.Name,
 		Driver:        in.Driver,
@@ -2130,6 +2157,7 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		KillTimeout:   in.KillTimeout,
 		LogConfig:     apiLogConfigToStructs(in.LogConfig),
 		VolumeMounts:  apiVolumeMountsToStructs(in.VolumeMounts),
+		Identities:    identities,
 	}
 }
 

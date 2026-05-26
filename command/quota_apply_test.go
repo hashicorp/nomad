@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -62,6 +61,12 @@ limit {
       variables    = 1000   # in MB
       host_volumes = "100 GiB"
     }
+    node_pool "us1" {
+      cores      = 1
+      cpu        = 1500
+      memory     = 1000
+      memory_max = 1000
+    }
   }
 }
 `)
@@ -75,18 +80,25 @@ limit {
 		Limits: []*api.QuotaLimit{{
 			Region: "global",
 			RegionLimit: &api.QuotaResources{
-				CPU:         pointer.Of(2500),
-				Cores:       pointer.Of(0),
-				MemoryMB:    pointer.Of(1000),
-				MemoryMaxMB: pointer.Of(1000),
+				CPU:         new(2500),
+				Cores:       new(0),
+				MemoryMB:    new(1000),
+				MemoryMaxMB: new(1000),
 				Devices: []*api.RequestedDevice{{
 					Name:  "nvidia/gpu/1080ti",
-					Count: pointer.Of(uint64(1)),
+					Count: new(uint64(1)),
 				}},
 				Storage: &api.QuotaStorageResources{
 					VariablesMB:   1000,
 					HostVolumesMB: 102_400,
 				},
+				NodePools: []*api.NodePoolLimit{{
+					NodePool:    "us1",
+					CPU:         new(1500),
+					Cores:       new(1),
+					MemoryMB:    new(1000),
+					MemoryMaxMB: new(1000),
+				}},
 			},
 		}},
 	}, spec)

@@ -1,0 +1,3 @@
+```release-note:feature
+scheduler: Enable deployments for system jobs
+```

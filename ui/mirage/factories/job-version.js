@@ -1,9 +1,9 @@
 /**
- * Copyright (c) HashiCorp, Inc.
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { Factory } from 'ember-cli-mirage';
+import { Factory } from 'miragejs';
 
 import faker from 'nomad-ui/mirage/faker';
 
@@ -44,7 +44,7 @@ export default Factory.extend({
         namespace: version.job.namespace,
         versionNumber: version.version,
       },
-    ].compact();
+    ].filter(Boolean);
     server.create(...args);
   },
 });

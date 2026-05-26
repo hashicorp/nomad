@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -9,6 +9,75 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
 )
+
+func TestKEKProviderConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                  string
+		inputKeyringConfig    *KEKProviderConfig
+		expectedErrorContains string
+	}{
+		{
+			name:                  "nil",
+			inputKeyringConfig:    nil,
+			expectedErrorContains: "",
+		},
+		{
+			name: "aead",
+			inputKeyringConfig: &KEKProviderConfig{
+				Provider: "aead",
+			},
+			expectedErrorContains: "",
+		},
+		{
+			name: "awskms",
+			inputKeyringConfig: &KEKProviderConfig{
+				Provider: "awskms",
+			},
+			expectedErrorContains: "",
+		},
+		{
+			name: "azurekeyvault",
+			inputKeyringConfig: &KEKProviderConfig{
+				Provider: "azurekeyvault",
+			},
+			expectedErrorContains: "",
+		},
+		{
+			name: "gcpckms",
+			inputKeyringConfig: &KEKProviderConfig{
+				Provider: "gcpckms",
+			},
+			expectedErrorContains: "",
+		},
+		{
+			name: "transit",
+			inputKeyringConfig: &KEKProviderConfig{
+				Provider: "transit",
+			},
+			expectedErrorContains: "",
+		},
+		{
+			name: "unknown",
+			inputKeyringConfig: &KEKProviderConfig{
+				Provider: "unknown",
+			},
+			expectedErrorContains: "unknown keyring provider",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputKeyringConfig.Validate()
+			if tc.expectedErrorContains == "" {
+				must.NoError(t, actualError)
+			} else {
+				must.ErrorContains(t, actualError, tc.expectedErrorContains)
+			}
+		})
+	}
+}
 
 func TestKeyring_OIDCDiscoveryConfig(t *testing.T) {
 	ci.Parallel(t)

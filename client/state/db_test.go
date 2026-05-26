@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2025
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -491,6 +491,50 @@ func TestStateDB_CheckResult(t *testing.T) {
 		})
 	})
 
+}
+
+func TestStateDB_NodeIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		identity, err := db.GetNodeIdentity()
+		must.NoError(t, err)
+		must.Eq(t, "", identity)
+
+		fakeIdentity := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
+
+		must.NoError(t, db.PutNodeIdentity(fakeIdentity))
+
+		identity, err = db.GetNodeIdentity()
+		must.NoError(t, err)
+		must.Eq(t, fakeIdentity, identity)
+	})
+}
+
+func TestStateDB_ConsulACLToken(t *testing.T) {
+	ci.Parallel(t)
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		alloc1 := mock.Alloc()
+
+		must.NoError(t, db.PutAllocation(alloc1))
+		tokens, err := db.GetAllocConsulACLTokens(alloc1.ID)
+		must.NoError(t, err)
+		must.Eq(t, nil, tokens)
+
+		fakeToken := &cstructs.ConsulACLToken{
+			Cluster:  "fake cluster",
+			TokenID:  "workloadID",
+			ACLToken: "token",
+		}
+
+		must.NoError(t, db.PutAllocConsulACLTokens(alloc1.ID, []*cstructs.ConsulACLToken{fakeToken}))
+
+		tokens, err = db.GetAllocConsulACLTokens(alloc1.ID)
+		must.NoError(t, err)
+		must.One(t, len(tokens))
+		must.Eq(t, fakeToken, tokens[0])
+	})
 }
 
 // TestStateDB_Upgrade asserts calling Upgrade on new databases always

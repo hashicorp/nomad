@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
 
@@ -61,22 +60,29 @@ General Options:
 
 Status Options:
 
-  -short
-    Display short output. Used only when a single job is being
-    queried, and drops verbose information about allocations.
-
-  -evals
-    Display the evaluations associated with the job.
-
   -all-allocs
     Display all allocations matching the job ID, including those from an older
     instance of the job.
 
-  -verbose
-    Display full information.
+  -evals
+    Display the evaluations associated with the job.
+
+  -json
+    Output the job status in JSON format.
+
+  -short
+    Display short output. Used only when a single job is being
+    queried, and drops verbose information about allocations.
+
+  -t
+    Format and display the job status using a Go template.
 
   -ui
     Open the job status page in the browser.
+
+  -verbose
+    Display full information.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -90,25 +96,16 @@ func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-all-allocs": complete.PredictNothing,
 			"-evals":      complete.PredictNothing,
+			"-json":       complete.PredictNothing,
 			"-short":      complete.PredictNothing,
+			"-t":          complete.PredictAnything,
 			"-verbose":    complete.PredictNothing,
 			"-ui":         complete.PredictNothing,
 		})
 }
 
 func (c *JobStatusCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
-		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Jobs, nil)
-		if err != nil {
-			return []string{}
-		}
-		return resp.Matches[contexts.Jobs]
-	})
+	return JobPredictor(c.Meta.Client)
 }
 
 func (c *JobStatusCommand) Name() string { return "status" }
@@ -209,7 +206,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	// Try querying the job
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, nil)
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "")
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -522,7 +519,7 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 
 	// Format the allocs
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
-	c.Ui.Output(formatAllocListStubs(jobAllocs, c.verbose, c.length))
+	c.Ui.Output(formatJobAllocListStubs(jobAllocs, job, c.verbose, c.length))
 	return nil
 }
 
@@ -550,7 +547,7 @@ func (c *JobStatusCommand) formatDeployment(client *api.Client, d *api.Deploymen
 		return base
 	}
 	base += "\n\n[bold]Deployed[reset]\n"
-	base += formatDeploymentGroups(d, c.length)
+	base += formatDeploymentGroups(d.TaskGroups, c.length)
 	return base
 }
 
@@ -577,16 +574,38 @@ func formatJobActions(actions []map[string]string) string {
 	return formatList(actionsOut)
 }
 
+func formatJobAllocListStubs(stubs []*api.AllocationListStub, job *api.Job, verbose bool, uuidLength int) string {
+	deadlines := make([]string, len(stubs))
+	for i, alloc := range stubs {
+		deadline, ok := jobTaskGroupMaxRunDeadline(job, alloc.TaskGroup, alloc.CreateTime)
+		if !ok {
+			continue
+		}
+
+		deadlines[i] = formatMaxRunDeadline(deadline, verbose)
+	}
+
+	return formatAllocListStubsWithDeadlines(stubs, verbose, uuidLength, deadlines)
+}
+
 func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLength int) string {
+	return formatAllocListStubsWithDeadlines(stubs, verbose, uuidLength, nil)
+}
+
+func formatAllocListStubsWithDeadlines(stubs []*api.AllocationListStub, verbose bool, uuidLength int, deadlines []string) string {
 	if len(stubs) == 0 {
 		return "No allocations placed"
 	}
 
+	showDeadline := allocationDeadlineColumnVisible(deadlines)
 	allocs := make([]string, len(stubs)+1)
 	if verbose {
 		allocs[0] = "ID|Eval ID|Node ID|Node Name|Task Group|Version|Desired|Status|Created|Modified"
+		if showDeadline {
+			allocs[0] += "|Max Run Deadline"
+		}
 		for i, alloc := range stubs {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			row := fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
@@ -597,14 +616,21 @@ func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLen
 				alloc.ClientStatus,
 				formatUnixNanoTime(alloc.CreateTime),
 				formatUnixNanoTime(alloc.ModifyTime))
+			if showDeadline {
+				row += fmt.Sprintf("|%s", deadlines[i])
+			}
+			allocs[i+1] = row
 		}
 	} else {
 		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+		if showDeadline {
+			allocs[0] += "|Max Run Deadline"
+		}
+		now := time.Now()
 		for i, alloc := range stubs {
-			now := time.Now()
 			createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
 			modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s|%s",
+			row := fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
 				alloc.TaskGroup,
@@ -613,10 +639,24 @@ func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLen
 				alloc.ClientStatus,
 				createTimePretty,
 				modTimePretty)
+			if showDeadline {
+				row += fmt.Sprintf("|%s", deadlines[i])
+			}
+			allocs[i+1] = row
 		}
 	}
 
 	return formatList(allocs)
+}
+
+func allocationDeadlineColumnVisible(deadlines []string) bool {
+	for _, deadline := range deadlines {
+		if deadline != "" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int) string {
@@ -624,11 +664,25 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 		return "No allocations placed"
 	}
 
+	deadlines := make([]string, len(allocations))
+	for i, alloc := range allocations {
+		deadline, ok := jobTaskGroupMaxRunDeadline(alloc.Job, alloc.TaskGroup, alloc.CreateTime)
+		if !ok {
+			continue
+		}
+
+		deadlines[i] = formatMaxRunDeadline(deadline, verbose)
+	}
+	showDeadline := allocationDeadlineColumnVisible(deadlines)
+
 	allocs := make([]string, len(allocations)+1)
 	if verbose {
 		allocs[0] = "ID|Eval ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+		if showDeadline {
+			allocs[0] += "|Max Run Deadline"
+		}
 		for i, alloc := range allocations {
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			row := fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.EvalID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
@@ -638,14 +692,21 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 				alloc.ClientStatus,
 				formatUnixNanoTime(alloc.CreateTime),
 				formatUnixNanoTime(alloc.ModifyTime))
+			if showDeadline {
+				row += fmt.Sprintf("|%s", deadlines[i])
+			}
+			allocs[i+1] = row
 		}
 	} else {
 		allocs[0] = "ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+		if showDeadline {
+			allocs[0] += "|Max Run Deadline"
+		}
+		now := time.Now()
 		for i, alloc := range allocations {
-			now := time.Now()
 			createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
 			modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
-			allocs[i+1] = fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s|%s",
+			row := fmt.Sprintf("%s|%s|%s|%d|%s|%s|%s|%s",
 				limit(alloc.ID, uuidLength),
 				limit(alloc.NodeID, uuidLength),
 				alloc.TaskGroup,
@@ -654,6 +715,10 @@ func formatAllocList(allocations []*api.Allocation, verbose bool, uuidLength int
 				alloc.ClientStatus,
 				createTimePretty,
 				modTimePretty)
+			if showDeadline {
+				row += fmt.Sprintf("|%s", deadlines[i])
+			}
+			allocs[i+1] = row
 		}
 	}
 
@@ -797,7 +862,7 @@ func (c *JobStatusCommand) outputFailedPlacements(failedEval *api.Evaluation) {
 
 		c.Ui.Output(fmt.Sprintf("Task Group %q:", tg))
 		metrics := failedEval.FailedTGAllocs[tg]
-		c.Ui.Output(formatAllocMetrics(metrics, false, "  "))
+		c.Ui.Output(formatAllocMetrics(metrics, c.Colorize(), false, "  "))
 		if i != len(sorted)-1 {
 			c.Ui.Output("")
 		}
