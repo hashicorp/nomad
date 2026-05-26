@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -154,7 +153,7 @@ func (j *JobScaleCommand) Run(args []string) int {
 	// Perform the scaling action.
 	w := &api.WriteOptions{Namespace: namespace}
 	req := &api.ScalingRequest{
-		Count: pointer.Of(int64(count)),
+		Count: new(int64(count)),
 		Target: map[string]string{
 			"Job":   jobID,
 			"Group": groupString,

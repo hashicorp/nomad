@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package config
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,9 +34,9 @@ func TestLimits_Copy(t *testing.T) {
 
 	// Assert changes to copy are not propagated to the original
 	c.HTTPSHandshakeTimeout = "1s"
-	c.HTTPMaxConnsPerClient = pointer.Of(50)
+	c.HTTPMaxConnsPerClient = new(50)
 	c.RPCHandshakeTimeout = "1s"
-	c.RPCMaxConnsPerClient = pointer.Of(50)
+	c.RPCMaxConnsPerClient = new(50)
 
 	require.NotEqual(t, c.HTTPSHandshakeTimeout, o.HTTPSHandshakeTimeout)
 
@@ -77,7 +76,7 @@ func TestLimits_Merge(t *testing.T) {
 
 	// Use short struct initialization style so it fails to compile if
 	// fields are added
-	expected := Limits{"10s", pointer.Of(100), "5s", pointer.Of(100)}
+	expected := Limits{"10s", new(100), "5s", new(100)}
 	require.Equal(t, expected, m2)
 
 	// Mergin in 0 values should not change anything

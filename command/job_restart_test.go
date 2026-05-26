@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -840,13 +839,13 @@ func TestJobRestartCommand_jobPrefixAndNamespace(t *testing.T) {
 	evalIDs = append(evalIDs, resp.EvalID)
 
 	jobProd := testJob("test_job_restart")
-	jobProd.Namespace = pointer.Of("prod")
+	jobProd.Namespace = new("prod")
 	resp, _, err = client.Jobs().Register(jobProd, nil)
 	must.NoError(t, err)
 	evalIDs = append(evalIDs, resp.EvalID)
 
 	jobUniqueProd := testJob("test_job_restart_prod_ns")
-	jobUniqueProd.Namespace = pointer.Of("prod")
+	jobUniqueProd.Namespace = new("prod")
 	resp, _, err = client.Jobs().Register(jobUniqueProd, nil)
 	must.NoError(t, err)
 	evalIDs = append(evalIDs, resp.EvalID)
@@ -972,8 +971,8 @@ func TestJobRestartCommand_rescheduleFail(t *testing.T) {
 	// Register test job with 3 allocs.
 	jobID := "test_job_restart_reschedule_fail"
 	job := testJob(jobID)
-	job.Type = pointer.Of(api.JobTypeService)
-	job.TaskGroups[0].Count = pointer.Of(3)
+	job.Type = new(api.JobTypeService)
+	job.TaskGroups[0].Count = new(3)
 	job.TaskGroups[0].Tasks[0].Config = map[string]any{"run_for": "10m"}
 
 	resp, _, err := client.Jobs().Register(job, nil)
@@ -1086,10 +1085,10 @@ func TestJobRestartCommand_activeDeployment(t *testing.T) {
 	// Register test job and update it once to trigger a deployment.
 	jobID := "test_job_restart_deployment"
 	job := testJob(jobID)
-	job.Type = pointer.Of(api.JobTypeService)
+	job.Type = new(api.JobTypeService)
 	job.Update = &api.UpdateStrategy{
-		Canary:      pointer.Of(1),
-		AutoPromote: pointer.Of(false),
+		Canary:      new(1),
+		AutoPromote: new(false),
 	}
 
 	_, _, err := client.Jobs().Register(job, nil)
@@ -1301,8 +1300,8 @@ func TestJobRestartCommand_shutdownDelay_reschedule(t *testing.T) {
 			jobID := nonAlphaNum.ReplaceAllString(tc.name, "-")
 
 			job := testJob(jobID)
-			job.Type = pointer.Of(api.JobTypeService)
-			job.TaskGroups[0].Count = pointer.Of(2)
+			job.Type = new(api.JobTypeService)
+			job.TaskGroups[0].Count = new(2)
 			job.TaskGroups[0].Tasks[0].Config = map[string]any{"run_for": "10m"}
 			job.TaskGroups[0].Tasks[0].ShutdownDelay = shutdownDelay
 			job.TaskGroups[0].Tasks[0].Services = []*api.Service{{
@@ -1399,7 +1398,7 @@ func TestJobRestartCommand_filterAllocs(t *testing.T) {
 			api.NewTaskGroup("group_3", 1).
 				AddTask(task3),
 		)
-	jobV1.Version = pointer.Of(uint64(1))
+	jobV1.Version = new(uint64(1))
 
 	jobV2 := api.NewServiceJob("example", "example", "global", 1).
 		AddTaskGroup(
@@ -1410,7 +1409,7 @@ func TestJobRestartCommand_filterAllocs(t *testing.T) {
 			api.NewTaskGroup("group_2", 1).
 				AddTask(task2),
 		)
-	jobV2.Version = pointer.Of(uint64(2))
+	jobV2.Version = new(uint64(2))
 
 	allAllocs := []AllocationListStubWithJob{}
 	allocs := map[string]AllocationListStubWithJob{}
@@ -1607,7 +1606,7 @@ func TestJobRestartCommand_onErrorFail(t *testing.T) {
 	// Register a job with 3 allocations.
 	jobID := "test_job_restart_command_fail_on_error"
 	job := testJob(jobID)
-	job.TaskGroups[0].Count = pointer.Of(3)
+	job.TaskGroups[0].Count = new(3)
 
 	resp, _, err := client.Jobs().Register(job, nil)
 	must.NoError(t, err)
