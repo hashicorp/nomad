@@ -13,6 +13,7 @@ import (
 type Queue interface {
 	Enqueue(*structs.Evaluation)
 	Start(context.Context) error
+	Status() structs.BatchQueueStatus
 	SetEnabled(bool, *state.StateStore)
 }
 

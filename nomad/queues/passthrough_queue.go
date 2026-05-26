@@ -26,3 +26,5 @@ func (p *PassthroughQueue) Start(context.Context) error { return nil }
 func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.broker.Enqueue(e) }
 
 func (p *PassthroughQueue) SetEnabled(bool, *state.StateStore) {}
+
+func (p *PassthroughQueue) Status() structs.BatchQueueStatus { return nil }

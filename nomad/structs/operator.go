@@ -395,6 +395,7 @@ func DecodeBatchQueueConf[T any](in map[string]any, out *T) error {
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		Result:     out,
 		DecodeHook: mapstructure.StringToTimeDurationHookFunc(),
+		ErrorUnset: true,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create config decoder, %w", err)
