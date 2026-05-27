@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"sync"
 	"time"
 
@@ -472,6 +473,13 @@ func (ar *allocRunner) GetAllocDir() allocdir.Interface {
 // Restore state from database. Must be called after NewAllocRunner but before
 // Run.
 func (ar *allocRunner) Restore() error {
+	// We should not carry on to restoring an allocation whose directory is
+	// inaccessible. This can happen if allocation storage is ephemeral, e.g.
+	// a tmpfs or cloud local SSDs.
+	if _, err := os.Stat(ar.allocDir.AllocDirPath()); err != nil {
+		return fmt.Errorf("allocation directory is inaccessible: %w", err)
+	}
+
 	// Retrieve deployment status to avoid reseting it across agent
 	// restarts. Once a deployment status is set Nomad no longer monitors
 	// alloc health, so we must persist deployment state across restarts.

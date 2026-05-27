@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !windows
@@ -113,8 +113,8 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	ar2Iface, err := NewAllocRunner(conf2)
 	must.NoError(t, err)
 	ar2 := ar2Iface.(*allocRunner)
-
-	require.NoError(t, ar2.Restore())
+	must.NoError(t, ar2.allocDir.Build())
+	must.NoError(t, ar2.Restore())
 
 	go ar2.Run()
 	defer destroy(ar2)
@@ -208,6 +208,7 @@ func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 	ar2Iface, err := NewAllocRunner(conf2)
 	must.NoError(t, err)
 	ar2 := ar2Iface.(*allocRunner)
+	must.NoError(t, ar2.allocDir.Build())
 	must.NoError(t, ar2.Restore())
 
 	go ar2.Run()
