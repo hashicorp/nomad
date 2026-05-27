@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2015, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 # Vault cluster admin tokens expire after 6 hours, so we need to
