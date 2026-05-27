@@ -3,7 +3,9 @@
 
 package nomad
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 func (j *Job) QueueStatus(args *structs.QueueStatusRequest, reply *structs.QueueStatusResponse) error {
 	authErr := j.srv.Authenticate(j.ctx, args)
@@ -14,6 +16,9 @@ func (j *Job) QueueStatus(args *structs.QueueStatusRequest, reply *structs.Queue
 		return structs.ErrPermissionDenied
 	}
 
-	reply.Status = j.srv.batchJobQueue.Status()
+	status := j.srv.batchJobQueue.Status()
+
+	reply.Type = status.Type
+	reply.Workloads = status.Workloads
 	return nil
 }

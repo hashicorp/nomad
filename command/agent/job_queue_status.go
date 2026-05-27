@@ -29,5 +29,5 @@ func (s *HTTPServer) JobQueueStatus(resp http.ResponseWriter, req *http.Request)
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	return out.Status, nil
+	return out, nil
 }

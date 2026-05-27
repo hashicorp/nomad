@@ -315,16 +315,16 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 	return nil
 }
 
-func (d *DynamicPriorityQueue) Status() structs.BatchQueueStatus {
+func (d *DynamicPriorityQueue) Status() structs.QueueStatusResponse {
 	d.qMux.Lock()
 	defer d.qMux.Unlock()
 
 	var resp structs.QueueStatusResponse
 	resp.Type = structs.BatchQueueTypeDynamic
 
-	status := structs.DynamicPriorityStatus{}
+	workloads := []structs.DynamicPriorityWorkload{}
 	for _, w := range d.queue {
-		status = append(status, structs.DynamicPriorityWorkload{
+		workloads = append(workloads, structs.DynamicPriorityWorkload{
 			JobID:            w.eval.JobID,
 			Tenant:           string(w.tid),
 			AdjustedPriority: w.priority,
@@ -334,7 +334,7 @@ func (d *DynamicPriorityQueue) Status() structs.BatchQueueStatus {
 			SizeAdjustment:   w.sizeAdjustment,
 		})
 	}
-	resp.Status = status
+	resp.Workloads = workloads
 
 	return resp
 }

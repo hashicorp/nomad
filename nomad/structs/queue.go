@@ -7,8 +7,6 @@ type QueueStatusRequest struct {
 	QueryOptions
 }
 
-type DynamicPriorityStatus []DynamicPriorityWorkload
-
 type DynamicPriorityWorkload struct {
 	JobID            string
 	Tenant           string
@@ -19,10 +17,12 @@ type DynamicPriorityWorkload struct {
 	SizeAdjustment   int
 }
 
-type BatchQueueStatus any
-
 type QueueStatusResponse struct {
-	Type   BatchQueueType
-	Status BatchQueueStatus
+	Type BatchQueueType
+
+	// Workloads are the actual queue workloads
+	// where their actual type is based on the
+	// "Type" parameter above.
+	Workloads any
 	QueryMeta
 }

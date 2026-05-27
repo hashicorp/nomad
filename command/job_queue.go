@@ -91,7 +91,6 @@ func (c *JobQueueCommand) Run(args []string) int {
 	if limit > 0 {
 		qo.PerPage = int32(limit)
 	}
-	qo.Region = "global"
 
 	// Submit the request
 	resp, _, err := client.Jobs().BatchQueueStatus(nil, qo)
@@ -105,18 +104,18 @@ func (c *JobQueueCommand) Run(args []string) int {
 
 	switch resp.Type {
 	case api.BatchQueueTypeDynamic:
-		status := api.DynamicPriorityStatus{}
-		bytes, err := json.Marshal(resp.Status)
+		workloads := []api.DynamicPriorityWorkload{}
+		bytes, err := json.Marshal(resp.Workloads)
 		if err != nil {
 			c.Ui.Error("Error marshaling response status")
 			return 255
 		}
-		if err := json.Unmarshal(bytes, &status); err != nil {
+		if err := json.Unmarshal(bytes, &workloads); err != nil {
 			c.Ui.Error("Invalid Status response from server")
 			return 255
 		}
 
-		slices.SortFunc(status, func(a api.DynamicPriorityWorkload, b api.DynamicPriorityWorkload) int {
+		slices.SortFunc(workloads, func(a api.DynamicPriorityWorkload, b api.DynamicPriorityWorkload) int {
 			if a.AdjustedPriority < b.AdjustedPriority {
 				return 1
 			} else if b.AdjustedPriority < a.AdjustedPriority {
@@ -126,12 +125,12 @@ func (c *JobQueueCommand) Run(args []string) int {
 		})
 
 		if jsonOut {
-			if err := c.printDynamicQueueJSON(status); err != nil {
+			if err := c.printDynamicQueueJSON(workloads); err != nil {
 				c.Ui.Error("Error unmarshaling json response")
 				return 255
 			}
 		} else {
-			c.printDynamicQueueFormatted(status)
+			c.printDynamicQueueFormatted(workloads)
 		}
 	default:
 		c.Ui.Error("Unknown queue type")
@@ -141,7 +140,7 @@ func (c *JobQueueCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *JobQueueCommand) printDynamicQueueJSON(resp api.DynamicPriorityStatus) error {
+func (c *JobQueueCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWorkload) error {
 	out, err := json.Marshal(resp)
 	if err != nil {
 		return err
@@ -151,7 +150,7 @@ func (c *JobQueueCommand) printDynamicQueueJSON(resp api.DynamicPriorityStatus) 
 	return nil
 }
 
-func (c *JobQueueCommand) printDynamicQueueFormatted(resp api.DynamicPriorityStatus) {
+func (c *JobQueueCommand) printDynamicQueueFormatted(resp []api.DynamicPriorityWorkload) {
 	if resp == nil {
 		return
 	}
