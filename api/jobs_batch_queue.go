@@ -15,9 +15,9 @@ type DynamicPriorityWorkload struct {
 
 type QueueStatusResponse struct {
 	Type BatchQueueType
-	// Workloads are the actual queue workloads
-	// where their actual type is based on the
-	// "Type" parameter above.
+	// Workloads contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The struct type is based on the "Type" parameter.
 	Workloads any
 }
 
