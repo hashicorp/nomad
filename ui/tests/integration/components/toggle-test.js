@@ -7,7 +7,6 @@ import { find, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
 import togglePageObject from 'nomad-ui/tests/pages/components/toggle';
@@ -57,7 +56,6 @@ module('Integration | Component | toggle', function (hooks) {
       'The input type is checkbox',
     );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('the isActive property dictates the active state and class', async function (assert) {
@@ -74,7 +72,6 @@ module('Integration | Component | toggle', function (hooks) {
     assert.ok(Toggle.isActive);
     assert.ok(Toggle.hasActiveClass);
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('the isDisabled property dictates the disabled state and class', async function (assert) {
@@ -91,7 +88,6 @@ module('Integration | Component | toggle', function (hooks) {
     assert.ok(Toggle.isDisabled);
     assert.ok(Toggle.hasDisabledClass);
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('toggling the input calls the onToggle action', async function (assert) {

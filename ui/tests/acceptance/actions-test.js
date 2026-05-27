@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Actions from 'nomad-ui/tests/pages/jobs/job/actions';
 import { triggerEvent, visit, click } from '@ember/test-helpers';
 import faker from 'nomad-ui/mirage/faker';
@@ -64,6 +64,22 @@ module('Acceptance | actions', function (hooks) {
       });
   });
 
+  test('it passes an accessibility audit', async function (assert) {
+    try {
+      const managementToken = this.server.create('token', {
+        type: 'management',
+        name: 'Management Token',
+      });
+      await Tokens.visit();
+      await Tokens.secret(managementToken.secretId).submit();
+      await Actions.visitIndex({ id: 'actionable-job' });
+      await a11yAudit();
+      assert.ok(true, 'no a11y errors found');
+    } finally {
+      window.localStorage.removeItem('nomadTokenSecret');
+    }
+  });
+
   test('Actions show up on the Job Index page, permissions allowing', async function (assert) {
     let managementToken = this.server.create('token', {
       type: 'management',
@@ -113,7 +129,6 @@ module('Acceptance | actions', function (hooks) {
     );
     assert.ok(Actions.taskRowActions.length, 'Task row has actions dropdowns');
 
-    await a11yAudit(assert);
 
     // Sign out and sign back in as a token without alloc exec
     await Tokens.visit();

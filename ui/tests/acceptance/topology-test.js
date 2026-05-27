@@ -6,9 +6,9 @@
 import { get } from '@ember/object';
 import { currentURL, typeIn, click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Topology from 'nomad-ui/tests/pages/topology';
 import {
   formatBytes,
@@ -36,7 +36,8 @@ module('Acceptance | topology', function (hooks) {
     this.server.createList('allocation', 5);
 
     await Topology.visit();
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('by default the info panel shows cluster aggregate stats', async function (assert) {

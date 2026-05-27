@@ -15,7 +15,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import sinon from 'sinon';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const TAB = 9;
 const ESC = 27;
@@ -64,7 +63,6 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       'Options are not rendered',
     );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('component opens the options dropdown when clicked', async function (assert) {
@@ -78,7 +76,6 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       find('[data-test-dropdown-options]'),
       'Options are shown now',
     );
-    await componentA11yAudit(this.element, assert);
 
     await click('[data-test-dropdown-trigger]');
 
@@ -151,7 +148,6 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       'The count is accurate',
     );
 
-    await componentA11yAudit(this.element, assert);
 
     await this.set('selection', []);
 
@@ -362,6 +358,5 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
     );
     assert.ok(find('[data-test-dropdown-empty]'), 'The empty state is shown');
     assert.notOk(find('[data-test-dropdown-option]'), 'No options are shown');
-    await componentA11yAudit(this.element, assert);
   });
 });

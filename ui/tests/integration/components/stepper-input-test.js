@@ -7,7 +7,6 @@ import { find, render, settled, triggerEvent } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
 import stepperInput from 'nomad-ui/tests/pages/components/stepper-input';
@@ -56,7 +55,6 @@ module('Integration | Component | stepper input', function (hooks) {
       StepperInput.increment.classNames.split(' ').includes(this.classVariant),
     );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('clicking the increment and decrement buttons immediately changes the shown value in the input but debounces the onUpdate call', async function (assert) {

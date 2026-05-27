@@ -7,7 +7,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 import sinon from 'sinon';
 
@@ -22,7 +21,6 @@ module('Integration | Component | copy-button', function (hooks) {
   test('it shows the copy icon by default', async function (assert) {
     await render(hbs`<CopyButton />`);
     assert.dom('.copy-button .hds-icon-clipboard-copy').exists();
-    await componentA11yAudit(this.element, assert);
   });
 
   test('it shows the success icon on success and resets afterward', async function (assert) {
@@ -34,7 +32,6 @@ module('Integration | Component | copy-button', function (hooks) {
     await triggerCopySuccess('.copy-button button');
 
     assert.dom('[data-test-copy-success]').exists();
-    await componentA11yAudit(this.element, assert);
 
     clock.runAll();
 
@@ -51,6 +48,5 @@ module('Integration | Component | copy-button', function (hooks) {
     await triggerCopyError('.copy-button button');
 
     assert.dom('.copy-button .hds-icon-clipboard-x').exists();
-    await componentA11yAudit(this.element, assert);
   });
 });

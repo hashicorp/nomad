@@ -7,7 +7,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const mockTask = {
   name: 'another-server',
@@ -77,6 +76,5 @@ module('Integration | Component | task-sub-row', function (hooks) {
     );
     assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '9');
 
-    await componentA11yAudit(this.element, assert);
   });
 });

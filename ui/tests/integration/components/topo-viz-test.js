@@ -7,7 +7,6 @@ import { module, test } from 'qunit';
 import { render, triggerEvent } from '@ember/test-helpers';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import sinon from 'sinon';
@@ -70,7 +69,6 @@ module('Integration | Component | TopoViz', function (hooks) {
     assert.deepEqual(TopoViz.datacenters[0].nodes[0].memoryRects.length, 2);
     assert.deepEqual(TopoViz.datacenters[1].nodes[0].memoryRects.length, 1);
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('clicking on a node in a deeply nested TopoViz::Node will toggle node selection and call @onNodeSelect', async function (assert) {

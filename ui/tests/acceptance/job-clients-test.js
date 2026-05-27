@@ -6,9 +6,9 @@
 import { currentURL } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Clients from 'nomad-ui/tests/pages/jobs/job/clients';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
 
@@ -71,7 +71,8 @@ module('Acceptance | job clients', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await Clients.visit({ id: job.id });
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('lists all clients for the job', async function (assert) {

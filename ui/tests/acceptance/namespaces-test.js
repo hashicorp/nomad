@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import {
   visit,
   currentURL,
@@ -16,7 +17,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import faker from 'nomad-ui/mirage/faker';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Acceptance | namespaces', function (hooks) {
   setupApplicationTest(hooks);
@@ -24,6 +24,34 @@ module('Acceptance | namespaces', function (hooks) {
 
   hooks.beforeEach(function () {
     faker.seed(1);
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
+    await visit('/administration/namespaces');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('administration.namespaces.new passes an accessibility audit', async function (assert) {
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
+    await visit('/administration/namespaces/new');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+    window.localStorage.nomadTokenSecret = null;
+  });
+
+  test('administration.namespaces.acl-namespace passes an accessibility audit', async function (assert) {
+    allScenarios.namespacesTestCluster(this.server);
+    window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
+    const namespace = this.server.db.namespaces[0];
+    await visit(`/administration/namespaces/${namespace.name}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+    window.localStorage.nomadTokenSecret = null;
   });
 
   test('Namespaces index, general', async function (assert) {
@@ -35,7 +63,6 @@ module('Acceptance | namespaces', function (hooks) {
     assert
       .dom('[data-test-namespace-row]')
       .exists({ count: this.server.db.namespaces.length });
-    await a11yAudit(assert);
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });

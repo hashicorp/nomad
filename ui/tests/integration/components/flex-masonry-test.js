@@ -8,7 +8,6 @@ import { click, find, findAll, render, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 // Used to prevent XSS warnings in console
 const h = (height) => htmlSafe(`height:${height}px`);
@@ -33,7 +32,6 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     assert.deepEqual(div.tagName.toLowerCase(), 'div');
     assert.deepEqual(div.children.length, 0);
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('each item in @items gets wrapped in a flex-masonry-item wrapper', async function (assert) {

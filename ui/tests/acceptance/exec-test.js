@@ -4,11 +4,11 @@
  */
 
 import { module, skip, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, settled } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Service from '@ember/service';
 import Exec from 'nomad-ui/tests/pages/exec';
 import KEYS from 'nomad-ui/utils/keys';
@@ -50,7 +50,8 @@ module('Acceptance | exec', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await Exec.visitJob({ job: this.job.id });
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/exec/:job should show the region, namespace, and job name', async function (assert) {
