@@ -164,7 +164,7 @@ func (c *JobQueueCommand) printDynamicQueueFormatted(resp []api.DynamicPriorityW
 			v.Tenant,
 			v.AdjustedPriority,
 			v.BasePriority,
-			v.UsageAjustment,
+			v.UsageAdjustment,
 			v.AgeAdjustment,
 			v.SizeAdjustment,
 		)

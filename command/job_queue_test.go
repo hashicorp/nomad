@@ -4,7 +4,6 @@
 package command
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -18,47 +17,44 @@ func TestJobQueue_Implements(t *testing.T) {
 	var _ cli.Command = &JobQueueCommand{}
 }
 
-func TestJobQueue_printFormatted(t *testing.T) {
+func TestJobQueue_printDynamicQueueFormatted(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobQueueCommand{Meta: Meta{Ui: ui}}
 
-	testResp := &api.BatchQueueStatusResponse{
-		Workloads: []api.Workload{
-			{
-				JobID:    "123",
-				Tenant:   "testTenant1",
-				Priority: 5,
-			},
+	testResp := []api.DynamicPriorityWorkload{
+		{
+			JobID:            "123",
+			Tenant:           "testTenant1",
+			AdjustedPriority: 10,
+			BasePriority:     10,
 		},
 	}
-	cmd.printFormatted(testResp)
+	cmd.printDynamicQueueFormatted(testResp)
 
 	expect := "Batch Queue Workloads\n" +
-		"JobID  Tenant       Priority\n" +
-		"123    testTenant1  5\n"
+		"JobID  Tenant       Adjusted Priority  Base Priority  Usage  Age  Size\n" +
+		"123    testTenant1  10                 10             0      0    0\n"
 
-	fmt.Println(ui.OutputWriter.String())
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
 
-func TestJobQueue_printJSON(t *testing.T) {
+func TestJobQueue_printDynamicQueueJSON(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &JobQueueCommand{Meta: Meta{Ui: ui}}
 
-	testResp := &api.BatchQueueStatusResponse{
-		Workloads: []api.Workload{
-			{
-				JobID:    "123",
-				Tenant:   "testTenant1",
-				Priority: 5,
-			},
+	testResp := []api.DynamicPriorityWorkload{
+		{
+			JobID:            "123",
+			Tenant:           "testTenant1",
+			AdjustedPriority: 10,
+			BasePriority:     10,
 		},
 	}
-	cmd.printJSON(testResp)
+	cmd.printDynamicQueueJSON(testResp)
 
-	expect := "[{\"JobID\":\"123\",\"Tenant\":\"testTenant1\",\"Priority\":5}]\n"
+	expect := "[{\"JobID\":\"123\",\"Tenant\":\"testTenant1\",\"AdjustedPriority\":10,\"BasePriority\":10,\"UsageAdjustment\":0,\"AgeAdjustment\":0,\"SizeAdjustment\":0}]\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
