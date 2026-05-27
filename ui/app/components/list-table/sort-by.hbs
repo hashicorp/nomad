@@ -1,0 +1,14 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<SafeLinkTo
+  @query={{hash
+    sortProperty=this.prop
+    sortDescending=this.shouldSortDescending
+  }}
+  data-test-sort-by={{this.prop}}
+>
+  {{yield}}
+</SafeLinkTo>

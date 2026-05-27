@@ -1,0 +1,3 @@
+```release-note:improvement
+namespaces: Allow adding custom metadata to namespaces.
+```

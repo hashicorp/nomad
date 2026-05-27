@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: Add `stage_publish_base_dir` field to `csi_plugin` block to support plugins that require a specific staging/publishing directory for mounts
+```

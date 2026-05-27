@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fix unallocated CPU metric calculation when client reserved CPU is set
+```

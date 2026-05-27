@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: When you re-bind keyboard shortcuts they now correctly show up in shift-held hints
+```

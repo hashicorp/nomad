@@ -1,0 +1,72 @@
+{
+  "id": "ebs_prod_db1",
+  "namespace": "default",
+  "name": "database",
+  "type": "csi",
+  "plugin_id": "plugin_id",
+  "external_id": "vol-23452345",
+  "snapshot_id": "snap-12345",
+  "capacity_min": "10GiB",
+  "capacity_max": "20G",
+  "capability": [
+    {
+      "access_mode": "single-node-writer",
+      "attachment_mode": "file-system"
+    },
+    {
+      "access_mode": "single-node-reader-only",
+      "attachment_mode": "block-device"
+    }
+  ],
+  "context": [
+    {
+      "endpoint": "http://192.168.1.101:9425"
+    }
+  ],
+  "mount_options": [
+    {
+      "fs_type": "ext4",
+      "mount_flags": [
+        "ro"
+      ]
+    }
+  ],
+  "topology_request": {
+    "preferred": [
+      {
+        "topology": {
+          "segments": {
+            "rack": "R1"
+          }
+        }
+      }
+    ],
+    "required": [
+      {
+        "topology": {
+          "segments": {
+            "rack": "R1"
+          }
+        }
+      },
+      {
+        "topology": {
+          "segments": {
+            "rack": "R2",
+            "zone": "us-east-1a"
+          }
+        }
+      }
+    ]
+  },
+  "parameters": [
+    {
+      "skuname": "Premium_LRS"
+    }
+  ],
+  "secrets": [
+    {
+      "example_secret": "xyzzy"
+    }
+  ]
+}

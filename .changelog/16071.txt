@@ -1,0 +1,3 @@
+```release-note:bug
+build: Linux packages now have vendor label and set the default label to HashiCorp. This fix is implemented for any future releases, but will not be updated for historical releases
+```

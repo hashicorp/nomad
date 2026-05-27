@@ -1,0 +1,3 @@
+```release-note:improvement
+func: Allow custom paths to be added the the getter landlock
+```

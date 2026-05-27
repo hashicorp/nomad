@@ -1,0 +1,3 @@
+```release-note:security
+client: recover from panics caused by artifact download to prevent the Nomad client from crashing
+```

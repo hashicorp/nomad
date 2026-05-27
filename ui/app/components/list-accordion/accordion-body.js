@@ -1,0 +1,14 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Component from '@ember/component';
+import { tagName } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
+
+@classic
+@tagName('')
+export default class AccordionBody extends Component {
+  isOpen = false;
+}

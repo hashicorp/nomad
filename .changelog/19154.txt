@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a panic when the `nomad job restart` command received an interrupt signal while waiting for an answer
+```

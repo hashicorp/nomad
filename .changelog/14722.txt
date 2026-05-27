@@ -1,0 +1,3 @@
+```release-note:improvement
+core: constraint operands are now compared numerically if operands are numbers
+```

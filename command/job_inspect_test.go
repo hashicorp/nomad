@@ -1,0 +1,288 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package command
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/posener/complete"
+	"github.com/shoenig/test/must"
+)
+
+func TestInspectCommand_Implements(t *testing.T) {
+	ci.Parallel(t)
+	var _ cli.Command = &JobInspectCommand{}
+}
+
+func TestInspectCommand_Fails(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &JobInspectCommand{Meta: Meta{Ui: ui}}
+
+	// Fails on misuse
+	if code := cmd.Run([]string{"some", "bad", "args"}); code != 1 {
+		t.Fatalf("expected exit code 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, commandErrorText(cmd)) {
+		t.Fatalf("expected help output, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Fails on nonexistent job ID
+	if code := cmd.Run([]string{"-address=" + url, "nope"}); code != 1 {
+		t.Fatalf("expect exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "No job(s) with prefix or ID") {
+		t.Fatalf("expect not found error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Fails on connection failure
+	if code := cmd.Run([]string{"-address=nope", "nope"}); code != 1 {
+		t.Fatalf("expected exit code 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying job prefix") {
+		t.Fatalf("expected failed query error, got: %s", out)
+	}
+	ui.ErrorWriter.Reset()
+
+	// Failed on both -json and -t options are specified
+	if code := cmd.Run([]string{"-address=" + url, "-json", "-t", "{{.ID}}"}); code != 1 {
+		t.Fatalf("expected exit 1, got: %d", code)
+	}
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, "Both json and template formatting are not allowed") {
+		t.Fatalf("expected getting formatter error, got: %s", out)
+	}
+}
+func TestInspectCommand_HCLOutput(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, true, func(c *agent.Config) {
+		c.DevMode = true
+	})
+
+	t.Cleanup(srv.Shutdown)
+
+	ui := cli.NewMockUi()
+	cmd := &JobInspectCommand{
+		Meta: Meta{
+			Ui:          ui,
+			flagAddress: url,
+		},
+	}
+	//set up first job; version #0
+	uuid := uuid.Generate()
+	job := testNomadServiceJob(uuid)
+
+	client, err := cmd.Meta.Client()
+	must.NoError(t, err)
+
+	jsonBytes, err := json.Marshal(job)
+	must.NoError(t, err)
+	_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+		Submission: &api.JobSubmission{
+			Source: string(jsonBytes),
+			Format: "json",
+		},
+	}, nil)
+	must.NoError(t, err)
+
+	// change job priority and re-register job to trigger version #1
+	*job.Priority = 87
+	newBytes, err := json.Marshal(job)
+	must.NoError(t, err)
+	_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+		Submission: &api.JobSubmission{
+			Source: string(newBytes),
+			Format: "json",
+		},
+	}, nil)
+	must.NoError(t, err)
+
+	// stop job to trigger version #2
+	_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
+	must.Nil(t, err)
+
+	// trigger version #3 retrieve the job struct from client.Meta.JobByPrefix
+	// to imitate job.Start
+	stateJob, err := cmd.Meta.JobByPrefix(client, *job.ID, "")
+	must.NoError(t, err)
+	_, _, err = client.Jobs().Register(stateJob, nil)
+	must.NoError(t, err)
+
+	code := cmd.Run([]string{"-address=" + url, "-hcl", "-version=" + "3", *job.Name})
+	s := ui.OutputWriter.String()
+	must.StrContains(t, s, `"Priority":87`)
+	if code != 0 {
+		fmt.Println(ui.ErrorWriter.String())
+		t.Fatalf("expected exit 0, got: %d", code)
+	}
+}
+
+func TestInspectCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &JobInspectCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	state := srv.Agent.Server().State()
+	j := mock.Job()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+
+	prefix := j.ID[:len(j.ID)-5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	must.SliceLen(t, 1, res)
+	must.Eq(t, j.ID, res[0])
+}
+
+func TestJobInspectCommand_ACL(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start server with ACL enabled.
+	srv, _, url := testServer(t, true, func(c *agent.Config) {
+		c.ACL.Enabled = true
+	})
+	defer srv.Shutdown()
+
+	// Create a job
+	job := mock.MinJob()
+	state := srv.Agent.Server().State()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	must.NoError(t, err)
+
+	testCases := []struct {
+		name        string
+		jobPrefix   bool
+		aclPolicy   string
+		expectedErr string
+	}{
+		{
+			name:        "no token",
+			aclPolicy:   "",
+			expectedErr: api.PermissionDeniedErrorContent,
+		},
+		{
+			name: "missing read-job",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["list-jobs"]
+}
+`,
+			expectedErr: api.PermissionDeniedErrorContent,
+		},
+		{
+			name: "read-job allowed",
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job"]
+}
+`,
+		},
+		{
+			name:      "job prefix requires list-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job"]
+}
+`,
+			expectedErr: "job not found",
+		},
+		{
+			name:      "job prefix works with list-job",
+			jobPrefix: true,
+			aclPolicy: `
+namespace "default" {
+	capabilities = ["read-job", "list-jobs"]
+}
+`,
+		},
+	}
+
+	for i, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &JobInspectCommand{Meta: Meta{Ui: ui}}
+			args := []string{
+				"-address", url,
+			}
+
+			if tc.aclPolicy != "" {
+				// Create ACL token with test case policy and add it to the
+				// command.
+				policyName := nonAlphaNum.ReplaceAllString(tc.name, "-")
+				token := mock.CreatePolicyAndToken(t, state, uint64(302+i), policyName, tc.aclPolicy)
+				args = append(args, "-token", token.SecretID)
+			}
+
+			// Add job ID or job ID prefix to the command.
+			if tc.jobPrefix {
+				args = append(args, job.ID[:3])
+			} else {
+				args = append(args, job.ID)
+			}
+
+			// Run command.
+			code := cmd.Run(args)
+			if tc.expectedErr == "" {
+				must.Zero(t, code)
+			} else {
+				must.One(t, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
+			}
+		})
+	}
+}
+
+func TestInspectCommand_HCLVars(t *testing.T) {
+	ci.Parallel(t)
+
+	// no vars
+	out := getWithVarsOutput("default", "example", "", map[string]string{})
+	must.Eq(t, `
+To run this job as originally submitted:
+
+$ nomad job inspect -namespace default -hcl example |
+    nomad job run -namespace default example
+`, out)
+
+	// vars from the UI, erratic extra spaces
+	out = getWithVarsOutput("default", "example", "\n  http_port=foo  \n \nbar=baz ",
+		map[string]string{})
+	must.Eq(t, `
+To run this job as originally submitted:
+
+$ nomad job inspect -namespace default -hcl example |
+    nomad job run -namespace default -var http_port=foo -var bar=baz example
+`, out)
+
+	// same vars from the CLI
+	out = getWithVarsOutput("default", "example", "",
+		map[string]string{"http_port": "foo", "bar": "baz"})
+	must.Eq(t, `
+To run this job as originally submitted:
+
+$ nomad job inspect -namespace default -hcl example |
+    nomad job run -namespace default -var bar=baz -var http_port=foo example
+`, out)
+
+}

@@ -1,0 +1,2 @@
+# This file is created by terraform as part of the scenario
+vault-secrets.nomad.hcl

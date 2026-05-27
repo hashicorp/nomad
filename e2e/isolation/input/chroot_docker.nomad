@@ -1,0 +1,29 @@
+# Copyright IBM Corp. 2015, 2025
+# SPDX-License-Identifier: BUSL-1.1
+
+job "chroot_docker" {
+  type = "batch"
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
+  group "print" {
+    task "env" {
+      driver = "docker"
+      config {
+        image = "busybox:1"
+        args = [
+          "/bin/sh",
+          "-c",
+          "echo $NOMAD_ALLOC_DIR; echo $NOMAD_TASK_DIR; echo $NOMAD_SECRETS_DIR; echo $PATH; sleep 2"
+        ]
+      }
+      resources {
+        cpu    = 200
+        memory = 128
+      }
+    }
+  }
+}

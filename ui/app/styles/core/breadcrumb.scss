@@ -1,0 +1,39 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.breadcrumb {
+  margin: 0 1.5rem;
+
+  a {
+    text-decoration: none;
+    opacity: 0.7;
+
+    &:hover {
+      text-decoration: none;
+      opacity: 1;
+    }
+  }
+
+  ul {
+    align-items: center;
+  }
+
+  li::before {
+    font-size: x-large;
+  }
+
+  li:last-child a.active {
+    opacity: 1;
+  }
+
+  dl dd {
+    margin: -4px 0;
+    font-size: medium;
+  }
+
+  dl dt {
+    font-size: small;
+  }
+}

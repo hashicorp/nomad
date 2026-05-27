@@ -1,0 +1,38 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+//go:build linux
+
+package cgroupslib
+
+import (
+	"sync"
+)
+
+var (
+	disableMemorySwapOnce sync.Once
+	disableMemorySwap     *uint64
+)
+
+// MaybeDisableMemorySwappiness will disable memory swappiness, if that controller
+// is available. Always the case for cgroups v2, but is not always the case on
+// very old kernels with cgroups v1.
+func MaybeDisableMemorySwappiness() *uint64 {
+	disableMemorySwapOnce.Do(func() {
+		disableMemorySwap = detectMemorySwap()
+	})
+	return disableMemorySwap
+}
+
+func detectMemorySwap() *uint64 {
+	switch GetMode() {
+	case CG1:
+		err := WriteNomadCG1("memory", "memory.swappiness", "0")
+		if err == nil {
+			return new(uint64(0))
+		}
+		return nil
+	default:
+		return new(uint64(0))
+	}
+}

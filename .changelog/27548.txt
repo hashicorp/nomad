@@ -1,0 +1,3 @@
+```release-note:bug
+state: Fixed a potential state store corruption bug in the service/batch scheduler and deployment watcher
+```

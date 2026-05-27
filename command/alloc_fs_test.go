@@ -1,0 +1,114 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package command
+
+import (
+	"testing"
+
+	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/posener/complete"
+	"github.com/shoenig/test/must"
+)
+
+func TestFSCommand_Implements(t *testing.T) {
+	ci.Parallel(t)
+	var _ cli.Command = &AllocFSCommand{}
+}
+
+func TestFSCommand_Fails(t *testing.T) {
+	ci.Parallel(t)
+	srv, _, url := testServer(t, false, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &AllocFSCommand{Meta: Meta{Ui: ui}}
+
+	// Fails on lack of job ID
+	code := cmd.Run([]string{"-job"})
+	must.One(t, code)
+
+	out := ui.ErrorWriter.String()
+	must.StrContains(t, out, "job ID is required")
+
+	ui.ErrorWriter.Reset()
+
+	// Fails on lack of allocation ID
+	code = cmd.Run([]string{})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "allocation ID is required")
+
+	ui.ErrorWriter.Reset()
+
+	// Fails on misuse
+	code = cmd.Run([]string{"some", "bad", "args"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, commandErrorText(cmd))
+
+	ui.ErrorWriter.Reset()
+
+	// Fails on connection failure
+	code = cmd.Run([]string{"-address=nope", "foobar"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "Error querying allocation")
+
+	ui.ErrorWriter.Reset()
+
+	// Fails on missing alloc
+	code = cmd.Run([]string{"-address=" + url, "26470238-5CF2-438F-8772-DC67CFB0705C"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No allocation(s) with prefix or id")
+
+	ui.ErrorWriter.Reset()
+
+	// Fail on identifier with too few characters
+	code = cmd.Run([]string{"-address=" + url, "2"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "must contain at least two characters.")
+
+	ui.ErrorWriter.Reset()
+
+	// Identifiers with uneven length should produce a query result
+	code = cmd.Run([]string{"-address=" + url, "123"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "No allocation(s) with prefix or id")
+}
+
+func TestFSCommand_AutocompleteArgs(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	ui := cli.NewMockUi()
+	cmd := &AllocFSCommand{Meta: Meta{Ui: ui, flagAddress: url}}
+
+	// Create a fake alloc
+	state := srv.Agent.Server().State()
+	a := mock.Alloc()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, a.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
+
+	prefix := a.ID[:5]
+	args := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(args)
+	must.Len(t, 1, res)
+	must.Eq(t, a.ID, res[0])
+}

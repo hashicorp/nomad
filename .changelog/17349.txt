@@ -1,0 +1,3 @@
+```release-note:bug
+client: fixed a bug that prevented Nomad from fingerprinting Consul 1.13.8 correctly
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Namespace filter query paramters are now isolated by route
+```

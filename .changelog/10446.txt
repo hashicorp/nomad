@@ -1,0 +1,3 @@
+```release-note:bug
+core: prevent new allocations from overlapping execution with stopping allocations
+```

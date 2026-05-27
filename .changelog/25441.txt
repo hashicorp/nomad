@@ -1,0 +1,3 @@
+```release-note:bug
+server: Validate `num_schedulers` configuration parameter is between 0 and the number of CPUs available on the machine
+```

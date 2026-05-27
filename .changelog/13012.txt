@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fixed a bug where links to jobs with "@" in their name would mis-identify namespace and 404
+```

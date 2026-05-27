@@ -1,0 +1,234 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+package nomad
+
+import (
+	"context"
+	"fmt"
+
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/peers"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/raft"
+	autopilot "github.com/hashicorp/raft-autopilot"
+	"github.com/hashicorp/serf/serf"
+)
+
+const (
+	// AutopilotRZTag is the Serf tag to use for the redundancy zone value
+	// when passing the server metadata to Autopilot.
+	AutopilotRZTag = "ap_zone"
+
+	// AutopilotRZTag is the Serf tag to use for the custom version value
+	// when passing the server metadata to Autopilot.
+	AutopilotVersionTag = "ap_version"
+)
+
+// AutopilotDelegate is a Nomad delegate for autopilot operations. It implements
+// the autopilot.ApplicationIntegration interface, and the methods required for
+// that interface have been documented as such below.
+type AutopilotDelegate struct {
+	server *Server
+}
+
+// AutopilotConfig is used to retrieve the latest configuration from the Nomad
+// delegate. This method is required to implement the ApplicationIntegration
+// interface.
+func (d *AutopilotDelegate) AutopilotConfig() *autopilot.Config {
+	c := d.server.getOrCreateAutopilotConfig()
+	if c == nil {
+		return nil
+	}
+	conf := &autopilot.Config{
+		CleanupDeadServers:      c.CleanupDeadServers,
+		LastContactThreshold:    c.LastContactThreshold,
+		MaxTrailingLogs:         c.MaxTrailingLogs,
+		MinQuorum:               c.MinQuorum,
+		ServerStabilizationTime: c.ServerStabilizationTime,
+		Ext:                     autopilotConfigExt(c),
+	}
+
+	return conf
+}
+
+// FetchServerStats will be called by autopilot to request Nomad fetch the
+// server stats out of band. This method is required to implement the
+// ApplicationIntegration interface
+func (d *AutopilotDelegate) FetchServerStats(ctx context.Context, servers map[raft.ServerID]*autopilot.Server) map[raft.ServerID]*autopilot.ServerStats {
+	return d.server.statsFetcher.Fetch(ctx, servers)
+}
+
+// KnownServers will be called by autopilot to request the list of servers known
+// to Nomad. This method is required to implement the ApplicationIntegration
+// interface
+func (d *AutopilotDelegate) KnownServers() map[raft.ServerID]*autopilot.Server {
+	return d.server.autopilotServers()
+}
+
+// NotifyState will be called when the autopilot state is updated. The Nomad
+// leader heartbeats a metric for monitoring based on this information. This
+// method is required to implement the ApplicationIntegration interface
+func (d *AutopilotDelegate) NotifyState(state *autopilot.State) {
+	if d.server.raft.State() == raft.Leader {
+		metrics.SetGauge([]string{"nomad", "autopilot", "failure_tolerance"}, float32(state.FailureTolerance))
+		if state.Healthy {
+			metrics.SetGauge([]string{"nomad", "autopilot", "healthy"}, 1)
+		} else {
+			metrics.SetGauge([]string{"nomad", "autopilot", "healthy"}, 0)
+		}
+	}
+}
+
+// RemoveFailedServer will be called by autopilot to notify Nomad to remove the
+// server in a failed state. This method is required to implement the
+// ApplicationIntegration interface. (Note this is expected to return
+// immediately so we'll spawn a goroutine for it.)
+func (d *AutopilotDelegate) RemoveFailedServer(failedSrv *autopilot.Server) {
+	go func() {
+		err := d.server.RemoveFailedNode(failedSrv.Name)
+		if err != nil {
+			d.server.logger.Error("could not remove failed server",
+				"server", string(failedSrv.ID),
+				"error", err,
+			)
+		}
+	}()
+}
+
+// MinRaftProtocol returns the lowest supported Raft protocol among alive
+// servers
+func (s *Server) MinRaftProtocol() (int, error) {
+	return minRaftProtocol(s.peersCache.RegionPeers(s.Region()))
+}
+
+// GetClusterHealth is used to get the current health of the servers, as known
+// by the leader.
+func (s *Server) GetClusterHealth() *structs.OperatorHealthReply {
+
+	state := s.autopilot.GetState()
+	if state == nil {
+		// this behavior seems odd but its functionally equivalent to 1.8.5 where if
+		// autopilot didn't have a health reply yet it would just return no error
+		return nil
+	}
+
+	health := &structs.OperatorHealthReply{
+		Healthy:          state.Healthy,
+		FailureTolerance: state.FailureTolerance,
+		Leader:           string(state.Leader),
+		Voters:           stringIDs(state.Voters),
+		Servers:          make([]structs.ServerHealth, 0, len(state.Servers)),
+	}
+
+	for _, srv := range state.Servers {
+		srvHealth := autopilotToServerHealth(srv)
+
+		health.Servers = append(health.Servers, srvHealth)
+	}
+	err := s.autopilotStateExt(state, health)
+	if err != nil {
+		s.logger.Error("Error parsing autopilot state", "error", err)
+	}
+
+	return health
+}
+
+// -------------------
+// helper functions
+
+func autopilotToServerHealth(srv *autopilot.ServerState) structs.ServerHealth {
+	srvHealth := structs.ServerHealth{
+		ID:          string(srv.Server.ID),
+		Name:        srv.Server.Name,
+		Address:     string(srv.Server.Address),
+		Version:     srv.Server.Version,
+		Leader:      srv.State == autopilot.RaftLeader,
+		Voter:       srv.State == autopilot.RaftLeader || srv.State == autopilot.RaftVoter,
+		LastContact: srv.Stats.LastContact,
+		LastTerm:    srv.Stats.LastTerm,
+		LastIndex:   srv.Stats.LastIndex,
+		Healthy:     srv.Health.Healthy,
+		StableSince: srv.Health.StableSince,
+	}
+
+	switch srv.Server.NodeStatus {
+	case autopilot.NodeAlive:
+		srvHealth.SerfStatus = serf.StatusAlive
+	case autopilot.NodeLeft:
+		srvHealth.SerfStatus = serf.StatusLeft
+	case autopilot.NodeFailed:
+		srvHealth.SerfStatus = serf.StatusFailed
+	default:
+		srvHealth.SerfStatus = serf.StatusNone
+	}
+
+	return srvHealth
+}
+
+func stringIDs(ids []raft.ServerID) []string {
+	return helper.ConvertSlice(ids, func(id raft.ServerID) string { return string(id) })
+}
+
+func minRaftProtocol(members []*peers.Parts) (int, error) {
+	minVersion := -1
+	for _, m := range members {
+		if m.Status != serf.StatusAlive {
+			continue
+		}
+
+		if minVersion == -1 || m.RaftVersion < minVersion {
+			minVersion = m.RaftVersion
+		}
+	}
+
+	if minVersion == -1 {
+		return minVersion, fmt.Errorf("No servers found")
+	}
+
+	return minVersion, nil
+}
+
+func (s *Server) autopilotServers() map[raft.ServerID]*autopilot.Server {
+
+	// Get a list of the regional peers for our local region. We cannot use the
+	// LocalPeers function, as we need peers in all states.
+	localPeers := s.peersCache.RegionPeers(s.Region())
+
+	servers := make(map[raft.ServerID]*autopilot.Server, len(localPeers))
+
+	for _, srv := range localPeers {
+		autopilotServer := s.autopilotServerFromMetadata(srv)
+		servers[autopilotServer.ID] = autopilotServer
+	}
+
+	return servers
+}
+
+func (s *Server) autopilotServerFromMetadata(srv *peers.Parts) *autopilot.Server {
+	server := &autopilot.Server{
+		Name:        srv.Name,
+		ID:          raft.ServerID(srv.ID),
+		Address:     raft.ServerAddress(srv.Addr.String()),
+		Version:     srv.Build.String(),
+		RaftVersion: srv.RaftVersion,
+		Ext:         s.autopilotServerExt(srv),
+		Meta:        srv.Tags,
+	}
+
+	switch srv.Status {
+	case serf.StatusLeft:
+		server.NodeStatus = autopilot.NodeLeft
+	case serf.StatusAlive, serf.StatusLeaving:
+		// we want to treat leaving as alive to prevent autopilot from
+		// prematurely removing the node.
+		server.NodeStatus = autopilot.NodeAlive
+	case serf.StatusFailed:
+		server.NodeStatus = autopilot.NodeFailed
+	default:
+		server.NodeStatus = autopilot.NodeUnknown
+	}
+
+	return server
+}

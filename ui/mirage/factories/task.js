@@ -1,0 +1,140 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { Factory } from 'miragejs';
+import faker from 'nomad-ui/mirage/faker';
+import { generateResources } from '../common';
+import { dasherize } from '@ember/string';
+
+const DRIVERS = ['docker', 'java', 'rkt', 'qemu', 'exec', 'raw_exec'];
+
+export default Factory.extend({
+  createRecommendations: false,
+
+  withServices: false,
+
+  withActions: false,
+  actions: [],
+
+  // Hidden property used to compute the Summary hash
+  groupNames: [],
+
+  // Set in the TaskGroup factory
+  volumeMounts: [],
+
+  meta: null,
+
+  JobID: '',
+
+  name: (id) => `task-${dasherize(faker.hacker.noun())}-${id}`,
+  driver: () => faker.helpers.randomize(DRIVERS),
+
+  schedule: null,
+
+  originalResources: generateResources,
+  resources: function () {
+    // Generate resources the usual way, but transform to the old
+    // shape because that's what the job spec uses.
+    const resources = this.originalResources;
+    return {
+      CPU: resources.Cpu.CpuShares,
+      MemoryMB: resources.Memory.MemoryMB,
+      MemoryMaxMB: resources.Memory.MemoryMaxMB,
+      DiskMB: resources.Disk.DiskMB,
+    };
+  },
+
+  Lifecycle: (i) => {
+    const cycle = i % 6;
+
+    if (cycle === 0) {
+      return null;
+    } else if (cycle === 1) {
+      return { Hook: 'prestart', Sidecar: false };
+    } else if (cycle === 2) {
+      return { Hook: 'prestart', Sidecar: true };
+    } else if (cycle === 3) {
+      return { Hook: 'poststart', Sidecar: false };
+    } else if (cycle === 4) {
+      return { Hook: 'poststart', Sidecar: true };
+    } else if (cycle === 5) {
+      return { Hook: 'poststop' };
+    }
+  },
+
+  afterCreate(task, server) {
+    if (task.createRecommendations) {
+      const recommendations = [];
+
+      if (faker.random.number(10) >= 1) {
+        recommendations.push(
+          server.create('recommendation', { task, resource: 'CPU' }),
+        );
+      }
+
+      if (faker.random.number(10) >= 1) {
+        recommendations.push(
+          server.create('recommendation', { task, resource: 'MemoryMB' }),
+        );
+      }
+
+      task.save({
+        recommendationIds: recommendations.map(
+          (recommendation) => recommendation.id,
+        ),
+      });
+    }
+
+    if (task.withServices) {
+      const services = server.createList('service-fragment', 1, {
+        provider: 'nomad',
+        taskName: task.name,
+      });
+
+      services.push(
+        server.create('service-fragment', {
+          provider: 'consul',
+          taskName: task.name,
+        }),
+      );
+      services.forEach((fragment) => {
+        server.createList('service', 5, {
+          serviceName: fragment.name,
+        });
+      });
+      task.update({ services });
+    }
+
+    if (task.withActions) {
+      let actionsData = [
+        {
+          taskName: task.name,
+          Name: faker.hacker.verb(),
+          Command: '/bin/sh',
+          Args: [
+            '-c',
+            'counter=0; while true; do echo "Running for ${counter} seconds"; counter=$((counter + 1)); sleep 1; done',
+          ],
+        },
+      ];
+      task.update({ actions: actionsData });
+    }
+
+    if (task.withSchedule) {
+      const schedule = server.create('task-schedule', {
+        cron: {
+          End: '41 13',
+          Start: '40 13 * * * *',
+          Timezone: 'America/New_York',
+        },
+      });
+      task.update({ schedule: schedule });
+    }
+
+    if (task.withMeta) {
+      task.update({ meta: { raw: { foo: 'bar' } } });
+    }
+  },
+});

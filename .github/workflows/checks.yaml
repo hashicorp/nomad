@@ -1,0 +1,56 @@
+# Run 'make check' on paths ignored by test-core.yaml.
+name: Run checks
+on:
+  pull_request:
+    paths:
+      - 'demo/**'
+      - 'e2e/terraform/**'
+      - 'terraform/**'
+      - 'website/**'
+  push:
+    branches:
+      - 'main'
+      - 'release/**'
+    paths:
+      - 'demo/**'
+      - 'e2e/terraform/**'
+      - 'terraform/**'
+      - 'website/**'
+  workflow_call:
+
+jobs:
+  checks:
+    # largest available self-hosted disk for extra iops because linting is io-intensive
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "disk_gb=255", "type=m7a.2xlarge;m6a.2xlarge"]') || 'custom-linux-xl-nomad-22.04' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0 # needs tags for checkproto
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
+        with:
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
+            kv/data/github/hashicorp/nomad-enterprise/gha ELEVATED_GITHUB_TOKEN ;
+      - name: Git config token
+        if: endsWith(github.repository, '-enterprise')
+        run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
+      - name: Run make check
+        run: |
+          make missing
+          make bootstrap
+          make check
+permissions:
+  contents: read
+  id-token: write

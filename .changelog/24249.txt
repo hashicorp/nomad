@@ -1,0 +1,3 @@
+```release-note:improvement
+drivers: Add work_dir config to exec/rawexec/java drivers for setting the working directory of processes in a task
+```

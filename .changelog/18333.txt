@@ -1,0 +1,3 @@
+```release-note:bug
+services: Add validation message when `tls_skip_verify` is set to `true` on a Nomad service
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: Added `client.tasks` metrics to track task states
+```

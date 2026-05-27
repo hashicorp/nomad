@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where network fingerprinters were not reloaded when the client configuration was reloaded with SIGHUP
+```

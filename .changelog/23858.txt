@@ -1,0 +1,3 @@
+```release-note:bug
+node: Fixed bug where sysbatch allocations were started prematurely
+```

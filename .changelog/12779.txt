@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug that could prevent a preempting alloc from ever starting.
+```

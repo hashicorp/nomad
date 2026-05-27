@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: Log the cause of failure if agent failed to start
+```

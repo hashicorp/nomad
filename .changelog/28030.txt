@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: Added `nomad_node_id` metadata to Consul token descriptions for easier identification
+```

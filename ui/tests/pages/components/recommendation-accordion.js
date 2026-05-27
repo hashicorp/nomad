@@ -1,0 +1,18 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { text } from 'ember-cli-page-object';
+
+import recommendationCard from 'nomad-ui/tests/pages/components/recommendation-card';
+
+export default {
+  group: text('[data-test-group]'),
+
+  toggleButton: {
+    scope: '[data-test-accordion-toggle]',
+  },
+
+  card: recommendationCard,
+};

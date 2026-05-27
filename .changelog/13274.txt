@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a scheduler bug where failed feasibility checks would return early and prevent processing additional nodes
+```

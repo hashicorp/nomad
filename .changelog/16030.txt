@@ -1,0 +1,3 @@
+```release-note:bug
+volumes: Fixed a bug where `per_alloc` was allowed for volume blocks on system and sysbatch jobs, which do not have an allocation index
+```

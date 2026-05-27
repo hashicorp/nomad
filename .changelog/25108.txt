@@ -1,0 +1,3 @@
+```release-note:improvement
+cpustats: Add config "cpu_disable_dmidecode" to disable cpu detection using dmidecode
+```

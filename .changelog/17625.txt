@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where Nomad incorrectly wrote to memory swappiness cgroup on old kernels
+```

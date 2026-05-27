@@ -1,0 +1,130 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.chart.distribution-bar {
+  display: block;
+  height: 100%;
+
+  svg {
+    display: inline-block;
+    height: 100%;
+    width: 100%;
+
+    .bars {
+      rect {
+        transition: opacity 0.3s ease-in-out;
+        opacity: 1;
+      }
+
+      .clickable {
+        cursor: pointer;
+      }
+
+      .inactive {
+        opacity: 0.2;
+      }
+
+      .target {
+        opacity: 0;
+      }
+
+      $color-sequence:
+        $orange, $yellow, $green, $turquoise, $blue, $purple, $red;
+
+      @for $i from 1 through length($color-sequence) {
+        .slice-#{$i - 1} {
+          fill: nth($color-sequence, $i);
+        }
+      }
+    }
+  }
+
+  &.split-view {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    svg {
+      width: 50%;
+      height: 30px;
+    }
+
+    .legend {
+      list-style: none;
+      width: 50%;
+      padding: 1.5em;
+      display: flex;
+      flex-flow: row wrap;
+      align-items: center;
+      justify-content: center;
+
+      li {
+        display: block;
+        background-color: transparent;
+        transition: background-color 0.1s ease-in-out;
+        padding: 0.25em 0.75em;
+        margin: 0.25em;
+        border-radius: $radius;
+
+        // Ensure two columns, but don't use the full width
+        width: 35%;
+
+        .legend-item {
+          display: flex;
+          align-items: center;
+
+          .color-swatch {
+            margin-right: 0.5rem;
+          }
+
+          .text {
+            flex-grow: 1;
+
+            .label,
+            .value {
+              display: inline;
+              font-weight: $weight-normal;
+            }
+          }
+
+          .icon {
+            width: 1.2rem;
+            height: 1.2rem;
+          }
+        }
+
+        &.is-active {
+          background-color: rgba($info, 0.1);
+        }
+
+        &.is-clickable {
+          a {
+            display: block;
+          }
+
+          &:not(.is-empty) {
+            &:hover {
+              background-color: rgba($info, 0.1);
+            }
+          }
+        }
+
+        &.is-empty {
+          color: darken($grey-blue, 20%);
+
+          .label {
+            color: darken($grey-blue, 20%);
+          }
+        }
+
+        // Prevent Orphaned last-elements in the list
+        // from being visually centered
+        &:nth-child(2n + 1):last-child {
+          margin-right: calc(35% + 0.75em);
+        }
+      }
+    }
+  }
+}

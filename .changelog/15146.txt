@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where the task log sidebar would close and re-open if the parent job state changed
+```

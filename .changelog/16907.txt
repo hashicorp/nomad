@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: honor false value for distinct_hosts constraint
+```

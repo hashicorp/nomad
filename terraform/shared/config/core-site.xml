@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Copyright IBM Corp. 2015, 2025
+ SPDX-License-Identifier: BUSL-1.1
+-->
+
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://hdfs.service.consul/</value>
+    </property>
+</configuration>

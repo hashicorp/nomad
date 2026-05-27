@@ -1,0 +1,30 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#let
+  (cannot
+    "exec allocation" namespace=(or this.job.namespaceId this.job.namespace)
+  )
+  as |cannotExec|
+}}
+  <div
+    class="exec-open-button"
+    {{keyboard-shortcut
+      label="Exec"
+      pattern=(array "e" "x" "e" "c")
+      action=this.open
+    }}
+  >
+    <Hds::Button
+      data-test-exec-button
+      @size="medium"
+      @text="Exec"
+      @color="secondary"
+      disabled={{cannotExec}}
+      {{on "click" this.open}}
+      @icon="terminal-screen"
+    />
+  </div>
+{{/let}}

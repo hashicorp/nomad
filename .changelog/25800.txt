@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where a node with no affinity could be selected over a node with low affinity
+```

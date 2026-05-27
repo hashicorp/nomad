@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: Fix the process lookup for raw_exec when running rootless
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+driver/exec: Fixed a bug where `cap_drop` and `cap_add` would not expand capabilities
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Scale down logger height in the UI when the sidebar container also has task events
+```

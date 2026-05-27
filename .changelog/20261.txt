@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug where `AllocDirStats` field was missing from Read Stats client API
+```

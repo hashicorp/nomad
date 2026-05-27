@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed an issue where keynav would not trigger evaluation sidebar expand
+```

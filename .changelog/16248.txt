@@ -1,0 +1,3 @@
+```release-note:improvement
+services: Set Nomad's User-Agent by default on HTTP checks in Nomad services
+```

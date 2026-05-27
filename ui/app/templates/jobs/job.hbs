@@ -1,0 +1,7 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{did-update-helper this.notFoundJobHandler this.watchers.job.isError}}
+<Breadcrumb @crumb={{hash type="job" job=this.job}} />{{outlet}}

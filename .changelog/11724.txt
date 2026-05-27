@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Updated the CSI volumes list API to respect wildcard namespaces
+```

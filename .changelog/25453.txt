@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: set -1 exit code in case of executor failure for the exec, raw_exec, java, and qemu task drivers
+```

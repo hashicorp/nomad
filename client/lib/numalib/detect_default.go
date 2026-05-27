@@ -1,0 +1,22 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+//go:build !linux && !darwin
+
+package numalib
+
+// PlatformScanners returns the set of SystemScanner for systems without a
+// specific implementation.
+func PlatformScanners(_ bool) []SystemScanner {
+	return []SystemScanner{
+		new(Generic),
+	}
+}
+
+// Generic implements SystemScanner as a fallback for operating systems without
+// a specific implementation.
+type Generic struct{}
+
+func (g *Generic) ScanSystem(top *Topology) {
+	scanGeneric(top)
+}

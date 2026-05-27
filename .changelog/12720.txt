@@ -1,0 +1,3 @@
+```release-note:improvement
+services: Enable setting arbitrary address on Nomad or Consul service registration
+```

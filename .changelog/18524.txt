@@ -1,0 +1,3 @@
+```release-note:improvement
+template: reduce memory usage associated with communicating with the Nomad API
+```

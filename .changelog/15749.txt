@@ -1,0 +1,3 @@
+```release-note:bug
+connect: ingress http/2/grpc listeners may exclude hosts
+```

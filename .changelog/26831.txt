@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where volumes could be unmounted while in use by a task that was shutting down
+```

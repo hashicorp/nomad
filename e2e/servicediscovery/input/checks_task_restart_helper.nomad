@@ -1,0 +1,52 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
+
+variable "nodeID" {
+  type = string
+}
+
+variable "cmd" {
+  type = string
+}
+
+variable "delay" {
+  type = string
+}
+
+variable "filename" {
+  type = string
+}
+
+job "checks_task_restart_helper" {
+  type = "batch"
+
+  group "group" {
+
+    constraint {
+      attribute = "${attr.kernel.name}"
+      value     = "linux"
+    }
+
+    constraint {
+      attribute = "${node.unique.id}"
+      value     = "${var.nodeID}"
+    }
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    task "touch" {
+      driver = "raw_exec"
+      config {
+        command = "bash"
+        args    = ["-c", "sleep ${var.delay} && ${var.cmd} /tmp/${var.filename}"]
+      }
+      resources {
+        cpu    = 50
+        memory = 32
+      }
+    }
+  }
+}

@@ -1,0 +1,3 @@
+```release-note:improvement
+core: On node updates skip creating evaluations for jobs not in the node's datacenter.
+```

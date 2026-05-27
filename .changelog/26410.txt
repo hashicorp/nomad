@@ -1,0 +1,3 @@
+```release-note:improvement
+command: Add historical log capture to `nomad operator debug` command with `-log-lookback` and `-log-file-export` flags
+```

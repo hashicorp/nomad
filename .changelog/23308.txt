@@ -1,0 +1,3 @@
+```release-note:improvement
+raw_exec: Added support for oom_score_adj
+```

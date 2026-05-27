@@ -1,0 +1,3 @@
+```release-note:improvement
+drivers/rawexec: adds denied_envvars to driver and task config options
+```

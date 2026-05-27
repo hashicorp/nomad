@@ -1,0 +1,3 @@
+```release-note:bug
+agent: fixed a panic on startup when the `server.protocol_version` config parameter was set
+```

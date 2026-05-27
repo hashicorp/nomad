@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix an issue where the job status box would error if an allocation had no task events
+```

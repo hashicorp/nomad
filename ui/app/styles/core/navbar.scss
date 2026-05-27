@@ -1,0 +1,207 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+$secondaryNavbarHeight: 4.5rem;
+
+.navbar {
+  display: flex;
+  align-items: center;
+
+  &.is-primary {
+    background: linear-gradient(
+      to right,
+      $nomad-green-darker,
+      $nomad-green-dark
+    );
+    height: 3.5rem;
+    color: $primary-invert;
+    padding-left: 20px;
+    padding-right: 20px;
+    overflow: visible;
+    align-items: center;
+    justify-content: space-between;
+    z-index: $z-gutter;
+
+    .navbar-item {
+      color: rgba($primary-invert, 0.8);
+      text-decoration: none;
+
+      &:hover {
+        color: $primary-invert;
+        background: transparent;
+      }
+
+      &.is-active,
+      &.active {
+        color: $primary-invert;
+        border-bottom-color: $primary-invert;
+      }
+
+      + .navbar-item {
+        position: relative;
+
+        &::before {
+          width: 1px;
+          height: 1em;
+          background: rgba($primary-invert, 0.5);
+          content: " ";
+          display: block;
+          position: absolute;
+          left: 0;
+        }
+      }
+    }
+
+    .navbar-brand {
+      z-index: $z-gutter;
+    }
+
+    .navbar-end {
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-end;
+      margin-left: inherit;
+    }
+
+    .navbar-end > a.navbar-item {
+      color: rgba($primary-invert, 0.8);
+
+      &:hover {
+        color: $primary-invert;
+        background: transparent;
+      }
+    }
+
+    .navbar-brand > a.navbar-item {
+      &:hover {
+        background: transparent;
+      }
+    }
+  }
+
+  &.is-secondary {
+    background-color: $nomad-green-dark;
+    padding: 1.25rem 20px 1.25rem 0;
+    height: $secondaryNavbarHeight;
+    font-weight: $weight-semibold;
+    color: $primary-invert;
+
+    .navbar-item {
+      font-size: $size-4;
+    }
+  }
+
+  &.is-popup {
+    background-color: $nomad-green-dark;
+    height: 3.5rem;
+    color: $primary-invert;
+    padding-left: 20px;
+    padding-right: 20px;
+    overflow: hidden;
+
+    .navbar-brand {
+      margin-right: 8px;
+    }
+
+    .navbar-item {
+      color: white;
+
+      .navbar-label {
+        font-weight: 600;
+        margin-right: 1rem;
+      }
+    }
+
+    .navbar-end {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-left: inherit;
+    }
+
+    .navbar-end > a.navbar-item {
+      color: rgba($primary-invert, 0.8);
+      text-decoration: none;
+
+      &:hover {
+        color: $primary-invert;
+        background: transparent;
+      }
+    }
+
+    .navbar-brand > a.navbar-item {
+      &:hover {
+        background: transparent;
+      }
+    }
+  }
+
+  .navbar-item {
+    display: flex;
+    align-items: center;
+
+    &.single-region {
+      display: block;
+      padding: 0;
+      font-size: 1em;
+      color: rgba($primary-invert, 0.9);
+
+      > span {
+        font-weight: 500;
+      }
+    }
+
+    &.is-gutter {
+      width: $gutter-width;
+      display: block;
+      padding: 0 1rem;
+      font-size: 1em;
+
+      // Unfortunate necessity to middle align an element larger than
+      // plain text in the subnav.
+      > * {
+        margin: -5px 0;
+      }
+
+      @media #{$mq-hidden-gutter} {
+        display: none;
+      }
+    }
+  }
+
+  .profile-dropdown {
+    padding: 0.5rem 1rem 0.5rem 0.75rem;
+    z-index: $z-gutter;
+  }
+
+  .profile-dropdown button.hds-dropdown-toggle-icon,
+  .profile-link .hds-button {
+    border-color: var(--token-color-palette-neutral-200);
+    background-color: transparent;
+    color: var(--token-color-surface-primary);
+
+    &.hds-dropdown-toggle-icon--is-open {
+      background-color: var(--token-color-surface-primary);
+      color: var(--token-color-foreground-primary);
+    }
+  }
+
+  .profile-dropdown .hds-dropdown-toggle-button__text {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+  }
+
+  .custom-label {
+    border-radius: 1rem;
+    padding: 0.25rem 1rem;
+    background: black;
+    color: white;
+    display: grid;
+    align-self: center;
+  }
+}

@@ -1,0 +1,3 @@
+```release-note:improvement
+api: `AllocFS.Logs` now explicitly closes frames channel after being canceled
+```

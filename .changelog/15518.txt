@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where a crashing plugin could panic the Nomad client
+```

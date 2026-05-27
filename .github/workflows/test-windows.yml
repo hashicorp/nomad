@@ -1,0 +1,116 @@
+name: test-windows
+on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+  push:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+
+env:
+  VAULT_VERSION: 1.4.1
+jobs:
+  test-windows:
+    runs-on: 'windows-2022-16core'
+    env:
+      GOTESTSUM_PATH: c:\tmp\test-reports
+    steps:
+      - name: Docker Info
+        run: docker version
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: ".go-version"
+      - name: Show installed Go version
+        shell: bash
+        run: |-
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          go version
+      - uses: "./.github/actions/install-vault"
+        with:
+          version: "$VAULT_VERSION"
+      - run: vault version
+      - run: choco install make
+      - name: Install golang dependencies
+        shell: bash
+        run: |-
+          make deps
+      - name: Pre-download docker test image
+        shell: bash
+        run: |-
+          docker pull docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:ltsc2022
+      - name: Build nomad
+        shell: bash
+        run: |-
+          go install .
+      - name: Run tests with gotestsum
+        shell: bash
+        env:
+          BUSYBOX_IMAGE: docker.mirror.hashicorp.services/hashicorpdev/busybox-windows:ltsc2022
+        run: |-
+          # Only test docker driver tests for now
+          export PATH=/c/go/bin:/c/gopath/bin:$PATH
+          gotestsum --format=short-verbose \
+            --junitfile results.xml \
+            github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/drivers/rawexec \
+            github.com/hashicorp/nomad/drivers/shared/executor \
+            github.com/hashicorp/nomad/client/lib/fifo \
+            github.com/hashicorp/nomad/client/logmon \
+            github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
+            github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter \
+            github.com/hashicorp/nomad/client/allocdir \
+            github.com/hashicorp/nomad/plugins/base
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: results.xml
+          path: results.xml
+
+  handle-failure:
+    permissions:
+      contents: read
+      id-token: write
+    needs:
+      - test-windows
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
+permissions:
+  contents: read

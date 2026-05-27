@@ -1,0 +1,12 @@
+# Copyright IBM Corp. 2015, 2025
+# SPDX-License-Identifier: BUSL-1.1
+
+prefix               = "<your initials or name>"
+artifactory_username = "<your email address>"
+artifactory_token    = "<your ARTIFACTORY_TOKEN from above>"
+product_version      = "1.8.9"                     # starting version
+upgrade_version      = "1.9.4"                     # version to upgrade to
+download_binary_path = "/home/foo/Downloads/nomad" # directory on your machine to download binaries
+nomad_license        = "<your Nomad Enterprise license, currently always required>"
+consul_license       = "<your Consul Enterprise license, currently always required>"
+aws_region           = "us-east-1"

@@ -1,0 +1,11 @@
+```release-note:improvement
+csi: Allow for concurrent plugin allocations
+```
+
+```release-note:breaking-change
+client: The client state store will be automatically migrated to a new schema version when upgrading a client. Downgrading to a previous version of the client after upgrading it to Nomad 1.3 is not supported. To downgrade safely, users should erase the Nomad client's data directory.
+```
+
+```release-note:breaking-change
+csi: The client filesystem layout for CSI plugins has been updated to correctly handle the lifecycle of multiple allocations serving the same plugin. Running plugin tasks will not be updated after upgrading the client, but it is recommended to redeploy CSI plugin jobs after upgrading the cluster.
+```

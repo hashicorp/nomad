@@ -1,0 +1,3 @@
+```release-note:bug
+fix: Add the missing option propagation_mode for volume_mount
+```

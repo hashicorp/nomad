@@ -1,0 +1,34 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Controller from '@ember/controller';
+import { action } from '@ember/object';
+import { service } from '@ember/service';
+import { tracked } from '@glimmer/tracking';
+
+export default class VariablesNewController extends Controller {
+  @service store;
+  queryParams = ['path', 'view'];
+  get existingVariables() {
+    return this.store.peekAll('variable');
+  }
+
+  //#region Code View
+  /**
+   * @type {"table" | "json"}
+   */
+  @tracked
+  view = 'table';
+
+  @action
+  toggleView() {
+    if (this.view === 'table') {
+      this.view = 'json';
+    } else {
+      this.view = 'table';
+    }
+  }
+  //#endregion Code View
+}

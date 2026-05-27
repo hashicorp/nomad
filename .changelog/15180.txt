@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: Fixed a bug where one goroutine was leaked per task
+```

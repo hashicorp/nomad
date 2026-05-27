@@ -1,0 +1,11 @@
+```release-note:bug
+csi: Fixed a bug in sending concurrent requests to CSI controller plugins by serializing them per plugin
+```
+
+```release-note:bug
+csi: Fixed a bug where CSI controller requests could be sent to unhealthy plugins
+```
+
+```release-note:bug
+csi: Fixed a bug where CSI controller requests could not be sent to controllers on nodes ineligible for scheduling
+```

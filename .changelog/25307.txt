@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where plugins that failed initial fingerprints would not be restarted
+```

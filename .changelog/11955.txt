@@ -1,0 +1,4 @@
+```
+release-note: improvement
+deps: Update shirou/gopsutil v3.21.12 to resolve use of deprecated macOS APIs
+```

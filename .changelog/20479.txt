@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fix handling of scaling jobs which don't generate evals
+```

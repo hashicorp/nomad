@@ -1,0 +1,50 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+//go:build linux
+
+package agent
+
+import (
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"time"
+
+	"golang.org/x/sys/unix"
+)
+
+const sdNotifySocketEnvVar = "NOTIFY_SOCKET"
+
+// openNotify opens the systemd notify socket only if the expected env var has
+// been set, because the systemd unit file is Type=notify or Type=notify-reload
+// (systemd 253+). This function returns (nil, nil) if the env var isn't set.
+func openNotify() (io.WriteCloser, error) {
+	socketPath := os.Getenv(sdNotifySocketEnvVar)
+	if socketPath == "" {
+		return nil, nil
+	}
+
+	// note we can't safely unset the env var as recommended by systemd because
+	// the Go runtime will have spawned threads by this point. It's up to the
+	// client code to ensure that child processes are not accidentally
+	// inheriting it in their environment.
+	conn, err := net.DialTimeout("unixgram", socketPath, time.Second)
+	return conn, err
+}
+
+// sdNotify sends the message on the systemd notify socket, and gracefully
+// handles a nil socket
+func sdNotify(w io.Writer, msg string) {
+	if w == nil || msg == "" {
+		return
+	}
+	w.Write([]byte(msg))
+}
+
+func sdNotifyReloading(w io.Writer) {
+	var ts unix.Timespec
+	unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts)
+	sdNotify(w, fmt.Sprintf("RELOADING=1\nMONOTONIC_USEC=%d", ts.Nano()/1000))
+}

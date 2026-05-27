@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Add header separator between a child job priority and its parent
+```

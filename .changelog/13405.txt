@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed remaining bugs where the evaluation ID was not printed when the `-detach` flag was passed
+``

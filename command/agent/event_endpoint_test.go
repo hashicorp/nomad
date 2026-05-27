@@ -1,0 +1,349 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package agent
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+type testEvent struct {
+	ID string
+}
+
+func TestEventStream(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		ctx, cancel := context.WithCancel(context.Background())
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/v1/event/stream", nil)
+		require.Nil(t, err)
+		resp := httptest.NewRecorder()
+
+		respErrCh := make(chan error)
+		go func() {
+			_, err = s.Server.EventStream(resp, req)
+			respErrCh <- err
+			assert.NoError(t, err)
+		}()
+
+		pub, err := s.Agent.server.State().EventBroker()
+		require.NoError(t, err)
+		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Payload: testEvent{ID: "123"}}}})
+
+		testutil.WaitForResult(func() (bool, error) {
+			got := resp.Body.String()
+			want := `{"ID":"123"}`
+			if strings.Contains(got, want) {
+				return true, nil
+			}
+
+			return false, fmt.Errorf("missing expected json, got: %v, want: %v", got, want)
+		}, func(err error) {
+			cancel()
+			require.Fail(t, err.Error())
+		})
+
+		// wait for response to close to prevent race between subscription
+		// shutdown and server shutdown returning subscription closed by server err
+		cancel()
+		select {
+		case err := <-respErrCh:
+			require.Nil(t, err)
+		case <-time.After(1 * time.Second):
+			require.Fail(t, "waiting for request cancellation")
+		}
+	})
+}
+
+func TestEventStream_NamespaceQuery(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/v1/event/stream?namespace=foo", nil)
+		require.Nil(t, err)
+		resp := httptest.NewRecorder()
+
+		respErrCh := make(chan error)
+		go func() {
+			_, err = s.Server.EventStream(resp, req)
+			respErrCh <- err
+			assert.NoError(t, err)
+		}()
+
+		pub, err := s.Agent.server.State().EventBroker()
+		require.NoError(t, err)
+
+		badID := uuid.Generate()
+		pub.Publish(&structs.Events{Index: 100, Events: []structs.Event{{Namespace: "bar", Payload: testEvent{ID: badID}}}})
+		pub.Publish(&structs.Events{Index: 101, Events: []structs.Event{{Namespace: "foo", Payload: testEvent{ID: "456"}}}})
+
+		testutil.WaitForResult(func() (bool, error) {
+			got := resp.Body.String()
+			want := `"Namespace":"foo"`
+			if strings.Contains(got, badID) {
+				return false, fmt.Errorf("expected non matching namespace to be filtered, got:%v", got)
+			}
+			if strings.Contains(got, want) {
+				return true, nil
+			}
+
+			return false, fmt.Errorf("missing expected json, got: %v, want: %v", got, want)
+		}, func(err error) {
+			require.Fail(t, err.Error())
+		})
+
+		// wait for response to close to prevent race between subscription
+		// shutdown and server shutdown returning subscription closed by server err
+		cancel()
+		select {
+		case err := <-respErrCh:
+			require.Nil(t, err)
+		case <-time.After(1 * time.Second):
+			require.Fail(t, "waiting for request cancellation")
+		}
+	})
+}
+
+func TestEventStream_QueryParse(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		desc    string
+		query   string
+		want    map[structs.Topic][]string
+		wantErr bool
+	}{
+		{
+			desc:  "all topics and keys specified",
+			query: "?topic=*:*",
+			want: map[structs.Topic][]string{
+				"*": {"*"},
+			},
+		},
+		{
+			desc:  "all topics and keys inferred",
+			query: "",
+			want: map[structs.Topic][]string{
+				"*": {"*"},
+			},
+		},
+		{
+			desc:    "invalid key value formatting",
+			query:   "?topic=NodeDrain:*:*",
+			wantErr: true,
+		},
+		{
+			desc:    "Infer wildcard if absent",
+			query:   "?topic=NodeDrain",
+			wantErr: false,
+			want: map[structs.Topic][]string{
+				"NodeDrain": {"*"},
+			},
+		},
+		{
+			desc:  "single topic and key",
+			query: "?topic=NodeDrain:*",
+			want: map[structs.Topic][]string{
+				"NodeDrain": {"*"},
+			},
+		},
+		{
+			desc:  "single topic multiple keys",
+			query: "?topic=NodeDrain:*&topic=NodeDrain:3caace09-f1f4-4d23-b37a-9ab5eb75069d",
+			want: map[structs.Topic][]string{
+				"NodeDrain": {
+					"*",
+					"3caace09-f1f4-4d23-b37a-9ab5eb75069d",
+				},
+			},
+		},
+		{
+			desc:  "multiple topics",
+			query: "?topic=NodeRegister:*&topic=NodeDrain:3caace09-f1f4-4d23-b37a-9ab5eb75069d",
+			want: map[structs.Topic][]string{
+				"NodeDrain": {
+					"3caace09-f1f4-4d23-b37a-9ab5eb75069d",
+				},
+				"NodeRegister": {
+					"*",
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			raw := fmt.Sprintf("http://localhost:80/v1/events%s", tc.query)
+			req, err := url.Parse(raw)
+			require.NoError(t, err)
+
+			got, err := parseEventTopics(req.Query())
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestHTTP_Alloc_Port_Response(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(srv *TestAgent) {
+		client := srv.APIClient()
+		defer srv.Shutdown()
+		defer client.Close()
+
+		testutil.WaitForLeader(t, srv.Agent.RPC)
+		testutil.WaitForClient(t, srv.Agent.Client().RPC, srv.Agent.Client().NodeID(), srv.Agent.Client().Region())
+
+		job := MockRunnableJob()
+
+		resp, _, err := client.Jobs().Register(job, nil)
+		must.NoError(t, err)
+		must.NotEq(t, "", resp.EvalID)
+
+		alloc := mock.Alloc()
+		alloc.Job = ApiJobToStructJob(job)
+		alloc.JobID = *job.ID
+		alloc.NodeID = srv.client.NodeID()
+		alloc.Namespace = *job.Namespace
+		alloc.Job.Namespace = *job.Namespace
+		alloc.Job.NodePool = srv.client.Node().NodePool
+
+		must.NoError(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+
+		running := false
+		testutil.WaitForResult(func() (bool, error) {
+			upsertResult, stateErr := srv.server.State().AllocByID(nil, alloc.ID)
+			if stateErr != nil {
+				return false, stateErr
+			}
+			if upsertResult.ClientStatus == structs.AllocClientStatusRunning {
+				running = true
+				return true, nil
+			}
+			return false, nil
+		}, func(err error) {
+			must.NoError(t, err, must.Sprintf("allocation query failed"))
+		})
+
+		must.True(t, running)
+
+		topics := map[api.Topic][]string{
+			api.TopicAllocation: {*job.ID},
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		events := client.EventStream()
+		streamCh, err := events.Stream(ctx, topics, 1, nil)
+		must.NoError(t, err)
+
+		var allocEvents []api.Event
+		// gather job alloc events
+		go func() {
+			for {
+				select {
+				case event, ok := <-streamCh:
+					if !ok {
+						return
+					}
+					if event.IsHeartbeat() {
+						continue
+					}
+					allocEvents = append(allocEvents, event.Events...)
+				case <-time.After(10 * time.Second):
+					must.Unreachable(t, must.Sprintf("failed waiting for event stream event"))
+					return
+				}
+			}
+		}()
+
+		var networkResource *api.NetworkResource
+		testutil.WaitForResult(func() (bool, error) {
+			for _, e := range allocEvents {
+				if e.Type == structs.TypeAllocationUpdated {
+					eventAlloc, err := e.Allocation()
+					if err != nil {
+						return false, err
+					}
+					if len(eventAlloc.AllocatedResources.Tasks["web"].Networks) == 0 {
+						return false, nil
+					}
+					networkResource = eventAlloc.AllocatedResources.Tasks["web"].Networks[0]
+					if networkResource.ReservedPorts[0].Value == 5000 {
+						return true, nil
+					}
+				}
+			}
+			return false, nil
+		}, func(e error) {
+			must.NoError(t, e)
+		})
+
+		must.NotNil(t, networkResource)
+		must.Eq(t, 5000, networkResource.ReservedPorts[0].Value)
+		must.NotEq(t, 0, networkResource.DynamicPorts[0].Value)
+	})
+}
+
+func TestEventStream_ProtoVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+
+		// Make a raw TCP connection to the agent's HTTP listener so that the
+		// real net/http server handles the request. Unlike
+		// httptest.NewRecorder, the real ResponseWriter implements
+		// http.Hijacker.
+		conn, err := net.DialTimeout("tcp", s.Server.Addr, 5*time.Second)
+		must.NoError(t, err)
+		defer conn.Close()
+
+		reqLine := "GET /v1/event/stream HTTP/1.1\r\nHost: localhost\r\n\r\n"
+		_, err = conn.Write([]byte(reqLine))
+		must.NoError(t, err)
+
+		// Set a read deadline so we don't block forever; we only need the
+		// status line which arrives immediately.
+		must.NoError(t, conn.SetReadDeadline(time.Now().Add(1*time.Second)))
+
+		// The response is only 17 bytes, but give a little room for future
+		// proofing subtle changes to the response format.
+		buf := make([]byte, 46)
+		n, err := conn.Read(buf)
+		must.NoError(t, err)
+		must.Greater(t, 0, n)
+
+		// The status line should be HTTP/1.1 200 OK, which indicates that the
+		// server is responding with the same protocol version as the request.
+		must.StrContains(t, string(buf[:n]), "HTTP/1.1 200 OK")
+	})
+}

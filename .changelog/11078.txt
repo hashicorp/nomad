@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Add new chart for `system` and `sysbatch` job status per client
+```

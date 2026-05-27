@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Added a `-task` flag to `alloc restart` and `alloc signal` for consistent UX with `alloc exec` and `alloc logs`
+```

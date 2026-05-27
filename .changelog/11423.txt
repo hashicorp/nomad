@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fix support for `group.consul` field in the HCLv1 parser
+```

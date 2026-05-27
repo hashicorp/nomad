@@ -1,0 +1,69 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+'use strict';
+
+let USE_MIRAGE = true;
+
+if (process.env.USE_MIRAGE) {
+  USE_MIRAGE = process.env.USE_MIRAGE == 'true';
+}
+
+module.exports = function (environment) {
+  const ENV = {
+    modulePrefix: 'nomad-ui',
+    environment,
+    rootURL: '/ui/',
+    locationType: 'history',
+    EmberENV: {
+      EXTEND_PROTOTYPES: false,
+      FEATURES: {
+        // Here you can enable experimental features on an ember canary build
+        // e.g. EMBER_NATIVE_DECORATOR_SUPPORT: true
+      },
+    },
+    emberFlightIcons: {
+      lazyEmbed: true,
+    },
+    APP: {
+      blockingQueries: true,
+      mirageScenario: 'smallCluster',
+      mirageWithNamespaces: true,
+      mirageWithTokens: true,
+      mirageWithRegions: true,
+    },
+  };
+
+  if (environment === 'development') {
+    // ENV.APP.LOG_RESOLVER = true;
+    // ENV.APP.LOG_ACTIVE_GENERATION = true;
+    // ENV.APP.LOG_TRANSITIONS = true;
+    // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
+    // ENV.APP.LOG_VIEW_LOOKUPS = true;
+
+    ENV['ember-cli-mirage'] = {
+      enabled: USE_MIRAGE,
+      excludeFilesFromBuild: !USE_MIRAGE,
+    };
+  }
+
+  if (environment === 'test') {
+    // Testem prefers this...
+    ENV.locationType = 'none';
+
+    // keep test console output quieter
+    ENV.APP.LOG_ACTIVE_GENERATION = false;
+    ENV.APP.LOG_VIEW_LOOKUPS = false;
+
+    ENV.APP.rootElement = '#ember-testing';
+    ENV.APP.autoboot = false;
+  }
+
+  if (environment === 'production') {
+    // here you can enable a production-specific feature
+  }
+
+  return ENV;
+};

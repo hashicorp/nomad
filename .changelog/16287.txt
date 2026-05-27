@@ -1,0 +1,11 @@
+```release-note:bug
+server: Fixed a bug where deregistering a job that was already garbage collected would create a new evaluation
+```
+
+```release-note:bug
+server: Fixed a bug where the `system reconcile summaries` command and API would not return any scheduler-related errors
+```
+
+```release-note:bug
+server: Fixed a bug where node updates that produced errors from service discovery or CSI plugin updates were not logged
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where GC would attempt and fail to delete plugins that had volumes
+```

@@ -1,0 +1,55 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.empty-message,
+.hds-application-state {
+  padding: 1.5rem;
+  background: $white-ter;
+  border-radius: $radius;
+
+  .empty-message-headline {
+    font-size: $size-3;
+    color: $grey;
+    text-align: center;
+  }
+
+  .empty-message-body {
+    padding: 0 20%;
+    text-align: center;
+    color: $grey;
+
+    strong {
+      color: $grey;
+    }
+
+    &:not(:last-child) {
+      margin-bottom: 1rem;
+    }
+  }
+
+  &.is-hollow {
+    background: transparent;
+  }
+
+  .terminal-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.25rem;
+  }
+
+  .terminal {
+    background: $grey-lighter;
+    border-radius: $radius;
+    padding: 0.75rem 1rem;
+
+    .prompt {
+      color: $grey;
+    }
+  }
+}
+
+.section .hds-application-state {
+  width: 100%;
+}

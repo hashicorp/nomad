@@ -1,0 +1,333 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Clients"}}
+<section class="section">
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+    <div class="toolbar">
+      <div class="toolbar-item">
+        {{#if this.nodes.length}}
+          <SearchBox
+            @searchTerm={{mut this.searchTerm}}
+            @onChange={{this.resetPagination}}
+            @placeholder="Search clients..."
+          />
+        {{/if}}
+      </div>
+
+      <Hds::SegmentedGroup as |S|>
+        <S.Dropdown data-test-state-facet as |dd|>
+          <dd.ToggleButton
+            @text="State"
+            @color="secondary"
+            @badge={{if
+              (eq this.activeToggles.length this.allToggles.length)
+              false
+              this.activeToggles.length
+            }}
+          />
+          <dd.Title @text="Status" />
+          {{#each this.clientFilterToggles.state as |option|}}
+            <dd.Checkbox
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
+              @value={{option.label}}
+              @count={{get (filter option.filter this.nodes) "length"}}
+              checked={{get this option.qp}}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{capitalize option.label}}
+            </dd.Checkbox>
+          {{/each}}
+          <dd.Separator />
+          <dd.Title @text="Eligibility" />
+          {{#each this.clientFilterToggles.eligibility as |option|}}
+            <dd.Checkbox
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
+              @value={{option.label}}
+              @count={{get (filter option.filter this.nodes) "length"}}
+              checked={{get this option.qp}}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{capitalize option.label}}
+            </dd.Checkbox>
+          {{/each}}
+          <dd.Separator />
+          <dd.Title @text="Drain Status" />
+          {{#each this.clientFilterToggles.drainStatus as |option|}}
+            <dd.Checkbox
+              {{on "change" (fn this.toggleClientFilter option.qp)}}
+              @value={{option.label}}
+              @count={{get (filter option.filter this.nodes) "length"}}
+              checked={{get this option.qp}}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{capitalize option.label}}
+            </dd.Checkbox>
+          {{/each}}
+        </S.Dropdown>
+
+        <S.Dropdown data-test-node-pool-facet as |dd|>
+          <dd.ToggleButton
+            @text="Node Pool"
+            @color="secondary"
+            @badge={{or this.selectionNodePool.length false}}
+          />
+          {{#each this.optionsNodePool key="label" as |option|}}
+            <dd.Checkbox
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionNodePool
+                  option.label
+                  "qpNodePool"
+                )
+              }}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionNodePool}}
+              @count={{get
+                (filter-by "nodePool" option.label this.nodes)
+                "length"
+              }}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Node Pool filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
+
+        <S.Dropdown data-test-class-facet as |dd|>
+          <dd.ToggleButton
+            @text="Class"
+            @color="secondary"
+            @badge={{or this.selectionClass.length false}}
+          />
+          {{#each this.optionsClass key="label" as |option|}}
+            <dd.Checkbox
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionClass
+                  option.label
+                  "qpClass"
+                )
+              }}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionClass}}
+              @count={{get
+                (filter-by "nodeClass" option.label this.nodes)
+                "length"
+              }}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Class filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
+
+        <S.Dropdown data-test-datacenter-facet as |dd|>
+          <dd.ToggleButton
+            @text="Datacenter"
+            @color="secondary"
+            @badge={{or this.selectionDatacenter.length false}}
+          />
+          {{#each this.optionsDatacenter key="label" as |option|}}
+            <dd.Checkbox
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionDatacenter
+                  option.label
+                  "qpDatacenter"
+                )
+              }}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionDatacenter}}
+              @count={{get
+                (filter-by "datacenter" option.label this.nodes)
+                "length"
+              }}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Datacenter filters
+            </dd.Generic>
+          {{/each}}
+
+        </S.Dropdown>
+
+        <S.Dropdown data-test-version-facet as |dd|>
+          <dd.ToggleButton
+            @text="Version"
+            @color="secondary"
+            @badge={{or this.selectionVersion.length false}}
+          />
+          {{#each this.optionsVersion key="label" as |option|}}
+            <dd.Checkbox
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionVersion
+                  option.label
+                  "qpVersion"
+                )
+              }}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionVersion}}
+              @count={{get
+                (filter-by "version" option.label this.nodes)
+                "length"
+              }}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Version filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
+
+        <S.Dropdown data-test-volume-facet as |dd|>
+          <dd.ToggleButton
+            @text="Volume"
+            @color="secondary"
+            @badge={{or this.selectionVolume.length false}}
+          />
+          {{#each this.optionsVolume key="label" as |option|}}
+            <dd.Checkbox
+              {{on
+                "change"
+                (fn
+                  this.handleFilterChange
+                  this.selectionVolume
+                  option.label
+                  "qpVolume"
+                )
+              }}
+              @value={{option.label}}
+              checked={{includes option.label this.selectionVolume}}
+              @count={{get
+                (filter-by "volume" option.label this.nodes)
+                "length"
+              }}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              No Volume filters
+            </dd.Generic>
+          {{/each}}
+        </S.Dropdown>
+      </Hds::SegmentedGroup>
+    </div>
+    {{#if this.sortedNodes}}
+      <ListPagination
+        @source={{this.sortedNodes}}
+        @size={{this.pageSize}}
+        @page={{this.currentPage}}
+        as |p|
+      >
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{this.sortProperty}}
+          @sortDescending={{this.sortDescending}}
+          @class="with-foot"
+          as |t|
+        >
+          <t.head>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health</span></th>
+            <t.sort-by @prop="id">ID</t.sort-by>
+            <t.sort-by
+              @class="is-200px is-truncatable"
+              @prop="name"
+            >Name</t.sort-by>
+            <t.sort-by @prop="status">State</t.sort-by>
+            <th class="is-200px is-truncatable">Address</th>
+            <t.sort-by @prop="nodePool">Node Pool</t.sort-by>
+            <t.sort-by @prop="datacenter">Datacenter</t.sort-by>
+            <t.sort-by @prop="version">Version</t.sort-by>
+            <th># Volumes</th>
+            <th># Allocs</th>
+          </t.head>
+          <t.body as |row|>
+            <ClientNodeRow
+              data-test-client-node-row
+              @node={{row.model}}
+              @onClick={{fn this.gotoNode row.model}}
+              {{keyboard-shortcut
+                enumerated=true
+                action=(fn this.gotoNode row.model)
+              }}
+            />
+          </t.body>
+        </ListTable>
+        <div class="table-foot">
+          <PageSizeSelect @onChange={{this.resetPagination}} />
+          <nav class="pagination" data-test-pagination>
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}}
+              of
+              {{this.sortedNodes.length}}
+            </div>
+            <p.prev @class="pagination-previous">
+              <Hds::Icon @name="chevron-left" @isInline={{true}} />
+            </p.prev>
+            <p.next @class="pagination-next">
+              <Hds::Icon @name="chevron-right" @isInline={{true}} />
+            </p.next>
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      </ListPagination>
+    {{else}}
+      <div class="empty-message" data-test-empty-clients-list>
+        {{#if (eq this.nodes.length 0)}}
+          <h3
+            class="empty-message-headline"
+            data-test-empty-clients-list-headline
+          >No Clients</h3>
+          <p class="empty-message-body">
+            The cluster currently has no client nodes.
+          </p>
+        {{else if (eq this.filteredNodes.length 0)}}
+          <h3
+            data-test-empty-clients-list-headline
+            class="empty-message-headline"
+          >No Matches</h3>
+          <p class="empty-message-body">
+            No clients match your current filter selection.
+          </p>
+        {{else if this.searchTerm}}
+          <h3
+            class="empty-message-headline"
+            data-test-empty-clients-list-headline
+          >No Matches</h3>
+          <p class="empty-message-body">No clients match the term
+            <strong>{{this.searchTerm}}</strong></p>
+        {{/if}}
+      </div>
+    {{/if}}
+  {{/if}}
+</section>

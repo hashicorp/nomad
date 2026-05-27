@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler (Enterprise): Fixed a bug that prevented new allocations from multiregion jobs to be placed in situations where other regions are not involved, such as node updates.
+```

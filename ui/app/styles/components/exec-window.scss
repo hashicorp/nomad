@@ -1,0 +1,174 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.exec-window {
+  display: flex;
+  position: absolute;
+  inset: 3.5rem 0 0; // nav.navbar.is-popup height
+
+  .terminal-container {
+    flex-grow: 1;
+    background: black;
+    padding: 16px;
+    height: 100%;
+    position: relative;
+    color: white;
+
+    .terminal {
+      height: 100%;
+
+      .xterm .xterm-viewport {
+        overflow-y: auto;
+      }
+    }
+  }
+
+  &.loading {
+    justify-content: center;
+    align-items: center;
+    background: black;
+    height: 100%;
+  }
+
+  .task-group-tree {
+    background-color: $ui-gray-900;
+    color: white;
+    padding: 16px;
+    width: 200px;
+    flex-shrink: 0;
+    overflow-y: auto;
+
+    .title {
+      text-transform: uppercase;
+      color: $grey-lighter;
+      font-size: 11px;
+    }
+
+    .icon {
+      color: $ui-gray-500;
+    }
+
+    .toggle-button {
+      position: relative;
+      background: transparent;
+      border: 0;
+      color: white;
+      font-size: inherit;
+      line-height: 1.5;
+      width: 100%;
+      text-align: left;
+      overflow-wrap: break-word;
+      padding: 6px 0 5px 17px;
+
+      .icon {
+        position: absolute;
+        left: 0;
+        padding: 3px 3px 0 0;
+        margin-left: -3px;
+      }
+
+      // Adapted from fs-explorer
+      &.is-loading::after {
+        animation: spinAround 750ms infinite linear;
+        border: 2px solid $grey-light;
+        border-radius: 290486px;
+        border-right-color: transparent;
+        border-top-color: transparent;
+        opacity: 0.3;
+        content: "";
+        display: inline-block;
+        height: 1em;
+        width: 1em;
+        margin-left: 0.5em;
+      }
+    }
+
+    .task-list {
+      .task-item {
+        padding: 0 8px 0 19px;
+        color: white;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        .border-and-label {
+          display: flex;
+          align-items: center;
+          height: 100%;
+          width: 100%;
+          position: relative;
+        }
+
+        .border {
+          position: absolute;
+          border-left: 1px solid $ui-gray-700;
+          height: 100%;
+        }
+
+        .task-label {
+          padding: 6px 0 5px 13px;
+          overflow-wrap: break-word;
+          width: 100%;
+          align-items: start;
+
+          .active-identifier {
+            visibility: visible;
+            width: 12px;
+            margin-right: 0.25rem;
+          }
+        }
+
+        .hds-icon {
+          visibility: hidden;
+          width: 16px;
+          flex-shrink: 0;
+        }
+
+        &:hover .hds-icon.show-on-hover {
+          visibility: visible;
+        }
+      }
+    }
+
+    .toggle-button,
+    .task-item {
+      font-weight: 500;
+
+      &:hover {
+        background-color: $ui-gray-800;
+        border-radius: 4px;
+
+        .is-active {
+          stroke: $ui-gray-800;
+        }
+      }
+    }
+  }
+}
+
+// Media query for small screens
+@media ($breakpoint-mobile) {
+  .exec-window {
+    width: 100vw;
+    height: 100vh;
+    flex-direction: column;
+    position: static;
+
+    .task-group-tree {
+      flex: 0 0 auto;
+      min-height: 50px;
+      max-height: 300px;
+      overflow-y: auto;
+      width: 100%;
+    }
+
+    .terminal-container {
+      flex: 1 0 auto;
+      width: 100%;
+      height: auto;
+    }
+  }
+}

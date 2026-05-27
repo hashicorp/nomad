@@ -1,0 +1,3 @@
+```release-note:security
+dynamic host volumes: Prevent unintended code execution outside the plugin directory (CVE-2026-7474)
+```

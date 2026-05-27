@@ -1,0 +1,3 @@
+```release-note:bug
+volumes: Fix a bug where the HTTP server would crash if a `volume_mount` block was empty
+```

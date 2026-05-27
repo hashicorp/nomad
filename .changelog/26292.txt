@@ -1,0 +1,7 @@
+```release-note:improvement
+scheduler: For service and batch jobs, the scheduler treats a group.count=0 identically to removing the task group from the job, and will stop all non-terminal allocations.
+```
+
+```release-note:improvement
+scheduler: For service and batch jobs, the scheduler no longer includes stops for already-stopped canaries in plans it submits.
+```

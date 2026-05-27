@@ -1,0 +1,175 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Job " this.job.name " allocations"}}
+<JobSubnav @job={{this.job}} />
+<section class="section">
+  {{#if this.allocations.length}}
+    <div class="toolbar">
+      <div class="toolbar-item">
+        <SearchBox
+          data-test-allocations-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{this.resetPagination}}
+          @placeholder="Search allocations..."
+        />
+      </div>
+      <div class="toolbar-item is-right-aligned">
+        <div class="button-bar">
+          <MultiSelectDropdown
+            data-test-allocation-status-facet
+            @label="Status"
+            @options={{this.optionsAllocationStatus}}
+            @selection={{this.selectionStatus}}
+            @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
+          />
+          <MultiSelectDropdown
+            data-test-allocation-client-facet
+            @label="Client"
+            @options={{this.optionsClients}}
+            @selection={{this.selectionClient}}
+            @onSelect={{fn this.setFacetQueryParam "qpClient"}}
+          />
+          <MultiSelectDropdown
+            data-test-allocation-task-group-facet
+            @label="Task Group"
+            @options={{this.optionsTaskGroups}}
+            @selection={{this.selectionTaskGroup}}
+            @onSelect={{fn this.setFacetQueryParam "qpTaskGroup"}}
+          />
+          <MultiSelectDropdown
+            data-test-allocation-version-facet
+            @label="Job Version"
+            @options={{this.optionsVersions}}
+            @selection={{this.selectionVersion}}
+            @onSelect={{fn this.setFacetQueryParam "qpVersion"}}
+          />
+          <MultiSelectDropdown
+            @label="Scheduling"
+            @options={{this.optionsScheduling}}
+            @selection={{this.selectionScheduling}}
+            @onSelect={{fn this.setFacetQueryParam "qpScheduling"}}
+          />
+        </div>
+      </div>
+    </div>
+    {{#if this.sortedAllocations}}
+      <ListPagination
+        @source={{this.sortedAllocations}}
+        @size={{this.pageSize}}
+        @page={{this.currentPage}}
+        @class="allocations"
+        as |p|
+      >
+        <ListTable
+          @source={{p.list}}
+          @sortProperty={{this.sortProperty}}
+          @sortDescending={{this.sortDescending}}
+          @class="with-foot with-collapsed-borders"
+          as |t|
+        >
+          <t.head>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                Scheduling, and Preemption</span></th>
+            <t.sort-by @prop="shortId">ID</t.sort-by>
+            <t.sort-by @prop="taskGroupName">Task Group</t.sort-by>
+            <t.sort-by
+              @prop="createIndex"
+              @title="Create Index"
+            >Created</t.sort-by>
+            <t.sort-by
+              @prop="modifyIndex"
+              @title="Modify Index"
+            >Modified</t.sort-by>
+            {{#if this.job.isBatchOrSysbatch}}
+              <t.sort-by @prop="maxRunDeadline">Max Run Deadline</t.sort-by>
+            {{/if}}
+            <t.sort-by @prop="statusIndex">Status</t.sort-by>
+            <t.sort-by @prop="jobVersion">Version</t.sort-by>
+            <t.sort-by @prop="node.shortId">Client</t.sort-by>
+            <th>Volume</th>
+            <th>CPU</th>
+            <th>Memory</th>
+            {{#if this.job.actions.length}}
+              <th>Actions</th>
+            {{/if}}
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow
+              {{keyboard-shortcut
+                enumerated=true
+                action=(fn this.gotoAllocation row.model)
+              }}
+              @data-test-allocation={{row.model.id}}
+              @allocation={{row.model}}
+              @context="job"
+              @showMaxRunDeadline={{this.job.isBatchOrSysbatch}}
+              @onClick={{fn this.gotoAllocation row.model}}
+            />
+            {{#each row.model.states as |task|}}
+              {{#if this.job.isBatchOrSysbatch}}
+                <TaskSubRow
+                  @active={{eq
+                    this.activeTask
+                    (concat task.allocation.id "-" task.name)
+                  }}
+                  @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                  @namespan="10"
+                  @taskState={{task}}
+                  @jobHasActions={{this.job.actions.length}}
+                />
+              {{else}}
+                <TaskSubRow
+                  @active={{eq
+                    this.activeTask
+                    (concat task.allocation.id "-" task.name)
+                  }}
+                  @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                  @namespan="9"
+                  @taskState={{task}}
+                  @jobHasActions={{this.job.actions.length}}
+                />
+              {{/if}}
+            {{/each}}
+
+          </t.body>
+        </ListTable>
+        <div class="table-foot">
+          <nav class="pagination">
+            <div class="pagination-numbers">
+              {{p.startsAt}}&ndash;{{p.endsAt}}
+              of
+              {{this.sortedAllocations.length}}
+            </div>
+            <p.prev @class="pagination-previous"> &lt; </p.prev>
+            <p.next @class="pagination-next"> &gt; </p.next>
+            <ul class="pagination-list"></ul>
+          </nav>
+        </div>
+      </ListPagination>
+    {{else}}
+      <div class="boxed-section-body">
+        <div class="empty-message" data-test-empty-allocations-list>
+          <h3
+            class="empty-message-headline"
+            data-test-empty-allocations-list-headline
+          >No Matches</h3>
+          <p class="empty-message-body">No allocations match the term
+            <strong>{{this.searchTerm}}</strong></p>
+        </div>
+      </div>
+    {{/if}}
+  {{else}}
+    <div class="boxed-section-body">
+      <div class="empty-message" data-test-empty-allocations-list>
+        <h3
+          class="empty-message-headline"
+          data-test-empty-allocations-list-headline
+        >No Allocations</h3>
+        <p class="empty-message-body">No allocations have been placed.</p>
+      </div>
+    </div>
+  {{/if}}
+</section>

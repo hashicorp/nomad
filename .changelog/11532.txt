@@ -1,0 +1,3 @@
+```release-note:improvement
+core: allow setting and propagation of eval priority on job de/registration
+```

@@ -1,0 +1,4 @@
+```release-note:improvement
+cli: Added tls command to enable creating Certificate Authority and Self signed TLS certificates.
+There are two sub commands `tls ca` and `tls cert` that are helpers when creating certificates.
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+build: update Go to version go1.18.2
+```

@@ -1,0 +1,3 @@
+```release-note:security
+build: upgrade Go to 1.26.2
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+services: warn on job submit when job has services but no shutdown_delay
+```

@@ -1,0 +1,16 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
+
+rules:
+  - id: "no-overriding-struct-globals"
+    patterns:
+      - pattern: |
+          structs.$A = ...
+    message: "Mutating global structs is never safe"
+    languages:
+      - "go"
+    severity: "ERROR"
+    fix: " "
+    paths:
+      # including tests!
+      include: ["*"]

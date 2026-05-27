@@ -1,0 +1,3 @@
+```release-note:bug
+metrics: Update client `node_scheduling_eligibility` value with server heartbeats.
+```

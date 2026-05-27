@@ -1,0 +1,3 @@
+```release-note:bug
+client: Don't emit shutdown delay task event when the shutdown operation is configured to skip the delay
+```

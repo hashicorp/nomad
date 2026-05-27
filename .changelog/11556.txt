@@ -1,0 +1,3 @@
+```release-note:improvement
+scaling: Don't emit scaling action with error in case of active deployment
+```

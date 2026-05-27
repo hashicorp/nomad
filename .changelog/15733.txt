@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Show events alongside logs in the Task sidebar
+```

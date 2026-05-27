@@ -1,0 +1,50 @@
+{
+  "acl": {
+    "enabled": true
+  },
+  "advertise": {
+    "http": "host.example.com",
+    "rpc": "host.example.com",
+    "serf": "host.example.com"
+  },
+  "bind_addr": "0.0.0.0",
+  "data_dir": "/opt/data/nomad/data",
+  "datacenter": "dc1",
+  "enable_syslog": true,
+  "keyring": {
+    "aead": {}
+  },
+  "leave_on_interrupt": true,
+  "leave_on_terminate": true,
+  "log_level": "INFO",
+  "region": "global",
+  "rpc": {
+    "accept_backlog": 256,
+    "keep_alive_interval": "30s",
+    "connection_write_timeout": "10s",
+    "max_stream_window_size": 262144,
+    "stream_open_timeout": "75s",
+    "stream_close_timeout": "5m",
+    "dial_timeout": "15s"
+  },
+  "server": {
+    "bootstrap_expect": 3,
+    "enabled": true
+  },
+  "syslog_facility": "LOCAL0",
+  "telemetry": {
+    "collection_interval": "60s",
+    "disable_hostname": true,
+    "prometheus_metrics": true,
+    "publish_allocation_metrics": true,
+    "publish_node_metrics": true
+  },
+  "tls": {
+    "key_file": "/opt/data/nomad/certs/server-key.pem",
+    "rpc": true,
+    "verify_server_hostname": true
+  },
+  "vault": {
+    "create_from_role": "nomad-cluster",
+  }
+}

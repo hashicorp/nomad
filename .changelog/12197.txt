@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where `volume snapshot list` did not correctly filter by plugin IDs. The `-plugin` parameter is required.
+```

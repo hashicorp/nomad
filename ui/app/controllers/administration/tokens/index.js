@@ -1,0 +1,46 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Controller from '@ember/controller';
+import { task } from 'ember-concurrency';
+import { service } from '@ember/service';
+import { action } from '@ember/object';
+
+export default class AccessControlTokensIndexController extends Controller {
+  @service notifications;
+  @service router;
+  @service token;
+
+  @task(function* (token) {
+    try {
+      yield token.deleteRecord();
+      yield token.save();
+      this.notifications.add({
+        title: `Token ${token.name} successfully deleted`,
+        color: 'success',
+      });
+    } catch (err) {
+      this.error = {
+        title: 'Error deleting token',
+        description: err,
+      };
+
+      throw err;
+    }
+  })
+  deleteToken;
+
+  get selfToken() {
+    return this.token.selfToken;
+  }
+
+  @action openToken(token) {
+    this.router.transitionTo('administration.tokens.token', token.id);
+  }
+
+  @action goToNewToken() {
+    this.router.transitionTo('administration.tokens.new');
+  }
+}

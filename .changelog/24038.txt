@@ -1,0 +1,3 @@
+```release-note:improvement
+identity: Added filepath parameter to identity block for persisting workload identities
+```

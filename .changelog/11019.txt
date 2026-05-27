@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where the "Dispatch Job" button was displayed for non-parameterized jobs
+```

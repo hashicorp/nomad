@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: handle SIGPIPE in executor to handle possible write errors after client restart
+```

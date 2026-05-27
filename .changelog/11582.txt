@@ -1,0 +1,3 @@
+```release-note:improvement
+agent/config: Allow binding the HTTP server to multiple addresses.
+```

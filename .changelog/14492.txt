@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where plans for periodic jobs would return exit code 1 when the job was already register
+```

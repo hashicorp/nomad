@@ -1,0 +1,11 @@
+```release-note:bug
+csi: Fixed a bug where the server would not send controller unpublish for a failed allocation.
+```
+
+```release-note:bug
+csi: Fixed a data race in the volume unpublish endpoint that could result in claims being incorrectly marked as freed before being persisted to raft.
+```
+
+```release-note:bug
+api: Fixed a bug where the List Volume API did not include the `ControllerRequired` and `ResourceExhausted` fields.
+```

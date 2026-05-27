@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: Removed root key garbage collection to avoid orphaned workload identities
+```

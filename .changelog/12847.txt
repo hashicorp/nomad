@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: change sort-order of evaluations to be reverse-chronological
+```

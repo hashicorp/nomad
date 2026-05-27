@@ -1,0 +1,3 @@
+```release-note:bug
+java: Fixed a bug where the default task user was set to 'nobody' on Windows
+```

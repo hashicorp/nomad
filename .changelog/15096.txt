@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: pass missing `propagation_mode` configuration for volume mounts to external plugins
+```

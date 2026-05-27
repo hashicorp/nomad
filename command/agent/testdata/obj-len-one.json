@@ -1,0 +1,8 @@
+{
+	"client": {
+		"options": {
+			"driver.allowlist": "docker"
+		}
+	},
+	"server": {}
+}

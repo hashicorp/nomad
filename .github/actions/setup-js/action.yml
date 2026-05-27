@@ -1,0 +1,26 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
+
+name: setup-js
+description: install node and pnpm, and run pnpm install
+
+runs:
+  using: composite
+  steps:
+    # install pnpm itself, but do not install deps yet
+    - name: Install PNPM
+      uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      with:
+        run_install: false
+
+    # install appropriate node version, and point cache at pnpm
+    - name: Setup node
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version-file: package.json
+        cache: pnpm
+
+    # now that cache is properly configured, pnpm install the deps
+    - name: PNPM install
+      run: pnpm install
+      shell: bash

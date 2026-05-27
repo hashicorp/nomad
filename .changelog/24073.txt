@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions
+```

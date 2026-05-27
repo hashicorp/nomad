@@ -1,0 +1,45 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Controller from '@ember/controller';
+import { service } from '@ember/service';
+import { task } from 'ember-concurrency';
+import rollbackWithoutChangedAttrs from 'nomad-ui/utils/rollback-without-changed-attrs';
+import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
+
+export default class SentinelPoliciesPolicyController extends Controller {
+  @service notifications;
+  @service router;
+
+  @task(function* () {
+    try {
+      yield this.model.destroyRecord();
+      this.notifications.add({
+        title: 'Policy Deleted',
+        color: 'success',
+        type: `success`,
+        destroyOnClick: false,
+      });
+      this.router.transitionTo('administration.sentinel-policies.index');
+    } catch (err) {
+      // A failed delete resulted in errors when you then navigated away and back
+      // to the show page rollbackWithoutChangedAttrs fixes it, but there might
+      // be a more idiomatic way
+      rollbackWithoutChangedAttrs(this.model);
+
+      let message = err.errors?.length
+        ? messageFromAdapterError(err)
+        : err.message || 'Unknown Error';
+
+      this.notifications.add({
+        title: `Error deleting Policy ${this.model.name}`,
+        message,
+        color: 'critical',
+        sticky: true,
+      });
+    }
+  })
+  deletePolicy;
+}

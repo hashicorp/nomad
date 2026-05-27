@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a memory and goroutine leak for batch tasks and any task that exits without being shut down from the server
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug in the Go API where an event stream request without a topic filter would require a management token
+```

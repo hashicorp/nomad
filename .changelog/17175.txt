@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where restarting a terminal allocation turns it into a zombie where allocation and task hooks will run unexpectedly
+```

@@ -1,0 +1,18 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<GlobalHeader
+  @class="page-header"
+  @onHamburgerClick={{fn (mut this.isGutterOpen) true}}
+>
+  <AppBreadcrumbs />
+</GlobalHeader>
+<GutterMenu
+  @class="page-body"
+  @isOpen={{this.isGutterOpen}}
+  @onHamburgerClick={{fn (mut this.isGutterOpen) false}}
+>
+  {{yield}}
+</GutterMenu>

@@ -1,0 +1,7 @@
+```release-note:bug
+scheduler: Fixed a bug that prevented disconnected allocations to be updated after they reconnect.
+```
+
+```release-note:bug
+scheduler: Prevent unnecessary placements when disconnected allocations reconnect.
+```

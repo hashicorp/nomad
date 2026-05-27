@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Add ability to search across all namespaces
+```

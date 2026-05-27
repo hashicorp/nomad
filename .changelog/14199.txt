@@ -1,0 +1,3 @@
+```release-note:feature
+[ui] Services table: Display task-level services in addition to group-level services.
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+cni: Fixed a bug where loopback address was not set for all drivers
+```

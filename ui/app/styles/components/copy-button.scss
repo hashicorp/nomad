@@ -1,0 +1,25 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.copy-button {
+  padding-left: 0.5rem;
+  margin-bottom: 2px;
+
+  &.inset {
+    display: inline-block;
+  }
+
+  .button {
+    color: inherit;
+
+    &.is-static {
+      background-color: inherit;
+    }
+
+    svg {
+      fill: currentcolor;
+    }
+  }
+}

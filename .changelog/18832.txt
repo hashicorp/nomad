@@ -1,0 +1,3 @@
+```release-note:bug
+cli: ensure HCL env vars are added to the job submission object in the `job run` command
+```

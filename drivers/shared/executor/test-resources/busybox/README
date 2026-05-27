@@ -1,0 +1,5 @@
+Downloaded busybox https://busybox.net/downloads/binaries/, unmodified.
+
+Busybox binaries are statically linked binaries, that is a multi-call binary.  It's a single binary that can act like many commonly used utilities (e.g. /bin/sh, echo, sleep, etc).  More info is found in https://busybox.net/downloads/BusyBox.html .
+
+Busybox is GPLv2: https://www.busybox.net/license.html .

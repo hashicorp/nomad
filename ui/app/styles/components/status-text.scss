@@ -1,0 +1,33 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.status-text {
+  font-weight: $weight-semibold;
+
+  &.node-ready {
+    color: $nomad-green-dark;
+  }
+
+  &.node-disconnected {
+    color: $yellow;
+  }
+
+  &.node-down {
+    color: $danger;
+  }
+
+  &.node-initializing {
+    color: $grey;
+  }
+
+  @each $name, $pair in $colors {
+    $color: nth($pair, 1);
+    $color-invert: nth($pair, 2);
+
+    &.is-#{$name} {
+      color: $color;
+    }
+  }
+}

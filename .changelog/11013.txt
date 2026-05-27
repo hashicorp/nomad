@@ -1,0 +1,4 @@
+
+```release-note:bug
+deployments: Fixed a bug where multi-group deployments don't get auto-promoted when one group has no canaries.
+```

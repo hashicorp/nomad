@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where volume secrets were not used for creating snapshots.
+```

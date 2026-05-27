@@ -1,0 +1,98 @@
+---
+name: Backport Assistant Runner
+
+on:
+  pull_request_target:
+    types:
+      - closed
+      - labeled
+
+jobs:
+  backport:
+    if: github.event.pull_request.merged
+    runs-on: ubuntu-22.04
+    container: hashicorpdev/backport-assistant:v0.5.7
+    steps:
+      - name: Backport changes to stable-website
+        run: |
+          backport-assistant backport -merge-method=squash
+        env:
+          BACKPORT_LABEL_REGEXP: "backport/(?P<target>website)"
+          BACKPORT_TARGET_TEMPLATE: "stable-{{.target}}"
+          GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+      - name: Backport changes to targeted release branch
+        run: |
+          backport-assistant backport -merge-method=squash
+        env:
+          BACKPORT_LABEL_REGEXP: "backport/(?P<target>\\d+\\.\\d+\\.[+\\w]+)"
+          BACKPORT_TARGET_TEMPLATE: "release/{{.target}}"
+          # Enabling this option increased the number of backport failures.
+          BACKPORT_MERGE_COMMIT: false
+          GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+          ENABLE_VERSION_MANIFESTS: true
+  backport-ent:
+    if: github.event.pull_request.merged && contains(join(github.event.pull_request.labels.*.name), 'backport/ent')
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Trigger backport for Enterprise
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+          repository: hashicorp/nomad-enterprise
+          event-type: ent-backport
+          client-payload: ${{ toJson(github.event) }}
+  handle-failure:
+    needs:
+      - backport
+      - backport-ent
+    if: always() && (needs.backport.result == 'failure' || needs.backport-ent.result == 'failure')
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-22.04' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
+        with:
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
+            kv/data/teams/nomad/slack-webhooks feed-nomad | SLACK_FEED_NOMAD ;
+      - name: Send slack notification on failure
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ env.SLACK_FEED_NOMAD || secrets.BACKPORT_ASSISTANT_FAILURE_SLACK }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x::arrow_right_hook::nomad-sob: Backport run *FAILED*",
+              "attachments": [
+                {
+                  "color": "#C41E3A",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "fields": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Pull Request:*\n<${{ github.event.pull_request.html_url}}|${{ github.repository }}#${{ github.event.pull_request.number}}>"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*From:*\n@${{ github.event.sender.login }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Run:*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+permissions:
+  contents: read
+  id-token: write

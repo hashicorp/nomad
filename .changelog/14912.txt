@@ -1,0 +1,9 @@
+```release-note:bug
+variables: Fixed a bug where Nomad version checking was not enforced for writing to variables
+```
+```release-note:bug
+acl: Fixed a bug where Nomad version checking for one-time tokens was enforced across regions
+```
+```release-note:bug
+scheduler: Fixed a bug where version checking for disconnected clients handling was enforced across regions
+```

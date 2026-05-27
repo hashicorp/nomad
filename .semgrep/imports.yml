@@ -1,0 +1,32 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: MPL-2.0
+
+rules:
+  - id: "disallow-imports"
+    pattern-either:
+      - pattern: import "github.com/boltdb/bolt"
+      - pattern: import "github.com/pkg/errors"
+      - pattern: import "=~/github.com\/hashicorp\/consul$/"
+      - pattern: import "github.com/hashicorp/consul/command/flags"
+      - pattern: import "=~/github.com\/hashicorp\/consul\/sdk$/"
+      - pattern: import "=~/github.com\/hashicorp\/go-set$/"
+      - pattern: import "github.com/mitchellh/cli"
+      - pattern: import "golang.org/x/exp/slices"
+      - pattern: import "golang.org/x/exp/maps"
+      - pattern: import "golang.org/x/exp/constraints"
+    message: "Import of this package has been disallowed"
+    languages: [go]
+    severity: "ERROR"
+    paths:
+      include:
+        - "*.go"
+
+  - id: "disallow-new-testify-imports"
+    pattern: import "github.com/stretchr/testify"
+    message: "Do not import testify in packages where it has been removed"
+    languages: [go]
+    severity: "ERROR"
+    paths:
+      include:
+        - "nomad/state/*_test.go"
+        - "nomad/scheduler/*_test.go"

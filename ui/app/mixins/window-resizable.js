@@ -1,0 +1,40 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Mixin from '@ember/object/mixin';
+import { assert } from '@ember/debug';
+import { on } from '@ember/object/evented';
+
+// eslint-disable-next-line ember/no-new-mixins
+export default Mixin.create({
+  windowResizeHandler() {
+    assert(
+      'windowResizeHandler needs to be overridden in the Component',
+      false,
+    );
+  },
+
+  setupWindowResize: on('didInsertElement', function () {
+    this.addResizeListener();
+  }),
+
+  addResizeListener() {
+    if (this._windowResizeHandler) {
+      return;
+    }
+
+    this.set('_windowResizeHandler', this.windowResizeHandler.bind(this));
+    window.addEventListener('resize', this._windowResizeHandler);
+  },
+
+  removeWindowResize: on('willDestroyElement', function () {
+    if (!this._windowResizeHandler) {
+      return;
+    }
+
+    window.removeEventListener('resize', this._windowResizeHandler);
+    this.set('_windowResizeHandler', null);
+  }),
+});

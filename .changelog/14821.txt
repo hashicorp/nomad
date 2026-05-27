@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: Fixed a panic that can occur during upgrades to 1.4.0 when initializing the keyring
+```

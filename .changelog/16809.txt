@@ -1,0 +1,3 @@
+```release-note:bug
+csi: gracefully recover tasks that use csi node plugins
+```

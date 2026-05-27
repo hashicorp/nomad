@@ -1,0 +1,21 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { service } from '@ember/service';
+import Route from '@ember/routing/route';
+
+export default class PolicyRoute extends Route {
+  @service store;
+
+  async model(params) {
+    return await this.store.findRecord(
+      'sentinel-policy',
+      decodeURIComponent(params.id),
+      {
+        reload: true,
+      },
+    );
+  }
+}

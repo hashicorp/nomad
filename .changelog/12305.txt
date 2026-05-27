@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Add `related` query parameter to the Evaluation details endpoint
+```

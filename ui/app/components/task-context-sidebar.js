@@ -1,0 +1,39 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Component from '@glimmer/component';
+import { action } from '@ember/object';
+import { tracked } from '@glimmer/tracking';
+
+export default class TaskContextSidebarComponent extends Component {
+  get isSideBarOpen() {
+    return !!this.args.task;
+  }
+
+  keyCommands = [
+    {
+      label: 'Close Task Logs Sidebar',
+      pattern: ['Escape'],
+      action: () => this.args.fns.closeSidebar(),
+    },
+  ];
+
+  narrowCommand = {
+    label: 'Narrow Sidebar',
+    pattern: ['ArrowRight', 'ArrowRight'],
+    action: () => this.toggleWide(),
+  };
+
+  widenCommand = {
+    label: 'Widen Sidebar',
+    pattern: ['ArrowLeft', 'ArrowLeft'],
+    action: () => this.toggleWide(),
+  };
+
+  @tracked wide = false;
+  @action toggleWide() {
+    this.wide = !this.wide;
+  }
+}

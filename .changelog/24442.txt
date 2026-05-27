@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: Fixed a bug when decrypting aead with an empty RSA block on state upserts
+```

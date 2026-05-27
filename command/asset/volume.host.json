@@ -1,0 +1,24 @@
+{
+  "id": "disk_prod_db1",
+  "namespace": "default",
+  "name": "database",
+  "type": "host",
+  "plugin_id": "plugin_id",
+  "capacity_min": "10GiB",
+  "capacity_max": "20G",
+  "capability": [
+    {
+      "access_mode": "single-node-writer",
+      "attachment_mode": "file-system"
+    },
+    {
+      "access_mode": "single-node-reader-only",
+      "attachment_mode": "block-device"
+    }
+  ],
+  "parameters": [
+    {
+      "skuname": "Premium_LRS"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Job " this.job.name " definition"}}
+<JobSubnav @job={{this.job}} />
+<section class="section">
+  <JobEditor
+    @cancelable={{true}}
+    @context={{this.context}}
+    @definition={{this.definition}}
+    @format={{this.format}}
+    @job={{this.job}}
+    @specification={{this.specification}}
+    @variables={{hash flags=this.variableFlags literal=this.variableLiteral}}
+    @view={{this.view}}
+    @onSubmit={{this.onSubmit}}
+    @onSelect={{this.selectView}}
+    @onToggleEdit={{this.toggleEdit}}
+    data-test-job-editor
+  />
+</section>

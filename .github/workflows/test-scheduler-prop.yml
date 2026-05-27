@@ -1,0 +1,54 @@
+name: Scheduler property testing
+on:
+  pull_request:
+    paths:
+      - 'scheduler/**'
+      - 'nomad/structs/**'
+  push:
+    branches:
+      - main
+      - release/**
+    paths:
+      - 'scheduler/**'
+      - 'nomad/structs/**'
+
+jobs:
+  property-tests:
+    timeout-minutes: 20
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
+
+      - name: Run property tests
+        run: |
+          go test -v -cover ./scheduler/reconciler -rapid.checks=100000 -run PropTest
+
+  handle-failure:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+    needs:
+      - property-tests
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    steps:
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: property-test-failures
+          path: ./scheduler/reconciler/testdata
+
+      - uses: ./.github/workflows/test-failure-notification.yml
+        with:
+          actor: ${{ github.triggering_actor }}
+          git-branch: ${{ github.ref_name }}
+          workflow-run-id: ${{ github.run_id }}
+          workflow-name: ${{ github.workflow }}
+
+permissions:
+  contents: read
+  id-token: write

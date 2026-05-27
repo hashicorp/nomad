@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix incorrect calculation of permissions when ACLs are disabled which meant actions such as client drains were incorrectly blocked
+```

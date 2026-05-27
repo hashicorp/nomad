@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Callers should be able to read policies linked via roles to the token used
+```

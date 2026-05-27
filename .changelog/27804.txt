@@ -1,0 +1,3 @@
+```release-note:bug
+deployments: reset ProgressDeadline after pausing and do not fail while paused
+```

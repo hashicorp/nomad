@@ -1,0 +1,29 @@
+[Unit]
+Description=Nomad Client Agent
+Requires=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+StartLimitBurst=3
+
+# Nomad and Consul are started very closely together. This helps ensure Consul
+# is already running before Nomad starts and avoids having to SIGHUP the Nomad
+# clients in order to reload the Consul fingerprints.
+Wants=consul.service
+After=consul.service
+
+[Service]
+User=root
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/local/bin/nomad agent -config /etc/nomad.d
+EnvironmentFile=-/etc/nomad.d/.environment
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=65536
+LimitNPROC=infinity
+TasksMax=infinity
+Restart=on-failure
+RestartSec=2
+OOMScoreAdjust=-999
+
+[Install]
+WantedBy=multi-user.target

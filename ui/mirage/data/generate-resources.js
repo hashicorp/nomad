@@ -1,0 +1,28 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+export default function generateResources() {
+  return {
+    CpuStats: {
+      Measured: ['Throttled Periods', 'Throttled Time', 'Percent'],
+      Percent: 0.14159538847117795,
+      SystemMode: 0,
+      ThrottledPeriods: 0,
+      ThrottledTime: 0,
+      // eslint-disable-next-line no-loss-of-precision
+      TotalTicks: 300.256693934837093,
+      UserMode: 0,
+    },
+    MemoryStats: {
+      Cache: 1744896,
+      KernelMaxUsage: 0,
+      KernelUsage: 0,
+      MaxUsage: 4710400,
+      Measured: ['RSS', 'Cache', 'Swap', 'Max Usage'],
+      RSS: 1486848009,
+      Swap: 0,
+    },
+  };
+}

@@ -1,0 +1,15 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
+import Model from '@ember-data/model';
+import { attr, hasMany } from '@ember-data/model';
+
+export default class Role extends Model {
+  @attr('string') name;
+  @attr('string') description;
+  @hasMany('policy', { async: true, inverse: null, defaultValue: () => [] })
+  policies;
+  @attr() policyNames;
+}

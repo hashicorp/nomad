@@ -1,0 +1,3 @@
+```release-note:bug
+dynamic host volumes: Ensure requested directory permission is correctly applied
+```

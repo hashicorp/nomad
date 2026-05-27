@@ -1,0 +1,162 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+$duration: 5s;
+$side-length: 50px;
+$cube-length: $side-length * 5;
+$lighter-side: $grey-blue;
+$darker-side: darken($lighter-side, 15%);
+
+.loading-spinner {
+  width: 100%;
+
+  .cube-and-logo {
+    position: relative;
+    margin: 100px auto;
+    width: $cube-length;
+    height: $cube-length;
+  }
+
+  .logo-container {
+    position: absolute;
+    width: $cube-length;
+    height: $cube-length;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    .icon {
+      width: 34%;
+      height: 34%;
+      transform: translateY(-20px);
+      fill: white;
+      animation: n-fade $duration forwards infinite;
+    }
+  }
+
+  .cube {
+    width: $cube-length;
+    height: $cube-length;
+    transform-style: preserve-3d;
+    animation: cube-spin $duration forwards infinite;
+  }
+
+  @media (prefers-reduced-motion) {
+    .cube {
+      animation-iteration-count: 0;
+    }
+  }
+
+  &.paused {
+    .cube,
+    .side-4,
+    .logo-container .icon {
+      animation-play-state: paused;
+    }
+  }
+
+  .side {
+    width: $side-length;
+    height: $side-length;
+    position: absolute;
+    background: $lighter-side;
+  }
+
+  .side-1 {
+    top: $side-length;
+    left: $side-length * 2;
+    transform-origin: 50% 100%;
+    transform: rotateX(-90deg);
+  }
+
+  .side-2 {
+    top: $side-length * 3;
+    left: $side-length * 2;
+    transform-origin: 50% 0%;
+    transform: rotateX(90deg);
+  }
+
+  .side-3 {
+    top: $side-length * 2;
+    left: $side-length;
+    transform-origin: 100% 50%;
+    transform: rotateY(90deg);
+  }
+
+  .side-4 {
+    top: $side-length * 2;
+    left: $side-length * 2;
+    transform-origin: 100% 50%;
+    transform: rotateY(90deg);
+    animation: darker-side-fade $duration forwards infinite;
+  }
+}
+
+$rotateX: 55deg;
+$rotateY: 45deg;
+
+@keyframes cube-spin {
+  0% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(360deg);
+  }
+
+  30% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(0deg);
+  }
+
+  70% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(0deg);
+  }
+
+  100% {
+    transform: rotateX($rotateX) rotate($rotateY) rotateZ(360deg);
+  }
+}
+
+@keyframes darker-side-fade {
+  30% {
+    background: $lighter-side;
+  }
+
+  35% {
+    background: $darker-side;
+  }
+
+  65% {
+    background: $darker-side;
+  }
+
+  70% {
+    background: $lighter-side;
+  }
+}
+
+@keyframes n-fade {
+  0% {
+    opacity: 0;
+  }
+
+  40% {
+    opacity: 0;
+  }
+
+  45% {
+    opacity: 0.7;
+  }
+
+  65% {
+    opacity: 0.7;
+  }
+
+  70% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}

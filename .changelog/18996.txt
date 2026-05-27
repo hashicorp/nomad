@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: Added identities, networks, and volumes to the output of the `operator client-state` command
+```
+
+```release-note:bug
+cli: Fixed a bug where the `operator client-state` command would crash if it reads an allocation without a task state
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+acl: Fixed a bug where ACL tokens linked to ACL roles containing duplicate policies would cause erronous permission denined responses
+```

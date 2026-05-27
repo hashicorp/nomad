@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where artifact downloading failed on hardened nodes
+```

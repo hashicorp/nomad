@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix the ACL requirements for displaying the job details page
+```

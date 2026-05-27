@@ -1,0 +1,354 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { service } from '@ember/service';
+import Controller from '@ember/controller';
+import { getOwner } from '@ember/owner';
+import { alias } from '@ember/object/computed';
+import { action } from '@ember/object';
+import classic from 'ember-classic-decorator';
+import { tracked } from '@glimmer/tracking';
+import { macroCondition, isTesting } from '@embroider/macros';
+
+/**
+ * @type {RegExp}
+ */
+const JWT_MATCH_EXPRESSION = /^[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+$/;
+
+@classic
+export default class Tokens extends Controller {
+  @service token;
+  @service store;
+  @service router;
+  @service system;
+  @service notifications;
+  queryParams = ['code', 'state', 'jwtAuthMethod', 'iss'];
+
+  @tracked secret = this.token.secret;
+
+  /**
+   * @type {(null | "success" | "failure" | "jwtFailure")} signInStatus
+   */
+  @tracked
+  signInStatus = null;
+
+  @alias('token.selfToken') tokenRecord;
+
+  resetStore() {
+    this.store.unloadAll();
+  }
+
+  @action
+  clearTokenProperties() {
+    this.token.setProperties({
+      secret: undefined,
+      tokenNotFound: false,
+    });
+    this.signInStatus = null;
+    // Clear out all data to ensure only data the anonymous token is privileged to see is shown
+    this.resetStore();
+    this.token.reset();
+    this.store.findAll('auth-method');
+  }
+
+  /**
+   * @returns {import('@ember/array/mutable').default<import('../../models/auth-method').default>}
+   */
+  get authMethods() {
+    return this.model?.authMethods || [];
+  }
+
+  get hasJWTAuthMethods() {
+    const methods = this.authMethods;
+
+    if (typeof methods?.some === 'function') {
+      return methods.some((method) => method.type === 'JWT');
+    }
+
+    if (typeof methods?.any === 'function') {
+      return methods.any((method) => method.type === 'JWT');
+    }
+
+    const methodList = methods?.toArray?.() || [];
+    return methodList.some((method) => method.type === 'JWT');
+  }
+
+  get nonTokenAuthMethods() {
+    return this.authMethods.rejectBy('type', 'JWT');
+  }
+
+  get JWTAuthMethods() {
+    return this.authMethods.filterBy('type', 'JWT');
+  }
+
+  get JWTAuthMethodOptions() {
+    return this.JWTAuthMethods.map((method) => ({
+      key: method.name,
+      label: method.name,
+    }));
+  }
+
+  get defaultJWTAuthMethod() {
+    return (
+      this.JWTAuthMethods.findBy('default', true) || this.JWTAuthMethods[0]
+    );
+  }
+
+  /**
+   * @type {string}
+   */
+  @tracked jwtAuthMethod;
+
+  get selectedJWTAuthMethod() {
+    return this.jwtAuthMethod || this.defaultJWTAuthMethod?.name;
+  }
+
+  @action
+  setCurrentAuthMethod() {
+    if (!this.jwtAuthMethod) {
+      this.jwtAuthMethod = this.defaultJWTAuthMethod?.name;
+    }
+  }
+
+  @action
+  handleSecretInput(event) {
+    const nextSecret = event?.target?.value;
+    this.secret = nextSecret;
+
+    const isJWT =
+      nextSecret?.length > 36 && nextSecret.match(JWT_MATCH_EXPRESSION);
+
+    if (isJWT && !this.jwtAuthMethod) {
+      this.jwtAuthMethod = this.defaultJWTAuthMethod?.name;
+    }
+  }
+
+  /**
+   * @type {boolean}
+   */
+  get currentSecretIsJWT() {
+    return this.secret?.length > 36 && this.secret.match(JWT_MATCH_EXPRESSION);
+  }
+
+  @action
+  async verifyToken() {
+    const { secret } = this;
+    /**
+     * @type {import('../../adapters/token').default}
+     */
+
+    // Ember currently lacks types for getOwner: https://github.com/emberjs/ember.js/issues/19916
+    // @ts-ignore
+    const TokenAdapter = getOwner(this).lookup('adapter:token');
+
+    const isJWT = secret.length > 36 && secret.match(JWT_MATCH_EXPRESSION);
+
+    if (isJWT) {
+      const methodName = this.selectedJWTAuthMethod;
+
+      // If user passes a JWT token, but there is no JWT auth method, throw an error
+      if (!methodName) {
+        this.token.set('secret', undefined);
+        this.signInStatus = 'jwtFailure';
+        return;
+      }
+
+      this.clearTokenProperties();
+
+      // Set bearer token instead of findSelf etc.
+      TokenAdapter.loginJWT(secret, methodName).then(
+        (token) => {
+          this.token.setProperties({
+            secret: token.secret,
+            tokenNotFound: false,
+          });
+          this.set('secret', null);
+
+          // Clear out all data to ensure only data the new token is privileged to see is shown
+          this.resetStore();
+
+          // Refetch the token and associated policies
+          this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+
+          this.signInStatus = 'success';
+          this.optionallyRedirectPathAfterSignIn();
+        },
+        () => {
+          this.token.set('secret', undefined);
+          this.signInStatus = 'failure';
+        },
+      );
+    } else {
+      this.clearTokenProperties();
+      this.token.set('secret', secret);
+      this.set('secret', null);
+
+      TokenAdapter.findSelf().then(
+        () => {
+          // Clear out all data to ensure only data the new token is privileged to see is shown
+          this.resetStore();
+
+          // Refetch the token and associated policies
+          this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+
+          if (!this.system.activeRegion) {
+            this.system.get('defaultRegion').then((res) => {
+              if (res.region) {
+                this.system.set('activeRegion', res.region);
+              }
+            });
+          }
+
+          this.signInStatus = 'success';
+          this.token.set('tokenNotFound', false);
+          this.optionallyRedirectPathAfterSignIn();
+        },
+        () => {
+          this.token.set('secret', undefined);
+          this.signInStatus = 'failure';
+        },
+      );
+    }
+  }
+
+  /**
+   * If the user was redirected to the login page because their token expired,
+   * redirect them back to the page they were on.
+   */
+  optionallyRedirectPathAfterSignIn() {
+    const redirectPath =
+      this.token.postExpiryPath &&
+      this.token.postExpiryPath !== '/settings/tokens'
+        ? this.token.postExpiryPath
+        : this.token.forbiddenReturnPath;
+
+    if (redirectPath && redirectPath !== '/settings/tokens') {
+      this.router.transitionTo(redirectPath);
+      this.token.postExpiryPath = null;
+      this.token.forbiddenReturnPath = null;
+
+      // Because they won't be on the page to see "Successfully signed in", use a toast.
+      this.notifications.add({
+        title: 'Successfully signed in',
+        message:
+          'You were redirected back to the page you were on before you were signed out.',
+        color: 'success',
+        timeout: 10000,
+      });
+    }
+  }
+
+  // Generate a 256-bit nonce and encode bytes as hex to preserve entropy.
+  generateNonce() {
+    const randomBytes = new Uint8Array(32);
+    crypto.getRandomValues(randomBytes);
+
+    return Array.from(randomBytes, (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('');
+  }
+
+  @action redirectToSSO(method) {
+    const provider = method.name;
+    const nonce = this.generateNonce();
+
+    window.localStorage.setItem('nomadOIDCNonce', nonce);
+    window.localStorage.setItem('nomadOIDCAuthMethod', provider);
+
+    let redirectURL;
+    if (macroCondition(isTesting())) {
+      redirectURL = this.router.currentURL;
+    } else {
+      redirectURL = new URL(window.location.toString());
+      redirectURL.search = '';
+      redirectURL = redirectURL.href;
+    }
+
+    method
+      .getAuthURL({
+        AuthMethodName: provider,
+        ClientNonce: nonce,
+        RedirectUri: redirectURL,
+      })
+      .then(({ AuthURL }) => {
+        if (macroCondition(isTesting())) {
+          this.router.transitionTo(AuthURL.split('/ui')[1]);
+        } else {
+          window.location = AuthURL;
+        }
+      });
+  }
+
+  @tracked code = null;
+  @tracked state = null;
+  @tracked iss = null;
+
+  get isValidatingToken() {
+    if (this.code && this.state) {
+      this.validateSSO();
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  async validateSSO() {
+    let redirectURL;
+    if (macroCondition(isTesting())) {
+      redirectURL = this.router.currentURL;
+    } else {
+      redirectURL = new URL(window.location.toString());
+      redirectURL.search = '';
+      redirectURL = redirectURL.href;
+    }
+
+    const res = await this.token.authorizedRequest(
+      '/v1/acl/oidc/complete-auth',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          AuthMethodName: window.localStorage.getItem('nomadOIDCAuthMethod'),
+          ClientNonce: window.localStorage.getItem('nomadOIDCNonce'),
+          Code: this.code,
+          State: this.state,
+          RedirectURI: redirectURL,
+          Iss: this.iss,
+        }),
+      },
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      this.clearTokenProperties();
+      this.token.set('secret', data.SecretID);
+      this.state = null;
+      this.code = null;
+      this.iss = null;
+
+      // Refetch the token and associated policies
+      this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+
+      this.signInStatus = 'success';
+      this.token.set('tokenNotFound', false);
+      this.optionallyRedirectPathAfterSignIn();
+    } else {
+      this.state = 'failure';
+      this.code = null;
+      this.iss = null;
+    }
+  }
+
+  get SSOFailure() {
+    return this.state === 'failure';
+  }
+
+  get canSignIn() {
+    return !this.tokenRecord || this.tokenRecord.isExpired;
+  }
+
+  get shouldShowPolicies() {
+    return this.tokenRecord;
+  }
+}

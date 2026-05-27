@@ -1,0 +1,3 @@
+```release-note: bug
+quotas (Enterprise): Fixed a server crashing panic when updating and checking a quota concurrently.
+```

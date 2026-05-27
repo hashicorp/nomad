@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where clients would ignore the `client_auto_join` setting after losing connection with the servers, causing them to incorrectly fallback to Consul discovery if it was set to `false`.
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Overhaul of the Jobs Index list page, with live updates, more informative statuses, filter expressions, and pagination
+```

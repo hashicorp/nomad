@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: add flag for providing secrets as a set of key/value pairs to delete a volume
+```

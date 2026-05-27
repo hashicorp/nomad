@@ -1,0 +1,3 @@
+```release-note:bug
+client: Prevent a panic when an allocation has a legacy task-level bridge network and uses a driver that does not create a network namespace
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where implicit `spread` targets were treated as separate targets for scoring
+```

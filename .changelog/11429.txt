@@ -1,0 +1,3 @@
+```release-note:bug
+rpc: Set the job scale eval priority to the job priority
+```

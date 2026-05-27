@@ -1,0 +1,874 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+package nomad
+
+import (
+	"sync"
+	"time"
+
+	"github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+const (
+	// unblockBuffer is the buffer size for the unblock channel. The buffer
+	// should be large to ensure that the FSM doesn't block when calling Unblock
+	// as this would apply back-pressure on Raft.
+	unblockBuffer = 8096
+
+	// pruneInterval is the interval at which we prune objects from the
+	// BlockedEvals tracker
+	pruneInterval = 5 * time.Minute
+
+	// pruneThreshold is the threshold after which objects will be pruned.
+	pruneThreshold = 15 * time.Minute
+)
+
+// BlockedEvals is used to track evaluations that shouldn't be queued until a
+// certain class of nodes becomes available. An evaluation is put into the
+// blocked state when it is run through the scheduler and produced failed
+// allocations. It is unblocked when the capacity of a node that could run the
+// failed allocation becomes available.
+type BlockedEvals struct {
+	// logger is the logger to use by the blocked eval tracker.
+	logger hclog.Logger
+
+	evalBroker *EvalBroker
+	enabled    bool
+
+	// the lock on the enabled flag and the control channels like the stopCh and
+	// duplicateCh. This is read by most top-level methods including those
+	// called from the FSM, but write-locked only in Flush called during
+	// leadership changes
+	flushLock sync.RWMutex
+
+	stats *BlockedStats
+
+	// l is the lock on the data we're tracking
+	l sync.RWMutex
+
+	// captured is the set of evaluations that are captured by computed node
+	// classes.
+	captured map[string]wrappedEval
+
+	// escaped is the set of evaluations that have escaped computed node
+	// classes.
+	escaped map[string]wrappedEval
+
+	// system is the set of system evaluations that failed to start on nodes because of
+	// resource constraints.
+	system *systemEvals
+
+	// capacityChangeCh is used to buffer unblocking of evaluations.
+	capacityChangeCh chan *capacityUpdate
+
+	// jobs is the map of blocked job and is used to ensure that only one
+	// blocked eval exists for each job. The value is the blocked evaluation ID.
+	jobs map[structs.NamespacedID]string
+
+	// unblockIndexes maps computed node classes or quota name to the index and
+	// time at which they were unblocked. This is used to check if an
+	// evaluation could have been unblocked between the time they were in the
+	// scheduler and the time they are being blocked.
+	unblockIndexes map[string]unblockEvent
+
+	// unblockIndexesLock protects unblockIndexes, which has its own lock
+	// because we want to take a write lock in the Unblock* methods called from
+	// the FSM
+	unblockIndexesLock sync.RWMutex
+
+	// duplicates is the set of evaluations for jobs that had pre-existing
+	// blocked evaluations. These should be marked as cancelled since only one
+	// blocked eval is needed per job.
+	duplicates []*structs.Evaluation
+
+	// duplicateCh is used to signal that a duplicate eval was added to the
+	// duplicate set. It can be used to unblock waiting callers looking for
+	// duplicates.
+	duplicateCh chan struct{}
+
+	// stopCh is used to stop any created goroutines.
+	stopCh chan struct{}
+}
+
+// unblockEvent keeps a record of the index and time of the unblock
+type unblockEvent struct {
+	index     uint64
+	timestamp time.Time
+}
+
+// capacityUpdate stores unblock data.
+type capacityUpdate struct {
+	computedClass string
+	quotaChange   string
+	nodeID        string
+
+	blockedEval  *structs.Evaluation
+	blockToken   string
+	untrackJobID structs.NamespacedID
+
+	// future will be closed when the operation is done, which allows callers to
+	// block until then if they need to (this is mostly used for tests). The
+	// callers in the FSM should never wait on this future
+	future chan struct{}
+}
+
+// wrappedEval captures both the evaluation and the optional token
+type wrappedEval struct {
+	eval  *structs.Evaluation
+	token string
+}
+
+// NewBlockedEvals creates a new blocked eval tracker that will enqueue
+// unblocked evals into the passed broker.
+func NewBlockedEvals(evalBroker *EvalBroker, logger hclog.Logger) *BlockedEvals {
+	return &BlockedEvals{
+		logger:           logger.Named("blocked_evals"),
+		evalBroker:       evalBroker,
+		captured:         make(map[string]wrappedEval),
+		escaped:          make(map[string]wrappedEval),
+		system:           newSystemEvals(),
+		jobs:             make(map[structs.NamespacedID]string),
+		unblockIndexes:   make(map[string]unblockEvent),
+		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
+		duplicateCh:      make(chan struct{}, 1),
+		stopCh:           make(chan struct{}),
+		stats:            NewBlockedStats(),
+	}
+}
+
+// Enabled is used to check if the broker is enabled.
+func (b *BlockedEvals) Enabled() bool {
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	return b.enabled
+}
+
+// SetEnabled is used to control if the blocked eval tracker is enabled. The
+// tracker should only be enabled on the active leader.
+func (b *BlockedEvals) SetEnabled(enabled bool) {
+	b.flushLock.Lock()
+	b.l.Lock()
+	if b.enabled == enabled {
+		// No-op
+		b.l.Unlock()
+		b.flushLock.Unlock()
+		return
+	} else if enabled {
+		go b.watchCapacity(b.stopCh, b.capacityChangeCh)
+		go b.prune(b.stopCh)
+	} else {
+		close(b.stopCh)
+	}
+	b.enabled = enabled
+	b.l.Unlock()
+	b.flushLock.Unlock()
+	if !enabled {
+		b.Flush()
+	}
+}
+
+// Block tracks the passed evaluation and enqueues it into the eval broker when
+// a suitable node calls unblock.
+func (b *BlockedEvals) Block(eval *structs.Evaluation) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{blockedEval: eval, future: fut}:
+	}
+
+	return fut
+}
+
+// Reblock tracks the passed evaluation and enqueues it into the eval broker when
+// a suitable node calls unblock. Reblock should be used over Block when the
+// blocking is occurring by an outstanding evaluation. The token is the
+// evaluation's token.
+func (b *BlockedEvals) Reblock(eval *structs.Evaluation, token string) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{blockedEval: eval, blockToken: token, future: fut}:
+	}
+
+	return fut
+}
+
+// processBlock is the implementation of blocking an evaluation. It supports
+// taking an optional evaluation token to use when reblocking an evaluation that
+// may be outstanding.
+func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		return
+	}
+
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	// Handle the new evaluation being for a job we are already tracking.
+	if b.processBlockJobDuplicate(eval) {
+		// If process block job duplicate returns true, the new evaluation has
+		// been marked as a duplicate and we have nothing to do, so return
+		// early.
+		return
+	}
+
+	// Check if the eval missed an unblock while it was in the scheduler at an
+	// older index. The scheduler could have been invoked with a snapshot of
+	// state that was prior to additional capacity being added or allocations
+	// becoming terminal.
+	if b.missedUnblock(eval) {
+		// Just re-enqueue the eval immediately. We pass the token so that the
+		// eval_broker can properly handle the case in which the evaluation is
+		// still outstanding.
+		b.evalBroker.EnqueueAll(map[*structs.Evaluation]string{eval: token})
+		return
+	}
+
+	// Mark the job as tracked.
+	b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)] = eval.ID
+	b.stats.Block(eval)
+
+	// Wrap the evaluation, capturing its token.
+	wrapped := wrappedEval{
+		eval:  eval,
+		token: token,
+	}
+
+	// If the eval has escaped, meaning computed node classes could not capture
+	// the constraints of the job, we store the eval separately as we have to
+	// unblock it whenever node capacity changes. This is because we don't know
+	// what node class is feasible for the jobs constraints.
+	if eval.EscapedComputedClass {
+		b.escaped[eval.ID] = wrapped
+		return
+	}
+
+	// System evals are indexed by node and re-processed on utilization changes in
+	// existing nodes
+	if eval.Type == structs.JobTypeSystem {
+		b.system.Add(eval, token)
+	}
+
+	// Add the eval to the set of blocked evals whose jobs constraints are
+	// captured by computed node class.
+	b.captured[eval.ID] = wrapped
+}
+
+// processBlockJobDuplicate handles the case where the new eval is for a job
+// that we are already tracking. If the eval is a duplicate, we add the older
+// evaluation by Raft index to the list of duplicates such that it can be
+// cancelled. We only ever want one blocked evaluation per job, otherwise we
+// would create unnecessary work for the scheduler as multiple evals for the
+// same job would be run, all producing the same outcome. It is critical to
+// prefer the newer evaluation, since it will contain the most up to date set of
+// class eligibility. The return value is set to true, if the passed evaluation
+// is cancelled. This should be called with the lock held.
+func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCancelled bool) {
+	existingID, hasExisting := b.jobs[structs.NewNamespacedID(eval.JobID, eval.Namespace)]
+	if !hasExisting {
+		return
+	}
+
+	var dup *structs.Evaluation
+	existingW, ok := b.captured[existingID]
+	if ok {
+		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
+			delete(b.captured, existingID)
+			dup = existingW.eval
+			b.stats.Unblock(dup, false)
+		} else {
+			dup = eval
+			newCancelled = true
+		}
+	} else {
+		existingW, ok = b.escaped[existingID]
+		if !ok {
+			// This is a programming error
+			b.logger.Error("existing blocked evaluation is neither tracked as captured or escaped", "existing_id", existingID)
+			delete(b.jobs, structs.NewNamespacedID(eval.JobID, eval.Namespace))
+			return
+		}
+
+		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
+			delete(b.escaped, existingID)
+			b.stats.decrementEscaped()
+			dup = existingW.eval
+		} else {
+			dup = eval
+			newCancelled = true
+		}
+	}
+
+	b.duplicates = append(b.duplicates, dup)
+
+	// Unblock any waiter.
+	select {
+	case b.duplicateCh <- struct{}{}:
+	default:
+	}
+
+	return
+}
+
+// latestEvalIndex returns the max of the evaluations create and snapshot index
+func latestEvalIndex(eval *structs.Evaluation) uint64 {
+	if eval == nil {
+		return 0
+	}
+
+	return max(eval.CreateIndex, eval.SnapshotIndex)
+}
+
+// missedUnblock returns whether an evaluation missed an unblock while it was in
+// the scheduler. Since the scheduler can operate at an index in the past, the
+// evaluation may have been processed missing data that would allow it to
+// complete. This method returns if that is the case and should be called with
+// the lock held.
+func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
+	b.unblockIndexesLock.RLock()
+	defer b.unblockIndexesLock.RUnlock()
+
+	var max uint64 = 0
+
+	for id, u := range b.unblockIndexes {
+		// Calculate the max unblock index
+		if max < u.index {
+			max = u.index
+		}
+
+		// The evaluation is blocked because it has hit a quota limit not class
+		// eligibility
+		if eval.QuotaLimitReached != "" {
+			if eval.QuotaLimitReached != id {
+				// Not a match
+				continue
+			} else if eval.SnapshotIndex < u.index {
+				// The evaluation was processed before the quota specification was
+				// updated, so unblock the evaluation.
+				return true
+			}
+
+			// The evaluation was processed having seen all changes to the quota
+			return false
+		}
+
+		elig, ok := eval.ClassEligibility[id]
+		if !ok && eval.SnapshotIndex < u.index {
+			// The evaluation was processed and did not encounter this class
+			// because it was added after it was processed. Thus for correctness
+			// we need to unblock it.
+			return true
+		}
+
+		// The evaluation could use the computed node class and the eval was
+		// processed before the last unblock.
+		if elig && eval.SnapshotIndex < u.index {
+			return true
+		}
+	}
+
+	// If the evaluation has escaped, and the map contains an index older than
+	// the evaluations, it should be unblocked.
+	if eval.EscapedComputedClass && eval.SnapshotIndex < max {
+		return true
+	}
+
+	// The evaluation is ahead of all recent unblocks.
+	return false
+}
+
+// Untrack causes any blocked evaluation for the passed job to be no longer
+// tracked. Untrack is called when there is a successful evaluation for the job
+// and a blocked evaluation is no longer needed.
+func (b *BlockedEvals) Untrack(jobID, namespace string) chan struct{} {
+	fut := make(chan struct{})
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	nsID := structs.NewNamespacedID(jobID, namespace)
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{untrackJobID: nsID, future: fut}:
+	}
+
+	return fut
+}
+
+func (b *BlockedEvals) untrackImpl(nsID structs.NamespacedID) {
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		return
+	}
+
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	if evals, ok := b.system.JobEvals(nsID); ok {
+		for _, e := range evals {
+			b.system.Remove(e)
+			b.stats.Unblock(e, false)
+		}
+		return
+	}
+
+	// Get the evaluation ID to cancel
+	evalID, ok := b.jobs[nsID]
+	if !ok {
+		// No blocked evaluation so exit
+		return
+	}
+
+	// Attempt to delete the evaluation
+	if w, ok := b.captured[evalID]; ok {
+		delete(b.jobs, nsID)
+		delete(b.captured, evalID)
+		b.stats.Unblock(w.eval, false)
+	}
+
+	if w, ok := b.escaped[evalID]; ok {
+		delete(b.jobs, nsID)
+		delete(b.escaped, evalID)
+		b.stats.Unblock(w.eval, true)
+	}
+}
+
+// Unblock causes any evaluation that could potentially make progress on a
+// capacity change on the passed computed node class to be enqueued into the
+// eval broker.
+func (b *BlockedEvals) Unblock(computedClass string, index uint64) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	// Store the index in which the unblock happened. We use this on subsequent
+	// block calls in case the evaluation was in the scheduler when a trigger
+	// occurred.
+	b.unblockIndexesLock.Lock()
+	b.unblockIndexes[computedClass] = unblockEvent{index, time.Now().UTC()}
+	b.unblockIndexesLock.Unlock()
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{computedClass: computedClass, future: fut}:
+	}
+
+	return fut
+}
+
+// UnblockQuota causes any evaluation that could potentially make progress on a
+// capacity change on the passed quota to be enqueued into the eval broker.
+func (b *BlockedEvals) UnblockQuota(quota string, index uint64) chan struct{} {
+	fut := make(chan struct{})
+
+	// Nothing to do
+	if quota == "" {
+		return fut
+	}
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	// Store the index in which the unblock happened. We use this on subsequent
+	// block calls in case the evaluation was in the scheduler when a trigger
+	// occurred.
+	b.unblockIndexesLock.Lock()
+	b.unblockIndexes[quota] = unblockEvent{index, time.Now().UTC()}
+	b.unblockIndexesLock.Unlock()
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{quotaChange: quota, future: fut}:
+	}
+
+	return fut
+}
+
+// UnblockClassAndQuota causes any evaluation that could potentially make
+// progress on a capacity change on the passed computed node class or quota to
+// be enqueued into the eval broker.
+func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	// Store the index in which the unblock happened. We use this on subsequent
+	// block calls in case the evaluation was in the scheduler when a trigger
+	// occurred.
+	b.unblockIndexesLock.Lock()
+	now := time.Now().UTC()
+	if quota != "" {
+		b.unblockIndexes[quota] = unblockEvent{index, now}
+	}
+	b.unblockIndexes[class] = unblockEvent{index, now}
+	b.unblockIndexesLock.Unlock()
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{computedClass: class, quotaChange: quota, future: fut}:
+	}
+
+	return fut
+}
+
+// UnblockNode finds any blocked evalution that's node specific (system jobs)
+// and enqueues it on the eval broker.
+func (b *BlockedEvals) UnblockNode(nodeID string) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	// Note that unlike other unblock methods, we can't usefully track an
+	// unblockIndex because any blocked eval won't have the node ID attached
+	// when we check the index.
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{nodeID: nodeID, future: fut}:
+	}
+
+	return fut
+}
+
+// watchCapacity is a long lived function that watches for capacity changes in
+// nodes and unblocks the correct set of evals.
+func (b *BlockedEvals) watchCapacity(
+	stopCh <-chan struct{},
+	changeCh <-chan *capacityUpdate,
+) {
+	for {
+		select {
+		case <-stopCh:
+			return
+		case update := <-changeCh:
+			if update.blockedEval != nil {
+				b.processBlock(update.blockedEval, update.blockToken)
+				close(update.future)
+				continue
+			}
+			if update.untrackJobID.ID != "" {
+				b.untrackImpl(update.untrackJobID)
+				close(update.future)
+				continue
+			}
+
+			b.unblock(update.computedClass, update.quotaChange, update.nodeID)
+			close(update.future)
+		}
+	}
+}
+
+func (b *BlockedEvals) unblock(computedClass, quota, nodeID string) {
+
+	// Protect against the case of a flush.
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		return
+	}
+
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	// Every eval that has escaped computed node class has to be unblocked
+	// because any node could potentially be feasible.
+	numEscaped := len(b.escaped)
+	unblocked := make(map[*structs.Evaluation]string, max(uint64(numEscaped), 4))
+
+	if numEscaped != 0 && computedClass != "" {
+		for id, wrapped := range b.escaped {
+			unblocked[wrapped.eval] = wrapped.token
+			delete(b.escaped, id)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+		}
+	}
+
+	if quota == "" && computedClass == "" {
+		goto SKIP_TO_NODE
+	}
+
+	// We unblock any eval that is explicitly eligible for the computed class
+	// and also any eval that is not eligible or uneligible. This signifies that
+	// when the evaluation was originally run through the scheduler, that it
+	// never saw a node with the given computed class and thus needs to be
+	// unblocked for correctness.
+	for id, wrapped := range b.captured {
+		if quota != "" &&
+			wrapped.eval.QuotaLimitReached != "" &&
+			wrapped.eval.QuotaLimitReached != quota {
+			// We are unblocking based on quota and this eval doesn't match
+			continue
+		}
+		if elig, ok := wrapped.eval.ClassEligibility[computedClass]; ok && !elig {
+			// Can skip because the eval has explicitly marked the node class
+			// as ineligible.
+			continue
+		}
+
+		// Unblock the evaluation because it is either for the matching quota,
+		// is eligible based on the computed node class, or never seen the
+		// computed node class.
+		unblocked[wrapped.eval] = wrapped.token
+		delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+		delete(b.captured, id)
+	}
+
+SKIP_TO_NODE:
+	if nodeID != "" {
+		evals, _ := b.system.NodeEvals(nodeID)
+		for eval, token := range evals {
+			b.system.Remove(eval)
+			unblocked[eval] = token
+		}
+	}
+
+	if len(unblocked) != 0 {
+		// Update the counters and reset TotalEscaped
+		b.stats.UnblockAll(unblocked, -1)
+
+		// Enqueue all the unblocked evals into the broker.
+		b.evalBroker.EnqueueAll(unblocked)
+	}
+}
+
+// UnblockFailed unblocks all blocked evaluation that were due to scheduler
+// failure.
+func (b *BlockedEvals) UnblockFailed() {
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		return
+	}
+
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	escaped := 0
+	unblocked := make(map[*structs.Evaluation]string, 4)
+	for id, wrapped := range b.captured {
+		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
+			unblocked[wrapped.eval] = wrapped.token
+			delete(b.captured, id)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+		}
+	}
+
+	for id, wrapped := range b.escaped {
+		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
+			unblocked[wrapped.eval] = wrapped.token
+			delete(b.escaped, id)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+			escaped++
+		}
+	}
+
+	if len(unblocked) > 0 {
+		b.stats.UnblockAll(unblocked, escaped)
+		b.evalBroker.EnqueueAll(unblocked)
+	}
+}
+
+// GetDuplicates returns all the duplicate evaluations and blocks until the
+// passed timeout.
+func (b *BlockedEvals) GetDuplicates(timeout time.Duration) []*structs.Evaluation {
+	var timeoutTimer *time.Timer
+	var timeoutCh <-chan time.Time
+SCAN:
+	b.l.Lock()
+	if len(b.duplicates) != 0 {
+		dups := b.duplicates
+		b.duplicates = nil
+		b.l.Unlock()
+		return dups
+	}
+
+	// Capture chans inside the lock to prevent a race with them getting
+	// reset in Flush
+	dupCh := b.duplicateCh
+	stopCh := b.stopCh
+	b.l.Unlock()
+
+	// Create the timer
+	if timeoutTimer == nil && timeout != 0 {
+		timeoutTimer = time.NewTimer(timeout)
+		timeoutCh = timeoutTimer.C
+		defer timeoutTimer.Stop()
+	}
+
+	select {
+	case <-stopCh:
+		return nil
+	case <-timeoutCh:
+		return nil
+	case <-dupCh:
+		goto SCAN
+	}
+}
+
+// Flush is used to clear the state of blocked evaluations.
+func (b *BlockedEvals) Flush() {
+	b.flushLock.Lock()
+	defer b.flushLock.Unlock()
+
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	// Reset stats
+	b.stats.Reset()
+
+	// Reset the tracker
+	b.captured = make(map[string]wrappedEval)
+	b.escaped = make(map[string]wrappedEval)
+	b.jobs = make(map[structs.NamespacedID]string)
+	b.unblockIndexes = make(map[string]unblockEvent)
+	b.duplicates = nil
+	b.capacityChangeCh = make(chan *capacityUpdate, unblockBuffer)
+	b.stopCh = make(chan struct{})
+	b.duplicateCh = make(chan struct{}, 1)
+	b.system = newSystemEvals()
+}
+
+// EmitStats is used to export metrics about the blocked eval tracker while enabled
+func (b *BlockedEvals) EmitStats(period time.Duration, stopCh <-chan struct{}) {
+	timer, stop := helper.NewSafeTimer(period)
+	defer stop()
+
+	for {
+		timer.Reset(period)
+
+		select {
+
+		case <-timer.C:
+			stats := b.stats.Copy()
+			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_quota_limit"}, float32(stats.TotalQuotaLimit))
+			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_blocked"}, float32(stats.TotalBlocked))
+			metrics.SetGauge([]string{"nomad", "blocked_evals", "total_escaped"}, float32(stats.TotalEscaped))
+
+			for k, v := range stats.BlockedResources.ByJob {
+				labels := []metrics.Label{
+					{Name: "namespace", Value: k.Namespace},
+					{Name: "job", Value: k.ID},
+				}
+				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "job", "cpu"}, float32(v.CPU), labels)
+				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "job", "memory"}, float32(v.MemoryMB), labels)
+			}
+
+			for k, v := range stats.BlockedResources.ByClassInDC {
+				labels := []metrics.Label{
+					{Name: "datacenter", Value: k.dc},
+					{Name: "node_class", Value: k.class},
+					{Name: "node_pool", Value: k.nodepool},
+				}
+				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "cpu"}, float32(v.CPU), labels)
+				metrics.SetGaugeWithLabels([]string{"nomad", "blocked_evals", "memory"}, float32(v.MemoryMB), labels)
+			}
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+// prune is a long lived function that prunes unnecessary objects on a timer.
+func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
+	ticker := time.NewTicker(pruneInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stopCh:
+			return
+		case t := <-ticker.C:
+			cutoff := t.UTC().Add(-1 * pruneThreshold)
+			b.pruneUnblockIndexes(cutoff)
+			b.pruneStats(cutoff)
+		}
+	}
+}
+
+// pruneUnblockIndexes is used to prune any tracked entry that is excessively
+// old. This protects against unbounded growth of the map.
+func (b *BlockedEvals) pruneUnblockIndexes(cutoff time.Time) {
+	b.unblockIndexesLock.Lock()
+	defer b.unblockIndexesLock.Unlock()
+
+	for key, u := range b.unblockIndexes {
+		if u.timestamp.Before(cutoff) {
+			delete(b.unblockIndexes, key)
+		}
+	}
+}
+
+// pruneStats is used to prune any zero value stats that are excessively old.
+func (b *BlockedEvals) pruneStats(cutoff time.Time) {
+	b.stats.prune(cutoff)
+}

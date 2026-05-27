@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: Added `delete` command to the eval CLI
+```
+
+```release-note:improvement
+agent: Added delete support to the eval HTTP API
+```

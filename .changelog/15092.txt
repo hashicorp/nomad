@@ -1,0 +1,7 @@
+```release-note:bug
+keyring: Fixed a bug where a missing key would prevent any further replication.
+```
+
+```release-note:bug
+keyring: Re-enabled keyring garbage collection after fixing a bug where keys would be garbage collected even if they were used to sign a live allocation's workload identity.
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: give users a notification if their token is going to expire within the next 10 minutes
+```

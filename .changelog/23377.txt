@@ -1,0 +1,3 @@
+```release-note:bug
+api: (Enterprise) fixed Allocations.GetPauseState method discarding the task argument
+```

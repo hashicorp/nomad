@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where plugins written in NodeJS could fail to fingerprint
+```

@@ -1,0 +1,954 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Client " (or this.model.name this.model.shortId)}}
+<ClientSubnav @client={{this.model}} />
+<section class="section">
+  {{#if this.eligibilityError}}
+    <div data-test-eligibility-error class="columns">
+      <div class="column">
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">
+            Eligibility Error
+          </h3>
+          <p data-test-message>
+            {{this.eligibilityError}}
+          </p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button
+          data-test-dismiss
+          class="button is-danger"
+          {{on "click" (fn (mut this.eligibilityError) "")}}
+          type="button"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if this.stopDrainError}}
+    <div data-test-stop-drain-error class="columns">
+      <div class="column">
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">
+            Stop Drain Error
+          </h3>
+          <p data-test-message>
+            {{this.stopDrainError}}
+          </p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button
+          data-test-dismiss
+          class="button is-danger"
+          {{on "click" (fn (mut this.stopDrainError) "")}}
+          type="button"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if this.drainError}}
+    <div data-test-drain-error class="columns">
+      <div class="column">
+        <div class="notification is-danger">
+          <h3 data-test-title class="title is-4">
+            Drain Error
+          </h3>
+          <p data-test-message>
+            {{this.drainError}}
+          </p>
+        </div>
+      </div>
+      <div class="column is-centered is-minimum">
+        <button
+          data-test-dismiss
+          class="button is-danger"
+          {{on "click" (fn (mut this.drainError) "")}}
+          type="button"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  {{/if}}
+  {{#if this.showDrainStoppedNotification}}
+    <div class="notification is-info">
+      <div data-test-drain-stopped-notification class="columns">
+        <div class="column">
+          <h3 data-test-title class="title is-4">
+            Drain Stopped
+          </h3>
+          <p data-test-message>
+            The drain has been stopped and the node has been set to ineligible.
+          </p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button
+            data-test-dismiss
+            class="button is-info"
+            {{on "click" (fn (mut this.showDrainStoppedNotification) false)}}
+            type="button"
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  {{#if this.showDrainUpdateNotification}}
+    <div class="notification is-info">
+      <div data-test-drain-updated-notification class="columns">
+        <div class="column">
+          <h3 data-test-title class="title is-4">
+            Drain Updated
+          </h3>
+          <p data-test-message>
+            The new drain specification has been applied.
+          </p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button
+            data-test-dismiss
+            class="button is-info"
+            {{on "click" (fn (mut this.showDrainUpdateNotification) false)}}
+            type="button"
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  {{#if this.showDrainNotification}}
+    <div class="notification is-info">
+      <div data-test-drain-complete-notification class="columns">
+        <div class="column">
+          <h3 data-test-title class="title is-4">
+            Drain Complete
+          </h3>
+          <p data-test-message>
+            Allocations have been drained and the node has been set to
+            ineligible.
+          </p>
+        </div>
+        <div class="column is-centered is-minimum">
+          <button
+            data-test-dimiss
+            class="button is-info"
+            {{on "click" (fn (mut this.showDrainNotification) false)}}
+            type="button"
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  <div class="toolbar">
+    <div class="toolbar-item is-top-aligned is-minimum">
+      <span class="title">
+        <span
+          data-test-node-status="{{this.model.compositeStatus}}"
+          class="node-status-light {{this.model.compositeStatus}}"
+        >
+          <Hds::Icon
+            @name={{this.model.compositeStatusIcon}}
+            @isInline={{true}}
+          />
+        </span>
+      </span>
+    </div>
+    <div class="toolbar-item">
+      <h1 data-test-title class="title with-subheading">
+        {{or this.model.name this.model.shortId}}
+      </h1>
+      <p>
+        <label class="is-interactive">
+          <Toggle
+            data-test-eligibility-toggle
+            @isActive={{this.model.isEligible}}
+            @isDisabled={{or
+              this.setEligibility.isRunning
+              this.model.isDraining
+              (cannot "write client")
+            }}
+            @onToggle={{perform
+              this.setEligibility
+              (not this.model.isEligible)
+            }}
+          >
+            Eligible
+          </Toggle>
+        </label>
+        <Hds::TooltipButton
+          @text="Only eligible clients can receive allocations"
+          aria-label="More information"
+          class="is-faded"
+        >
+          <Hds::Icon @name="info" @isInline={{true}} />
+        </Hds::TooltipButton>
+        <span
+          data-test-node-id
+          class="tag is-hollow is-small no-text-transform"
+        >
+          {{this.model.id}}
+          <CopyButton
+            @clipboardText={{this.model.id}}
+            @compact={{true}}
+            @inset={{true}}
+          />
+        </span>
+      </p>
+    </div>
+    <div class="toolbar-item is-right-aligned is-top-aligned">
+      {{#if this.model.isDraining}}
+        <TwoStepButton
+          data-test-drain-stop
+          @idleText="Stop Drain"
+          @cancelText="Cancel"
+          @confirmText="Yes, Stop Drain"
+          @confirmationMessage="Are you sure you want to stop this drain?"
+          @awaitingConfirmation={{this.stopDrain.isRunning}}
+          @onConfirm={{perform this.stopDrain}}
+        />
+      {{/if}}
+    </div>
+    <div class="toolbar-item is-right-aligned is-top-aligned">
+      <DrainPopover
+        @client={{this.model}}
+        @isDisabled={{cannot "write client"}}
+        @onDrain={{this.drainNotify}}
+        @onError={{this.setDrainError}}
+      />
+    </div>
+  </div>
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">
+        Client Details
+      </span>
+      <span class="pair" data-test-status-definition>
+        <span class="term">
+          Status
+        </span>
+        <span class="status-text node-{{this.model.status}}">
+          {{this.model.status}}
+        </span>
+      </span>
+      <span class="pair" data-test-address-definition>
+        <span class="term">
+          Address
+        </span>
+        {{this.model.httpAddr}}
+      </span>
+      <span class="pair" data-test-datacenter-definition>
+        <span class="term">
+          Datacenter
+        </span>
+        {{this.model.datacenter}}
+      </span>
+      <span class="pair" data-test-node-pool>
+        <span class="term">
+          Node Pool
+        </span>
+        {{#if this.model.nodePool}}{{this.model.nodePool}}{{else}}-{{/if}}
+      </span>
+      {{#if this.model.nodeClass}}
+        <span class="pair" data-test-node-class>
+          <span class="term">
+            Class
+          </span>
+          {{this.model.nodeClass}}
+        </span>
+      {{/if}}
+      <span class="pair" data-test-driver-health>
+        <span class="term">
+          Drivers
+        </span>
+        {{#if this.model.unhealthyDrivers.length}}
+          <Hds::Icon
+            @name="alert-triangle-fill"
+            @color="warning"
+            @isInline={{true}}
+          />
+          {{this.model.unhealthyDrivers.length}}
+          of
+          {{this.model.detectedDrivers.length}}
+          {{pluralize "driver" this.model.detectedDrivers.length}}
+          unhealthy
+        {{else}}
+          All healthy
+        {{/if}}
+      </span>
+    </div>
+  </div>
+  {{#if this.model.drainStrategy}}
+    <div data-test-drain-details class="boxed-section is-info">
+      <div class="boxed-section-head">
+        <div class="boxed-section-row">
+          Drain Strategy
+        </div>
+        <div class="boxed-section-row">
+          <div class="inline-definitions is-small">
+            {{#unless this.model.drainStrategy.hasNoDeadline}}
+              <span class="pair">
+                <span class="term">
+                  Duration
+                </span>
+                {{#if this.model.drainStrategy.isForced}}
+                  <span data-test-duration>
+                    --
+                  </span>
+                {{else}}
+                  <span
+                    data-test-duration
+                    class="tooltip"
+                    aria-label={{format-duration
+                      this.model.drainStrategy.deadline
+                    }}
+                  >
+                    {{format-duration this.model.drainStrategy.deadline}}
+                  </span>
+                {{/if}}
+              </span>
+            {{/unless}}
+            <span class="pair">
+              <span class="term">
+                {{if
+                  this.model.drainStrategy.hasNoDeadline
+                  "Deadline"
+                  "Remaining"
+                }}
+              </span>
+              {{#if this.model.drainStrategy.hasNoDeadline}}
+                <span data-test-deadline>
+                  No deadline
+                </span>
+              {{else if this.model.drainStrategy.isForced}}
+                <span data-test-deadline>
+                  --
+                </span>
+              {{else}}
+                <span
+                  data-test-deadline
+                  class="tooltip"
+                  aria-label={{format-ts
+                    this.model.drainStrategy.forceDeadline
+                  }}
+                >
+                  {{moment-from-now
+                    this.model.drainStrategy.forceDeadline
+                    interval=1000
+                    hideAffix=true
+                  }}
+                </span>
+              {{/if}}
+            </span>
+            <span data-test-force-drain-text class="pair">
+              <span class="term">
+                Force Drain
+              </span>
+              {{#if this.model.drainStrategy.isForced}}
+                <Hds::Icon
+                  @name="alert-triangle-fill"
+                  @color="warning"
+                  @isInline={{true}}
+                />Yes
+              {{else}}
+                No
+              {{/if}}
+            </span>
+            <span data-test-drain-system-jobs-text class="pair">
+              <span class="term">
+                Drain System Jobs
+              </span>
+              {{if this.model.drainStrategy.ignoreSystemJobs "No" "Yes"}}
+            </span>
+          </div>
+          {{#unless this.model.drainStrategy.isForced}}
+            <div class="pull-right">
+              <TwoStepButton
+                data-test-force
+                @alignRight={{true}}
+                @classes={{hash
+                  idleButton="is-warning"
+                  confirmationMessage="inherit-color"
+                  cancelButton="is-danger is-important"
+                  confirmButton="is-warning"
+                }}
+                @idleText="Force Drain"
+                @cancelText="Cancel"
+                @confirmText="Yes, Force Drain"
+                @confirmationMessage="Are you sure you want to force drain?"
+                @awaitingConfirmation={{this.forceDrain.isRunning}}
+                @onConfirm={{perform this.forceDrain}}
+              />
+            </div>
+          {{/unless}}
+        </div>
+      </div>
+      <div class="boxed-section-body">
+        <div class="columns">
+          <div class="column nowrap is-minimum">
+            <div class="metric-group">
+              <div class="metric is-primary">
+                <h3 class="label">
+                  Complete
+                </h3>
+                <p data-test-complete-count class="value">
+                  {{this.model.completeAllocations.length}}
+                </p>
+              </div>
+            </div>
+            <div class="metric-group">
+              <div class="metric">
+                <h3 class="label">
+                  Migrating
+                </h3>
+                <p data-test-migrating-count class="value">
+                  {{this.model.migratingAllocations.length}}
+                </p>
+              </div>
+            </div>
+            <div class="metric-group">
+              <div class="metric">
+                <h3 class="label">
+                  Remaining
+                </h3>
+                <p data-test-remaining-count class="value">
+                  {{this.model.runningAllocations.length}}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="column">
+            <h3 class="title is-4">
+              Status
+            </h3>
+            {{#if this.model.lastMigrateTime}}
+              <p data-test-status>
+                {{moment-to-now
+                  this.model.lastMigrateTime
+                  interval=1000
+                  hideAffix=true
+                }}
+                since an allocation was successfully migrated.
+              </p>
+            {{else}}
+              <p data-test-status>
+                No allocations migrated.
+              </p>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+    </div>
+  {{/if}}
+  <div class="boxed-section">
+    <div class="boxed-section-head is-hollow">
+      Host Resource Utilization
+      <Hds::TooltipButton
+        @text="All allocation and system processes aggregated"
+        aria-label="More information"
+        class="is-faded"
+      >
+        <Hds::Icon @name="info" @isInline={{true}} />
+      </Hds::TooltipButton>
+
+    </div>
+    <div class="boxed-section-body">
+      <div class="columns">
+        <div class="column">
+          <PrimaryMetric::Node @node={{this.model}} @metric="cpu" />
+        </div>
+        <div class="column">
+          <PrimaryMetric::Node @node={{this.model}} @metric="memory" />
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      <div>
+        Allocations
+        <button
+          class="badge is-white"
+          {{on "click" (fn this.setPreemptionFilter false)}}
+          data-test-filter-all
+          type="button"
+        >
+          {{this.model.allocations.length}}
+        </button>
+        {{#if this.preemptions.length}}
+          <button
+            class="badge is-warning"
+            {{on "click" (fn this.setPreemptionFilter true)}}
+            data-test-filter-preemptions
+            type="button"
+          >
+            {{this.preemptions.length}}
+            {{pluralize "preemption" this.preemptions.length}}
+          </button>
+        {{/if}}
+      </div>
+      <div class="pull-right is-subsection">
+        <MultiSelectDropdown
+          data-test-allocation-namespace-facet
+          @label="Namespace"
+          @options={{this.optionsNamespace}}
+          @selection={{this.selectionNamespace}}
+          @onSelect={{fn this.setFacetQueryParam "qpNamespace"}}
+        />
+        <MultiSelectDropdown
+          data-test-allocation-job-facet
+          @label="Job"
+          @options={{this.optionsJob}}
+          @selection={{this.selectionJob}}
+          @onSelect={{fn this.setFacetQueryParam "qpJob"}}
+        />
+        <MultiSelectDropdown
+          data-test-allocation-status-facet
+          @label="Status"
+          @options={{this.optionsAllocationStatus}}
+          @selection={{this.selectionStatus}}
+          @onSelect={{fn this.setFacetQueryParam "qpStatus"}}
+        />
+        <SearchBox
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{this.resetPagination}}
+          @placeholder="Search allocations..."
+          @inputClass="is-compact"
+          @class="is-padded"
+        />
+
+        <span class="is-padded is-one-line">
+          <Toggle
+            @isActive={{this.showSubTasks}}
+            @onToggle={{this.toggleShowSubTasks}}
+            title="Show tasks of allocations"
+          >
+            Show Tasks
+          </Toggle>
+        </span>
+      </div>
+    </div>
+    <div
+      class="boxed-section-body
+        {{if this.sortedAllocations.length 'is-full-bleed'}}"
+    >
+      {{#if this.sortedAllocations.length}}
+        <ListPagination
+          @source={{this.sortedAllocations}}
+          @size={{this.pageSize}}
+          @page={{this.currentPage}}
+          as |p|
+        >
+          <ListTable
+            @source={{p.list}}
+            @sortProperty={{this.sortProperty}}
+            @sortDescending={{this.sortDescending}}
+            @class="with-foot {{if this.showSubTasks 'with-collapsed-borders'}}"
+            as |t|
+          >
+            <t.head>
+              <th class="is-narrow"><span class="visually-hidden">Driver Health,
+                  Scheduling, and Preemption</span></th>
+              <t.sort-by @prop="shortId">
+                ID
+              </t.sort-by>
+              <t.sort-by @prop="createIndex" @title="Create Index">
+                Created
+              </t.sort-by>
+              <t.sort-by @prop="modifyIndex" @title="Modify Index">
+                Modified
+              </t.sort-by>
+              <t.sort-by @prop="maxRunDeadline">
+                Max Run Deadline
+              </t.sort-by>
+              <t.sort-by @prop="statusIndex">
+                Status
+              </t.sort-by>
+              <t.sort-by @prop="job.name">
+                Job
+              </t.sort-by>
+              <t.sort-by @prop="jobVersion">
+                Version
+              </t.sort-by>
+              <th>
+                Volume
+              </th>
+              <th>
+                CPU
+              </th>
+              <th>
+                Memory
+              </th>
+              <th>Actions</th>
+            </t.head>
+            <t.body as |row|>
+              <AllocationRow
+                {{keyboard-shortcut
+                  enumerated=true
+                  action=(fn this.gotoAllocation row.model)
+                }}
+                @allocation={{row.model}}
+                @context="node"
+                @onClick={{fn this.gotoAllocation row.model}}
+                @data-test-allocation={{row.model.id}}
+                @showMaxRunDeadline={{true}}
+              />
+              {{#if this.showSubTasks}}
+                {{#each row.model.states as |task|}}
+                  <TaskSubRow
+                      @namespan="9"
+                      @taskState={{task}}
+                      @active={{eq
+                        this.activeTask
+                        (concat task.allocation.id "-" task.name)
+                      }}
+                      @onSetActiveTask={{this.setActiveTaskQueryParam}}
+                      @jobHasActions={{true}}
+                    />
+                {{/each}}
+              {{/if}}
+            </t.body>
+          </ListTable>
+          <div class="table-foot">
+            <nav class="pagination">
+              <div class="pagination-numbers">
+                {{p.startsAt}}
+                –
+                {{p.endsAt}}
+                of
+                {{this.sortedAllocations.length}}
+              </div>
+              <p.prev @class="pagination-previous">
+                &lt;
+              </p.prev>
+              <p.next @class="pagination-next">
+                >
+              </p.next>
+              <ul class="pagination-list"></ul>
+            </nav>
+          </div>
+        </ListPagination>
+      {{else}}
+        <div data-test-empty-allocations-list class="empty-message">
+          {{#if (eq this.visibleAllocations.length 0)}}
+            <h3
+              data-test-empty-allocations-list-headline
+              class="empty-message-headline"
+            >
+              No Allocations
+            </h3>
+            <p data-test-empty-allocations-list-body class="empty-message-body">
+              The node doesn't have any allocations.
+            </p>
+          {{else if this.searchTerm}}
+            <h3
+              data-test-empty-allocations-list-headline
+              class="empty-message-headline"
+            >
+              No Matches
+            </h3>
+            <p class="empty-message-body">
+              No allocations match the term
+              <strong>
+                {{this.searchTerm}}
+              </strong>
+            </p>
+          {{else if (eq this.sortedAllocations.length 0)}}
+            <h3
+              data-test-empty-allocations-list-headline
+              class="empty-message-headline"
+            >
+              No Matches
+            </h3>
+            <p class="empty-message-body">
+              No allocations match your current filter selection.
+            </p>
+          {{/if}}
+        </div>
+      {{/if}}
+    </div>
+  </div>
+  <div data-test-client-events class="boxed-section">
+    <div class="boxed-section-head">
+      Client Events
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <ListTable @source={{this.sortedEvents}} @class="is-striped" as |t|>
+        <t.head>
+          <th class="is-2">
+            Time
+          </th>
+          <th class="is-2">
+            Subsystem
+          </th>
+          <th>
+            Message
+          </th>
+        </t.head>
+        <t.body as |row|>
+          <tr data-test-client-event>
+            <td data-test-client-event-time>
+              {{format-ts row.model.time}}
+            </td>
+            <td data-test-client-event-subsystem>
+              {{row.model.subsystem}}
+            </td>
+            <td data-test-client-event-message>
+              {{#if row.model.message}}
+                {{#if row.model.driver}}
+                  <span class="badge is-secondary is-small">
+                    {{row.model.driver}}
+                  </span>
+                {{/if}}
+                {{row.model.message}}
+              {{else}}
+                <em>
+                  No message
+                </em>
+              {{/if}}
+            </td>
+          </tr>
+        </t.body>
+      </ListTable>
+    </div>
+  </div>
+  {{#if this.sortedHostVolumes.length}}
+    <div data-test-client-host-volumes class="boxed-section">
+      <div class="boxed-section-head">
+        Host Volumes
+      </div>
+      <div class="boxed-section-body is-full-bleed">
+        <ListTable
+          @source={{this.sortedHostVolumes}}
+          @class="is-striped"
+          as |t|
+        >
+          <t.head>
+            <th>
+              Name
+            </th>
+            <th>
+              Source
+            </th>
+            <th>
+              Permissions
+            </th>
+          </t.head>
+          <t.body as |row|>
+            <tr data-test-client-host-volume>
+              <td data-test-name>
+                {{row.model.name}}
+              </td>
+              <td data-test-path>
+                <code>
+                  {{row.model.path}}
+                </code>
+              </td>
+              <td data-test-permissions>
+                {{if row.model.readOnly "Read" "Read/Write"}}
+              </td>
+            </tr>
+          </t.body>
+        </ListTable>
+      </div>
+    </div>
+  {{/if}}
+  <div data-test-driver-status class="boxed-section">
+    <div class="boxed-section-head">
+      Driver Status
+    </div>
+    <div class="boxed-section-body">
+      <ListAccordion @source={{this.sortedDrivers}} @key="name" as |a|>
+        <a.head
+          @buttonLabel="details"
+          @buttonType="client-detail"
+          @isExpandable={{a.item.detected}}
+        >
+          <div
+            class="columns inline-definitions
+              {{unless a.item.detected 'is-faded'}}"
+          >
+            <div class="column is-1">
+              <span data-test-name>
+                {{a.item.name}}
+              </span>
+            </div>
+            <div class="column is-2">
+              {{#if a.item.detected}}
+                <span data-test-health>
+                  <span class="color-swatch {{a.item.healthClass}}"></span>
+                  {{if a.item.healthy "Healthy" "Unhealthy"}}
+                </span>
+              {{/if}}
+            </div>
+            <div class="column">
+              <span class="pair">
+                <span class="term">
+                  Detected
+                </span>
+                <span data-test-detected>
+                  {{if a.item.detected "Yes" "No"}}
+                </span>
+              </span>
+              <span class="is-pulled-right">
+                <span class="pair">
+                  <span class="term">
+                    Last Updated
+                  </span>
+                  <span
+                    data-test-last-updated
+                    class="tooltip"
+                    aria-label="{{format-ts a.item.updateTime}}"
+                  >
+                    {{moment-from-now a.item.updateTime interval=1000}}
+                  </span>
+                </span>
+              </span>
+            </div>
+          </div>
+        </a.head>
+        <a.body>
+          <p data-test-health-description class="message">
+            {{a.item.healthDescription}}
+          </p>
+          <div data-test-driver-attributes class="boxed-section">
+            <div class="boxed-section-head">
+              {{capitalize a.item.name}}
+              Attributes
+            </div>
+            {{#if a.item.attributesShort}}
+              <div class="boxed-section-body is-full-bleed">
+                <AttributesTable
+                  @attributePairs={{a.item.attributesShort}}
+                  @class="attributes-table"
+                />
+              </div>
+            {{else}}
+              <div class="boxed-section-body">
+                <div class="empty-message">
+                  <h3 class="empty-message-headline">
+                    No Driver Attributes
+                  </h3>
+                </div>
+              </div>
+            {{/if}}
+          </div>
+        </a.body>
+      </ListAccordion>
+    </div>
+  </div>
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Attributes
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <AttributesTable
+        data-test-attributes
+        @attributePairs={{this.model.attributes.structured.root}}
+        @class="attributes-table"
+        @copyable={{true}}
+      />
+    </div>
+  </div>
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Meta
+    </div>
+    {{#if this.hasMeta}}
+      <div class="boxed-section-body is-full-bleed">
+        <AttributesTable
+          data-test-meta
+          @attributePairs={{this.model.meta.structured.root}}
+          @editable={{can "write client"}}
+          @onKVSave={{this.addDynamicMetaData}}
+          @onKVEdit={{this.validateMetadata}}
+          @class="attributes-table"
+        />
+      </div>
+    {{else}}
+      <div class="boxed-section-body">
+        <div data-test-empty-meta-message class="empty-message">
+          <h3 class="empty-message-headline">
+            No Meta Attributes
+          </h3>
+          <p class="empty-message-body">
+            This client is configured with no meta attributes.
+          </p>
+        </div>
+      </div>
+    {{/if}}
+    {{#if (can "write client")}}
+      {{#if this.editingMetadata}}
+        <div class="add-dynamic-metadata">
+          <h3 class="title is-6">Add Dynamic Metadata</h3>
+          <MetadataEditor
+            @kv={{this.newMetaData}}
+            @onEdit={{this.validateMetadata}}
+          >
+            <button
+              data-test-new-metadata-button
+              disabled={{or
+                (not this.newMetaData.key)
+                (not this.newMetaData.value)
+              }}
+              type="submit"
+              class="button is-primary"
+              {{on
+                "click"
+                (queue
+                  (fn this.addDynamicMetaData this.newMetaData)
+                  this.resetNewMetaData
+                  (fn (mut this.editingMetadata) false)
+                )
+              }}
+            >
+              Add
+              {{this.newMetaData.key}}
+              to node metadata
+            </button>
+
+            <button
+              type="button"
+              class="button is-secondary"
+              {{on
+                "click"
+                (queue
+                  this.resetNewMetaData (fn (mut this.editingMetadata) false)
+                )
+              }}
+            >
+              Cancel
+            </button>
+
+          </MetadataEditor>
+        </div>
+      {{else}}
+        <div class="add-dynamic-metadata">
+          <button
+            type="button"
+            class="button is-primary"
+            {{on "click" (fn (mut this.editingMetadata) true)}}
+            {{keyboard-shortcut
+              label="Add Dynamic Node Metadata"
+              pattern=(array "m" "e" "t" "a")
+              action=(fn (mut this.editingMetadata) true)
+            }}
+          >
+            Add new Dynamic Metadata
+          </button>
+        </div>
+      {{/if}}
+    {{/if}}
+  </div>
+</section>

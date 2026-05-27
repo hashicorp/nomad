@@ -1,0 +1,3 @@
+```release-note:bug
+deps: Fixed a bug where restarting Nomad could cause an unrelated process with the same PID as a failed executor to be killed
+```

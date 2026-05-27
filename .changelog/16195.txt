@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: Added server configuration for `csi_volume_claim_gc_interval`
+```

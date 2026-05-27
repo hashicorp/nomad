@@ -1,0 +1,34 @@
+name: Semgrep
+
+on:
+  pull_request: {}
+  # Skipping push for now since it would run against the entire code base.
+  # push:
+
+jobs:
+  semgrep-validate:
+    name: Semgrep Validate
+    if: (github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-22.04
+    container:
+      image: returntocorp/semgrep:1.107.0
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: semgrep --metrics=off --validate --config=.semgrep/
+
+  semgrep:
+    name: Semgrep Scan
+    needs: [semgrep-validate]
+    runs-on: ubuntu-22.04
+    container:
+      image: returntocorp/semgrep:1.107.0
+    env:
+      SEMGREP_SEND_METRICS: off
+    # Skip any PR created by dependabot to avoid permission issues
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: semgrep ci --config=.semgrep/
+
+permissions:
+  contents: read

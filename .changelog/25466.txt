@@ -1,0 +1,3 @@
+```release-note:improvement
+rpc: Added ability to configure yamux session parameters
+```

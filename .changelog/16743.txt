@@ -1,0 +1,3 @@
+```release-note:improvement
+api: return a structured error for unexpected responses
+```

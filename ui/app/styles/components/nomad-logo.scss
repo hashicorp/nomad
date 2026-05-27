@@ -1,0 +1,14 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.nomad-logo {
+  height: 26px;
+  max-height: 26px;
+  fill: $white;
+
+  .faded {
+    opacity: 0.7;
+  }
+}

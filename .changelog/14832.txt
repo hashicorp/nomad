@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixes an issue where service tags would bleed past the edge of the screen
+```

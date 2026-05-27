@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fix panic when system jobs are filtered by node class
+```

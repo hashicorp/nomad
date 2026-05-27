@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where `nomad fmt -check` would overwrite the file being checked
+```

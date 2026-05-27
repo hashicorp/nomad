@@ -1,0 +1,3 @@
+```release-note:improvement
+services: Nomad service checks now support the `tls_skip_verify` parameter
+```

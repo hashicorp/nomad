@@ -1,0 +1,16 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Variables: " this.model.path}}
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
+<section class="section single-variable">
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+    {{outlet}}
+  {{/if}}
+</section>

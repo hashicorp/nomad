@@ -1,0 +1,4 @@
+```release-note:bug
+nomad native service discovery: Ensure all local servers meet v.1.3.0 minimum before service registrations can be written
+```
+

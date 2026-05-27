@@ -1,0 +1,3 @@
+```release-note:bug
+ui: search results are no longer overridden by sorting preferences on the jobs index page
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where the client would incorrectly set an empty capacity range for CSI volume creation requests.
+```

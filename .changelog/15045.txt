@@ -1,0 +1,3 @@
+```release-note:bug
+deps: Update hashicorp/consul-template to 90370e07bf621811826b803fb633dadbfb4cf287; fixes template rerendering issues when only user or group set
+```

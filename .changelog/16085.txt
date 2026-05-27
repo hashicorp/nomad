@@ -1,0 +1,3 @@
+```release-note:improvement
+acl: refactor ACL cache based on golang-lru/v2
+```

@@ -1,0 +1,69 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.global-search-dropdown {
+  background: transparent;
+  border: 0;
+  position: fixed;
+  max-height: calc(100vh - 1rem);
+
+  .ember-power-select-search {
+    margin-left: $icon-dimensions;
+    border: 0;
+  }
+
+  input,
+  input:focus {
+    background: transparent;
+    border: 0;
+    outline: 0;
+  }
+
+  // Prevent Safari from disrupting styling, adapted from http://geek.michaelgrace.org/2011/06/webkit-search-input-styling/
+  input[type="search"] {
+    appearance: textfield;
+  }
+
+  input::-webkit-search-decoration,
+  input::-webkit-search-cancel-button {
+    display: none;
+  }
+
+  .ember-power-select-options {
+    background: white;
+    padding: 0.35rem;
+    overflow: hidden auto;
+    max-height: calc(100vh - 5rem);
+
+    &[role="listbox"] {
+      border: 1px solid $grey-blue;
+      box-shadow:
+        0 6px 8px -2px rgba($black, 0.05),
+        0 8px 4px -4px rgba($black, 0.1);
+      overflow-y: auto;
+      max-height: calc(100vh - 5rem);
+    }
+
+    .ember-power-select-option {
+      padding: 0.2rem 0.4rem;
+      border-radius: $radius;
+      white-space: normal;
+      overflow-wrap: anywhere;
+
+      &[aria-current="true"] {
+        background: transparentize($blue, 0.8);
+        color: $blue;
+      }
+    }
+  }
+
+  .ember-power-select-group-name {
+    text-transform: uppercase;
+    display: inline;
+    color: darken($grey-blue, 20%);
+    font-size: $size-7;
+    font-weight: $weight-semibold;
+  }
+}

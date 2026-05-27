@@ -1,0 +1,27 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Exec"}}
+<nav class="navbar is-popup">
+  <div class="navbar-brand">
+    <div class="navbar-item is-logo">
+      <NomadLogo />
+    </div>
+  </div>
+
+  <div class="navbar-end">
+    <a
+      href="https://developer.hashicorp.com/nomad/docs"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="navbar-item"
+    >Documentation</a>
+    <Hds::Icon @name="lock" />
+  </div>
+</nav>
+
+<div class="exec-window loading">
+  <LoadingSpinner />
+</div>

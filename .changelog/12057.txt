@@ -1,0 +1,7 @@
+```release-note:bug
+csi: Fixed a bug where the plugin instance manager would not retry the initial gRPC connection to plugins
+```
+
+```release-note:bug
+csi: Fixed a bug where the plugin supervisor would not restart the task if it failed to connect to the plugin
+```

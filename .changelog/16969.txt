@@ -1,0 +1,3 @@
+```release-note:bug
+scale: Do not allow scale requests for jobs of type system
+```

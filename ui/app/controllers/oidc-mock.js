@@ -1,0 +1,42 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Controller from '@ember/controller';
+import { action } from '@ember/object';
+import { service } from '@ember/service';
+import { macroCondition, isTesting } from '@embroider/macros';
+
+export default class OidcMockController extends Controller {
+  @service router;
+
+  queryParams = ['auth_method', 'client_nonce', 'redirect_uri', 'meta', 'iss'];
+
+  @action
+  signIn(fakeAccount) {
+    var url = `${this.redirect_uri.split('?')[0]}?code=${
+      fakeAccount.accessor
+    }&state=success`;
+
+    if (this.iss) {
+      url = url.concat(`&iss=${this.iss}`);
+    }
+
+    if (macroCondition(isTesting())) {
+      this.router.transitionTo(url);
+    } else {
+      window.location = url;
+    }
+  }
+
+  @action
+  failToSignIn() {
+    const url = `${this.redirect_uri.split('?')[0]}?state=failure`;
+    if (macroCondition(isTesting())) {
+      this.router.transitionTo(url);
+    } else {
+      window.location = url;
+    }
+  }
+}

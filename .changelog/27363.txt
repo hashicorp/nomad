@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fix unchanged devices causing extraneous node updates
+```

@@ -1,0 +1,350 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+package allocrunner
+
+import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+	"testing"
+
+	consulapi "github.com/hashicorp/consul/api"
+	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/consul"
+	cstate "github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/widmgr"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
+)
+
+func consulHookTestHarness(t *testing.T) *consulHook {
+	logger := testlog.HCLogger(t)
+
+	alloc := mock.Alloc()
+
+	task1 := alloc.LookupTask("web")
+
+	task1.Consul = &structs.Consul{
+		Cluster: "default",
+	}
+	task1.Identities = []*structs.WorkloadIdentity{
+		{Name: fmt.Sprintf("%s_default", structs.ConsulTaskIdentityNamePrefix)},
+	}
+
+	task2 := task1.Copy()
+	task2.Name = "extra"
+	task2.Services = nil
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
+
+	task1.Services = []*structs.Service{
+		{
+			Provider: structs.ServiceProviderConsul,
+			Identity: &structs.WorkloadIdentity{Name: "consul-service_webservice", Audience: []string{"consul.io"}},
+			Cluster:  "default",
+			Name:     "${NOMAD_TASK_NAME}service",
+			TaskName: "web", // note: this doesn't interpolate
+		},
+	}
+
+	// setup mock signer but don't sign identities, as we're going to want them
+	// interpolated by the WIDMgr
+	mockSigner := widmgr.NewMockWIDSigner(nil)
+	db := cstate.NewMemDB(logger)
+
+	// the WIDMgr env builder never has the task available
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
+
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env)
+	mockWIDMgr.SignForTesting()
+
+	consulConfigs := map[string]*structsc.ConsulConfig{
+		"default": structsc.DefaultConsulConfig(),
+	}
+
+	hookResources := cstructs.NewAllocHookResources()
+
+	consulHookCfg := consulHookConfig{
+		alloc:                   alloc,
+		allocdir:                nil,
+		widmgr:                  mockWIDMgr,
+		consulConfigs:           consulConfigs,
+		consulClientConstructor: consul.NewMockConsulClient,
+		hookResources:           hookResources,
+		db:                      db,
+		logger:                  logger,
+	}
+	return newConsulHook(consulHookCfg)
+}
+
+// consulHookTestHarnessWithMetaCapture returns a hook and a function that retrieves
+// the Meta from the last DeriveTokenWithJWT call made by the mock consul client.
+func consulHookTestHarnessWithMetaCapture(t *testing.T) (*consulHook, func() map[string]string) {
+	logger := testlog.HCLogger(t)
+
+	alloc := mock.Alloc()
+
+	task1 := alloc.LookupTask("web")
+	task1.Consul = &structs.Consul{
+		Cluster: "default",
+	}
+	task1.Identities = []*structs.WorkloadIdentity{
+		{Name: fmt.Sprintf("%s_default", structs.ConsulTaskIdentityNamePrefix)},
+	}
+
+	mockSigner := widmgr.NewMockWIDSigner(nil)
+	db := cstate.NewMemDB(logger)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env)
+	mockWIDMgr.SignForTesting()
+
+	consulConfigs := map[string]*structsc.ConsulConfig{
+		"default": structsc.DefaultConsulConfig(),
+	}
+	hookResources := cstructs.NewAllocHookResources()
+
+	var capturedMock *consul.MockConsulClient
+	constructor := func(cfg *structsc.ConsulConfig, logger_ hclog.Logger) (consul.Client, error) {
+		mc, err := consul.NewMockConsulClient(cfg, logger_)
+		if err != nil {
+			return nil, err
+		}
+		capturedMock = mc.(*consul.MockConsulClient)
+		return mc, nil
+	}
+
+	hook := newConsulHook(consulHookConfig{
+		alloc:                   alloc,
+		allocdir:                nil,
+		widmgr:                  mockWIDMgr,
+		consulConfigs:           consulConfigs,
+		consulClientConstructor: constructor,
+		hookResources:           hookResources,
+		db:                      db,
+		logger:                  logger,
+	})
+	return hook, func() map[string]string {
+		if capturedMock == nil {
+			return nil
+		}
+		return capturedMock.LastRequestMeta
+	}
+}
+
+func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
+	ci.Parallel(t)
+
+	hook := consulHookTestHarness(t)
+	task := hook.alloc.LookupTask("web")
+
+	wid := task.GetIdentity("consul_default")
+	ti := *task.IdentityHandle(wid)
+	jwt, err := hook.widmgr.Get(ti)
+	must.NoError(t, err)
+	hashJWT1 := md5.Sum([]byte(jwt.JWT))
+
+	task2 := hook.alloc.LookupTask("extra")
+	ti2 := *task2.IdentityHandle(wid)
+	jwt2, err := hook.widmgr.Get(ti2)
+	must.NoError(t, err)
+	hashJWT2 := md5.Sum([]byte(jwt2.JWT))
+
+	tests := []struct {
+		name           string
+		tasks          []*structs.Task
+		wantErr        bool
+		errMsg         string
+		expectedTokens map[string]map[string]*consulapi.ACLToken
+	}{
+		{
+			name:           "empty task",
+			tasks:          nil,
+			wantErr:        true,
+			errMsg:         "no task specified",
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
+		},
+		{
+			name:    "task with signed identity",
+			tasks:   []*structs.Task{task},
+			wantErr: false,
+			errMsg:  "",
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{
+				"default": {
+					"consul_default/web": &consulapi.ACLToken{
+						AccessorID: hex.EncodeToString(hashJWT1[:]),
+						SecretID:   hex.EncodeToString(hashJWT1[:]),
+					},
+				},
+			},
+		},
+		{
+			name:    "multiple tasks with signed identities",
+			tasks:   []*structs.Task{task, task2},
+			wantErr: false,
+			errMsg:  "",
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{
+				"default": {
+					"consul_default/web": &consulapi.ACLToken{
+						AccessorID: hex.EncodeToString(hashJWT1[:]),
+						SecretID:   hex.EncodeToString(hashJWT1[:]),
+					},
+					"consul_default/extra": &consulapi.ACLToken{
+						AccessorID: hex.EncodeToString(hashJWT2[:]),
+						SecretID:   hex.EncodeToString(hashJWT2[:]),
+					},
+				},
+			},
+		},
+		{
+			name: "task with unknown identity",
+			tasks: []*structs.Task{{
+				Identities: []*structs.WorkloadIdentity{
+					{Name: structs.ConsulTaskIdentityNamePrefix + "_default"}},
+				Name: "foo",
+			}},
+			wantErr:        true,
+			errMsg:         "unable to find token for workload",
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokens := map[string]map[string]*consulapi.ACLToken{}
+			for _, task := range tt.tasks {
+				err := hook.prepareConsulTokensForTask(task, nil, tokens)
+				if tt.wantErr {
+					must.Error(t, err)
+					must.ErrorContains(t, err, tt.errMsg)
+				} else {
+					must.NoError(t, err)
+				}
+			}
+			must.Eq(t, tt.expectedTokens, tokens)
+		})
+	}
+}
+
+func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
+	ci.Parallel(t)
+
+	hook := consulHookTestHarness(t)
+	task := hook.alloc.LookupTask("web")
+	services := task.Services
+	env := taskenv.NewBuilder(mock.Node(), hook.alloc, task, "global").
+		Build().WithTask(hook.alloc, task)
+	hashedJWT := make(map[string]string)
+
+	for _, s := range services {
+		widHandle := *s.IdentityHandle(env.ReplaceEnv)
+		jwt, err := hook.widmgr.Get(widHandle)
+		must.NoError(t, err)
+
+		hash := md5.Sum([]byte(jwt.JWT))
+		hashedJWT[widHandle.InterpolatedWorkloadIdentifier] = hex.EncodeToString(hash[:])
+	}
+
+	tests := []struct {
+		name           string
+		services       []*structs.Service
+		wantErr        bool
+		errMsg         string
+		expectedTokens map[string]map[string]*consulapi.ACLToken
+	}{
+		{
+			name:           "empty services",
+			services:       nil,
+			wantErr:        false,
+			errMsg:         "",
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
+		},
+		{
+			name:     "services with signed identity",
+			services: services,
+			wantErr:  false,
+			errMsg:   "",
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{
+				"default": {
+					"consul-service_webservice": {
+						AccessorID: hashedJWT["webservice"],
+						SecretID:   hashedJWT["webservice"],
+					},
+				},
+			},
+		},
+		{
+			name: "services with unknown identity",
+			services: []*structs.Service{
+				{
+					Provider: structs.ServiceProviderConsul,
+					Identity: &structs.WorkloadIdentity{
+						Name: "consul-service_webservice", Audience: []string{"consul.io"}},
+					Cluster:  "default",
+					Name:     "foo",
+					TaskName: "web",
+				},
+			},
+			wantErr:        true,
+			errMsg:         "unable to find token for workload",
+			expectedTokens: map[string]map[string]*consulapi.ACLToken{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokens := map[string]map[string]*consulapi.ACLToken{}
+			err := hook.prepareConsulTokensForServices(tt.services, nil, tokens, env)
+			if tt.wantErr {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tt.errMsg)
+			} else {
+				must.NoError(t, err)
+				must.Eq(t, tt.expectedTokens, tokens)
+			}
+		})
+	}
+}
+
+func Test_consulHook_Postrun(t *testing.T) {
+	ci.Parallel(t)
+
+	// no-op must be safe
+	hook := consulHookTestHarness(t)
+	must.NoError(t, hook.Postrun())
+
+	task := hook.alloc.LookupTask("web")
+	tokens := map[string]map[string]*consulapi.ACLToken{}
+	must.NoError(t, hook.prepareConsulTokensForTask(task, nil, tokens))
+	hook.resourcesBackend.setConsulTokens(tokens)
+	must.MapLen(t, 1, tokens)
+
+	// gracefully handle wrong tokens
+	otherTokens := map[string]map[string]*consulapi.ACLToken{
+		"default": {"foo": &consulapi.ACLToken{AccessorID: "foo", SecretID: "foo"}}}
+	must.NoError(t, hook.revokeTokens(otherTokens))
+
+	// hook resources should be cleared
+	must.NoError(t, hook.Postrun())
+	tokens = hook.resourcesBackend.getConsulTokens()
+	must.MapEmpty(t, tokens["default"])
+}
+
+func Test_consulHook_prepareConsulTokens_Meta(t *testing.T) {
+	ci.Parallel(t)
+
+	hook, getMeta := consulHookTestHarnessWithMetaCapture(t)
+
+	task := hook.alloc.LookupTask("web")
+	tokens := map[string]map[string]*consulapi.ACLToken{}
+
+	err := hook.prepareConsulTokensForTask(task, nil, tokens)
+	must.NoError(t, err)
+
+	meta := getMeta()
+	must.MapContainsKey(t, meta, "nomad_node_id")
+	must.Eq(t, hook.alloc.NodeID, meta["nomad_node_id"])
+}

@@ -1,0 +1,3 @@
+```release-note:bug
+job: Ensure migrate block difference is added to planning diff object
+```

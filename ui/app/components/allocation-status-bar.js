@@ -1,0 +1,112 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { computed } from '@ember/object';
+import DistributionBar from './distribution-bar';
+import { attributeBindings } from '@ember-decorators/component';
+import classic from 'ember-classic-decorator';
+
+@classic
+@attributeBindings('data-test-allocation-status-bar')
+export default class AllocationStatusBar extends DistributionBar {
+  layoutName = 'components/distribution-bar';
+
+  allocationContainer = null;
+  job = null;
+
+  'data-test-allocation-status-bar' = true;
+
+  generateLegendLink(job, status) {
+    if (!job || status === 'queued') return null;
+
+    const namespace = job.namespaceId || job.namespace;
+    const queryParams = {
+      status: JSON.stringify([status]),
+      page: 1,
+      search: '',
+      sort: 'modifyIndex',
+      desc: true,
+      client: '',
+      taskGroup: '',
+      version: '',
+      scheduling: '',
+      activeTask: null,
+    };
+
+    if (namespace && namespace !== 'default') {
+      queryParams.namespace = namespace;
+    }
+
+    return {
+      queryParams,
+    };
+  }
+
+  @computed(
+    'allocationContainer.{queuedAllocs,completeAllocs,failedAllocs,runningAllocs,startingAllocs,lostAllocs,unknownAllocs}',
+    'job.namespace',
+  )
+  get data() {
+    if (!this.allocationContainer) {
+      return [];
+    }
+
+    const allocs = this.allocationContainer.getProperties(
+      'queuedAllocs',
+      'completeAllocs',
+      'failedAllocs',
+      'runningAllocs',
+      'startingAllocs',
+      'lostAllocs',
+      'unknownAllocs',
+    );
+    return [
+      {
+        label: 'Queued',
+        value: allocs.queuedAllocs,
+        className: 'queued',
+        legendLink: this.generateLegendLink(this.job, 'queued'),
+      },
+      {
+        label: 'Starting',
+        value: allocs.startingAllocs,
+        className: 'starting',
+        layers: 2,
+        legendLink: this.generateLegendLink(this.job, 'pending'),
+      },
+      {
+        label: 'Running',
+        value: allocs.runningAllocs,
+        className: 'running',
+        legendLink: this.generateLegendLink(this.job, 'running'),
+      },
+      {
+        label: 'Complete',
+        value: allocs.completeAllocs,
+        className: 'complete',
+        legendLink: this.generateLegendLink(this.job, 'complete'),
+      },
+      {
+        label: 'Unknown',
+        value: allocs.unknownAllocs,
+        className: 'unknown',
+        legendLink: this.generateLegendLink(this.job, 'unknown'),
+        help: 'Allocation is unknown since its node is disconnected.',
+      },
+      {
+        label: 'Failed',
+        value: allocs.failedAllocs,
+        className: 'failed',
+        legendLink: this.generateLegendLink(this.job, 'failed'),
+      },
+      {
+        label: 'Lost',
+        value: allocs.lostAllocs,
+        className: 'lost',
+        legendLink: this.generateLegendLink(this.job, 'lost'),
+      },
+    ];
+  }
+}

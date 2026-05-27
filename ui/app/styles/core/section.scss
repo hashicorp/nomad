@@ -1,0 +1,17 @@
+/**
+ * Copyright IBM Corp. 2015, 2025
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.section {
+  padding: 1.5rem;
+  max-width: 1200px;
+
+  &.with-headspace {
+    margin-top: 1.5rem;
+  }
+
+  &.is-full-width {
+    max-width: 100%;
+  }
+}

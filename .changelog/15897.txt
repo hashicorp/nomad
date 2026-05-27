@@ -1,0 +1,3 @@
+```release-note:improvement
+acl: New auth-method type: JWT
+```

@@ -1,0 +1,14 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+export default function setPolicy(policy) {
+  const { id: policyId } = this.server.create('policy', policy);
+  const clientToken = this.server.create('token', { type: 'client' });
+  clientToken.policyIds = [policyId];
+  clientToken.save();
+
+  window.localStorage.clear();
+  window.localStorage.nomadTokenSecret = clientToken.secretId;
+}

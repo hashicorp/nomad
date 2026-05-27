@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Display all possible scores in the allocation status table
+```

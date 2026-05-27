@@ -1,0 +1,7 @@
+```release-note:bug
+consul: Fixed a bug where gateway config entries were written to the Nomad server agent's Consul partition and not the client's partition
+```
+
+```release-note:bug
+consul: (Enterprise) Fixed a bug where gateway config entries were written before Sentinel policies were enforced
+```

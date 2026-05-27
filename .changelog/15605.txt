@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fix stale querystring parameter value as boolean
+```

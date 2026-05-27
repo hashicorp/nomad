@@ -1,0 +1,3 @@
+```release-note:bug
+consul: Fixed a bug where services may incorrectly fail conflicting name validation
+```

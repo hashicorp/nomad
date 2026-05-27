@@ -1,0 +1,142 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.lifecycle-chart {
+  padding-top: 2rem;
+  position: relative;
+
+  .lifecycle-phases {
+    position: absolute;
+    inset: 1.5em;
+
+    .divider {
+      position: absolute;
+      height: 100%;
+      stroke: $ui-gray-200;
+      stroke-width: 3px;
+      stroke-dasharray: 1, 7;
+      stroke-dashoffset: 1;
+      stroke-linecap: square;
+
+      &.prestart {
+        left: 25%;
+      }
+
+      &.poststop {
+        left: 75%;
+      }
+    }
+  }
+
+  .lifecycle-phase {
+    position: absolute;
+    bottom: 0;
+    top: 0;
+    border-top: 2px solid transparent;
+
+    .name {
+      padding: 0.5rem 0.9rem;
+      font-size: $size-7;
+      font-weight: $weight-semibold;
+      color: $ui-gray-500;
+    }
+
+    &.is-active {
+      background: $white-bis;
+      border-top: 2px solid $vagrant-blue;
+
+      .name {
+        color: $vagrant-blue;
+      }
+    }
+
+    &.prestart {
+      left: 0;
+      right: 75%;
+    }
+
+    &.main {
+      left: 25%;
+      right: 25%;
+    }
+
+    &.poststart {
+      left: 35%;
+      right: 25%;
+    }
+
+    &.poststop {
+      left: 75%;
+      right: 0;
+    }
+  }
+
+  .lifecycle-chart-rows {
+    margin-top: 2.5em;
+  }
+
+  .lifecycle-chart-row {
+    position: relative;
+    padding: 0.25rem 0.5rem;
+
+    $pending-mid: rgb(255 255 255 / 50%);
+
+    .hds-alert {
+      padding: 4px 8px;
+
+      &.pending {
+        position: relative;
+        overflow: hidden;
+        border-style: dashed;
+
+        &::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            -60deg,
+            transparent,
+            $pending-mid,
+            transparent
+          );
+          animation: shimmer 2s ease-in-out infinite;
+        }
+      }
+    }
+
+    &.main {
+      margin-left: 25%;
+      margin-right: 25%;
+    }
+
+    &.prestart-ephemeral {
+      margin-right: 75%;
+    }
+
+    &.prestart-sidecar {
+      margin-right: 25%;
+    }
+
+    &.poststart-ephemeral,
+    &.poststart-sidecar {
+      margin-left: 35%;
+    }
+
+    &.poststart-sidecar {
+      margin-right: 25%;
+    }
+
+    &.poststart-ephemeral {
+      margin-right: 35%;
+    }
+
+    &.poststop {
+      margin-left: 75%;
+    }
+  }
+}

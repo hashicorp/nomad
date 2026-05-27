@@ -1,0 +1,3 @@
+```release-note:bug
+consul: Fixed a bug where Consul admin partition was not used to login via Consul JWT auth method
+```

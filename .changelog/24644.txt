@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug where alloc exec/logs/fs APIs would return errors for non-global regions
+```

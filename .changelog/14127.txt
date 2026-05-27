@@ -1,0 +1,7 @@
+```release-note:improvement
+client: add option to restart all tasks of an allocation, regardless of lifecycle type or state.
+```
+
+```release-note:improvement
+client: only start poststop tasks after poststart tasks are done.
+```

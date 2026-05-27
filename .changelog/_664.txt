@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics (Enterprise): Emit `nomad.license.expiration_time_epoch` metric to show the expiration time of the Nomad Enterprise license.
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+client: added http api access for tasks via unix socket
+```

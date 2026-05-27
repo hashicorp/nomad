@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Display the Consul and Vault links configured in the agent
+```

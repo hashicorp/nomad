@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed -secret values not being sent with the `nomad volume snapshot delete` command
+```

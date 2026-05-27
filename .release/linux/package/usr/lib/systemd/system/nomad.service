@@ -1,0 +1,55 @@
+[Unit]
+Description=Nomad
+Documentation=https://developer.hashicorp.com/nomad/docs
+Wants=network-online.target
+After=network-online.target
+
+# When using Nomad with Consul you should start Consul first, so that running
+# allocations using Consul are restored correctly during startup.
+#Wants=consul.service
+#After=consul.service
+
+## Configure unit start rate limiting. Units which are started more than
+## *burst* times within an *interval* time span are not permitted to start any
+## more. Use `StartLimitIntervalSec` or `StartLimitInterval` (depending on
+## systemd version) to configure the checking interval and `StartLimitBurst`
+## to configure how many starts per interval are allowed. The values in the
+## commented lines are defaults.
+
+# StartLimitBurst = 5
+
+## StartLimitIntervalSec is used for systemd versions >= 230
+# StartLimitIntervalSec = 10s
+
+## StartLimitInterval is used for systemd versions < 230
+# StartLimitInterval = 10s
+
+[Service]
+
+# Nomad clients need to be run as "root" whereas Nomad servers should be run as
+# the "nomad" user. Please change this if needed.
+User=root
+Group=root
+
+Type=notify
+EnvironmentFile=-/etc/nomad.d/nomad.env
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/bin/nomad agent -config /etc/nomad.d
+KillMode=process
+KillSignal=SIGINT
+LimitNOFILE=65536
+LimitNPROC=infinity
+Restart=on-failure
+RestartSec=2
+
+TasksMax=infinity
+
+# Nomad Server agents should never be force killed,
+# so here we disable OOM (out of memory) killing for this unit.
+# However, you may wish to change this for Client agents, since
+# the workloads that Nomad places may be more important
+# than the Nomad agent itself.
+OOMScoreAdjust=-1000
+
+[Install]
+WantedBy=multi-user.target

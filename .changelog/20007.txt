@@ -1,0 +1,3 @@
+```release-note:bug
+cni: Fixed a bug where DNS set by CNI plugins was not provided to task drivers
+```

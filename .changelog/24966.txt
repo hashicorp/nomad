@@ -1,0 +1,3 @@
+```release-note:security
+api: sanitize the SignedIdentities in allocations of events to clean the identity token.
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+cni: Fixed a bug where CNI state was not migrated after upgrade, resulting in IP collisions
+```

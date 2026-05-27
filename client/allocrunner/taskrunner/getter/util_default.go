@@ -1,0 +1,32 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+//go:build !linux && !windows
+
+package getter
+
+import (
+	"path/filepath"
+
+	log "github.com/hashicorp/go-hclog"
+)
+
+// lockdown is not available by default
+func lockdownAvailable() bool {
+	return false
+}
+
+// lockdown is not implemented by default
+func lockdown(log.Logger, string, string, []string) error {
+	return nil
+}
+
+// defaultEnvironment is the default minimal environment variables for Unix-like
+// operating systems.
+func defaultEnvironment(taskDir string) map[string]string {
+	tmpDir := filepath.Join(taskDir, "tmp")
+	return map[string]string{
+		"PATH":   "/usr/local/bin:/usr/bin:/bin",
+		"TMPDIR": tmpDir,
+	}
+}

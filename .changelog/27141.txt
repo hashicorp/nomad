@@ -1,0 +1,3 @@
+```release-note:bug
+api: exit EventStream.Stream on first error
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where plugins would not be deleted on GC if their job updated the plugin ID
+```

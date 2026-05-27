@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Add `-prune` flag to `nomad operator force-leave` command
+```

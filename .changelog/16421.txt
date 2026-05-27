@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: remove most uses of reflection for task comparisons
+```

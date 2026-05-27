@@ -1,0 +1,109 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { module } from 'qunit';
+import { setupApplicationTest } from 'ember-qunit';
+
+import { setupMirage } from 'ember-cli-mirage/test-support';
+
+import browseFilesystem from './behaviors/fs';
+
+let allocation;
+let task;
+let files, taskDirectory, directory, nestedDirectory;
+
+module('Acceptance | task fs', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function () {
+    this.server.create('agent');
+    this.server.create('node-pool');
+    this.server.create('node', 'forceIPv4');
+    const job = this.server.create('job', { createAllocations: false });
+
+    allocation = this.server.create('allocation', {
+      jobId: job.id,
+      clientStatus: 'running',
+    });
+    task = this.server.schema.taskStates.where({ allocationId: allocation.id })
+      .models[0];
+    task.name = 'task-name';
+    task.save();
+
+    this.task = task;
+    this.allocation = allocation;
+
+    // Reset files
+    files = [];
+
+    taskDirectory = this.server.create('allocFile', {
+      isDir: true,
+      name: task.name,
+    });
+    files.push(taskDirectory);
+
+    // Nested files
+    directory = this.server.create('allocFile', {
+      isDir: true,
+      name: 'directory',
+      parent: taskDirectory,
+    });
+    files.push(directory);
+
+    nestedDirectory = this.server.create('allocFile', {
+      isDir: true,
+      name: 'another',
+      parent: directory,
+    });
+    files.push(nestedDirectory);
+
+    files.push(
+      this.server.create('allocFile', 'file', {
+        name: 'something.txt',
+        fileType: 'txt',
+        parent: nestedDirectory,
+      }),
+    );
+
+    files.push(
+      this.server.create('allocFile', {
+        isDir: true,
+        name: 'empty-directory',
+        parent: taskDirectory,
+      }),
+    );
+    files.push(
+      this.server.create('allocFile', 'file', {
+        fileType: 'txt',
+        parent: taskDirectory,
+      }),
+    );
+    files.push(
+      this.server.create('allocFile', 'file', {
+        fileType: 'txt',
+        parent: taskDirectory,
+      }),
+    );
+
+    this.files = files;
+    this.directory = directory;
+    this.nestedDirectory = nestedDirectory;
+  });
+
+  browseFilesystem({
+    visitSegments: ({ allocation, task }) => ({
+      id: allocation.id,
+      name: task.name,
+    }),
+    getExpectedPathBase: ({ allocation, task }) =>
+      `/allocations/${allocation.id}/${task.name}/fs/`,
+    getTitleComponent: ({ task }) => `Task ${task.name} filesystem`,
+    getBreadcrumbComponent: ({ task }) => task.name,
+    getFilesystemRoot: ({ task }) => task.name,
+    pageObjectVisitFunctionName: 'visitTask',
+    pageObjectVisitPathFunctionName: 'visitTaskPath',
+  });
+});

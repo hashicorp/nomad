@@ -1,0 +1,188 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+@mixin input {
+  @include control;
+
+  background-color: #fff;
+  border-color: $grey-blue;
+  color: $text;
+
+  &:hover,
+  &.is-hovered,
+  &:active,
+  &.is-active,
+  &:focus,
+  &.is-focused {
+    border-color: darken($grey-blue, 5%);
+  }
+
+  &[disabled] {
+    background-color: $grey-blue;
+    border-color: darken($grey-blue, 5%);
+  }
+}
+
+.input,
+.textarea {
+  @include input;
+
+  box-shadow: none;
+  padding: 0.4em 0.75em;
+  height: auto;
+
+  &::placeholder {
+    color: $grey-blue;
+  }
+
+  &.is-compact {
+    padding: 0.25em 0.75em;
+    margin: -0.25em -0.25em -0.25em 0;
+  }
+}
+
+.field {
+  &.is-inline {
+    display: inline-block;
+  }
+
+  &.is-horizontal {
+    .field-label {
+      margin-right: 1rem;
+      padding-top: 0.3em;
+      font-weight: $weight-semibold;
+      white-space: nowrap;
+
+      &.is-small {
+        padding-top: 0.55em;
+      }
+
+      &.is-multiline {
+        white-space: normal;
+      }
+    }
+  }
+
+  &.is-sub-field {
+    margin-left: 2em;
+  }
+
+  &:not(:last-child) {
+    margin-bottom: 1rem;
+  }
+}
+
+.form {
+  &.is-small {
+    font-size: 0.85rem;
+
+    .label {
+      font-size: 0.85rem;
+    }
+  }
+
+  .label {
+    font-weight: $weight-medium;
+  }
+
+  .group-heading {
+    text-transform: uppercase;
+    letter-spacing: 0.05ch;
+    margin-bottom: 1.5em;
+    color: $grey;
+    font-weight: $weight-medium;
+  }
+}
+
+.radio-group {
+  padding: 16px 0;
+
+  .hds-form-radio-card--checked {
+    background-color: var(--token-color-surface-action);
+  }
+
+  .hds-form-radio-card__control-wrapper {
+    height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+.button-group {
+  margin: 16px 0;
+}
+
+.align-right {
+  margin-right: calc(6.5% - 16px);
+}
+
+.new-job-template {
+  & > div {
+    margin-bottom: 1rem;
+  }
+
+  .path-input {
+    height: 2.25em;
+
+    &.error {
+      color: $red;
+      border-color: $red;
+    }
+
+    + p {
+      position: relative;
+      animation: slide-in 0.3s ease-out;
+    }
+  }
+
+  .input-dropdown-row {
+    display: grid;
+    grid-template-columns: 6fr 1fr;
+    gap: 0 1rem;
+  }
+
+  footer {
+    display: grid;
+    grid-auto-columns: max-content;
+    grid-auto-flow: column;
+    gap: 1rem;
+  }
+}
+
+.mock-sso-provider {
+  margin: 25vh auto;
+  width: 500px;
+  top: 25vh;
+  height: auto;
+  max-height: 50vh;
+  box-shadow: 0 0 0 100vw rgb(0 2 30 / 80%);
+  padding: 1rem;
+  text-align: center;
+  background-color: white;
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 400;
+  }
+
+  h2 {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+  }
+
+  .providers {
+    display: grid;
+    gap: 0.5rem;
+
+    button {
+      background-color: #444;
+      color: white;
+
+      &.error {
+        background-color: darkred;
+      }
+    }
+  }
+}

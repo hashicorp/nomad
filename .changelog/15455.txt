@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: allow using device IDs in `affinity` and `constraint`
+```

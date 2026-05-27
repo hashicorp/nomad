@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix allocation memory chart to display the same value as the CLI
+```

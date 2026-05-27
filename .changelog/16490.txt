@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where clients using Consul discovery to join the cluster would get permission denied errors
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+api: Added missing node states to NodeStatus constants
+```

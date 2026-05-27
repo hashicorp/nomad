@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: Added implicit Consul constraint for task groups utilising Consul service and check registrations
+```

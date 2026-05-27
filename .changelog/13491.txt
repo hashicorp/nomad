@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Updated `github.com/hashicorp/go-discover` to latest to allow setting the AWS endpoint definition
+```

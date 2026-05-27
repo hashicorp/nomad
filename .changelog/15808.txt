@@ -1,0 +1,3 @@
+```release-note:bug
+core: enforce strict ordering that node status updates are recorded after allocation updates for reconnecting clients
+```

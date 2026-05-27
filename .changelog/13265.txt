@@ -1,0 +1,3 @@
+```release-note:improvement
+driver/docker: Eliminate excess Docker registry pulls for the `infra_image` when it already exists locally.
+```

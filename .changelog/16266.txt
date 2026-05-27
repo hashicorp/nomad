@@ -1,0 +1,3 @@
+```release-note:bug
+template: Fixed a bug where the template runner's Nomad token would be erased by in-place updates to a task
+```

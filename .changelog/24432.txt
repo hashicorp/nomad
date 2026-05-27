@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Removed redundant namespace output from volume status command
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+qemu: add support for guest agent socket
+```

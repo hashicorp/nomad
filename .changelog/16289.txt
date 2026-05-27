@@ -1,0 +1,3 @@
+```release-note:bug
+services: Fixed a bug where a service would be deregistered twice
+```

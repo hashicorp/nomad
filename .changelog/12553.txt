@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed bug where accessing plugins was subject to a data race
+```

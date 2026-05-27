@@ -1,0 +1,142 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+package allocrunner
+
+import (
+	"testing"
+
+	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/testutils"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+)
+
+type mockNetworkIsolationSetter struct {
+	t            *testing.T
+	expectedSpec *drivers.NetworkIsolationSpec
+	called       bool
+}
+
+func (m *mockNetworkIsolationSetter) SetNetworkIsolation(spec *drivers.NetworkIsolationSpec) {
+	m.called = true
+	test.Eq(m.t, m.expectedSpec, spec)
+}
+
+type mockNetworkStatus struct {
+	t              *testing.T
+	expectedStatus *structs.AllocNetworkStatus
+	getCalls       int
+	setCalls       int
+}
+
+func (m *mockNetworkStatus) SetNetworkStatus(status *structs.AllocNetworkStatus) {
+	m.setCalls++
+	test.Eq(m.t, m.expectedStatus, status)
+}
+
+func (m *mockNetworkStatus) NetworkStatus() *structs.AllocNetworkStatus {
+	m.getCalls++
+	return m.expectedStatus
+}
+
+// Test that the prerun and postrun hooks call the setter with the expected
+// NetworkIsolationSpec for group bridge network.
+func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{
+		{Mode: "bridge"},
+	}
+
+	spec := &drivers.NetworkIsolationSpec{
+		Mode:   drivers.NetIsolationModeGroup,
+		Path:   "test",
+		Labels: map[string]string{"abc": "123"},
+	}
+
+	destroyCalled := false
+	nm := &testutils.MockDriver{
+		MockNetworkManager: testutils.MockNetworkManager{
+			CreateNetworkF: func(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+				test.Eq(t, alloc.ID, allocID)
+				return spec, true, nil
+			},
+
+			DestroyNetworkF: func(allocID string, netSpec *drivers.NetworkIsolationSpec) error {
+				destroyCalled = true
+				test.Eq(t, alloc.ID, allocID)
+				test.Eq(t, spec, netSpec)
+				return nil
+			},
+		},
+	}
+	setter := &mockNetworkIsolationSetter{
+		t:            t,
+		expectedSpec: spec,
+	}
+	statusSetter := &mockNetworkStatus{
+		t:              t,
+		expectedStatus: mock.AllocNetworkStatus(),
+	}
+
+	logger := testlog.HCLogger(t)
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	must.NoError(t, hook.Prerun(env))
+	must.True(t, setter.called)
+	must.False(t, destroyCalled)
+	must.NoError(t, hook.Postrun())
+	must.True(t, destroyCalled)
+}
+
+// Test that prerun and postrun hooks do not expect a NetworkIsolationSpec
+func TestNetworkHook_Prerun_Postrun_host(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{
+		{Mode: "host"},
+	}
+
+	destroyCalled := false
+	nm := &testutils.MockDriver{
+		MockNetworkManager: testutils.MockNetworkManager{
+			CreateNetworkF: func(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+				test.Unreachable(t, test.Sprintf("should not call CreateNetwork for host network"))
+				return nil, false, nil
+			},
+
+			DestroyNetworkF: func(allocID string, netSpec *drivers.NetworkIsolationSpec) error {
+				destroyCalled = true
+				test.Nil(t, netSpec)
+				return nil
+			},
+		},
+	}
+	setter := &mockNetworkIsolationSetter{
+		t:            t,
+		expectedSpec: nil,
+	}
+	statusSetter := &mockNetworkStatus{
+		t:              t,
+		expectedStatus: nil,
+	}
+
+	logger := testlog.HCLogger(t)
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	must.NoError(t, hook.Prerun(env))
+	must.False(t, setter.called)
+	must.False(t, destroyCalled)
+	must.NoError(t, hook.Postrun())
+	must.True(t, destroyCalled)
+}

@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where releasing volume claims would fail with ACL errors after leadership transitions.
+```

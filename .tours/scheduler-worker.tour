@@ -1,0 +1,36 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Scheduler Worker - Start",
+  "steps": [
+    {
+      "file": "nomad/server.go",
+      "description": "## Server.NewServer()\n\nScheduler workers are started as the agent starts the `server` go routines.",
+      "line": 402
+    },
+    {
+      "file": "nomad/server.go",
+      "description": "## Server.setupWorkers()\n\nThe `setupWorkers()` function validates that there are enabled Schedulers by type and count. It then creates s.config.NumSchedulers by calling `NewWorker()`\n\nThe `_core` scheduler _**must**_ be enabled. **TODO: why?**\n",
+      "line": 1443,
+      "selection": {
+        "start": {
+          "line": 1442,
+          "character": 4
+        },
+        "end": {
+          "line": 1442,
+          "character": 12
+        }
+      }
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.NewWorker\n\nNewWorker creates the Worker and starts `run()` in a goroutine.",
+      "line": 78
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.run()\n\nThe `run()` function runs in a loop until it's paused, it's stopped, or the server indicates that it is shutting down.  All of the work the `Worker` performs should be\nimplemented in or called from here.\n",
+      "line": 152
+    }
+  ]
+}

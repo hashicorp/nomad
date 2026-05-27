@@ -1,0 +1,61 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+.inline-definitions {
+  .label {
+    text-transform: uppercase;
+    display: inline-block;
+    color: darken($grey-blue, 20%);
+    margin-right: 2rem;
+    margin-bottom: 0;
+    font-size: inherit;
+    font-weight: $weight-semibold;
+  }
+
+  &.is-faded {
+    color: darken($grey-blue, 20%);
+  }
+
+  .pair {
+    margin-right: 2em;
+    white-space: nowrap;
+
+    &.is-wrappable {
+      white-space: normal;
+      display: block;
+
+      .tag {
+        vertical-align: middle;
+      }
+    }
+
+    .term {
+      font-weight: $weight-semibold;
+      margin-right: 0.5em;
+    }
+
+    &.is-faded {
+      color: darken($grey-blue, 20%);
+    }
+
+    .has-emphasis {
+      color: $text;
+      font-weight: $weight-semibold;
+    }
+  }
+
+  .icon-field {
+    display: flex;
+    margin-left: -1em;
+
+    .icon-container {
+      width: 1.5em;
+    }
+  }
+
+  &.is-small {
+    font-size: $size-7;
+  }
+}

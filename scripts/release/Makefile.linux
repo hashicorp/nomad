@@ -1,0 +1,35 @@
+
+NOMAD_VERSION = 0.9.0-dev
+
+NOMAD_MAIN_VERSION := $(shell echo $(NOMAD_VERSION) | cut -d- -f1)
+NOMAD_PRERELEASE_VERSION := $(shell echo $(NOMAD_VERSION) | sed 's|^[^-]*-\{0,1\}||g' )
+
+update_version:
+	@echo "updating version to $(NOMAD_MAIN_VERSION)-$(NOMAD_PRERELEASE_VERSION)"
+	@sed -i.bak -e 's|\(Version * = *"\)[^"]*|\1$(NOMAD_MAIN_VERSION)|g' version/version.go
+	@sed -i.bak -e 's|\(VersionPrerelease * = *"\)[^"]*|\1$(NOMAD_PRERELEASE_VERSION)|g' version/version.go
+	@rm -rf version/version.go.bak
+
+PRERELEASE_TARGET = prerelease
+RELEASE_TARGET = release
+
+build_releases:
+	@echo "======>> installing dependencies"
+	$(MAKE) deps
+
+	@echo "======>> pre-releasing"
+	$(MAKE) $(PRERELEASE_TARGET)
+
+	@echo "======>> committing generated files"
+	git add -A .
+	find . -name '*.generated.go' -not -path './vendor/*' -exec git add -f '{}' \;
+# skip comitting files if there are no generated files
+# if prerelease process was a no-op
+	if ! git diff-index --quiet HEAD --; \
+	then \
+		git commit --author 'Nomad Release bot <nomad@hashicorp.com>' \
+			--message "Generate files for $(NOMAD_VERSION) release"; \
+	fi
+
+	@echo "======>> building release artifacts"
+	$(MAKE) $(RELEASE_TARGET)

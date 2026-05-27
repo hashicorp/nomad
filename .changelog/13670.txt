@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where task memory was reported as zero on systems using cgroups v2
+```

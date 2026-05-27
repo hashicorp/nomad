@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Add support for filtering and pagination to the node list endpoint
+```

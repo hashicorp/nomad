@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Removed deprecated network quota fields from `quota status` output
+```

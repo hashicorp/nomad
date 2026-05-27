@@ -1,0 +1,3 @@
+```release-note:security
+security: Fixed a bug in client FS API where the check to prevent reads from the secrets dir could be bypassed on case-insensitive file systems
+```

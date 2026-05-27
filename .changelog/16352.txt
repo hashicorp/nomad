@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where pause containers would be erroneously removed
+```

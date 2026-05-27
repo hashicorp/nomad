@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ "$1" = "purge" ]; then
+  userdel nomad
+fi
+
+if [ "$1" == "upgrade" ] && [ -d /run/systemd/system ]; then
+  systemctl --system daemon-reload >/dev/null || true
+  systemctl restart nomad >/dev/null || true
+fi
+
+exit 0

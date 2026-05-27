@@ -1,0 +1,3 @@
+```release-note:bug
+rawexec: Fixed a bug where oom_score_adj would be inherited from Nomad client
+```

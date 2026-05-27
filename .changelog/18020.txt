@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed error handling for cross-region requests when the receiving region does not implement the endpoint being requested
+```

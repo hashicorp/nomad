@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fix broken link to task-groups in the Recent Allocations table in the Job Detail overview page.
+```

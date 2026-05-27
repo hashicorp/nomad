@@ -1,0 +1,3 @@
+```release-note:feature
+**Variables:** Added support for storing encrypted configuration values.
+```

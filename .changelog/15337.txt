@@ -1,0 +1,3 @@
+```release-note:bug
+check: Add support for sending custom host header
+```

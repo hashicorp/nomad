@@ -1,0 +1,3 @@
+```release-note:bug
+template: Fixed a bug that caused the chage script to fail to run
+```

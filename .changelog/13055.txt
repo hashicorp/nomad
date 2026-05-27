@@ -1,0 +1,3 @@
+```release-note:bug
+lifecycle: fixed a bug where sidecar tasks were not being stopped last
+```

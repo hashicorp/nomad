@@ -1,0 +1,27 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { getOwner } from '@ember/owner';
+import Controller from '@ember/controller';
+import { action } from '@ember/object';
+import { service } from '@ember/service';
+
+export default class RunController extends Controller {
+  @service router;
+
+  queryParams = ['template', 'sourceString', 'disregardNameWarning'];
+
+  @action
+  handleSaveAsTemplate() {
+    getOwner(this)
+      .lookup('controller:jobs.run')
+      .setTemplate(this.model._newDefinition);
+  }
+
+  @action
+  onSubmit(id, namespace) {
+    this.router.transitionTo('jobs.job', `${id}@${namespace || 'default'}`);
+  }
+}

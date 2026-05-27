@@ -1,0 +1,3 @@
+```release-note:improvement
+fingerprint: add support for detecting kernel architecture of clients. (attribute: `kernel.arch`)
+```

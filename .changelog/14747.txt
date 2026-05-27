@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: allow users to upload files by click or drag in the web ui
+```

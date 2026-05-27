@@ -1,0 +1,4 @@
+```
+release-note:improvement
+Upgrade containernetworking/plugins to v1.0.1
+```

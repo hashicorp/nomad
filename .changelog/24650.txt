@@ -1,0 +1,3 @@
+```release-note:bug
+networking: use a tmpfs location for the state of CNI IPAM plugin used by bridge mode, to fix a bug where allocations would fail to restore after host reboot
+```

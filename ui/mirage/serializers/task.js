@@ -1,0 +1,10 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+import ApplicationSerializer from './application';
+
+export default ApplicationSerializer.extend({
+  embed: true,
+  include: ['services', 'schedule'],
+});

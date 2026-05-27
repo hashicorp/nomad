@@ -1,0 +1,3 @@
+```release-note:improvement
+identity: Add identity jobspec block for exposing workload identity to tasks
+```

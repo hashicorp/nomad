@@ -1,0 +1,3 @@
+```release-note:bug
+disconnect: Fixed a bug where pending evals for reconnected allocs were not cancelled
+```

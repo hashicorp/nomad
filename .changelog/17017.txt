@@ -1,0 +1,3 @@
+```release-note:improvement
+build: Publish official Docker images with the Nomad CLI
+```

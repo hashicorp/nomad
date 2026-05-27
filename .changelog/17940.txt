@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug that prevented nodes from being filtered by the "Ineligible" and "Draining" state filters
+```

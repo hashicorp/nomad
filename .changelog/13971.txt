@@ -1,0 +1,3 @@
+```release-note:improvement
+qemu: use shorter socket file names to reduce the chance of hitting the max path length
+```

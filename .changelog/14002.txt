@@ -1,0 +1,5 @@
+```release-note:improvement
+template: Expose per-template configuration for `error_on_missing_key`. This allows jobspec authors to specify that a
+template should fail if it references a struct or map key that does not exist. The default value is false and should be
+fully backward compatible.
+```

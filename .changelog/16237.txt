@@ -1,0 +1,11 @@
+```release-note:bug
+api: Fixed a bug where Variables.GetItems would panic if variable did not exist
+```
+
+```release-note:deprecation
+api: Deprecated Variables.GetItems in favor of Variables.GetVariableItems to avoid returning a pointer to a map
+```
+
+```release-note:deprecation
+api: Deprecated ErrVariableNotFound in favor of ErrVariablePathNotFound to correctly represent an error type
+```

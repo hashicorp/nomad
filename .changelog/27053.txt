@@ -1,0 +1,3 @@
+```release-note:bug
+disconnect: allocations with a `disconnect.lost_after > 0` and `replace = true` will now follow the reschedule block instead of immediately being replaced.
+```

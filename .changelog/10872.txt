@@ -1,0 +1,3 @@
+```release-note:bug
+consul/connect: Avoid assumption of parent service when syncing connect proxies
+```

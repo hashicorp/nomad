@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: trim leading and trailing spaces when parsing `X-Nomad-Token` header
+```

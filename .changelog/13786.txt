@@ -1,0 +1,3 @@
+```release-note:bug
+metrics: Fixed a bug where blocked evals with no class produced no dc:class scope metrics
+```

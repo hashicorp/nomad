@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix the link target for CSI volumes on the task detail page
+```

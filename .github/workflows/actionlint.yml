@@ -1,0 +1,15 @@
+# If the repository is public, be sure to change to GitHub hosted runners
+name: Lint GitHub Actions Workflows
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+permissions:
+  contents: read
+jobs:
+  actionlint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: "Check workflow files"
+        uses: docker://docker.mirror.hashicorp.services/rhysd/actionlint@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9

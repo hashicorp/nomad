@@ -1,0 +1,66 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Scheduler Worker - Pause",
+  "steps": [
+    {
+      "file": "nomad/leader.go",
+      "description": "## Server.establishLeadership()\n\nUpon becoming a leader, the server pauses a subset of the workers to allow for the additional burden of the leader's goroutines. The `handlePausableWorkers` function takes a boolean that states whether or not the current node is a leader or not. Because we are in `establishLeadership` we use `true` rather than calling `s.IsLeader()`",
+      "line": 233,
+      "selection": {
+        "start": {
+          "line": 233,
+          "character": 4
+        },
+        "end": {
+          "line": 233,
+          "character": 12
+        }
+      }
+    },
+    {
+      "file": "nomad/leader.go",
+      "description": "## Server.handlePausableWorkers()\n\nhandlePausableWorkers ranges over a slice of Workers and manipulates their paused state by calling their `SetPause` method.",
+      "line": 443,
+      "selection": {
+        "start": {
+          "line": 443,
+          "character": 18
+        },
+        "end": {
+          "line": 443,
+          "character": 26
+        }
+      }
+    },
+    {
+      "file": "nomad/leader.go",
+      "description": "## Server.pausableWorkers()\n\nThe pausableWorkers function provides a consistent slice of workers that the server can pause and unpause. Since the Worker array is never mutated, the same slice is returned by pausableWorkers on every invocation.\nThis comment is interesting/potentially confusing\n\n```golang\n    // Disabling 3/4 of the workers frees CPU for raft and the\n\t// plan applier which uses 1/2 the cores.\n``` \n\nHowever, the key point is that it will return a slice containg 3/4th of the workers.",
+      "line": 1100,
+      "selection": {
+        "start": {
+          "line": 1104,
+          "character": 1
+        },
+        "end": {
+          "line": 1105,
+          "character": 43
+        }
+      }
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.SetPause()\n\nThe `SetPause` function is used to signal an intention to pause the worker. Because the worker's work is happening in the `run()` goroutine, pauses happen asynchronously.",
+      "line": 91
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.dequeueEvaluation()\n\nCalls checkPaused, which will be the function we wait in if the scheduler is set to be paused. \n\n> **NOTE:** This is called here rather than in run() because this function loops in case of an error fetching a evaluation.",
+      "line": 206
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "## Worker.checkPaused()\n\nWhen `w.paused` is `true`, we call the `Wait()` function on the condition. Execution of this goroutine will stop here until it receives a `Broadcast()` or a `Signal()`. At this point, the `Worker` is paused.",
+      "line": 104
+    }
+  ]
+}

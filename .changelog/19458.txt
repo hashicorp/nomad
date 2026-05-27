@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where linux nodes with no reservable cores would panic the scheduler
+```

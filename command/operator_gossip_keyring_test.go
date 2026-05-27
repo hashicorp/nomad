@@ -1,0 +1,28 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+package command
+
+import (
+	"encoding/base64"
+	"testing"
+
+	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
+)
+
+func TestGossipKeyringGenerateCommand(t *testing.T) {
+	ci.Parallel(t)
+
+	ui := cli.NewMockUi()
+	c := &OperatorGossipKeyringGenerateCommand{Meta: Meta{Ui: ui}}
+	code := c.Run(nil)
+	must.Zero(t, code)
+
+	output := ui.OutputWriter.String()
+	result, err := base64.StdEncoding.DecodeString(output)
+	must.NoError(t, err)
+	must.Len(t, 32, result)
+
+}

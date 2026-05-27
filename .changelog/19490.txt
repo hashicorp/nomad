@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where where the environment variable / file for the Consul token weren't written.
+```

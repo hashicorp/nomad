@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: Added `scheduler get-config` and `scheduler set-config` commands to the operator CLI
+```
+
+```release-note:improvement
+core: Added the ability to pause and un-pause the eval broker and blocked eval broker
+```

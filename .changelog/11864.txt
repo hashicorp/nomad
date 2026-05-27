@@ -1,0 +1,3 @@
+```release-note:improvement
+qemu: Added option to configure `drive_interface`
+```

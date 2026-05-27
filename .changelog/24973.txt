@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Remove unrequired node read API call when attempting to stream task logs
+```

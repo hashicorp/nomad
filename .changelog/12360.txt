@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: Added `-secret` and `-parameter` flags to `volume snapshot create` command
+```

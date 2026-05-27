@@ -1,0 +1,96 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Route from '@ember/routing/route';
+import { service } from '@ember/service';
+import { collect } from '@ember/object/computed';
+import {
+  watchRecord,
+  watchNonStoreRecords,
+} from 'nomad-ui/utils/properties/watch';
+import WithWatchers from 'nomad-ui/mixins/with-watchers';
+import notifyError from 'nomad-ui/utils/notify-error';
+export default class AllocationRoute extends Route.extend(WithWatchers) {
+  @service notifications;
+  @service router;
+  @service store;
+
+  startWatchers(controller, model) {
+    if (model) {
+      controller.set('watcher', this.watch.perform(model));
+
+      const anyGroupServicesAreNomad = !!model.taskGroup?.services?.filterBy(
+        'provider',
+        'nomad',
+      ).length;
+
+      const anyTaskServicesAreNomad = model.states
+        .mapBy('task.services')
+        .compact()
+        .map((fragmentClass) => fragmentClass.mapBy('provider'))
+        .flat()
+        .some((provider) => provider === 'nomad');
+
+      // Conditionally Long Poll /checks endpoint if alloc has nomad services
+      if (anyGroupServicesAreNomad || anyTaskServicesAreNomad) {
+        controller.set(
+          'watchHealthChecks',
+          this.watchHealthChecks.perform(model, 'getServiceHealth', 2000),
+        );
+      }
+    }
+  }
+
+  async model({ allocation_id }, transition) {
+    // Preload the job for the allocation since it's required for the breadcrumb trail
+    try {
+      const [allocation] = await Promise.all([
+        this.store.findRecord('allocation', allocation_id, { reload: true }),
+        this.store.findAll('namespace'),
+      ]);
+      if (allocation.isPartial) {
+        await allocation.reload();
+      }
+      const jobId = allocation.belongsTo('job').id();
+      await this.store.findRecord('job', jobId);
+
+      // Force fragment-array materialization before first render so Ember does
+      // not lazily write `services` during template computation.
+      const groupServices = allocation.taskGroup?.services;
+      if (groupServices) {
+        Array.from(groupServices);
+      }
+      (allocation.states || []).forEach((state) => {
+        const taskServices = state?.task?.services;
+        if (taskServices) {
+          Array.from(taskServices);
+        }
+      });
+
+      return allocation;
+    } catch (e) {
+      if (e?.errors[0]?.detail === 'alloc not found' && !!transition?.from) {
+        this.notifications.add({
+          title: `Error:  Not Found`,
+          message: `Allocation of id:  ${allocation_id} was not found.`,
+          color: 'critical',
+          sticky: true,
+        });
+        this.goBackToReferrer(transition.from.name);
+      } else {
+        notifyError(this)(e);
+      }
+    }
+  }
+
+  goBackToReferrer(referringRoute) {
+    this.router.transitionTo(referringRoute);
+  }
+
+  @watchRecord('allocation') watch;
+  @watchNonStoreRecords('allocation') watchHealthChecks;
+
+  @collect('watch', 'watchHealthChecks') watchers;
+}

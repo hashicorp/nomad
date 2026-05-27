@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+fail () {
+  echo "pre-push hook: $@" >&2
+  echo "    --no-verify to bypass this hook" >&2
+  exit 1
+}
+
+if ! git rev-parse --show-toplevel > /dev/null; then
+  fail "this hook must be run from a worktree."
+fi
+
+# only push to oss when the enterprise sentinel file is absent
+# ====================
+if [ -f version/version_ent.go ]; then
+
+  # isEnterprise exits with a 0 when its first parameter matches the
+  # nomad-enterprise repo, regardless of additional optional and variable
+  # components of the remote URL, like the terminal ".git" extension
+  isEnterprise () {
+    local ent="hashicorp/nomad-enterprise"
+    local remote_url="${1}"
+    echo "${remote_url}" | grep -q -E "^((https://|((ssh://)?git@))?(www\.)?github\.com[:/])?hashicorp/nomad-enterprise(.git)?$"
+  }
+
+  if ! isEnterprise "${2}"; then
+    fail "found version/version_ent.go pushing to non-enterprise remote \"${2}\""
+  fi
+fi
+
+# do not push directly to main, stable-*, release/*
+# do not push Enterprise tags
+# ====================
+while read local_ref local_sha remote_ref remote_sha
+do
+    if [ "$remote_ref" = "refs/heads/main" ]; then
+        fail "refusing to push directly to main"
+    fi
+
+    if echo "$remote_ref"|grep -q 'refs/heads/stable-.*'; then
+        fail "refusing to push directly to a branch prefixed \`stable-\`"
+    fi
+
+    if echo "$remote_ref"|grep -q 'refs/heads/release/.*'; then
+        fail "refusing to push directly to a branch prefixed \`release/\`"
+    fi
+
+    if echo "$remote_ref" | grep -q 'refs/tags/v.*\+ent'; then
+        fail "refusing to push Nomad Enterprise tag"
+    fi
+
+    if echo "$remote_ref" | grep -q 'refs/tags/v.*\+pro'; then
+        fail "refusing to push Nomad Enterprise (pro) tag"
+    fi
+
+done

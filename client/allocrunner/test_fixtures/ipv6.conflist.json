@@ -1,0 +1,53 @@
+{
+	"cniVersion": "0.4.0",
+	"name": "nomad",
+	"plugins": [
+		{
+			"type": "loopback"
+		},
+		{
+			"type": "bridge",
+			"bridge": "nomad",
+			"ipMasq": true,
+			"isGateway": true,
+			"forceAddress": true,
+			"hairpinMode": false,
+			"ipam": {
+				"type": "host-local",
+				"ranges": [
+					[
+						{
+							"subnet": "172.26.64.0/20"
+						}
+					],
+					[
+						{
+							"subnet": "3fff:cab0:0d13::/120"
+						}
+					]
+				],
+				"routes": [
+					{
+						"dst": "0.0.0.0/0"
+					},
+					{
+						"dst": "::/0"
+					}
+				],
+				"dataDir": "/var/run/cni"
+			}
+		},
+		{
+			"type": "firewall",
+			"backend": "iptables",
+			"iptablesAdminChainName": "NOMAD-ADMIN"
+		},
+		{
+			"type": "portmap",
+			"capabilities": {
+				"portMappings": true
+			},
+			"snat": true
+		}
+	]
+}

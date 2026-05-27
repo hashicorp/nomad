@@ -1,0 +1,3 @@
+```release-note:bug
+state store: fix for setting correct status for a job version when reverting, and also fixes an issue where jobs were briefly marked dead during restarts
+```

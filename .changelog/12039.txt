@@ -1,0 +1,3 @@
+```release-note:security
+Prevent panic in spread iterator during allocation stop. [CVE-2022-24684](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-24684)
+```

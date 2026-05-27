@@ -1,0 +1,3 @@
+```release-note:bug
+reporting (Enterprise): Updated the reporting metric to utilize node active heartbeat count.
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fix a mirage-only issue where our mock token logs repeated unnecessarily
+```

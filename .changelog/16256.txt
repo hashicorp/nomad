@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed potential state store corruption when garbage collecting CSI volume claims or checking whether it's safe to force-deregister a volume
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug that caused the allocation details page to display the stats bar chart even if the task was pending.
+```

@@ -1,0 +1,3 @@
+```release-note:bug
+networking: check network namespaces on Linux during client restarts and fail the allocation if an existing namespace is invalid
+```

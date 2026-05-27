@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Updated github.com/aws/aws-sdk-go from 1.44.84 to 1.44.126
+```

@@ -1,0 +1,3 @@
+```release-note:improvement
+driver/docker: Added config option to disable container healthcheck
+```

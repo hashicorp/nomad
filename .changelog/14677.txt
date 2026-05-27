@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: attach timestamps and a visual indicator on failure to health checks in the Web UI
+```

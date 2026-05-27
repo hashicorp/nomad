@@ -1,0 +1,3 @@
+```release-note:improvement
+sentinel (Enterprise): Add existing job information to Sentinel when available.
+```

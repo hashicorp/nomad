@@ -1,0 +1,43 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<label
+  data-test-stepper-label
+  for="stepper-input-{{this.elementId}}"
+  class="stepper-input-label"
+>{{yield}}</label>
+<input
+  data-test-stepper-input
+  type="number"
+  min={{this.min}}
+  max={{this.max}}
+  value={{this.internalValue}}
+  disabled={{this.disabled}}
+  id="stepper-input-{{this.elementId}}"
+  class="stepper-input-input"
+  {{on "focus" this.selectValue}}
+  {{on "keyup" this.resetTextInput}}
+  {{on "change" this.setValue}}
+/>
+<button
+  data-test-stepper-decrement
+  aria-label="decrement"
+  class="stepper-input-stepper button {{this.class}}"
+  disabled={{or this.disabled (lte this.internalValue this.min)}}
+  {{on "click" this.decrement}}
+  type="button"
+>
+  <Hds::Icon @name="minus" />
+</button>
+<button
+  data-test-stepper-increment
+  aria-label="increment"
+  class="stepper-input-stepper button {{this.class}}"
+  disabled={{or this.disabled (gte this.internalValue this.max)}}
+  {{on "click" this.increment}}
+  type="button"
+>
+  <Hds::Icon @name="plus" />
+</button>

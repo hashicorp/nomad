@@ -1,0 +1,106 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+// Strange selector mirrors selector used in Bulma
+// https://github.com/jgthms/bulma/issues/912
+.tag:not(body) {
+  text-transform: uppercase;
+  border-radius: 200px;
+  font-weight: $weight-normal;
+  font-size: $size-7;
+  line-height: 1;
+  height: 1.5em;
+
+  &.is-pending,
+  &.is-light {
+    background: $grey-blue;
+    color: findcolorinvert(darken($grey-blue, 10%));
+  }
+
+  &.is-running {
+    background: $blue;
+    color: $blue-invert;
+  }
+
+  &.is-primary {
+    background: $primary;
+    color: $primary-invert;
+  }
+
+  &.is-complete {
+    background: $nomad-green-pale;
+    color: findcolorinvert($nomad-green-pale);
+  }
+
+  &.is-error {
+    background: $danger;
+    color: $danger-invert;
+  }
+
+  &.is-cancelled {
+    background: $orange;
+    color: $orange-invert;
+  }
+
+  &.is-unknown {
+    background: $unknown;
+    color: $primary-invert;
+  }
+
+  &.is-hollow {
+    font-weight: $weight-semibold;
+    color: darken($grey-blue, 20%);
+    background: transparent;
+  }
+
+  &.no-text-transform {
+    text-transform: none;
+  }
+
+  &.is-outlined {
+    box-shadow: 0 0 0 1px $white;
+  }
+
+  &.is-alone {
+    padding: 0;
+    margin-bottom: 1em;
+  }
+
+  &.is-small {
+    font-size: 0.7rem;
+    vertical-align: 2px;
+  }
+
+  &.is-pack {
+    position: relative;
+    top: 3px;
+  }
+
+  &.is-service {
+    text-transform: none;
+  }
+
+  .icon {
+    height: 1rem;
+    width: 1rem;
+  }
+
+  $tagPadding: 0.75em;
+
+  &.canary {
+    overflow: hidden;
+
+    &::before {
+      content: "Canary";
+      background-color: $blue-light;
+      color: $black;
+      line-height: 1.5em;
+      margin-left: -$tagPadding;
+      margin-right: $tagPadding;
+      padding: 0 $tagPadding;
+      align-self: normal;
+    }
+  }
+}

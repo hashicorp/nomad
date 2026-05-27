@@ -1,0 +1,3 @@
+```release-note:bug
+cli: `var put`: when second arg is an @-reference, check extension for format
+```

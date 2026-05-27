@@ -1,0 +1,3 @@
+```release-note:improvement
+reporting (Enterprise): Added support for offline utilization reporting
+```

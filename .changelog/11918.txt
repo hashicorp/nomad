@@ -1,0 +1,6 @@
+```
+release-note:improvement
+Update gorilla/websocket 1.4.1 to 1.4.2
+Update mitchelh/mapstructure 1.4.2 to 1.4.3
+Update stretchr/testify 1.5.1 to 1.7.0
+```

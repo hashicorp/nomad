@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# This fixture uses the old version output, without the supported CNI protocol versions.
+echo "CNI bridge plugin v1.0.2"

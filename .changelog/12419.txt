@@ -1,0 +1,3 @@
+```release-note:improvement
+drivers/raw_exec: Add support for cgroups v2 in raw_exec driver
+```

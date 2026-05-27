@@ -1,0 +1,3 @@
+```release-note:bug
+api: add missing constant for unknown allocation status
+```

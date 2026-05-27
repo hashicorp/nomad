@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where the exec window would not maintain namespace upon refresh
+```

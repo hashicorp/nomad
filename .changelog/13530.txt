@@ -1,0 +1,7 @@
+```release-note:bug
+api: Fix listing evaluations with the wildcard namespace and an ACL token
+```
+
+```release-note:bug
+ui: Fix a bug that prevented viewing the details of an evaluation in a non-default namespace
+```

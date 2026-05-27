@@ -1,0 +1,3 @@
+```release-note:bug
+job: Correctly validate any constraint attributes to ensure they conform to known formats
+```

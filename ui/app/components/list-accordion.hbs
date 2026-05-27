@@ -1,0 +1,30 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#each this.decoratedSource as |item|}}
+  {{yield
+    (hash
+      head=(component
+        "list-accordion/accordion-head"
+        isOpen=item.isOpen
+        onOpen=(queue
+          (fn (mut item.isOpen) true) (fn this.onToggle item.item item.isOpen)
+        )
+        onClose=(queue
+          (fn (mut item.isOpen) false) (fn this.onToggle item.item item.isOpen)
+        )
+      )
+      body=(component "list-accordion/accordion-body" isOpen=item.isOpen)
+      item=item.item
+      isOpen=item.isOpen
+      onOpen=(queue
+        (fn (mut item.isOpen) true) (fn this.onToggle item.item item.isOpen)
+      )
+      onClose=(queue
+        (fn (mut item.isOpen) false) (fn this.onToggle item.item item.isOpen)
+      )
+    )
+  }}
+{{/each}}

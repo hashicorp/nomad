@@ -1,0 +1,164 @@
+name: Core CI Tests
+on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/terraform/**'
+      - 'e2e/ui/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+  push:
+    branches:
+      - main
+      - release/**
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - '.changelog/**'
+      - '.tours/**'
+      - 'contributing/**'
+      - 'demo/**'
+      - 'dev/**'
+      - 'e2e/terraform/**'
+      - 'e2e/ui/**'
+      - 'integrations/**'
+      - 'pkg/**'
+      - 'scripts/**'
+      - 'terraform/**'
+      - 'ui/**'
+      - 'website/**'
+
+env:
+  VERBOSE: 1
+  GOTESTARCH: amd64
+  CONSUL_VERSION: 1.20.4
+  VAULT_VERSION: 1.18.5
+  NOMAD_SLOW_TEST: 0
+  NOMAD_TEST_LOG_LEVEL: OFF
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yaml
+
+  # Compile on Windows amd64, macOS arm64, Linux amd64, and Linux arm64.
+  #
+  # GitHub hosted Linux arm64 runners are in preview and not available to
+  # private repositories, so we must use our self-hosted runners. This also has
+  # added security benefits.
+  #
+  # The runs-on conditional cannot be placed into the matrix.os array as GitHub
+  # breaks apart any nested array within it. It subsequently uses the elements
+  # as individual runners to call runs-on.
+  compile:
+    needs: [checks]
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-22.04-arm
+          - macos-14
+          - windows-2022
+    runs-on: ${{ (endsWith(github.repository, '-enterprise')) && (matrix.os == 'ubuntu-22.04-arm') && fromJSON('["self-hosted", "ubuntu-22.04-arm64"]') || matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
+      - name: Run make dev
+        run: |
+          make bootstrap
+          make dev
+
+  tests-api:
+    needs: [checks]
+    runs-on: custom-linux-xl-nomad-22.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          cache: true
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
+      - name: Run API tests
+        env:
+          GOTEST_MOD: api
+        run: |
+          make bootstrap
+          make generate-all
+          sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
+          sudo -E env "PATH=$PATH" make test-nomad-module
+  tests-groups:
+    needs: [checks]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        groups:
+          - nomad
+          - client
+          - command
+          - drivers
+          - quick
+        runners:
+          - custom-ubuntu-22.04-xl
+          - custom-ubuntu-22.04-arm64-xl
+    runs-on: ${{matrix.runners}}
+    name: tests-groups (${{matrix.groups}}, ${{ contains(matrix.runners, '-arm64') && ' linux_arm64 )' || ' linux_amd64 )' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
+      - name: Install "driver" group dependencies
+        if: ${{ matrix.groups == 'drivers' }}
+        run: sudo apt update && sudo apt install qemu-system
+      - name: Install "command" group dependencies
+        if: ${{ matrix.groups == 'command' }}
+        run: sudo apt update && sudo apt install xdg-utils
+      - name: Run Matrix Tests
+        env:
+          GOTEST_GROUP: ${{matrix.groups}}
+        run: |
+          make bootstrap
+          make generate-all
+          make dev
+          sudo -E env "PATH=$PATH" hc-install install -version ${{env.VAULT_VERSION}} -path '${{env.GOPATH}}/bin' vault
+          sudo -E env "PATH=$PATH" hc-install install -version ${{env.CONSUL_VERSION}} -path '${{env.GOPATH}}/bin' consul
+          sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
+          sudo -E env "PATH=$PATH" make test-nomad
+
+  handle-failure:
+    needs:
+      - checks
+      - compile
+      - tests-api
+      - tests-groups
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
+permissions:
+  contents: read
+  id-token: write

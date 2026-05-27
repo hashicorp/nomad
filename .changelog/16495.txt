@@ -1,0 +1,3 @@
+```release-note:bug
+artifact: Fixed a bug where artifact downloading failed when using git-ssh
+```

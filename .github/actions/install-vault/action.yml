@@ -1,0 +1,36 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
+
+name: install-vault
+description: install HashiCorp Vault
+inputs:
+  version:
+    required: false
+    description: install HashiCorp Vault
+    default: 1.2.4
+runs:
+  using: composite
+  steps:
+  - name: Install Vault
+    run: |-
+      set -x
+
+      case "${OSTYPE}" in
+        linux*)  os="linux" ;;
+        darwin*) os="darwin" ;;
+        msys*)   os="windows" ;;
+        cygwin*)  os="windows" ;;
+        *)       echo "unknown os: ${OSTYPE}"; exit 1 ;;
+      esac
+
+      curl -SL --fail -o /tmp/vault.zip https://releases.hashicorp.com/vault/"${{ inputs.version }}"/vault_"${{ inputs.version }}"_"${os}"_amd64.zip
+
+      if [[ "${os}" != "windows" ]]; then
+        sudo unzip -d /usr/local/bin /tmp/vault.zip
+        rm -rf /tmp/vault*
+      else
+        rm -rf c:\Windows\vault.exe
+        unzip /tmp/vault.zip -d "/c/Windows"
+        rm -rf /tmp/vault*
+      fi
+    shell: bash

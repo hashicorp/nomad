@@ -1,0 +1,13 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Breadcrumb
+  @crumb={{hash
+    title="Server"
+    label=this.server.name
+    args=(array "servers.server" this.server.id)
+  }}
+/>
+{{outlet}}

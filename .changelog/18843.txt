@@ -1,0 +1,3 @@
+```release-note:breaking-change
+client/fingerprint: The `cpu.numcores.power` node attribute has been renamed to `cpu.numcores.performance` on Apple Silicon nodes
+```

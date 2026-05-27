@@ -1,0 +1,17 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import ApplicationSerializer from './application';
+import { service } from '@ember/service';
+
+export default class VersionTagSerializer extends ApplicationSerializer {
+  @service store;
+
+  serialize(snapshot, options) {
+    const hash = super.serialize(snapshot, options);
+    hash.Version = hash.VersionNumber;
+    return hash;
+  }
+}

@@ -1,0 +1,3 @@
+```release-note:bug
+client: Task vars should take precedence over host vars when performing interpolation.
+```

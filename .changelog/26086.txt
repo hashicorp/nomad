@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug in the `tls cert create` command that always added ``"<role>.global.nomad"` to the certificate DNS names, even when the specified region was not ``"global"`.
+```

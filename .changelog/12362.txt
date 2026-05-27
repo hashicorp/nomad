@@ -1,0 +1,3 @@
+```release-note:improvement
+server: store and check previous Raft protocol version to prevent downgrades
+```

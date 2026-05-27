@@ -1,0 +1,83 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+section.notifications {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: $z-notification;
+  justify-items: right;
+  display: grid;
+
+  .flash-message {
+    &:not(:last-child) {
+      margin-bottom: 1rem;
+    }
+
+    $toastPadding: 16px;
+    $toastIconSize: 20px;
+    $toastIconPadding: 12px;
+    $codeDeMargin: -($toastPadding + $toastIconSize + $toastIconPadding);
+    $codeBottomMargin: 18px;
+
+    code {
+      background-color: black;
+      color: white;
+      display: block;
+      padding: 0.25rem;
+      height: 200px;
+      overflow: auto;
+      position: relative;
+      margin: 1rem $codeDeMargin -$codeBottomMargin;
+      width: 500px;
+    }
+
+    pre {
+      display: inline-block;
+      background: inherit;
+      color: inherit;
+      border: none;
+      white-space: pre;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .follows-code {
+      margin-top: calc(1rem + $codeBottomMargin);
+    }
+  }
+}
+
+.time-based-alert {
+  .hds-alert__content {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .hds-alert__text {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+  }
+
+  .hds-alert__actions {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+  }
+
+  .hds-code-block {
+    grid-column: 2 / 3;
+    grid-row: 1 / 3;
+    place-self: start end;
+  }
+
+  .hds-code-block {
+    pre {
+      background-color: unset;
+    }
+  }
+}

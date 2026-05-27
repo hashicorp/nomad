@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: fix executor leak when drivers error starting tasks
+```

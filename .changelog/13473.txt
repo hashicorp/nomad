@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where dispatched children of parameterized jobs wouldn't display metadata or payloads
+``

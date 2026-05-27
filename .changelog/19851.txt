@@ -1,0 +1,3 @@
+```release-note:security
+deps: Updated runc to 1.1.12 to address CVE-2024-21626
+```

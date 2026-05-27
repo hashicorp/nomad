@@ -1,0 +1,27 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: BUSL-1.1
+
+package nomad
+
+import (
+	"fmt"
+
+	"github.com/hashicorp/nomad/nomad/peers"
+	"github.com/hashicorp/serf/serf"
+)
+
+// serfMergeDelegate is used to handle a cluster merge on the gossip
+// ring. We check that the peers are nomad servers and abort the merge
+// otherwise.
+type serfMergeDelegate struct {
+}
+
+func (md *serfMergeDelegate) NotifyMerge(members []*serf.Member) error {
+	for _, m := range members {
+		ok, _ := peers.IsNomadServer(*m)
+		if !ok {
+			return fmt.Errorf("member '%s' is not a server", m.Name)
+		}
+	}
+	return nil
+}

@@ -1,0 +1,3 @@
+```release-note:improvement
+template: Expose consul-template configuration options at the client level for `nomad_retry`.
+```

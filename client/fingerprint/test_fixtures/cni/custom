@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "Custom v1.2.3 Plugin"
+

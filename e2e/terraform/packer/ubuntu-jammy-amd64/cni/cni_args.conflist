@@ -1,0 +1,9 @@
+{
+	"cniVersion": "1.0.0",
+	"name": "cni_args",
+	"plugins": [
+		{
+		    "type": "cni_args.sh"
+		}
+	]
+}

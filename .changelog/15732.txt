@@ -1,0 +1,3 @@
+```release-note:bug
+docker: configure restart policy for bridge network pause container
+```

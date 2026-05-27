@@ -1,0 +1,3 @@
+```release-note:bug
+vault: Fixed a bug where non-periodic tokens would not have their TTL incremented to the lease duration
+```

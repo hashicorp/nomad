@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: provide `-no-shutdown-delay` option to `job stop` and `alloc stop` commands to ignore `shutdown_delay`
+```

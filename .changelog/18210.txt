@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: adds keyboard commands for pagination on lists using [[ and ]]
+```

@@ -1,0 +1,30 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import { Factory } from 'miragejs';
+
+export default Factory.extend({
+  groupNames: [],
+
+  jobId: '',
+  JobID() {
+    return this.jobId;
+  },
+  namespace: null,
+  shallow: false,
+
+  afterCreate(jobScale, server) {
+    const groups = jobScale.groupNames.map((group) =>
+      server.create('task-group-scale', {
+        id: group,
+        shallow: jobScale.shallow,
+      }),
+    );
+
+    jobScale.update({
+      taskGroupScaleIds: groups.map((group) => group.id),
+    });
+  },
+});

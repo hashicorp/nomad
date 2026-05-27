@@ -1,0 +1,3 @@
+```release-note:bug
+client: clean up resources upon failure to restore task during client restart
+```

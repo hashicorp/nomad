@@ -1,0 +1,3 @@
+```release-note:bug
+qemu: restore the monitor socket path when restoring a QEMU task.
+```

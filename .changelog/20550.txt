@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where concurrent mount and unmount operations could unstage volumes needed by another allocation
+```

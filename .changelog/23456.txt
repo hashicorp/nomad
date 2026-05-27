@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed support for namespace parameter on job statuses API
+```

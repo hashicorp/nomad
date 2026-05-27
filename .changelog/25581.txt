@@ -1,0 +1,3 @@
+```release-note:improvement
+cni: Add a warning log when CNI check commands fail
+```

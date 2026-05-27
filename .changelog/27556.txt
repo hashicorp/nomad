@@ -1,0 +1,3 @@
+```release-note:improvement
+acl (Enterprise): Added `sentinel` policy block to allow managing Sentinel policies without a management token
+```

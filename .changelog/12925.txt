@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug that prevented the UI task exec functionality to work from behind a reverse proxy.
+```

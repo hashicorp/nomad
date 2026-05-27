@@ -1,0 +1,3 @@
+```release-note:bug
+event stream: Fixed a bug where undefined ACL policies on the request's ACL would result in incorrect authentication errors
+```

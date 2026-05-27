@@ -1,0 +1,57 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Scheduler Worker - Hot Reload",
+  "steps": [
+    {
+      "file": "nomad/server.go",
+      "description": "## Server.Reload()\n\nServer configuration reloads start here.",
+      "line": 782,
+      "selection": {
+        "start": {
+          "line": 780,
+          "character": 4
+        },
+        "end": {
+          "line": 780,
+          "character": 10
+        }
+      }
+    },
+    {
+      "file": "nomad/server.go",
+      "description": "## Did NumSchedulers change?\nIf the number of schedulers has changed between the running configuration and the new one we need to adopt that change in realtime.",
+      "line": 812
+    },
+    {
+      "file": "nomad/server.go",
+      "description": "## Server.setupNewWorkers()\n\nsetupNewWorkers performs three tasks:\n\n- makes a copy of the existing worker pointers\n\n- creates a fresh array and loads a new set of workers into them\n\n- iterates through the \"old\" workers and shuts them down in individual\n  goroutines for maximum parallelism",
+      "line": 1482,
+      "selection": {
+        "start": {
+          "line": 1480,
+          "character": 4
+        },
+        "end": {
+          "line": 1480,
+          "character": 12
+        }
+      }
+    },
+    {
+      "file": "nomad/server.go",
+      "description": "Once all of the work in setupNewWorkers is complete, we stop the old ones.",
+      "line": 1485
+    },
+    {
+      "file": "nomad/server.go",
+      "description": "The `stopOldWorkers` function iterates through the array of workers and calls their `Shutdown` method\nas a goroutine to prevent blocking.",
+      "line": 1505
+    },
+    {
+      "file": "nomad/worker.go",
+      "description": "The `Shutdown` method sets `w.stop` to true signaling that we intend for the `Worker` to stop the next time we consult it.  We also manually unpause the `Worker` by setting w.paused to false and sending a `Broadcast()` via the cond.",
+      "line": 110
+    }
+  ],
+  "ref": "f-reload-num-schedulers"
+}

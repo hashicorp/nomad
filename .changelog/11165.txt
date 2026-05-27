@@ -1,0 +1,3 @@
+```release-note:bug
+jobspec: ensure consistent error handling between var-file & cli vars
+```

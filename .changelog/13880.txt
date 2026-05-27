@@ -1,0 +1,3 @@
+```release-note:bug
+namespaces: Fixed a bug that allowed deleting a namespace that contained a CSI volume
+```

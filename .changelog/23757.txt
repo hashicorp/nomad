@@ -1,0 +1,3 @@
+```release-note:improvement
+acl: Submitting a policy with a leading `/` in a variable path will now return an error to prevent improperly working policies.
+```

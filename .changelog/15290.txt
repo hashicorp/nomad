@@ -1,0 +1,3 @@
+```release-note:bug
+autopilot: Fixed a bug where autopilot would try to fetch raft stats from other regions
+```

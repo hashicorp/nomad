@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where collisions in dynamic port offerings would result in spurious plan-for-node-rejected errors
+```

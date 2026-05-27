@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where reserved ports on multiple node networks would be treated as a collision. `client.reserved.reserved_ports` is now merged into each `host_network`'s reserved ports instead of being treated as a collision.
+```

@@ -1,0 +1,7 @@
+```release-note:improvement
+docker: Added support for reserved-only memory oversubscription without a hard limit
+```
+
+```release-note:improvement
+exec: Added support for reserved-only memory oversubscription without a hard limit
+```
