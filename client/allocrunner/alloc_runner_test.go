@@ -1327,6 +1327,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	must.NoError(t, err)
 	defer destroy(ar2)
 
+	must.NoError(t, ar2.(*allocRunner).allocDir.Build())
 	if err := ar2.Restore(); err != nil {
 		t.Fatalf("error restoring state: %v", err)
 	}
@@ -1403,6 +1404,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	arIface2, err := NewAllocRunner(conf)
 	must.NoError(t, err)
 	ar2 := arIface2.(*allocRunner)
+	must.NoError(t, ar2.allocDir.Build())
 	must.NoError(t, ar2.Restore())
 
 	go ar2.Run()
@@ -1418,6 +1420,33 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["side"].Task())
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["web"].Task())
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["poststart"].Task())
+}
+
+// TestAllocRunner_Restore_MissingAllocDir asserts that Restore() fails when the
+// allocation directory is missing, which can happen if allocation storage is
+// ephemeral (e.g., tmpfs or cloud local SSDs).
+func TestAllocRunner_Restore_MissingAllocDir(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	// Get the allocation directory path before deleting it
+	allocDirPath := ar.allocDir.AllocDirPath()
+
+	// Remove the allocation directory to simulate ephemeral storage being deleted
+	err = os.RemoveAll(allocDirPath)
+	must.NoError(t, err)
+
+	// Call Restore() and verify it fails with appropriate error
+	err = ar.Restore()
+	must.Error(t, err)
+	must.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
