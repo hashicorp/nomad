@@ -31,3 +31,39 @@ func NewConstraint(left, operand, right string) *Constraint {
 		Operand: operand,
 	}
 }
+
+// Dependency is used to serialize a job placement dependency.
+type Dependency struct {
+	Name   string `hcl:"name,label"`
+	Output string `hcl:"output,optional"`
+	Job    string `hcl:"job"`
+}
+
+func NewDependency(name, job, output string) *Dependency {
+	return &Dependency{
+		Name:   name,
+		Job:    job,
+		Output: output,
+	}
+}
+
+func (d *Dependency) Canonicalize() {
+	if d.Name == "" {
+		d.Name = d.Job
+	}
+
+	if d.Output == "" {
+		d.Output = "dead"
+	}
+}
+
+func (d *Dependency) Copy() *Dependency {
+	if d == nil {
+		return nil
+	}
+	return &Dependency{
+		Job:    d.Job,
+		Output: d.Output,
+		Name:   d.Name,
+	}
+}
