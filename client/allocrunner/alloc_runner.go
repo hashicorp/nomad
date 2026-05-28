@@ -239,6 +239,12 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		return nil, fmt.Errorf("failed to lookup task group %q", alloc.TaskGroup)
 	}
 
+	var err error
+	tg, err = migrateTaskGroup(tg, config.ClientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to migrate task group %q: %w", alloc.TaskGroup, err)
+	}
+
 	ar := &allocRunner{
 		id:                       alloc.ID,
 		alloc:                    alloc,
@@ -1651,4 +1657,97 @@ func (ar *allocRunner) setHookStatsHandler(ns string) {
 		labels = append(labels, metrics.Label{Name: "namespace", Value: ns})
 		ar.hookStatsHandler = hookstats.NewHandler(labels, "alloc_hook")
 	}
+}
+
+// migrateTaskGroup allows the allocrunner to add missing features such as
+// implicit workload identities on the task group before we try to restore
+// it. It returns either the original task group unmodified or a copy
+func migrateTaskGroup(tg *structs.TaskGroup, cfg *config.Config) (*structs.TaskGroup, error) {
+
+	// copying the task group is expensive, so track any required changes and
+	// then apply them to a copy only if we need to
+	groupSvcWI := map[string]*structs.WorkloadIdentity{}
+	taskSvcWI := map[string]map[string]*structs.WorkloadIdentity{}
+	taskWI := map[string][]*structs.WorkloadIdentity{}
+
+	for _, service := range tg.Services {
+		if service.Identity == nil && service.Provider != structs.ServiceProviderNomad {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name:        service.MakeUniqueIdentityName(),
+				ServiceName: service.Name,
+			}
+			groupSvcWI[service.Name] = fallbackWI
+		}
+	}
+
+	for _, task := range tg.Tasks {
+
+		for _, service := range task.Services {
+			if service.Identity == nil && service.Provider != structs.ServiceProviderNomad {
+				fallbackWI := &structs.WorkloadIdentity{
+					Name:        service.MakeUniqueIdentityName(),
+					ServiceName: service.Name,
+				}
+				taskSvcWI[task.Name][service.Name] = fallbackWI
+			}
+		}
+
+		if len(task.Identities) > 0 {
+			continue // note the default identity is not included here
+		}
+		taskWI[task.Name] = []*structs.WorkloadIdentity{}
+		if task.Vault != nil {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: task.Vault.IdentityName(),
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		}
+
+		if task.Consul != nil {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: task.Consul.IdentityName(),
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		} else if tg.Consul != nil {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: tg.Consul.IdentityName(),
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		} else if cfg.TemplateConfig.DeriveConsulToken {
+			fallbackWI := &structs.WorkloadIdentity{
+				Name: task.Consul.IdentityName(), // will be safe with nil
+			}
+			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+		}
+	}
+
+	if len(groupSvcWI) > 0 || len(taskSvcWI) > 0 || len(taskWI) > 0 {
+		// this copy is expensive, so only do it if we need it
+		tg = tg.Copy()
+
+		for i, svc := range tg.Services {
+			if wid, ok := groupSvcWI[svc.Name]; ok {
+				svc.Identity = wid
+				tg.Services[i] = svc
+			}
+		}
+		for i, task := range tg.Tasks {
+			if wids, ok := taskSvcWI[task.Name]; ok {
+				for j, svc := range task.Services {
+					if wid, ok := wids[svc.Name]; ok {
+						svc.Identity = wid
+						task.Services[j] = svc
+					}
+				}
+				tg.Tasks[i] = task
+			}
+			if wids, ok := taskWI[task.Name]; ok {
+				task.Identities = append(task.Identities, wids...)
+				tg.Tasks[i] = task
+			}
+		}
+
+	}
+
+	return tg, nil
 }
