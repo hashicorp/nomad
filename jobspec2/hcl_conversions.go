@@ -33,8 +33,14 @@ func newHCLDecoder() *gohcl.Decoder {
 	decoder.RegisterExpressionDecoder(reflect.TypeFor[*time.Duration](), decodeDuration)
 
 	// custom nomad types
+<<<<<<< HEAD
 	decoder.RegisterBlockDecoder(reflect.TypeFor[api.Affinity](), decodeAffinity)
 	decoder.RegisterBlockDecoder(reflect.TypeFor[api.Constraint](), decodeConstraint)
+=======
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Dependency{}), decodeDependency)
+>>>>>>> 6f1e7547ba (func: add new dependency constraint)
 
 	return decoder
 }
@@ -260,7 +266,43 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnost
 	return diags
 }
 
+<<<<<<< HEAD
 func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnostics {
+=======
+var dependencySpec = hcldec.ObjectSpec{
+	"job":    &hcldec.AttrSpec{Name: "job", Type: cty.String, Required: true},
+	"output": &hcldec.AttrSpec{Name: "output", Type: cty.String, Required: false},
+	"name":   &hcldec.AttrSpec{Name: "name", Type: cty.String, Required: false},
+}
+
+func decodeDependency(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	d := val.(*api.Dependency)
+
+	v, diags := hcldec.Decode(body, dependencySpec, ctx)
+	if len(diags) != 0 {
+		return diags
+	}
+
+	attr := func(name string) string {
+		a := v.GetAttr(name)
+		if a.IsNull() {
+			return ""
+		}
+		return a.AsString()
+	}
+
+	d.Job = attr("job")
+	d.Output = attr("output")
+
+	if d.Name == "" {
+		d.Name = attr("name")
+	}
+
+	return diags
+}
+
+func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+>>>>>>> 6f1e7547ba (func: add new dependency constraint)
 	tg := val.(*api.TaskGroup)
 
 	var diags hcl.Diagnostics
