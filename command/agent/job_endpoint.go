@@ -1145,6 +1145,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Version:        *job.Version,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
+		Dependencies:   ApiDependenciesToStructs(job.Dependencies),
 		UI:             ApiJobUIConfigToStructs(job.UI),
 		VersionTag:     ApiJobVersionTagToStructs(job.VersionTag),
 	}
@@ -2260,6 +2261,31 @@ func ApiAffinitiesToStructs(in []*api.Affinity) []*structs.Affinity {
 	}
 
 	return out
+}
+
+func ApiDependenciesToStructs(in []*api.Dependency) []*structs.Dependency {
+	if in == nil {
+		return nil
+	}
+
+	out := make([]*structs.Dependency, len(in))
+	for i, dep := range in {
+		out[i] = ApiDependencyToStructs(dep)
+	}
+
+	return out
+}
+
+func ApiDependencyToStructs(in *api.Dependency) *structs.Dependency {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.Dependency{
+		Job:    in.Job,
+		Output: in.Output,
+		Name:   in.Name,
+	}
 }
 
 func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {

@@ -46,15 +46,11 @@ const (
 	// For Client configuration, if no region information is given,
 	// the client node will default to be part of the GlobalRegion.
 	GlobalRegion = "global"
-)
 
-const (
 	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
 	// enforcing the job modify index during registers.
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
-)
 
-const (
 	// JobPeriodicLaunchSuffix is the string appended to the periodic jobs ID
 	// when launching derived instances of it.
 	JobPeriodicLaunchSuffix = "/periodic-"
@@ -62,6 +58,10 @@ const (
 	// JobDispatchLaunchSuffix is the string appended to the parameterized job's ID
 	// when dispatching instances of it.
 	JobDispatchLaunchSuffix = "/dispatch-"
+
+	JobStatusPending = "pending" // Pending means the job is waiting on scheduling
+	JobStatusRunning = "running" // Running means the job has non-terminal allocations
+	JobStatusDead    = "dead"    // Dead means all evaluation's and allocations are terminal
 )
 
 // Jobs is used to access the job-specific endpoints.
@@ -1115,6 +1115,7 @@ type Job struct {
 	Datacenters      []string                `hcl:"datacenters,optional"`
 	NodePool         *string                 `mapstructure:"node_pool" hcl:"node_pool,optional"`
 	Constraints      []*Constraint           `hcl:"constraint,block"`
+	Dependencies     []*Dependency           `hcl:"dependency,block"`
 	Affinities       []*Affinity             `hcl:"affinity,block"`
 	TaskGroups       []*TaskGroup            `hcl:"group,block"`
 	Update           *UpdateStrategy         `hcl:"update,block"`
@@ -1245,6 +1246,10 @@ func (j *Job) Canonicalize() {
 	}
 	for _, a := range j.Affinities {
 		a.Canonicalize()
+	}
+
+	for _, d := range j.Dependencies {
+		d.Canonicalize()
 	}
 
 	if j.UI != nil {
@@ -1396,6 +1401,12 @@ func (j *Job) AddDatacenter(dc string) *Job {
 // Constrain is used to add a constraint to a job.
 func (j *Job) Constrain(c *Constraint) *Job {
 	j.Constraints = append(j.Constraints, c)
+	return j
+}
+
+// Depend is used to add a dependency to a job.
+func (j *Job) Depend(d *Dependency) *Job {
+	j.Dependencies = append(j.Dependencies, d)
 	return j
 }
 
