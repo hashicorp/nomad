@@ -17,7 +17,7 @@ func TestJobs_BatchQueue_Status(t *testing.T) {
 	defer s.Stop()
 	jobs := c.Jobs()
 
-	// Listing jobs before registering returns nothing
+	// The passthrough queue just returns the unset type
 	resp, _, err := jobs.BatchQueueStatus(nil, nil)
 	must.NoError(t, err)
 	must.Eq(t, resp.Type, "unset")
