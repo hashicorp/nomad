@@ -235,7 +235,7 @@ const (
 	SchedulerAlgorithmBinpack SchedulerAlgorithm = "binpack"
 	SchedulerAlgorithmSpread  SchedulerAlgorithm = "spread"
 
-	BatchQueueTypeDynamic BatchQueueType = "dynamicPriority"
+	BatchQueueTypeDynamic BatchQueueType = "dynamic_priority"
 
 	TenantTypeMetadata  BatchQueueTenant = "metadata"
 	TenantTypeNamespace BatchQueueTenant = "namespace"
