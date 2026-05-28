@@ -4443,6 +4443,12 @@ type Job struct {
 	// scheduling preferences that apply to all groups and tasks
 	Affinities []*Affinity
 
+	// Dependencies can be specified at a job level, it used to express
+	// inter-job dependencies, such as "job A cannot start until job B is
+	// running". This can be used to express complex workflows with multiple
+	//  jobs.
+	Dependencies []*Dependency
+
 	// Spread can be specified at the job level to express spreading
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
@@ -10935,4 +10941,46 @@ func NewRpcError(err error, code *int64) *RpcError {
 
 func (r *RpcError) Error() string {
 	return r.Message
+}
+
+// A Dependency is used to restrict placement options.
+type Dependency struct {
+	Name   string
+	Output string
+	Job    string
+}
+
+// Equal checks if two dependencies are equal.
+func (d *Dependency) Equal(o *Dependency) bool {
+	return d == o ||
+		d.Output == o.Output &&
+			d.Job == o.Job
+}
+
+func (d *Dependency) Copy() *Dependency {
+	if d == nil {
+		return nil
+	}
+	return &Dependency{
+		Output: d.Output,
+		Job:    d.Job,
+	}
+}
+
+func (d *Dependency) String() string {
+	return fmt.Sprintf("%s: %s %s", d.Name, d.Output, d.Job)
+}
+
+func (d *Dependency) Validate() error {
+	var mErr multierror.Error
+	if d.Job == "" {
+		mErr.Errors = append(mErr.Errors, errors.New("Missing job in dependency"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// DiffID fulfills the DiffableWithID interface.
+func (d *Dependency) DiffID() string {
+	return d.String()
 }

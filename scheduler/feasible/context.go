@@ -18,6 +18,7 @@ import (
 
 // Context is used to track contextual information used for placement
 type Context interface {
+	ConstraintContext
 	// State is used to inspect the current global state
 	State() sstructs.State
 
@@ -27,9 +28,6 @@ type Context interface {
 	// Logger provides a way to log
 	Logger() log.Logger
 
-	// Metrics returns the current metrics
-	Metrics() *structs.AllocMetric
-
 	// Reset is invoked after making a placement
 	Reset()
 
@@ -37,15 +35,6 @@ type Context interface {
 	// the existing allocations, removing evictions, and adding any planned
 	// placements.
 	ProposedAllocs(nodeID string) ([]*structs.Allocation, error)
-
-	// RegexpCache is a cache of regular expressions
-	RegexpCache() map[string]*regexp.Regexp
-
-	// VersionConstraintCache is a cache of version constraints
-	VersionConstraintCache() map[string]VerConstraints
-
-	// SemverConstraintCache is a cache of semver constraints
-	SemverConstraintCache() map[string]VerConstraints
 
 	// Eligibility returns a tracker for node eligibility in the context of the
 	// eval.
@@ -263,7 +252,8 @@ func (e *EvalEligibility) Reset() {
 // at the job and task group level.
 func (e *EvalEligibility) SetJob(job *structs.Job) {
 	// Determine whether the job has escaped constraints.
-	e.jobEscaped = len(structs.EscapedConstraints(job.Constraints)) != 0
+	e.jobEscaped = len(structs.EscapedConstraints(job.Constraints)) != 0 ||
+		len(job.Dependencies) != 0
 
 	// Determine the escaped constraints per task group.
 	for _, tg := range job.TaskGroups {
