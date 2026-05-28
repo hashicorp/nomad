@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -768,7 +770,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	}
 
 	if req.Deployment != nil {
-		// Cancel any preivous deployment.
+		// Cancel any previous deployment.
 		lastDeployment, err := n.state.LatestDeploymentByJobID(ws, req.Job.Namespace, req.Job.ID)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve latest deployment: %v", err)
@@ -1054,15 +1056,17 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.
 	for _, alloc := range req.Alloc {
+
+		nodeID := alloc.NodeID
+		node, err := n.state.NodeByID(ws, nodeID)
+		if err != nil || node == nil {
+			n.logger.Error("looking up node failed", "node_id", nodeID, "error", err)
+			return err
+
+		}
+
 		if alloc.ClientStatus == structs.AllocClientStatusComplete ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
-			nodeID := alloc.NodeID
-			node, err := n.state.NodeByID(ws, nodeID)
-			if err != nil || node == nil {
-				n.logger.Error("looking up node failed", "node_id", nodeID, "error", err)
-				return err
-
-			}
 
 			// Unblock any associated quota
 			quota, err := n.allocQuota(alloc.ID)
@@ -1074,6 +1078,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
 			n.blockedEvals.UnblockNode(node.ID)
 		}
+		n.blockedEvals.Unblock(node.ComputedClass, index)
 	}
 
 	// It's possible that allocs on different nodes were marked unknown in the
@@ -3408,4 +3413,75 @@ func (s SnapshotType) String() string {
 type TimeTableEntry struct {
 	Index uint64
 	Time  time.Time
+}
+
+type dependecy struct {
+	cancelFunc context.CancelFunc
+	job        *structs.Job
+}
+
+type Coordinator struct {
+	logger      hclog.Logger
+	state       sstructs.State
+	l           sync.RWMutex
+	dependecies map[string]*dependecy
+	evalBroker  *nomad.EvalBroker
+}
+
+func (c *Coordinator) AddDependecy(ctx context.Context, eval *structs.Evaluation) {
+
+	d := time.Now().Add(100 * time.Millisecond)
+
+	job, err := c.state.JobByID(nil, eval.Namespace, eval.ID)
+	if err != nil {
+		c.logger.Error("coordinator error: looking up job: %w", err)
+	}
+
+	ctx, cancel := context.WithDeadline(ctx, d) //configuredMaximumWaitTime)
+	c.dependecies[eval.JobID] = &dependecy{
+		cancelFunc: cancel,
+		job:        job,
+	}
+
+	go c.waitForDependency(ctx, eval)
+}
+
+func (c *Coordinator) waitForDependency(ctx context.Context, eval *structs.Evaluation) {
+
+	for {
+		ws := memdb.NewWatchSet()
+		dj := []*structs.Job{}
+		for _, dep := range c.dependecies[eval.JobID].job.Dependencies {
+			j, err := c.state.JobByID(ws, eval.Namespace, dep.Job)
+			if err != nil {
+				c.logger.Error("coordinator error: looking up job: %w", err)
+			}
+
+			dj = append(dj, j)
+		}
+
+		select {
+		case <-ws.WatchCh(ctx):
+			ready, err := c.verifyDependency(eval.JobID, dj...)
+			if err != nil {
+				c.logger.Error("dependecy error: %w", err)
+				return
+			}
+
+			if ready {
+				c.l.Lock()
+				defer c.l.Unlock()
+
+				delete(c.dependecies, eval.ID)
+				return
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (c *Coordinator) verifyDependency(dependantJob string, dependeeJob ...*structs.Job) (bool, error) {
+	return true, nil
 }
