@@ -43,7 +43,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 		{
 			Name:      "foo",
 			PortLabel: "8888",
-			Provider:  structs.ServiceProviderConsul,
+			Provider:  structs.ServiceProviderNomad,
 		},
 	}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
@@ -132,6 +132,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	//    - removal during exited is de-duped due to prekill
 	//    - removal during stop is de-duped due to prekill
 	//   1 removal group during stop
+
 	consulOps := conf2.ConsulServices.(*regMock.ServiceRegistrationHandler).GetOps()
 	require.Len(t, consulOps, 2)
 	for _, op := range consulOps {

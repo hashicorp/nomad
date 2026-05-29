@@ -26,12 +26,13 @@ func Node() *structs.Node {
 			},
 		},
 		Attributes: map[string]string{
-			"kernel.name":        "linux",
-			"arch":               "x86",
-			"nomad.version":      "0.5.0",
-			"driver.exec":        "1",
-			"driver.mock_driver": "1",
-			"consul.version":     "1.11.4",
+			"kernel.name":             "linux",
+			"arch":                    "x86",
+			"nomad.version":           "1.8.0",
+			"driver.exec":             "1",
+			"driver.mock_driver":      "1",
+			"consul.version":          "1.11.4",
+			"nomad.service_discovery": "true",
 		},
 		NodeResources: &structs.NodeResources{
 			Processors: structs.NodeProcessorResources{

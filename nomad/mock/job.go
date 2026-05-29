@@ -39,6 +39,16 @@ func Job() *structs.Job {
 						RTarget: ">= 1.8.0",
 						Operand: structs.ConstraintSemver,
 					},
+					{
+						LTarget: "${attr.nomad.service_discovery}",
+						RTarget: "true",
+						Operand: "=",
+					},
+					{
+						LTarget: "${attr.nomad.version}",
+						RTarget: ">= 1.4.0",
+						Operand: "semver",
+					},
 				},
 				EphemeralDisk: &structs.EphemeralDisk{
 					SizeMB: 150,
@@ -98,14 +108,14 @@ func Job() *structs.Job {
 						Services: []*structs.Service{
 							{
 								Name:      "${TASK}-frontend",
+								Provider:  "nomad",
 								PortLabel: "http",
 								Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
 								Checks: []*structs.ServiceCheck{
 									{
-										Name:     "check-table",
-										Type:     structs.ServiceCheckScript,
-										Command:  "/usr/local/check-table-${meta.database}",
-										Args:     []string{"${meta.version}"},
+										Name:     "check-health",
+										Type:     structs.ServiceCheckHTTP,
+										Path:     "${meta.version}/healthz",
 										Interval: 30 * time.Second,
 										Timeout:  5 * time.Second,
 									},
@@ -114,6 +124,7 @@ func Job() *structs.Job {
 							},
 							{
 								Name:      "${TASK}-admin",
+								Provider:  "nomad",
 								PortLabel: "admin",
 								Cluster:   "default",
 							},
@@ -237,14 +248,14 @@ func MultiTaskGroupJob() *structs.Job {
 				Services: []*structs.Service{
 					{
 						Name:      "${TASK}-backend",
+						Provider:  "nomad",
 						PortLabel: "http",
 						Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
 						Checks: []*structs.ServiceCheck{
 							{
-								Name:     "check-table",
-								Type:     structs.ServiceCheckScript,
-								Command:  "/usr/local/check-table-${meta.database}",
-								Args:     []string{"${meta.version}"},
+								Name:     "check-health",
+								Type:     structs.ServiceCheckHTTP,
+								Path:     "${meta.version}/healthz",
 								Interval: 30 * time.Second,
 								Timeout:  5 * time.Second,
 							},
@@ -253,6 +264,7 @@ func MultiTaskGroupJob() *structs.Job {
 					},
 					{
 						Name:      "${TASK}-admin",
+						Provider:  "nomad",
 						PortLabel: "admin",
 						Cluster:   "default",
 					},
@@ -565,14 +577,14 @@ func MaxParallelJob() *structs.Job {
 						Services: []*structs.Service{
 							{
 								Name:      "${TASK}-frontend",
+								Provider:  "nomad",
 								PortLabel: "http",
 								Tags:      []string{"pci:${meta.pci-dss}", "datacenter:${node.datacenter}"},
 								Checks: []*structs.ServiceCheck{
 									{
-										Name:     "check-table",
-										Type:     structs.ServiceCheckScript,
-										Command:  "/usr/local/check-table-${meta.database}",
-										Args:     []string{"${meta.version}"},
+										Name:     "check-health",
+										Type:     structs.ServiceCheckHTTP,
+										Path:     "${meta.version}/healthz",
 										Interval: 30 * time.Second,
 										Timeout:  5 * time.Second,
 									},
@@ -581,6 +593,7 @@ func MaxParallelJob() *structs.Job {
 							},
 							{
 								Name:      "${TASK}-admin",
+								Provider:  "nomad",
 								PortLabel: "admin",
 								Cluster:   "default",
 							},

@@ -6442,11 +6442,8 @@ func TestJobEndpoint_ImplicitConstraints_Vault(t *testing.T) {
 		t.Fatalf("index mis-match")
 	}
 
-	// Check that there is an implicit Vault and Consul constraint.
-	require.Len(t, out.TaskGroups[0].Constraints, 2)
-	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
-		consulServiceDiscoveryConstraint, vaultConstraint,
-	})
+	// Check that there is an implicit Vault constraint.
+	must.SliceContains(t, out.TaskGroups[0].Constraints, vaultConstraint)
 }
 
 func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
@@ -6503,6 +6500,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 	t.Run("valid consul connect", func(t *testing.T) {
 		j := mock.Job()
 		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
+		j.TaskGroups[0].Tasks[0].Services = nil // these are provider=nomad
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6515,6 +6513,7 @@ func TestJobEndpoint_ValidateJob_ConsulConnect(t *testing.T) {
 	t.Run("valid consul connect with cni", func(t *testing.T) {
 		j := mock.Job()
 		j.TaskGroups[0].Tasks[0].ShutdownDelay = time.Second
+		j.TaskGroups[0].Tasks[0].Services = nil // these are provider=nomad
 
 		tg := j.TaskGroups[0]
 		tg.Services = tgServices
@@ -6611,10 +6610,9 @@ func TestJobEndpoint_ImplicitConstraints_Signals(t *testing.T) {
 	}
 
 	// Check that there is an implicit signal and Consul constraint.
-	require.Len(t, out.TaskGroups[0].Constraints, 2)
-	require.ElementsMatch(t, out.TaskGroups[0].Constraints, []*structs.Constraint{
-		getSignalConstraint([]string{signal1, signal2}), consulServiceDiscoveryConstraint},
-	)
+	must.SliceContains(t, out.TaskGroups[0].Constraints,
+		getSignalConstraint([]string{signal1, signal2}))
+	must.SliceContains(t, out.TaskGroups[0].Constraints, consulServiceDiscoveryConstraint)
 }
 
 func TestJobEndpoint_ValidateJobUpdate(t *testing.T) {
