@@ -205,7 +205,6 @@ func TestMeta_JobByPrefix(t *testing.T) {
 	testCases := []struct {
 		name          string
 		prefix        string
-		filter        string
 		expectedError string
 	}{
 		{
@@ -215,12 +214,6 @@ func TestMeta_JobByPrefix(t *testing.T) {
 		{
 			name:   "partial match",
 			prefix: "exam",
-		},
-		{
-			name:   "match with filter",
-			prefix: "job-",
-			// Filter out jobs so that only "job-2" matches.
-			filter: `ID == "job-2"`,
 		},
 		{
 			name:          "multiple matches",
@@ -241,7 +234,7 @@ func TestMeta_JobByPrefix(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			job, err := meta.JobByPrefix(client, tc.prefix, tc.filter)
+			job, err := meta.JobByPrefix(client, tc.prefix)
 			if tc.expectedError != "" {
 				must.Nil(t, job)
 				must.ErrorContains(t, err, tc.expectedError)
@@ -291,10 +284,10 @@ func TestMeta_JobIDByPrefix_OldServerFallback(t *testing.T) {
 	must.Eq(t, "example-batch", jobID)
 	must.Eq(t, "default", ns)
 
-	// Without a client filter (the public path), the old-server error is
-	// surfaced rather than swallowed.
-	_, _, err = meta.JobIDByPrefix(client, "example",
-		`ParentID == "" and ParameterizedJob is not nil`)
+	// With a filter but no client filter, the old-server error is surfaced
+	// rather than swallowed.
+	_, _, err = meta.jobIDByPrefix(client, "example",
+		`ParentID == "" and ParameterizedJob is not nil`, nil)
 	must.ErrorContains(t, err, api.ResultPaginatorErrorContent)
 }
 

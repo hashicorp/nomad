@@ -324,8 +324,8 @@ func (e *NoJobWithPrefixError) Error() string {
 // JobByPrefix returns the job that best matches the given prefix. Returns an
 // error if there are no matches or if there are more than one exact match
 // across namespaces.
-func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter string) (*api.Job, error) {
-	jobID, namespace, err := m.JobIDByPrefix(client, prefix, filter)
+func (m *Meta) JobByPrefix(client *api.Client, prefix string) (*api.Job, error) {
+	jobID, namespace, err := m.JobIDByPrefix(client, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -348,8 +348,8 @@ type JobByPrefixFilterFunc func(*api.JobListStub) bool
 // Returns the prefix itself if job prefix search is not allowed and an error
 // if there are no matches or if there are more than one exact match across
 // namespaces.
-func (m *Meta) JobIDByPrefix(client *api.Client, prefix, filter string) (string, string, error) {
-	return m.jobIDByPrefix(client, prefix, filter, nil)
+func (m *Meta) JobIDByPrefix(client *api.Client, prefix string) (string, string, error) {
+	return m.jobIDByPrefix(client, prefix, "", nil)
 }
 
 // jobIDByPrefix backs JobIDByPrefix. When clientFilter is set and the server is
