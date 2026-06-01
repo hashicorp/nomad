@@ -124,14 +124,12 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 
 		// Go through each task  resource
 		for _, tr := range a.AllocatedResources.Tasks {
-
 			// Go through each assigned device group
 			for _, allocatedDeviceGroup := range tr.Devices {
 
 				devID := allocatedDeviceGroup.ID()
 				// Go through each assigned device
 				for _, instanceID := range allocatedDeviceGroup.DeviceIDs {
-
 					// Mark that we are using the device. It may not be in the
 					// map if the device is no longer being fingerprinted, is
 					// unhealthy, etc.
@@ -165,8 +163,7 @@ func willingToShare(res *AllocatedDeviceResource, deviceID string) bool {
 		return false
 	}
 	// does exist, is true = > this is the shared device, it will share => return true
-	if exists, willing := res.WillShare[deviceID]; exists && willing {
-
+	if willing, exists := res.WillShare[deviceID]; willing && exists {
 		return true
 	}
 	// In all remaining cases we return false

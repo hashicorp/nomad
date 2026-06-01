@@ -293,15 +293,11 @@ func (a Attribute) String() string {
 	}
 }
 
-type Shared string
+// Shared mirrors the plugin.Shared string enum found
+// on Devices.DetectedDevice that some devices use to
+// report the status and presence of sharing subsystems
 
-// DeviceSharing mirrors the plugin.DeviceSharing struct found
-// on Devices.DetectedDevice. It holds a string that some
-// devices use to report the status and presence of sharing
-// subsystems
-type DeviceSharing struct {
-	Shared Shared
-}
+type Shared string
 
 const (
 	DeviceSharingUnset      Shared = ""
@@ -317,7 +313,7 @@ type NodeDeviceLocality struct {
 	PciBusID string
 }
 
-// ShareDevices indicates whether the task should be placed on a shared device
+// ShareDevices indicates whether the task is willing to share it's device
 type ShareDevices struct {
 	// Enabled
 	Enabled bool `hcl:"enabled"`
@@ -326,21 +322,6 @@ type ShareDevices struct {
 	// the plugin. If in use alongside the device.id constraint, the two must
 	// match or the job will not be placed.
 	SharedDeviceId string `hcl:"shared_device_id,optional"`
-}
-
-type DevicePreferences struct {
-	// Enabled
-	Enabled bool `hcl:"enabled"`
-	// SharedDeviceID is an optional field for use in environments with
-	// multiple shared devices, to make the shared device ID available to
-	// the plugin. If in use alongside the device.id constraint, the two must
-	// match or the job will not be placed.
-	SharedDeviceId string `hcl:"shared_device_id,optional"`
-
-	// FirstAvailable specifies a prioritized list of device options. The
-	// scheduler will attempt to satisfy each option in order, selecting the
-	// first one that can be fulfilled. Mutually exclusive with Count.
-	FirstAvailable []*DeviceOption `hcl:"first_available,block"`
 }
 
 // DeviceOption represents a single option in a first_available device selection.
@@ -353,6 +334,11 @@ type DeviceOption struct {
 	// Constraints are a set of constraints to apply when selecting the device
 	// to use for this option.
 	Constraints []*Constraint `hcl:"constraint,block"`
+
+	// ShareDevices indicates whether this device option is willing to share
+	// TODO: determine if ShareDevices should be inherited or if, like count,
+	// it should only be set on one or the other
+	ShareDevices *ShareDevices `hcl:"share_devices,block"`
 }
 
 func (o *DeviceOption) Canonicalize() {
@@ -391,15 +377,12 @@ type RequestedDevice struct {
 	// as base affinities for all options.
 	Affinities []*Affinity `hcl:"affinity,block"`
 
-	//Device Preferences
-	DevicePreferences *DevicePreferences `hcl:"device_preferences,block"`
-
 	// ShareDevices reports whether the task should be placed on a shared device
 	ShareDevices *ShareDevices `hcl:"share_devices,block"`
 
-	// FirstAvailable specifies a prioritized list of device options. The
-	// scheduler will attempt to satisfy each option in order, selecting the
-	// first one that can be fulfilled. Mutually exclusive with Count.
+	//// FirstAvailable specifies a prioritized list of device options. The
+	//// scheduler will attempt to satisfy each option in order, selecting the
+	//// first one that can be fulfilled. Mutually exclusive with Count.
 	FirstAvailable []*DeviceOption `hcl:"first_available,block"`
 }
 
