@@ -5,10 +5,10 @@ package queues
 
 import (
 	"fmt"
-	"math"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -17,6 +17,10 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
+
+type testBroker struct{}
+
+func (*testBroker) Enqueue(*structs.Evaluation) {}
 
 func TestWaitForPlacement(t *testing.T) {
 
@@ -142,28 +146,38 @@ func TestDecayUsage(t *testing.T) {
 			HalfLife: 10 * time.Second,
 		}, hclog.New(hclog.DefaultOptions))
 
-		now := time.Unix(100, 0)
-		queue.lastUpdated = now.Add(-10 * time.Second)
-		queue.tenants[TenantID("tenant-a")] = &Tenant{
+		tenantA := &Tenant{
 			tid: TenantID("tenant-a"),
 			workloads: map[string]*Workload{
 				"w1": {},
 			},
-			usage: 100,
+			usage: map[string]float64{
+				"cpu":    100,
+				"memory": 20,
+			},
 		}
-		queue.tenants[TenantID("tenant-b")] = &Tenant{
+
+		tenantB := &Tenant{
 			tid: TenantID("tenant-b"),
 			workloads: map[string]*Workload{
 				"w2": {},
 			},
-			usage: 60,
+			usage: map[string]float64{
+				"cpu":    60,
+				"memory": 40,
+			},
 		}
+
+		now := time.Unix(100, 0)
+		queue.lastUpdated = now.Add(-10 * time.Second)
+		queue.tenants[tenantA.tid] = tenantA
+		queue.tenants[tenantB.tid] = tenantB
 
 		queue.decayUsage(now)
 
-		must.True(t, math.Abs(queue.tenants[TenantID("tenant-a")].usage-50) < 1e-9)
-		must.True(t, math.Abs(queue.tenants[TenantID("tenant-b")].usage-30) < 1e-9)
-		must.True(t, math.Abs(queue.totalUsage-80) < 1e-9)
+		must.Eq(t, tenantA.usage, map[string]float64{"cpu": 50, "memory": 10}, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
+		must.Eq(t, tenantB.usage, map[string]float64{"cpu": 30, "memory": 20}, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
+		must.Eq(t, queue.totalUsage, map[string]float64{"cpu": 80, "memory": 30}, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
 	})
 
 	t.Run("initializes lastUpdated without decay when zero", func(t *testing.T) {
@@ -172,40 +186,65 @@ func TestDecayUsage(t *testing.T) {
 		}, hclog.New(hclog.DefaultOptions))
 
 		now := time.Unix(100, 0)
-		queue.tenants[TenantID("tenant-a")] = &Tenant{
+		tenantA := &Tenant{
 			tid: TenantID("tenant-a"),
 			workloads: map[string]*Workload{
 				"w1": {},
 			},
-			usage: 42,
+			usage: map[string]float64{
+				"cpu":    42,
+				"memory": 84,
+			},
 		}
+		queue.tenants[tenantA.tid] = tenantA
 
 		queue.decayUsage(now)
 
 		must.Eq(t, now, queue.lastUpdated)
-		must.True(t, math.Abs(queue.tenants[TenantID("tenant-a")].usage-42) < 1e-9)
-		must.True(t, math.Abs(queue.totalUsage-42) < 1e-9)
+		must.Eq(t, tenantA.usage, map[string]float64{"cpu": 42, "memory": 84}, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
+		must.Eq(t, queue.totalUsage, map[string]float64{"cpu": 42, "memory": 84}, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
 	})
+}
 
-	t.Run("decays tenant usage independent of pending workload count", func(t *testing.T) {
-		queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{
-			HalfLife: 10 * time.Second,
-		}, hclog.New(hclog.DefaultOptions))
+func TestCalculatePriorities(t *testing.T) {
+	queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{
+		HalfLife: 10 * time.Second,
+	}, hclog.New(hclog.DefaultOptions))
 
-		now := time.Unix(100, 0)
-		queue.lastUpdated = now.Add(-10 * time.Second)
-		queue.tenants[TenantID("tenant-a")] = &Tenant{
-			tid: TenantID("tenant-a"),
-			workloads: map[string]*Workload{
-				"w1": {},
-				"w2": {},
-			},
-			usage: 100,
-		}
+	lowUsageTenant := &Tenant{
+		tid:       TenantID("tenant-low"),
+		workloads: map[string]*Workload{},
+		usage: map[string]float64{
+			"cpu":    0,
+			"memory": 55,
+		},
+	}
+	highUsageTenant := &Tenant{
+		tid:       TenantID("tenant-high"),
+		workloads: map[string]*Workload{},
+		usage: map[string]float64{
+			"cpu":    100,
+			"memory": 50,
+		},
+	}
 
-		queue.decayUsage(now)
+	lowUsageWorkload := &Workload{
+		tid:  lowUsageTenant.tid,
+		eval: &structs.Evaluation{Priority: 5},
+	}
+	highUsageWorkload := &Workload{
+		tid:  highUsageTenant.tid,
+		eval: &structs.Evaluation{Priority: 5},
+	}
 
-		must.True(t, math.Abs(queue.tenants[TenantID("tenant-a")].usage-50) < 1e-9)
-		must.True(t, math.Abs(queue.totalUsage-50) < 1e-9)
-	})
+	lowUsageTenant.workloads["w1"] = lowUsageWorkload
+	highUsageTenant.workloads["w2"] = highUsageWorkload
+	queue.tenants[lowUsageTenant.tid] = lowUsageTenant
+	queue.tenants[highUsageTenant.tid] = highUsageTenant
+	queue.queue = WorkloadQueue{lowUsageWorkload, highUsageWorkload}
+
+	queue.calculatePriorities(time.Unix(20, 0))
+
+	must.Greater(t, highUsageWorkload.priority, lowUsageWorkload.priority)
+	must.Eq(t, queue.totalUsage, map[string]float64{"cpu": 100, "memory": 105}, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
 }

@@ -49,7 +49,7 @@ type DynamicPriorityQueue struct {
 	enqueueCh chan *Workload
 
 	// totalUsage is the sum of all tenant usages
-	totalUsage float64
+	totalUsage map[string]float64
 
 	lastUpdated time.Time
 
@@ -77,7 +77,7 @@ type DynamicPriorityQueue struct {
 type Tenant struct {
 	tid       TenantID
 	workloads map[string]*Workload
-	usage     float64
+	usage     map[string]float64
 }
 
 type Workload struct {
@@ -85,7 +85,7 @@ type Workload struct {
 	tid      TenantID
 	priority int
 	eval     *structs.Evaluation
-	size     float64
+	usage    map[string]float64
 	index    int
 
 	sizeAdjustment  int
@@ -105,7 +105,7 @@ func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *str
 		metadataKey: qconf.MetadataKey,
 		conf:        conf,
 		logger:      logger.Named("Dynamic Priority Queue"),
-		totalUsage:  0,
+		totalUsage:  make(map[string]float64),
 	}
 }
 
@@ -198,14 +198,12 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 				d.logger.Error("failure waiting for workload placement", "evalID", workload.eval)
 			}
 
+			d.qMux.Lock()
 			// TODO: this is an unsafe concurrent map access
 			// We should also look to at the eval to check if
 			// it actually resulted in a placement before incrementing
 			// the usage, maybe via eval.PlanAnnotations?
-			d.tenants[workload.tid].usage += workload.size
-			d.totalUsage += workload.size
-
-			d.qMux.Lock()
+			d.updateUsage(workload)
 			l := d.queue.Len()
 			d.qMux.Unlock()
 
@@ -247,15 +245,15 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 		d.tenants[tid] = &Tenant{
 			tid:       tid,
 			workloads: make(map[string]*Workload),
-			usage:     0,
+			usage:     make(map[string]float64),
 		}
 	}
 
-	size := 0
+	usage := make(map[string]float64)
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
-			size += task.Resources.CPU
-			size += task.Resources.MemoryMB
+			usage["cpu"] += float64(task.Resources.CPU)
+			usage["memory"] += float64(task.Resources.MemoryMB)
 		}
 	}
 
@@ -263,7 +261,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 		tid:      tid,
 		priority: 0,
 		eval:     e,
-		size:     float64(size),
+		usage:    usage,
 	}
 }
 
@@ -276,31 +274,48 @@ func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
 	// Now that we have accurate tenant usage, calculate
 	// each workloads new priority
 	for _, workload := range d.queue {
-		if d.totalUsage != 0 {
-			d.setWorkloadPriority(workload)
-		}
+		d.setWorkloadPriority(workload)
 	}
 	d.lastUpdated = ts
 }
 
-func (d *DynamicPriorityQueue) decayUsage(now time.Time) {
-	newUsage := 0.0
+func (d *DynamicPriorityQueue) decayUsage(ts time.Time) {
+	newUsage := map[string]float64{}
 	if d.lastUpdated.IsZero() {
-		d.lastUpdated = now
+		d.lastUpdated = ts
 	}
-	elapsed := now.Sub(d.lastUpdated).Seconds()
+	elapsed := ts.Sub(d.lastUpdated).Seconds()
 	decay := math.Pow(0.5, (elapsed / d.conf.HalfLife.Seconds()))
 
 	for _, tenant := range d.tenants {
-		tenant.usage *= decay
-		newUsage += tenant.usage
+		for resource, usage := range tenant.usage {
+			tenant.usage[resource] = usage * decay
+			newUsage[resource] += tenant.usage[resource]
+		}
 	}
 	d.totalUsage = newUsage
 }
 
+func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
+	for resource, usage := range workload.usage {
+		d.tenants[workload.tid].usage[resource] += usage
+		d.totalUsage[resource] += usage
+	}
+}
+
 func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
-	usageRatio := d.tenants[w.tid].usage / d.totalUsage
-	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
+	totalUsage := 0.0
+	tenantUsage := 0.0
+	for resource, usage := range d.tenants[w.tid].usage {
+		tenantUsage += usage // * d.conf.ResourceWeights[resource]
+		if total, ok := d.totalUsage[resource]; ok && total != 0 {
+			totalUsage += total
+		}
+	}
+
+	usageRatio := tenantUsage / totalUsage
+	usageAdjustment := (1 - usageRatio) * 100 // We need this to be an int if we are trying to add it to the priority
+	// * float64(d.conf.UsageWeight)
 	w.priority = w.eval.Priority + int(usageAdjustment)
 }
 
