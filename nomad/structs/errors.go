@@ -26,6 +26,7 @@ const (
 	errMissingAllocID             = "Missing allocation ID"
 	errIncompatibleFiltering      = "Filter expression cannot be used with other filter parameters"
 	errMalformedChooseParameter   = "Parameter for choose must be in form '<number>|<key>'"
+	errResultPaginatorCreation    = "failed to create result paginator"
 
 	// Prefix based errors that are used to check if the error is of a given
 	// type. These errors should be created with the associated constructor.
@@ -64,6 +65,13 @@ var (
 	ErrMissingAllocID             = errors.New(errMissingAllocID)
 	ErrIncompatibleFiltering      = errors.New(errIncompatibleFiltering)
 	ErrMalformedChooseParameter   = errors.New(errMalformedChooseParameter)
+
+	// ErrResultPaginatorCreation is returned by list RPC handlers when the
+	// result paginator cannot be built, for example when the server cannot
+	// evaluate a requested filter expression. api.ResultPaginatorErrorContent
+	// duplicates its message so the CLI can match it without importing structs.
+	// Keep the two in sync.
+	ErrResultPaginatorCreation = errors.New(errResultPaginatorCreation)
 
 	ErrUnknownNode = errors.New(ErrUnknownNodePrefix)
 
