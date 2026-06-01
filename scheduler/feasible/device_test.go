@@ -980,8 +980,8 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 			}
 			ask := sharedDeviceRequest(tc.deviceName, tc.count, testConstraints, nil, tc.shareDevices)
 
-			out, _, err := d.createOffer(mem, ask)
-			if len(tc.expectedErr) != 0 {
+			out, _, _, err := d.createOffer(mem, ask)
+			if tc.expectedErr != "" {
 				must.ErrorContains(t, err, tc.expectedErr)
 				must.Nil(t, out)
 				return
