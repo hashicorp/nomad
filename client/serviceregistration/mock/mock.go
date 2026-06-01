@@ -56,7 +56,7 @@ func (h *ServiceRegistrationHandler) RemoveWorkload(services *serviceregistratio
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	h.log.Trace("RemoveWorkload", "alloc_id", services.AllocInfo.AllocID,
+	h.log.Warn("RemoveWorkload", "alloc_id", services.AllocInfo.AllocID,
 		"name", services.Name(), "services", len(services.Services))
 
 	h.ops = append(h.ops, newOperation("remove", services.AllocInfo.AllocID, services.Name()))

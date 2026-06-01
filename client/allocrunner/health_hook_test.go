@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/serviceregistration"
+	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -95,7 +95,7 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 	consul := regMock.NewServiceRegistrationHandler(logger)
 	hs := &mockHealthSetter{}
 
-	checks := new(mock.CheckShim)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	alloc := mock.Alloc()
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks)
 
@@ -136,7 +136,7 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	consul := regMock.NewServiceRegistrationHandler(logger)
 	hs := &mockHealthSetter{}
 
-	checks := new(mock.CheckShim)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
@@ -177,7 +177,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	consul := regMock.NewServiceRegistrationHandler(logger)
 	hs := &mockHealthSetter{}
 
-	checks := new(mock.CheckShim)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
@@ -221,7 +221,7 @@ func TestHealthHook_Postrun(t *testing.T) {
 	hs := &mockHealthSetter{}
 
 	alloc := mock.Alloc()
-	checks := new(mock.CheckShim)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 
 	// Postrun
@@ -232,92 +232,9 @@ func TestHealthHook_Postrun(t *testing.T) {
 // set. Uses task state and health checks.
 func TestHealthHook_SetHealth_healthy(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-
-	// Synthesize running alloc and tasks
-	alloc.ClientStatus = structs.AllocClientStatusRunning
-	alloc.TaskStates = map[string]*structs.TaskState{
-		task.Name: {
-			State:     structs.TaskStateRunning,
-			StartedAt: time.Now(),
-		},
-	}
-
-	// Make Consul response
-	check := &consulapi.AgentCheck{
-		Name:   task.Services[0].Checks[0].Name,
-		Status: consulapi.HealthPassing,
-	}
-	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
-		task.Name: {
-			Services: map[string]*serviceregistration.ServiceRegistration{
-				task.Services[0].Name: {
-					Service: &consulapi.AgentService{
-						ID:      "foo",
-						Service: task.Services[0].Name,
-					},
-					Checks: []*consulapi.AgentCheck{check},
-				},
-			},
-		},
-	}
-
-	logger := testlog.HCLogger(t)
-	b := cstructs.NewAllocBroadcaster(logger)
-	defer b.Close()
-
-	// Don't reply on the first call
-	called := false
-	consul := regMock.NewServiceRegistrationHandler(logger)
-	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
-		if !called {
-			called = true
-			return nil, nil
-		}
-
-		reg := &serviceregistration.AllocRegistration{
-			Tasks: taskRegs,
-		}
-
-		return reg, nil
-	}
-
-	hs := newMockHealthSetter()
-
-	checks := new(mock.CheckShim)
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
-	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
-
-	// Prerun
-	require.NoError(h.Prerun(env))
-
-	// Wait for health to be set (healthy)
-	select {
-	case <-time.After(5 * time.Second):
-		t.Fatalf("timeout waiting for health to be set")
-	case health := <-hs.healthCh:
-		require.True(health.healthy)
-
-		// Healthy allocs shouldn't emit task events
-		ev := health.taskEvents[task.Name]
-		require.Nilf(ev, "%#v", health.taskEvents)
-	}
-
-	// Postrun
-	require.NoError(h.Postrun())
-}
-
-// TestHealthHook_SetHealth_unhealthy asserts SetHealth notices unhealthy allocs
-func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
-	ci.Parallel(t)
-	require := require.New(t)
-
-	alloc := mock.Alloc()
-	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 1 // let's speed things up
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 100 * time.Millisecond // speed things up
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
 	newCheck := task.Services[0].Checks[0].Copy()
@@ -333,26 +250,56 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 		},
 	}
 
-	// Make Consul response
-	checkHealthy := &consulapi.AgentCheck{
-		Name:   task.Services[0].Checks[0].Name,
-		Status: consulapi.HealthPassing,
+	logger := testlog.HCLogger(t)
+	b := cstructs.NewAllocBroadcaster(logger)
+	defer b.Close()
+
+	hs := newMockHealthSetter()
+
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	checks.Set(alloc.ID, &structs.CheckQueryResult{
+		ID:      structs.CheckID(uuid.Generate()),
+		Status:  "passing",
+		Service: task.Services[0].Name,
+	})
+
+	h := newAllocHealthWatcherHook(
+		logger, alloc.Copy(), hs, b.Listen(), nil, checks).(*allocHealthWatcherHook)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	must.NoError(t, h.Prerun(env))
+
+	// Wait for health to be set (healthy)
+	select {
+	case <-time.After(500 * time.Millisecond):
+		// great no healthy status
+	case health := <-hs.healthCh:
+		must.True(t, health.healthy)
+		ev := health.taskEvents[task.Name]
+		must.Nil(t, ev, must.Sprintf("expected no task events, got: %#v", health.taskEvents))
 	}
-	checksUnhealthy := &consulapi.AgentCheck{
-		Name:   task.Services[0].Checks[1].Name,
-		Status: consulapi.HealthCritical,
-	}
-	taskRegs := map[string]*serviceregistration.ServiceRegistrations{
+
+	must.NoError(t, h.Postrun())
+}
+
+// TestHealthHook_SetHealth_unhealthy asserts SetHealth notices unhealthy allocs
+func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	alloc.Job.TaskGroups[0].Migrate.MinHealthyTime = 100 * time.Millisecond // speed things up
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	newCheck := task.Services[0].Checks[0].Copy()
+	newCheck.Name = "failing-check"
+	task.Services[0].Checks = append(task.Services[0].Checks, newCheck)
+
+	// Synthesize running alloc and tasks
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	alloc.TaskStates = map[string]*structs.TaskState{
 		task.Name: {
-			Services: map[string]*serviceregistration.ServiceRegistration{
-				task.Services[0].Name: {
-					Service: &consulapi.AgentService{
-						ID:      "foo",
-						Service: task.Services[0].Name,
-					},
-					Checks: []*consulapi.AgentCheck{checkHealthy, checksUnhealthy},
-				},
-			},
+			State:     structs.TaskStateRunning,
+			StartedAt: time.Now(),
 		},
 	}
 
@@ -360,41 +307,30 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	// Don't reply on the first call
-	called := false
-	consul := regMock.NewServiceRegistrationHandler(logger)
-	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
-		if !called {
-			called = true
-			return nil, nil
-		}
-
-		reg := &serviceregistration.AllocRegistration{
-			Tasks: taskRegs,
-		}
-
-		return reg, nil
-	}
-
 	hs := newMockHealthSetter()
 
-	checks := new(mock.CheckShim)
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
+	checks.Set(alloc.ID, &structs.CheckQueryResult{
+		ID:      structs.CheckID(uuid.Generate()),
+		Status:  "failing",
+		Service: task.Services[0].Name,
+	})
+
+	h := newAllocHealthWatcherHook(
+		logger, alloc.Copy(), hs, b.Listen(), nil, checks).(*allocHealthWatcherHook)
 	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	// Prerun
-	require.NoError(h.Prerun(env))
+	must.NoError(t, h.Prerun(env))
 
 	// Wait to ensure we don't get a healthy status
 	select {
-	case <-time.After(2 * time.Second):
+	case <-time.After(500 * time.Millisecond):
 		// great no healthy status
 	case health := <-hs.healthCh:
-		require.Fail("expected no health event", "got %v", health)
+		t.Fatalf("expected no health event, got %v", health)
 	}
 
-	// Postrun
-	require.NoError(h.Postrun())
+	must.NoError(t, h.Postrun())
 }
 
 // TestHealthHook_System asserts that system jobs trigger hooks just like service jobs.

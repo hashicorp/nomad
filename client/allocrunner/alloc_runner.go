@@ -1664,6 +1664,18 @@ func migrateTaskGroup(alloc *structs.Allocation, tg *structs.TaskGroup, cfg *con
 	taskSvcWI := map[string]map[string]*structs.WorkloadIdentity{}
 	taskWI := map[string][]*structs.WorkloadIdentity{}
 
+	addIdentityForTask := func(taskName, wiName string) {
+		fallbackWI := &structs.WorkloadIdentity{
+			Name: wiName,
+		}
+		if taskWIs, ok := taskWI[taskName]; ok {
+			taskWIs = append(taskWIs, fallbackWI)
+			taskWI[taskName] = taskWIs
+		} else {
+			taskWI[taskName] = []*structs.WorkloadIdentity{fallbackWI}
+		}
+	}
+
 	for _, service := range tg.Services {
 		if service.Identity == nil && service.Provider != structs.ServiceProviderNomad {
 			fallbackWI := &structs.WorkloadIdentity{
@@ -1699,29 +1711,17 @@ func migrateTaskGroup(alloc *structs.Allocation, tg *structs.TaskGroup, cfg *con
 			// and we shouldn't try to change those
 			continue
 		}
-		taskWI[task.Name] = []*structs.WorkloadIdentity{}
+
 		if task.Vault != nil {
-			fallbackWI := &structs.WorkloadIdentity{
-				Name: task.Vault.IdentityName(),
-			}
-			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+			addIdentityForTask(task.Name, task.Vault.IdentityName())
 		}
 
 		if task.Consul != nil {
-			fallbackWI := &structs.WorkloadIdentity{
-				Name: task.Consul.IdentityName(),
-			}
-			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+			addIdentityForTask(task.Name, task.Consul.IdentityName())
 		} else if tg.Consul != nil && len(task.Templates) > 0 {
-			fallbackWI := &structs.WorkloadIdentity{
-				Name: tg.Consul.IdentityName(),
-			}
-			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+			addIdentityForTask(task.Name, tg.Consul.IdentityName())
 		} else if cfg.TemplateConfig.DeriveConsulToken && len(task.Templates) > 0 {
-			fallbackWI := &structs.WorkloadIdentity{
-				Name: task.Consul.IdentityName(), // will be safe with nil
-			}
-			taskWI[task.Name] = append(taskWI[task.Name], fallbackWI)
+			addIdentityForTask(task.Name, task.Consul.IdentityName()) // will be safe with nil
 		}
 	}
 

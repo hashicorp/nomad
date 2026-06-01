@@ -2992,7 +2992,7 @@ func TestAllocRunner_Migration(t *testing.T) {
 		{
 			name: "consul task service",
 			setup: func(tg *structs.TaskGroup) {
-				tg.Tasks[0].Services[1].Provider = "nomad"
+				tg.Tasks[0].Services[0].Provider = "consul"
 			},
 			assert: func(t *testing.T, tg *structs.TaskGroup) {
 				t.Helper()

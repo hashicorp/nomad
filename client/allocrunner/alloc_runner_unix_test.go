@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/ci"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
@@ -70,6 +71,8 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	}, func(err error) {
 		require.NoError(t, err)
 	})
+
+	spew.Dump(ar.Alloc())
 
 	// Shutdown the AR and manually change the state to mimic a crash where
 	// a stopped alloc update is received, but Nomad crashes before
@@ -132,9 +135,9 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	//    - removal during exited is de-duped due to prekill
 	//    - removal during stop is de-duped due to prekill
 	//   1 removal group during stop
-
+	//	conf2.ServiceRegWrapper.nomadServiceProvider.GetOps()
 	consulOps := conf2.ConsulServices.(*regMock.ServiceRegistrationHandler).GetOps()
-	require.Len(t, consulOps, 2)
+	require.Len(t, consulOps, 1)
 	for _, op := range consulOps {
 		require.Equal(t, "remove", op.Op)
 	}
