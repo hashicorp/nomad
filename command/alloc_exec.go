@@ -168,7 +168,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	var allocStub *api.AllocationListStub
 	if job {
-		jobID, ns, err := l.JobIDByPrefix(client, args[0], "")
+		jobID, ns, err := l.JobIDByPrefix(client, args[0])
 		if err != nil {
 			l.Ui.Error(err.Error())
 			return 1
