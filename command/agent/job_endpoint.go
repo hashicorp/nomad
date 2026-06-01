@@ -1623,24 +1623,21 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 
 	if len(in.Devices) > 0 {
 		out.Devices = []*structs.RequestedDevice{}
+
 		for _, d := range in.Devices {
-			out.Devices = append(out.Devices, &structs.RequestedDevice{
-				Name:         d.Name,
-				Count:        *d.Count,
-				Constraints:  ApiConstraintsToStructs(d.Constraints),
-				Affinities:   ApiAffinitiesToStructs(d.Affinities),
-				ShareDevices: ApiSharingToStructs(d.ShareDevices),
-			})
 			rd := &structs.RequestedDevice{
 				Name:        d.Name,
 				Constraints: ApiConstraintsToStructs(d.Constraints),
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
 			}
 			// Only set Count if not using FirstAvailable
-			if d.Count != nil {
+			if d.Count != nil && len(d.FirstAvailable) == 0 {
 				rd.Count = *d.Count
 			}
-			// Convert FirstAvailable options
+			if d.ShareDevices != nil && len(d.FirstAvailable) == 0 {
+				rd.ShareDevices = ApiShareDevicesToStructs(d.ShareDevices)
+			}
+			//// Convert FirstAvailable options
 			if len(d.FirstAvailable) > 0 {
 				rd.FirstAvailable = make([]*structs.DeviceOption, len(d.FirstAvailable))
 				for i, opt := range d.FirstAvailable {
@@ -1650,15 +1647,10 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 					if opt.Count != nil {
 						rd.FirstAvailable[i].Count = *opt.Count
 					}
+					if opt.ShareDevices != nil {
+						rd.FirstAvailable[i].ShareDevices = ApiShareDevicesToStructs(opt.ShareDevices)
+					}
 				}
-			}
-			//TODO: temp build out make better soon
-			if d.ShareDevices != nil || len(d.FirstAvailable) > 0 {
-				rd.DevicePreferences = &structs.DevicePreferences{FirstAvailable: rd.FirstAvailable}
-			}
-			if d.ShareDevices != nil {
-				rd.DevicePreferences.Enabled = d.ShareDevices.Enabled
-				rd.DevicePreferences.SharedDeviceId = d.ShareDevices.SharedDeviceId
 			}
 			out.Devices = append(out.Devices, rd)
 		}
@@ -1676,6 +1668,16 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	}
 
 	return out
+}
+func ApiShareDevicesToStructs(in *api.ShareDevices) *structs.ShareDevices {
+	if in == nil {
+		return nil
+	}
+	return &structs.ShareDevices{
+		Enabled:        in.Enabled,
+		SharedDeviceId: in.SharedDeviceId,
+	}
+
 }
 
 func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkResource {
@@ -2359,15 +2361,4 @@ func validateEvalPriorityOpt(priority int) HTTPCodedError {
 		return CodedError(400, "Eval priority must be between 1 and 100 inclusively")
 	}
 	return nil
-}
-
-func ApiSharingToStructs(in *api.ShareDevices) *structs.ShareDevices {
-	if in == nil {
-		return nil
-	}
-	return &structs.ShareDevices{
-		Enabled:        in.Enabled,
-		SharedDeviceId: in.SharedDeviceId,
-	}
-
 }

@@ -110,7 +110,6 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 	if len(d.Devices) == 0 {
 		return nil, 0.0, 0.0, fmt.Errorf("no devices available")
 	}
-
 	// Handle first_available selection
 	if len(ask.FirstAvailable) > 0 {
 		return d.createOfferFirstAvailable(mem, ask)
@@ -138,7 +137,8 @@ func (d *deviceAllocator) createOfferFirstAvailable(mem *memoryNodeMatcher, ask 
 		combinedConstraints = append(combinedConstraints, ask.Constraints...)
 		combinedConstraints = append(combinedConstraints, opt.Constraints...)
 
-		offer, matchedWeights, totalWeight, offerErr := d.createOfferWithParams(mem, ask.ID(), opt.Count, combinedConstraints, ask.Affinities, ask.ShareDevices)
+		offer, matchedWeights, totalWeight, offerErr := d.createOfferWithParams(mem, ask.ID(), opt.Count,
+			combinedConstraints, ask.Affinities, opt.ShareDevices)
 		if offer != nil {
 			return offer, matchedWeights, totalWeight, nil
 		}
@@ -154,7 +154,8 @@ func (d *deviceAllocator) createOfferFirstAvailable(mem *memoryNodeMatcher, ask 
 
 // createOfferWithParams is the core offer creation logic that can be used for both
 // standard requests and first_available options.
-func (d *deviceAllocator) createOfferWithParams(mem *memoryNodeMatcher, deviceID *structs.DeviceIdTuple, count uint64, constraints structs.Constraints, affinities structs.Affinities, shareDevices *structs.ShareDevices) (out *structs.AllocatedDeviceResource, sumMatchedAffinityWeights float64, totalAffinityWeight float64, err error) {
+func (d *deviceAllocator) createOfferWithParams(mem *memoryNodeMatcher, deviceID *structs.DeviceIdTuple, count uint64,
+	constraints structs.Constraints, affinities structs.Affinities, shareDevices *structs.ShareDevices) (out *structs.AllocatedDeviceResource, sumMatchedAffinityWeights float64, totalAffinityWeight float64, err error) {
 	// Hold the current best offer
 	var offer *structs.AllocatedDeviceResource
 	var offerScore float64
@@ -178,37 +179,34 @@ func (d *deviceAllocator) createOfferWithParams(mem *memoryNodeMatcher, deviceID
 		assignable := []string{}
 		willShare := make(map[string]bool)
 
-		for instanceID, v := range devInst.Instances {
-			var instanceSharedStatus structs.Shared
-			// mark shareable if we find a single shareable device
-			instanceSharedStatus = devInst.GetSharedByID(instanceID)
-			if instanceSharedStatus == structs.DeviceSharingActive {
-				d.ctx.Logger().Error("device sharing value", "value", instanceSharedStatus)
-			}
-
-			if v != 0 && instanceSharedStatus != structs.DeviceSharingActive {
+		for instanceID, claimCount := range devInst.Instances {
+			if claimCount != 0 && devInst.GetSharedByID(instanceID) != structs.DeviceSharingActive {
 				continue
 			}
 
 			if !mem.Matches(instanceID, devInst.Device) {
 				continue
 			}
-			if d.deviceIDMatchesConstraint(instanceID, constraints, devInst.Device) {
-				assignable = append(assignable, instanceID)
-			}
 
-			if d.deviceIDConstraintAndSharingChecks(instanceID, constraints, shareDevices, devInst.Device) {
-				assignable = append(assignable, instanceID)
-				if shareDevices != nil {
-					willShare[instanceID] = shareDevices.Enabled //only update willShare map if assignable
-				}
+			if !d.deviceIDMatchesConstraint(instanceID, constraints, devInst.Device) {
+				continue
 			}
+			// if we're targeting a specific GPU confirm it' the one we want
+			if shareDevices.SharedDeviceId != "" && shareDevices.SharedDeviceId != instanceID {
+				continue
+			}
+			// if the task is willing to share, document in deviceAllocator
+			if d.deviceIDAllowsSharing(instanceID, shareDevices, devInst.Device) {
+				//only update willShare map if assignable & willing to share
+				willShare[instanceID] = true
+
+			}
+			assignable = append(assignable, instanceID)
 			// Don't assign more than the ask
 			if len(assignable) == int(count) {
 				break
 			}
 		}
-
 		// This device doesn't have enough instances
 		if len(assignable) < int(count) {
 			continue
@@ -225,7 +223,6 @@ func (d *deviceAllocator) createOfferWithParams(mem *memoryNodeMatcher, deviceID
 				// Resolve the targets
 				lVal, lOk := resolveDeviceTarget(a.LTarget, devInst.Device)
 				rVal, rOk := resolveDeviceTarget(a.RTarget, devInst.Device)
-
 				// Check if satisfied
 				if !checkAttributeAffinity(d.ctx, a.Operand, lVal, rVal, lOk, rOk) {
 					continue
@@ -239,7 +236,6 @@ func (d *deviceAllocator) createOfferWithParams(mem *memoryNodeMatcher, deviceID
 				choiceScore /= totalWeight
 			}
 		}
-
 		// Only use the device if it is a higher score than we have already seen
 		if offer != nil && choiceScore < offerScore {
 			continue
@@ -323,43 +319,33 @@ func (d *deviceAllocator) deviceIDMatchesConstraint(id string, constraints struc
 	return true
 }
 
-// deviceIDAllowsSharing checks a device instance ID against the
-// device's Shared status to ensure we're only assigning devices that
-// are set up to be shared.
-func (d *deviceAllocator) deviceIDAllowsSharing(id string, sharing *structs.ShareDevices, device *structs.NodeDeviceResource) bool {
+// deviceIDAllowsSharing checks a device instance ID against the device's
+// Shared status to ensure we're only assigning devices that can share
+func (d *deviceAllocator) deviceIDAllowsSharing(id string, shareDevices *structs.ShareDevices, device *structs.NodeDeviceResource) bool {
 	canShare := false
-	for _, dev := range device.Instances {
-		// if the device has sharing active
-		if dev.ID == id {
-			if sharing.Enabled == true && dev.Shared.String() == structs.DeviceSharingActive.String() {
-				canShare = true
-			} else {
-				continue
-			}
-		}
+	if shareDevices == nil {
+		return canShare
 	}
-	// if the device and task are sharable and we're targeting a specific GPU
-	// confirm it's the one we want
-	if len(sharing.SharedDeviceId) != 0 {
-		if sharing.SharedDeviceId != id {
-			canShare = false
+	for _, dev := range device.Instances {
+		if dev.ID != id {
+			continue
 		}
+		// return true if the device has sharing active and the task will share
+		if shareDevices.Enabled && dev.Shared == structs.DeviceSharingActive {
+			canShare = true
+		}
+
 	}
 
 	return canShare
 }
-
-// deviceIDConstraintAndSharingChecks returns a single boolean to report whether
-// device ID matches all of the constraints and if applicable all of the
-// requested sharing modes
-func (d *deviceAllocator) deviceIDConstraintAndSharingChecks(id string, constraints structs.Constraints, sharing *structs.ShareDevices, device *structs.NodeDeviceResource) bool {
-	if passesConstraint := d.deviceIDMatchesConstraint(id, constraints, device); !passesConstraint {
-		return false
+func (d *deviceAllocator) sharedDeviceIDMatches(instanceID string, shareDevices *structs.ShareDevices) bool {
+	if shareDevices == nil {
+		return true
 	}
-	if sharing != nil {
-		if passesSharing := d.deviceIDAllowsSharing(id, sharing, device); !passesSharing {
-			return false
-		}
+	// if we're targeting a specific GPU confirm its the one we want
+	if shareDevices.SharedDeviceId != "" && shareDevices.SharedDeviceId != instanceID {
+		return false
 	}
 	return true
 }

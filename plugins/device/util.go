@@ -63,7 +63,7 @@ func convertProtoDevice(in *proto.DetectedDevice) *Device {
 		Healthy:    in.Healthy,
 		HealthDesc: in.HealthDescription,
 		HwLocality: convertProtoDeviceLocality(in.HwLocality),
-		Shared:     Shared(in.GetShared()),
+		Shared:     convertProtoDeviceShared(in.GetShared()),
 	}
 }
 
@@ -76,6 +76,19 @@ func convertProtoDeviceLocality(in *proto.DeviceLocality) *DeviceLocality {
 	return &DeviceLocality{
 		PciBusID: in.PciBusId,
 	}
+}
+
+// convertProtoDeviceShared converts between a proto device.Shared and structs.Shared
+func convertProtoDeviceShared(in proto.Shared) Shared {
+	switch in {
+	case proto.Shared_SHARED_INELIGIBLE:
+		return "ineligible"
+	case proto.Shared_SHARED_ACTIVE:
+		return "active"
+	case proto.Shared_SHARED_INACTIVE:
+		return "inactive"
+	}
+	return ""
 }
 
 // convertProtoContainerReservation is used to convert between a proto and struct
@@ -392,7 +405,6 @@ func convertStructDeviceStats(in *DeviceStats) *proto.DeviceStats {
 }
 
 func convertShared(s Shared) proto.Shared {
-
 	switch s.String() {
 	case "ineligible":
 		return proto.Shared_SHARED_INELIGIBLE

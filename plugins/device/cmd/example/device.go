@@ -50,6 +50,11 @@ const (
 
 	deviceName1 = "T4"
 	deviceName2 = "T4"
+	deviceName3 = "P100"
+	deviceName4 = "P100"
+	deviceName5 = "P100"
+	deviceName6 = "A2"
+	deviceName7 = "A2"
 )
 
 var (
@@ -118,6 +123,8 @@ var (
 			}),
 		),
 	})
+
+	dSlice = []string{deviceName1, deviceName2, deviceName3, deviceName4, deviceName5, deviceName6, deviceName7}
 )
 
 // Config contains configuration information for the plugin.
@@ -315,14 +322,23 @@ func (d *NvidiaDevice) fingerprint(ctx context.Context, devices chan *device.Fin
 			return
 		}
 		deviceGroups := make([]*device.DeviceGroup, 0)
+		//all := make([]*device.Device, len(dSlice))
 		shared, inactive := d.diffFiles(files)
-		if len(inactive) != 0 {
-			deviceGroups = append(deviceGroups, d.getDeviceGroup(inactive, deviceName2))
-		}
 
-		if len(shared) != 0 {
-			deviceGroups = append(deviceGroups, d.getDeviceGroup(shared, deviceName1))
+		for k, v := range shared {
+			deviceGroups = append(deviceGroups, d.getDeviceGroup([]*device.Device{v}, dSlice[k], "shared"))
 		}
+		for k, v := range inactive {
+			deviceGroups = append(deviceGroups, d.getDeviceGroup([]*device.Device{v}, dSlice[k], "inactive"))
+		}
+		//if len(inactive) != 0 {
+		//deviceGroups = append(deviceGroups, d.getDeviceGroup(inactive))
+		//}
+
+		//if len(shared) != 0 {
+		//	deviceGroups = append(deviceGroups, d.getDeviceGroup(shared))
+		//}
+
 		d.logger.Info("files to fingerprint", "inactive files", len(inactive), "active files", len(shared))
 		devices <- device.NewFingerprint(deviceGroups...)
 
@@ -355,7 +371,6 @@ func (d *NvidiaDevice) diffFiles(files []os.FileInfo) ([]*device.Device, []*devi
 		} else {
 			healthy = device.SharingInactive.String()
 		}
-		d.logger.Info("checking health", "file perm", perms, "unhealthy perms", d.unhealthyPerm, "healthy", healthy)
 
 		// See if we already have the device
 		oldHealth, ok := d.devices[name]
@@ -404,24 +419,30 @@ func (d *NvidiaDevice) diffFiles(files []os.FileInfo) ([]*device.Device, []*devi
 }
 
 // getDeviceGroup is a helper to build the DeviceGroup given a set of devices.
-func (d *NvidiaDevice) getDeviceGroup(devices []*device.Device, name string) *device.DeviceGroup {
+func (d *NvidiaDevice) getDeviceGroup(devices []*device.Device, name string, isShared string) *device.DeviceGroup {
 	//d.logger.Error("getDeviceGroup", "device count", len(devices))
-	var shared string
-	for _, v := range devices {
-		if shared == "" {
-			shared = v.Shared.String()
-		}
-		//d.logger.Error("getDeviceGroup", "loop", n, "deviceID", v.ID, "shared", v.Shared.String())
-	}
+	//var (
+	//	shared string
+	//)
+	//shared = devices[0].Shared.String()
+	//for _, v := range devices {
+	//	if shared == "" {
+	//		shared = v.Shared.String()
+	//	}
+	//	//dName = dSlice[n]
+	//	//d.logger.Error("getDeviceGroup", "loop", n, "deviceID", v.ID, "dSlice length", len(dSlice))
+	//}
 	return &device.DeviceGroup{
 		Vendor:  vendor,
 		Type:    deviceType,
 		Name:    name,
 		Devices: devices,
 		Attributes: map[string]*structs.Attribute{
-
-			"cool-attribute": {
-				String: new("attribute-wearing-sunglasses"),
+			"shared": {
+				String: &isShared,
+			},
+			"model": {
+				String: &name,
 			},
 		},
 	}

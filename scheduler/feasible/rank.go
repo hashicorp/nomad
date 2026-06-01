@@ -208,7 +208,6 @@ func (iter *BinPackIterator) SetSchedulerConfiguration(schedConfig *structs.Sche
 }
 
 func (iter *BinPackIterator) Next() *RankedNode {
-
 NEXTNODE:
 	for {
 		// Get the next potential option
@@ -285,7 +284,6 @@ NEXTNODE:
 			currentPreemptions = append(currentPreemptions, allocs...)
 		}
 		preemptor.SetPreemptions(currentPreemptions)
-
 		// Check if we need task group network resource
 		if len(iter.taskGroup.Networks) > 0 {
 			ask := iter.taskGroup.Networks[0].Copy()
@@ -554,7 +552,6 @@ NEXTNODE:
 				// and devices WITH leveraging preemption. We will have already
 				// made attempts without preemption.
 
-				// If preemption is not enabled, then this node is exhausted.
 				if !iter.evict {
 					// surface err from createOffer()
 					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
@@ -640,7 +637,6 @@ NEXTNODE:
 
 							offer = offerEvict
 							sumAffinities = sumAffinitiesEvict
-							//TODO: investigate and make sure this works as expected still
 							devAllocator = devAllocatorEvict
 							deviceTotalWeight = deviceTotalWeightEvict
 						}
@@ -1002,7 +998,8 @@ type ScoreNormalizationIterator struct {
 func NewScoreNormalizationIterator(ctx Context, source RankIterator) *ScoreNormalizationIterator {
 	return &ScoreNormalizationIterator{
 		ctx:    ctx,
-		source: source}
+		source: source,
+	}
 }
 
 func (iter *ScoreNormalizationIterator) Reset() {
