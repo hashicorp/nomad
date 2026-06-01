@@ -202,8 +202,9 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	}
 
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix,
-		`ParentID == "" and ParameterizedJob is not nil`)
+	jobID, namespace, err := c.jobIDByPrefix(client, jobIDPrefix,
+		`ParentID == "" and ParameterizedJob is not nil`,
+		func(j *api.JobListStub) bool { return j.ParentID == "" && j.ParameterizedJob })
 	if err != nil {
 		var noPrefixErr *NoJobWithPrefixError
 		if errors.As(err, &noPrefixErr) {
