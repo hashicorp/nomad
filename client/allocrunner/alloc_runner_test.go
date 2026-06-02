@@ -505,7 +505,7 @@ func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 
 	alloc.Job.Type = structs.JobTypeBatch
-	maxRunDuration := 50 * time.Millisecond
+	maxRunDuration := 1 * time.Second
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
@@ -535,56 +535,59 @@ func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
 
 	upd := conf.StateUpdater.(*MockStateUpdater)
 
-	testutil.WaitForResult(func() (bool, error) {
-		last := upd.Last()
-		if last == nil {
-			return false, fmt.Errorf("no updates")
-		}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last == nil {
+				return fmt.Errorf("no updates")
+			}
+			if last.ClientStatus != structs.AllocClientStatusRunning {
+				return fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+				return fmt.Errorf("expected main task to be running not %s", s)
+			}
+			if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
+				return fmt.Errorf("expected poststop task to be pending not %s", s)
+			}
+			return nil
+		}),
+		wait.Timeout(200*time.Millisecond), // max_run_duration is 1s
+		wait.Gap(5*time.Millisecond),
+	))
 
-		if last.ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
-		}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last.ClientStatus != structs.AllocClientStatusComplete {
+				return fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
+			}
+			if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+				return fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+				return fmt.Errorf("expected main task to be dead not %s", s)
+			}
 
-		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
-			return false, fmt.Errorf("expected main task to be running not %s", s)
-		}
-
-		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
-			return false, fmt.Errorf("expected poststop task to be pending not %s", s)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("error waiting for initial state:\n%v", err)
-	})
-
-	testutil.WaitForResult(func() (bool, error) {
-		last := upd.Last()
-		if last == nil {
-			return false, fmt.Errorf("no updates")
-		}
-
-		if last.ClientStatus != structs.AllocClientStatusComplete {
-			return false, fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
-		}
-
-		if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
-			return false, fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
-		}
-
-		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
-			return false, fmt.Errorf("expected main task to be dead not %s", s)
-		}
-
-		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
-			return false, fmt.Errorf("expected poststop task to remain pending not %s", s)
-		}
-
-		return true, nil
-	}, func(err error) {
-		last := upd.Last()
-		t.Fatalf("error waiting for max_run_duration state:\n%v\nlast=%#v", err, last)
-	})
+			// poststop task would run for 10s if not for max_run_duration of
+			// 1s; all tasks should be dead by now and poststop tasks should
+			// never have run
+			poststopState := last.TaskStates[poststopTask.Name]
+			if poststopState.State != structs.TaskStateDead {
+				return fmt.Errorf("expected poststop task to be dead not %s", poststopState.State)
+			}
+			events := poststopState.Events
+			if len(events) != 2 {
+				return fmt.Errorf("expected poststop task to have event for max_run_duration: %+v", events)
+			}
+			if events[1].DisplayMessage != "allocation exceeded max_run_duration" {
+				return fmt.Errorf("expected poststop task to be dead because of max_run_duration")
+			}
+			return nil
+		}),
+		wait.Timeout(2000*time.Millisecond),
+		wait.Gap(5*time.Millisecond),
+	))
 }
 
 func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
