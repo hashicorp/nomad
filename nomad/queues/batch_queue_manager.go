@@ -41,7 +41,7 @@ func (b *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 
 	// This shouldn't happen, but in the event we enqueue
 	// an eval before setting state, just pass it to the broker
-	if b.state == nil {
+	if b.state == nil || b.defaultQueue == nil {
 		b.broker.Enqueue(e)
 		return
 	}
@@ -85,6 +85,10 @@ func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
 func (b *BatchQueueManager) createQueues() {
 	defaultConf := b.defaultConf
 	_, conf, err := b.state.SchedulerConfig()
+	if err != nil {
+		b.logger.Error("failed to get scheduler config from state, skipping queue creation", "err", err)
+		return
+	}
 
 	if conf != nil {
 		defaultConf = conf.BatchQueue
@@ -98,6 +102,10 @@ func (b *BatchQueueManager) createQueues() {
 	b.defaultQueue.Start(b.shutdownCtx)
 
 	nodePoolIter, err := b.state.NodePools(nil, state.SortDefault)
+	if err != nil {
+		b.logger.Error("failed to get node pools from state, skipping node pool queue creation", "err", err)
+		return
+	}
 
 	for {
 		raw := nodePoolIter.Next()
