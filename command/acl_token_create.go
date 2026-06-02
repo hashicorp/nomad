@@ -55,10 +55,14 @@ Create Options:
     but only with client type tokens.
 
   -role-id
-     ID of a role to use for this token. May be specified multiple times.
+     ID of an ACL role to associate with this token. ACL roles are
+     created with "nomad acl role create". May be specified multiple times,
+     but only with client type tokens.
 
   -role-name
-     Name of a role to use for this token. May be specified multiple times.
+     Name of an ACL role to associate with this token. ACL roles are created
+     with "nomad acl role create". May be specified multiple times, but only
+     with client type tokens.
 
   -ttl
     Specifies the time-to-live of the created ACL token. This takes the form of
