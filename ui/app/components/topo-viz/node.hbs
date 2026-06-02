@@ -137,12 +137,7 @@
               {{on "mouseenter" this.highlightReserved}}
               {{on "mouseleave" this.allocationBlur}}>
               <rect
-                class="layer-0"
-                x="{{this.data.memoryReserved.x}}px"
-                width="{{this.data.memoryReserved.width}}px"
-                height="{{this.height}}px" />
-              <rect
-                class="layer-1"
+                fill="url(#diagonal-stripe-orange)"
                 x="{{this.data.memoryReserved.x}}px"
                 width="{{this.data.memoryReserved.width}}px"
                 height="{{this.height}}px" />
@@ -220,13 +215,7 @@
               {{on "mouseenter" this.highlightReserved}}
               {{on "mouseleave" this.allocationBlur}}>
               <rect
-                class="layer-0"
-                x="{{this.data.cpuReserved.x}}px"
-                y="{{this.yOffset}}px"
-                width="{{this.data.cpuReserved.width}}px"
-                height="{{this.height}}px" />
-              <rect
-                class="layer-1"
+                fill="url(#diagonal-stripe-orange)"
                 x="{{this.data.cpuReserved.x}}px"
                 y="{{this.yOffset}}px"
                 width="{{this.data.cpuReserved.width}}px"
