@@ -404,7 +404,6 @@ func (ar *allocRunner) Run() {
 
 	// Run the runners (blocks until they exit)
 	ar.runTasks()
-
 	if ar.isShuttingDown() {
 		return
 	}
@@ -748,11 +747,21 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		event := structs.NewTaskEvent(structs.TaskKilling).
 			SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
 
-		if ar.state.MaxRunDurationExceeded {
+		if ar.maxRunDurationExceeded() {
 			event.SetDisplayMessage(structs.AllocTimeoutReasonMaxRunDuration)
 		}
-
 		return event
+	}
+
+	if ar.maxRunDurationExceeded() {
+		// prevent any not-yet-running post stop tasks from starting when we
+		// kill the main task
+		for _, tr := range ar.tasks {
+			if !tr.IsPoststopTask() {
+				continue
+			}
+			tr.Kill(context.TODO(), taskEventFn(tr))
+		}
 	}
 
 	// Kill leader first, synchronously
@@ -822,23 +831,6 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		}(name, tr)
 	}
 	wg.Wait()
-
-	// Skip poststop tasks entirely when max_run_duration has been exceeded so
-	// they are not started after the allocation has timed out.
-	if ar.state.MaxRunDurationExceeded {
-		for name, tr := range ar.tasks {
-			if !tr.IsPoststopTask() {
-				continue
-			}
-
-			state := tr.TaskState()
-			if state != nil {
-				states[name] = state
-			}
-		}
-
-		return states
-	}
 
 	// Perform no action on post stop tasks, but retain their states if they exist. This
 	// commonly happens at the time of alloc GC from the client node.
@@ -1134,6 +1126,12 @@ func (ar *allocRunner) EnforceMaxRunDurationTimeout(deadline time.Time) {
 
 	ar.logger.Debug("allocation exceeded max_run_duration, killing tasks", "deadline", deadline)
 	ar.killTasks()
+}
+
+func (ar *allocRunner) maxRunDurationExceeded() bool {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	return ar.state.MaxRunDurationExceeded
 }
 
 func (ar *allocRunner) destroyImpl() {
