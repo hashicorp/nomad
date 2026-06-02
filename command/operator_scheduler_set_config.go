@@ -4,7 +4,9 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/hashicorp/cli"
@@ -32,6 +34,11 @@ type OperatorSchedulerSetConfig struct {
 	preemptSysBatchScheduler      flagHelper.BoolValue
 	preemptSystemScheduler        flagHelper.BoolValue
 	nodeLimitForFeasibilityChecks flagHelper.UintValue
+
+	batchQueueType        string
+	batchQueueTenantType  string
+	batchQueueMetadataKey string
+	batchQueueConfig      string
 }
 
 func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
@@ -50,6 +57,10 @@ func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
 			"-preempt-sysbatch-scheduler":        complete.PredictSet("true", "false"),
 			"-preempt-system-scheduler":          complete.PredictSet("true", "false"),
 			"-node-limit-for-feasibility-checks": complete.PredictAnything,
+			"-batch-queue-type":                  complete.PredictSet("dynamicPriority"),
+			"-batch-queue-tenant-type":           complete.PredictSet("metadata", "namespace"),
+			"-batch-queue-metadata-key":          complete.PredictAnything,
+			"-batch-queue-config":                complete.PredictAnything,
 		},
 	)
 }
@@ -75,6 +86,11 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	flags.Var(&o.preemptSysBatchScheduler, "preempt-sysbatch-scheduler", "")
 	flags.Var(&o.preemptSystemScheduler, "preempt-system-scheduler", "")
 	flags.Var(&o.nodeLimitForFeasibilityChecks, "node-limit-for-feasibility-checks", "")
+
+	flags.StringVar(&o.batchQueueType, "batch-queue-type", "", "")
+	flags.StringVar(&o.batchQueueTenantType, "batch-queue-tenant-type", "", "")
+	flags.StringVar(&o.batchQueueMetadataKey, "batch-queue-metdata-key", "", "")
+	flags.StringVar(&o.batchQueueConfig, "batch-queue-config", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -138,6 +154,13 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	o.preemptSysBatchScheduler.Merge(&schedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 	o.preemptSystemScheduler.Merge(&schedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	o.nodeLimitForFeasibilityChecks.Merge(&schedulerConfig.NodeLimitForFeasibilityChecks)
+
+	if o.batchQueueConfig != "" {
+		conf := make(map[string]any)
+		_ = json.Unmarshal([]byte(o.batchQueueConfig), &conf)
+		maps.Copy(schedulerConfig.BatchQueue.Config, conf)
+	}
+	fmt.Println(schedulerConfig.BatchQueue.Config)
 
 	// Check-and-set the new configuration.
 	result, _, err := client.Operator().SchedulerCASConfiguration(schedulerConfig, nil)

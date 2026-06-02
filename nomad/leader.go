@@ -409,7 +409,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// the operator.
 	restoreEvals := s.handleEvalBrokerStateChange(schedulerConfig)
 
-	s.batchJobQueue.SetEnabled(true, s.State())
+	s.batchQueueMgr.SetEnabled(true, s.State())
 
 	// Enable the deployment watcher, since we are now the leader
 	s.deploymentWatcher.SetEnabled(true, s.State())
@@ -1449,7 +1449,7 @@ func (s *Server) revokeLeadership() error {
 	// Disable the deployment watcher as it is only useful as a leader.
 	s.deploymentWatcher.SetEnabled(false, nil)
 
-	s.batchJobQueue.SetEnabled(false, nil)
+	s.batchQueueMgr.SetEnabled(false, nil)
 
 	// Disable the node drainer
 	s.nodeDrainer.SetEnabled(false, nil)
