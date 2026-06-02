@@ -757,10 +757,9 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		// prevent any not-yet-running post stop tasks from starting when we
 		// kill the main task
 		for _, tr := range ar.tasks {
-			if !tr.IsPoststopTask() {
-				continue
+			if tr.IsPoststopTask() {
+				tr.Kill(context.TODO(), taskEventFn(tr))
 			}
-			tr.Kill(context.TODO(), taskEventFn(tr))
 		}
 	}
 
