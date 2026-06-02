@@ -12,6 +12,7 @@ func (j *Job) QueueStatus(args *structs.QueueStatusRequest, reply *structs.Queue
 	if done, err := j.srv.forward("Job.QueueStatus", args, args, reply); done {
 		return err
 	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}

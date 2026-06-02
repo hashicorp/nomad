@@ -54,7 +54,7 @@ func TestJobQueue_printDynamicQueueJSON(t *testing.T) {
 	}
 	cmd.printDynamicQueueJSON(testResp)
 
-	expect := "[{\"JobID\":\"123\",\"Tenant\":\"testTenant1\",\"AdjustedPriority\":10,\"BasePriority\":10,\"UsageAdjustment\":0,\"AgeAdjustment\":0,\"SizeAdjustment\":0}]\n"
+	expect := `[{"JobID":"123","Tenant":"testTenant1","AdjustedPriority":10,"BasePriority":10,"UsageAdjustment":0,"AgeAdjustment":0,"SizeAdjustment":0}]` + "\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
