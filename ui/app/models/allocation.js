@@ -211,7 +211,7 @@ export default class Allocation extends Model {
 
     return new Date(
       this.fullyStartedAt.getTime() +
-        this.maxRunDuration / NANOSECONDS_IN_MILLISECOND
+        this.maxRunDuration / NANOSECONDS_IN_MILLISECOND,
     );
   }
 

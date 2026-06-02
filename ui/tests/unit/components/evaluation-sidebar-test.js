@@ -16,9 +16,15 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
       id: 'eval-123',
       status: 'complete',
       // Ember Data internal properties that should NOT appear in JSON
-      _internalModel: { /* internal state */ },
-      store: { /* store reference */ },
-      __data__: { /* internal data */ },
+      _internalModel: {
+        /* internal state */
+      },
+      store: {
+        /* store reference */
+      },
+      __data__: {
+        /* internal data */
+      },
       serialize() {
         // serialize() should return only the clean data
         return {
@@ -41,10 +47,14 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
     const result = component.evaluationJSON;
 
     // Verify only clean data is returned, no Ember internals
-    assert.deepEqual(result, {
-      id: 'eval-123',
-      status: 'complete',
-    }, 'evaluationJSON returns only serialized data without Ember internals');
+    assert.deepEqual(
+      result,
+      {
+        id: 'eval-123',
+        status: 'complete',
+      },
+      'evaluationJSON returns only serialized data without Ember internals',
+    );
 
     assert.notOk(result._internalModel, 'does not include _internalModel');
     assert.notOk(result.store, 'does not include store');
@@ -57,8 +67,12 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
       id: 'eval-456',
       status: 'pending',
       // Ember Data internal properties that should NOT appear in JSON
-      _internalModel: { /* internal state */ },
-      store: { /* store reference */ },
+      _internalModel: {
+        /* internal state */
+      },
+      store: {
+        /* store reference */
+      },
       toJSON() {
         // toJSON() should return only the clean data
         return {
@@ -81,10 +95,14 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
     const result = component.evaluationJSON;
 
     // Verify only clean data is returned via toJSON fallback
-    assert.deepEqual(result, {
-      id: 'eval-456',
-      status: 'pending',
-    }, 'evaluationJSON falls back to toJSON and returns clean data');
+    assert.deepEqual(
+      result,
+      {
+        id: 'eval-456',
+        status: 'pending',
+      },
+      'evaluationJSON falls back to toJSON and returns clean data',
+    );
 
     assert.notOk(result._internalModel, 'does not include _internalModel');
     assert.notOk(result.store, 'does not include store');
@@ -97,9 +115,15 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
       id: 'eval-789',
       status: 'failed',
       // Ember Data internal properties that WOULD be exposed without serialization
-      _internalModel: { /* internal state */ },
-      store: { /* store reference */ },
-      __data__: { /* internal data */ },
+      _internalModel: {
+        /* internal state */
+      },
+      store: {
+        /* store reference */
+      },
+      __data__: {
+        /* internal data */
+      },
       // No serialize() or toJSON() methods
     };
 
@@ -117,7 +141,11 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
 
     // Without serialization methods, return empty object as safe fallback
     // This prevents exposing Ember internals to JsonViewer
-    assert.deepEqual(result, {}, 'evaluationJSON returns empty object as safe fallback');
+    assert.deepEqual(
+      result,
+      {},
+      'evaluationJSON returns empty object as safe fallback',
+    );
     assert.notOk(result._internalModel, 'does not expose _internalModel');
     assert.notOk(result.store, 'does not expose store');
     assert.notOk(result.__data__, 'does not expose __data__');
@@ -138,7 +166,11 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
 
     // When evaluation is null/undefined, return empty object as safe fallback
     // This prevents errors and ensures JsonViewer always receives valid JSON
-    assert.deepEqual(result, {}, 'evaluationJSON returns empty object when evaluation is null');
+    assert.deepEqual(
+      result,
+      {},
+      'evaluationJSON returns empty object when evaluation is null',
+    );
     assert.strictEqual(typeof result, 'object', 'result is an object');
     assert.ok(Object.keys(result).length === 0, 'result is empty');
   });
