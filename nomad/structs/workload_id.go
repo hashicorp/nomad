@@ -244,6 +244,10 @@ func (b *WorkloadIdentityClaimsBuilder) interpolate() {
 		return
 	}
 
+	// Attempts to convert this interpolation to use HIL wasn't feasible due to
+	// the dynamic claims, where to perform configuration checks, and when the
+	// job/node/etc information is available. This could be revisited in the
+	// future.
 	staticValues := map[string]string{
 		"${job.region}":      b.job.Region,
 		"${job.namespace}":   b.job.Namespace,
