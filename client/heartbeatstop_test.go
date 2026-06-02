@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package client
@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -43,7 +42,7 @@ func TestHeartbeatStop(t *testing.T) {
 				{
 					Name: "foo",
 					Disconnect: &structs.DisconnectStrategy{
-						StopOnClientAfter: pointer.Of(time.Microsecond),
+						StopOnClientAfter: new(time.Microsecond),
 					},
 				},
 			},
@@ -53,7 +52,7 @@ func TestHeartbeatStop(t *testing.T) {
 	// an alloc with a longer lease
 	alloc2 := alloc1.Copy()
 	alloc2.ID = uuid.Generate()
-	alloc2.Job.TaskGroups[0].Disconnect.StopOnClientAfter = pointer.Of(500 * time.Millisecond)
+	alloc2.Job.TaskGroups[0].Disconnect.StopOnClientAfter = new(500 * time.Millisecond)
 
 	// an alloc with no disconnect config
 	alloc3 := alloc1.Copy()

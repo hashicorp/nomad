@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/utils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
@@ -44,14 +43,14 @@ func (d *Driver) setDetected(detected bool) {
 // setFingerprintSuccess marks the driver as having fingerprinted successfully
 func (d *Driver) setFingerprintSuccess() {
 	d.fingerprintLock.Lock()
-	d.fingerprintSuccess = pointer.Of(true)
+	d.fingerprintSuccess = new(true)
 	d.fingerprintLock.Unlock()
 }
 
 // setFingerprintFailure marks the driver as having failed fingerprinting
 func (d *Driver) setFingerprintFailure() {
 	d.fingerprintLock.Lock()
-	d.fingerprintSuccess = pointer.Of(false)
+	d.fingerprintSuccess = new(false)
 	d.fingerprintLock.Unlock()
 }
 

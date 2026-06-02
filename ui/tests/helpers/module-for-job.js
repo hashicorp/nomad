@@ -1,9 +1,9 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { currentRouteName, currentURL, visit } from '@ember/test-helpers';
+import { currentRouteName, currentURL, visit, waitUntil } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -90,6 +90,14 @@ export default function moduleForJob(
     });
 
     test('the title buttons are dependent on job status', async function (assert) {
+      await waitUntil(
+        () =>
+          JobDetail.stop.isPresent ||
+          JobDetail.start.isPresent ||
+          JobDetail.purge.isPresent ||
+          JobDetail.revert.isPresent
+      );
+
       if (job.status === 'dead') {
         if (job.stopped) {
           assert.ok(JobDetail.start.isPresent);

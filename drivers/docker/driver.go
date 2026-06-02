@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -36,7 +36,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -769,15 +768,20 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
+	selinuxLabel := d.config.Volumes.SelinuxLabel
+
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	selinuxLabel := d.config.Volumes.SelinuxLabel
+	logsROFlag := "ro"
 	if selinuxLabel != "" {
 		// Apply SELinux Label to each built-in bind
 		for i := range binds {
 			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
 		}
+		logsROFlag = "ro," + selinuxLabel
 	}
+	allocLogsDirBind := fmt.Sprintf("%s/logs:%s/logs:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir], logsROFlag)
+	binds = append(binds, allocLogsDirBind)
 
 	for _, userbind := range driverConfig.Volumes {
 		// This assumes host OS = docker container OS.
@@ -1135,7 +1139,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 		// disable swap explicitly in non-Windows environments
 		if cgroupslib.MaybeDisableMemorySwappiness() != nil {
-			hostConfig.MemorySwappiness = pointer.Of(int64(*(cgroupslib.MaybeDisableMemorySwappiness())))
+			hostConfig.MemorySwappiness = new(int64(*(cgroupslib.MaybeDisableMemorySwappiness())))
 		} else {
 			hostConfig.MemorySwappiness = nil
 		}
@@ -1745,7 +1749,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 			if !force {
 				return fmt.Errorf("must call StopTask for the given task before Destroy or set force to true")
 			}
-			if _, err := dockerClient.ContainerStop(d.ctx, h.containerID, mclient.ContainerStopOptions{Timeout: pointer.Of(0)}); err != nil {
+			if _, err := dockerClient.ContainerStop(d.ctx, h.containerID, mclient.ContainerStopOptions{Timeout: new(0)}); err != nil {
 				h.logger.Warn("failed to stop container during destroy", "error", err)
 			}
 		}
@@ -2111,5 +2115,5 @@ func isDockerTransientError(err error) bool {
 }
 
 func stopWithZeroTimeout() mclient.ContainerStopOptions {
-	return mclient.ContainerStopOptions{Timeout: pointer.Of(0)}
+	return mclient.ContainerStopOptions{Timeout: new(0)}
 }

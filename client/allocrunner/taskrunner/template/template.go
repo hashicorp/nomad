@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package template
@@ -23,10 +23,10 @@ import (
 	envparse "github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -275,11 +275,6 @@ func (tm *TaskTemplateManager) Run() {
 
 	// Unblock the task
 	close(tm.config.UnblockCh)
-
-	// If all our templates are change mode no-op, then we can exit here
-	if tm.allTemplatesNoop() {
-		return
-	}
 
 	// handle all subsequent render events.
 	tm.handleTemplateRerenders(time.Now())
@@ -559,6 +554,17 @@ func (tm *TaskTemplateManager) handleChangeModeSignal(signals map[string]struct{
 		s := tm.signals[signal]
 		event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Template re-rendered")
 		if err := tm.config.Lifecycle.Signal(event, signal); err != nil {
+			// If the task is not running (e.g. it is mid-restart) do not
+			// permanently fail the allocation. When the task comes back up it
+			// will already have the latest rendered template data.
+			if errors.Is(err, te.ErrTaskNotRunning) {
+				tm.config.Events.EmitEvent(
+					structs.NewTaskEvent(structs.TaskHookMessage).
+						SetDisplayMessage(fmt.Sprintf(
+							"Template skipped signal %v: task is not running", s)),
+				)
+				continue
+			}
 			_ = multierror.Append(&mErr, err)
 		}
 	}
@@ -751,7 +757,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 
 			ct.Wait = &ctconf.WaitConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 				Min:     tmpl.Wait.Min,
 				Max:     tmpl.Wait.Max,
 			}
@@ -869,7 +875,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
 			verify := config.ConsulConfig.VerifySSL != nil && *config.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 				Verify:  &verify,
 				Cert:    &config.ConsulConfig.CertFile,
 				Key:     &config.ConsulConfig.KeyFile,
@@ -884,7 +890,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 
 			conf.Consul.Auth = &ctconf.AuthConfig{
-				Enabled:  pointer.Of(true),
+				Enabled:  new(true),
 				Username: &parts[0],
 				Password: &parts[1],
 			}
@@ -913,7 +919,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up the Vault config
 	// Always set these to ensure nothing is picked up from the environment
 	emptyStr := ""
-	conf.Vault.RenewToken = pointer.Of(false)
+	conf.Vault.RenewToken = new(false)
 	conf.Vault.Token = &emptyStr
 	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &config.VaultConfig.Addr
@@ -932,7 +938,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    pointer.Of(true),
+				Enabled:    new(true),
 				Verify:     &verify,
 				Cert:       &config.VaultConfig.TLSCertFile,
 				Key:        &config.VaultConfig.TLSKeyFile,
@@ -942,8 +948,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    pointer.Of(false),
-				Verify:     pointer.Of(false),
+				Enabled:    new(false),
+				Verify:     new(false),
 				Cert:       &emptyStr,
 				Key:        &emptyStr,
 				CaCert:     &emptyStr,

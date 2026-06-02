@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -129,7 +129,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
+		return setStatus(s.logger, s.planner, s.eval, s.blocked,
 			s.failedTGAllocs, s.planAnnotations, structs.EvalStatusFailed, desc, s.queuedAllocs,
 			s.deployment.GetID())
 	}
@@ -148,7 +148,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
-			if err := setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
+			if err := setStatus(s.logger, s.planner, s.eval, s.blocked,
 				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
@@ -170,7 +170,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
+	return setStatus(s.logger, s.planner, s.eval, s.blocked,
 		s.failedTGAllocs, s.planAnnotations, structs.EvalStatusComplete, "", s.queuedAllocs,
 		s.deployment.GetID())
 }

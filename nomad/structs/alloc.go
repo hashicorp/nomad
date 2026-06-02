@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -20,6 +20,10 @@ const (
 	AllocDesiredStatusRun   = "run"   // Allocation should run
 	AllocDesiredStatusStop  = "stop"  // Allocation should stop
 	AllocDesiredStatusEvict = "evict" // Allocation should stop, and was evicted
+
+	// AllocTimeoutReasonMaxRunDuration is the reason used when an allocation is
+	// stopped because it exceeded its configured max_run_duration.
+	AllocTimeoutReasonMaxRunDuration = "allocation exceeded max_run_duration"
 )
 
 const (
@@ -355,6 +359,66 @@ func (a *Allocation) TerminalStatus() bool {
 	// First check the desired state and if that isn't terminal, check client
 	// state.
 	return a.ServerTerminalStatus() || a.ClientTerminalStatus()
+}
+
+// MaxRunDuration returns the configured max_run_duration for the allocation's
+// task group, if any.
+func (a *Allocation) MaxRunDuration() (time.Duration, bool) {
+	if a == nil || a.Job == nil {
+		return 0, false
+	}
+
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+	if tg == nil || tg.MaxRunDuration == nil || *tg.MaxRunDuration <= 0 {
+		return 0, false
+	}
+
+	switch a.Job.Type {
+	case JobTypeBatch, JobTypeSysBatch:
+		return *tg.MaxRunDuration, true
+	default:
+		return 0, false
+	}
+}
+
+// MaxRunDurationDeadline returns the deadline at which the allocation should be
+// considered timed out based on max_run_duration. The deadline is always
+// anchored to the allocation's CreateTime, which is stable across restarts and
+// task-level events such as retries that update individual task StartedAt times.
+func (a *Allocation) MaxRunDurationDeadline() (time.Time, bool) {
+	if a == nil {
+		return time.Time{}, false
+	}
+
+	maxRunDuration, ok := a.MaxRunDuration()
+	if !ok {
+		return time.Time{}, false
+	}
+
+	if a.CreateTime == 0 {
+		return time.Time{}, false
+	}
+
+	return time.Unix(0, a.CreateTime).Add(maxRunDuration), true
+}
+
+// MaxRunDurationExpired returns whether the allocation has exceeded its
+// configured max_run_duration.
+func (a *Allocation) MaxRunDurationExpired(now time.Time) bool {
+	if a == nil || a.DesiredStatus != AllocDesiredStatusRun || a.ClientStatus != AllocClientStatusRunning {
+		return false
+	}
+
+	if a.ClientTerminalStatus() || a.ServerTerminalStatus() {
+		return false
+	}
+
+	deadline, ok := a.MaxRunDurationDeadline()
+	if !ok {
+		return false
+	}
+
+	return !deadline.After(now)
 }
 
 // ServerTerminalStatus returns true if the desired state of the allocation is terminal
@@ -1402,7 +1466,7 @@ func (a *AllocDeploymentStatus) Copy() *AllocDeploymentStatus {
 	*c = *a
 
 	if a.Healthy != nil {
-		c.Healthy = pointer.Of(*a.Healthy)
+		c.Healthy = new(*a.Healthy)
 	}
 
 	return c

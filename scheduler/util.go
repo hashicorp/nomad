@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -542,7 +542,7 @@ func renderTemplatesUpdated(a, b *structs.RestartPolicy, msg string) comparison 
 
 // setStatus is used to update the status of the evaluation
 func setStatus(logger log.Logger, planner sstructs.Planner,
-	eval, nextEval, spawnedBlocked *structs.Evaluation,
+	eval, spawnedBlocked *structs.Evaluation,
 	tgMetrics map[string]*structs.AllocMetric,
 	annotations *structs.PlanAnnotations,
 	status, desc string,
@@ -554,9 +554,7 @@ func setStatus(logger log.Logger, planner sstructs.Planner,
 	newEval.StatusDescription = desc
 	newEval.DeploymentID = deploymentID
 	newEval.FailedTGAllocs = tgMetrics
-	if nextEval != nil {
-		newEval.NextEval = nextEval.ID
-	}
+
 	if spawnedBlocked != nil {
 		newEval.BlockedEval = spawnedBlocked.ID
 	}
@@ -842,6 +840,22 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 		}
 		if !node.IsInPool(newJob.NodePool) {
 			return false, true, nil
+		}
+
+		// max_run_duration-only updates. This field does not affect placement
+		// or allocated resources, so we can update the alloc in place without
+		// re-running feasibility.
+		if existingTG := existing.Job.LookupTaskGroup(newTG.Name); existingTG != nil {
+			oldMax, oldOK := existing.MaxRunDuration()
+			newAlloc := existing.Copy()
+			newAlloc.EvalID = evalID
+			newAlloc.Job = nil
+			newAlloc.Resources = nil
+
+			newMax, newOK := newAlloc.MaxRunDuration()
+			if oldOK != newOK || oldMax != newMax {
+				return false, false, newAlloc
+			}
 		}
 
 		// Set the existing node as the base set

@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -178,6 +178,46 @@ module('Acceptance | client detail', function (hooks) {
       'Empty message is visible',
     );
     assert.deepEqual(ClientDetail.emptyAllocations.headline, 'No Allocations');
+  });
+
+  test('client allocations show max run deadline when configured', async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000
+    );
+
+    const batchJob = this.server.create('job', {
+      type: 'batch',
+      createAllocations: false,
+    });
+    const taskGroup = this.server.db.taskGroups.findBy({ jobId: batchJob.id });
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    const allocation = this.server.create('allocation', {
+      nodeId: node.id,
+      jobId: batchJob.id,
+      taskGroup: taskGroup.name,
+      clientStatus: 'running',
+      modifyIndex: 999999,
+    });
+
+    this.server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .forEach((taskState) => {
+        this.server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
+      });
+
+    await ClientDetail.visit({ id: node.id });
+
+    assert.equal(
+      ClientDetail.allocationFor(allocation.id).maxRunDeadlineTooltip,
+      moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'The client allocations table shows the computed max run deadline'
+    );
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {

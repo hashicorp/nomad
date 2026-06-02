@@ -1,5 +1,5 @@
 {{!
-  Copyright IBM Corp. 2015, 2025
+  Copyright IBM Corp. 2015, 2026
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
@@ -23,8 +23,9 @@
       (queue this.preventDefault (perform this.drain m.actions.close))
     }}
     class="form is-small"
+    aria-labelledby="drain-options-heading"
   >
-    <h4 class="group-heading">Drain Options</h4>
+    <h4 id="drain-options-heading" class="group-heading">Drain Options</h4>
     <div class="field">
       <label class="label is-interactive">
         <Toggle
@@ -62,8 +63,9 @@
       </div>
       {{#if this.durationIsCustom}}
         <div class="field is-sub-field">
-          <label class="label">Deadline</label>
+          <label class="label" for="drain-custom-deadline-input">Deadline</label>
           <input
+            id="drain-custom-deadline-input"
             data-test-drain-custom-deadline
             type="text"
             class="input {{if this.parseError 'is-danger'}}"

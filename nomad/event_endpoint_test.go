@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -19,7 +19,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -713,7 +712,7 @@ func TestEventStream_ACLTokenExpiry(t *testing.T) {
 
 	// Create and upsert and ACL token which has a short expiry set.
 	aclTokenWithExpiry := mock.ACLManagementToken()
-	aclTokenWithExpiry.ExpirationTime = pointer.Of(time.Now().Add(2 * time.Second))
+	aclTokenWithExpiry.ExpirationTime = new(time.Now().Add(2 * time.Second))
 
 	must.NoError(t, testServer.fsm.State().UpsertACLTokens(
 		structs.MsgTypeTestSetup, 10, []*structs.ACLToken{aclTokenWithExpiry}))

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -13,7 +13,6 @@ import (
 	metrics "github.com/hashicorp/go-metrics/compat"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -315,9 +314,9 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		Evals: []*structs.Evaluation{eval},
 		Allocs: map[string]*structs.DesiredTransition{
 			args.AllocID: {
-				Migrate:         pointer.Of(true),
-				NoShutdownDelay: pointer.Of(args.NoShutdownDelay),
-				Reschedule:      pointer.Of(args.Reschedule),
+				Migrate:         new(true),
+				NoShutdownDelay: new(args.NoShutdownDelay),
+				Reschedule:      new(args.Reschedule),
 			},
 		},
 	}

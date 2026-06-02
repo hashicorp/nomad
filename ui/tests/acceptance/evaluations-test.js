@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -20,7 +20,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { clickTrigger } from 'ember-power-select/test-support/helpers';
 import { generateAcceptanceTestEvalMock } from '../../mirage/utils';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const getStandardRes = () => [
@@ -129,7 +128,6 @@ module('Acceptance | evaluations list', function (hooks) {
 
     await visit('/evaluations');
 
-    await percySnapshot(assert);
 
     assert
       .dom('[data-test-empty-evaluations-list]')
@@ -158,7 +156,6 @@ module('Acceptance | evaluations list', function (hooks) {
 
     await visit('/evaluations');
 
-    await percySnapshot(assert);
 
     assert
       .dom('[data-test-eval-table]')
@@ -677,7 +674,6 @@ module('Acceptance | evaluations list', function (hooks) {
       const evalId = '5fb1b8cd';
       await click(`[data-test-evaluation='${evalId}']`);
 
-      await percySnapshot(assert);
 
       assert
         .dom('[data-test-eval-detail-is-open]')

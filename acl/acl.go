@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package acl
@@ -1017,7 +1017,7 @@ func (a *ACL) AllowClientOp(pool string) bool {
 	if a.client == PolicyDeny {
 		return false
 	}
-	return pool == a.pool
+	return pool == a.pool || pool == "all"
 }
 
 // IsManagement checks if this represents a management token

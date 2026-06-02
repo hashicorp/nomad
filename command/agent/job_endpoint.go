@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -14,11 +14,9 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
-	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -400,14 +398,8 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	conn, err := s.getWebsocketConnection(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
-	}
-
-	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
-		conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
 	}
 
@@ -1052,7 +1044,7 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 	// the namespace to be correct
 	queryNamespace := req.URL.Query().Get("namespace")
 	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
-	job.Namespace = pointer.Of(namespace)
+	job.Namespace = new(namespace)
 	writeReq.Namespace = namespace
 
 	sJob := ApiJobToStructJob(job)
@@ -1252,6 +1244,10 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 
 	if taskGroup.ShutdownDelay != nil {
 		tg.ShutdownDelay = taskGroup.ShutdownDelay
+	}
+
+	if taskGroup.MaxRunDuration != nil {
+		tg.MaxRunDuration = taskGroup.MaxRunDuration
 	}
 
 	if taskGroup.ReschedulePolicy != nil {

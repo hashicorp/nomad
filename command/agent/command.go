@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -261,6 +261,10 @@ func (c *Command) readConfig() *Config {
 
 	// Merge in the enterprise overlay
 	config = config.Merge(DefaultEntConfig())
+
+	if len(configPath) > 0 {
+		config.ConfigPaths = append([]string(nil), configPath...)
+	}
 
 	for _, path := range configPath {
 		current, err := LoadConfig(path)
@@ -672,6 +676,9 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 		return err
 	}
 	c.agent = agent
+
+	// reload path as SIGHUP (readConfig + agent/server/client/HTTP reload).
+	c.agent.configReloader = c.handleReload
 
 	// Setup the HTTP server
 	httpServers, err := NewHTTPServers(agent, config)
@@ -1179,6 +1186,12 @@ func (c *Command) handleReload() error {
 		return nil
 	}
 
+	oldConf := c.agent.GetConfig().Copy()
+	newFiles := checkNewConfigFiles(oldConf.Files, newConf.Files)
+	if len(newFiles) > 0 {
+		c.agent.logger.Debug("detected new config files before reload", "files", strings.Join(newFiles, ", "))
+	}
+
 	// Change the log level
 	minLevel := strings.ToUpper(newConf.LogLevel)
 
@@ -1249,7 +1262,32 @@ func (c *Command) handleReload() error {
 			c.agent.httpLogger.Error("reloading config failed", "error", err)
 		}
 	}
+
 	return nil
+}
+
+// checkNewConfigFiles is used to compare the previous and current config files
+// return any new files that were added.
+func checkNewConfigFiles(previous, current []string) []string {
+	if len(current) == 0 {
+		return nil
+	}
+
+	known := make(map[string]struct{}, len(previous))
+	for _, f := range previous {
+		known[f] = struct{}{}
+	}
+
+	newFiles := make([]string, 0)
+	for _, f := range current {
+		if _, ok := known[f]; ok {
+			continue
+		}
+		known[f] = struct{}{}
+		newFiles = append(newFiles, f)
+	}
+
+	return newFiles
 }
 
 // setupTelemetry is used to set up the telemetry sub-systems.

@@ -9,7 +9,7 @@ Hi there,
 
 Thank you for opening an issue. Please note that we try to keep the Nomad issue
 tracker reserved for bug reports and feature requests. For general usage
-questions, please see: https://developer.hashicorp.com/nomad/community
+questions, please see: https://discuss.hashicorp.com/c/nomad/28
 
 -->
 
@@ -32,5 +32,3 @@ If you have already tried to solve the problem within Nomad’s existing feature
 and found a limitation that prevented you from succeeding, please describe it
 below.
 -->
-
-

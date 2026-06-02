@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
@@ -430,7 +429,7 @@ func TestIsValidConfig(t *testing.T) {
 				Client: &ClientConfig{
 					Enabled: true,
 					Artifact: &config.ArtifactConfig{
-						HTTPReadTimeout: pointer.Of("-10m"),
+						HTTPReadTimeout: new("-10m"),
 					},
 				},
 			},

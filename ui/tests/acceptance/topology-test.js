@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -17,7 +17,6 @@ import {
   formatScheduledHertz,
 } from 'nomad-ui/utils/units';
 import queryString from 'query-string';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const sumResources = (list, dimension) =>
@@ -48,7 +47,6 @@ module('Acceptance | topology', function (hooks) {
 
     await Topology.visit();
 
-    await percySnapshot(assert);
 
     assert.deepEqual(Topology.infoPanelTitle, 'Cluster Details');
     assert.notOk(Topology.filteredNodesWarning.isPresent);

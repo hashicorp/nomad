@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -9,12 +9,6 @@ let USE_MIRAGE = true;
 
 if (process.env.USE_MIRAGE) {
   USE_MIRAGE = process.env.USE_MIRAGE == 'true';
-}
-
-let USE_PERCY = true;
-
-if (process.env.USE_PERCY) {
-  USE_PERCY = process.env.USE_PERCY == 'true';
 }
 
 module.exports = function (environment) {
@@ -39,10 +33,6 @@ module.exports = function (environment) {
       mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,
-    },
-
-    percy: {
-      enabled: USE_PERCY,
     },
   };
 

@@ -1,5 +1,5 @@
 {{!
-  Copyright IBM Corp. 2015, 2025
+  Copyright IBM Corp. 2015, 2026
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
@@ -72,6 +72,18 @@
     {{moment-from-now this.allocation.modifyTime}}
   </span>
 </td>
+{{#if @showMaxRunDeadline}}
+  <td data-test-max-run-deadline>
+    {{#if this.allocation.maxRunDeadline}}
+      <span
+        class="tooltip"
+        aria-label="{{format-ts this.allocation.maxRunDeadline}}"
+      >
+        {{moment-from-now this.allocation.maxRunDeadline}}
+      </span>
+    {{/if}}
+  </td>
+{{/if}}
 <td data-test-client-status class="is-one-line">
   <span class="color-swatch {{this.allocation.clientStatus}}"></span>
   {{this.allocation.clientStatus}}

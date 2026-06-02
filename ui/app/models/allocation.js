@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -22,6 +22,8 @@ const STATUS_ORDER = {
   failed: 5,
   lost: 6,
 };
+
+const NANOSECONDS_IN_MILLISECOND = 1000000;
 
 @classic
 export default class Allocation extends Model {
@@ -170,6 +172,48 @@ export default class Allocation extends Model {
   }
 
   @fragment('task-group', { defaultValue: null }) allocationTaskGroup;
+
+  @computed('taskGroup.{hasMaxRunDeadline,maxRunDuration}')
+  get maxRunDuration() {
+    if (!this.taskGroup?.hasMaxRunDeadline) {
+      return null;
+    }
+
+    return this.taskGroup.maxRunDuration;
+  }
+
+  @computed('states.@each.startedAt')
+  get fullyStartedAt() {
+    const states = this.states?.toArray?.() || this.states || [];
+    if (!states.length) {
+      return null;
+    }
+
+    let latest = null;
+    for (const taskState of states) {
+      if (!taskState.startedAt) {
+        return null;
+      }
+
+      if (!latest || taskState.startedAt > latest) {
+        latest = taskState.startedAt;
+      }
+    }
+
+    return latest;
+  }
+
+  @computed('maxRunDuration', 'fullyStartedAt')
+  get maxRunDeadline() {
+    if (!this.maxRunDuration || !this.fullyStartedAt) {
+      return null;
+    }
+
+    return new Date(
+      this.fullyStartedAt.getTime() +
+        this.maxRunDuration / NANOSECONDS_IN_MILLISECOND
+    );
+  }
 
   @computed('taskGroup.drivers.[]', 'node.unhealthyDriverNames.[]')
   get unhealthyDrivers() {

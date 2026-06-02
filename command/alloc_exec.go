@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -118,6 +118,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 	flags.StringVar(&task, "task", "", "")
 	flags.StringVar(&group, "group", "", "")
 
+	args = expandITFlags(args)
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -167,7 +168,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 
 	var allocStub *api.AllocationListStub
 	if job {
-		jobID, ns, err := l.JobIDByPrefix(client, args[0], "")
+		jobID, ns, err := l.JobIDByPrefix(client, args[0])
 		if err != nil {
 			l.Ui.Error(err.Error())
 			return 1
@@ -338,6 +339,22 @@ func setRawTerminalOutput(stream interface{}) (cleanup func(), err error) {
 	}
 
 	return func() { term.RestoreTerminal(fd, state) }, nil
+}
+
+// expandITFlags preprocesses args to expand the combined short boolean flags
+// -it and -ti into their individual forms -i -t, mirroring the convention
+// established by tools like docker and ssh.
+func expandITFlags(args []string) []string {
+	expanded := make([]string, 0, len(args))
+	for _, arg := range args {
+		switch arg {
+		case "-it", "-ti":
+			expanded = append(expanded, "-i", "-t")
+		default:
+			expanded = append(expanded, arg)
+		}
+	}
+	return expanded
 }
 
 // watchTerminalSize watches terminal size changes to propagate to remote tty.

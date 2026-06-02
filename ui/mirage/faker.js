@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -10,7 +10,6 @@ const searchIncludesSeed = window.location.search.includes('faker-seed');
 
 if (
   config.environment !== 'test' ||
-  config.percy.enabled ||
   searchIncludesSeed
 ) {
   if (searchIncludesSeed) {

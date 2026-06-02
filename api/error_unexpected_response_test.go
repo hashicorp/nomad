@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api_test
@@ -227,7 +227,7 @@ func testLogRequestHandler(t *testing.T, h http.Handler) http.Handler {
 			size:      m.Written,
 			userAgent: r.UserAgent(),
 		}
-		t.Logf(ri.String())
+		t.Logf("%s", ri.String())
 	})
 }
 
@@ -261,7 +261,7 @@ func ipAddrFromRemoteAddr(s string) string {
 
 // unmock attempts to unmarshal a given mock json body into dst, which should
 // be a pointer to the correct API struct.
-func unmock(t *testing.T, src string, dst any) error {
+func unmock(_ *testing.T, src string, dst any) error {
 	if err := json.Unmarshal([]byte(src), dst); err != nil {
 		return fmt.Errorf("error unmarshaling mock: %w", err)
 	}

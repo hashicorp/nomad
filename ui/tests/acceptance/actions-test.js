@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 import { module, test } from 'qunit';
@@ -7,7 +7,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import percySnapshot from '@percy/ember';
 import Actions from 'nomad-ui/tests/pages/jobs/job/actions';
 import { triggerEvent, visit, click } from '@ember/test-helpers';
 import faker from 'nomad-ui/mirage/faker';
@@ -202,11 +201,6 @@ module('Acceptance | actions', function (hooks) {
       "The first action's dropdown subcontent exists",
     );
 
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
 
     // run on a random alloc
     await Actions.titleActions.multiAllocActions[0].subActions[0].click();
@@ -274,8 +268,6 @@ module('Acceptance | actions', function (hooks) {
       3,
       'Running on an orphan alloc results in 1 further action instance',
     );
-
-    await percySnapshot('Actions flyout with multiple instances');
   });
 
   test('Running actions from a task row', async function (assert) {
@@ -374,28 +366,10 @@ module('Acceptance | actions', function (hooks) {
       Actions.flyout.actions.isPresent,
       'Flyout has actions dropdown on task page',
     );
-    await percySnapshot(assert, {
-      percyCSS: `
-          g.tick { visibility: hidden; }
-          .recent-events-table td {
-            display: none;
-          }
-          .inline-definitions { visibility: hidden; }
-        `,
-    });
 
     // Clear finished actions and take a snapshot
     await click('button[data-test-clear-finished-actions]');
 
-    await percySnapshot('Cleared actions/flyout open state', {
-      percyCSS: `
-          g.tick { visibility: hidden; }
-          .recent-events-table td {
-            display: none;
-          }
-          .inline-definitions { visibility: hidden; }
-        `,
-    });
 
     // Close flyout; global button is no longer present
     await Actions.flyout.close();

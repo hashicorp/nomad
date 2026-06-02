@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -87,7 +87,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	// Verify the evaluation trigger reason is understood
 	if !s.canHandle(eval.TriggeredBy) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, nil, nil,
+		return setStatus(s.logger, s.planner, s.eval, nil,
 			s.failedTGAllocs, s.planAnnotations, structs.EvalStatusFailed, desc,
 			s.queuedAllocs, s.deployment.GetID())
 	}
@@ -98,7 +98,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(limit, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, nil, nil,
+			return setStatus(s.logger, s.planner, s.eval, nil,
 				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID())
 		}
@@ -106,7 +106,7 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, nil, nil,
+	return setStatus(s.logger, s.planner, s.eval, nil,
 		s.failedTGAllocs, s.planAnnotations, structs.EvalStatusComplete, "",
 		s.queuedAllocs, s.deployment.GetID())
 }

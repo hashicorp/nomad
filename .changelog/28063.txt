@@ -1,0 +1,3 @@
+```release-note:security
+cli: Redact token and certificate key CLI flags and environment variables when writing debug bundle
+```

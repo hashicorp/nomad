@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -18,7 +18,6 @@ import {
 
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import faker from 'nomad-ui/mirage/faker';
-import percySnapshot from '@percy/ember';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 // TODO: Mirage is not type-friendly / assigns "server" as a global. Try to work around this shortcoming.
 
@@ -44,11 +43,6 @@ module('Acceptance | job status panel', function (hooks) {
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
     await a11yAudit(assert);
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
 
     assert
       .dom('[data-test-status-mode="current"]')
@@ -173,11 +167,6 @@ module('Acceptance | job status panel', function (hooks) {
         { count: failedAllocCount },
         `All ${failedAllocCount} failed allocations are represented in the status panel`,
       );
-    await percySnapshot(assert, {
-      percyCSS: `
-          .allocation-row td { display: none; }
-        `,
-    });
   });
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending', async function (assert) {
@@ -251,11 +240,6 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.job-status-panel .versions > ul > li > a[data-version="4"]')
       .doesNotExist();
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
   });
 
   test('After running/pending allocations are covered, fill in allocs by jobVersion, descending (batch)', async function (assert) {
@@ -338,11 +322,6 @@ module('Acceptance | job status panel', function (hooks) {
       .dom('.ungrouped-allocs .represented-allocation.failed')
       .doesNotExist();
 
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
   });
 
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
@@ -424,11 +403,6 @@ module('Acceptance | job status panel', function (hooks) {
         'Summary block has the correct number of grouped allocs',
       );
 
-    await percySnapshot(assert, {
-      percyCSS: `
-        .allocation-row td { display: none; }
-      `,
-    });
   });
 
   test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
@@ -520,15 +494,6 @@ module('Acceptance | job status panel', function (hooks) {
         '5',
         'Summary block has the correct number of grouped unplaced allocs',
       );
-    await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (full width)',
-      {
-        percyCSS: `
-          .allocation-row td { display: none; }
-          .inline-chart { visibility: hidden; }
-        `,
-      },
-    );
 
     // Simulate a window resize event; will recompute how many of each ought to be grouped.
 
@@ -536,15 +501,6 @@ module('Acceptance | job status panel', function (hooks) {
     find('.page-body').style.width = '1100px';
     await triggerEvent(window, 'resize');
 
-    await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (1100px)',
-      {
-        percyCSS: `
-          .allocation-row td { display: none; }
-          .inline-chart { visibility: hidden; }
-        `,
-      },
-    );
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
@@ -579,16 +535,6 @@ module('Acceptance | job status panel', function (hooks) {
     // At 500px, only running allocations have some ungrouped allocs. The rest are all fully grouped.
     find('.page-body').style.width = '800px';
     await triggerEvent(window, 'resize');
-
-    await percySnapshot(
-      'Status Panel groups allocations when they get past a threshold, multiple statuses (500px)',
-      {
-        percyCSS: `
-          .allocation-row td { display: none; }
-          .inline-chart { visibility: hidden; }
-        `,
-      },
-    );
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')

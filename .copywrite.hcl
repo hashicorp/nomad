@@ -1,11 +1,11 @@
-# Copyright IBM Corp. 2015, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 schema_version = 1
 
 project {
   license        = "BUSL-1.1"
-  copyright_year = 2024
+  copyright_year = 2015
 
   header_ignore = [
     "command/asset/*.hcl",

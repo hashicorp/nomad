@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -14,7 +14,6 @@ import moment from 'moment';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
 import VolumeDetail from 'nomad-ui/tests/pages/storage/dynamic-host-volumes/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const assignAlloc = (volume, alloc) => {
@@ -121,10 +120,49 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
             VolumeDetail.allocations.objectAt(idx).id,
           );
         });
-      await percySnapshot(assert);
     } finally {
       moment.now = originalMomentNow;
     }
+  });
+
+  test('allocations show max run deadline when configured', async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000
+    );
+
+    const batchJob = this.server.create('job', {
+      type: 'batch',
+      createAllocations: false,
+    });
+    const taskGroup = this.server.db.taskGroups.findBy({ jobId: batchJob.id });
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    const allocation = this.server.create('allocation', {
+      clientStatus: 'running',
+      jobId: batchJob.id,
+      taskGroup: taskGroup.name,
+      modifyIndex: 999999,
+    });
+    assignAlloc(volume, allocation);
+
+    this.server.db.taskStates
+      .where({ allocationId: allocation.id })
+      .forEach((taskState) => {
+        this.server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
+      });
+
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
+
+    assert.equal(
+      VolumeDetail.allocationFor(allocation.id).maxRunDeadlineTooltip,
+      moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'The allocations table shows the computed max run deadline'
+    );
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {

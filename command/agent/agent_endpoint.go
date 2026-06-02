@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -561,6 +561,26 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	peers := client.GetServers()
 	sort.Strings(peers)
 	return peers, nil
+}
+
+func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+	if !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	if err := s.agent.ConfigReload(); err != nil {
+		return nil, CodedError(500, err.Error())
+	}
+
+	return nil, nil
 }
 
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -32,5 +32,27 @@ module('Unit | Serializer | Network', function (hooks) {
 
     const { data } = this.subject().normalize(NetworkModel, original);
     assert.deepEqual(data.attributes.ip, `[${ip}]`);
+  });
+
+  test('missing IP does not throw', async function (assert) {
+    const original = {
+      ReservedPorts: [{ Label: 'http', Value: 80 }],
+    };
+
+    assert.deepEqual(
+      this.subject().normalize(NetworkModel, original).data.attributes.ip,
+      undefined,
+    );
+  });
+
+  test('missing IP does not throw', async function (assert) {
+    const original = {
+      ReservedPorts: [{ Label: 'http', Value: 80 }],
+    };
+
+    assert.deepEqual(
+      this.subject().normalize(NetworkModel, original).data.attributes.ip,
+      undefined,
+    );
   });
 });

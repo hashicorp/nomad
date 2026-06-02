@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -104,7 +104,7 @@ func (c *JobDeploymentsCommand) Run(args []string) int {
 
 	// Check if the job exists
 	jobIDPrefix := strings.TrimSpace(args[0])
-	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix, "")
+	jobID, namespace, err := c.JobIDByPrefix(client, jobIDPrefix)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

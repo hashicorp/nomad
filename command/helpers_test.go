@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/flatmap"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 )
@@ -235,19 +234,19 @@ const (
 
 var (
 	expectedApiJob = &api.Job{
-		ID:          pointer.Of("job1"),
-		Name:        pointer.Of("job1"),
-		Type:        pointer.Of("service"),
+		ID:          new("job1"),
+		Name:        new("job1"),
+		Type:        new("service"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  pointer.Of("group1"),
-				Count: pointer.Of(1),
+				Name:  new("group1"),
+				Count: new(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts:        pointer.Of(10),
-					Interval:        pointer.Of(15 * time.Second),
-					Mode:            pointer.Of("delay"),
-					RenderTemplates: pointer.Of(false),
+					Attempts:        new(10),
+					Interval:        new(15 * time.Second),
+					Mode:            new("delay"),
+					RenderTemplates: new(false),
 				},
 
 				Tasks: []*api.Task{
@@ -461,6 +460,45 @@ func TestJobGetter_Validate(t *testing.T) {
 
 		})
 	}
+}
+
+func TestJobTaskGroupMaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+
+	// The alloc was created 5 minutes ago.
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	expectedDeadline := createtime.Add(maxRunDuration)
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+
+	deadline, ok := jobTaskGroupMaxRunDeadline(job, groupName, createtime.UnixNano())
+	must.True(t, ok)
+	must.Eq(t, expectedDeadline.UTC(), deadline.UTC())
+}
+
+// TestJobTaskGroupMaxRunDeadline_ZeroCreateTime verifies that a zero CreateTime
+// (alloc not yet scheduled) produces no deadline.
+func TestJobTaskGroupMaxRunDeadline_ZeroCreateTime(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+
+	_, ok := jobTaskGroupMaxRunDeadline(job, groupName, 0)
+	must.False(t, ok)
 }
 
 func TestPrettyTimeDiff(t *testing.T) {

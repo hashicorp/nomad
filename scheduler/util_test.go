@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -341,8 +340,8 @@ func TestTasksUpdated(t *testing.T) {
 	j22.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Min: pointer.Of(5 * time.Second),
-				Max: pointer.Of(5 * time.Second),
+				Min: new(5 * time.Second),
+				Max: new(5 * time.Second),
 			},
 		},
 	}
@@ -350,14 +349,14 @@ func TestTasksUpdated(t *testing.T) {
 	j23.TaskGroups[0].Tasks[0].Templates = []*structs.Template{
 		{
 			Wait: &structs.WaitConfig{
-				Min: pointer.Of(5 * time.Second),
-				Max: pointer.Of(5 * time.Second),
+				Min: new(5 * time.Second),
+				Max: new(5 * time.Second),
 			},
 		},
 	}
 	must.False(t, tasksUpdated(j22, j23, name).modified)
 	// Compare changed Template wait configs
-	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = pointer.Of(10 * time.Second)
+	j23.TaskGroups[0].Tasks[0].Templates[0].Wait.Max = new(10 * time.Second)
 	must.True(t, tasksUpdated(j22, j23, name).modified)
 
 	// Add a volume
@@ -613,26 +612,17 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, nil, nil, status, desc, nil, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, nil, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval := h.Evals[0]
 	must.True(t, newEval.ID == eval.ID && newEval.Status == status && newEval.StatusDescription == desc,
 		must.Sprintf("setStatus() submited invalid eval: %v", newEval))
 
-	// Test next evals
-	h = tests.NewHarness(t)
-	next := mock.Eval()
-	must.NoError(t, setStatus(logger, h, eval, next, nil, nil, nil, status, desc, nil, ""))
-	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
-
-	newEval = h.Evals[0]
-	must.Eq(t, next.ID, newEval.NextEval, must.Sprintf("setStatus() didn't set nextEval correctly: %v", newEval))
-
 	// Test blocked evals
 	h = tests.NewHarness(t)
 	blocked := mock.Eval()
-	must.NoError(t, setStatus(logger, h, eval, nil, blocked, nil, nil, status, desc, nil, ""))
+	must.NoError(t, setStatus(logger, h, eval, blocked, nil, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
@@ -641,7 +631,7 @@ func TestSetStatus(t *testing.T) {
 	// Test metrics
 	h = tests.NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, nil, status, desc, nil, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
@@ -652,7 +642,7 @@ func TestSetStatus(t *testing.T) {
 	h = tests.NewHarness(t)
 	queuedAllocs := map[string]int{"web": 1}
 
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, nil, status, desc, queuedAllocs, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, nil, status, desc, queuedAllocs, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	// Test annotations
@@ -662,7 +652,7 @@ func TestSetStatus(t *testing.T) {
 		PreemptedAllocs:  []*structs.AllocListStub{{ID: uuid.Generate()}},
 	}
 
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, annotations, status, desc, queuedAllocs, ""))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, annotations, status, desc, queuedAllocs, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
@@ -670,7 +660,7 @@ func TestSetStatus(t *testing.T) {
 
 	h = tests.NewHarness(t)
 	dID := uuid.Generate()
-	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, nil, status, desc, queuedAllocs, dID))
+	must.NoError(t, setStatus(logger, h, eval, nil, metrics, nil, status, desc, queuedAllocs, dID))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]

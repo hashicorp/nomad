@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -1612,14 +1612,63 @@ func (c *OperatorDebugCommand) writeBody(dir, file string, resp *http.Response, 
 	}
 }
 
+// sensitiveFlagNames is the set of flag names whose values are redacted before
+// being written into the debug bundle. This covers Nomad, Consul, and Vault
+// credentials as well as TLS private-key paths.
+var sensitiveFlagNames = map[string]struct{}{
+	"token":             {},
+	"consul-auth":       {},
+	"consul-token":      {},
+	"consul-client-key": {},
+	"vault-token":       {},
+	"vault-client-key":  {},
+	"client-key":        {},
+}
+
+// redactedFlagValue is the placeholder substituted for any sensitive flag value.
+// Square brackets are used deliberately: Go's encoding/json HTML-escapes angle
+// brackets (< >) to Unicode escape sequences, which would make the placeholder
+// unreadable in the resulting JSON file.
+const redactedFlagValue = "[redacted]"
+
+// safeFlag is a sanitized snapshot of a flag.Flag that is safe to write into
+// the debug bundle. Values for flags listed in sensitiveFlagNames are replaced
+// with redactedFlagValue.
+type safeFlag struct {
+	Name     string
+	Value    string
+	DefValue string
+	Usage    string
+}
+
+// toSafeFlag converts a flag.Flag into a safeFlag, redacting any value
+// belonging to a sensitive flag name.
+func toSafeFlag(f *flag.Flag) *safeFlag {
+	val := f.Value.String()
+	defVal := f.DefValue
+	if _, sensitive := sensitiveFlagNames[f.Name]; sensitive {
+		if val != "" {
+			val = redactedFlagValue
+		}
+		if defVal != "" {
+			defVal = redactedFlagValue
+		}
+	}
+	return &safeFlag{
+		Name:     f.Name,
+		Value:    val,
+		DefValue: defVal,
+		Usage:    f.Usage,
+	}
+}
+
 type flagExport struct {
 	Name      string
 	Parsed    bool
-	Actual    map[string]*flag.Flag
-	Formal    map[string]*flag.Flag
-	Effective map[string]*flag.Flag // All flags with non-empty value
-	Args      []string              // arguments after flags
-	OsArgs    []string
+	Actual    map[string]*safeFlag
+	Formal    map[string]*safeFlag
+	Effective map[string]*safeFlag // All flags with non-empty value
+	Args      []string             // arguments after flags
 }
 
 // writeFlags exports the CLI flags to JSON file
@@ -1628,24 +1677,27 @@ func (c *OperatorDebugCommand) writeFlags(flags *flag.FlagSet) {
 	var f flagExport
 	f.Name = flags.Name()
 	f.Parsed = flags.Parsed()
-	f.Formal = make(map[string]*flag.Flag)
-	f.Actual = make(map[string]*flag.Flag)
-	f.Effective = make(map[string]*flag.Flag)
+	f.Formal = make(map[string]*safeFlag)
+	f.Actual = make(map[string]*safeFlag)
+	f.Effective = make(map[string]*safeFlag)
 	f.Args = flags.Args()
-	f.OsArgs = os.Args
 
 	// Formal flags (all flags)
 	flags.VisitAll(func(flagA *flag.Flag) {
-		f.Formal[flagA.Name] = flagA
+		safe := toSafeFlag(flagA)
+		f.Formal[flagA.Name] = safe
 
-		// Determine which of thees are "effective" flags by comparing to empty string
+		// Determine which of these are "effective" flags by comparing to empty string.
+		// Use the original value (pre-redaction) so that a sensitive flag whose
+		// value was set is still reflected in the Effective map (with a redacted
+		// placeholder), while an unset sensitive flag is not.
 		if flagA.Value.String() != "" {
-			f.Effective[flagA.Name] = flagA
+			f.Effective[flagA.Name] = safe
 		}
 	})
 	// Actual flags (everything passed on cmdline)
-	flags.Visit(func(flag *flag.Flag) {
-		f.Actual[flag.Name] = flag
+	flags.Visit(func(flagA *flag.Flag) {
+		f.Actual[flagA.Name] = toSafeFlag(flagA)
 	})
 
 	c.reportErr(writeResponseToFile(f, c.newFile(clusterDir, "cli-flags.json")))

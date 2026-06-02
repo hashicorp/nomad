@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -14,7 +14,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1094,7 +1093,7 @@ func TestServiceSched_JobRegister_Datacenter_Downgrade(t *testing.T) {
 		alloc.JobID = job1.ID
 		alloc.NodeID = nodes[i].ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy:     pointer.Of(true),
+			Healthy:     new(true),
 			Timestamp:   time.Now(),
 			Canary:      false,
 			ModifyIndex: h.NextIndex(),
@@ -1233,7 +1232,7 @@ func TestServiceSched_JobRegister_NodePool_Downgrade(t *testing.T) {
 		alloc.JobID = job1.ID
 		alloc.NodeID = nodes[i].ID
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy:     pointer.Of(true),
+			Healthy:     new(true),
 			Timestamp:   time.Now(),
 			Canary:      false,
 			ModifyIndex: h.NextIndex(),
@@ -3236,7 +3235,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DeploymentID = d.ID
-		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
+		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: new(true)}
 		alloc.AllocatedResources.Tasks[taskName].Devices = []*structs.AllocatedDeviceResource{&adr}
 		alloc.AllocatedResources.Shared = asr
 		allocs = append(allocs, alloc)
@@ -3421,6 +3420,93 @@ func TestServiceSched_JobModify_InPlace08(t *testing.T) {
 
 	// Verify AllocatedResources was set
 	must.NotNil(t, newAlloc.AllocatedResources)
+}
+
+func TestServiceSched_JobModify_MaxRunDuration_InPlace(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Create a batch job with a running allocation
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	initialMaxRunDuration := 1 * time.Hour
+	job.TaskGroups[0].MaxRunDuration = &initialMaxRunDuration
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	alloc := mock.BatchAlloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = fmt.Sprintf("%s.%s[%d]", job.ID, job.TaskGroups[0].Name, 0)
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Update only max_run_duration
+	job2 := job.Copy()
+	updatedMaxRunDuration := 4 * time.Hour
+	job2.TaskGroups[0].MaxRunDuration = &updatedMaxRunDuration
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+
+	// Create a mock evaluation
+	eval := &structs.Evaluation{
+		Namespace:    structs.DefaultNamespace,
+		ID:           uuid.Generate(),
+		Priority:     50,
+		TriggeredBy:  structs.EvalTriggerJobRegister,
+		JobID:        job.ID,
+		Status:       structs.EvalStatusPending,
+		AnnotatePlan: true,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewBatchScheduler, eval)
+	must.NoError(t, err)
+
+	// Ensure a single plan
+	must.SliceLen(t, 1, h.Plans)
+	plan := h.Plans[0]
+
+	// Ensure the plan did not evict any allocs
+	var update []*structs.Allocation
+	for _, updateList := range plan.NodeUpdate {
+		update = append(update, updateList...)
+	}
+	must.SliceLen(t, 0, update)
+
+	// Ensure the plan updated the existing alloc in place
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+	must.SliceLen(t, 1, planned)
+	must.Eq(t, job2, planned[0].Job)
+	must.NotNil(t, plan.Annotations)
+	must.NotNil(t, plan.Annotations.DesiredTGUpdates)
+	must.NotNil(t, plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name])
+	must.Eq(t, uint64(1), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].InPlaceUpdate)
+	must.Eq(t, uint64(0), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].DestructiveUpdate)
+	must.Eq(t, uint64(0), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].Place)
+	must.Eq(t, uint64(0), plan.Annotations.DesiredTGUpdates[job.TaskGroups[0].Name].Stop)
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 1, out)
+
+	updatedAlloc := out[0]
+	maxRunDuration, ok := updatedAlloc.MaxRunDuration()
+	must.True(t, ok)
+	must.Eq(t, updatedMaxRunDuration, maxRunDuration)
+	must.Eq(t, alloc.ID, planned[0].ID)
+	must.Eq(t, updatedAlloc.ID, planned[0].ID)
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
@@ -3890,7 +3976,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 			alloc.ClientStatus = tc.client
 
 			// Mark for migration if necessary
-			alloc.DesiredTransition.Migrate = pointer.Of(tc.migrate)
+			alloc.DesiredTransition.Migrate = new(tc.migrate)
 
 			allocs := []*structs.Allocation{alloc}
 			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -3971,7 +4057,7 @@ func TestServiceSched_StopOnClientAfter(t *testing.T) {
 			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
-					StopOnClientAfter: pointer.Of(1 * time.Second),
+					StopOnClientAfter: new(1 * time.Second),
 				}
 			},
 			previousStopWhen:    time.Now().UTC().Add(-10 * time.Second),
@@ -3983,7 +4069,7 @@ func TestServiceSched_StopOnClientAfter(t *testing.T) {
 			jobSpecFn: func(job *structs.Job) {
 				job.TaskGroups[0].Count = 1
 				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
-					StopOnClientAfter: pointer.Of(1 * time.Second),
+					StopOnClientAfter: new(1 * time.Second),
 				}
 			},
 			expectBlockedEval:   false,
@@ -4196,7 +4282,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransition.Migrate = pointer.Of(true)
+		alloc.DesiredTransition.Migrate = new(true)
 		allocs = append(allocs, alloc)
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -4283,7 +4369,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		newAlloc := allocs[i].Copy()
 		newAlloc.ClientStatus = structs.AllocDesiredStatusStop
-		newAlloc.DesiredTransition.Migrate = pointer.Of(true)
+		newAlloc.DesiredTransition.Migrate = new(true)
 		stop = append(stop, newAlloc)
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), stop))
@@ -4409,11 +4495,11 @@ func TestServiceSched_NodeDrain_Canaries(t *testing.T) {
 		alloc.NodeID = drainedNode.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		alloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy: pointer.Of(false),
+			Healthy: new(false),
 			Canary:  true,
 		}
 		alloc.DesiredTransition = structs.DesiredTransition{
-			Migrate: pointer.Of(true),
+			Migrate: new(true),
 		}
 		allocs = append(allocs, alloc)
 		canaries = append(canaries, alloc.ID)
@@ -4435,7 +4521,7 @@ func TestServiceSched_NodeDrain_Canaries(t *testing.T) {
 	replacement.ClientStatus = structs.AllocClientStatusRunning
 	replacement.PreviousAllocation = canaries[0]
 	replacement.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(false),
+		Healthy: new(false),
 		Canary:  true,
 	}
 	allocs = append(allocs, replacement)
@@ -4510,7 +4596,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = node.ID
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransition.Migrate = pointer.Of(true)
+		alloc.DesiredTransition.Migrate = new(true)
 		allocs = append(allocs, alloc)
 	}
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
@@ -5153,7 +5239,7 @@ func TestServiceSched_BlockedDisconnectReplace(t *testing.T) {
 	lostAfterDuration := 12 * time.Hour
 	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
 		LostAfter: lostAfterDuration,
-		Replace:   pointer.Of(true),
+		Replace:   new(true),
 		Reconcile: "best_score",
 	}
 	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
@@ -5413,7 +5499,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 			allocs[1].TaskStates = map[string]*structs.TaskState{"web": {State: "start",
 				StartedAt:  time.Now().Add(-12 * time.Hour),
 				FinishedAt: time.Now().Add(-10 * time.Hour)}}
-			allocs[1].DesiredTransition.Reschedule = pointer.Of(true)
+			allocs[1].DesiredTransition.Reschedule = new(true)
 
 			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
@@ -6437,7 +6523,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	alloc.NodeID = node.ID
 	alloc.Job.TaskGroups[0].Count = 1
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
-	alloc.DesiredTransition.Migrate = pointer.Of(true)
+	alloc.DesiredTransition.Migrate = new(true)
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, alloc.Job))
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
@@ -7062,7 +7148,7 @@ func TestServiceSched_Migrate_NonCanary(t *testing.T) {
 	alloc.Name = "my-job.web[0]"
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusRunning
-	alloc.DesiredTransition.Migrate = pointer.Of(true)
+	alloc.DesiredTransition.Migrate = new(true)
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation

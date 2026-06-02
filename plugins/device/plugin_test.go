@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package device
@@ -12,7 +12,6 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -198,7 +197,7 @@ func TestDevicePlugin_Fingerprint(t *testing.T) {
 			Name:   "foo",
 			Attributes: map[string]*psstructs.Attribute{
 				"memory": {
-					Int:  pointer.Of(int64(4)),
+					Int:  new(int64(4)),
 					Unit: "GiB",
 				},
 			},
@@ -479,8 +478,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						IntNumeratorVal:   pointer.Of(int64(10)),
-						IntDenominatorVal: pointer.Of(int64(20)),
+						IntNumeratorVal:   new(int64(10)),
+						IntDenominatorVal: new(int64(20)),
 						Unit:              "MB",
 						Desc:              "Unit test",
 					},
@@ -496,8 +495,8 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						FloatNumeratorVal:   pointer.Of(float64(10.0)),
-						FloatDenominatorVal: pointer.Of(float64(20.0)),
+						FloatNumeratorVal:   new(float64(10.0)),
+						FloatDenominatorVal: new(float64(20.0)),
 						Unit:                "MB",
 						Desc:                "Unit test",
 					},
@@ -511,7 +510,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						StringVal: pointer.Of("foo"),
+						StringVal: new("foo"),
 						Unit:      "MB",
 						Desc:      "Unit test",
 					},
@@ -525,7 +524,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 			InstanceStats: map[string]*DeviceStats{
 				"1": {
 					Summary: &psstructs.StatValue{
-						BoolVal: pointer.Of(true),
+						BoolVal: new(true),
 						Unit:    "MB",
 						Desc:    "Unit test",
 					},

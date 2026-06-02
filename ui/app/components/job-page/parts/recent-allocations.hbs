@@ -1,5 +1,5 @@
 {{!
-  Copyright IBM Corp. 2015, 2025
+  Copyright IBM Corp. 2015, 2026
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
@@ -41,6 +41,11 @@
           <th>
             Modified
           </th>
+          {{#if this.job.isBatchOrSysbatch}}
+            <th>
+              Max Run Deadline
+            </th>
+          {{/if}}
           <th>
             Status
           </th>
@@ -69,6 +74,7 @@
             @allocation={{row.model}}
             @context="job"
             @onClick={{fn this.gotoAllocation row.model}}
+            @showMaxRunDeadline={{this.job.isBatchOrSysbatch}}
             @showSubTasks={{this.showSubTasks}}
             {{keyboard-shortcut
               enumerated=true
@@ -78,16 +84,29 @@
 
           {{#if this.showSubTasks}}
             {{#each row.model.states as |task|}}
-              <TaskSubRow
-                @namespan="9"
-                @taskState={{task}}
-                @active={{eq
-                  @activeTask
-                  (concat task.allocation.id "-" task.name)
-                }}
-                @onSetActiveTask={{@setActiveTaskQueryParam}}
-                @jobHasActions={{this.job.actions.length}}
-              />
+              {{#if this.job.isBatchOrSysbatch}}
+                <TaskSubRow
+                  @namespan="10"
+                  @taskState={{task}}
+                  @active={{eq
+                    @activeTask
+                    (concat task.allocation.id "-" task.name)
+                  }}
+                  @onSetActiveTask={{@setActiveTaskQueryParam}}
+                  @jobHasActions={{this.job.actions.length}}
+                />
+              {{else}}
+                <TaskSubRow
+                  @namespan="9"
+                  @taskState={{task}}
+                  @active={{eq
+                    @activeTask
+                    (concat task.allocation.id "-" task.name)
+                  }}
+                  @onSetActiveTask={{@setActiveTaskQueryParam}}
+                  @jobHasActions={{this.job.actions.length}}
+                />
+              {{/if}}
             {{/each}}
           {{/if}}
         </t.body>

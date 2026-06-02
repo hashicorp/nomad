@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -118,7 +118,7 @@ func TestInspectCommand_HCLOutput(t *testing.T) {
 
 	// trigger version #3 retrieve the job struct from client.Meta.JobByPrefix
 	// to imitate job.Start
-	stateJob, err := cmd.Meta.JobByPrefix(client, *job.ID, "")
+	stateJob, err := cmd.Meta.JobByPrefix(client, *job.ID)
 	must.NoError(t, err)
 	_, _, err = client.Jobs().Register(stateJob, nil)
 	must.NoError(t, err)

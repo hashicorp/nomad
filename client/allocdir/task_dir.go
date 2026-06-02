@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocdir
@@ -153,9 +153,13 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 		// If the path doesn't exist OR it exists and is empty, link it
 		empty, _ := pathEmpty(t.SharedTaskDir)
 		if !pathExists(t.SharedTaskDir) || empty {
-			if err := linkDir(t.SharedAllocDir, t.SharedTaskDir); err != nil {
+			if err := linkDir(t.SharedAllocDir, t.SharedTaskDir, false); err != nil {
 				return fmt.Errorf("Failed to mount shared directory for task: %w", err)
 			}
+			if err := linkDir(t.LogDir, filepath.Join(t.SharedTaskDir, "logs"), true); err != nil {
+				return fmt.Errorf("Failed to mount shared directory for task: %w", err)
+			}
+
 		}
 	}
 
@@ -326,6 +330,12 @@ func (t *TaskDir) Unmount() error {
 
 	// Check if the directory has the shared alloc mounted.
 	if pathExists(t.SharedTaskDir) {
+		if err := unlinkDir(filepath.Join(t.SharedTaskDir, "logs")); err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("failed to unmount logs dir %q: %w",
+					filepath.Join(t.SharedTaskDir, "logs"), err))
+		}
+
 		if err := unlinkDir(t.SharedTaskDir); err != nil {
 			mErr = multierror.Append(mErr,
 				fmt.Errorf("failed to unmount shared alloc dir %q: %w", t.SharedTaskDir, err))

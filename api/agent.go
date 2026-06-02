@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -217,6 +217,14 @@ func (a *Agent) ListKeys() (*KeyringResponse, error) {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+type AgentReloadOpts struct{}
+
+// Reload requests the agent to reload its configuration.
+func (a *Agent) Reload(_ *AgentReloadOpts, q *WriteOptions) error {
+	_, err := a.client.put("/v1/agent/reload", nil, nil, q)
+	return err
 }
 
 // InstallKey installs a key in the keyrings of all the serf members
