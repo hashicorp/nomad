@@ -572,3 +572,79 @@ func TestParseInvalid(t *testing.T) {
 		})
 	}
 }
+
+func TestCtyValueToMapInterface(t *testing.T) {
+	spec := hclspec.NewObject(map[string]*hclspec.Spec{
+		"a": hclspec.NewAttr("a", "string", false),
+		"b": hclspec.NewAttr("b", "number", false),
+		"c": hclspec.NewAttr("c", "list(string)", false),
+		"d": hclspec.NewBlock("d", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"x": hclspec.NewAttr("x", "bool", false),
+		})),
+	})
+
+	decSpec, diags := hclspecutils.Convert(spec)
+	require.False(t, diags.HasErrors())
+
+	config := hclutils.HclConfigToInterface(t, `
+	config {
+		a = "hello"
+		b = 42
+		c = ["one", "two"]
+		d {
+			x = true
+		}
+	}`)
+
+	v, diag, errs := hclutils.ParseHclInterface(config, decSpec, nil)
+	require.False(t, diag.HasErrors(), errs)
+
+	m, err := hclutils.CtyValueToMapInterface(v)
+	require.NoError(t, err)
+	require.Equal(t, map[string]interface{}{
+		"a": "hello",
+		"b": 42,
+		"c": []interface{}{"one", "two"},
+		"d": map[string]interface{}{"x": true},
+	}, m)
+}
+
+func TestCtyValueToMapInterface_MapInput(t *testing.T) {
+	v := cty.MapVal(map[string]cty.Value{
+		"str": cty.StringVal("value"),
+		"num": cty.NumberIntVal(7),
+		"obj": cty.ObjectVal(map[string]cty.Value{
+			"flag": cty.True,
+		}),
+		"list": cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}),
+	})
+
+	m, err := hclutils.CtyValueToMapInterface(v)
+	require.NoError(t, err)
+	require.Equal(t, map[string]interface{}{
+		"str":  "value",
+		"num":  7,
+		"obj":  map[string]interface{}{"flag": true},
+		"list": []interface{}{"a", "b"},
+	}, m)
+}
+
+func TestCtyValueToMapInterface_Null(t *testing.T) {
+	m, err := hclutils.CtyValueToMapInterface(cty.NullVal(cty.DynamicPseudoType))
+	require.NoError(t, err)
+	require.Nil(t, m)
+}
+
+func TestCtyValueToMapInterface_InvalidType(t *testing.T) {
+	_, err := hclutils.CtyValueToMapInterface(cty.StringVal("nope"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "expected map/object cty value")
+}
+
+func TestCtyValueToMapInterface_Unknown(t *testing.T) {
+	_, err := hclutils.CtyValueToMapInterface(cty.UnknownVal(cty.Object(map[string]cty.Type{
+		"a": cty.String,
+	})))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "value is not known")
+}
