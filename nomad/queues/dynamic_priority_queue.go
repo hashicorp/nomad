@@ -100,7 +100,7 @@ func NewDynamicPriorityQueue(state *state.StateStore, broker Broker, qconf *stru
 		metadataKey: qconf.MetadataKey,
 		conf:        conf,
 		state:       state,
-		logger:      logger.Named("Dynamic Priority Queue"),
+		logger:      logger.Named("dynamic_priority_queue"),
 		totalUsage:  0,
 		stopCh:      make(chan struct{}),
 	}
