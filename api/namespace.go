@@ -80,6 +80,8 @@ type Namespace struct {
 	Meta                  map[string]string
 	CreateIndex           uint64
 	ModifyIndex           uint64
+	RequiredExtraClaims   map[string]string
+	OptionalExtraClaims   map[string]string
 }
 
 // NamespaceCapabilities represents a set of capabilities allowed for this

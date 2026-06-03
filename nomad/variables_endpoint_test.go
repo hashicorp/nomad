@@ -503,7 +503,9 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	task1 := alloc1.LookupTask("web")
 	claims1 := structs.NewIdentityClaimsBuilder(alloc1.Job, alloc1,
 		wiHandle,
-		task1.Identity).
+		task1.Identity,
+		namespace,
+	).
 		WithTask(task1).
 		Build(time.Now())
 	idToken, _, err := srv.encrypter.SignClaims(claims1)
@@ -512,7 +514,9 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	task2 := alloc2.LookupTask("web")
 	claims2 := structs.NewIdentityClaimsBuilder(alloc2.Job, alloc2,
 		wiHandle,
-		task2.Identity).
+		task2.Identity,
+		namespace,
+	).
 		WithTask(task2).
 		Build(time.Now())
 	noPermissionsToken, _, err := srv.encrypter.SignClaims(claims2)
@@ -521,7 +525,9 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	task3 := alloc3.LookupTask("web")
 	claims3 := structs.NewIdentityClaimsBuilder(alloc3.Job, alloc3,
 		wiHandle,
-		task3.Identity).
+		task3.Identity,
+		namespace,
+	).
 		WithTask(task3).
 		Build(time.Now())
 	idDispatchToken, _, err := srv.encrypter.SignClaims(claims3)
@@ -540,7 +546,9 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	task4 := alloc4.LookupTask("web")
 	claims4 := structs.NewIdentityClaimsBuilder(alloc4.Job, alloc4,
 		wiHandle,
-		task4.Identity).
+		task4.Identity,
+		namespace,
+	).
 		WithTask(task4).
 		Build(time.Now())
 	wiOnlyToken, _, err := srv.encrypter.SignClaims(claims4)
@@ -899,7 +907,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	task := alloc.LookupTask("web")
 	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
 		wiHandle,
-		task.Identity).
+		task.Identity, namespace).
 		WithTask(task).
 		Build(time.Now())
 	token, _, err := srv.encrypter.SignClaims(claims)
