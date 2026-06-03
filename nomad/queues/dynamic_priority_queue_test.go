@@ -35,7 +35,7 @@ func TestWaitForPlacement(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
+			err := testQueue.waitForPlacement(t.Context(), &Workload{eval: testEval}, ws)
 			doneCh <- err
 		}()
 
@@ -63,7 +63,7 @@ func TestWaitForPlacement(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
+			err := testQueue.waitForPlacement(t.Context(), &Workload{eval: testEval}, ws)
 			doneCh <- err
 		}()
 
@@ -109,7 +109,7 @@ func TestWaitForPlacement(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
+			err := testQueue.waitForPlacement(t.Context(), &Workload{eval: testEval}, ws)
 			doneCh <- err
 		}()
 
@@ -208,7 +208,8 @@ func TestDecayUsage(t *testing.T) {
 
 func TestCalculatePriorities(t *testing.T) {
 	queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{
-		HalfLife: 10 * time.Second,
+		HalfLife:    10 * time.Second,
+		UsageWeight: 10,
 	}, hclog.New(hclog.DefaultOptions))
 
 	lowUsageTenant := &Tenant{

@@ -85,7 +85,7 @@ type Workload struct {
 	tid      TenantID
 	priority int
 	eval     *structs.Evaluation
-	usage    map[string]float64
+	usage    map[string]map[string]float64
 	index    int
 
 	sizeAdjustment  int
@@ -193,17 +193,12 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			d.evalBroker.Enqueue(workload.eval)
 
 			// Wait for the eval to be placed
-			err := d.waitForPlacement(ctx, workload.eval, memdb.NewWatchSet())
+			err := d.waitForPlacement(ctx, workload, memdb.NewWatchSet())
 			if err != nil {
 				d.logger.Error("failure waiting for workload placement", "evalID", workload.eval)
 			}
 
 			d.qMux.Lock()
-			// TODO: this is an unsafe concurrent map access
-			// We should also look to at the eval to check if
-			// it actually resulted in a placement before incrementing
-			// the usage, maybe via eval.PlanAnnotations?
-			d.updateUsage(workload)
 			l := d.queue.Len()
 			d.qMux.Unlock()
 
@@ -249,11 +244,12 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 		}
 	}
 
-	usage := make(map[string]float64)
+	usage := make(map[string]map[string]float64)
 	for _, tg := range job.TaskGroups {
+		usage[tg.Name] = make(map[string]float64)
 		for _, task := range tg.Tasks {
-			usage["cpu"] += float64(task.Resources.CPU)
-			usage["memory"] += float64(task.Resources.MemoryMB)
+			usage[tg.Name]["cpu"] = float64(task.Resources.CPU)
+			usage[tg.Name]["memory"] = float64(task.Resources.MemoryMB)
 		}
 	}
 
@@ -296,26 +292,31 @@ func (d *DynamicPriorityQueue) decayUsage(ts time.Time) {
 	d.totalUsage = newUsage
 }
 
+// TODO: unsafe map access
 func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
-	for resource, usage := range workload.usage {
-		d.tenants[workload.tid].usage[resource] += usage
-		d.totalUsage[resource] += usage
+	for task, desired := range workload.eval.PlanAnnotations.DesiredTGUpdates {
+		if desired.Place != 0 {
+			for resource, usage := range workload.usage[task] {
+				d.tenants[workload.tid].usage[resource] += (usage * float64(desired.Place))
+				d.totalUsage[resource] += (usage * float64(desired.Place))
+			}
+		}
 	}
 }
 
 func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
-	totalUsage := 0.0
 	tenantUsage := 0.0
-	for resource, usage := range d.tenants[w.tid].usage {
+	for _, usage := range d.tenants[w.tid].usage {
 		tenantUsage += usage // * d.conf.ResourceWeights[resource]
-		if total, ok := d.totalUsage[resource]; ok && total != 0 {
-			totalUsage += total
-		}
+	}
+
+	totalUsage := 0.0
+	for _, total := range d.totalUsage {
+		totalUsage += total
 	}
 
 	usageRatio := tenantUsage / totalUsage
-	usageAdjustment := (1 - usageRatio) * 100 // We need this to be an int if we are trying to add it to the priority
-	// * float64(d.conf.UsageWeight)
+	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
 	w.priority = w.eval.Priority + int(usageAdjustment)
 }
 
@@ -325,7 +326,8 @@ func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
 // Note: If a job with an unsatisfiable contraint is given to the Eval Broker, this function will block
 // until a Nomad operator manually intervenes and stops the job. In the future, we can add an optional
 // configurable timeout for this blocking query.
-func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *structs.Evaluation, ws memdb.WatchSet) error {
+func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *Workload, ws memdb.WatchSet) error {
+	eval := workload.eval
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
 
@@ -352,7 +354,14 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 			return ErrWatchedEvalNotFound
 		}
 
+		workload.eval = eval
+
 		if eval.TerminalStatus() {
+			// If the eval is terminal and has plan annotations, something might have been placed and we should update tenant usage accordingly.
+			if eval.PlanAnnotations != nil && eval.PlanAnnotations.DesiredTGUpdates != nil {
+				// TODO: this is an unsafe concurrent map access
+				d.updateUsage(workload)
+			}
 			continue
 		}
 
