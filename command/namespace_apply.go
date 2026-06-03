@@ -229,6 +229,8 @@ func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 	delete(m, "node_pool_config")
 	delete(m, "vault")
 	delete(m, "consul")
+	delete(m, "required_extra_claims")
+	delete(m, "optional_extra_claims")
 
 	// Decode the rest
 	if err := mapstructure.WeakDecode(m, result); err != nil {
@@ -306,6 +308,30 @@ func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 				return err
 			}
 			if err := mapstructure.WeakDecode(m, &result.Meta); err != nil {
+				return err
+			}
+		}
+	}
+
+	if reqClaimsO := list.Filter("required_extra_claims"); len(reqClaimsO.Items) > 0 {
+		for _, o := range reqClaimsO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return err
+			}
+			if err := mapstructure.WeakDecode(m, &result.RequiredExtraClaims); err != nil {
+				return err
+			}
+		}
+	}
+
+	if optClaimsO := list.Filter("optional_extra_claims"); len(optClaimsO.Items) > 0 {
+		for _, o := range optClaimsO.Elem().Items {
+			var m map[string]interface{}
+			if err := hcl.DecodeObject(&m, o.Val); err != nil {
+				return err
+			}
+			if err := mapstructure.WeakDecode(m, &result.OptionalExtraClaims); err != nil {
 				return err
 			}
 		}
