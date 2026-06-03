@@ -134,7 +134,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 	task1 := alloc1.LookupTask("web")
 	claims1 := structs.NewIdentityClaimsBuilder(job, alloc1,
 		wiHandle,
-		task1.Identity).
+		task1.Identity, mock.Namespace()).
 		WithTask(task1).
 		Build(time.Now())
 
@@ -144,7 +144,7 @@ func TestAuthenticate_mTLS(t *testing.T) {
 	task2 := alloc2.LookupTask("web")
 	claims2 := structs.NewIdentityClaimsBuilder(job, alloc2,
 		wiHandle,
-		task2.Identity).
+		task2.Identity, mock.Namespace()).
 		WithTask(task1).
 		Build(time.Now())
 
