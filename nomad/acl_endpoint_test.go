@@ -638,7 +638,7 @@ func TestACLEndpoint_GetListPolicies_WorkloadIdentity(t *testing.T) {
 			WorkloadIdentifier: "t",
 			WorkloadType:       structs.WorkloadTypeTask,
 		},
-		task.Identity).
+		task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now().Add(-10 * time.Minute))
 	jwtToken, _, err := srv.encrypter.SignClaims(claims)
@@ -2086,7 +2086,7 @@ func TestACLEndpoint_WhoAmI(t *testing.T) {
 	task := alloc.LookupTask("web")
 	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
 		wiHandle, // see encrypter_test.go
-		task.Identity).
+		task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now().Add(-10 * time.Minute))
 	jwtToken, _, err := s1.encrypter.SignClaims(claims)
