@@ -139,7 +139,6 @@ func TestConsul_Integration(t *testing.T) {
 		r.NoError(allocDir.Destroy())
 	})
 	taskDir := allocDir.NewTaskDir(task)
-	vclient, err := vaultclient.NewMockVaultClient("default")
 	must.NoError(t, err)
 	consulClient, err := consulapi.NewClient(consulConfig)
 	r.Nil(err)
@@ -166,7 +165,7 @@ func TestConsul_Integration(t *testing.T) {
 		Task:                task,
 		TaskDir:             taskDir,
 		Logger:              logger,
-		VaultFunc:           func(string) (vaultclient.VaultClient, error) { return vclient, nil },
+		VaultFunc:           func(string) (vaultclient.VaultClient, error) { return vaultclient.NewMockVaultClient(), nil },
 		StateDB:             state.NoopDB{},
 		StateUpdater:        logUpdate,
 		DeviceManager:       devicemanager.NoopMockManager(),
