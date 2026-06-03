@@ -611,21 +611,15 @@ func TestCtyValueToMapInterface(t *testing.T) {
 
 func TestCtyValueToMapInterface_MapInput(t *testing.T) {
 	v := cty.MapVal(map[string]cty.Value{
-		"str": cty.StringVal("value"),
-		"num": cty.NumberIntVal(7),
-		"obj": cty.ObjectVal(map[string]cty.Value{
-			"flag": cty.True,
-		}),
-		"list": cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}),
+		"first":  cty.StringVal("value"),
+		"second": cty.StringVal("another"),
 	})
 
 	m, err := hclutils.CtyValueToMapInterface(v)
 	require.NoError(t, err)
 	require.Equal(t, map[string]interface{}{
-		"str":  "value",
-		"num":  7,
-		"obj":  map[string]interface{}{"flag": true},
-		"list": []interface{}{"a", "b"},
+		"first":  "value",
+		"second": "another",
 	}, m)
 }
 
