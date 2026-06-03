@@ -85,7 +85,7 @@ func (l *PluginLoader) init(cfg *PluginLoaderConfig) (map[string]*config.PluginC
 		return nil, fmt.Errorf("parsing plugin configurations failed: %v", err)
 	}
 
-	for i, _ := range configMap {
+	for i := range configMap {
 		if updated, ok := canonicalizedConfigs[i]; ok {
 			configMap[i].Config = updated.Config
 		}
@@ -443,7 +443,7 @@ func (l *PluginLoader) mergePlugins(internal, external map[PluginID]*pluginInfo)
 func (l *PluginLoader) validatePluginConfigs() (map[string]*InternalPluginConfig, error) {
 	var mErr multierror.Error
 	config := map[string]*InternalPluginConfig{}
-	for id, _ := range l.plugins {
+	for id := range l.plugins {
 		pc, err := l.validatePluginConfig(id, l.plugins[id])
 		if err != nil {
 			wrapped := multierror.Prefix(err, fmt.Sprintf("plugin %s:", id))
