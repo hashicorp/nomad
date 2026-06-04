@@ -68,7 +68,7 @@ func ParseHclInterface(val interface{}, spec hcldec.Spec, vars map[string]cty.Va
 // ParseHclInterface returns a cty.Value and callers sometimes need a generic
 // map payload (for example for plugin config maps). This helper converts that
 // value recursively into native Go values.
-func CtyValueToMapInterface(val cty.Value) (map[string]interface{}, error) {
+func CtyValueToMapInterface(val cty.Value) (map[string]any, error) {
 	if !val.IsKnown() {
 		return nil, fmt.Errorf("value is not known")
 	}
@@ -87,7 +87,7 @@ func CtyValueToMapInterface(val cty.Value) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	m, ok := v.(map[string]interface{})
+	m, ok := v.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("expected map/object cty value, got %T", v)
 	}
