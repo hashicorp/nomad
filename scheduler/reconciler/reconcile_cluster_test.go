@@ -7379,3 +7379,186 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 		})
 	}
 }
+
+// Tests the reconciler properly counts batch client-terminal (but not
+// server-terminal) allocs against the total count when scaling down
+func TestReconciler_ScaleDown_ClientTerminal_Batch(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 5
+
+	var allocs []*structs.Allocation
+	for i := range 7 {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	allocs[5].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[5].ClientStatus = structs.AllocClientStatusComplete
+	allocs[5].TaskStates = map[string]*structs.TaskState{"web": {
+		State: "dead",
+	}}
+	allocs[6].DesiredStatus = structs.AllocDesiredStatusStop
+	allocs[6].ClientStatus = structs.AllocClientStatusComplete
+	allocs[6].TaskStates = map[string]*structs.TaskState{"web": {
+		State: "dead",
+	}}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        true,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes: nil,
+			Now:          time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		stop:              1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 6,
+				Stop:   1,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, []int{5}, stopResultsToNames(r.Stop))
+}
+
+// Tests the reconciler properly counts service client-terminal (but not
+// server-terminal) allocs against the total count when scaling down
+func TestReconciler_ScaleDown_ClientTerminal_Service(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	var allocs []*structs.Allocation
+	for i := range 6 {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	allocs[3].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[3].ClientStatus = structs.AllocClientStatusFailed
+	allocs[3].TaskStates = map[string]*structs.TaskState{"web": {
+		State:  "dead",
+		Failed: true,
+	}}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        false,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes: nil,
+			Now:          time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	assertNamesHaveIndexes(t, []int{3}, stopResultsToNames(r.Stop))
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		stop:              1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 5,
+				Place:  1, // this is because we're eligible for reschedule
+				Stop:   1,
+			},
+		},
+	})
+}
+
+// Tests the reconciler does not stop a healthy service alloc when scaling down
+// with an active deployment and a failed terminal alloc that is not marked
+// reschedulable.
+func TestReconciler_ScaleDown_ClientTerminal_Service_ActiveDeployment(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	d.Status = structs.DeploymentStatusRunning
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal:  3,
+		PlacedAllocs:  3,
+		HealthyAllocs: 0,
+	}
+
+	var allocs []*structs.Allocation
+	for i := range 3 {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.DeploymentID = d.ID
+		allocs = append(allocs, alloc)
+	}
+
+	allocs[2].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].TaskStates = map[string]*structs.TaskState{"web": {
+		State:  "dead",
+		Failed: true,
+	}}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        false,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: d,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes: nil,
+			Now:          time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		stop:              1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 2,
+				Stop:   1,
+			},
+		},
+	})
+
+	must.Eq(t, len(r.Stop), 1)
+	for _, stop := range r.Stop {
+		must.Eq(t, stop.Alloc.ID, allocs[2].ID)
+	}
+}
