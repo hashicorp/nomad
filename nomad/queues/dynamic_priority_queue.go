@@ -121,8 +121,8 @@ func (d *DynamicPriorityQueue) Stop() {
 // It generates a workload with an empty priority, appends it
 // to an internal channel to be processed and added to the actual
 // heap container.
-func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
-	w := d.generateWorkload(e)
+func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
+	w := d.generateWorkload(e, j)
 
 	// in the event of an empty workload, just pass eval to eval broker
 	if w == nil {
@@ -206,12 +206,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 }
 
 // generateWorkload is used to create an initial workload from a given evaluation
-func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload {
-	job, err := d.state.JobByID(nil, e.Namespace, e.JobID)
-	if err != nil {
-		return nil
-	}
-
+func (d *DynamicPriorityQueue) generateWorkload(eval *structs.Evaluation, job *structs.Job) *Workload {
 	tid := ""
 	switch d.tenantType {
 	case "namespace":
@@ -230,7 +225,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 	return &Workload{
 		tid:      TenantID(tid),
 		priority: 0,
-		eval:     e,
+		eval:     eval,
 		size:     0,
 	}
 }

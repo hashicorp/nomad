@@ -56,9 +56,9 @@ func (b *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 	// if a node pool has a specific batch queue configuration, use that,
 	// otherwise use the scheduler config queue.
 	if queue, ok := b.nodePoolQueues[job.NodePool]; !ok {
-		b.defaultQueue.Enqueue(e)
+		b.defaultQueue.Enqueue(e, job)
 	} else {
-		queue.Enqueue(e)
+		queue.Enqueue(e, job)
 	}
 }
 

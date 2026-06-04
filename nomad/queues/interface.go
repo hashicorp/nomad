@@ -10,7 +10,7 @@ import (
 )
 
 type Queue interface {
-	Enqueue(*structs.Evaluation)
+	Enqueue(*structs.Evaluation, *structs.Job)
 	Start(context.Context) error
 	Stop()
 }
