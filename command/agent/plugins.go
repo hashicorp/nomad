@@ -32,6 +32,9 @@ func (a *Agent) setupPlugins() error {
 	// plugin configs with any default values from the plugin's config schema.
 	//  They need to be propagated so we need to pass a pointer to the
 	// agent's config here.
+	a.configLock.Lock()
+	defer a.configLock.Unlock()
+
 	l, err := loader.NewPluginLoader(config)
 	if err != nil {
 		return fmt.Errorf("failed to create plugin loader: %v", err)
