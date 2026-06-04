@@ -268,9 +268,16 @@ export default class Watchable extends ApplicationAdapter {
       : null;
     const newIndex = headerIndex || fallbackIndex;
 
+    // When the response carries a real X-Nomad-Index header we always cache it.
+    // The blocking `index` query param travels in the request body options and
+    // is not reflected on `requestData` by the underlying fetch adapter, so we
+    // must not gate header-derived indexes behind `hasWatchIndex`. The
+    // hasWatchIndex guard only applies to the test-only pre-advance fallback.
+    const shouldStoreIndex = headerIndex ? true : hasWatchIndex(requestData);
+
     if (
       newIndex &&
-      hasWatchIndex(requestData) &&
+      shouldStoreIndex &&
       !this.isDestroying &&
       !this.isDestroyed
     ) {
