@@ -33,7 +33,7 @@ export default function (
       maxRunDeadline: text('[data-test-max-run-deadline]'),
       maxRunDeadlineTooltip: attribute(
         'aria-label',
-        '[data-test-max-run-deadline] .tooltip'
+        '[data-test-max-run-deadline] .tooltip',
       ),
       health: text('[data-test-health]'),
       status: text('[data-test-client-status]'),
