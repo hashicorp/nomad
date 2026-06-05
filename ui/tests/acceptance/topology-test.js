@@ -47,7 +47,6 @@ module('Acceptance | topology', function (hooks) {
 
     await Topology.visit();
 
-
     assert.deepEqual(Topology.infoPanelTitle, 'Cluster Details');
     assert.notOk(Topology.filteredNodesWarning.isPresent);
 
