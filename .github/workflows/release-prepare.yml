@@ -1,7 +1,11 @@
 name: Prepare Nomad release branch
 
-# create a specific release/A.B.C branch from a long-lived
-# release/A.B.x branch and prepare it to be built.
+# prepare a release branch to be built
+#
+# normal release: cut a new branch from a long-lived release/A.B.x branch.
+#                 overwrite target release/A.B.C branch if it exists.
+#
+# security release: commit to an existing short-lived release/A.B.C branch.
 
 on:
   workflow_call:
@@ -22,7 +26,7 @@ on:
         type: string
         required: true
       source-branch:
-        description: "Source branch to cut the release branch from, e.g. release/1.11.x"
+        description: "Source branch to cut the release branch from, e.g. 'release/1.11.x', or 'release/1.11.22' to prepare an existing branch)"
         type: string
         required: true
     outputs:
