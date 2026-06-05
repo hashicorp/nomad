@@ -121,7 +121,7 @@ module('Unit | Model | allocation', function (hooks) {
             tasks: [],
           },
         ],
-      })
+      }),
     );
 
     const allocation = run(() =>
@@ -137,12 +137,12 @@ module('Unit | Model | allocation', function (hooks) {
             startedAt: new Date('2025-01-02T03:05:05Z'),
           },
         ],
-      })
+      }),
     );
 
     assert.strictEqual(
       allocation.maxRunDeadline.getTime(),
-      new Date('2025-01-02T03:15:05Z').getTime()
+      new Date('2025-01-02T03:15:05Z').getTime(),
     );
   });
 
@@ -161,7 +161,7 @@ module('Unit | Model | allocation', function (hooks) {
             tasks: [],
           },
         ],
-      })
+      }),
     );
 
     const allocation = run(() =>
@@ -176,7 +176,7 @@ module('Unit | Model | allocation', function (hooks) {
             startedAt: new Date('2025-01-02T03:04:05Z'),
           },
         ],
-      })
+      }),
     );
 
     assert.strictEqual(allocation.maxRunDeadline, null);
@@ -197,7 +197,7 @@ module('Unit | Model | allocation', function (hooks) {
             tasks: [],
           },
         ],
-      })
+      }),
     );
 
     const allocation = run(() =>
@@ -213,7 +213,7 @@ module('Unit | Model | allocation', function (hooks) {
           },
           { name: 'task-b', state: 'pending', startedAt: null },
         ],
-      })
+      }),
     );
 
     assert.strictEqual(allocation.maxRunDeadline, null);

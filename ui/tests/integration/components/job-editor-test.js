@@ -314,7 +314,6 @@ module('Integration | Component | job-editor', function (hooks) {
     );
 
     await componentA11yAudit(this.element, assert);
-
   });
 
   test('When the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {
