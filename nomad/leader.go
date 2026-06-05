@@ -835,7 +835,7 @@ func (s *Server) restoreEvals() error {
 			if eval.Type == structs.JobTypeBatch && eval.TriggeredBy == structs.EvalTriggerJobRegister {
 				s.batchQueueMgr.Enqueue(eval)
 			} else {
-				s.evalBroker.Enqueue(eval)
+				s.evalBroker.Restore(eval)
 			}
 		} else if eval.ShouldBlock() {
 			s.blockedEvals.Block(eval)
