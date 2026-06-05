@@ -321,7 +321,6 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.ungrouped-allocs .represented-allocation.failed')
       .doesNotExist();
-
   });
 
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
@@ -402,7 +401,6 @@ module('Acceptance | job status panel', function (hooks) {
         `+${groupAllocCount - desiredUngroupedAllocCount}`,
         'Summary block has the correct number of grouped allocs',
       );
-
   });
 
   test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
@@ -500,7 +498,6 @@ module('Acceptance | job status panel', function (hooks) {
     // At 1100px, only running and failed allocations have some ungrouped allocs
     find('.page-body').style.width = '1100px';
     await triggerEvent(window, 'resize');
-
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')

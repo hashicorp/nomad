@@ -151,7 +151,6 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     await Tokens.secret(secretId).submit();
 
-
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
     assert.ok(Tokens.managementMessage, 'Token management message is shown');
@@ -387,7 +386,6 @@ module('Acceptance | tokens', function (hooks) {
     await click('[data-test-oidc-account="Manager"]');
     await waitUntil(() => currentURL().startsWith('/settings/tokens'));
     await waitUntil(() => !!find('[data-test-token-name]'));
-
 
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Manager');
@@ -967,7 +965,6 @@ module('Acceptance | tokens', function (hooks) {
       assert.dom(policyBlocks[1]).hasText('client-reader');
       assert.dom(policyBlocks[2]).hasText('job-reader');
 
-
       await Tokens.clear();
 
       // User with 2 roles, each containing 1 policy, and one of the policies is also directly on their token
@@ -1050,7 +1047,6 @@ module('Acceptance | tokens', function (hooks) {
       assert
         .dom('[data-test-token-row]')
         .exists({ count: this.server.db.tokens.length });
-
     });
 
     test('Tokens index, management token handling', async function (assert) {
@@ -1357,7 +1353,6 @@ module('Acceptance | tokens', function (hooks) {
       await click('[data-test-token-roles] tbody tr input');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-
 
       await Administration.visitTokens();
       // Policies cell for our clay token should read "No Policies"
