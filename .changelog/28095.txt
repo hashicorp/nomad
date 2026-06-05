@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI
+```
