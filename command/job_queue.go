@@ -132,8 +132,10 @@ func (c *JobQueueCommand) Run(args []string) int {
 		} else {
 			c.printDynamicQueueFormatted(workloads)
 		}
+	case "unset":
+		c.Ui.Output("No batch job queue configured")
 	default:
-		c.Ui.Error("Unknown queue type")
+		c.Ui.Error(fmt.Sprintf("Unknown queue type: %s", resp.Type))
 		return 255
 	}
 
