@@ -1,0 +1,3 @@
+```release-note:bug
+plugins: store verified and canonicalised plugin configuration in the agent
+```

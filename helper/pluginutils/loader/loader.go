@@ -112,6 +112,11 @@ type pluginInfo struct {
 
 // NewPluginLoader returns an instance of a plugin loader or an error if the
 // plugins could not be loaded
+//
+// IMPORTANT: This function will mutate the passed in config to update the plugin
+// configs with any default values from the plugin's config schema.
+// The config should be a pointer to the config in the agent to properly
+// update the plugin configs in the agent.
 func NewPluginLoader(config *PluginLoaderConfig) (*PluginLoader, error) {
 	if err := validateConfig(config); err != nil {
 		return nil, fmt.Errorf("invalid plugin loader configuration passed: %v", err)
@@ -135,8 +140,19 @@ func NewPluginLoader(config *PluginLoaderConfig) (*PluginLoader, error) {
 		plugins:           make(map[PluginID]*pluginInfo),
 	}
 
-	if err := l.init(config); err != nil {
+	updatedConfig, err := l.init(config)
+	if err != nil {
 		return nil, fmt.Errorf("failed to initialize plugin loader: %v", err)
+	}
+
+	// DANGER! Secondary effect of init is that it updates the plugin configs
+	// in the loader's plugins map with any default values from the plugin schemas.
+	//  We need to propagate those updated configs back to the agent config
+	// since the agent will use those to report the plugings configs in the API.
+	for i, c := range config.Configs {
+		if updated, ok := updatedConfig[c.Name]; ok {
+			config.Configs[i] = updated
+		}
 	}
 
 	return l, nil
