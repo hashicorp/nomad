@@ -998,12 +998,15 @@ type JobSubmission struct {
 	// jobs can no longer be parsed.
 	Format string
 
-	// VariableFlags contains the CLI "-var" flag arguments as submitted with the
-	// job (hcl2 only).
+	// VariableFlags contain a map of HCL2 variables to their string values
+	// submitted with the job. To avoid parsing ambiguity when returning this
+	// value to the Nomad web UI or CLI, you should only submit escaped JSON
+	// lists/objects to this field if they are intended to be consumed as string
+	// variables in the jobspec schema.
 	VariableFlags map[string]string
 
-	// Variables contains the opaque variables configuration as coming from
-	// a var-file or the WebUI variables input (hcl2 only).
+	// Variables contains the opaque variables configuration as coming from the
+	// CLI -var/var-file arguments, or the WebUI variables input (hcl2 only).
 	Variables string
 }
 

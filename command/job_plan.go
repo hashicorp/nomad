@@ -97,7 +97,9 @@ Plan Options:
     Nomad servers.
 
   -var 'key=value'
-    Variable for template, can be used multiple times.
+    Variable for HCL2, can be used multiple times. Do not escape the values if
+    setting list or object types, as these will not be handled correctly in the
+    web UI. Prefer -var-file for lists and objects.
 
   -var-file=path
     Path to HCL2 file containing user variables.

@@ -392,6 +392,218 @@ unsedVar2 = "from-varfile"
 	must.Eq(t, expected, j.Datacenters)
 }
 
+func TestJobGetter_HCL2_Variables_ListsAndObjects(t *testing.T) {
+
+	jobspec := `
+variable "datacenters" {
+  type = list(string)
+}
+
+variable "env" {
+  type = object({
+    foo = string
+    bar = string
+  })
+}
+
+variable "count" {
+  type = number
+}
+
+variable "user" {
+  type = string
+}
+
+job "example" {
+  datacenters = var.datacenters
+
+  group "g" {
+    count = var.count
+    task "t" {
+      user = var.user
+      env = var.env
+    }
+  }
+}
+`
+
+	testCases := []struct {
+		name        string
+		fileVars    string
+		cliVarFlags []string
+
+		expectErrMsgs     []string
+		expectVariables   string
+		expectCount       int
+		expectDatacenters []string
+		expectUser        string
+		expectEnv         map[string]string
+	}{
+		{
+			name: "file only unescaped",
+			fileVars: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "www-data"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			cliVarFlags: nil,
+			expectVariables: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "www-data"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+`,
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        "www-data",
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+		{
+			name: "collections in file with primitive flags",
+			fileVars: `
+datacenters = ["dc1", "dc2"]
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			cliVarFlags: []string{`count=2`, `user=www-data`},
+			expectVariables: `
+datacenters = ["dc1", "dc2"]
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+
+count = "2"
+user = "www-data"
+`,
+			// note: quoted "2" in varfile is ok because of type-coercion in the
+			// HCL2 parser
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        "www-data",
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+		{
+			name: "incorrectly escaped collection for flags",
+			// this is the equivalent of:
+			// -var 'datacenters="[\"dc1\", \"dc2\"]"'
+			cliVarFlags: []string{
+				`count=2`,
+				`user=www-data`,
+				`datacenters="[\"dc1\", \"dc2\"]"`,
+				`env="{foo=\"foo1\", bar=\"bar1\"}"`,
+			},
+			expectErrMsgs: []string{
+				"list of string required, but have string",
+				"object required, but have string",
+			},
+		},
+		{
+			name: "collections for unescaped flags from shell",
+			fileVars: `
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			// this is the equivalent of:
+			// -var datacenters="$(printf "[\"dc1\", \"dc2\"]")"
+			cliVarFlags: []string{
+				`count=2`,
+				`user=www-data`,
+				`datacenters=["dc1", "dc2"]`,
+			},
+			// note: the escaped value for datacenters works when parsed, but
+			// this will break in the UI
+			expectVariables: `
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+
+count = "2"
+datacenters = "[\"dc1\", \"dc2\"]"
+user = "www-data"
+`,
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        `{"name": "www-data"}`,
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+		{
+			name: "collections in file with json-escaped primitives",
+			fileVars: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "{\"name\": \"www-data\"}"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			expectVariables: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "{\"name\": \"www-data\"}"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+`,
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        `{"name": "www-data"}`,
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpdir := t.TempDir()
+			os.Chdir(tmpdir)
+			varFileName := filepath.Join(tmpdir, "vars.hcl")
+			specFileName := filepath.Join(tmpdir, "example.nomad.hcl")
+
+			must.NoError(t, os.WriteFile(varFileName, []byte(tc.fileVars), 0700))
+			must.NoError(t, os.WriteFile(specFileName, []byte(jobspec), 0700))
+
+			jg := &JobGetter{
+				Vars:     tc.cliVarFlags,
+				VarFiles: []string{varFileName},
+				Strict:   false,
+			}
+
+			sub, j, err := jg.Get(specFileName)
+			if len(tc.expectErrMsgs) > 0 {
+				for _, errMsg := range tc.expectErrMsgs {
+					must.ErrorContains(t, err, errMsg)
+				}
+				return
+			}
+
+			must.NoError(t, err)
+			must.NotNil(t, j)
+			must.Eq(t, tc.expectDatacenters, j.Datacenters)
+
+			must.Eq(t, tc.expectVariables, sub.Variables)
+			must.Nil(t, sub.VariableFlags)
+		})
+	}
+}
+
 // Test StructJob with jobfile from HTTP Server
 func TestJobGetter_HTTPServer(t *testing.T) {
 	ci.Parallel(t)
