@@ -1414,8 +1414,8 @@ func TestReconciler_MigrateDisablePlacementBatchAllocs_StillRunningAfterStop(t *
 	for i := 0; i < 2; i++ {
 		allocs[i].DesiredStatus = structs.AllocDesiredStatusStop
 		allocs[i].ClientStatus = structs.AllocClientStatusRunning
-		allocs[i].DesiredTransition.Migrate = pointer.Of(true)
-		allocs[i].DesiredTransition.MigrateDisablePlacement = pointer.Of(true)
+		allocs[i].DesiredTransition.Migrate = new(true)
+		allocs[i].DesiredTransition.MigrateDisablePlacement = new(true)
 	}
 
 	reconciler := NewAllocReconciler(
