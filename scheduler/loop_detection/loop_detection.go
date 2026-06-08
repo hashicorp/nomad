@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
 package loop_detection
 
 import (
@@ -8,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 )
 
+// WIP
 // Loop Detection + Dependency Chain Update Flow
 //
 // [Start: incoming dependency edge job -> dependee]
