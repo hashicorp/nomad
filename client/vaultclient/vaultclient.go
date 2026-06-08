@@ -119,9 +119,24 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger) (*vaultClie
 	return c, nil
 }
 
+// Clone returns a cloned vaultapi.Client with the same headers that we have set on our main client. The vault API config exposes a setting for cloning the client with headers, but we always want these headers to be set and to not be configurable.
+func (c *vaultClient) Clone() (*vaultapi.Client, error) {
+	cc, err := c.client.Clone()
+	if err != nil {
+		return nil, err
+	}
+	useragent.SetHeaders(cc)
+
+	if c.config.Namespace != "" {
+		cc.SetNamespace(c.config.Namespace)
+	}
+
+	return cc, nil
+}
+
 // DeriveTokenWithJWT returns a Vault ACL token using the JWT login endpoint.
 func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, int, error) {
-	cc, err := c.client.Clone()
+	cc, err := c.Clone()
 	if err != nil {
 		return "", false, 0, err
 	}
@@ -158,7 +173,7 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 }
 
 func (c *vaultClient) Renew(ctx context.Context, token string, lease int) (duration time.Duration, err error) {
-	cc, err := c.client.Clone()
+	cc, err := c.Clone()
 	if err != nil {
 		return 0, err
 	}
