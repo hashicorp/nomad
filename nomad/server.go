@@ -43,6 +43,8 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/auth"
+	"github.com/hashicorp/nomad/nomad/dependency"
+	"github.com/hashicorp/nomad/nomad/dependency/loop_detection"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
@@ -209,6 +211,8 @@ type Server struct {
 	// BlockedEvals is used to manage evaluations that are blocked on node
 	// capacity changes.
 	blockedEvals *BlockedEvals
+
+	dependencyCoordinator *dependency.Coordinator
 
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
@@ -402,6 +406,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Create the blocked evals
 	s.blockedEvals = NewBlockedEvals(s.evalBroker, s.logger)
+
+	// Create the dependency Coordinator
+	depCoordinator := dependency.NewCoordinator(s.logger,
+		loop_detection.NewDetector(s.logger), s.blockedEvals)
+	s.dependencyCoordinator = depCoordinator
 
 	// Create the RPC handler
 	s.rpcHandler = newRpcHandler(s)
