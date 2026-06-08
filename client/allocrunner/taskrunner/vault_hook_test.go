@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 
@@ -18,16 +17,16 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
+	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/testlog"
-	nmock "github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/mock"
 )
 
 // Statically assert the stats hook implements the expected interfaces
@@ -35,324 +34,417 @@ var _ interfaces.TaskPrestartHook = (*vaultHook)(nil)
 var _ interfaces.TaskStopHook = (*vaultHook)(nil)
 var _ interfaces.ShutdownHook = (*vaultHook)(nil)
 
-func TestVaultHook_Prestart(t *testing.T) {
+// vaultTokenUpdaterMock is a mock of the vaultTokenUpdateHandler interface.
+type vaultTokenUpdaterMock struct {
+	currentToken string
+}
 
-	t.Run("derives a token and renews it", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
+func (v *vaultTokenUpdaterMock) updatedVaultToken(token string) {
+	v.currentToken = token
+}
 
-		client := vaultclient.NewMockVaultClient()
-		// return a lease time of 0, so it is quickly renewed
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"testToken", true, 0, nil,
-		)
-		client.On("Renew", mock.Anything, "testToken", 0).Return(time.Minute, nil)
+func setupTestVaultHook(t *testing.T, config *vaultHookConfig) *vaultHook {
+	t.Helper()
 
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
+	if config == nil {
+		config = &vaultHookConfig{}
+	}
 
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
-			},
-			Task: hook.task,
+	job := mock.MinJob()
+	if config.alloc == nil {
+		config.alloc = mock.MinAlloc()
+		config.alloc.Job = job
+	}
+	if config.task == nil {
+		config.task = job.TaskGroups[0].Tasks[0]
+		config.task.Identities = []*structs.WorkloadIdentity{
+			{Name: "vault_default"},
+		}
+		config.task.Vault = &structs.Vault{
+			Cluster: structs.VaultDefaultCluster,
 		}
 
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err)
-
-		must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
-			if slices.ContainsFunc(client.Calls, func(m mock.Call) bool {
-				return m.Method == "Renew"
-			}) {
-				return nil
+		if config.vaultBlock != nil {
+			config.task.Identities[0].Name = config.vaultBlock.IdentityName()
+			config.task.Vault = config.vaultBlock
+		}
+	}
+	if config.vaultBlock == nil {
+		config.vaultBlock = config.task.Vault
+	}
+	if config.vaultConfigsFunc == nil {
+		config.vaultConfigsFunc = func(hclog.Logger) map[string]*sconfig.VaultConfig {
+			return map[string]*sconfig.VaultConfig{
+				"default": sconfig.DefaultVaultConfig(),
 			}
-			return errors.New("Has not called both derive and renew yet")
-		})))
-	})
-
-	t.Run("does not renew non-renewable token", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
-
-		client := vaultclient.NewMockVaultClient()
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"testToken", false, 0, nil,
-		)
-
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-		hook.allowTokenExpiration = false // explicitly set this to false
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
-			},
-			Task: hook.task,
 		}
-
-		err := hook.Prestart(t.Context(), req, &resp)
+	}
+	if config.clientFunc == nil {
+		config.clientFunc = func(cluster string) (vaultclient.VaultClient, error) {
+			return vaultclient.NewMockVaultClient(cluster)
+		}
+	}
+	if config.logger == nil {
+		config.logger = testlog.HCLogger(t)
+	}
+	if config.events == nil {
+		config.events = &trtesting.MockEmitter{}
+	}
+	if config.lifecycle == nil {
+		config.lifecycle = trtesting.NewMockTaskHooks()
+	}
+	if config.updater == nil {
+		config.updater = &vaultTokenUpdaterMock{}
+	}
+	if config.widmgr == nil {
+		db := cstate.NewMemDB(config.logger)
+		signer := widmgr.NewMockWIDSigner(config.task.Identities)
+		allocEnv := taskenv.NewBuilder(mock.Node(), config.alloc, nil, "global").Build()
+		config.widmgr = widmgr.NewWIDMgr(signer, config.alloc, db, config.logger, allocEnv)
+		err := config.widmgr.Run()
 		must.NoError(t, err)
-		must.True(t, hook.allowTokenExpiration)
-		must.Wait(t, wait.ContinualSuccess(wait.Attempts(10), wait.BoolFunc(func() bool {
-			return len(client.Calls) == 1
-		})))
-	})
+	}
 
-	t.Run("overrides role with task vault block role", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
+	return newVaultHook(config)
+}
 
-		client := vaultclient.NewMockVaultClient()
-		// This mock will only accept `Role: "test-role"`. Any other role will fail
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{Role: "test-role"}).Return(
-			"testToken", false, 0, nil,
-		)
+func TestTaskRunner_VaultHook(t *testing.T) {
+	ci.Parallel(t)
 
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-		hook.task.Vault.Role = "test-role" // use "test-role"
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
+	testCases := []struct {
+		name               string
+		task               *structs.Task
+		configs            map[string]*sconfig.VaultConfig
+		configNonrenewable bool
+		expectRole         string
+		expectNoRenew      bool
+	}{
+		{
+			name: "jwt flow",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: structs.VaultDefaultCluster,
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
 			},
-			Task: hook.task,
-		}
-
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err) // Will error if a different role is passed
-	})
-
-	t.Run("reads existing token from private dir", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
-
-		client := vaultclient.NewMockVaultClient()
-		updater := &vaultTokenUpdaterMock{}
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr, updater: updater}, client)
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
+		},
+		{
+			name: "jwt flow with role",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: structs.VaultDefaultCluster,
+					Role:    "task-role",
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
 			},
-			Task: hook.task,
-		}
-
-		os.WriteFile(filepath.Join(req.TaskDir.PrivateDir, vaultTokenFile), []byte("testToken"), 0600)
-
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err)
-		must.Len(t, 0, client.Calls)
-		must.Eq(t, updater.currentToken, "testToken")
-	})
-
-	t.Run("reads existing token from secret dir", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
-
-		client := vaultclient.NewMockVaultClient()
-		updater := &vaultTokenUpdaterMock{}
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr, updater: updater}, client)
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
+			configs: map[string]*sconfig.VaultConfig{
+				"default": {
+					Role: "client-role",
+				},
 			},
-			Task: hook.task,
-		}
-
-		os.WriteFile(filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile), []byte("testToken"), 0600)
-
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err)
-		must.Len(t, 0, client.Calls)
-		must.Eq(t, updater.currentToken, "testToken")
-	})
-
-	t.Run("does not write to file when disabled", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
-
-		client := vaultclient.NewMockVaultClient()
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"testToken", false, 0, nil,
-		)
-
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-		hook.task.Vault.DisableFile = true
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
+			expectRole: "task-role",
+		},
+		{
+			name: "jwt flow with role from client",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: structs.VaultDefaultCluster,
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
 			},
-			Task: hook.task,
-		}
-
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err)
-
-		_, err = os.Stat(filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile))
-		must.ErrorIs(t, err, os.ErrNotExist)
-	})
-
-	t.Run("retries if DeriveToken returns recoverable error", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
-
-		client := vaultclient.NewMockVaultClient()
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"", false, 0, structs.NewRecoverableError(errors.New("try again!"), true),
-		).Times(1)
-
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"testToken", false, 0, nil,
-		)
-
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
+			configs: map[string]*sconfig.VaultConfig{
+				"default": {
+					Role: "client-role",
+				},
 			},
-			Task: hook.task,
-		}
-
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err)
-	})
-
-	t.Run("exits with error if DeriveToken returns unrecoverable error", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
-
-		client := vaultclient.NewMockVaultClient()
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"", false, 0, structs.NewRecoverableError(errors.New("go away"), false),
-		).Times(1)
-
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
+			expectRole: "client-role",
+		},
+		{
+			name: "jwt flow with role from client and non-default cluster",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: "prod",
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_prod"},
+				},
 			},
-			Task: hook.task,
-		}
-
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.Error(t, err)
-	})
-
-	t.Run("retries if Renew returns recoverable error", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
-
-		client := vaultclient.NewMockVaultClient()
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"testToken", true, 0, nil,
-		)
-
-		client.On("Renew", mock.Anything, "testToken", 0).Return(
-			time.Minute,
-			structs.NewRecoverableError(errors.New("try again!"), true),
-		).Times(1)
-
-		client.On("Renew", mock.Anything, "testToken", 0).Return(time.Minute, nil).Times(1)
-
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-
-		var resp interfaces.TaskPrestartResponse
-		req := &interfaces.TaskPrestartRequest{
-			TaskEnv: taskenv.NewEmptyTaskEnv(),
-			TaskDir: &allocdir.TaskDir{
-				SecretsDir: t.TempDir(),
-				PrivateDir: t.TempDir(),
+			configs: map[string]*sconfig.VaultConfig{
+				"default": {
+					Role: "client-role",
+				},
+				"prod": {
+					Role: "client-prod-role",
+				},
 			},
-			Task: hook.task,
-		}
+			expectRole: "client-prod-role",
+		},
+		{
+			name: "disable file",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster:     structs.VaultDefaultCluster,
+					DisableFile: true,
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
+			},
+		},
+		{
+			name: "job requests no renewal",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster:              structs.VaultDefaultCluster,
+					AllowTokenExpiration: true,
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
+			},
+			expectNoRenew: true,
+		},
+		{
+			name: "tokens are not renewable",
+			task: &structs.Task{
+				Vault: &structs.Vault{
+					Cluster: structs.VaultDefaultCluster,
+				},
+				Identities: []*structs.WorkloadIdentity{
+					{Name: "vault_default"},
+				},
+			},
+			configNonrenewable: true,
+			expectNoRenew:      true,
+		},
+	}
 
-		err := hook.Prestart(t.Context(), req, &resp)
-		must.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := mock.MinAlloc()
+			alloc.Job.TaskGroups[0].Tasks[0] = tc.task
 
-		must.Wait(t, wait.InitialSuccess(wait.Timeout(6*time.Second), wait.ErrorFunc(func() error {
-			if len(client.Calls) == 3 {
-				return nil
+			hookConfig := &vaultHookConfig{
+				task:  tc.task,
+				alloc: alloc,
+				vaultConfigsFunc: func(hclog.Logger) map[string]*sconfig.VaultConfig {
+					if tc.configs != nil {
+						return tc.configs
+					}
+					return map[string]*sconfig.VaultConfig{
+						"default": sconfig.DefaultVaultConfig(),
+					}
+				},
 			}
-			return errors.New("has not called renew twice")
-		})))
-	})
 
-	t.Run("trigger lifecycle if Renew returns unrecoverable error", func(t *testing.T) {
-		widMgr := widmgr.NewMockIdentityManager()
-		widMgr.SetIdentity(
-			structs.WIHandle{IdentityName: "vault_default", WorkloadType: 0, WorkloadIdentifier: "t"},
-			&structs.SignedWorkloadIdentity{},
-		)
+			if tc.configNonrenewable {
+				hookConfig.clientFunc = func(cluster string) (vaultclient.VaultClient, error) {
+					client := &vaultclient.MockVaultClient{}
+					client.SetRenewable(false)
+					return client, nil
+				}
+			}
 
-		client := vaultclient.NewMockVaultClient()
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
-			"testToken", true, 0, nil,
-		)
-		client.On("Renew", mock.Anything, "testToken", 0).Return(
-			time.Minute,
-			errors.New("permission denied"),
-		)
+			hook := setupTestVaultHook(t, hookConfig)
 
-		mockLifecycle := trtesting.NewMockTaskHooks()
-		hook := setupTestVaultHook(t, &vaultHookConfig{widmgr: widMgr}, client)
-		hook.lifecycle = mockLifecycle
-		hook.task.Vault.ChangeMode = structs.VaultChangeModeRestart
+			// Ensure Prestart() returns within a reasonable time.
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			t.Cleanup(cancel)
 
-		var resp interfaces.TaskPrestartResponse
+			req := &interfaces.TaskPrestartRequest{
+				TaskEnv: taskenv.NewEmptyTaskEnv(),
+				TaskDir: &allocdir.TaskDir{
+					SecretsDir: t.TempDir(),
+					PrivateDir: t.TempDir(),
+				},
+				Task: tc.task,
+			}
+			var resp interfaces.TaskPrestartResponse
+
+			err := hook.Prestart(ctx, req, &resp)
+			must.NoError(t, err)
+			must.NoError(t, ctx.Err())
+
+			// Token must have been derived.
+			var token string
+			client := hook.client.(*vaultclient.MockVaultClient)
+
+			tokens := client.JWTTokens()
+			must.MapLen(t, 1, tokens)
+
+			swid, err := hook.widmgr.Get(structs.WIHandle{
+				IdentityName:       tc.task.Vault.IdentityName(),
+				WorkloadIdentifier: tc.task.Name,
+				WorkloadType:       structs.WorkloadTypeTask,
+			})
+			must.NoError(t, err)
+			token = tokens[swid.JWT]
+
+			must.NotEq(t, "", token)
+
+			// Token must be derived with correct role.
+			//
+			// MockVaultClient generates random UUIDv4 tokens, but append the
+			// role when requested.
+			if tc.expectRole != "" {
+				must.StrHasSuffix(t, tc.expectRole, token)
+			} else {
+				must.UUIDv4(t, token)
+			}
+
+			// Token must be set in token updater.
+			updater := (hook.updater).(*vaultTokenUpdaterMock)
+			must.Eq(t, token, updater.currentToken)
+
+			// Token must be written to disk.
+			tokenFile, err := os.ReadFile(hook.privateDirTokenPath)
+			must.NoError(t, err)
+			must.Eq(t, updater.currentToken, string(tokenFile))
+
+			if !tc.task.Vault.DisableFile {
+				tokenFile, err := os.ReadFile(hook.secretsDirTokenPath)
+				must.NoError(t, err)
+				must.Eq(t, updater.currentToken, string(tokenFile))
+			} else {
+				_, err = os.ReadFile(hook.secretsDirTokenPath)
+				must.ErrorIs(t, err, os.ErrNotExist)
+			}
+
+			// Token must be set for renewal.
+			if tc.expectNoRenew {
+				must.MapEmpty(t, client.RenewTokens())
+			} else {
+				must.MapLen(t, 1, client.RenewTokens())
+				must.NotNil(t, client.RenewTokens()[updater.currentToken])
+			}
+
+			// PrestartDone must be false so we can recover tokens.
+			// firstRun is used to prevent multiple executions.
+			must.False(t, resp.Done)
+			must.False(t, hook.firstRun)
+
+			// Stop renewal when hook stops.
+			err = hook.Stop(ctx, nil, nil)
+			must.NoError(t, err)
+			must.Wait(t, wait.InitialSuccess(
+				wait.ErrorFunc(func() error {
+					tokens := client.StoppedTokens()
+
+					if tc.expectNoRenew {
+						if len(tokens) != 0 {
+							return fmt.Errorf("expected no stopped tokens when renewal is disabled, got %d", len(tokens))
+						}
+						return nil
+					}
+
+					if len(tokens) != 1 {
+						return fmt.Errorf("expected stopped tokens to be %d, got %d", 1, len(tokens))
+					}
+					got := tokens[0]
+					expect := updater.currentToken
+					if got != expect {
+						return fmt.Errorf("expected stopped token to be %s, got %s", expect, got)
+					}
+					return nil
+				}),
+				wait.Timeout(5*time.Second),
+				wait.Gap(100*time.Millisecond),
+			))
+		})
+	}
+}
+
+func TestTaskRunner_VaultHook_recover(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name     string
+		setupReq func() (*interfaces.TaskPrestartRequest, error)
+	}{
+		{
+			name: "recover from secrets dir",
+			setupReq: func() (*interfaces.TaskPrestartRequest, error) {
+				// Write token to secrets dir.
+				secretsDirPath := t.TempDir()
+				err := os.WriteFile(filepath.Join(secretsDirPath, vaultTokenFile), []byte("much secret"), 0666)
+				if err != nil {
+					return nil, err
+				}
+
+				req := &interfaces.TaskPrestartRequest{
+					TaskEnv: taskenv.NewEmptyTaskEnv(),
+					TaskDir: &allocdir.TaskDir{
+						SecretsDir: secretsDirPath,
+						PrivateDir: t.TempDir(),
+					},
+				}
+				return req, nil
+			},
+		},
+		{
+			name: "recover from private dir",
+			setupReq: func() (*interfaces.TaskPrestartRequest, error) {
+				// Write token to private dir.
+				privateDirPath := t.TempDir()
+				err := os.WriteFile(filepath.Join(privateDirPath, vaultTokenFile), []byte("much secret"), 0666)
+				if err != nil {
+					return nil, err
+				}
+
+				req := &interfaces.TaskPrestartRequest{
+					TaskEnv: taskenv.NewEmptyTaskEnv(),
+					TaskDir: &allocdir.TaskDir{
+						SecretsDir: t.TempDir(),
+						PrivateDir: privateDirPath,
+					},
+				}
+				return req, nil
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			hook := setupTestVaultHook(t, nil)
+
+			req, err := tc.setupReq()
+			must.NoError(t, err)
+			req.Task = hook.task
+
+			// Ensure Prestart() returns in a reasonable time.
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			t.Cleanup(cancel)
+
+			var resp interfaces.TaskPrestartResponse
+			err = hook.Prestart(ctx, req, &resp)
+			must.NoError(t, err)
+			must.NoError(t, ctx.Err())
+
+			// Verify token was recovered and not derived.
+			client := hook.client.(*vaultclient.MockVaultClient)
+			must.MapLen(t, 0, client.JWTTokens())
+		})
+	}
+}
+
+func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("unrecoverable error", func(t *testing.T) {
+		vaultClient, _ := vaultclient.NewMockVaultClient("")
+		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
+
+		hook := setupTestVaultHook(t, &vaultHookConfig{
+			clientFunc: func(string) (vaultclient.VaultClient, error) {
+				return mockVaultClient, nil
+			},
+		})
 		req := &interfaces.TaskPrestartRequest{
 			TaskEnv: taskenv.NewEmptyTaskEnv(),
 			TaskDir: &allocdir.TaskDir{
@@ -361,19 +453,130 @@ func TestVaultHook_Prestart(t *testing.T) {
 			},
 			Task: hook.task,
 		}
+		var resp interfaces.TaskPrestartResponse
 
-		err := hook.Prestart(t.Context(), req, &resp)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		t.Cleanup(cancel)
+
+		// Set unrecoverable error.
+		mockVaultClient.SetDeriveTokenWithJWTFn(
+			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+				// Cancel the context to simulate the task being killed.
+				cancel()
+				return "", false, 0, structs.NewRecoverableError(errors.New("unrecoverable test error"), false)
+			})
+
+		err := hook.Prestart(ctx, req, &resp)
 		must.NoError(t, err)
-		must.Wait(t, wait.InitialSuccess(wait.Timeout(1*time.Second), wait.ErrorFunc(func() error {
-			if mockLifecycle.KillEvent() != nil {
+
+		// Verify task is killed because of unrecoverable error.
+		must.Wait(t, wait.InitialSuccess(
+			wait.ErrorFunc(func() error {
+				killEv := (hook.lifecycle.(*trtesting.MockTaskHooks)).KillEvent()
+				if killEv == nil {
+					return errors.New("missing kill event")
+				}
 				return nil
-			}
-			return errors.New("test")
-		})))
+			}),
+			wait.Timeout(5*time.Second),
+			wait.Gap(100*time.Millisecond),
+		))
+		killEv := (hook.lifecycle.(*trtesting.MockTaskHooks)).KillEvent()
+		must.StrContains(t, killEv.DisplayMessage, "unrecoverable test error")
+	})
+
+	t.Run("recoverable error", func(t *testing.T) {
+		vaultClient, _ := vaultclient.NewMockVaultClient("")
+		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
+
+		hook := setupTestVaultHook(t, &vaultHookConfig{
+			clientFunc: func(string) (vaultclient.VaultClient, error) {
+				return mockVaultClient, nil
+			},
+		})
+		req := &interfaces.TaskPrestartRequest{
+			TaskEnv: taskenv.NewEmptyTaskEnv(),
+			TaskDir: &allocdir.TaskDir{
+				SecretsDir: t.TempDir(),
+				PrivateDir: t.TempDir(),
+			},
+			Task: hook.task,
+		}
+		var resp interfaces.TaskPrestartResponse
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t.Cleanup(cancel)
+
+		// Set recoverable error.
+		mockVaultClient.SetDeriveTokenWithJWTFn(
+			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+				return "", false, 0, structs.NewRecoverableError(errors.New("recoverable test error"), true)
+			})
+
+		go func() {
+			// Wait a bit for the first error then fix token renewal.
+			time.Sleep(time.Second)
+			mockVaultClient.SetDeriveTokenWithJWTFn(
+				func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+					return "secret", true, 30, nil
+				})
+
+		}()
+		err := hook.Prestart(ctx, req, &resp)
+		must.NoError(t, err)
+		must.NoError(t, ctx.Err())
+
+		// Verify retry happened and token was derived.
+		updater := (hook.updater).(*vaultTokenUpdaterMock)
+		must.Eq(t, "secret", updater.currentToken)
+	})
+
+	t.Run("renew request failed", func(t *testing.T) {
+		vaultClient, _ := vaultclient.NewMockVaultClient("")
+		mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
+
+		hook := setupTestVaultHook(t, &vaultHookConfig{
+			clientFunc: func(string) (vaultclient.VaultClient, error) {
+				return mockVaultClient, nil
+			},
+		})
+		req := &interfaces.TaskPrestartRequest{
+			TaskEnv: taskenv.NewEmptyTaskEnv(),
+			TaskDir: &allocdir.TaskDir{
+				SecretsDir: t.TempDir(),
+				PrivateDir: t.TempDir(),
+			},
+			Task: hook.task,
+		}
+		var resp interfaces.TaskPrestartResponse
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		t.Cleanup(cancel)
+
+		// Derive predictable token and fail renew request.
+		mockVaultClient.SetDeriveTokenWithJWTFn(
+			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+				return "secret", true, 30, nil
+			})
+		mockVaultClient.SetRenewTokenError("secret", errors.New("test error"))
+
+		go func() {
+			// Wait a bit for the renew error then fix token renewal.
+			time.Sleep(10 * time.Millisecond)
+			mockVaultClient.SetRenewTokenError("secret", nil)
+
+		}()
+		err := hook.Prestart(ctx, req, &resp)
+		must.NoError(t, err)
+		must.NoError(t, ctx.Err())
+
+		// Verify retry happened and token was derived.
+		updater := (hook.updater).(*vaultTokenUpdaterMock)
+		must.Eq(t, "secret", updater.currentToken)
 	})
 }
 
-func TestVaultHook_handleRenewal(t *testing.T) {
+func TestTaskRunner_VaultHook_tokenRenewalFail(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
@@ -437,94 +640,53 @@ func TestVaultHook_handleRenewal(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			vaultClient := vaultclient.NewMockVaultClient()
+			vaultClient, _ := vaultclient.NewMockVaultClient("")
+			mockVaultClient := vaultClient.(*vaultclient.MockVaultClient)
 
-			hook := setupTestVaultHook(t, &vaultHookConfig{vaultBlock: tc.vaultBlock}, vaultClient)
+			hook := setupTestVaultHook(t, &vaultHookConfig{
+				vaultBlock: tc.vaultBlock,
+				clientFunc: func(string) (vaultclient.VaultClient, error) {
+					return mockVaultClient, nil
+				},
+			})
 
+			req := &interfaces.TaskPrestartRequest{
+				TaskEnv: taskenv.NewEmptyTaskEnv(),
+				TaskDir: &allocdir.TaskDir{
+					SecretsDir: t.TempDir(),
+					PrivateDir: t.TempDir(),
+				},
+				Task: hook.task,
+			}
+			var resp interfaces.TaskPrestartResponse
+
+			// Ensure Prestart() returns within a reasonable time.
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			t.Cleanup(cancel)
 
-			hook.handleRenewal(ctx, "secret")
+			err := hook.Prestart(ctx, req, &resp)
+			must.NoError(t, err)
 
 			// Fetch derived token.
 			updater := (hook.updater).(*vaultTokenUpdaterMock)
 			token := updater.currentToken
 			must.NotEq(t, "", token)
 
-			err := tc.verifyTaskLifecycle((hook.lifecycle).(*trtesting.MockTaskHooks))
-			must.NoError(t, err)
+			// Fetch renewal token error channel.
+			renewErrCh := mockVaultClient.RenewTokenErrCh(token)
+			must.NotNil(t, renewErrCh)
+
+			// Emit renewal error.
+			renewErrCh <- errors.New("renew error")
+
+			// Verify expected lifecycle events happen.
+			must.Wait(t, wait.InitialSuccess(
+				wait.ErrorFunc(func() error {
+					return tc.verifyTaskLifecycle((hook.lifecycle).(*trtesting.MockTaskHooks))
+				}),
+				wait.Timeout(3*time.Second),
+				wait.Gap(100*time.Millisecond),
+			))
 		})
 	}
-}
-
-// vaultTokenUpdaterMock is a mock of the vaultTokenUpdateHandler interface.
-type vaultTokenUpdaterMock struct {
-	currentToken string
-}
-
-func (v *vaultTokenUpdaterMock) updatedVaultToken(token string) {
-	v.currentToken = token
-}
-
-func setupTestVaultHook(t *testing.T, config *vaultHookConfig, client *vaultclient.MockVaultClient) *vaultHook {
-	t.Helper()
-
-	config.taskCtx = t.Context()
-
-	if config == nil {
-		config = &vaultHookConfig{}
-	}
-
-	job := nmock.MinJob()
-	if config.alloc == nil {
-		config.alloc = nmock.MinAlloc()
-		config.alloc.Job = job
-	}
-	if config.task == nil {
-		config.task = job.TaskGroups[0].Tasks[0]
-		config.task.Identities = []*structs.WorkloadIdentity{
-			{Name: "vault_default"},
-		}
-		config.task.Vault = &structs.Vault{
-			Cluster:    structs.VaultDefaultCluster,
-			ChangeMode: structs.VaultChangeModeNoop,
-		}
-
-		if config.vaultBlock != nil {
-			config.task.Identities[0].Name = config.vaultBlock.IdentityName()
-			config.task.Vault = config.vaultBlock
-		}
-	}
-	if config.vaultBlock == nil {
-		config.vaultBlock = config.task.Vault
-	}
-	if config.vaultConfigsFunc == nil {
-		config.vaultConfigsFunc = func(hclog.Logger) map[string]*sconfig.VaultConfig {
-			return map[string]*sconfig.VaultConfig{
-				"default": sconfig.DefaultVaultConfig(),
-			}
-		}
-	}
-	if config.clientFunc == nil {
-		config.clientFunc = func(cluster string) (vaultclient.VaultClient, error) {
-			return client, nil
-		}
-	}
-	if config.logger == nil {
-		config.logger = testlog.HCLogger(t)
-	}
-	if config.events == nil {
-		config.events = &trtesting.MockEmitter{}
-	}
-	if config.lifecycle == nil {
-		config.lifecycle = trtesting.NewMockTaskHooks()
-	}
-	if config.updater == nil {
-		config.updater = &vaultTokenUpdaterMock{}
-	}
-	if config.widmgr == nil {
-		config.widmgr = widmgr.NewMockIdentityManager()
-	}
-
-	return newVaultHook(config)
 }

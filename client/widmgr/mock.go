@@ -124,7 +124,7 @@ type MockIdentityManager struct {
 
 // NewMockIdentityManager returns an implementation of the IdentityManager
 // interface which supports data manipulation for testing.
-func NewMockIdentityManager() *MockIdentityManager {
+func NewMockIdentityManager() IdentityManager {
 	return &MockIdentityManager{
 		lastToken: make(map[structs.WIHandle]*structs.SignedWorkloadIdentity),
 	}
