@@ -62,7 +62,7 @@ type GenericScheduler struct {
 	plan       *structs.Plan
 	planResult *structs.PlanResult
 	ctx        *feasible.EvalContext
-	stack      *feasible.GenericStack
+	stack      feasible.Stack
 
 	// followUpEvals are evals with WaitUntil set, which are delayed until that time
 	// before being rescheduled
@@ -77,25 +77,14 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{},
+	state sstructs.State, planner sstructs.Planner, _ ...sstructs.SchedulerOption) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("service_sched"),
 		eventsCh: eventsCh,
 		state:    state,
 		planner:  planner,
 		batch:    false,
-	}
-	return s
-}
-
-// NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
-	s := &GenericScheduler{
-		logger:   logger.Named("batch_sched"),
-		eventsCh: eventsCh,
-		state:    state,
-		planner:  planner,
-		batch:    true,
 	}
 	return s
 }
@@ -487,6 +476,10 @@ func (s *GenericScheduler) computePlacements(
 	nodes, byDC, err := s.setNodes(s.job)
 	if err != nil {
 		return err
+	}
+
+	if len(nodes) == 0 {
+		return fmt.Errorf("no nodes available/pending dependencies to place on")
 	}
 
 	var deploymentID string

@@ -8,6 +8,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/scheduler/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -27,10 +28,20 @@ var BuiltinSchedulers = map[string]structs.Factory{
 	"sysbatch": NewSysBatchScheduler,
 }
 
+func WithDependencyChecker(dependecyChecker DependencyChecker) sstructs.SchedulerOption {
+	return func(s sstructs.Scheduler) error {
+		if B, ok := s.(*BatchScheduler); ok {
+			B.dependencyChecker = dependecyChecker
+		}
+		return nil
+	}
+}
+
 // NewScheduler is used to instantiate and return a new scheduler
 // given the scheduler name, initial state, and planner.
 func NewScheduler(
 	name string, logger log.Logger, eventsCh chan<- interface{}, state structs.State, planner structs.Planner,
+	opts ...structs.SchedulerOption,
 ) (structs.Scheduler, error) {
 	// Lookup the factory function
 	factory, ok := BuiltinSchedulers[name]
@@ -39,6 +50,6 @@ func NewScheduler(
 	}
 
 	// Instantiate the scheduler
-	sched := factory(logger, eventsCh, state, planner)
+	sched := factory(logger, eventsCh, state, planner, opts...)
 	return sched, nil
 }
