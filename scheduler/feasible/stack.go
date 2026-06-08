@@ -32,6 +32,8 @@ type Stack interface {
 
 	// Select is used to select a node for the task group
 	Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode
+
+	SetSchedulerConfiguration(schedConfig *structs.SchedulerConfiguration)
 }
 
 type SelectOptions struct {
@@ -55,7 +57,6 @@ type GenericStack struct {
 	jobNamespace         string
 	jobID                string
 	jobConstraint        *ConstraintChecker
-	jobDependencies      *DependencyChecker
 	taskGroupDrivers     *DriverChecker
 	taskGroupConstraint  *ConstraintChecker
 	taskGroupDevices     *DeviceChecker
@@ -111,7 +112,6 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.jobID = job.ID
 
 	s.jobConstraint.SetConstraints(job.Constraints)
-	s.jobDependencies.SetDependencies(job.Dependencies)
 	s.distinctHostsConstraint.SetJob(job)
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
@@ -408,9 +408,6 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
 
-	// Attach the job dependencies checker. The job is filled in later.
-	s.jobDependencies = NewDependencyChecker(ctx, nil)
-
 	// Filter on task group drivers first as they are faster
 	s.taskGroupDrivers = NewDriverChecker(ctx, nil)
 
@@ -436,7 +433,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
 	// checks that only needs to examine the single node to determine feasibility.
-	jobs := []FeasibilityChecker{s.jobDependencies, s.jobConstraint}
+	jobs := []FeasibilityChecker{s.jobConstraint}
 	tgs := []FeasibilityChecker{
 		s.taskGroupDrivers,
 		s.taskGroupConstraint,

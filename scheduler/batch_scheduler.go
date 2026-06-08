@@ -3,19 +3,26 @@
 
 package scheduler
 
-/*
+import (
+	"context"
+
+	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
+)
+
+type DependencyChecker interface {
+	AddDependency(ctx context.Context, state sstructs.State, eval *structs.Evaluation) error
+}
+
 type BatchScheduler struct {
 	dependencyChecker DependencyChecker
 	GenericScheduler
 }
 
-type DependencyChecker interface {
-	DependenciesMeet(job *structs.Job) (bool, error)
-}
-
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
 func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State,
-	dc DependencyChecker, planner sstructs.Planner) sstructs.Scheduler {
+	planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
 	s := &BatchScheduler{
 		GenericScheduler: GenericScheduler{
 			logger:   logger.Named("batch_sched"),
@@ -24,30 +31,15 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sst
 			planner:  planner,
 			batch:    true,
 		},
-		dependencyChecker: dc,
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	return s
 }
 
-func (s *BatchScheduler) evaluateDependencies(ws memdb.WatchSet) (bool, error) {
-
-	var mErr multierror.Error
-	ready := true
-
-	for _, dep := range s.job.Dependencies {
-		s.logger.Debug("watching dependency job for changes", "dependency_job_id", dep.Job)
-
-		job, err := s.GenericScheduler.state.JobByID(ws, s.job.Namespace, dep.Job)
-		if err != nil {
-			mErr = *multierror.Append(&mErr, err)
-		}
-
-		if job == nil || job.Status != dep.Output {
-			ready = false
-		}
-	}
-
-	return ready, mErr.ErrorOrNil()
+func (s *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
+	return s.GenericScheduler.setNodes(job)
 }
-*/
