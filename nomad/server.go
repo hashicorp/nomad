@@ -43,8 +43,6 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/auth"
-	"github.com/hashicorp/nomad/nomad/dependency"
-	"github.com/hashicorp/nomad/nomad/dependency/loop_detection"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
@@ -55,6 +53,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/hashicorp/nomad/scheduler/dependency"
+	"github.com/hashicorp/nomad/scheduler/loop_detection"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 

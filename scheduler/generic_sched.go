@@ -70,10 +70,11 @@ type GenericScheduler struct {
 
 	deployment *structs.Deployment
 
-	blocked         *structs.Evaluation
-	failedTGAllocs  map[string]*structs.AllocMetric
-	queuedAllocs    map[string]int
-	planAnnotations *structs.PlanAnnotations
+	blocked           *structs.Evaluation
+	failedTGAllocs    map[string]*structs.AllocMetric
+	queuedAllocs      map[string]int
+	planAnnotations   *structs.PlanAnnotations
+	getAvailableNodes func(job *structs.Job) ([]*structs.Node, map[string]int, error)
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -87,6 +88,9 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.
 		planner:  planner,
 		batch:    false,
 	}
+
+	s.getAvailableNodes = s.setNodes
+
 	return s
 }
 
@@ -479,7 +483,7 @@ func (s *GenericScheduler) computePlacements(
 ) error {
 
 	// Get the base nodes
-	nodes, byDC, err := s.setNodes(s.job)
+	nodes, byDC, err := s.getAvailableNodes(s.job)
 	if err != nil {
 		return err
 	}
@@ -545,7 +549,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(downgradedJob)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(downgradedJob)
+					nodes, byDC, err = s.getAvailableNodes(downgradedJob)
 					if err != nil {
 						return err
 					}
@@ -587,7 +591,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(s.job)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(s.job)
+					nodes, byDC, err = s.getAvailableNodes(s.job)
 					if err != nil {
 						return err
 					}
