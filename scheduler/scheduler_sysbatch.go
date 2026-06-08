@@ -50,7 +50,9 @@ type SysBatchScheduler struct {
 	planAnnotations *structs.PlanAnnotations
 }
 
-func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- any,
+	state sstructs.State, planner sstructs.Planner,
+	_ ...sstructs.SchedulerOption) sstructs.Scheduler {
 	return &SysBatchScheduler{
 		logger:   logger.Named("sysbatch_sched"),
 		eventsCh: eventsCh,
