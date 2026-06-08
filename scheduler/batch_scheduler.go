@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler
@@ -23,7 +23,7 @@ type BatchScheduler struct {
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
 func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State,
 	planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
-	s := &BatchScheduler{
+	bs := &BatchScheduler{
 		GenericScheduler: GenericScheduler{
 			logger:   logger.Named("batch_sched"),
 			eventsCh: eventsCh,
@@ -34,12 +34,20 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sst
 	}
 
 	for _, opt := range opts {
-		opt(s)
+		opt(bs)
 	}
 
-	return s
+	bs.getAvailableNodes = bs.setNodes
+
+	return bs
 }
 
-func (s *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
-	return s.GenericScheduler.setNodes(job)
+func (bs *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
+	if len(job.Dependencies) > 0 {
+		if err := bs.dependencyChecker.AddDependency(context.Background(), bs.state, bs.eval); err != nil {
+			return []*structs.Node{}, nil, err
+		}
+	}
+
+	return bs.GenericScheduler.setNodes(job)
 }
