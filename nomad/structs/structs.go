@@ -5613,6 +5613,10 @@ type Namespace struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// Additional claims for workload identities
+	RequiredExtraClaims map[string]string
+	OptionalExtraClaims map[string]string
 }
 
 // NamespaceCapabilities represents a set of capabilities allowed for this

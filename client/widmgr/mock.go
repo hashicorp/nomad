@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package widmgr
@@ -124,7 +124,7 @@ type MockIdentityManager struct {
 
 // NewMockIdentityManager returns an implementation of the IdentityManager
 // interface which supports data manipulation for testing.
-func NewMockIdentityManager() IdentityManager {
+func NewMockIdentityManager() *MockIdentityManager {
 	return &MockIdentityManager{
 		lastToken: make(map[structs.WIHandle]*structs.SignedWorkloadIdentity),
 	}

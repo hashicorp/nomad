@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !release
@@ -84,7 +84,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		ClientConfig:       clientConf,
 		StateDB:            stateDB,
 		ConsulServices:     consulRegMock,
-		VaultFunc:          vaultclient.NewMockVaultClient,
+		VaultFunc:          func(string) (vaultclient.VaultClient, error) { return vaultclient.NewMockVaultClient(), nil },
 		StateUpdater:       &MockStateUpdater{},
 		PrevAllocWatcher:   allocwatcher.NoopPrevAlloc{},
 		PrevAllocMigrator:  allocwatcher.NoopPrevAlloc{},

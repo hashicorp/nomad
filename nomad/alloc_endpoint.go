@@ -13,7 +13,6 @@ import (
 	metrics "github.com/hashicorp/go-metrics/compat"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
@@ -315,9 +314,9 @@ func (a *Alloc) Stop(args *structs.AllocStopRequest, reply *structs.AllocStopRes
 		Evals: []*structs.Evaluation{eval},
 		Allocs: map[string]*structs.DesiredTransition{
 			args.AllocID: {
-				Migrate:         pointer.Of(true),
-				NoShutdownDelay: pointer.Of(args.NoShutdownDelay),
-				Reschedule:      pointer.Of(args.Reschedule),
+				Migrate:         new(true),
+				NoShutdownDelay: new(args.NoShutdownDelay),
+				Reschedule:      new(args.Reschedule),
 			},
 		},
 	}
@@ -559,6 +558,10 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 		}
 
 		job := out.Job
+		ns, err := a.srv.State().NamespaceByName(nil, out.Namespace)
+		if err != nil {
+			return err
+		}
 
 		switch idReq.WorkloadType {
 		case structs.WorkloadTypeTask:
@@ -572,7 +575,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 				continue
 			}
 
-			widFound, err := a.signTasks(task, out, idReq, reply, now)
+			widFound, err := a.signTasks(task, out, ns, idReq, reply, now)
 			if err != nil {
 				return err
 			}
@@ -586,7 +589,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			}
 
 		case structs.WorkloadTypeService:
-			widFound, err := a.signServices(job, out, idReq, reply, now)
+			widFound, err := a.signServices(job, out, ns, idReq, reply, now)
 			if err != nil {
 				return err
 			}
@@ -606,6 +609,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 func (a *Alloc) signTasks(
 	task *structs.Task,
 	alloc *structs.Allocation,
+	ns *structs.Namespace,
 	idReq *structs.WorkloadIdentityRequest,
 	reply *structs.AllocIdentitiesResponse,
 	now time.Time,
@@ -616,7 +620,7 @@ func (a *Alloc) signTasks(
 		}
 
 		widFound = true
-		builder := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid).
+		builder := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid, ns).
 			WithTask(task).
 			WithConsul()
 
@@ -642,6 +646,7 @@ func (a *Alloc) signTasks(
 func (a *Alloc) signServices(
 	job *structs.Job,
 	alloc *structs.Allocation,
+	ns *structs.Namespace,
 	idReq *structs.WorkloadIdentityRequest,
 	reply *structs.AllocIdentitiesResponse,
 	now time.Time,
@@ -653,7 +658,7 @@ func (a *Alloc) signServices(
 		for _, service := range tg.Services {
 			if service.IdentityHandle(nil).Equal(wid) {
 				claims := structs.NewIdentityClaimsBuilder(
-					alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+					alloc.Job, alloc, &idReq.WIHandle, service.Identity, ns).
 					WithConsul().
 					WithService(service).
 					Build(now)
@@ -664,7 +669,7 @@ func (a *Alloc) signServices(
 			for _, service := range task.Services {
 				if service.IdentityHandle(nil).Equal(wid) {
 					claims := structs.NewIdentityClaimsBuilder(
-						alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+						alloc.Job, alloc, &idReq.WIHandle, service.Identity, ns).
 						WithTask(task).
 						WithConsul().
 						WithService(service).

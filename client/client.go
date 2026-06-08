@@ -57,7 +57,6 @@ import (
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/group"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/helper/users/dynamic"
@@ -999,11 +998,6 @@ func (c *Client) Shutdown() error {
 	}
 	c.logger.Info("shutting down")
 
-	// Stop renewing tokens and secrets
-	for _, vaultClient := range c.vaultClients {
-		vaultClient.Stop()
-	}
-
 	// Stop Garbage collector
 	c.garbageCollector.Stop()
 
@@ -1586,7 +1580,7 @@ func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 		id = hostID
 
 		// Persist the ID
-		if err := os.WriteFile(idPath, []byte(id), 0700); err != nil {
+		if err := os.WriteFile(idPath, []byte(id), 0600); err != nil {
 			return "", "", err
 		}
 	}
@@ -1598,7 +1592,7 @@ func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 		secret = uuid.Generate()
 
 		// Persist the ID
-		if err := os.WriteFile(secretPath, []byte(secret), 0700); err != nil {
+		if err := os.WriteFile(secretPath, []byte(secret), 0600); err != nil {
 			return "", "", err
 		}
 	}
@@ -1748,6 +1742,12 @@ func (c *Client) setupNode() error {
 	// above
 	if err := c.stateDB.PutNodeMeta(c.metaDynamic); err != nil {
 		return fmt.Errorf("error syncing dynamic node metadata: %w", err)
+	}
+
+	if c.config.DefaultIneligible {
+		node.SchedulingEligibility = structs.NodeSchedulingIneligible
+	} else {
+		node.SchedulingEligibility = structs.NodeSchedulingEligible
 	}
 
 	c.config = newConfig
@@ -2836,7 +2836,7 @@ func makeFailedAlloc(add *structs.Allocation, err error) *structs.Allocation {
 		stripped.DeploymentStatus = add.DeploymentStatus.Copy()
 	} else {
 		stripped.DeploymentStatus = &structs.AllocDeploymentStatus{
-			Healthy:   pointer.Of(false),
+			Healthy:   new(false),
 			Timestamp: failTime,
 		}
 	}
@@ -3009,8 +3009,7 @@ func (c *Client) newAllocRunnerConfig(
 	}
 }
 
-// setupVaultClients creates the objects that periodically renew tokens and
-// secrets with vault.
+// setupVaultClients created vault clients for each configured cluster
 func (c *Client) setupVaultClients() error {
 
 	c.vaultClients = map[string]vaultclient.VaultClient{}
@@ -3025,12 +3024,6 @@ func (c *Client) setupVaultClients() error {
 			return fmt.Errorf("failed to create vault client for cluster %q", vaultConfig.Name)
 		}
 		c.vaultClients[vaultConfig.Name] = vaultClient
-	}
-
-	// Start renewing tokens and secrets only once we've ensured we have created
-	// all the clients
-	for _, vaultClient := range c.vaultClients {
-		vaultClient.Start()
 	}
 
 	return nil

@@ -374,6 +374,9 @@ type Config struct {
 	// used for template functions which require access to the Nomad API.
 	TemplateDialer *bufconndialer.BufConnWrapper
 
+	// DefaultIneligible disables scheduling eligibility for newly-created nodes.
+	DefaultIneligible bool
+
 	// APIListenerRegistrar allows the client to register listeners created at
 	// runtime (eg the Task API) with the agent's HTTP server. Since the agent
 	// creates the HTTP *after* the client starts, we have to use this shim to
@@ -491,26 +494,26 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 	return &ClientTemplateConfig{
 		FunctionDenylist:   DefaultTemplateFunctionDenylist,
 		DisableSandbox:     false,
-		BlockQueryWaitTime: pointer.Of(5 * time.Minute),         // match Consul default
-		MaxStale:           pointer.Of(DefaultTemplateMaxStale), // match Consul default
+		BlockQueryWaitTime: new(5 * time.Minute),         // match Consul default
+		MaxStale:           new(DefaultTemplateMaxStale), // match Consul default
 		Wait: &WaitConfig{
-			Min: pointer.Of(5 * time.Second),
-			Max: pointer.Of(4 * time.Minute),
+			Min: new(5 * time.Second),
+			Max: new(4 * time.Minute),
 		},
 		ConsulRetry: &RetryConfig{
-			Attempts:   pointer.Of(12),
-			Backoff:    pointer.Of(time.Millisecond * 250),
-			MaxBackoff: pointer.Of(time.Minute),
+			Attempts:   new(12),
+			Backoff:    new(time.Millisecond * 250),
+			MaxBackoff: new(time.Minute),
 		},
 		VaultRetry: &RetryConfig{
-			Attempts:   pointer.Of(12),
-			Backoff:    pointer.Of(time.Millisecond * 250),
-			MaxBackoff: pointer.Of(time.Minute),
+			Attempts:   new(12),
+			Backoff:    new(time.Millisecond * 250),
+			MaxBackoff: new(time.Minute),
 		},
 		NomadRetry: &RetryConfig{
-			Attempts:   pointer.Of(12),
-			Backoff:    pointer.Of(time.Millisecond * 250),
-			MaxBackoff: pointer.Of(time.Minute),
+			Attempts:   new(12),
+			Backoff:    new(time.Millisecond * 250),
+			MaxBackoff: new(time.Minute),
 		},
 	}
 }
@@ -729,7 +732,7 @@ func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
 	}
 
 	enabled := wc.Min == nil || *wc.Min != 0 || wc.Max == nil || *wc.Max != 0
-	result := &config.WaitConfig{Enabled: pointer.Of(enabled)}
+	result := &config.WaitConfig{Enabled: new(enabled)}
 
 	if wc.Min != nil {
 		result.Min = wc.Min
@@ -872,7 +875,7 @@ func (rc *RetryConfig) ToConsulTemplate() (*config.RetryConfig, error) {
 		return nil, err
 	}
 
-	result := &config.RetryConfig{Enabled: pointer.Of(true)}
+	result := &config.RetryConfig{Enabled: new(true)}
 
 	if rc.Attempts != nil {
 		result.Attempts = rc.Attempts

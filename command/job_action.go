@@ -182,7 +182,7 @@ func (c *JobActionCommand) Run(args []string) int {
 			return 1
 		}
 
-		jobID, ns, err := c.JobIDByPrefix(client, job, "")
+		jobID, ns, err := c.JobIDByPrefix(client, job)
 		if err != nil {
 			c.Ui.Error(err.Error())
 			return 1

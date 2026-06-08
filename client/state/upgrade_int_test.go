@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state_test
@@ -209,7 +209,7 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 		ClientConfig:      clientConf,
 		StateDB:           db,
 		ConsulServices:    regMock.NewServiceRegistrationHandler(clientConf.Logger),
-		VaultFunc:         vaultclient.NewMockVaultClient,
+		VaultFunc:         func(string) (vaultclient.VaultClient, error) { return vaultclient.NewMockVaultClient(), nil },
 		StateUpdater:      &allocrunner.MockStateUpdater{},
 		PrevAllocWatcher:  allocwatcher.NoopPrevAlloc{},
 		PrevAllocMigrator: allocwatcher.NoopPrevAlloc{},
@@ -222,5 +222,6 @@ func checkUpgradedAlloc(t *testing.T, path string, db StateDB, alloc *structs.Al
 	require.NoError(t, err)
 
 	// AllocRunner.Restore should not error
+	require.NoError(t, ar.GetAllocDir().Build())
 	require.NoError(t, ar.Restore())
 }

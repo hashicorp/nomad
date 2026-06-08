@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -99,7 +99,17 @@ consul {
 
 meta {
   dept = "eng"
-}`,
+}
+  
+required_extra_claims {
+  foo = "${job.namespace}"
+}
+
+optional_extra_claims {
+  bar = "class:${node.class}"
+  baz = "dc:${node.datacenter}"
+}
+`,
 			expected: &api.Namespace{
 				Name:        "test-namespace",
 				Description: "Test namespace",
@@ -122,6 +132,13 @@ meta {
 				},
 				Meta: map[string]string{
 					"dept": "eng",
+				},
+				RequiredExtraClaims: map[string]string{
+					"foo": "${job.namespace}",
+				},
+				OptionalExtraClaims: map[string]string{
+					"bar": "class:${node.class}",
+					"baz": "dc:${node.datacenter}",
 				},
 			},
 		},

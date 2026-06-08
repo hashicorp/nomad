@@ -505,7 +505,7 @@ func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 
 	alloc.Job.Type = structs.JobTypeBatch
-	maxRunDuration := 50 * time.Millisecond
+	maxRunDuration := 1 * time.Second
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
@@ -535,56 +535,59 @@ func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
 
 	upd := conf.StateUpdater.(*MockStateUpdater)
 
-	testutil.WaitForResult(func() (bool, error) {
-		last := upd.Last()
-		if last == nil {
-			return false, fmt.Errorf("no updates")
-		}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last == nil {
+				return fmt.Errorf("no updates")
+			}
+			if last.ClientStatus != structs.AllocClientStatusRunning {
+				return fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+				return fmt.Errorf("expected main task to be running not %s", s)
+			}
+			if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
+				return fmt.Errorf("expected poststop task to be pending not %s", s)
+			}
+			return nil
+		}),
+		wait.Timeout(200*time.Millisecond), // max_run_duration is 1s
+		wait.Gap(5*time.Millisecond),
+	))
 
-		if last.ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
-		}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last.ClientStatus != structs.AllocClientStatusComplete {
+				return fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
+			}
+			if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+				return fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+				return fmt.Errorf("expected main task to be dead not %s", s)
+			}
 
-		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
-			return false, fmt.Errorf("expected main task to be running not %s", s)
-		}
-
-		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
-			return false, fmt.Errorf("expected poststop task to be pending not %s", s)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("error waiting for initial state:\n%v", err)
-	})
-
-	testutil.WaitForResult(func() (bool, error) {
-		last := upd.Last()
-		if last == nil {
-			return false, fmt.Errorf("no updates")
-		}
-
-		if last.ClientStatus != structs.AllocClientStatusComplete {
-			return false, fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
-		}
-
-		if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
-			return false, fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
-		}
-
-		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
-			return false, fmt.Errorf("expected main task to be dead not %s", s)
-		}
-
-		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
-			return false, fmt.Errorf("expected poststop task to remain pending not %s", s)
-		}
-
-		return true, nil
-	}, func(err error) {
-		last := upd.Last()
-		t.Fatalf("error waiting for max_run_duration state:\n%v\nlast=%#v", err, last)
-	})
+			// poststop task would run for 10s if not for max_run_duration of
+			// 1s; all tasks should be dead by now and poststop tasks should
+			// never have run
+			poststopState := last.TaskStates[poststopTask.Name]
+			if poststopState.State != structs.TaskStateDead {
+				return fmt.Errorf("expected poststop task to be dead not %s", poststopState.State)
+			}
+			events := poststopState.Events
+			if len(events) != 2 {
+				return fmt.Errorf("expected poststop task to have event for max_run_duration: %+v", events)
+			}
+			if events[1].DisplayMessage != "allocation exceeded max_run_duration" {
+				return fmt.Errorf("expected poststop task to be dead because of max_run_duration")
+			}
+			return nil
+		}),
+		wait.Timeout(2000*time.Millisecond),
+		wait.Gap(5*time.Millisecond),
+	))
 }
 
 func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
@@ -1327,6 +1330,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	must.NoError(t, err)
 	defer destroy(ar2)
 
+	must.NoError(t, ar2.(*allocRunner).allocDir.Build())
 	if err := ar2.Restore(); err != nil {
 		t.Fatalf("error restoring state: %v", err)
 	}
@@ -1403,6 +1407,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	arIface2, err := NewAllocRunner(conf)
 	must.NoError(t, err)
 	ar2 := arIface2.(*allocRunner)
+	must.NoError(t, ar2.allocDir.Build())
 	must.NoError(t, ar2.Restore())
 
 	go ar2.Run()
@@ -1418,6 +1423,33 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["side"].Task())
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["web"].Task())
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["poststart"].Task())
+}
+
+// TestAllocRunner_Restore_MissingAllocDir asserts that Restore() fails when the
+// allocation directory is missing, which can happen if allocation storage is
+// ephemeral (e.g., tmpfs or cloud local SSDs).
+func TestAllocRunner_Restore_MissingAllocDir(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	// Get the allocation directory path before deleting it
+	allocDirPath := ar.allocDir.AllocDirPath()
+
+	// Remove the allocation directory to simulate ephemeral storage being deleted
+	err = os.RemoveAll(allocDirPath)
+	must.NoError(t, err)
+
+	// Call Restore() and verify it fails with appropriate error
+	err = ar.Restore()
+	must.Error(t, err)
+	must.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {

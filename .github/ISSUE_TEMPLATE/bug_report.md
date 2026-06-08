@@ -9,7 +9,7 @@ Hi there,
 
 Thank you for opening an issue. Please note that we try to keep the Nomad issue
 tracker reserved for bug reports and feature requests. For general usage
-questions, please see: https://developer.hashicorp.com/nomad/community
+questions, please use: https://discuss.hashicorp.com/c/nomad/28
 
 -->
 
@@ -31,17 +31,16 @@ Output from `nomad version`
 <!--
 If possible please post relevant logs in the issue.
 `
-Logs and other artifacts may also be sent to: nomad-oss-debug@hashicorp.com
+Logs and other artifacts may also be sent to: Nomad_OSS_Debug@wwpdl.vnet.ibm.com
 
 Please link to your Github issue in the email and reference it in the subject
 line:
 
-> To: nomad-oss-debug@hashicorp.com
+> To: Nomad_OSS_Debug@wwpdl.vnet.ibm.com
 >
 > Subject: GH-1234: Errors garbage collecting allocs
 
-Emails sent to that address are readable by all HashiCorp employees but are
-*not* publicly visible.
+Emails sent to that address are readable by all Nomad engineering team members.
 -->
 
 ### Nomad Server logs (if appropriate)

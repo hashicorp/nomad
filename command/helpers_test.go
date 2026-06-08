@@ -21,7 +21,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/flatmap"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 )
@@ -235,19 +234,19 @@ const (
 
 var (
 	expectedApiJob = &api.Job{
-		ID:          pointer.Of("job1"),
-		Name:        pointer.Of("job1"),
-		Type:        pointer.Of("service"),
+		ID:          new("job1"),
+		Name:        new("job1"),
+		Type:        new("service"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  pointer.Of("group1"),
-				Count: pointer.Of(1),
+				Name:  new("group1"),
+				Count: new(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts:        pointer.Of(10),
-					Interval:        pointer.Of(15 * time.Second),
-					Mode:            pointer.Of("delay"),
-					RenderTemplates: pointer.Of(false),
+					Attempts:        new(10),
+					Interval:        new(15 * time.Second),
+					Mode:            new("delay"),
+					RenderTemplates: new(false),
 				},
 
 				Tasks: []*api.Task{

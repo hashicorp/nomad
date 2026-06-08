@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package devicemanager
@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -45,7 +44,7 @@ var (
 		},
 		Attributes: map[string]*psstructs.Attribute{
 			"memory": {
-				Int:  pointer.Of(int64(4)),
+				Int:  new(int64(4)),
 				Unit: "GB",
 			},
 		},
@@ -64,7 +63,7 @@ var (
 		},
 		Attributes: map[string]*psstructs.Attribute{
 			"memory": {
-				Int:  pointer.Of(int64(2)),
+				Int:  new(int64(2)),
 				Unit: "GB",
 			},
 		},
@@ -77,14 +76,14 @@ var (
 		InstanceStats: map[string]*device.DeviceStats{
 			nvidiaDevice0ID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: pointer.Of(int64(212)),
+					IntNumeratorVal: new(int64(212)),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
 			},
 			nvidiaDevice1ID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: pointer.Of(int64(218)),
+					IntNumeratorVal: new(int64(218)),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},
@@ -99,7 +98,7 @@ var (
 		InstanceStats: map[string]*device.DeviceStats{
 			intelDeviceID: {
 				Summary: &psstructs.StatValue{
-					IntNumeratorVal: pointer.Of(int64(220)),
+					IntNumeratorVal: new(int64(220)),
 					Unit:            "F",
 					Desc:            "Temperature",
 				},

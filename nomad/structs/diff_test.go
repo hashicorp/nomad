@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -2973,9 +2972,9 @@ func TestTaskGroupDiff(t *testing.T) {
 			Old: &TaskGroup{
 				Disconnect: &DisconnectStrategy{
 					LostAfter:         1 * time.Second,
-					Replace:           pointer.Of(true),
+					Replace:           new(true),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopOnClientAfter: pointer.Of(1 * time.Second),
+					StopOnClientAfter: new(1 * time.Second),
 				},
 			},
 			New: &TaskGroup{},
@@ -3021,9 +3020,9 @@ func TestTaskGroupDiff(t *testing.T) {
 			New: &TaskGroup{
 				Disconnect: &DisconnectStrategy{
 					LostAfter:         time.Second,
-					Replace:           pointer.Of(true),
+					Replace:           new(true),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopOnClientAfter: pointer.Of(1 * time.Second),
+					StopOnClientAfter: new(1 * time.Second),
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -3067,17 +3066,17 @@ func TestTaskGroupDiff(t *testing.T) {
 			Old: &TaskGroup{
 				Disconnect: &DisconnectStrategy{
 					LostAfter:         time.Second,
-					Replace:           pointer.Of(false),
+					Replace:           new(false),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopOnClientAfter: pointer.Of(1 * time.Second),
+					StopOnClientAfter: new(1 * time.Second),
 				},
 			},
 			New: &TaskGroup{
 				Disconnect: &DisconnectStrategy{
 					LostAfter:         time.Minute,
-					Replace:           pointer.Of(true),
+					Replace:           new(true),
 					Reconcile:         ReconcileOptionBestScore,
-					StopOnClientAfter: pointer.Of(1 * time.Minute),
+					StopOnClientAfter: new(1 * time.Minute),
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -3122,17 +3121,17 @@ func TestTaskGroupDiff(t *testing.T) {
 			Old: &TaskGroup{
 				Disconnect: &DisconnectStrategy{
 					LostAfter:         time.Second,
-					Replace:           pointer.Of(false),
+					Replace:           new(false),
 					Reconcile:         ReconcileOptionLongestRunning,
-					StopOnClientAfter: pointer.Of(1 * time.Second),
+					StopOnClientAfter: new(1 * time.Second),
 				},
 			},
 			New: &TaskGroup{
 				Disconnect: &DisconnectStrategy{
 					LostAfter:         time.Minute,
-					Replace:           pointer.Of(true),
+					Replace:           new(true),
 					Reconcile:         ReconcileOptionBestScore,
-					StopOnClientAfter: pointer.Of(1 * time.Second),
+					StopOnClientAfter: new(1 * time.Second),
 				},
 			},
 			Expected: &TaskGroupDiff{
@@ -3397,7 +3396,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  pointer.Of(1 * time.Second),
+									ConnectTimeout:                  new(1 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: false,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -3510,7 +3509,7 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							Gateway: &ConsulGateway{
 								Proxy: &ConsulGatewayProxy{
-									ConnectTimeout:                  pointer.Of(2 * time.Second),
+									ConnectTimeout:                  new(2 * time.Second),
 									EnvoyGatewayBindTaggedAddresses: true,
 									EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 										"service1": {
@@ -4643,10 +4642,10 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay edited",
 			Old: &TaskGroup{
-				ShutdownDelay: pointer.Of(30 * time.Second),
+				ShutdownDelay: new(30 * time.Second),
 			},
 			New: &TaskGroup{
-				ShutdownDelay: pointer.Of(5 * time.Second),
+				ShutdownDelay: new(5 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -4663,7 +4662,7 @@ func TestTaskGroupDiff(t *testing.T) {
 		{
 			TestCase: "TaskGroup shutdown_delay removed",
 			Old: &TaskGroup{
-				ShutdownDelay: pointer.Of(30 * time.Second),
+				ShutdownDelay: new(30 * time.Second),
 			},
 			New: &TaskGroup{},
 			Expected: &TaskGroupDiff{
@@ -4682,7 +4681,7 @@ func TestTaskGroupDiff(t *testing.T) {
 			TestCase: "TaskGroup shutdown_delay added",
 			Old:      &TaskGroup{},
 			New: &TaskGroup{
-				ShutdownDelay: pointer.Of(30 * time.Second),
+				ShutdownDelay: new(30 * time.Second),
 			},
 			Expected: &TaskGroupDiff{
 				Type: DiffTypeEdited,
@@ -8427,11 +8426,11 @@ func TestTaskDiff(t *testing.T) {
 						},
 						Splay: 1,
 						Perms: "0644",
-						Uid:   pointer.Of(1001),
-						Gid:   pointer.Of(21),
+						Uid:   new(1001),
+						Gid:   new(21),
 						Wait: &WaitConfig{
-							Min: pointer.Of(5 * time.Second),
-							Max: pointer.Of(5 * time.Second),
+							Min: new(5 * time.Second),
+							Max: new(5 * time.Second),
 						},
 						ErrMissingKey: false,
 					},
@@ -8449,8 +8448,8 @@ func TestTaskDiff(t *testing.T) {
 						},
 						Splay:   2,
 						Perms:   "0666",
-						Uid:     pointer.Of(1000),
-						Gid:     pointer.Of(20),
+						Uid:     new(1000),
+						Gid:     new(20),
 						Envvars: true,
 					},
 				},
@@ -8471,11 +8470,11 @@ func TestTaskDiff(t *testing.T) {
 						},
 						Splay: 1,
 						Perms: "0644",
-						Uid:   pointer.Of(1001),
-						Gid:   pointer.Of(21),
+						Uid:   new(1001),
+						Gid:   new(21),
 						Wait: &WaitConfig{
-							Min: pointer.Of(5 * time.Second),
-							Max: pointer.Of(10 * time.Second),
+							Min: new(5 * time.Second),
+							Max: new(10 * time.Second),
 						},
 						ErrMissingKey: true,
 					},
@@ -8493,11 +8492,11 @@ func TestTaskDiff(t *testing.T) {
 						},
 						Splay: 3,
 						Perms: "0776",
-						Uid:   pointer.Of(1002),
-						Gid:   pointer.Of(22),
+						Uid:   new(1002),
+						Gid:   new(22),
 						Wait: &WaitConfig{
-							Min: pointer.Of(5 * time.Second),
-							Max: pointer.Of(10 * time.Second),
+							Min: new(5 * time.Second),
+							Max: new(10 * time.Second),
 						},
 						ErrMissingKey: true,
 					},
@@ -10749,12 +10748,12 @@ func TestDiff_SidecarIdentities(t *testing.T) {
 			},
 		},
 		Meta:        map[string]string{"meta": "val"},
-		KillTimeout: pointer.Of(10 * time.Second),
+		KillTimeout: new(10 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles:      3,
 			MaxFileSizeMB: 100,
 		},
-		ShutdownDelay: pointer.Of(20 * time.Second),
+		ShutdownDelay: new(20 * time.Second),
 		KillSignal:    "SIGUSR1",
 		Identities: []*WorkloadIdentity{
 			{
@@ -10778,12 +10777,12 @@ func TestDiff_SidecarIdentities(t *testing.T) {
 			},
 		},
 		Meta:        map[string]string{"meta": "val"},
-		KillTimeout: pointer.Of(10 * time.Second),
+		KillTimeout: new(10 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles:      3,
 			MaxFileSizeMB: 100,
 		},
-		ShutdownDelay: pointer.Of(20 * time.Second),
+		ShutdownDelay: new(20 * time.Second),
 		KillSignal:    "SIGUSR1",
 		Identities: []*WorkloadIdentity{
 			{
@@ -10980,12 +10979,12 @@ func TestDiff_SidecarVolumes(t *testing.T) {
 			},
 		},
 		Meta:        map[string]string{"meta": "val"},
-		KillTimeout: pointer.Of(10 * time.Second),
+		KillTimeout: new(10 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles:      3,
 			MaxFileSizeMB: 100,
 		},
-		ShutdownDelay: pointer.Of(20 * time.Second),
+		ShutdownDelay: new(20 * time.Second),
 		KillSignal:    "SIGUSR1",
 		VolumeMounts: []*VolumeMount{
 			{
@@ -11007,12 +11006,12 @@ func TestDiff_SidecarVolumes(t *testing.T) {
 			},
 		},
 		Meta:        map[string]string{"meta": "val"},
-		KillTimeout: pointer.Of(10 * time.Second),
+		KillTimeout: new(10 * time.Second),
 		LogConfig: &LogConfig{
 			MaxFiles:      3,
 			MaxFileSizeMB: 100,
 		},
-		ShutdownDelay: pointer.Of(20 * time.Second),
+		ShutdownDelay: new(20 * time.Second),
 		KillSignal:    "SIGUSR1",
 		VolumeMounts: []*VolumeMount{
 			{

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -79,7 +78,7 @@ func TestAllocStop_Run(t *testing.T) {
 
 		jobID := "job1_sfx"
 		job1 := testJob(jobID)
-		job1.Type = pointer.Of("sysbatch")
+		job1.Type = new("sysbatch")
 		resp, _, err := client.Jobs().Register(job1, nil)
 		must.NoError(t, err)
 

@@ -53,8 +53,8 @@ job "batch-timeout-poststop" {
       }
 
       config {
-        command = "echo"
-        args    = ["poststop executed"]
+        command = "sleep"
+        args    = ["10"]
       }
 
       resources {

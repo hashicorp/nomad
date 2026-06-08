@@ -11,7 +11,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1068,7 +1067,7 @@ func TestAllocEndpoint_UpdateDesiredTransition(t *testing.T) {
 	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2}))
 
 	t1 := &structs.DesiredTransition{
-		Migrate: pointer.Of(true),
+		Migrate: new(true),
 	}
 
 	// Update the allocs desired status
@@ -1833,14 +1832,27 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 
 	// Insert an alloc with an alternate identity
 	alloc := mock.Alloc()
+	alloc.Job.Meta = map[string]string{"customer": "important"}
 	alloc.Job.TaskGroups[0].Tasks[0].Identities = []*structs.WorkloadIdentity{
 		{
 			Name:     "alt",
 			Audience: []string{"test"},
+			ExtraClaims: []string{
+				"customer_claim",
+			},
 		},
 	}
 	summary := mock.JobSummary(alloc.JobID)
 	state := s1.fsm.State()
+	must.NoError(t, state.UpsertNamespaces(100, []*structs.Namespace{{
+		Name: structs.DefaultNamespace,
+		RequiredExtraClaims: map[string]string{
+			"required_claim": "${job.namespace}",
+		},
+		OptionalExtraClaims: map[string]string{
+			"customer_claim": "acct-${job.meta.customer}",
+		},
+	}}))
 	must.NoError(t, state.UpsertJobSummary(100, summary))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 101, []*structs.Allocation{alloc}))
@@ -1866,6 +1878,10 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.SignIdentities", &req, &resp))
 	must.Len(t, 0, resp.Rejections)
 	must.Len(t, 1, resp.SignedIdentities)
+	claims, err := s1.encrypter.VerifyClaim(resp.SignedIdentities[0].JWT)
+	must.NoError(t, err)
+	must.Eq(t, "default", claims.ExtraClaims["required_claim"])
+	must.Eq(t, "acct-important", claims.ExtraClaims["customer_claim"])
 
 	// Looking for a missing alloc should return a rejection and a signed id
 	req.Identities = append(req.Identities, &structs.WorkloadIdentityRequest{

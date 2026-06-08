@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { currentRouteName, currentURL, visit, waitUntil } from '@ember/test-helpers';
+import {
+  currentRouteName,
+  currentURL,
+  visit,
+  waitUntil,
+} from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -95,7 +100,7 @@ export default function moduleForJob(
           JobDetail.stop.isPresent ||
           JobDetail.start.isPresent ||
           JobDetail.purge.isPresent ||
-          JobDetail.revert.isPresent
+          JobDetail.revert.isPresent,
       );
 
       if (job.status === 'dead') {

@@ -47,13 +47,18 @@ export default class TokenAdapter extends ApplicationAdapter {
     return `${this.buildURL()}/${singularize(modelName)}/${identifier}`;
   }
 
-  async findSelf() {
+  async findSelf(regionOverride = null) {
     // the application adapter automatically adds the region parameter to all requests,
     // but only if the /regions endpoint has been resolved first. Since this request is async,
     // we can ensure that the regions are loaded before making the token/self request.
     await this.system.regions;
 
-    const response = await this.ajax(`${this.buildURL()}/token/self`, 'GET');
+    const options = regionOverride ? { regionOverride } : {};
+    const response = await this.ajax(
+      `${this.buildURL()}/token/self`,
+      'GET',
+      options,
+    );
     const normalized = this.store.normalize('token', response);
     const tokenRecord = this.store.push(normalized);
     return tokenRecord;

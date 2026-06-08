@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -10,12 +10,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
@@ -62,6 +62,7 @@ type vaultHookConfig struct {
 	logger           log.Logger
 	alloc            *structs.Allocation
 	task             *structs.Task
+	taskCtx          context.Context
 	widmgr           widmgr.IdentityManager
 }
 
@@ -90,9 +91,9 @@ type vaultHook struct {
 	// logger is used to log
 	logger log.Logger
 
-	// ctx and cancel are used to kill the long running token manager
-	ctx    context.Context
-	cancel context.CancelFunc
+	// The taskRunner's context. This is stored on the vaulHook because it
+	// cuurently is not injected via Prestart.
+	taskCtx context.Context
 
 	// privateDirTokenPath is the path inside the task's private directory where
 	// the Vault token is read and written.
@@ -101,9 +102,6 @@ type vaultHook struct {
 	// secretsDirTokenPath is the path inside the task's secret directory where the
 	// Vault token is written unless disabled by the task.
 	secretsDirTokenPath string
-
-	// alloc is the allocation
-	alloc *structs.Allocation
 
 	// task is the task to run.
 	task *structs.Task
@@ -119,13 +117,9 @@ type vaultHook struct {
 
 	// allowTokenExpiration determines if a renew loop should be run
 	allowTokenExpiration bool
-
-	// future is used to wait on retrieving a Vault token
-	future *tokenFuture
 }
 
 func newVaultHook(config *vaultHookConfig) *vaultHook {
-	ctx, cancel := context.WithCancel(context.Background())
 	h := &vaultHook{
 		vaultBlock:           config.vaultBlock,
 		vaultConfigsFunc:     config.vaultConfigsFunc,
@@ -133,12 +127,9 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		eventEmitter:         config.events,
 		lifecycle:            config.lifecycle,
 		updater:              config.updater,
-		alloc:                config.alloc,
 		task:                 config.task,
+		taskCtx:              config.taskCtx,
 		firstRun:             true,
-		ctx:                  ctx,
-		cancel:               cancel,
-		future:               newTokenFuture(),
 		widmgr:               config.widmgr,
 		widName:              config.task.Vault.IdentityName(),
 		allowTokenExpiration: config.vaultBlock.AllowTokenExpiration,
@@ -175,7 +166,7 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 
 	// Try to recover a token if it was previously written in the secrets
 	// directory
-	recoveredToken := ""
+	token := ""
 	h.privateDirTokenPath = filepath.Join(req.TaskDir.PrivateDir, vaultTokenFile)
 	h.secretsDirTokenPath = filepath.Join(req.TaskDir.SecretsDir, vaultTokenFile)
 
@@ -191,178 +182,138 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 			// Token file doesn't exist in this path.
 		} else {
 			// Store the recovered token
-			recoveredToken = string(data)
+			token = string(data)
 			break
 		}
 	}
 
-	// Launch the token manager
-	go h.run(recoveredToken)
+	duration := 30
+	if token == "" {
+		var err error
+		token, duration, err = h.deriveVaultToken(ctx)
+		if err != nil {
+			return err
+		}
 
-	// Block until we get a token
-	select {
-	case <-h.future.Wait():
-	case <-ctx.Done():
-		return nil
+		// Write the token to disk
+		if err := h.writeToken(token); err != nil {
+			errorString := "failed to write Vault token to disk"
+			h.logger.Error(errorString, "error", err)
+			h.lifecycle.Kill(ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault %v", errorString)))
+			return err
+		}
 	}
 
-	h.updater.updatedVaultToken(h.future.Get())
+	if !h.allowTokenExpiration {
+		go h.run(h.taskCtx, token, time.Duration(duration*int(time.Second)))
+	}
+
+	h.updater.updatedVaultToken(token)
 	return nil
 }
 
 func (h *vaultHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
-	// Shutdown any created manager
-	h.cancel()
 	return nil
 }
 
-func (h *vaultHook) Shutdown() {
-	h.cancel()
-}
+func (h *vaultHook) Shutdown() {}
 
-// run should be called in a go-routine and manages the derivation, renewal and
-// handling of errors with the Vault token. The optional parameter allows
-// setting the initial Vault token. This is useful when the Vault token is
-// recovered off disk.
-func (h *vaultHook) run(token string) {
-	// Helper for stopping token renewal
-	stopRenewal := func() {
-		if h.allowTokenExpiration {
+func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) {
+	var err error
+
+	for {
+		select {
+		case <-ctx.Done():
 			return
-		}
-		if err := h.client.StopRenewToken(h.future.Get()); err != nil {
-			h.logger.Warn("failed to stop token renewal", "error", err)
+		case <-time.After(withJitter(lease)):
+			lease, err = h.renewWithBackoff(ctx, token)
+			if err != nil {
+				// failing to renew results in a triggering the change_mode
+				h.handleRenewal(ctx, "")
+				return
+			}
+
+			h.handleRenewal(ctx, token)
 		}
 	}
+}
 
-	// updatedToken lets us store state between loops. If true, a new token
-	// has been retrieved and we need to apply the Vault change mode
-	var updatedToken bool
-	leaseDuration := 30
-
-OUTER:
-	for {
-		// Check if we should exit
-		if h.ctx.Err() != nil {
-			stopRenewal()
-			return
-		}
-
-		// Clear the token
-		h.future.Clear()
-
-		// Check if there already is a token which can be the case for
-		// restoring the TaskRunner
-		if token == "" {
-			// Get a token
-			var exit bool
-			token, leaseDuration, exit = h.deriveVaultToken()
-			if exit {
-				// Exit the manager
-				return
-			}
-
-			// Write the token to disk
-			if err := h.writeToken(token); err != nil {
-				errorString := "failed to write Vault token to disk"
-				h.logger.Error(errorString, "error", err)
-				h.lifecycle.Kill(h.ctx,
-					structs.NewTaskEvent(structs.TaskKilling).
-						SetFailsTask().
-						SetDisplayMessage(fmt.Sprintf("Vault %v", errorString)))
-				return
-			}
-		}
-
-		if h.allowTokenExpiration {
-			h.future.Set(token)
-			h.logger.Debug("Vault token will not renew")
-			return
-		}
-
-		// Start the renewal process.
-		//
-		// This is the initial renew of the token which we derived from the
-		// server. The client does not know how long it took for the token to
-		// be generated and derived and also wants to gain control of the
-		// process quickly, but not too quickly. We therefore use a hardcoded
-		// increment value of 30; this value without a suffix is in seconds.
-		//
-		// If Vault is having availability issues or is overloaded, a large
-		// number of initial token renews can exacerbate the problem.
-		if leaseDuration == 0 {
-			leaseDuration = 30
-		}
-		renewCh, err := h.client.RenewToken(token, leaseDuration)
-
-		// An error returned means the token is not being renewed
+func (h *vaultHook) handleRenewal(ctx context.Context, token string) {
+	var event *structs.TaskEvent
+	switch h.vaultBlock.ChangeMode {
+	case structs.VaultChangeModeSignal:
+		s, err := signals.Parse(h.vaultBlock.ChangeSignal)
 		if err != nil {
-			h.logger.Error("failed to start renewal of Vault token", "error", err)
-			token = ""
-			goto OUTER
-		}
-
-		// The Vault token is valid now, so set it
-		h.future.Set(token)
-
-		if updatedToken {
-			switch h.vaultBlock.ChangeMode {
-			case structs.VaultChangeModeSignal:
-				s, err := signals.Parse(h.vaultBlock.ChangeSignal)
-				if err != nil {
-					h.logger.Error("failed to parse signal", "error", err)
-					h.lifecycle.Kill(h.ctx,
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(fmt.Sprintf("Vault: failed to parse signal: %v", err)))
-					return
-				}
-
-				event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
-				if err := h.lifecycle.Signal(event, h.vaultBlock.ChangeSignal); err != nil {
-					h.logger.Error("failed to send signal", "error", err)
-					h.lifecycle.Kill(h.ctx,
-						structs.NewTaskEvent(structs.TaskKilling).
-							SetFailsTask().
-							SetDisplayMessage(fmt.Sprintf("Vault: failed to send signal: %v", err)))
-					return
-				}
-			case structs.VaultChangeModeRestart:
-				const noFailure = false
-				h.lifecycle.Restart(h.ctx,
-					structs.NewTaskEvent(structs.TaskRestartSignal).
-						SetDisplayMessage("Vault: new Vault token acquired"), noFailure)
-			case structs.VaultChangeModeNoop:
-				// True to its name, this is a noop!
-			default:
-				h.logger.Error("invalid Vault change mode", "mode", h.vaultBlock.ChangeMode)
-			}
-
-			// We have handled it
-			updatedToken = false
-
-			// Call the handler
-			h.updater.updatedVaultToken(token)
-		}
-
-		// Start watching for renewal errors
-		select {
-		case err := <-renewCh:
-			// Clear the token
-			token = ""
-			h.logger.Error("failed to renew Vault token", "error", err)
-			stopRenewal()
-			updatedToken = true
-		case <-h.ctx.Done():
-			stopRenewal()
+			h.logger.Error("failed to parse signal", "error", err)
+			event = structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage(fmt.Sprintf("Vault: failed to parse signal: %v", err))
+			h.lifecycle.Kill(ctx, event)
 			return
+		}
+
+		event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
+		if err := h.lifecycle.Signal(event, h.vaultBlock.ChangeSignal); err != nil {
+			h.logger.Error("failed to send signal", "error", err)
+			event = structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage(fmt.Sprintf("Vault: failed to send signal: %v", err))
+
+			h.lifecycle.Kill(ctx, event)
+			return
+		}
+	case structs.VaultChangeModeRestart:
+		event = structs.NewTaskEvent(structs.TaskRestartSignal).SetDisplayMessage("Vault: new Vault token acquired")
+		h.lifecycle.Restart(ctx, event, false)
+	case structs.VaultChangeModeNoop:
+		// True to its name, this is a noop!
+	default:
+		h.logger.Error("invalid Vault change mode", "mode", h.vaultBlock.ChangeMode)
+	}
+
+	// Call the handler
+	h.updater.updatedVaultToken(token)
+}
+
+func (h *vaultHook) renewWithBackoff(ctx context.Context, token string) (time.Duration, error) {
+	var attempts uint64
+
+	for {
+		// Renewing with a duration of 0 renews with the default TTL configured
+		duration, err := h.client.Renew(ctx, token, 0)
+		if err == nil {
+			return duration, nil
+		}
+
+		metrics.IncrCounter([]string{"client", "vault", "renew_token_error"}, 1)
+
+		if !structs.IsRecoverable(err) {
+			metrics.IncrCounter([]string{"client", "vault", "renew_token_failure"}, 1)
+			h.logger.Error("failed to renew Vault token", "error", err, "recoverable", false)
+			h.lifecycle.Kill(ctx,
+				structs.NewTaskEvent(structs.TaskKilling).
+					SetFailsTask().
+					SetDisplayMessage(fmt.Sprintf("Vault: failed to renew vault token: %v", err)))
+			return 0, err
+		}
+
+		backoff := helper.Backoff(vaultBackoffBaseline, vaultBackoffLimit, attempts)
+		attempts++
+
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-time.After(backoff):
 		}
 	}
 }
 
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the manager should exit.
-func (h *vaultHook) deriveVaultToken() (string, int, bool) {
+func (h *vaultHook) deriveVaultToken(ctx context.Context) (string, int, error) {
 	var attempts uint64
 	var backoff time.Duration
 
@@ -370,19 +321,19 @@ func (h *vaultHook) deriveVaultToken() (string, int, bool) {
 	defer stopTimer()
 
 	for {
-		token, lease, err := h.deriveVaultTokenJWT()
+		token, lease, err := h.deriveVaultTokenJWT(ctx)
 		if err == nil {
-			return token, lease, false
+			return token, lease, nil
 		}
 
 		// Check if we can't recover from the error
 		if !structs.IsRecoverable(err) {
 			h.logger.Error("failed to derive Vault token", "error", err, "recoverable", false)
-			h.lifecycle.Kill(h.ctx,
+			h.lifecycle.Kill(ctx,
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))
-			return "", 0, true
+			return "", 0, err
 		}
 
 		// Handle the retry case
@@ -394,15 +345,15 @@ func (h *vaultHook) deriveVaultToken() (string, int, bool) {
 
 		// Wait till retrying
 		select {
-		case <-h.ctx.Done():
-			return "", 0, true
+		case <-ctx.Done():
+			return "", 0, ctx.Err()
 		case <-timer.C:
 		}
 	}
 }
 
 // deriveVaultTokenJWT returns a Vault ACL token using JWT auth login.
-func (h *vaultHook) deriveVaultTokenJWT() (string, int, error) {
+func (h *vaultHook) deriveVaultTokenJWT(ctx context.Context) (string, int, error) {
 	// Retrieve signed identity.
 	signed, err := h.widmgr.Get(structs.WIHandle{
 		IdentityName:       h.widName,
@@ -428,7 +379,7 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, int, error) {
 	}
 
 	// Derive Vault token with signed identity.
-	token, renewable, leaseDuration, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
+	token, renewable, leaseDuration, err := h.client.DeriveTokenWithJWT(ctx, vaultclient.JWTLoginRequest{
 		JWT:       signed.JWT,
 		Role:      role,
 		Namespace: h.vaultBlock.Namespace,
@@ -474,63 +425,21 @@ func (h *vaultHook) writeToken(token string) error {
 	return nil
 }
 
-// tokenFuture stores the Vault token and allows consumers to block till a valid
-// token exists
-type tokenFuture struct {
-	waiting []chan struct{}
-	token   string
-	set     bool
-	m       sync.Mutex
-}
+// withJitter returns when a token should be renewed given its leaseDuration
+// and a randomizer to provide jitter.
+//
+// Leases < 1m will not use jitter.
+func withJitter(leaseDuration time.Duration) time.Duration {
+	// Start trying to renew at half the lease duration to allow ample time
+	// for latency and retries.
+	renew := leaseDuration / 2
 
-// newTokenFuture returns a new token future without any token set
-func newTokenFuture() *tokenFuture {
-	return &tokenFuture{}
-}
-
-// Wait returns a channel that can be waited on. When this channel unblocks, a
-// valid token will be available via the Get method
-func (f *tokenFuture) Wait() <-chan struct{} {
-	f.m.Lock()
-	defer f.m.Unlock()
-
-	c := make(chan struct{})
-	if f.set {
-		close(c)
-		return c
+	// Don't bother about introducing randomness if the
+	// leaseDuration is too small.
+	const cutoff = 30 * time.Second
+	if renew < cutoff {
+		return renew
 	}
 
-	f.waiting = append(f.waiting, c)
-	return c
-}
-
-// Set sets the token value and unblocks any caller of Wait
-func (f *tokenFuture) Set(token string) *tokenFuture {
-	f.m.Lock()
-	defer f.m.Unlock()
-
-	f.set = true
-	f.token = token
-	for _, w := range f.waiting {
-		close(w)
-	}
-	f.waiting = nil
-	return f
-}
-
-// Clear clears the set vault token.
-func (f *tokenFuture) Clear() *tokenFuture {
-	f.m.Lock()
-	defer f.m.Unlock()
-
-	f.token = ""
-	f.set = false
-	return f
-}
-
-// Get returns the set Vault token
-func (f *tokenFuture) Get() string {
-	f.m.Lock()
-	defer f.m.Unlock()
-	return f.token
+	return renew + helper.RandomStagger(20*time.Second) - (10 - time.Second)
 }

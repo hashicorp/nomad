@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -84,7 +83,7 @@ func TestStartCommand(t *testing.T) {
 		client, err := cmd.Meta.Client()
 		must.NoError(t, err)
 
-		job.TaskGroups[0].Scaling.Enabled = pointer.Of(false)
+		job.TaskGroups[0].Scaling.Enabled = new(false)
 
 		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{}, nil)
 		must.NoError(t, err)
@@ -115,7 +114,7 @@ func TestStartCommand(t *testing.T) {
 		client, err := cmd.Meta.Client()
 		must.NoError(t, err)
 
-		job.TaskGroups[0].Scaling.Enabled = pointer.Of(true)
+		job.TaskGroups[0].Scaling.Enabled = new(true)
 
 		jsonBytes, err := json.Marshal(job)
 		must.NoError(t, err)
