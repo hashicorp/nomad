@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
 package dependency
 
 import (
@@ -7,18 +10,17 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 type evalID = string
 
-type StateStorage interface {
-	JobByID(ws memdb.WatchSet, namespace, id string) (*structs.Job, error)
+type evalUnblocker interface {
+	Unblock(computedClass string, index uint64) chan struct{}
 }
 
-type LoopDetector interface {
+type loopDetector interface {
 	AddNodes(dependantJob string, dependeeJob ...string) error
 	RemoveNode(dependantJob string) error
 }
@@ -34,13 +36,13 @@ type Coordinator struct {
 	l      sync.RWMutex
 
 	dependencies map[evalID]*dependency
-	loopDetector LoopDetector
-	blockedEvals *nomad.BlockedEvals
+	loopDetector loopDetector
+	blockedEvals evalUnblocker
 }
 
 // TODO: Think how to rebuild out of evals!
-func NewCoordinator(logger hclog.Logger, loopDetector LoopDetector,
-	blockedEvals *nomad.BlockedEvals) *Coordinator {
+func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
+	blockedEvals evalUnblocker) *Coordinator {
 	return &Coordinator{
 		logger:       logger,
 		dependencies: make(map[evalID]*dependency),
