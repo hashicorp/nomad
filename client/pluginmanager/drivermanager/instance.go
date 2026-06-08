@@ -231,6 +231,14 @@ func (i *instanceManager) dispense() (plugin drivers.DriverPlugin, err error) {
 		return nil, fmt.Errorf("plugin loaded does not implement the driver interface")
 	}
 
+	// Initialize the plugin if it supports it.
+	if initer, ok := driver.(drivers.DriverIniter); ok {
+		if err := initer.Init(i.ctx); err != nil {
+			pluginInstance.Kill()
+			return nil, fmt.Errorf("init of plugin %s failed: %w", i.id, err)
+		}
+	}
+
 	// Store the plugin and driver
 	i.plugin = pluginInstance
 	i.driver = driver

@@ -15,6 +15,10 @@ import "plugins/shared/structs/proto/attribute.proto";
 // Some rpcs may not be implemented by the driver based on it's capabilities.
 service Driver {
 
+    // Init is used to allow a driver plugin to perform any initialization
+    // after the configuration has been set.
+    rpc Init(InitRequest) returns (InitResponse) {}
+  
     // TaskConfigSchema returns the schema for parsing the driver
     // configuration of a task.
     rpc TaskConfigSchema(TaskConfigSchemaRequest) returns (TaskConfigSchemaResponse) {}
@@ -94,6 +98,10 @@ service Driver {
     // implemented if the driver needs to manage network namespace creation.
     rpc DestroyNetwork(DestroyNetworkRequest) returns (DestroyNetworkResponse) {}
 }
+
+message InitRequest {}
+
+message InitResponse {}
 
 message TaskConfigSchemaRequest {}
 

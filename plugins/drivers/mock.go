@@ -25,6 +25,7 @@ type TaskEventsFn func(context.Context) (<-chan *TaskEvent, error)
 type SignalTaskFn func(string, string) error
 type ExecTaskFn func(string, []string, time.Duration) (*ExecTaskResult, error)
 type ShutdownFn func(context.Context) error
+type InitFn func(context.Context) error
 
 type MockDriverPlugin struct {
 	*base.MockPlugin
@@ -104,4 +105,14 @@ type MockDriverShutdownerPlugin struct {
 
 func (p *MockDriverShutdownerPlugin) Shutdown(ctx context.Context) error {
 	return p.ShutdownFn(ctx)
+}
+
+type MockDriverIniterPlugin struct {
+	*MockDriverPlugin
+
+	InitFn InitFn
+}
+
+func (p *MockDriverIniterPlugin) Init(ctx context.Context) error {
+	return p.InitFn(ctx)
 }
