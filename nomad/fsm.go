@@ -767,7 +767,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	}
 
 	if req.Deployment != nil {
-		// Cancel any previous deployment.
+		// Cancel any preivous deployment.
 		lastDeployment, err := n.state.LatestDeploymentByJobID(ws, req.Job.Namespace, req.Job.ID)
 		if err != nil {
 			return fmt.Errorf("failed to retrieve latest deployment: %v", err)
@@ -1053,17 +1053,15 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 	// Unblock evals for the nodes computed node class if the client has
 	// finished running an allocation.
 	for _, alloc := range req.Alloc {
-
-		nodeID := alloc.NodeID
-		node, err := n.state.NodeByID(ws, nodeID)
-		if err != nil || node == nil {
-			n.logger.Error("looking up node failed", "node_id", nodeID, "error", err)
-			return err
-
-		}
-
 		if alloc.ClientStatus == structs.AllocClientStatusComplete ||
 			alloc.ClientStatus == structs.AllocClientStatusFailed {
+			nodeID := alloc.NodeID
+			node, err := n.state.NodeByID(ws, nodeID)
+			if err != nil || node == nil {
+				n.logger.Error("looking up node failed", "node_id", nodeID, "error", err)
+				return err
+
+			}
 
 			// Unblock any associated quota
 			quota, err := n.allocQuota(alloc.ID)
@@ -1075,7 +1073,6 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
 			n.blockedEvals.UnblockNode(node.ID)
 		}
-		n.blockedEvals.Unblock(node.ComputedClass, index)
 	}
 
 	// It's possible that allocs on different nodes were marked unknown in the
