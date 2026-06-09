@@ -998,6 +998,11 @@ func (c *Client) Shutdown() error {
 	}
 	c.logger.Info("shutting down")
 
+	// Stop renewing tokens and secrets
+	for _, vaultClient := range c.vaultClients {
+		vaultClient.Stop()
+	}
+
 	// Stop Garbage collector
 	c.garbageCollector.Stop()
 
@@ -3009,7 +3014,8 @@ func (c *Client) newAllocRunnerConfig(
 	}
 }
 
-// setupVaultClients created vault clients for each configured cluster
+// setupVaultClients creates the objects that periodically renew tokens and
+// secrets with vault.
 func (c *Client) setupVaultClients() error {
 
 	c.vaultClients = map[string]vaultclient.VaultClient{}
@@ -3024,6 +3030,12 @@ func (c *Client) setupVaultClients() error {
 			return fmt.Errorf("failed to create vault client for cluster %q", vaultConfig.Name)
 		}
 		c.vaultClients[vaultConfig.Name] = vaultClient
+	}
+
+	// Start renewing tokens and secrets only once we've ensured we have created
+	// all the clients
+	for _, vaultClient := range c.vaultClients {
+		vaultClient.Start()
 	}
 
 	return nil
