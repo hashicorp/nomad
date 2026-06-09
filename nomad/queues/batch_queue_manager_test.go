@@ -107,23 +107,22 @@ func TestBatchQueueManager_SetEnabled(t *testing.T) {
 	t.Run("stops queues when disabled", func(t *testing.T) {
 		mockBroker := &MockBroker{}
 		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, mockBroker, hclog.Default())
-		stopCh1 := make(chan struct{})
-		stopCh2 := make(chan struct{})
-		// DynamicPriorityQueue closes the stop chan on Stop(), so we can use it to assert stop is called
-		_, cancel := context.WithCancel(t.Context())
-		mgr.defaultQueue = &DynamicPriorityQueue{cancelCtx: cancel}
-		mgr.nodePoolQueues["test"] = &DynamicPriorityQueue{}
+		ctx1, cancel1 := context.WithCancel(t.Context())
+		ctx2, cancel2 := context.WithCancel(t.Context())
+		// DynamicPriorityQueue called the cancel func when stopped, so we can use it to assert stop is called
+		mgr.defaultQueue = &DynamicPriorityQueue{cancelCtx: cancel1}
+		mgr.nodePoolQueues["test"] = &DynamicPriorityQueue{cancelCtx: cancel2}
 
 		mgr.SetEnabled(false, nil)
 
 		select {
-		case <-stopCh1:
+		case <-ctx1.Done():
 		case <-time.After(50 * time.Millisecond):
 			t.FailNow()
 		}
 
 		select {
-		case <-stopCh2:
+		case <-ctx2.Done():
 		case <-time.After(50 * time.Millisecond):
 			t.FailNow()
 		}
