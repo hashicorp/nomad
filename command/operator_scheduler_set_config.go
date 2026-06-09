@@ -4,7 +4,9 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/hashicorp/cli"
@@ -32,6 +34,11 @@ type OperatorSchedulerSetConfig struct {
 	preemptSysBatchScheduler      flagHelper.BoolValue
 	preemptSystemScheduler        flagHelper.BoolValue
 	nodeLimitForFeasibilityChecks flagHelper.UintValue
+
+	batchQueueType        string
+	batchQueueTenantType  string
+	batchQueueMetadataKey string
+	batchQueueConfig      string
 }
 
 func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
@@ -50,6 +57,10 @@ func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
 			"-preempt-sysbatch-scheduler":        complete.PredictSet("true", "false"),
 			"-preempt-system-scheduler":          complete.PredictSet("true", "false"),
 			"-node-limit-for-feasibility-checks": complete.PredictAnything,
+			"-batch-queue-type":                  complete.PredictSet("dynamicPriority"),
+			"-batch-queue-tenant-type":           complete.PredictSet("metadata", "namespace"),
+			"-batch-queue-metadata-key":          complete.PredictAnything,
+			"-batch-queue-config":                complete.PredictAnything,
 		},
 	)
 }
@@ -75,6 +86,11 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	flags.Var(&o.preemptSysBatchScheduler, "preempt-sysbatch-scheduler", "")
 	flags.Var(&o.preemptSystemScheduler, "preempt-system-scheduler", "")
 	flags.Var(&o.nodeLimitForFeasibilityChecks, "node-limit-for-feasibility-checks", "")
+
+	flags.StringVar(&o.batchQueueType, "batch-queue-type", "", "")
+	flags.StringVar(&o.batchQueueTenantType, "batch-queue-tenant-type", "", "")
+	flags.StringVar(&o.batchQueueMetadataKey, "batch-queue-metadata-key", "", "")
+	flags.StringVar(&o.batchQueueConfig, "batch-queue-config", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -138,6 +154,29 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	o.preemptSysBatchScheduler.Merge(&schedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 	o.preemptSystemScheduler.Merge(&schedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	o.nodeLimitForFeasibilityChecks.Merge(&schedulerConfig.NodeLimitForFeasibilityChecks)
+
+	if o.batchQueueType != "" {
+		schedulerConfig.BatchQueue.Type = api.BatchQueueType(o.batchQueueType)
+	}
+	if o.batchQueueTenantType != "" {
+		schedulerConfig.BatchQueue.TenantType = api.BatchQueueTenant(o.batchQueueTenantType)
+	}
+	if o.batchQueueMetadataKey != "" {
+		schedulerConfig.BatchQueue.MetadataKey = o.batchQueueMetadataKey
+	}
+	if o.batchQueueConfig != "" {
+		conf := make(map[string]any)
+		err = json.Unmarshal([]byte(o.batchQueueConfig), &conf)
+		if err != nil {
+			o.Ui.Error(fmt.Sprintf("Error parsing batch queue config: %s", err))
+			return 1
+		}
+		if schedulerConfig.BatchQueue.Config != nil {
+			maps.Copy(schedulerConfig.BatchQueue.Config, conf)
+		} else {
+			schedulerConfig.BatchQueue.Config = conf
+		}
+	}
 
 	// Check-and-set the new configuration.
 	result, _, err := client.Operator().SchedulerCASConfiguration(schedulerConfig, nil)
@@ -215,10 +254,27 @@ Scheduler Set Config Options:
 
   -node-limit-for-feasibility-checks=<count>
     Limits the number of feasible nodes to consider when scheduling a job that
-	specifies spread and/or affinity. Defaults to 100 nodes if unset. Lower
-	numbers result in better scheduler performance and more randomization of jobs
-	across nodes. Higher numbers result in more deterministic application of
-	feasibility checks.
+    specifies spread and/or affinity. Defaults to 100 nodes if unset. Lower
+    numbers result in better scheduler performance and more randomization of jobs
+    across nodes. Higher numbers result in more deterministic application of
+    feasibility checks.
+
+  -batch-queue-type=["dynamic_priority"]
+    Specifies the type of batch queue to configure. Currently only the dynamic_priority
+    queue type is supported.
+
+  -batch-queue-tenant-type=["namespace"|"metadata"]
+    Specifies the tenant type to use for the batch queue. The two types of
+    supported tenancy options are namespace or job metadata.
+
+  -batch-queue-metadata-key
+    If metadata tenancy is specified, this option configures what key to use
+    in the job's metadata for the tenants unique identifier.
+
+  -batch-queue-config
+    Specifies any custom configuration for the configured batch queue type.
+    This should be given as a JSON string which will be parsed and validated
+    by the Nomad Server.
 `
 	return strings.TrimSpace(helpText)
 }

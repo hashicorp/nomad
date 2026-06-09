@@ -201,6 +201,14 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: "foo",
+				Config: map[string]any{
+					"calc_interval": "5m",
+					"max_age":       "12h",
+					"max_size":      1000,
+					"age_weight":    10,
+					"size_weight":   10,
+					"usage_weight":  10,
+				},
 			},
 			err: "unsupported tenant type",
 		},
@@ -217,6 +225,14 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeMetadata,
+				Config: map[string]any{
+					"calc_interval": "5m",
+					"max_age":       "12h",
+					"max_size":      1000,
+					"age_weight":    10,
+					"size_weight":   10,
+					"usage_weight":  10,
+				},
 			},
 			err: "metadata key must be specified",
 		},
@@ -226,7 +242,12 @@ func TestBatchQueue_Validate(t *testing.T) {
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
-					"calc_interval": "hello",
+					"calc_interval": "hello", //invalid
+					"max_age":       "12h",
+					"max_size":      1000,
+					"age_weight":    10,
+					"size_weight":   10,
+					"usage_weight":  10,
 				},
 			},
 			err: "unable to decode conf",
@@ -238,6 +259,11 @@ func TestBatchQueue_Validate(t *testing.T) {
 				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
 					"calc_interval": "1h",
+					"max_age":       "12h",
+					"max_size":      1000,
+					"age_weight":    10,
+					"size_weight":   10,
+					"usage_weight":  10,
 				},
 			},
 			err: "",
@@ -249,6 +275,11 @@ func TestBatchQueue_Validate(t *testing.T) {
 				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
 					"calc_interval": 1000,
+					"max_age":       "12h",
+					"max_size":      1000,
+					"age_weight":    10,
+					"size_weight":   10,
+					"usage_weight":  10,
 				},
 			},
 			err: "",
