@@ -1,3 +1,39 @@
+## 2.0.3 (June 09, 2026)
+
+FEATURES:
+
+* core: timeouts for batch jobs [[GH-27803](https://github.com/hashicorp/nomad/issues/27803)]
+
+SECURITY:
+
+* cli: Redact token and certificate key CLI flags and environment variables when writing debug bundle [[GH-28063](https://github.com/hashicorp/nomad/issues/28063)]
+
+IMPROVEMENTS:
+
+* acl: Support uploading client ACL tokens [[GH-27741](https://github.com/hashicorp/nomad/issues/27741)]
+* alloc: don't restore when allocDir is inaccessible [[GH-27933](https://github.com/hashicorp/nomad/issues/27933)]
+* api: added agent reload endpoint [[GH-27106](https://github.com/hashicorp/nomad/issues/27106)]
+* build: Updated Go to 1.26.4 [[GH-28080](https://github.com/hashicorp/nomad/issues/28080)]
+* client: Adds default_ineligible configuration option [[GH-27965](https://github.com/hashicorp/nomad/issues/27965)]
+* identity: allow additional claims to be added to workload identities [[GH-27786](https://github.com/hashicorp/nomad/issues/27786)]
+* vault: adds token renewal retries [[GH-27947](https://github.com/hashicorp/nomad/issues/27947)]
+
+BUG FIXES:
+
+* audit (Enterprise): Fixed a bug where alloc exec and job actions requests from the webbrowser would be marked as anonymous in audit logs [[GH-28025](https://github.com/hashicorp/nomad/issues/28025)]
+* cli: Fixed `job dispatch` and `job periodic force` failing with a paginator error against servers older than the CLI [[GH-27680](https://github.com/hashicorp/nomad/issues/27680)]
+* client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
+* consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
+* job (Enterprise): Renabled use of multiple vault namespaces in a single job
+* plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
+* template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
+* ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
+* ui: Fix service detail page not rendering [[GH-28005](https://github.com/hashicorp/nomad/issues/28005)]
+* ui: Fixed flickering on the log streaming pop out when viewing them from job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+* ui: Fixed the client drain popover form to provide an accessible name for assistive technologies [[GH-28047](https://github.com/hashicorp/nomad/issues/28047)]
+* ui: Fixed the drain popover deadline field so its label is properly associated with the input for improved accessibility [[GH-28029](https://github.com/hashicorp/nomad/issues/28029)]
+* ui: Fixed the namespace list being continually fetched when on the job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+
 ## 2.0.2 (May 22, 2026)
 
 BUG FIXES:
