@@ -113,7 +113,7 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 
 		select {
 		case <-ws.WatchCh(ctx):
-			ready, err := c.verifyDependency(c.dependencies[eval.JobID].job, dj...)
+			ready, err := c.verifyDependencies(c.dependencies[eval.JobID].job, dj...)
 			if err != nil {
 				c.logger.Error("failed to verify dependency", "error", err)
 				continue
@@ -133,6 +133,6 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 	}
 }
 
-func (c *Coordinator) verifyDependency(dependantJob *structs.Job, dependeeJob ...*structs.Job) (bool, error) {
+func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, dependeeJob ...*structs.Job) (bool, error) {
 	return true, nil
 }
