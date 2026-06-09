@@ -66,7 +66,8 @@ type DynamicPriorityQueue struct {
 
 	logger hclog.Logger
 
-	stopCh chan struct{}
+	// cancelCtx is used to stop the queue
+	cancelCtx context.CancelFunc
 }
 
 type Tenant struct {
@@ -102,19 +103,22 @@ func NewDynamicPriorityQueue(state *state.StateStore, broker Broker, qconf *stru
 		state:       state,
 		logger:      logger.Named("dynamic_priority_queue"),
 		totalUsage:  0,
-		stopCh:      make(chan struct{}),
 	}
 }
 
 func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
-	go d.runProducer(ctx)
-	go d.runConsumer(ctx)
+	runCtx, cancel := context.WithCancel(ctx)
+	d.cancelCtx = cancel
+
+	go d.runProducer(runCtx)
+	go d.runConsumer(runCtx)
 
 	return nil
 }
 
 func (d *DynamicPriorityQueue) Stop() {
-	close(d.stopCh)
+	// close(d.stopCh)
+	d.cancelCtx()
 }
 
 // Enqueue is the method used to put evaluations on the queue.
@@ -139,8 +143,6 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-d.stopCh:
 			return
 		case w := <-d.enqueueCh:
 			w.calculatePriority(w.eval.CreateTime)
@@ -170,8 +172,6 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case <-d.stopCh:
 			return
 		case <-d.qNotify:
 
