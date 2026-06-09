@@ -4,6 +4,7 @@
 package queues
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -109,8 +110,9 @@ func TestBatchQueueManager_SetEnabled(t *testing.T) {
 		stopCh1 := make(chan struct{})
 		stopCh2 := make(chan struct{})
 		// DynamicPriorityQueue closes the stop chan on Stop(), so we can use it to assert stop is called
-		mgr.defaultQueue = &DynamicPriorityQueue{stopCh: stopCh1}
-		mgr.nodePoolQueues["test"] = &DynamicPriorityQueue{stopCh: stopCh2}
+		_, cancel := context.WithCancel(t.Context())
+		mgr.defaultQueue = &DynamicPriorityQueue{cancelCtx: cancel}
+		mgr.nodePoolQueues["test"] = &DynamicPriorityQueue{}
 
 		mgr.SetEnabled(false, nil)
 
@@ -132,8 +134,8 @@ func TestBatchQueueManager_Update(t *testing.T) {
 	t.Run("updates default queue given empty node pool", func(t *testing.T) {
 		mockBroker := &MockBroker{}
 		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, mockBroker, hclog.Default())
-		stopCh1 := make(chan struct{})
-		mgr.defaultQueue = &DynamicPriorityQueue{stopCh: stopCh1}
+		_, cancel := context.WithCancel(t.Context())
+		mgr.defaultQueue = &DynamicPriorityQueue{cancelCtx: cancel}
 		before := mgr.defaultQueue
 		mgr.Update("", &structs.BatchQueue{})
 		after := mgr.defaultQueue
@@ -151,8 +153,8 @@ func TestBatchQueueManager_Update(t *testing.T) {
 	t.Run("updates specific queue given node pool", func(t *testing.T) {
 		mockBroker := &MockBroker{}
 		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, mockBroker, hclog.Default())
-		stopCh1 := make(chan struct{})
-		mgr.nodePoolQueues["test"] = &DynamicPriorityQueue{stopCh: stopCh1}
+		_, cancel := context.WithCancel(t.Context())
+		mgr.nodePoolQueues["test"] = &DynamicPriorityQueue{cancelCtx: cancel}
 
 		before := mgr.nodePoolQueues["test"]
 		mgr.Update("test", &structs.BatchQueue{})
