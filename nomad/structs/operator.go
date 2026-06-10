@@ -374,6 +374,8 @@ const (
 	DynamicCalcInterval = "calc_interval"
 	DynamicMaxAge       = "max_age"
 	DynamicHalfLife     = "half_life"
+	DynamicCPUWeight    = "cpu_weight"
+	DynamicMemoryWeight = "memory_weight"
 )
 
 type BatchQueue struct {
@@ -391,6 +393,8 @@ type DynamicQueueConfig struct {
 	AgeWeight    int           `mapstructure:"age_weight"`
 	UsageWeight  int           `mapstructure:"usage_weight"`
 	SizeWeight   int           `mapstructure:"size_weight"`
+	CPUWeight    int           `mapstructure:"cpu_weight"`
+	MemoryWeight int           `mapstructure:"memory_weight"`
 }
 
 func DecodeBatchQueueConf[T any](in map[string]any, out *T) error {
