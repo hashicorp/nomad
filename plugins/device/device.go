@@ -56,7 +56,7 @@ type DevicePlugin interface {
 	Reserve(deviceIDs []string) (*ContainerReservation, error)
 
 	// Stats returns a stream of statistics per device collected at the passed
-	// intreturne
+	// interval.
 	Stats(ctx context.Context, interval time.Duration) (<-chan *StatsResponse, error)
 }
 

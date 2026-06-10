@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,17 +28,13 @@ import (
 
 const (
 	// pluginName is the name of the plugin
-	pluginName = "nvidia-example"
+	pluginName = "nvidia-device-example"
 
 	// vendor is the vendor providing the devices
 	vendor = "nvidia"
 
 	// deviceType is the type of device being returned
 	deviceType = device.DeviceTypeGPU
-
-	// notAvailable value is returned to nomad server in case some properties were
-	// undetected by nvml driver
-	notAvailable = "N/A"
 
 	// Nvidia-container-runtime environment variable names
 	NvidiaVisibleDevices = "NVIDIA_VISIBLE_DEVICES"
@@ -47,9 +45,6 @@ const (
 	CustomMpsUserKey    = "MPS_USER"
 
 	DefaultMpsSockFileAddr = "control"
-
-	deviceName1 = "T4"
-	deviceName2 = "T4"
 )
 
 var (
@@ -118,6 +113,8 @@ var (
 			}),
 		),
 	})
+
+	dSlice = []string{"T4", "P100", "A2", "H100"}
 )
 
 // Config contains configuration information for the plugin.
@@ -150,15 +147,7 @@ type DeviceMpsConfig struct {
 
 type NvidiaDevice struct {
 	// enabled indicates whether the plugin should be enabled
-	enabled bool
-
-	//nvmlClient nvml.NvmlClient
-
-	// initErr holds an error retrieved during
-	// nvmlClient initialization
-	//initErr error
-
-	// deviceDir is the directory we expose as devices
+	enabled   bool
 	deviceDir string
 
 	// unhealthyPerm is the permissions on a file we consider unhealthy
@@ -171,14 +160,11 @@ type NvidiaDevice struct {
 	// ignoredGPUIDs is a set of UUIDs that would not be exposed to nomad
 	ignoredGPUIDs map[string]struct{}
 
-	// fingerprintPeriod is how often we should call nvml to get list of devices
-	//fingerprintPeriod time.Duration
-
 	//MpsConfig holds a pointer to the MPS configuration
 	MpsConfig *MpsConfig
 
 	// devices is the set of detected eligible devices
-	devices    map[string]device.DeviceSharing
+	devices    map[string]device.Shared
 	deviceLock sync.RWMutex
 
 	logger hclog.Logger
@@ -186,11 +172,10 @@ type NvidiaDevice struct {
 
 // NewNvidiaDevice returns a new nvidia device plugin.
 func NewNvidiaDevice(_ context.Context, log hclog.Logger) *NvidiaDevice {
-	//nvmlClient, err := nvml.NewNvmlClient()
 	logger := log.Named(pluginName)
 	return &NvidiaDevice{
 		logger:        logger,
-		devices:       make(map[string]device.DeviceSharing),
+		devices:       make(map[string]device.Shared),
 		ignoredGPUIDs: make(map[string]struct{}),
 	}
 }
@@ -314,21 +299,13 @@ func (d *NvidiaDevice) fingerprint(ctx context.Context, devices chan *device.Fin
 			devices <- device.NewFingerprintError(err)
 			return
 		}
-		deviceGroups := make([]*device.DeviceGroup, 0)
-		shared, inactive := d.diffFiles(files)
-		if len(inactive) != 0 {
-			deviceGroups = append(deviceGroups, d.getDeviceGroup(inactive, deviceName2))
-		}
-
-		if len(shared) != 0 {
-			deviceGroups = append(deviceGroups, d.getDeviceGroup(shared, deviceName1))
-		}
-		d.logger.Info("files to fingerprint", "inactive files", len(inactive), "active files", len(shared))
+		diffDevices := d.diffFiles(files)
+		deviceGroups := d.getDeviceGroup(diffDevices)
 		devices <- device.NewFingerprint(deviceGroups...)
 
 	}
 }
-func (d *NvidiaDevice) diffFiles(files []os.FileInfo) ([]*device.Device, []*device.Device) {
+func (d *NvidiaDevice) diffFiles(files []os.FileInfo) []*device.Device {
 	d.deviceLock.Lock()
 	defer d.deviceLock.Unlock()
 
@@ -349,81 +326,117 @@ func (d *NvidiaDevice) diffFiles(files []os.FileInfo) ([]*device.Device, []*devi
 		perms := f.Mode().Perm().String()
 		//turn health into sharing status
 		healthBool := perms != d.unhealthyPerm
-		var healthy device.DeviceSharing
+		var healthy string
 		if healthBool {
-			healthy = device.SharingActive
+			healthy = device.SharingActive.String()
 		} else {
-			healthy = device.SharingInactive
+			healthy = device.SharingInactive.String()
 		}
-		d.logger.Info("checking health", "file perm", perms, "unhealthy perms", d.unhealthyPerm, "healthy", healthy)
 
 		// See if we already have the device
 		oldHealth, ok := d.devices[name]
-		if ok && oldHealth == healthy {
+		if ok && oldHealth.String() == healthy {
 			continue
 		}
 
 		// Health has changed or we have a new object
 		//changes = true
-		d.devices[name] = healthy
+		d.devices[name] = device.Shared(healthy)
 	}
 
 	for id := range d.devices {
 		if _, ok := fnames[id]; !ok {
 			delete(d.devices, id)
-			//changes = true
 		}
 	}
 
 	// Build the devices
-	shared := make([]*device.Device, 0, len(d.devices))
-	inactive := make([]*device.Device, 0, len(d.devices))
-
+	devices := make([]*device.Device, 0, len(d.devices))
 	for name, healthy := range d.devices {
-		var desc string
+		desc := "healthy"
+		isHealthy := true
 		if healthy != device.SharingActive {
 			desc = unhealthyDesc
-			inactive = append(inactive, &device.Device{
-				ID:         name,
-				Shared:     &healthy,
-				HealthDesc: desc,
-				Healthy:    true,
-			})
-			continue
+			isHealthy = false
 		}
-		shared = append(shared, &device.Device{
+		devices = append(devices, &device.Device{
 			ID:         name,
-			Shared:     &healthy,
-			HealthDesc: "healthy",
-			Healthy:    true,
+			Shared:     healthy,
+			HealthDesc: desc,
+			Healthy:    isHealthy,
 		})
 	}
 
-	return shared, inactive
+	return devices
 }
 
 // getDeviceGroup is a helper to build the DeviceGroup given a set of devices.
-func (d *NvidiaDevice) getDeviceGroup(devices []*device.Device, name string) *device.DeviceGroup {
-	//d.logger.Error("getDeviceGroup", "device count", len(devices))
-	var shared string
-	for _, v := range devices {
-		if shared == "" {
-			shared = v.Shared.String()
+func (d *NvidiaDevice) getDeviceGroup(devices []*device.Device) []*device.DeviceGroup {
+	groupByTuple := make(map[string][]*device.Device, len(devices))
+	inactive := make(map[string][]*device.Device, 2)
+
+	for n, v := range devices {
+		// this bit sets the device model based on the strings in dSlice
+		dSliceRange := len(dSlice) - 1
+		var index int
+		if n <= dSliceRange {
+			index = n
+		} else {
+			index = rand.Intn(dSliceRange)
 		}
-		//d.logger.Error("getDeviceGroup", "loop", n, "deviceID", v.ID, "shared", v.Shared.String())
-	}
-	return &device.DeviceGroup{
-		Vendor:  vendor,
-		Type:    deviceType,
-		Name:    name,
-		Devices: devices,
-		Attributes: map[string]*structs.Attribute{
-			"cool-attribute": {
-				String: new(shared),
-			},
-		},
+		//include shared status in sorting tuple but drop before building slice
+		tuple := strings.Join([]string{vendor, deviceType, dSlice[index], v.Shared.String()}, "/")
+		if !v.Healthy {
+			if _, ok := inactive[tuple]; !ok {
+				inactive[tuple] = []*device.Device{v}
+			} else {
+				inactive[tuple] = append(inactive[tuple], v)
+			}
+		}
+		if _, ok := groupByTuple[tuple]; !ok {
+			groupByTuple[tuple] = []*device.Device{v}
+		} else {
+			groupByTuple[tuple] = append(groupByTuple[tuple], v)
+		}
+
 	}
 
+	fillSlice := func(groupMap map[string][]*device.Device) []*device.DeviceGroup {
+		devGroups := make([]*device.DeviceGroup, 0)
+		for k, v := range groupMap {
+			parts := strings.Split(k, "/")
+			if parts[0] != "nvidia" {
+				d.logger.Error("unexpected tuple split", "part0", parts[0], "part1", parts[1], "part2", parts[2], parts[3])
+				continue
+			}
+			mem := int64(rand.Intn(50))
+			vendor := "nvidia"
+			shared := v[0].Shared.String()
+			devGroups = append(devGroups, &device.DeviceGroup{
+				Vendor:  parts[0],
+				Type:    parts[1],
+				Name:    parts[2],
+				Devices: v,
+				Attributes: map[string]*structs.Attribute{
+					"shared": {
+						String: &shared,
+					},
+					"model": {
+						String: &parts[2],
+					},
+					"memory": {
+						Int: &mem,
+					},
+					"vendor": {
+						String: &vendor,
+					},
+				},
+			})
+		}
+		return devGroups
+	}
+	deviceGroups := fillSlice(groupByTuple)
+	return deviceGroups
 }
 
 // Reserve returns information on how to mount the given devices.
@@ -511,7 +524,7 @@ func (d *NvidiaDevice) collectStats() (*device.DeviceGroupStats, error) {
 	group := &device.DeviceGroupStats{
 		Vendor:        vendor,
 		Type:          deviceType,
-		Name:          deviceName1,
+		Name:          "T4",
 		InstanceStats: make(map[string]*device.DeviceStats, l),
 	}
 
