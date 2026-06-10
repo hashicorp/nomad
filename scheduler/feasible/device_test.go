@@ -38,13 +38,13 @@ func deviceRequest(name string, count uint64,
 // sharedDeviceRequest takes the name, count and potential constraints and affinities
 // and returns a device request.
 func sharedDeviceRequest(name string, count uint64,
-	constraints []*structs.Constraint, affinities []*structs.Affinity, shareDevices *structs.ShareDevices) *structs.RequestedDevice {
+	constraints []*structs.Constraint, affinities []*structs.Affinity, firstAvailable []*structs.DeviceOption) *structs.RequestedDevice {
 	return &structs.RequestedDevice{
-		Name:         name,
-		Count:        count,
-		Constraints:  constraints,
-		Affinities:   affinities,
-		ShareDevices: shareDevices,
+		Name:           name,
+		Count:          count,
+		Constraints:    constraints,
+		Affinities:     affinities,
+		FirstAvailable: firstAvailable,
 	}
 }
 

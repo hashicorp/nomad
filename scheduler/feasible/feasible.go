@@ -1628,10 +1628,21 @@ OUTER:
 
 		// Standard device request - determine how many there are to place
 		desiredCount := req.Count
+		var willShare bool
+		if req.ShareDevices != nil {
+			willShare = req.ShareDevices.Enabled
+		}
 
 		// Go through the device resources and see if we have a match
 		for d, unused := range available {
-			if unused == 0 {
+			sharable := false
+			if willShare {
+				s, ok := d.Attributes["shared"].GetString()
+				if ok && s == "active" {
+					sharable = true
+				}
+			}
+			if unused == 0 { // don't need to change this because we only decrement if device & task are not sharable
 				// Depleted
 				continue
 			}
@@ -1639,13 +1650,17 @@ OUTER:
 			// Check the constraints
 			if nodeDeviceMatches(c.ctx, d, req) {
 				for desiredCount > 0 && available[d] > 0 {
-					available[d] -= 1
 					desiredCount -= 1
+					// consume device if not sharable
+					if !sharable {
+						available[d] -= 1
+					}
 				}
 
 				if desiredCount == 0 {
 					continue OUTER
 				}
+
 			}
 
 		}
@@ -1677,7 +1692,10 @@ func (c *DeviceChecker) canSatisfyFirstAvailable(req *structs.RequestedDevice, a
 // constraints and checks if enough devices match.
 func (c *DeviceChecker) canSatisfyDeviceOption(req *structs.RequestedDevice, opt *structs.DeviceOption, available map[*structs.NodeDeviceResource]uint64) bool {
 	desiredCount := opt.Count
-
+	var willShare bool
+	if opt.ShareDevices != nil {
+		willShare = opt.ShareDevices.Enabled
+	}
 	// Create a snapshot of available counts to restore if this option fails
 	snapshot := make(map[*structs.NodeDeviceResource]uint64, len(available))
 	for k, v := range available {
@@ -1685,7 +1703,15 @@ func (c *DeviceChecker) canSatisfyDeviceOption(req *structs.RequestedDevice, opt
 	}
 
 	for d, unused := range available {
-		if unused == 0 {
+		sharable := false
+		if willShare {
+			s, ok := d.Attributes["shared"].GetString()
+			if ok && s == "active" {
+				sharable = true
+			}
+		}
+		if unused == 0 { // don't need to change this because we only decrement if device & task are not sharable
+			// Depleted
 			continue
 		}
 
@@ -1706,13 +1732,16 @@ func (c *DeviceChecker) canSatisfyDeviceOption(req *structs.RequestedDevice, opt
 
 		// This device type matches, consume instances
 		for desiredCount > 0 && available[d] > 0 {
-			available[d] -= 1
 			desiredCount -= 1
+			if !sharable {
+				available[d] -= 1
+			}
 		}
 
 		if desiredCount == 0 {
 			return true
 		}
+
 	}
 
 	// Failed to satisfy this option - restore available counts
