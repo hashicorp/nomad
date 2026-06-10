@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 # run by the release-prepare.yml github action workflow
-# * start from a release/A.B.x branch
+# * start from a release/A.B.x branch (or release/A.B.C for security releases)
 # * update notification channel in ci.hcl and version in version.go
 # * generate static assets (make prerelease)
-# * commit and push changes to a new release/A.B.C branch
+# * commit and push changes to release/A.B.C branch
 # * prepare workflow will commit changes
 
 [ -n "$DEBUG" ] && set -x
@@ -55,7 +55,14 @@ echo 'Ensuring source branch'
 echo
 
 echo 'Creating new branch'
-  git switch --force-create "$NEW_BRANCH"
+  if [ "$SOURCE_BRANCH" = "$NEW_BRANCH" ]; then
+    # we may pre-create a release/A.B.C branch to make targeted changes, such as
+    # for a security release, rather than release all changes in release/A.B.x.
+    # there's no new branch in that case.
+    echo "already on release branch $NEW_BRANCH, skipping branch creation"
+  else
+    git switch --force-create "$NEW_BRANCH"
+  fi
 echo
 
 echo 'Updating version.go'
