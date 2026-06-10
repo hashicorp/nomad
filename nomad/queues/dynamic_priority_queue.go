@@ -7,7 +7,6 @@ import (
 	"container/heap"
 	"context"
 	"errors"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -75,18 +74,23 @@ type DynamicPriorityQueue struct {
 }
 
 type Tenant struct {
-	tid       TenantID
-	workloads map[string]*Workload
-	usage     map[string]float64
+	tid               TenantID
+	workloadUsageByID map[string]WorkloadUsage
+	totalUsage        map[string]float64
+}
+
+type WorkloadUsage struct {
+	resources map[string]float64
+	ts        time.Time
 }
 
 type Workload struct {
-	id       string
-	tid      TenantID
-	priority int
-	eval     *structs.Evaluation
-	usage    map[string]map[string]float64
-	index    int
+	id                            string
+	tid                           TenantID
+	priority                      int
+	eval                          *structs.Evaluation
+	requestedResourcesByTaskGroup map[string]map[string]float64
+	index                         int
 
 	sizeAdjustment  int
 	ageAdjustment   int
@@ -139,6 +143,10 @@ func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
 		return
 	}
 
+	d.qMux.Lock()
+	d.ensureTenant(w.tid)
+	d.qMux.Unlock()
+
 	d.enqueueCh <- w
 }
 
@@ -150,9 +158,8 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case w := <-d.enqueueCh:
-			d.setWorkloadPriority(w)
-
 			d.qMux.Lock()
+			d.setWorkloadPriority(w)
 			heap.Push(&d.queue, w)
 			d.qMux.Unlock()
 
@@ -195,7 +202,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			// Wait for the eval to be placed
 			err := d.waitForPlacement(ctx, workload, memdb.NewWatchSet())
 			if err != nil {
-				d.logger.Error("failure waiting for workload placement", "evalID", workload.eval)
+				d.logger.Error("failure waiting for workload placement", "evalID", workload.id)
 			}
 
 			d.qMux.Lock()
@@ -236,36 +243,50 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 		return nil
 	}
 
-	if _, ok := d.tenants[tid]; !ok {
-		d.tenants[tid] = &Tenant{
-			tid:       tid,
-			workloads: make(map[string]*Workload),
-			usage:     make(map[string]float64),
-		}
-	}
-
-	usage := make(map[string]map[string]float64)
+	// Separate the resources by task group, so we can more accurately update tenant usage when only some task groups are placed.
+	requestedResourcesByTaskGroup := make(map[string]map[string]float64)
 	for _, tg := range job.TaskGroups {
-		usage[tg.Name] = make(map[string]float64)
+		requestedResourcesByTaskGroup[tg.Name] = make(map[string]float64)
 		for _, task := range tg.Tasks {
-			usage[tg.Name]["cpu"] = float64(task.Resources.CPU)
-			usage[tg.Name]["memory"] = float64(task.Resources.MemoryMB)
+			requestedResourcesByTaskGroup[tg.Name]["cpu"] += float64(task.Resources.CPU)
+			requestedResourcesByTaskGroup[tg.Name]["memory"] += float64(task.Resources.MemoryMB)
 		}
 	}
 
 	return &Workload{
-		tid:      tid,
-		priority: 0,
-		eval:     e,
-		usage:    usage,
+		id:                            e.ID,
+		tid:                           tid,
+		priority:                      0,
+		eval:                          e,
+		requestedResourcesByTaskGroup: requestedResourcesByTaskGroup,
 	}
 }
 
-// TODO: break this up into some really manageable/testable methods so all we're doing is += d.calcSomething
+// ensureTenant creates a new tenant in the queue if it doesn't already exist.
+func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
+	if _, ok := d.tenants[tid]; ok {
+		return
+	}
+
+	d.tenants[tid] = &Tenant{
+		tid:               tid,
+		workloadUsageByID: make(map[string]WorkloadUsage),
+		totalUsage:        make(map[string]float64),
+	}
+}
+
+// calculatePriorities iterates over all workloads in the queue and updates
+// their priorities based on tenant usage, which is decayed according to the
+// configured half-life, usage weights, and resource weights.
 func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
+	state, err := d.state.Snapshot()
+	if err != nil {
+		d.logger.Error("failed to take state snapshot", "error", err)
+		return
+	}
 	// Decay tenant workload usages first, because a workload's
 	// priority relies on its tenant's usage.
-	d.decayUsage(ts)
+	d.decayUsage(ts, state)
 
 	// Now that we have accurate tenant usage, calculate
 	// each workloads new priority
@@ -275,49 +296,67 @@ func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
 	d.lastUpdated = ts
 }
 
-func (d *DynamicPriorityQueue) decayUsage(ts time.Time) {
-	newUsage := map[string]float64{}
-	if d.lastUpdated.IsZero() {
-		d.lastUpdated = ts
+// setWorkloadPriority calculates an individual workload's priority based on
+// it's tenant's usage relative to the total usage, and configured weight.
+func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
+	total := totalUsage(d.totalUsage)
+	tenantUsage := totalUsage(d.tenants[w.tid].totalUsage)
+
+	usageRatio := 0.0
+	if total > 0 {
+		usageRatio = tenantUsage / total
 	}
-	elapsed := ts.Sub(d.lastUpdated).Seconds()
-	decay := math.Pow(0.5, (elapsed / d.conf.HalfLife.Seconds()))
+	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
+	w.usageAdjustment = int(usageAdjustment)
+	w.priority = w.eval.Priority + int(usageAdjustment)
+}
+
+// decayUsage iterates over all tenants and decays the workload usage based on
+// the time elapsed since (roughly) when the eval was placed, and the configured
+// half-life. If the eval no longer exists in the state store, its workload's
+// usage is removed from the calculation.
+func (d *DynamicPriorityQueue) decayUsage(ts time.Time, state *state.StateSnapshot) {
+	newUsage := make(map[string]float64)
 
 	for _, tenant := range d.tenants {
-		for resource, usage := range tenant.usage {
-			tenant.usage[resource] = usage * decay
-			newUsage[resource] += tenant.usage[resource]
+		newWorkloadUsageByID := make(map[string]WorkloadUsage)
+		tenantTotalUsage := make(map[string]float64)
+
+		for evalId, usage := range tenant.workloadUsageByID {
+			eval, err := state.EvalByID(nil, evalId)
+			if err != nil || eval == nil {
+				continue
+			}
+			decayedUsage := d.decayWorkloadUsage(ts, usage)
+			addUsage(tenantTotalUsage, decayedUsage, 1)
+			addUsage(newUsage, decayedUsage, 1)
+
+			newWorkloadUsageByID[evalId] = WorkloadUsage{
+				resources: decayedUsage,
+				ts:        usage.ts,
+			}
 		}
+		tenant.totalUsage = tenantTotalUsage
+		tenant.workloadUsageByID = newWorkloadUsageByID
 	}
 	d.totalUsage = newUsage
 }
 
-// TODO: unsafe map access
-func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
-	for task, desired := range workload.eval.PlanAnnotations.DesiredTGUpdates {
-		if desired.Place != 0 {
-			for resource, usage := range workload.usage[task] {
-				d.tenants[workload.tid].usage[resource] += (usage * float64(desired.Place))
-				d.totalUsage[resource] += (usage * float64(desired.Place))
-			}
-		}
-	}
-}
+// decayWorkloadUsage applies decay to an individual workload's usage based on
+// the time elapsed since (roughly) when the eval was placed, and the configured
+// half-life. It returns the decayed usage, and also updates the workload usage
+// in-place.
+func (d *DynamicPriorityQueue) decayWorkloadUsage(ts time.Time, usage WorkloadUsage) map[string]float64 {
+	decayed := make(map[string]float64, len(usage.resources))
+	multiplier := decayMultiplier(ts, usage.ts, d.conf.HalfLife)
 
-func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
-	tenantUsage := 0.0
-	for _, usage := range d.tenants[w.tid].usage {
-		tenantUsage += usage // * d.conf.ResourceWeights[resource]
+	for resource, amount := range usage.resources {
+		decayedAmount := amount * multiplier
+		usage.resources[resource] = decayedAmount
+		decayed[resource] = decayedAmount
 	}
 
-	totalUsage := 0.0
-	for _, total := range d.totalUsage {
-		totalUsage += total
-	}
-
-	usageRatio := tenantUsage / totalUsage
-	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
-	w.priority = w.eval.Priority + int(usageAdjustment)
+	return decayed
 }
 
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
@@ -357,10 +396,12 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 		workload.eval = eval
 
 		if eval.TerminalStatus() {
-			// If the eval is terminal and has plan annotations, something might have been placed and we should update tenant usage accordingly.
+			// If the eval is terminal and has plan annotations, something might
+			// have been placed and we should update tenant usage accordingly.
 			if eval.PlanAnnotations != nil && eval.PlanAnnotations.DesiredTGUpdates != nil {
-				// TODO: this is an unsafe concurrent map access
+				d.qMux.Lock()
 				d.updateUsage(workload)
+				d.qMux.Unlock()
 			}
 			continue
 		}
@@ -402,4 +443,45 @@ func (d *DynamicPriorityQueue) Status() structs.QueueStatusResponse {
 	resp.Workloads = workloads
 
 	return resp
+}
+
+// updateUsage updates the tenant and total usage for a given workload's task if
+// the task has been placed.
+func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
+	tenant := d.tenants[workload.tid]
+
+	for task, desired := range workload.eval.PlanAnnotations.DesiredTGUpdates {
+		if desired.Place == 0 {
+			continue
+		}
+
+		workloadUsage := d.ensureWorkloadUsage(tenant, workload)
+
+		multiplier := float64(desired.Place)
+		addUsage(workloadUsage.resources, workload.requestedResourcesByTaskGroup[task], multiplier)
+		addUsage(tenant.totalUsage, workload.requestedResourcesByTaskGroup[task], multiplier)
+		addUsage(d.totalUsage, workload.requestedResourcesByTaskGroup[task], multiplier)
+	}
+}
+
+// ensureWorkloadUsage will create the tenant workload usage if it doesn't
+// already exist. On creation, it sets the timestamp to the workload's eval
+// modify time, which is meant as a rough proxy for when the eval was placed.
+// This timestamp is used for decaying the workload's usage over time.
+func (d *DynamicPriorityQueue) ensureWorkloadUsage(tenant *Tenant, workload *Workload) WorkloadUsage {
+	if tenant.workloadUsageByID == nil {
+		tenant.workloadUsageByID = make(map[string]WorkloadUsage)
+	}
+
+	workloadUsage, ok := tenant.workloadUsageByID[workload.id]
+	if ok && workloadUsage.resources != nil {
+		return workloadUsage
+	}
+
+	workloadUsage = WorkloadUsage{
+		resources: make(map[string]float64),
+		ts:        time.Unix(0, workload.eval.ModifyTime),
+	}
+	tenant.workloadUsageByID[workload.id] = workloadUsage
+	return workloadUsage
 }
