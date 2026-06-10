@@ -165,8 +165,7 @@ func willingToShare(res *AllocatedDeviceResource, deviceID string) bool {
 		return false
 	}
 	// does exist, is true = > this is the shared device, it will share => return true
-	if exists, willing := res.WillShare[deviceID]; exists && willing {
-
+	if willing, exists := res.WillShare[deviceID]; willing && exists {
 		return true
 	}
 	// In all remaining cases we return false

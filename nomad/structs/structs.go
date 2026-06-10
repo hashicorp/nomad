@@ -3039,8 +3039,10 @@ func (ns Networks) Modes() *set.Set[string] {
 }
 
 // ShareDevices indicates whether the task should be placed on a shared device
+// ShareDevices indicates whether the task should be placed on a shared device
 type ShareDevices struct {
-	Enabled bool
+	// Enabled
+	Enabled bool `hcl:"enabled"`
 	// SharedDeviceID is an optional field for use in environments with
 	// multiple shared devices, to make the shared device ID available to
 	// the plugin. If in use alongside the device.id constraint, the two must
@@ -3589,6 +3591,9 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	return true
 }
 
+// Shared mirrors the plugin.Shared string enum found
+// on Devices.DetectedDevice that some devices use to
+// report the status and presence of sharing subsystems
 type Shared string
 
 func (s Shared) String() string {
@@ -3596,12 +3601,13 @@ func (s Shared) String() string {
 	case DeviceSharingInactive:
 		return "inactive"
 	case DeviceSharingIneligible:
-		return "inelegible"
+		return "inelgible"
 	case DeviceSharingActive:
 		return "active"
-	default:
-		return "unset"
+	case DeviceSharingUnset:
+		return ""
 	}
+	return ""
 }
 
 const (
