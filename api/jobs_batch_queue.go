@@ -1,23 +1,31 @@
 // Copyright IBM Corp. 2015, 2026
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MPL-2.0
 
 package api
 
-type Workload struct {
-	JobID    string
-	Tenant   string
-	Priority int
+type DynamicPriorityWorkload struct {
+	JobID            string
+	Tenant           string
+	AdjustedPriority int
+	BasePriority     int
+	UsageAdjustment  int
+	AgeAdjustment    int
+	SizeAdjustment   int
 }
 
-type BatchQueueStatusResponse struct {
-	Workloads []Workload
+type QueueStatusResponse struct {
+	Type BatchQueueType
+	// Workloads contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The struct type is based on the "Type" parameter.
+	Workloads any
 }
 
 type BatchQueueStatusOptions struct{}
 
 // BatchQueueStatus is used to query the current batch job queue.
-func (j *Jobs) BatchQueueStatus(opts *BatchQueueStatusOptions, q *QueryOptions) (*BatchQueueStatusResponse, *QueryMeta, error) {
-	var resp BatchQueueStatusResponse
+func (j *Jobs) BatchQueueStatus(opts *BatchQueueStatusOptions, q *QueryOptions) (*QueueStatusResponse, *QueryMeta, error) {
+	var resp QueueStatusResponse
 	qm, err := j.client.query("/v1/jobs/queue/status", &resp, q)
 	if err != nil {
 		return nil, nil, err
