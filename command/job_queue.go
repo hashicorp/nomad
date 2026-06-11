@@ -6,6 +6,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -65,12 +66,12 @@ func (c *JobQueueCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobQueueCommand) Name() string { return "job queue" }
 
 func (c *JobQueueCommand) Run(args []string) int {
-	var verbose, json bool
+	var verbose, jsonOut bool
 	var limit int
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
-	flags.BoolVar(&json, "json", false, "")
+	flags.BoolVar(&jsonOut, "json", false, "")
 	flags.IntVar(&limit, "limit", 0, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -101,19 +102,48 @@ func (c *JobQueueCommand) Run(args []string) int {
 		c.Ui.Error("Empty batch queue response")
 	}
 
-	if json {
-		if err := c.printJSON(resp); err != nil {
-			c.Ui.Error("Error unmarshaling json response")
+	switch resp.Type {
+	case api.BatchQueueTypeDynamic:
+		workloads := []api.DynamicPriorityWorkload{}
+		bytes, err := json.Marshal(resp.Workloads)
+		if err != nil {
+			c.Ui.Error("Error marshaling response status")
 			return 255
 		}
-	} else {
-		c.printFormatted(resp)
+		if err := json.Unmarshal(bytes, &workloads); err != nil {
+			c.Ui.Error("Invalid Status response from server")
+			return 255
+		}
+
+		slices.SortFunc(workloads, func(a api.DynamicPriorityWorkload, b api.DynamicPriorityWorkload) int {
+			if a.AdjustedPriority < b.AdjustedPriority {
+				return 1
+			} else if b.AdjustedPriority < a.AdjustedPriority {
+				return -1
+			}
+			return 0
+		})
+
+		if jsonOut {
+			if err := c.printDynamicQueueJSON(workloads); err != nil {
+				c.Ui.Error("Error unmarshaling json response")
+				return 255
+			}
+		} else {
+			c.printDynamicQueueFormatted(workloads)
+		}
+	case "unset":
+		c.Ui.Output("No batch job queue configured")
+	default:
+		c.Ui.Error(fmt.Sprintf("Unknown queue type: %s", resp.Type))
+		return 255
 	}
+
 	return 0
 }
 
-func (c *JobQueueCommand) printJSON(resp *api.BatchQueueStatusResponse) error {
-	out, err := json.Marshal(resp.Workloads)
+func (c *JobQueueCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWorkload) error {
+	out, err := json.Marshal(resp)
 	if err != nil {
 		return err
 	}
@@ -122,13 +152,24 @@ func (c *JobQueueCommand) printJSON(resp *api.BatchQueueStatusResponse) error {
 	return nil
 }
 
-func (c *JobQueueCommand) printFormatted(resp *api.BatchQueueStatusResponse) {
+func (c *JobQueueCommand) printDynamicQueueFormatted(resp []api.DynamicPriorityWorkload) {
+	if resp == nil {
+		return
+	}
 
-	out := make([]string, len(resp.Workloads)+1)
-	out[0] = "JobID|Tenant|Priority"
+	out := make([]string, len(resp)+1)
+	out[0] = "JobID|Tenant|Adjusted Priority|Base Priority|Usage|Age|Size"
 
-	for i, v := range resp.Workloads {
-		out[i+1] = fmt.Sprintf("%s|%s|%d", v.JobID, v.Tenant, v.Priority)
+	for i, v := range resp {
+		out[i+1] = fmt.Sprintf("%s|%s|%d|%d|%d|%d|%d",
+			v.JobID,
+			v.Tenant,
+			v.AdjustedPriority,
+			v.BasePriority,
+			v.UsageAdjustment,
+			v.AgeAdjustment,
+			v.SizeAdjustment,
+		)
 	}
 
 	c.Ui.Output(c.Colorize().Color("[bold]Batch Queue Workloads[reset]"))
