@@ -19,10 +19,6 @@ import (
 	"github.com/shoenig/test/wait"
 )
 
-type testBroker struct{}
-
-func (*testBroker) Enqueue(*structs.Evaluation) {}
-
 func TestWaitForPlacement(t *testing.T) {
 
 	t.Run("returns if eval complete", func(t *testing.T) {
@@ -157,8 +153,8 @@ func TestDecayUsage(t *testing.T) {
 			name                string
 			halfLife            time.Duration
 			tenants             []*Tenant
-			expectedTenantUsage map[TenantID]map[string]float64
-			expectedTotalUsage  map[string]float64
+			expectedTenantUsage map[TenantID]*ResourceUsage
+			expectedTotalUsage  *ResourceUsage
 		}{
 			{
 				name:     "single tenant with cpu and memory usage",
@@ -166,23 +162,23 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenant"),
-						workloadUsageByID: map[string]UsageList{
-							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"cpu":    100,
-								"memory": 20,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 20,
+							}}},
 						},
 					},
 				},
-				expectedTenantUsage: map[TenantID]map[string]float64{
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
 					TenantID("tenant"): {
-						"cpu":    50,
-						"memory": 10,
+						CPU:    50,
+						Memory: 10,
 					},
 				},
-				expectedTotalUsage: map[string]float64{
-					"cpu":    50,
-					"memory": 10,
+				expectedTotalUsage: &ResourceUsage{
+					CPU:    50,
+					Memory: 10,
 				},
 			},
 			{
@@ -191,26 +187,26 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenant"),
-						workloadUsageByID: map[string]UsageList{
-							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"cpu": 80,
-							}},
-							eval2.ID: {ts: now.Add(-5 * time.Second), resources: map[string]float64{
-								"cpu":    100,
-								"memory": 50,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								CPU: 80,
+							}}},
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-5 * time.Second), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 50,
+							}}},
 						},
 					},
 				},
-				expectedTenantUsage: map[TenantID]map[string]float64{
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
 					TenantID("tenant"): {
-						"cpu":    110.71067811865476,
-						"memory": 35.35533905932738,
+						CPU:    110.71067811865476,
+						Memory: 35.35533905932738,
 					},
 				},
-				expectedTotalUsage: map[string]float64{
-					"cpu":    110.71067811865476,
-					"memory": 35.35533905932738,
+				expectedTotalUsage: &ResourceUsage{
+					CPU:    110.71067811865476,
+					Memory: 35.35533905932738,
 				},
 			},
 			{
@@ -219,36 +215,36 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenantA"),
-						workloadUsageByID: map[string]UsageList{
-							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"memory": 40,
-								"cpu":    100,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								Memory: 40,
+								CPU:    100,
+							}}},
 						},
 					},
 					{
 						tid: TenantID("tenantB"),
-						workloadUsageByID: map[string]UsageList{
-							eval2.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"memory": 80,
-								"cpu":    75,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								Memory: 80,
+								CPU:    75,
+							}}},
 						},
 					},
 				},
-				expectedTenantUsage: map[TenantID]map[string]float64{
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
 					TenantID("tenantA"): {
-						"memory": 20,
-						"cpu":    50,
+						Memory: 20,
+						CPU:    50,
 					},
 					TenantID("tenantB"): {
-						"memory": 40,
-						"cpu":    37.5,
+						Memory: 40,
+						CPU:    37.5,
 					},
 				},
-				expectedTotalUsage: map[string]float64{
-					"memory": 60,
-					"cpu":    87.5,
+				expectedTotalUsage: &ResourceUsage{
+					Memory: 60,
+					CPU:    87.5,
 				},
 			},
 			{
@@ -257,44 +253,44 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenantA"),
-						workloadUsageByID: map[string]UsageList{
-							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"memory": 40,
-								"cpu":    100,
-							}},
-							eval2.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"memory": 80,
-								"cpu":    60,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								Memory: 40,
+								CPU:    100,
+							}}},
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								Memory: 80,
+								CPU:    60,
+							}}},
 						},
 					},
 					{
 						tid: TenantID("tenantB"),
-						workloadUsageByID: map[string]UsageList{
-							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"memory": 80,
-								"cpu":    75,
-							}},
-							eval2.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"memory": 100,
-								"cpu":    50,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								Memory: 80,
+								CPU:    75,
+							}}},
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								Memory: 100,
+								CPU:    50,
+							}}},
 						},
 					},
 				},
-				expectedTenantUsage: map[TenantID]map[string]float64{
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
 					TenantID("tenantA"): {
-						"memory": 60,
-						"cpu":    80,
+						Memory: 60,
+						CPU:    80,
 					},
 					TenantID("tenantB"): {
-						"memory": 90,
-						"cpu":    62.5,
+						Memory: 90,
+						CPU:    62.5,
 					},
 				},
-				expectedTotalUsage: map[string]float64{
-					"memory": 150,
-					"cpu":    142.5,
+				expectedTotalUsage: &ResourceUsage{
+					Memory: 150,
+					CPU:    142.5,
 				},
 			},
 			{
@@ -303,33 +299,33 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenant"),
-						workloadUsageByID: map[string]UsageList{
-							missingEvalID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"cpu":    100,
-								"memory": 20,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							missingEvalID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 20,
+							}}},
 						},
 					},
 					{
 						tid: TenantID("tenantB"),
-						workloadUsageByID: map[string]UsageList{
-							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
-								"cpu":    100,
-								"memory": 20,
-							}},
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 20,
+							}}},
 						},
 					},
 				},
-				expectedTenantUsage: map[TenantID]map[string]float64{
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
 					TenantID("tenant"): {},
 					TenantID("tenantB"): {
-						"cpu":    50,
-						"memory": 10,
+						CPU:    50,
+						Memory: 10,
 					},
 				},
-				expectedTotalUsage: map[string]float64{
-					"cpu":    50,
-					"memory": 10,
+				expectedTotalUsage: &ResourceUsage{
+					CPU:    50,
+					Memory: 10,
 				},
 			},
 		}
@@ -363,10 +359,10 @@ func TestCalculatePriorities(t *testing.T) {
 	mkTenant := func(id TenantID, ts time.Time, cpu, memory float64) *Tenant {
 		return &Tenant{
 			tid: id,
-			workloadUsageByID: map[string]UsageList{
-				eval1.ID: {ts: ts, resources: map[string]float64{"cpu": cpu, "memory": memory}},
+			placedWorkloadById: map[string]*Workload{
+				eval1.ID: {requestedResources: &UsageList{start: ts, resources: &ResourceUsage{CPU: cpu, Memory: memory}}},
 			},
-			totalUsage: map[string]float64{"cpu": cpu, "memory": memory},
+			totalUsage: &ResourceUsage{CPU: cpu, Memory: memory},
 		}
 	}
 	ss := state.TestStateStore(t)
@@ -378,7 +374,7 @@ func TestCalculatePriorities(t *testing.T) {
 		lowUsageTenant               *Tenant
 		highUsageTenant              *Tenant
 		expectedHigherPriorityTenant TenantID
-		expectedTotalUsage           map[string]float64
+		expectedTotalUsage           *ResourceUsage
 	}{
 		{
 			name:                         "higher usage results in lower priority",
@@ -386,7 +382,7 @@ func TestCalculatePriorities(t *testing.T) {
 			lowUsageTenant:               mkTenant(TenantID("tenant-low"), time.Unix(20, 0), 0, 55),
 			highUsageTenant:              mkTenant(TenantID("tenant-high"), time.Unix(20, 0), 100, 50),
 			expectedHigherPriorityTenant: TenantID("tenant-low"),
-			expectedTotalUsage:           map[string]float64{"cpu": 100, "memory": 105},
+			expectedTotalUsage:           &ResourceUsage{CPU: 100, Memory: 105},
 		},
 		{
 			name:                         "decays workloads before calculating priority",
@@ -394,7 +390,7 @@ func TestCalculatePriorities(t *testing.T) {
 			lowUsageTenant:               mkTenant(TenantID("tenant-decayed"), time.Unix(10, 0), 100, 0),
 			highUsageTenant:              mkTenant(TenantID("tenant-recent"), time.Unix(20, 0), 60, 0),
 			expectedHigherPriorityTenant: TenantID("tenant-decayed"),
-			expectedTotalUsage:           map[string]float64{"cpu": 110, "memory": 0},
+			expectedTotalUsage:           &ResourceUsage{CPU: 110, Memory: 0},
 		},
 	}
 

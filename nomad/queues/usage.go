@@ -1,0 +1,29 @@
+package queues
+
+type ResourceUsage struct {
+	CPU    float64
+	Memory float64
+}
+
+func (r *ResourceUsage) Add(addedUsage *ResourceUsage) *ResourceUsage {
+	r.CPU += addedUsage.CPU
+	r.Memory += addedUsage.Memory
+	return r
+}
+
+func (r *ResourceUsage) AddCpu(amount float64) {
+	r.CPU += amount
+}
+
+func (r *ResourceUsage) AddMemory(amount float64) {
+	r.Memory += amount
+}
+
+func (r *ResourceUsage) Total() float64 {
+	total := 0.0
+
+	total += r.CPU
+	total += r.Memory
+
+	return total
+}
