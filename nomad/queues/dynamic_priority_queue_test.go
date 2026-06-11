@@ -166,7 +166,7 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenant"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"cpu":    100,
 								"memory": 20,
@@ -191,7 +191,7 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenant"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"cpu": 80,
 							}},
@@ -219,7 +219,7 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenantA"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"memory": 40,
 								"cpu":    100,
@@ -228,7 +228,7 @@ func TestDecayUsage(t *testing.T) {
 					},
 					{
 						tid: TenantID("tenantB"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							eval2.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"memory": 80,
 								"cpu":    75,
@@ -257,7 +257,7 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenantA"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"memory": 40,
 								"cpu":    100,
@@ -270,7 +270,7 @@ func TestDecayUsage(t *testing.T) {
 					},
 					{
 						tid: TenantID("tenantB"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"memory": 80,
 								"cpu":    75,
@@ -303,7 +303,7 @@ func TestDecayUsage(t *testing.T) {
 				tenants: []*Tenant{
 					{
 						tid: TenantID("tenant"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							missingEvalID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"cpu":    100,
 								"memory": 20,
@@ -312,7 +312,7 @@ func TestDecayUsage(t *testing.T) {
 					},
 					{
 						tid: TenantID("tenantB"),
-						workloadUsageByID: map[string]WorkloadUsage{
+						workloadUsageByID: map[string]UsageList{
 							eval1.ID: {ts: now.Add(-10 * time.Second), resources: map[string]float64{
 								"cpu":    100,
 								"memory": 20,
@@ -363,7 +363,7 @@ func TestCalculatePriorities(t *testing.T) {
 	mkTenant := func(id TenantID, ts time.Time, cpu, memory float64) *Tenant {
 		return &Tenant{
 			tid: id,
-			workloadUsageByID: map[string]WorkloadUsage{
+			workloadUsageByID: map[string]UsageList{
 				eval1.ID: {ts: ts, resources: map[string]float64{"cpu": cpu, "memory": memory}},
 			},
 			totalUsage: map[string]float64{"cpu": cpu, "memory": memory},
