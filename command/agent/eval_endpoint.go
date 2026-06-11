@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // EvalsRequest is the entry point for /v1/evaluations and is responsible for

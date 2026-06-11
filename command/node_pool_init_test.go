@@ -11,8 +11,8 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/shoenig/test/must"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/command/asset"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/command/asset"
 )
 
 func TestNodePoolInitCommand_Implements(t *testing.T) {

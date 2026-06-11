@@ -9,11 +9,11 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/hashicorp/nomad/e2e/e2eutil"
-	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/framework"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
+	e2e "github.com/hashicorp/nomad/v2/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/framework"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/testutil"
 )
 
 // CSIControllerPluginEBSTest exercises the AWS EBS plugin, which is an

@@ -13,10 +13,10 @@ import (
 	"time"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/testtask"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/helper/testlog"
+	"github.com/hashicorp/nomad/v2/helper/testtask"
 	"github.com/stretchr/testify/assert"
 )
 

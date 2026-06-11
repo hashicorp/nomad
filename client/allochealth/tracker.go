@@ -13,12 +13,12 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/client/serviceregistration/checks/checkstore"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/serviceregistration"
+	"github.com/hashicorp/nomad/v2/client/serviceregistration/checks/checkstore"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/client/taskenv"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 const (

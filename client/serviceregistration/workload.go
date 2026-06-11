@@ -4,9 +4,9 @@
 package serviceregistration
 
 import (
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 // WorkloadServices describes services defined in either a Task or TaskGroup

@@ -3,7 +3,7 @@
 
 package config
 
-import sconfig "github.com/hashicorp/nomad/nomad/structs/config"
+import sconfig "github.com/hashicorp/nomad/v2/nomad/structs/config"
 
 // UsersConfig configures things related to operating system users.
 type UsersConfig struct {

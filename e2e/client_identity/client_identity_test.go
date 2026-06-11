@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
 	"github.com/shoenig/test/must"
 )
 

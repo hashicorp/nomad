@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 type MockVariables map[string]*structs.VariableDecrypted

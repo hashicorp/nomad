@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
-	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
+	"github.com/hashicorp/nomad/v2/ci"
+	sframer "github.com/hashicorp/nomad/v2/client/lib/streamframer"
 	"github.com/shoenig/test/must"
 )
 

@@ -7,8 +7,8 @@
 package nomad
 
 import (
-	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/state"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // enforceEnterprisePolicy is the CE stub for Enterprise governance via

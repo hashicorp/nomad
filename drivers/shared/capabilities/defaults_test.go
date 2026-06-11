@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/v2/ci"
 	"github.com/moby/moby/api/types/system"
 	"github.com/shoenig/test/must"
 )

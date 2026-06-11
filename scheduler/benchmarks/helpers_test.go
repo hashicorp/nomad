@@ -14,8 +14,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/nomad/helper/raftutil"
-	"github.com/hashicorp/nomad/scheduler/tests"
+	"github.com/hashicorp/nomad/v2/helper/raftutil"
+	"github.com/hashicorp/nomad/v2/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
 

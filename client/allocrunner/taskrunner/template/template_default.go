@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/renderer"
-	trenderer "github.com/hashicorp/nomad/client/allocrunner/taskrunner/template/renderer"
-	"github.com/hashicorp/nomad/helper/subproc"
+	trenderer "github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/template/renderer"
+	"github.com/hashicorp/nomad/v2/helper/subproc"
 )
 
 // renderTemplateInSandbox runs the template-render command in a subprocess that

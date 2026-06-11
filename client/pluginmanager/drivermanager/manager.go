@@ -10,13 +10,13 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/pluginmanager"
-	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
-	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/drivers"
-	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/v2/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/base"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
+	pstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
 )
 
 // ErrDriverNotFound is returned during Dispense when the requested driver

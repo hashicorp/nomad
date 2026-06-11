@@ -10,8 +10,8 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/testutil"
 )
 
 func TestScalingPolicyInfoCommand_Run(t *testing.T) {

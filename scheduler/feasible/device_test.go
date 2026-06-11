@@ -7,13 +7,13 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/nomad/mock"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
 	"github.com/shoenig/test/must"
 )
 

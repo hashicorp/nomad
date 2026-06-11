@@ -7,7 +7,7 @@ import (
 	"cmp"
 	"slices"
 
-	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/v2/helper/pointer"
 )
 
 // MapKeys will return a slice of keys of m in no particular order.

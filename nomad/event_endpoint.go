@@ -11,10 +11,10 @@ import (
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
 
-	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/nomad/peers"
-	"github.com/hashicorp/nomad/nomad/stream"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/acl"
+	"github.com/hashicorp/nomad/v2/nomad/peers"
+	"github.com/hashicorp/nomad/v2/nomad/stream"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 type Event struct {

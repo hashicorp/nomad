@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 )
 
 // MockVaultClient is used for testing the vaultclient integration and is safe

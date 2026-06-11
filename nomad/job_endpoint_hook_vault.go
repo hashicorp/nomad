@@ -6,7 +6,7 @@ package nomad
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // jobVaultHook is an job registration admission controller for Vault blocks.

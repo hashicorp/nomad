@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/v2/ci"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

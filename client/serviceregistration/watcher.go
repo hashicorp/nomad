@@ -10,8 +10,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // composite of allocID + taskName for uniqueness

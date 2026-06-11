@@ -7,7 +7,7 @@ package config
 
 import (
 	"github.com/hashicorp/go-hclog"
-	structsc "github.com/hashicorp/nomad/nomad/structs/config"
+	structsc "github.com/hashicorp/nomad/v2/nomad/structs/config"
 )
 
 // GetVaultConfigs returns the set of Vault configurations available for this

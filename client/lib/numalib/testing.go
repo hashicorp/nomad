@@ -4,8 +4,8 @@
 package numalib
 
 import (
-	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/v2/client/lib/idset"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib/hw"
 )
 
 // MockTopology is a constructor for the Topology object, only used in tests for

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/v3/cluster3"
-	"github.com/hashicorp/nomad/e2e/v3/jobs3"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/v3/cluster3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/jobs3"
 	promapi "github.com/prometheus/client_golang/api"
 	promapi1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	promodel "github.com/prometheus/common/model"

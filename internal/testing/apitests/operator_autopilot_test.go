@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )

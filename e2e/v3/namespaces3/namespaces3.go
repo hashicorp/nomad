@@ -9,8 +9,8 @@ import (
 
 	"github.com/hashicorp/go-set/v3"
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/v3/util3"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/v2/e2e/v3/util3"
+	"github.com/hashicorp/nomad/v2/helper"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )

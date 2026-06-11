@@ -10,9 +10,9 @@ import (
 	"math"
 
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/nomad/structs"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
 )
 
 // deviceAllocator is used to allocate devices to allocations. The allocator

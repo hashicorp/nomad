@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 type NodeIdentity struct {

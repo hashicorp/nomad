@@ -9,9 +9,9 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 type heartbeatStop struct {

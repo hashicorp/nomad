@@ -9,7 +9,7 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	flagHelper "github.com/hashicorp/nomad/helper/flags"
+	flagHelper "github.com/hashicorp/nomad/v2/helper/flags"
 	"github.com/posener/complete"
 )
 

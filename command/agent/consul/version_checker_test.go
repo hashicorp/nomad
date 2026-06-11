@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/v2/ci"
 )
 
 func TestConsulSupportsTLSSkipVerify(t *testing.T) {

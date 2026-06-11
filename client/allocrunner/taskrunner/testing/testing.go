@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // MockEmitter is a mock of the EventEmitter interface.

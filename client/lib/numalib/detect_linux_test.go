@@ -10,8 +10,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/v2/client/lib/idset"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib/hw"
 	"github.com/shoenig/test/must"
 )
 

@@ -6,7 +6,7 @@ package proclib
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/v2/helper/testlog"
 )
 
 func MockWranglers(t testing.TB) *Wranglers {

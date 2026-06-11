@@ -15,9 +15,9 @@ import (
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 
-	"github.com/hashicorp/nomad/acl"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/acl"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // ClientAllocations is used to forward RPC requests to the targeted Nomad client's

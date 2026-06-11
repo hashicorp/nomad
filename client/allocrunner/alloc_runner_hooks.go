@@ -8,12 +8,12 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/consul"
-	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/interfaces"
+	clientconfig "github.com/hashicorp/nomad/v2/client/config"
+	"github.com/hashicorp/nomad/v2/client/consul"
+	"github.com/hashicorp/nomad/v2/client/taskenv"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // allocHealthSetter is a shim to allow the alloc health watcher hook to set

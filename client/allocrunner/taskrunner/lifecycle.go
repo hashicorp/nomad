@@ -7,8 +7,8 @@ import (
 	"context"
 	"time"
 
-	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
-	"github.com/hashicorp/nomad/nomad/structs"
+	te "github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/errors"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // Restart restarts a task that is already running. Returns an error if the

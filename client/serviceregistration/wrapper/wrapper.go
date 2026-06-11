@@ -7,8 +7,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/serviceregistration"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/serviceregistration"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // HandlerWrapper is used to wrap service registration implementations of the

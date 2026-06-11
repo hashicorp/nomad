@@ -11,13 +11,13 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	tinterfaces "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/serviceregistration"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/client/taskenv"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/interfaces"
+	tinterfaces "github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/client/serviceregistration"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/client/taskenv"
+	agentconsul "github.com/hashicorp/nomad/v2/command/agent/consul"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 var _ interfaces.TaskPoststartHook = &scriptCheckHook{}

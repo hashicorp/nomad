@@ -9,10 +9,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/config"
-	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/config"
+	hvm "github.com/hashicorp/nomad/v2/client/hostvolumemanager"
+	"github.com/hashicorp/nomad/v2/helper/testlog"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 

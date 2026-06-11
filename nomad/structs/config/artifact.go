@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/helper/pointer"
 	"github.com/shoenig/go-landlock"
 )
 

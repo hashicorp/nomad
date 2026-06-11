@@ -188,7 +188,7 @@ check: ## Lint the source code
 	@cd ./jobspec2 && \
 		if go list --test -f '{{ join .Deps "\n" }}' . | \
 		grep github.com/hashicorp/nomad/ | \
-		grep -v -e /nomad/jobspec2/ -e nomad/jobspec2.test | \
+		grep -v -e /nomad/v2/jobspec2/ -e nomad/v2/jobspec2.test | \
 		grep -v -e /nomad/api ; then echo \
 		"  /jobspec2 package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
@@ -341,7 +341,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-timeout=900s \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e
+		github.com/hashicorp/nomad/v2/e2e
 
 .PHONY: integration-test
 integration-test: dev ## Run Nomad integration tests
@@ -352,7 +352,7 @@ integration-test: dev ## Run Nomad integration tests
 		-timeout=900s \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/vaultcompat
+		github.com/hashicorp/nomad/v2/e2e/vaultcompat
 
 .PHONY: integration-test-consul
 integration-test-consul: dev ## Run Nomad integration tests
@@ -363,7 +363,7 @@ integration-test-consul: dev ## Run Nomad integration tests
 		-timeout=900s \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/consulcompat
+		github.com/hashicorp/nomad/v2/e2e/consulcompat
 
 .PHONY: integration-test-client-intro
 integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
@@ -374,7 +374,7 @@ integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
 		-timeout=120s \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/client_intro
+		github.com/hashicorp/nomad/v2/e2e/client_intro
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)

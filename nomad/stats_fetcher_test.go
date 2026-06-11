@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/nomad/peers"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/nomad/peers"
+	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/shoenig/test/must"
 )

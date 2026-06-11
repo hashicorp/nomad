@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // This file contains various types and methods that are used for keeping track

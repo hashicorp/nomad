@@ -7,7 +7,7 @@ package cpustats
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib/hw"
 	"oss.indeed.com/go/libtime"
 )
 

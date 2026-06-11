@@ -9,10 +9,10 @@ import (
 	"os"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/snapshot"
-	"github.com/hashicorp/nomad/nomad"
-	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/helper/snapshot"
+	"github.com/hashicorp/nomad/v2/nomad"
+	"github.com/hashicorp/nomad/v2/nomad/state"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 	"github.com/hashicorp/raft"
 )
 

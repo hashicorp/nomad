@@ -16,9 +16,9 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-version"
-	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	agentconsul "github.com/hashicorp/nomad/v2/command/agent/consul"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs/config"
 )
 
 var (

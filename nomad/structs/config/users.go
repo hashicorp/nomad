@@ -6,7 +6,7 @@ package config
 import (
 	"errors"
 
-	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/v2/helper/pointer"
 )
 
 // UsersConfig configures things related to operating system users.

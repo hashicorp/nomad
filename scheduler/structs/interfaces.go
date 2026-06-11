@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/state"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 /*

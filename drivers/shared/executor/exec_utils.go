@@ -13,8 +13,8 @@ import (
 	"syscall"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/plugins/drivers"
-	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
+	dproto "github.com/hashicorp/nomad/v2/plugins/drivers/proto"
 )
 
 // execHelper is a convenient wrapper for starting and executing commands, and handling their output

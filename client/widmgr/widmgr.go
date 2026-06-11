@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	cstate "github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstate "github.com/hashicorp/nomad/v2/client/state"
+	"github.com/hashicorp/nomad/v2/client/taskenv"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // IdentityManager defines a manager responsible for signing and renewing

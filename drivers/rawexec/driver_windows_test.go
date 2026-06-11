@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/plugins/base"
-	"github.com/hashicorp/nomad/plugins/drivers"
-	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/plugins/base"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
+	dtestutil "github.com/hashicorp/nomad/v2/plugins/drivers/testutils"
 	"github.com/shoenig/test/must"
 )
 

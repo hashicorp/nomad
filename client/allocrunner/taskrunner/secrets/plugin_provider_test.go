@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/commonplugins"
+	"github.com/hashicorp/nomad/v2/client/commonplugins"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/mock"
 )

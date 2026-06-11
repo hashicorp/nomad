@@ -26,8 +26,8 @@ import (
 	"time"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/discover"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/helper/discover"
 	"github.com/shoenig/test/must"
 )
 

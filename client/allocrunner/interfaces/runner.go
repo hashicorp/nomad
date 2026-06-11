@@ -6,13 +6,13 @@ package interfaces
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunner/state"
-	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
-	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/client/allocdir"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/state"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/csimanager"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/drivermanager"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 // AllocRunner is the interface to the allocRunner struct used by client.Client

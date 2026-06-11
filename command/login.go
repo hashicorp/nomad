@@ -15,7 +15,7 @@ import (
 	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/lib/auth/oidc"
+	"github.com/hashicorp/nomad/v2/lib/auth/oidc"
 )
 
 // Ensure LoginCommand satisfies the cli.Command interface.

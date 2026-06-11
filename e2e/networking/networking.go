@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/framework"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/framework"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 )
 
 type NetworkingE2ETest struct {

@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
-	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/client/config"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/v2/helper/pluginutils/catalog"
+	nconfig "github.com/hashicorp/nomad/v2/nomad/structs/config"
+	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/stretchr/testify/require"
 )
 

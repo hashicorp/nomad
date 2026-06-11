@@ -9,8 +9,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/v2/command/agent"
+	"github.com/hashicorp/nomad/v2/helper"
 	"github.com/posener/complete"
 )
 
