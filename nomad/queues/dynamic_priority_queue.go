@@ -294,8 +294,17 @@ func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
 }
 
 // setWorkloadPriority calculates an individual workload's priority based on
-// it's tenant's usage relative to the total usage, and configured weight.
 func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
+	w.priority = w.eval.Priority + d.usageAdjustment(w)
+}
+
+// usageAdjustment calculates the adjustment to a workload's priority based on
+// it's tenant's usage relative to the total usage, and configured weight.
+func (d *DynamicPriorityQueue) usageAdjustment(w *Workload) int {
+	if d.conf.UsageWeight == 0 {
+		return 0
+	}
+
 	d.ensureTenant(w.tid)
 	total := d.totalUsage.Total()
 	tenantUsage := d.tenants[w.tid].totalUsage.Total()
@@ -306,7 +315,7 @@ func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
 	}
 	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
 	w.usageAdjustment = int(usageAdjustment)
-	w.priority = w.eval.Priority + int(usageAdjustment)
+	return w.usageAdjustment
 }
 
 // decayUsage iterates over all tenants and decays the workload usage based on
