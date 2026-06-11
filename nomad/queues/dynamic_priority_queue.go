@@ -59,8 +59,6 @@ type DynamicPriorityQueue struct {
 	// conf contains user configurations for tuning the behavior of the queue
 	conf *structs.DynamicQueueConfig
 
-	resourceWeights map[string]float64
-
 	// evalBroker is the injected broker for passing an evaluation
 	// on to be scheduled by Nomad
 	evalBroker Broker
@@ -111,12 +109,8 @@ func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *str
 		tenantType:  qconf.TenantType,
 		metadataKey: qconf.MetadataKey,
 		conf:        conf,
-		resourceWeights: map[string]float64{
-			"cpu":    float64(conf.CPUWeight),
-			"memory": float64(conf.MemoryWeight),
-		},
-		logger:     logger.Named("Dynamic Priority Queue"),
-		totalUsage: make(map[string]float64),
+		logger:      logger.Named("Dynamic Priority Queue"),
+		totalUsage:  make(map[string]float64),
 	}
 }
 
@@ -306,8 +300,8 @@ func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
 // it's tenant's usage relative to the total usage, and configured weight.
 func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
 	d.ensureTenant(w.tid)
-	tenantUsage := weightedUsage(d.tenants[w.tid].totalUsage, d.resourceWeights)
-	total := weightedUsage(d.totalUsage, d.resourceWeights)
+	total := totalUsage(d.totalUsage)
+	tenantUsage := totalUsage(d.tenants[w.tid].totalUsage)
 
 	usageRatio := 0.0
 	if total > 0 {

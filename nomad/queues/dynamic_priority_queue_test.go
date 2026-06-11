@@ -389,22 +389,6 @@ func TestCalculatePriorities(t *testing.T) {
 			expectedTotalUsage:           map[string]float64{"cpu": 100, "memory": 105},
 		},
 		{
-			name:                         "cpu weight biases against cpu heavy tenant",
-			conf:                         &structs.DynamicQueueConfig{HalfLife: 10 * time.Second, UsageWeight: 10, CPUWeight: 2},
-			lowUsageTenant:               mkTenant(TenantID("tenant-memory"), time.Unix(20, 0), 0, 100),
-			highUsageTenant:              mkTenant(TenantID("tenant-cpu"), time.Unix(20, 0), 100, 0),
-			expectedHigherPriorityTenant: TenantID("tenant-memory"),
-			expectedTotalUsage:           map[string]float64{"cpu": 100, "memory": 100},
-		},
-		{
-			name:                         "memory weight biases against memory heavy tenant",
-			conf:                         &structs.DynamicQueueConfig{HalfLife: 10 * time.Second, UsageWeight: 10, MemoryWeight: 2},
-			lowUsageTenant:               mkTenant(TenantID("tenant-cpu"), time.Unix(20, 0), 100, 0),
-			highUsageTenant:              mkTenant(TenantID("tenant-memory"), time.Unix(20, 0), 0, 100),
-			expectedHigherPriorityTenant: TenantID("tenant-cpu"),
-			expectedTotalUsage:           map[string]float64{"cpu": 100, "memory": 100},
-		},
-		{
 			name:                         "decays workloads before calculating priority",
 			conf:                         &structs.DynamicQueueConfig{HalfLife: 10 * time.Second, UsageWeight: 10},
 			lowUsageTenant:               mkTenant(TenantID("tenant-decayed"), time.Unix(10, 0), 100, 0),
