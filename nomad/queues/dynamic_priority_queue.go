@@ -240,7 +240,6 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 		return nil
 	}
 
-	// Separate the resources by task group, so we can more accurately update tenant usage when only some task groups are placed.
 	requestedResources := &UsageList{
 		resources: &ResourceUsage{},
 	}
@@ -275,7 +274,7 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 
 // calculatePriorities iterates over all workloads in the queue and updates
 // their priorities based on tenant usage, which is decayed according to the
-// configured half-life, usage weights, and resource weights.
+// configured half-life, and usage weight.
 func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
 	state, err := d.state.Snapshot()
 	if err != nil {
@@ -349,7 +348,6 @@ func decayMultiplier(ts, createdAt time.Time, halfLife time.Duration) float64 {
 // decayWorkloadUsage applies decay to an individual workload's usage based on
 // the time elapsed since (roughly) when the eval was placed, and the configured
 // half-life. It returns the decayed usage, and also updates the workload usage
-// in-place.
 func (d *DynamicPriorityQueue) decayWorkloadUsage(ts time.Time, usage *UsageList) *UsageList {
 	multiplier := decayMultiplier(ts, usage.start, d.conf.HalfLife)
 
@@ -452,8 +450,6 @@ func (d *DynamicPriorityQueue) Status() structs.QueueStatusResponse {
 	return resp
 }
 
-// updateUsage updates the tenant and total usage for a given workload's task if
-// the task has been placed.
 // updateUsage updates the tenant and total usage for a given workload if
 // anything has been placed.
 func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
