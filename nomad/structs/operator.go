@@ -373,6 +373,7 @@ const (
 
 	DynamicCalcInterval = "calc_interval"
 	DynamicMaxAge       = "max_age"
+	DynamicHalfLife     = "half_life"
 )
 
 type BatchQueue struct {
@@ -385,6 +386,7 @@ type BatchQueue struct {
 type DynamicQueueConfig struct {
 	CalcInterval time.Duration `mapstructure:"calc_interval"`
 	MaxAge       time.Duration `mapstructure:"max_age"`
+	HalfLife     time.Duration `mapstructure:"half_life"`
 	MaxSize      int           `mapstructure:"max_size"`
 	AgeWeight    int           `mapstructure:"age_weight"`
 	UsageWeight  int           `mapstructure:"usage_weight"`

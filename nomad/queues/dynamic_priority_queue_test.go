@@ -5,6 +5,7 @@ package queues
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -132,5 +133,79 @@ func TestWaitForPlacement(t *testing.T) {
 
 		done := <-doneCh
 		must.NoError(t, done)
+	})
+}
+
+func TestDecayUsage(t *testing.T) {
+	t.Run("decays usage by half after half-life", func(t *testing.T) {
+		queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{
+			HalfLife: 10 * time.Second,
+		}, hclog.New(hclog.DefaultOptions))
+
+		now := time.Unix(100, 0)
+		queue.lastUpdated = now.Add(-10 * time.Second)
+		queue.tenants[TenantID("tenant-a")] = &Tenant{
+			tid: TenantID("tenant-a"),
+			workloads: map[string]*Workload{
+				"w1": {},
+			},
+			usage: 100,
+		}
+		queue.tenants[TenantID("tenant-b")] = &Tenant{
+			tid: TenantID("tenant-b"),
+			workloads: map[string]*Workload{
+				"w2": {},
+			},
+			usage: 60,
+		}
+
+		queue.decayUsage(now)
+
+		must.True(t, math.Abs(queue.tenants[TenantID("tenant-a")].usage-50) < 1e-9)
+		must.True(t, math.Abs(queue.tenants[TenantID("tenant-b")].usage-30) < 1e-9)
+		must.True(t, math.Abs(queue.totalUsage-80) < 1e-9)
+	})
+
+	t.Run("initializes lastUpdated without decay when zero", func(t *testing.T) {
+		queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{
+			HalfLife: 10 * time.Second,
+		}, hclog.New(hclog.DefaultOptions))
+
+		now := time.Unix(100, 0)
+		queue.tenants[TenantID("tenant-a")] = &Tenant{
+			tid: TenantID("tenant-a"),
+			workloads: map[string]*Workload{
+				"w1": {},
+			},
+			usage: 42,
+		}
+
+		queue.decayUsage(now)
+
+		must.Eq(t, now, queue.lastUpdated)
+		must.True(t, math.Abs(queue.tenants[TenantID("tenant-a")].usage-42) < 1e-9)
+		must.True(t, math.Abs(queue.totalUsage-42) < 1e-9)
+	})
+
+	t.Run("decays tenant usage independent of pending workload count", func(t *testing.T) {
+		queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{
+			HalfLife: 10 * time.Second,
+		}, hclog.New(hclog.DefaultOptions))
+
+		now := time.Unix(100, 0)
+		queue.lastUpdated = now.Add(-10 * time.Second)
+		queue.tenants[TenantID("tenant-a")] = &Tenant{
+			tid: TenantID("tenant-a"),
+			workloads: map[string]*Workload{
+				"w1": {},
+				"w2": {},
+			},
+			usage: 100,
+		}
+
+		queue.decayUsage(now)
+
+		must.True(t, math.Abs(queue.tenants[TenantID("tenant-a")].usage-50) < 1e-9)
+		must.True(t, math.Abs(queue.totalUsage-50) < 1e-9)
 	})
 }

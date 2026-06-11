@@ -7,6 +7,7 @@ import (
 	"container/heap"
 	"context"
 	"errors"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -48,7 +49,9 @@ type DynamicPriorityQueue struct {
 	enqueueCh chan *Workload
 
 	// totalUsage is the sum of all tenant usages
-	totalUsage int
+	totalUsage float64
+
+	lastUpdated time.Time
 
 	tenantType structs.BatchQueueTenant
 
@@ -74,7 +77,7 @@ type DynamicPriorityQueue struct {
 type Tenant struct {
 	tid       TenantID
 	workloads map[string]*Workload
-	usage     int
+	usage     float64
 }
 
 type Workload struct {
@@ -82,16 +85,12 @@ type Workload struct {
 	tid      TenantID
 	priority int
 	eval     *structs.Evaluation
-	size     int
+	size     float64
 	index    int
 
 	sizeAdjustment  int
 	ageAdjustment   int
 	usageAdjustment int
-}
-
-func (w *Workload) calculatePriority(_ int64) {
-	// unimplemented
 }
 
 func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
@@ -151,7 +150,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case w := <-d.enqueueCh:
-			w.calculatePriority(w.eval.CreateTime)
+			d.setWorkloadPriority(w)
 
 			d.qMux.Lock()
 			heap.Push(&d.queue, w)
@@ -168,7 +167,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			}
 
 			d.qMux.Lock()
-			d.calculatePriorities(time.Now().UnixNano())
+			d.calculatePriorities(time.Now())
 			heap.Init(&d.queue)
 			d.qMux.Unlock()
 		}
@@ -199,6 +198,13 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 				d.logger.Error("failure waiting for workload placement", "evalID", workload.eval)
 			}
 
+			// TODO: this is an unsafe concurrent map access
+			// We should also look to at the eval to check if
+			// it actually resulted in a placement before incrementing
+			// the usage, maybe via eval.PlanAnnotations?
+			d.tenants[workload.tid].usage += workload.size
+			d.totalUsage += workload.size
+
 			d.qMux.Lock()
 			l := d.queue.Len()
 			d.qMux.Unlock()
@@ -222,45 +228,80 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *Workload
 		return nil
 	}
 
-	tid := ""
+	var tid TenantID
 	switch d.tenantType {
 	case "namespace":
-		tid = job.Namespace
+		tid = TenantID(job.Namespace)
 	case "metadata":
 		tenantID, ok := job.Meta[d.metadataKey]
 		if !ok {
 			return nil
 		}
-		tid = tenantID
+		tid = TenantID(tenantID)
 	default:
 		d.logger.Error("unknown tenant type, this is a bug.")
 		return nil
 	}
 
+	if _, ok := d.tenants[tid]; !ok {
+		d.tenants[tid] = &Tenant{
+			tid:       tid,
+			workloads: make(map[string]*Workload),
+			usage:     0,
+		}
+	}
+
+	size := 0
+	for _, tg := range job.TaskGroups {
+		for _, task := range tg.Tasks {
+			size += task.Resources.CPU
+			size += task.Resources.MemoryMB
+		}
+	}
+
 	return &Workload{
-		tid:      TenantID(tid),
+		tid:      tid,
 		priority: 0,
 		eval:     e,
-		size:     0,
+		size:     float64(size),
 	}
 }
 
-func (d *DynamicPriorityQueue) calculatePriorities(time int64) {
+// TODO: break this up into some really manageable/testable methods so all we're doing is += d.calcSomething
+func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
 	// Decay tenant workload usages first, because a workload's
 	// priority relies on its tenant's usage.
-	for _, tenant := range d.tenants {
-		for range tenant.workloads {
-			// Unimplemented
-			d.totalUsage -= 0
-			tenant.usage -= 0
-		}
-	}
+	d.decayUsage(ts)
 
 	// Now that we have accurate tenant usage, calculate
 	// each workloads new priority
 	for _, workload := range d.queue {
-		workload.calculatePriority(time)
+		if d.totalUsage != 0 {
+			d.setWorkloadPriority(workload)
+		}
 	}
+	d.lastUpdated = ts
+}
+
+func (d *DynamicPriorityQueue) decayUsage(now time.Time) {
+	newUsage := 0.0
+	if d.lastUpdated.IsZero() {
+		d.lastUpdated = now
+	}
+	elapsed := now.Sub(d.lastUpdated).Seconds()
+	decay := math.Pow(0.5, (elapsed / d.conf.HalfLife.Seconds()))
+
+	for _, tenant := range d.tenants {
+		tenant.usage *= decay
+		newUsage += tenant.usage
+	}
+	d.totalUsage = newUsage
+}
+
+func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload) {
+	usageRatio := d.tenants[w.tid].usage / d.totalUsage
+	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
+	w.priority = w.eval.Priority + int(usageAdjustment)
 }
 
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
