@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	"github.com/hashicorp/nomad/v2/ci"
-	"github.com/hashicorp/nomad/v2/nomad/structs"
-	"github.com/hashicorp/nomad/v2/plugins/drivers"
-	pstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/helper"
+	"github.com/hashicorp/nomad/plugins/helper/ci"
+	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/shoenig/test/must"
 )
 
@@ -110,7 +110,7 @@ func TestBaseDriver_RecoverTask(t *testing.T) {
 	// build driver state and encode it into proto msg
 	state := testDriverState{Pid: 1, Log: "foo"}
 	var buf bytes.Buffer
-	enc := codec.NewEncoder(&buf, structs.MsgpackHandle)
+	enc := codec.NewEncoder(&buf, helper.MsgpackHandle)
 	enc.Encode(state)
 
 	// mock the RecoverTask driver call

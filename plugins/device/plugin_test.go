@@ -13,14 +13,15 @@ import (
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/v2/ci"
 	"github.com/hashicorp/nomad/v2/nomad/structs"
-	"github.com/hashicorp/nomad/v2/plugins/base"
-	"github.com/hashicorp/nomad/v2/plugins/shared/hclspec"
-	psstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
 	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
 	"google.golang.org/grpc/status"
+
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
+	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 func TestDevicePlugin_PluginInfo(t *testing.T) {

@@ -10766,7 +10766,9 @@ func (d *DesiredUpdates) GoString() string {
 		d.Place, d.InPlaceUpdate, d.DestructiveUpdate, d.Stop, d.Migrate, d.Ignore, d.Canary, d.RescheduleNow, d.RescheduleLater, d.Disconnect, d.Reconnect)
 }
 
-// msgpackHandle is a shared handle for encoding/decoding of structs
+// MsgpackHandle is a shared handle for encoding/decoding of structs
+//
+// Must match plugins/helper code.
 var MsgpackHandle = func() *codec.MsgpackHandle {
 	h := &codec.MsgpackHandle{}
 	h.RawToString = true

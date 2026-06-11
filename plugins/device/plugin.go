@@ -8,10 +8,11 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/v2/plugins/base"
-	bproto "github.com/hashicorp/nomad/v2/plugins/base/proto"
-	"github.com/hashicorp/nomad/v2/plugins/device/proto"
 	"google.golang.org/grpc"
+
+	"github.com/hashicorp/nomad/plugins/base"
+	bproto "github.com/hashicorp/nomad/plugins/base/proto"
+	"github.com/hashicorp/nomad/plugins/device/proto"
 )
 
 // PluginDevice is wraps a DevicePlugin and implements go-plugins GRPCPlugin

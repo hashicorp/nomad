@@ -8,9 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/v2/plugins/base"
-	"github.com/hashicorp/nomad/v2/plugins/shared/structs"
+	"github.com/hashicorp/go-multierror"
+
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/shared/structs"
 )
 
 const (

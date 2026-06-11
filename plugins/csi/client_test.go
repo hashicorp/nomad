@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/plugins/helper/ci"
 	"github.com/hashicorp/nomad/v2/nomad/structs"
 	fake "github.com/hashicorp/nomad/v2/plugins/csi/testing"
 )
@@ -711,7 +711,7 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 			}}
 			req := &ControllerValidateVolumeRequest{
 				ExternalID:   "volumeID",
-				Secrets:      structs.CSISecrets{},
+				Secrets:      struct{},
 				Capabilities: requestedCaps,
 				Parameters:   map[string]string{},
 				Context:      map[string]string{},

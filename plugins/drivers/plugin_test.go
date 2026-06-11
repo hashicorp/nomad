@@ -12,12 +12,11 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	"github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/v2/ci"
-	//	cstructs "github.com/hashicorp/nomad/v2/client/structs"
-	"github.com/hashicorp/nomad/v2/helper/testlog"
-	"github.com/hashicorp/nomad/v2/nomad/structs"
-	"github.com/hashicorp/nomad/v2/plugins/base"
-	"github.com/hashicorp/nomad/v2/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/helper"
+	"github.com/hashicorp/nomad/plugins/helper/ci"
+	"github.com/hashicorp/nomad/plugins/helper/testlog"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
 
@@ -182,7 +181,7 @@ func TestDriverPlugin_SetConfig(t *testing.T) {
 
 	// Decode the value back
 	var actual base.TestConfig
-	must.NoError(t, structs.Decode(receivedData, &actual))
+	must.NoError(t, helper.Decode(receivedData, &actual))
 	must.Eq(t, "v1", actual.Foo)
 	must.Eq(t, 1337, actual.Bar)
 	must.True(t, actual.Baz)

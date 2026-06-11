@@ -4,13 +4,13 @@
 package base
 
 import (
-	"github.com/hashicorp/nomad/v2/client/lib/cpustats"
-	"github.com/hashicorp/nomad/v2/client/lib/idset"
-	"github.com/hashicorp/nomad/v2/client/lib/numalib"
-	"github.com/hashicorp/nomad/v2/client/lib/numalib/hw"
-	"github.com/hashicorp/nomad/v2/helper"
-	"github.com/hashicorp/nomad/v2/plugins/base/proto"
-	"github.com/hashicorp/nomad/v2/plugins/shared/hclspec"
+	"github.com/hashicorp/nomad/plugins/base/proto"
+	"github.com/hashicorp/nomad/plugins/helper"
+	"github.com/hashicorp/nomad/plugins/helper/cpustats"
+	"github.com/hashicorp/nomad/plugins/helper/idset"
+	"github.com/hashicorp/nomad/plugins/helper/numalib"
+	"github.com/hashicorp/nomad/plugins/helper/numalib/hw"
+	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
 // BasePlugin is the interface that all Nomad plugins must support.
