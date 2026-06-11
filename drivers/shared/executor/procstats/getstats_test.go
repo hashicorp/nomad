@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/client/lib/cpustats"
+	"github.com/hashicorp/nomad/v2/client/lib/cpustats"
 	"github.com/shoenig/test/must"
 )
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	flaghelper "github.com/hashicorp/nomad/helper/flags"
+	flaghelper "github.com/hashicorp/nomad/v2/helper/flags"
 	"github.com/posener/complete"
 )
 

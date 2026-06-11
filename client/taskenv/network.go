@@ -4,7 +4,7 @@
 package taskenv
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // InterpolateNetworks returns an interpolated copy of the task group networks

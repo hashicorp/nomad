@@ -4,8 +4,8 @@
 package mock
 
 import (
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 func HostVolumeRequest(ns string) *structs.HostVolume {

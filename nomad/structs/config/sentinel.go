@@ -6,7 +6,7 @@ package config
 import (
 	"slices"
 
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/v2/helper"
 )
 
 // SentinelConfig is configuration specific to Sentinel

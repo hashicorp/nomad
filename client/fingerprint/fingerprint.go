@@ -9,7 +9,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
 )
 
 // EmptyDuration is to be used by fingerprinters that are not periodic.

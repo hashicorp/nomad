@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/commonplugins"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/v2/client/commonplugins"
+	"github.com/hashicorp/nomad/v2/helper"
 )
 
 type SecretsPluginFingerprint struct {

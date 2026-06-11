@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 type RPCer interface {

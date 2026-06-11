@@ -8,7 +8,7 @@ package taskrunner
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 type pauseHook struct{}

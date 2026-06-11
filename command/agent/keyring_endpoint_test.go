@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
-	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/v2/nomad/mock"
 	"github.com/shoenig/test/must"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 func TestHTTP_Keyring_CRUD(t *testing.T) {

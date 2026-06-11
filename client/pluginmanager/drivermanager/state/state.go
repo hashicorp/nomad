@@ -3,7 +3,7 @@
 
 package state
 
-import pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+import pstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
 
 // PluginState is used to store the driver manager's state across restarts of the
 // agent

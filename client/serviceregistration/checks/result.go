@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // GetCheckQuery extracts the needed info from c to actually execute the check.

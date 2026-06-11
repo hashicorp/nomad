@@ -6,7 +6,7 @@ package state
 import (
 	"maps"
 
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 // LocalState is Task state which is persisted for use when restarting Nomad

@@ -28,7 +28,7 @@ import (
 
 	gojwt "github.com/golang-jwt/jwt/v5"
 	cass "github.com/hashicorp/cap/oidc/clientassertion"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // BuildClientAssertionJWT makes a JWT to be included in an OIDC auth request.

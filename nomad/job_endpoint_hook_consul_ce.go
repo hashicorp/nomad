@@ -9,7 +9,7 @@ package nomad
 import (
 	"errors"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 func (h jobConsulHook) Validate(job *structs.Job) ([]error, error) {

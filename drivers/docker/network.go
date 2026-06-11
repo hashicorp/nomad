@@ -6,7 +6,7 @@ package docker
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 	"github.com/moby/moby/api/types/container"
 	containerapi "github.com/moby/moby/api/types/container"
 	mclient "github.com/moby/moby/client"

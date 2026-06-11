@@ -7,7 +7,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // this file is for fingerprinting *volumes*

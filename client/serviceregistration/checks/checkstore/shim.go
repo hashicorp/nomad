@@ -9,9 +9,9 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/serviceregistration/checks"
-	"github.com/hashicorp/nomad/client/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/serviceregistration/checks"
+	"github.com/hashicorp/nomad/v2/client/state"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // A Shim is used to track the latest check status information, one layer above

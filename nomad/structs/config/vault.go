@@ -6,7 +6,7 @@ package config
 import (
 	"time"
 
-	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/v2/helper/pointer"
 	vault "github.com/hashicorp/vault/api"
 )
 

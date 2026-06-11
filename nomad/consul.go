@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/command/agent/consul"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 	"golang.org/x/time/rate"
 )
 

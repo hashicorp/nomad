@@ -8,7 +8,7 @@ import (
 	"time"
 
 	metrics "github.com/hashicorp/go-metrics/compat"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
 )
 
 type HostVolume struct {

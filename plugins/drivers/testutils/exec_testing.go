@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
-	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
-	dproto "github.com/hashicorp/nomad/plugins/drivers/proto"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/plugins/drivers/fsisolation"
+	dproto "github.com/hashicorp/nomad/v2/plugins/drivers/proto"
+	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/shoenig/test/must"
 )
 

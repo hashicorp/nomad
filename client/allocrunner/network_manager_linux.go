@@ -11,11 +11,11 @@ import (
 	"syscall"
 
 	hclog "github.com/hashicorp/go-hclog"
-	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/lib/nsutil"
-	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	clientconfig "github.com/hashicorp/nomad/v2/client/config"
+	"github.com/hashicorp/nomad/v2/client/lib/nsutil"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 func newNetworkManager(alloc *structs.Allocation, driverManager drivermanager.Manager) (nm drivers.DriverNetworkManager, err error) {

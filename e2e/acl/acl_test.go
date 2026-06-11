@@ -6,7 +6,7 @@ package acl
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
 )
 
 func TestACL(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/v3/util3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/util3"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )

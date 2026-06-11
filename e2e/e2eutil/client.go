@@ -8,7 +8,7 @@ import (
 
 	capi "github.com/hashicorp/consul/api"
 	napi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/useragent"
+	"github.com/hashicorp/nomad/v2/helper/useragent"
 	vapi "github.com/hashicorp/vault/api"
 	"github.com/shoenig/test/must"
 )

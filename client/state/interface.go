@@ -4,14 +4,14 @@
 package state
 
 import (
-	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
-	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
-	"github.com/hashicorp/nomad/client/dynamicplugins"
-	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
-	"github.com/hashicorp/nomad/client/serviceregistration/checks"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
+	arstate "github.com/hashicorp/nomad/v2/client/allocrunner/state"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/state"
+	dmstate "github.com/hashicorp/nomad/v2/client/devicemanager/state"
+	"github.com/hashicorp/nomad/v2/client/dynamicplugins"
+	driverstate "github.com/hashicorp/nomad/v2/client/pluginmanager/drivermanager/state"
+	"github.com/hashicorp/nomad/v2/client/serviceregistration/checks"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // StateDB implementations store and load Nomad client state.

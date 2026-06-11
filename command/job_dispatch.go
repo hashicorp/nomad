@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	flaghelper "github.com/hashicorp/nomad/helper/flags"
+	flaghelper "github.com/hashicorp/nomad/v2/helper/flags"
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
 	"github.com/posener/complete"

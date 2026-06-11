@@ -10,8 +10,8 @@ import (
 
 	jwt "github.com/go-jose/go-jose/v3/jwt"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 	"github.com/shoenig/test/must"
 )
 

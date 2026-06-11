@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/v2/helper/tlsutil"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
 )

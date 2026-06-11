@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/nomad/helper/raftutil"
+	"github.com/hashicorp/nomad/v2/helper/raftutil"
 	"github.com/posener/complete"
 )
 

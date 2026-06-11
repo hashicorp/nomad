@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/hcl"
+	"github.com/hashicorp/nomad/v2/helper/hcl"
 	"github.com/posener/complete"
 )
 

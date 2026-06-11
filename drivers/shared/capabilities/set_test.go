@@ -6,7 +6,7 @@ package capabilities
 import (
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/v2/ci"
 	"github.com/stretchr/testify/require"
 )
 

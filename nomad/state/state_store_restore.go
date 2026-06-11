@@ -6,7 +6,7 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // StateRestore is used to optimize the performance when restoring state by
