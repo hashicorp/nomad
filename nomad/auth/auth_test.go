@@ -1714,14 +1714,37 @@ func TestResolveAuthorizedClientNodePoolHelpers(t *testing.T) {
 	t.Run("authorize client allocation", func(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job.NodePool = node.NodePool
+		alloc.NodeID = node.ID
 
-		must.NoError(t, auth.AuthorizeClientAllocation(aclObj, alloc, nil))
-		must.ErrorIs(t, auth.AuthorizeClientAllocation(acl.NewClientACL("other-pool"), alloc, nil), structs.ErrPermissionDenied)
+		must.NoError(t, auth.AuthorizeClientAllocation(nil, aclObj, alloc, nil))
+		must.ErrorIs(t, auth.AuthorizeClientAllocation(nil, acl.NewClientACL("other-pool"), alloc, nil), structs.ErrPermissionDenied)
 		must.NoError(t, auth.AuthorizeClientAllocation(
+			nil,
 			acl.NewClientACL("other-pool"),
 			alloc,
 			func(_ *acl.ACL, ns string) bool { return ns == alloc.Namespace },
 		))
+
+		// Test identity-based authorization when node pool mismatches
+		matchingIdentity := &structs.AuthenticatedIdentity{
+			ClientID: node.ID,
+		}
+		must.NoError(t, auth.AuthorizeClientAllocation(
+			matchingIdentity,
+			acl.NewClientACL("other-pool"),
+			alloc,
+			nil,
+		))
+
+		mismatchIdentity := &structs.AuthenticatedIdentity{
+			ClientID: "other-node",
+		}
+		must.ErrorIs(t, auth.AuthorizeClientAllocation(
+			mismatchIdentity,
+			acl.NewClientACL("other-pool"),
+			alloc,
+			nil,
+		), structs.ErrPermissionDenied)
 	})
 
 	t.Run("resolve by service registration id", func(t *testing.T) {

@@ -665,12 +665,17 @@ func (s *Authenticator) ResolveAuthorizedClientNodePoolByNodeID(aclObj *acl.ACL,
 // fall back to namespace-based authorization when client-scoped authorization
 // does not apply.
 func (s *Authenticator) AuthorizeClientAllocation(
+	identity *structs.AuthenticatedIdentity,
 	aclObj *acl.ACL,
 	alloc *structs.Allocation,
 	allowNsOp func(*acl.ACL, string) bool,
 ) error {
 	if alloc == nil || alloc.Job == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	if identity != nil && AuthorizeSameNode(identity, alloc.NodeID) == nil {
+		return nil
 	}
 
 	if aclObj.AllowClientOp(alloc.Job.NodePool) {
