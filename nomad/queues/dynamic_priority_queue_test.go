@@ -163,7 +163,7 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenant"),
 						placedWorkloadById: map[string]*Workload{
-							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								CPU:    100,
 								Memory: 20,
 							}}},
@@ -188,10 +188,10 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenant"),
 						placedWorkloadById: map[string]*Workload{
-							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								CPU: 80,
 							}}},
-							eval2.ID: {requestedResources: &UsageList{start: now.Add(-5 * time.Second), resources: &ResourceUsage{
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-5 * time.Second).UnixNano(), resources: &ResourceUsage{
 								CPU:    100,
 								Memory: 50,
 							}}},
@@ -216,7 +216,7 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenantA"),
 						placedWorkloadById: map[string]*Workload{
-							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								Memory: 40,
 								CPU:    100,
 							}}},
@@ -225,7 +225,7 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenantB"),
 						placedWorkloadById: map[string]*Workload{
-							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								Memory: 80,
 								CPU:    75,
 							}}},
@@ -254,11 +254,11 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenantA"),
 						placedWorkloadById: map[string]*Workload{
-							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								Memory: 40,
 								CPU:    100,
 							}}},
-							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								Memory: 80,
 								CPU:    60,
 							}}},
@@ -267,11 +267,11 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenantB"),
 						placedWorkloadById: map[string]*Workload{
-							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								Memory: 80,
 								CPU:    75,
 							}}},
-							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								Memory: 100,
 								CPU:    50,
 							}}},
@@ -300,7 +300,7 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenant"),
 						placedWorkloadById: map[string]*Workload{
-							missingEvalID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							missingEvalID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								CPU:    100,
 								Memory: 20,
 							}}},
@@ -309,7 +309,7 @@ func TestDecayUsage(t *testing.T) {
 					{
 						tid: TenantID("tenantB"),
 						placedWorkloadById: map[string]*Workload{
-							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second), resources: &ResourceUsage{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
 								CPU:    100,
 								Memory: 20,
 							}}},
@@ -343,7 +343,7 @@ func TestDecayUsage(t *testing.T) {
 				snapshot, err := ss.Snapshot()
 				must.NoError(t, err)
 
-				queue.decayUsage(now, snapshot)
+				queue.decayUsage(now.UnixNano(), snapshot)
 
 				for _, tenant := range tc.tenants {
 					must.Eq(t, tenant.totalUsage, tc.expectedTenantUsage[tenant.tid], must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
@@ -356,7 +356,7 @@ func TestDecayUsage(t *testing.T) {
 
 func TestCalculatePriorities(t *testing.T) {
 	eval1 := mock.Eval()
-	mkTenant := func(id TenantID, ts time.Time, cpu, memory float64) *Tenant {
+	mkTenant := func(id TenantID, ts int64, cpu, memory float64) *Tenant {
 		return &Tenant{
 			tid: id,
 			placedWorkloadById: map[string]*Workload{
@@ -379,16 +379,16 @@ func TestCalculatePriorities(t *testing.T) {
 		{
 			name:                         "higher usage results in lower priority",
 			conf:                         &structs.DynamicQueueConfig{HalfLife: 10 * time.Second, UsageWeight: 10},
-			lowUsageTenant:               mkTenant(TenantID("tenant-low"), time.Unix(20, 0), 0, 55),
-			highUsageTenant:              mkTenant(TenantID("tenant-high"), time.Unix(20, 0), 100, 50),
+			lowUsageTenant:               mkTenant(TenantID("tenant-low"), time.Unix(20, 0).UnixNano(), 0, 55),
+			highUsageTenant:              mkTenant(TenantID("tenant-high"), time.Unix(20, 0).UnixNano(), 100, 50),
 			expectedHigherPriorityTenant: TenantID("tenant-low"),
 			expectedTotalUsage:           &ResourceUsage{CPU: 100, Memory: 105},
 		},
 		{
 			name:                         "decays workloads before calculating priority",
 			conf:                         &structs.DynamicQueueConfig{HalfLife: 10 * time.Second, UsageWeight: 10},
-			lowUsageTenant:               mkTenant(TenantID("tenant-decayed"), time.Unix(10, 0), 100, 0),
-			highUsageTenant:              mkTenant(TenantID("tenant-recent"), time.Unix(20, 0), 60, 0),
+			lowUsageTenant:               mkTenant(TenantID("tenant-decayed"), time.Unix(10, 0).UnixNano(), 100, 0),
+			highUsageTenant:              mkTenant(TenantID("tenant-recent"), time.Unix(20, 0).UnixNano(), 60, 0),
 			expectedHigherPriorityTenant: TenantID("tenant-decayed"),
 			expectedTotalUsage:           &ResourceUsage{CPU: 110, Memory: 0},
 		},
@@ -407,7 +407,7 @@ func TestCalculatePriorities(t *testing.T) {
 			queue.tenants[tc.highUsageTenant.tid] = tc.highUsageTenant
 			queue.queue = WorkloadQueue{lowUsageWorkload, highUsageWorkload}
 
-			queue.calculatePriorities(time.Unix(20, 0))
+			queue.calculatePriorities(time.Unix(20, 0).UnixNano())
 
 			switch tc.expectedHigherPriorityTenant {
 			case tc.lowUsageTenant.tid:

@@ -51,7 +51,7 @@ type DynamicPriorityQueue struct {
 	// totalUsage is the sum of all tenant usages
 	totalUsage *ResourceUsage
 
-	lastUpdated time.Time
+	lastUpdated int64
 
 	tenantType structs.BatchQueueTenant
 
@@ -82,7 +82,7 @@ type Tenant struct {
 
 type UsageList struct {
 	resources *ResourceUsage
-	start     time.Time
+	start     int64
 }
 
 type Workload struct {
@@ -171,7 +171,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			}
 
 			d.qMux.Lock()
-			d.calculatePriorities(time.Now())
+			d.calculatePriorities(time.Now().UnixNano())
 			heap.Init(&d.queue)
 			d.qMux.Unlock()
 		}
@@ -275,7 +275,7 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 // calculatePriorities iterates over all workloads in the queue and updates
 // their priorities based on tenant usage, which is decayed according to the
 // configured half-life, and usage weight.
-func (d *DynamicPriorityQueue) calculatePriorities(ts time.Time) {
+func (d *DynamicPriorityQueue) calculatePriorities(ts int64) {
 	state, err := d.state.Snapshot()
 	if err != nil {
 		d.logger.Error("failed to take state snapshot", "error", err)
@@ -322,7 +322,7 @@ func (d *DynamicPriorityQueue) usageAdjustment(w *Workload) int {
 // the time elapsed since (roughly) when the eval was placed, and the configured
 // half-life. If the eval no longer exists in the state store, its workload's
 // usage is removed from the calculation.
-func (d *DynamicPriorityQueue) decayUsage(ts time.Time, state *state.StateSnapshot) {
+func (d *DynamicPriorityQueue) decayUsage(ts int64, state *state.StateSnapshot) {
 	totalUsage := &ResourceUsage{}
 
 	for _, tenant := range d.tenants {
@@ -349,15 +349,15 @@ func (d *DynamicPriorityQueue) decayUsage(ts time.Time, state *state.StateSnapsh
 	d.totalUsage = totalUsage
 }
 
-func decayMultiplier(ts, createdAt time.Time, halfLife time.Duration) float64 {
-	elapsed := ts.Sub(createdAt).Seconds()
+func decayMultiplier(ts, createdAt int64, halfLife time.Duration) float64 {
+	elapsed := time.Unix(0, ts).Sub(time.Unix(0, createdAt)).Seconds()
 	return math.Pow(0.5, elapsed/halfLife.Seconds())
 }
 
 // decayWorkloadUsage applies decay to an individual workload's usage based on
 // the time elapsed since (roughly) when the eval was placed, and the configured
 // half-life. It returns the decayed usage, and also updates the workload usage
-func (d *DynamicPriorityQueue) decayWorkloadUsage(ts time.Time, usage *UsageList) *UsageList {
+func (d *DynamicPriorityQueue) decayWorkloadUsage(ts int64, usage *UsageList) *UsageList {
 	multiplier := decayMultiplier(ts, usage.start, d.conf.HalfLife)
 
 	decayed := &ResourceUsage{}
@@ -480,7 +480,7 @@ func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
 		}
 
 		workloadResources := workload.requestedResources
-		workloadResources.start = time.Unix(0, workload.eval.ModifyTime)
+		workloadResources.start = workload.eval.ModifyTime
 		tenant.totalUsage = tenant.totalUsage.Add(workloadResources.resources)
 		d.totalUsage = d.totalUsage.Add(workloadResources.resources)
 
