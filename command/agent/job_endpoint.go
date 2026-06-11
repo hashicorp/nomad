@@ -1634,6 +1634,7 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 			if d.Count != nil && len(d.FirstAvailable) == 0 {
 				rd.Count = *d.Count
 			}
+			// Only set ShareDevices if not using FirstAvailable
 			if d.ShareDevices != nil && len(d.FirstAvailable) == 0 {
 				rd.ShareDevices = ApiShareDevicesToStructs(d.ShareDevices)
 			}
