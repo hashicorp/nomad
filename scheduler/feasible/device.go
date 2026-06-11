@@ -191,8 +191,7 @@ func (d *deviceAllocator) createOfferWithParams(mem *memoryNodeMatcher, deviceID
 			if !d.deviceIDMatchesConstraint(instanceID, constraints, devInst.Device) {
 				continue
 			}
-			// if we're targeting a specific GPU confirm it' the one we want
-			if shareDevices.SharedDeviceId != "" && shareDevices.SharedDeviceId != instanceID {
+			if !d.sharedDeviceIDMatches(instanceID, shareDevices) {
 				continue
 			}
 			// if the task is willing to share, document in deviceAllocator
@@ -349,3 +348,18 @@ func (d *deviceAllocator) sharedDeviceIDMatches(instanceID string, shareDevices 
 	}
 	return true
 }
+
+//// deviceIDConstraintAndSharingChecks returns a single boolean to report whether
+//// device ID matches all of the constraints and if applicable all of the
+//// requested sharing modes
+//func (d *deviceAllocator) deviceIDConstraintAndSharingChecks(id string, constraints structs.Constraints, sharing *structs.ShareDevices, device *structs.NodeDeviceResource) bool {
+//	if passesConstraint := d.deviceIDMatchesConstraint(id, constraints, device); !passesConstraint {
+//		return false
+//	}
+//	if sharing != nil {
+//		if passesSharing := d.deviceIDAllowsSharing(id, sharing, device); !passesSharing {
+//			return false
+//		}
+//	}
+//	return true
+//}
