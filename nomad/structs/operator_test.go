@@ -220,7 +220,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 			err: "metadata key must be specified",
 		},
 		{
-			name: "dynamicPriority - invalid interval",
+			name: "dynamic_priority - invalid interval",
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
@@ -231,7 +231,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 			err: "unable to decode conf",
 		},
 		{
-			name: "dynamicPriority - valid string interval",
+			name: "dynamic_priority - valid string interval",
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
@@ -242,7 +242,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 			err: "",
 		},
 		{
-			name: "dynamicPriority - valid int interval",
+			name: "dynamic_priority - valid int interval",
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,

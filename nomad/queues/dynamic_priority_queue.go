@@ -84,6 +84,10 @@ type Workload struct {
 	eval     *structs.Evaluation
 	size     int
 	index    int
+
+	sizeAdjustment  int
+	ageAdjustment   int
+	usageAdjustment int
 }
 
 func (w *Workload) calculatePriority(_ int64) {
@@ -309,4 +313,28 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, eval *struc
 	}
 
 	return nil
+}
+
+func (d *DynamicPriorityQueue) Status() structs.QueueStatusResponse {
+	d.qMux.Lock()
+	defer d.qMux.Unlock()
+
+	var resp structs.QueueStatusResponse
+	resp.Type = structs.BatchQueueTypeDynamic
+
+	workloads := []structs.DynamicPriorityWorkload{}
+	for _, w := range d.queue {
+		workloads = append(workloads, structs.DynamicPriorityWorkload{
+			JobID:            w.eval.JobID,
+			Tenant:           string(w.tid),
+			AdjustedPriority: w.priority,
+			BasePriority:     w.eval.Priority,
+			UsageAjustment:   w.usageAdjustment,
+			AgeAdjustment:    w.ageAdjustment,
+			SizeAdjustment:   w.sizeAdjustment,
+		})
+	}
+	resp.Workloads = workloads
+
+	return resp
 }
