@@ -326,12 +326,12 @@ func (d *DynamicPriorityQueue) decayUsage(ts time.Time, state *state.StateSnapsh
 			if err != nil || eval == nil {
 				continue
 			}
-			decayedUsage := d.decayWorkloadUsage(ts, workload.requestedResources)
-			tenantTotalUsage = tenantTotalUsage.Add(decayedUsage)
-			totalUsage = totalUsage.Add(decayedUsage)
+			decayedResources := d.decayWorkloadUsage(ts, workload.requestedResources)
 
-			workload.requestedResources.resources = decayedUsage
+			tenantTotalUsage = tenantTotalUsage.Add(decayedResources.resources)
+			totalUsage = totalUsage.Add(decayedResources.resources)
 
+			workload.requestedResources = decayedResources
 			newWorkloadUsageByID[evalId] = workload
 		}
 
@@ -350,14 +350,17 @@ func decayMultiplier(ts, createdAt time.Time, halfLife time.Duration) float64 {
 // the time elapsed since (roughly) when the eval was placed, and the configured
 // half-life. It returns the decayed usage, and also updates the workload usage
 // in-place.
-func (d *DynamicPriorityQueue) decayWorkloadUsage(ts time.Time, usage *UsageList) *ResourceUsage {
+func (d *DynamicPriorityQueue) decayWorkloadUsage(ts time.Time, usage *UsageList) *UsageList {
 	multiplier := decayMultiplier(ts, usage.start, d.conf.HalfLife)
 
 	decayed := &ResourceUsage{}
 	decayed.AddCpu(usage.resources.CPU * multiplier)
 	decayed.AddMemory(usage.resources.Memory * multiplier)
 
-	return decayed
+	return &UsageList{
+		resources: decayed,
+		start:     ts,
+	}
 }
 
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
@@ -466,7 +469,7 @@ func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
 
 	if placed {
 		_, ok := tenant.placedWorkloadById[workload.id]
-		//
+		// If the workload has already been placed, don't count the usage again.
 		if ok {
 			return
 		}
