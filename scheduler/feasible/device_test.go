@@ -35,19 +35,6 @@ func deviceRequest(name string, count uint64,
 	}
 }
 
-// sharedDeviceRequest takes the name, count and potential constraints and affinities
-// and returns a device request.
-func sharedDeviceRequest(name string, count uint64,
-	constraints []*structs.Constraint, affinities []*structs.Affinity, firstAvailable []*structs.DeviceOption) *structs.RequestedDevice {
-	return &structs.RequestedDevice{
-		Name:           name,
-		Count:          count,
-		Constraints:    constraints,
-		Affinities:     affinities,
-		FirstAvailable: firstAvailable,
-	}
-}
-
 // devNode returns a node containing two devices, an nvidia gpu and an intel
 // FPGA.
 func devNode() *structs.Node {
@@ -946,18 +933,17 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 			count:        1,
 		},
 		{
-			name:         "if present, shareDevices must match device",
+			name:         "if shareDevices enabled, device must be sharable",
 			deviceName:   "nvidia/gpu",
 			deviceID:     SharedDeviceId0.ID,
-			shareDevices: &structs.ShareDevices{Enabled: false},
+			shareDevices: &structs.ShareDevices{Enabled: true},
 			count:        1,
-			expectedErr:  "no devices match request",
 		},
 		{
-			name:         "if present, gpu_id must match device",
+			name:         "if present, SharedDeviceID must match allocated device",
 			deviceName:   "nvidia/gpu",
 			deviceID:     SharedDeviceId0.ID,
-			shareDevices: &structs.ShareDevices{Enabled: false, SharedDeviceId: SharedDeviceId1.ID},
+			shareDevices: &structs.ShareDevices{Enabled: true, SharedDeviceId: SharedDeviceId1.ID},
 			count:        1,
 			expectedErr:  "no devices match request",
 		},
@@ -978,7 +964,12 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 					RTarget: tc.deviceID,
 				},
 			}
-			ask := sharedDeviceRequest(tc.deviceName, tc.count, testConstraints, nil, tc.shareDevices)
+			ask := &structs.RequestedDevice{
+				Name:         tc.deviceName,
+				Count:        tc.count,
+				Constraints:  testConstraints,
+				ShareDevices: tc.shareDevices,
+			}
 
 			out, _, _, err := d.createOffer(mem, ask)
 			if tc.expectedErr != "" {
@@ -996,6 +987,9 @@ func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
 
 			if tc.shareDevices != nil {
 				must.MapContainsKey(t, out.WillShare, out.DeviceIDs[0])
+				if tc.shareDevices.SharedDeviceId != "" {
+					must.SliceContains(t, out.DeviceIDs, tc.shareDevices.SharedDeviceId)
+				}
 			}
 
 		})
