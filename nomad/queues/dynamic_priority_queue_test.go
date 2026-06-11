@@ -391,6 +391,39 @@ func TestCalculatePriorities(t *testing.T) {
 			highUsageTenant:              mkTenant(TenantID("tenant-recent"), time.Unix(20, 0).UnixNano(), 60, 0),
 			expectedHigherPriorityTenant: TenantID("tenant-decayed"),
 			expectedTotalUsage:           &ResourceUsage{CPU: 110, Memory: 0},
+func TestDynamicPriorityQueue_sizeAdjustment(t *testing.T) {
+	testCases := []struct {
+		name     string
+		conf     *structs.DynamicQueueConfig
+		workload *Workload
+		exp      int
+	}{
+		{
+			name: "larger size results in 0 adjustment",
+			conf: &structs.DynamicQueueConfig{
+				SizeWeight: 10,
+				MaxSize:    1000,
+			},
+			workload: &Workload{size: 2000},
+			exp:      0,
+		},
+		{
+			name: "half size results in expected adjustment",
+			conf: &structs.DynamicQueueConfig{
+				SizeWeight: 10,
+				MaxSize:    1000,
+			},
+			workload: &Workload{size: 100},
+			exp:      9,
+		},
+		{
+			name: "negative weight results in negative adjustment",
+			conf: &structs.DynamicQueueConfig{
+				SizeWeight: -10,
+				MaxSize:    1000,
+			},
+			workload: &Workload{size: 100},
+			exp:      -9,
 		},
 	}
 
@@ -420,5 +453,69 @@ func TestCalculatePriorities(t *testing.T) {
 
 			must.Eq(t, queue.totalUsage, tc.expectedTotalUsage, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
 		})
+		testQueue := &DynamicPriorityQueue{
+			conf: tc.conf,
+		}
+		must.Eq(t, tc.exp, testQueue.sizeAdjustment(tc.workload), must.Sprint(tc.name))
+	}
+}
+
+func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
+	testCases := []struct {
+		name     string
+		conf     *structs.DynamicQueueConfig
+		workload *Workload
+		nowTime  int64
+		exp      int
+	}{
+		{
+			name: "createTime and now equal results in 0 age adjustment",
+			conf: &structs.DynamicQueueConfig{
+				AgeWeight: 10,
+				MaxAge:    time.Second * 10,
+			},
+			workload: &Workload{
+				eval: &structs.Evaluation{
+					CreateTime: 0,
+				},
+			},
+			nowTime: int64(0),
+			exp:     0,
+		},
+		{
+			name: "greater than max age results in max adjustment",
+			conf: &structs.DynamicQueueConfig{
+				AgeWeight: 10,
+				MaxAge:    time.Second * 10,
+			},
+			workload: &Workload{
+				eval: &structs.Evaluation{
+					CreateTime: 0,
+				},
+			},
+			nowTime: int64(30 * time.Second),
+			exp:     10,
+		},
+		{
+			name: "partial age results in expected adjustment",
+			conf: &structs.DynamicQueueConfig{
+				AgeWeight: 10,
+				MaxAge:    time.Second * 10,
+			},
+			workload: &Workload{
+				eval: &structs.Evaluation{
+					CreateTime: 0,
+				},
+			},
+			nowTime: int64(2 * time.Second),
+			exp:     2,
+		},
+	}
+
+	for _, tc := range testCases {
+		testQueue := &DynamicPriorityQueue{
+			conf: tc.conf,
+		}
+		must.Eq(t, tc.exp, testQueue.ageAdjustment(tc.workload, tc.nowTime), must.Sprint(tc.name))
 	}
 }

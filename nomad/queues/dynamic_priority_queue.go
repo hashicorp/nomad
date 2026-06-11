@@ -367,6 +367,37 @@ func (d *DynamicPriorityQueue) decayWorkloadUsage(ts int64, usage *UsageList) *U
 	}
 }
 
+func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload, now int64) {
+	w.priority = w.eval.Priority +
+		d.ageAdjustment(w, now) +
+		d.sizeAdjustment(w)
+}
+
+func (d *DynamicPriorityQueue) ageAdjustment(w *Workload, now int64) int {
+	if d.conf.AgeWeight == 0 {
+		return 0
+	}
+
+	create := time.Unix(0, w.eval.CreateTime)
+	elapsed := time.Unix(0, now).Sub(create)
+
+	age := float64(elapsed) / float64(d.conf.MaxAge)
+	ageClamped := min(1.0, max(0.0, age))
+
+	return int(ageClamped * float64(d.conf.AgeWeight))
+}
+
+func (d *DynamicPriorityQueue) sizeAdjustment(w *Workload) int {
+	if d.conf.SizeWeight == 0 {
+		return 0
+	}
+
+	size := w.size / float64(d.conf.MaxSize)
+	sizeClamped := min(1.0, max(0.0, size))
+
+	return int((1 - sizeClamped) * float64(d.conf.SizeWeight))
+}
+
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
 // have been marked terminal, indicating the workload has been scheduled.
 //
