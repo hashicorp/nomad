@@ -254,30 +254,30 @@ func TestPromSDTargetGroup_WireFormat(t *testing.T) {
 	require.NotContains(t, out, `"Labels"`)
 }
 
-func TestClientServiceDiscoveryRequest(t *testing.T) {
+func TestClientAllocPromSDRequest(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Wrong method is rejected.
-		req, err := http.NewRequest(http.MethodPost, "/v1/client/service_discovery", nil)
+		req, err := http.NewRequest(http.MethodPost, "/v1/client/allocations/prometheus-sd", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
-		_, err = s.Server.ClientServiceDiscoveryRequest(respW, req)
+		_, err = s.Server.ClientAllocPromSDRequest(respW, req)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), ErrInvalidMethod)
 
 		// node_id is rejected: this endpoint serves local state only.
-		req, err = http.NewRequest(http.MethodGet, "/v1/client/service_discovery?node_id=some-node", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd?node_id=some-node", nil)
 		require.NoError(t, err)
 		respW = httptest.NewRecorder()
-		_, err = s.Server.ClientServiceDiscoveryRequest(respW, req)
+		_, err = s.Server.ClientAllocPromSDRequest(respW, req)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "node_id is not supported")
 
 		// GET on a node with no allocations returns an empty list.
-		req, err = http.NewRequest(http.MethodGet, "/v1/client/service_discovery", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd", nil)
 		require.NoError(t, err)
 		respW = httptest.NewRecorder()
-		obj, err := s.Server.ClientServiceDiscoveryRequest(respW, req)
+		obj, err := s.Server.ClientAllocPromSDRequest(respW, req)
 		require.NoError(t, err)
 		groups, ok := obj.([]*PromSDTargetGroup)
 		require.True(t, ok)
@@ -285,13 +285,13 @@ func TestClientServiceDiscoveryRequest(t *testing.T) {
 	})
 }
 
-func TestClientServiceDiscoveryRequest_WireFormat(t *testing.T) {
+func TestClientAllocPromSDRequest_WireFormat(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		// Drive the full mux + wrap path so status code, content type,
 		// and the empty-body shape are asserted on the actual bytes
 		// Prometheus would receive.
-		req, err := http.NewRequest(http.MethodGet, "/v1/client/service_discovery", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
 		s.Server.mux.ServeHTTP(respW, req)
@@ -302,68 +302,68 @@ func TestClientServiceDiscoveryRequest_WireFormat(t *testing.T) {
 	})
 }
 
-func TestClientServiceDiscoveryRequest_NoClient(t *testing.T) {
+func TestClientAllocPromSDRequest_NoClient(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		c := s.client
 		s.client = nil
 		defer func() { s.client = c }()
 
-		req, err := http.NewRequest(http.MethodGet, "/v1/client/service_discovery", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd", nil)
 		require.NoError(t, err)
 		respW := httptest.NewRecorder()
-		_, err = s.Server.ClientServiceDiscoveryRequest(respW, req)
+		_, err = s.Server.ClientAllocPromSDRequest(respW, req)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "not running a Nomad Client")
 	})
 }
 
-func TestClientServiceDiscoveryRequest_ACL(t *testing.T) {
+func TestClientAllocPromSDRequest_ACL(t *testing.T) {
 	ci.Parallel(t)
 	httpACLTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 
 		// Without a token the request is denied.
 		{
-			req, err := http.NewRequest(http.MethodGet, "/v1/client/service_discovery", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd", nil)
 			require.NoError(t, err)
 			respW := httptest.NewRecorder()
-			_, err = s.Server.ClientServiceDiscoveryRequest(respW, req)
+			_, err = s.Server.ClientAllocPromSDRequest(respW, req)
 			require.Error(t, err)
 			require.Contains(t, err.Error(), structs.ErrPermissionDenied.Error())
 		}
 
 		// A token without node:read is denied.
 		{
-			req, err := http.NewRequest(http.MethodGet, "/v1/client/service_discovery", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd", nil)
 			require.NoError(t, err)
 			token := mock.CreatePolicyAndToken(t, state, 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 			setToken(req, token)
 			respW := httptest.NewRecorder()
-			_, err = s.Server.ClientServiceDiscoveryRequest(respW, req)
+			_, err = s.Server.ClientAllocPromSDRequest(respW, req)
 			require.Error(t, err)
 			require.Equal(t, structs.ErrPermissionDenied.Error(), err.Error())
 		}
 
 		// A token with node:read is allowed.
 		{
-			req, err := http.NewRequest(http.MethodGet, "/v1/client/service_discovery", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd", nil)
 			require.NoError(t, err)
 			token := mock.CreatePolicyAndToken(t, state, 1007, "valid", mock.NodePolicy(acl.PolicyRead))
 			setToken(req, token)
 			respW := httptest.NewRecorder()
-			obj, err := s.Server.ClientServiceDiscoveryRequest(respW, req)
+			obj, err := s.Server.ClientAllocPromSDRequest(respW, req)
 			require.NoError(t, err)
 			require.NotNil(t, obj)
 		}
 
 		// A management token is allowed.
 		{
-			req, err := http.NewRequest(http.MethodGet, "/v1/client/service_discovery", nil)
+			req, err := http.NewRequest(http.MethodGet, "/v1/client/allocations/prometheus-sd", nil)
 			require.NoError(t, err)
 			setToken(req, s.RootToken)
 			respW := httptest.NewRecorder()
-			obj, err := s.Server.ClientServiceDiscoveryRequest(respW, req)
+			obj, err := s.Server.ClientAllocPromSDRequest(respW, req)
 			require.NoError(t, err)
 			require.NotNil(t, obj)
 		}

@@ -34,7 +34,7 @@ type PromSDTargetGroup struct {
 	Labels  map[string]string `json:"labels"`
 }
 
-// ClientServiceDiscoveryRequest serves Prometheus HTTP SD target groups for
+// ClientAllocPromSDRequest serves Prometheus HTTP SD target groups for
 // the allocations running on the local client node. One target group is
 // emitted per allocated port of every running allocation, so scrapers can
 // select ports via the __meta_nomad_port_label label or the ?port= query
@@ -48,7 +48,7 @@ type PromSDTargetGroup struct {
 // This endpoint only serves local client state and is intended to be queried
 // directly on each client agent, fanning scrape-target discovery out to the
 // nodes instead of funneling it through the servers.
-func (s *HTTPServer) ClientServiceDiscoveryRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ClientAllocPromSDRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
