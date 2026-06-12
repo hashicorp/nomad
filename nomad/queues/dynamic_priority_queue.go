@@ -51,8 +51,6 @@ type DynamicPriorityQueue struct {
 	// totalUsage is the sum of all tenant usages
 	totalUsage *ResourceUsage
 
-	lastUpdated int64
-
 	tenantType structs.BatchQueueTenant
 
 	metadataKey string
@@ -290,7 +288,6 @@ func (d *DynamicPriorityQueue) calculatePriorities(ts int64) {
 	for _, workload := range d.queue {
 		d.setWorkloadPriority(workload)
 	}
-	d.lastUpdated = ts
 }
 
 // setWorkloadPriority calculates an individual workload's priority based on

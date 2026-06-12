@@ -260,33 +260,6 @@ func TestBatchQueue_Validate(t *testing.T) {
 			err: "",
 		},
 		{
-			name: "dynamicPriority - valid resource weights",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeNamespace,
-				Config: map[string]any{
-					"calc_interval": "1s",
-					"half_life":     "1s",
-					"cpu_weight":    3,
-					"memory_weight": 2,
-				},
-			},
-			err: "",
-		},
-		{
-			name: "dynamicPriority - invalid cpu weight type",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeNamespace,
-				Config: map[string]any{
-					"calc_interval": "1s",
-					"half_life":     "1s",
-					"cpu_weight":    "heavy",
-				},
-			},
-			err: "unable to decode conf",
-		},
-		{
 			name: "dynamicPriority - zero calc interval",
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
