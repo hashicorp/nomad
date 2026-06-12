@@ -216,6 +216,10 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeMetadata,
+				Config: map[string]any{
+					"calc_interval": "1s",
+					"half_life":     "1s",
+				},
 			},
 			err: "metadata key must be specified",
 		},
@@ -237,6 +241,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
 					"calc_interval": "1h",
+					"half_life":     "1h",
 				},
 			},
 			err: "",
@@ -248,9 +253,34 @@ func TestBatchQueue_Validate(t *testing.T) {
 				TenantType: TenantTypeNamespace,
 				Config: map[string]any{
 					"calc_interval": 1000,
+					"half_life":     "1h",
 				},
 			},
 			err: "",
+		},
+		{
+			name: "dynamicPriority - zero calc interval",
+			batchConfig: BatchQueue{
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
+				Config: map[string]any{
+					"calc_interval": 0,
+					"half_life":     "1s",
+				},
+			},
+			err: "calc_interval must be greater than zero",
+		},
+		{
+			name: "dynamicPriority - zero half life",
+			batchConfig: BatchQueue{
+				Type:       BatchQueueTypeDynamic,
+				TenantType: TenantTypeNamespace,
+				Config: map[string]any{
+					"calc_interval": "1s",
+					"half_life":     0,
+				},
+			},
+			err: "half_life must be greater than zero",
 		},
 	}
 

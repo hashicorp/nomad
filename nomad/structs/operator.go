@@ -373,6 +373,7 @@ const (
 
 	DynamicCalcInterval = "calc_interval"
 	DynamicMaxAge       = "max_age"
+	DynamicHalfLife     = "half_life"
 )
 
 type BatchQueue struct {
@@ -385,6 +386,7 @@ type BatchQueue struct {
 type DynamicQueueConfig struct {
 	CalcInterval time.Duration `mapstructure:"calc_interval"`
 	MaxAge       time.Duration `mapstructure:"max_age"`
+	HalfLife     time.Duration `mapstructure:"half_life"`
 	MaxSize      int           `mapstructure:"max_size"`
 	AgeWeight    int           `mapstructure:"age_weight"`
 	UsageWeight  int           `mapstructure:"usage_weight"`
@@ -419,9 +421,6 @@ func (b *BatchQueue) Validate() error {
 
 	switch b.Type {
 	case BatchQueueTypeDynamic:
-		if err := DecodeBatchQueueConf(b.Config, &DynamicQueueConfig{}); err != nil {
-			return err
-		}
 	default:
 		return fmt.Errorf("unsupported batch queue type: %q", b.Type)
 	}
@@ -434,6 +433,17 @@ func (b *BatchQueue) Validate() error {
 		}
 	default:
 		return fmt.Errorf("unsupported tenant type: %q", b.TenantType)
+	}
+
+	conf := DynamicQueueConfig{}
+	if err := DecodeBatchQueueConf(b.Config, &conf); err != nil {
+		return err
+	}
+	if conf.CalcInterval <= 0 {
+		return fmt.Errorf("%s must be greater than zero", DynamicCalcInterval)
+	}
+	if conf.HalfLife <= 0 {
+		return fmt.Errorf("%s must be greater than zero", DynamicHalfLife)
 	}
 
 	return nil
