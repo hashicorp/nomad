@@ -153,6 +153,9 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case w := <-d.enqueueCh:
+			// when first enqueuing, just use the eval create time so the age is 0
+			d.setWorkloadPriority(w, time.Now().UnixNano())
+
 			d.qMux.Lock()
 			d.setWorkloadPriority(w)
 			heap.Push(&d.queue, w)
