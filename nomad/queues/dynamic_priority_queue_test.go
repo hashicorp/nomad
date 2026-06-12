@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,8 +31,9 @@ func TestWaitForPlacement(t *testing.T) {
 
 		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
+		workload := &Workload{eval: testEval.Copy()}
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
+			err := testQueue.waitForPlacement(t.Context(), workload, ws)
 			doneCh <- err
 		}()
 
@@ -57,8 +60,9 @@ func TestWaitForPlacement(t *testing.T) {
 
 		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
+		workload := &Workload{eval: testEval.Copy()}
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
+			err := testQueue.waitForPlacement(t.Context(), workload, ws)
 			doneCh <- err
 		}()
 
@@ -103,8 +107,9 @@ func TestWaitForPlacement(t *testing.T) {
 
 		ws := memdb.NewWatchSet()
 		doneCh := make(chan error)
+		workload := &Workload{eval: testEval.Copy()}
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), testEval, ws)
+			err := testQueue.waitForPlacement(t.Context(), workload, ws)
 			doneCh <- err
 		}()
 
@@ -133,4 +138,287 @@ func TestWaitForPlacement(t *testing.T) {
 		done := <-doneCh
 		must.NoError(t, done)
 	})
+}
+
+func TestDecayUsage(t *testing.T) {
+	t.Run("decays usage by half after half-life", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		now := time.Unix(100, 0)
+		eval1 := mock.Eval()
+		eval2 := mock.Eval()
+		missingEvalID := uuid.Generate()
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{eval1, eval2})
+
+		testCases := []struct {
+			name                string
+			halfLife            time.Duration
+			tenants             []*Tenant
+			expectedTenantUsage map[TenantID]*ResourceUsage
+			expectedTotalUsage  *ResourceUsage
+		}{
+			{
+				name:     "single tenant with cpu and memory usage",
+				halfLife: 10 * time.Second,
+				tenants: []*Tenant{
+					{
+						tid: TenantID("tenant"),
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 20,
+							}}},
+						},
+					},
+				},
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
+					TenantID("tenant"): {
+						CPU:    50,
+						Memory: 10,
+					},
+				},
+				expectedTotalUsage: &ResourceUsage{
+					CPU:    50,
+					Memory: 10,
+				},
+			},
+			{
+				name:     "single tenants multiple workloads",
+				halfLife: 10 * time.Second,
+				tenants: []*Tenant{
+					{
+						tid: TenantID("tenant"),
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								CPU: 80,
+							}}},
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-5 * time.Second).UnixNano(), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 50,
+							}}},
+						},
+					},
+				},
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
+					TenantID("tenant"): {
+						CPU:    110.71067811865476,
+						Memory: 35.35533905932738,
+					},
+				},
+				expectedTotalUsage: &ResourceUsage{
+					CPU:    110.71067811865476,
+					Memory: 35.35533905932738,
+				},
+			},
+			{
+				name:     "multiple tenants",
+				halfLife: 10 * time.Second,
+				tenants: []*Tenant{
+					{
+						tid: TenantID("tenantA"),
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								Memory: 40,
+								CPU:    100,
+							}}},
+						},
+					},
+					{
+						tid: TenantID("tenantB"),
+						placedWorkloadById: map[string]*Workload{
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								Memory: 80,
+								CPU:    75,
+							}}},
+						},
+					},
+				},
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
+					TenantID("tenantA"): {
+						Memory: 20,
+						CPU:    50,
+					},
+					TenantID("tenantB"): {
+						Memory: 40,
+						CPU:    37.5,
+					},
+				},
+				expectedTotalUsage: &ResourceUsage{
+					Memory: 60,
+					CPU:    87.5,
+				},
+			},
+			{
+				name:     "multiple tenants multiple workloads",
+				halfLife: 10 * time.Second,
+				tenants: []*Tenant{
+					{
+						tid: TenantID("tenantA"),
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								Memory: 40,
+								CPU:    100,
+							}}},
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								Memory: 80,
+								CPU:    60,
+							}}},
+						},
+					},
+					{
+						tid: TenantID("tenantB"),
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								Memory: 80,
+								CPU:    75,
+							}}},
+							eval2.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								Memory: 100,
+								CPU:    50,
+							}}},
+						},
+					},
+				},
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
+					TenantID("tenantA"): {
+						Memory: 60,
+						CPU:    80,
+					},
+					TenantID("tenantB"): {
+						Memory: 90,
+						CPU:    62.5,
+					},
+				},
+				expectedTotalUsage: &ResourceUsage{
+					Memory: 150,
+					CPU:    142.5,
+				},
+			},
+			{
+				name:     "attempt to decay a GC'd workload",
+				halfLife: 10 * time.Second,
+				tenants: []*Tenant{
+					{
+						tid: TenantID("tenant"),
+						placedWorkloadById: map[string]*Workload{
+							missingEvalID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 20,
+							}}},
+						},
+					},
+					{
+						tid: TenantID("tenantB"),
+						placedWorkloadById: map[string]*Workload{
+							eval1.ID: {requestedResources: &UsageList{start: now.Add(-10 * time.Second).UnixNano(), resources: &ResourceUsage{
+								CPU:    100,
+								Memory: 20,
+							}}},
+						},
+					},
+				},
+				expectedTenantUsage: map[TenantID]*ResourceUsage{
+					TenantID("tenant"): {},
+					TenantID("tenantB"): {
+						CPU:    50,
+						Memory: 10,
+					},
+				},
+				expectedTotalUsage: &ResourceUsage{
+					CPU:    50,
+					Memory: 10,
+				},
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{
+					HalfLife: tc.halfLife,
+				}, hclog.New(hclog.DefaultOptions))
+
+				for _, tenant := range tc.tenants {
+					queue.tenants[tenant.tid] = tenant
+				}
+
+				snapshot, err := ss.Snapshot()
+				must.NoError(t, err)
+
+				queue.decayUsage(now.UnixNano(), snapshot)
+
+				for _, tenant := range tc.tenants {
+					must.Eq(t, tenant.totalUsage, tc.expectedTenantUsage[tenant.tid], must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
+				}
+				must.Eq(t, queue.totalUsage, tc.expectedTotalUsage, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
+			})
+		}
+	})
+}
+
+func TestCalculatePriorities(t *testing.T) {
+	eval1 := mock.Eval()
+	mkTenant := func(id TenantID, ts int64, cpu, memory float64) *Tenant {
+		return &Tenant{
+			tid: id,
+			placedWorkloadById: map[string]*Workload{
+				eval1.ID: {requestedResources: &UsageList{start: ts, resources: &ResourceUsage{CPU: cpu, Memory: memory}}},
+			},
+			totalUsage: &ResourceUsage{CPU: cpu, Memory: memory},
+		}
+	}
+	ss := state.TestStateStore(t)
+	ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{eval1})
+
+	testCases := []struct {
+		name                         string
+		conf                         *structs.DynamicQueueConfig
+		lowUsageTenant               *Tenant
+		highUsageTenant              *Tenant
+		expectedHigherPriorityTenant TenantID
+		expectedTotalUsage           *ResourceUsage
+	}{
+		{
+			name:                         "higher usage results in lower priority",
+			conf:                         &structs.DynamicQueueConfig{HalfLife: 10 * time.Second, UsageWeight: 10},
+			lowUsageTenant:               mkTenant(TenantID("tenant-low"), time.Unix(20, 0).UnixNano(), 0, 55),
+			highUsageTenant:              mkTenant(TenantID("tenant-high"), time.Unix(20, 0).UnixNano(), 100, 50),
+			expectedHigherPriorityTenant: TenantID("tenant-low"),
+			expectedTotalUsage:           &ResourceUsage{CPU: 100, Memory: 105},
+		},
+		{
+			name:                         "decays workloads before calculating priority",
+			conf:                         &structs.DynamicQueueConfig{HalfLife: 10 * time.Second, UsageWeight: 10},
+			lowUsageTenant:               mkTenant(TenantID("tenant-decayed"), time.Unix(10, 0).UnixNano(), 100, 0),
+			highUsageTenant:              mkTenant(TenantID("tenant-recent"), time.Unix(20, 0).UnixNano(), 60, 0),
+			expectedHigherPriorityTenant: TenantID("tenant-decayed"),
+			expectedTotalUsage:           &ResourceUsage{CPU: 110, Memory: 0},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			queue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, tc.conf, hclog.New(hclog.DefaultOptions))
+
+			queue.SetEnabled(true, ss)
+
+			lowUsageWorkload := &Workload{tid: tc.lowUsageTenant.tid, eval: &structs.Evaluation{Priority: 5}}
+			highUsageWorkload := &Workload{tid: tc.highUsageTenant.tid, eval: &structs.Evaluation{Priority: 5}}
+
+			queue.tenants[tc.lowUsageTenant.tid] = tc.lowUsageTenant
+			queue.tenants[tc.highUsageTenant.tid] = tc.highUsageTenant
+			queue.queue = WorkloadQueue{lowUsageWorkload, highUsageWorkload}
+
+			queue.calculatePriorities(time.Unix(20, 0).UnixNano())
+
+			switch tc.expectedHigherPriorityTenant {
+			case tc.lowUsageTenant.tid:
+				must.Greater(t, highUsageWorkload.priority, lowUsageWorkload.priority)
+			case tc.highUsageTenant.tid:
+				must.Greater(t, lowUsageWorkload.priority, highUsageWorkload.priority)
+			default:
+				t.Fatalf("test case has unknown expectedHigherPriorityTenant: %q", tc.expectedHigherPriorityTenant)
+			}
+
+			must.Eq(t, queue.totalUsage, tc.expectedTotalUsage, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
+		})
+	}
 }
