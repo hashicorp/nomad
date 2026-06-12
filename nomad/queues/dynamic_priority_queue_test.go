@@ -465,7 +465,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 		name     string
 		conf     *structs.DynamicQueueConfig
 		workload *Workload
-		nowTime  int64
+		nowTime  time.Time
 		exp      int
 	}{
 		{
@@ -476,10 +476,10 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 			},
 			workload: &Workload{
 				eval: &structs.Evaluation{
-					CreateTime: 0,
+					CreateTime: time.Time{}.UnixNano(),
 				},
 			},
-			nowTime: int64(0),
+			nowTime: time.Time{},
 			exp:     0,
 		},
 		{
@@ -490,24 +490,25 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 			},
 			workload: &Workload{
 				eval: &structs.Evaluation{
-					CreateTime: 0,
+					CreateTime: time.Time{}.UnixNano(),
 				},
 			},
-			nowTime: int64(30 * time.Second),
+			// nowTime: 30 * time.Second,
+			nowTime: time.Time{}.Add(30 * time.Second),
 			exp:     10,
 		},
 		{
-			name: "partial age results in expected adjustment",
+			name: "aging eval results in expected adjustment",
 			conf: &structs.DynamicQueueConfig{
 				AgeWeight: 10,
 				MaxAge:    time.Second * 10,
 			},
 			workload: &Workload{
 				eval: &structs.Evaluation{
-					CreateTime: 0,
+					CreateTime: time.Time{}.UnixNano(),
 				},
 			},
-			nowTime: int64(2 * time.Second),
+			nowTime: time.Time{}.Add(2 * time.Second),
 			exp:     2,
 		},
 	}

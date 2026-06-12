@@ -153,8 +153,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case w := <-d.enqueueCh:
-			// when first enqueuing, just use the eval create time so the age is 0
-			d.setWorkloadPriority(w, time.Now().UnixNano())
+			d.setWorkloadPriority(w, time.Now())
 
 			d.qMux.Lock()
 			d.setWorkloadPriority(w)
@@ -172,7 +171,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			}
 
 			d.qMux.Lock()
-			d.calculatePriorities(time.Now().UnixNano())
+			d.calculatePriorities(time.Now())
 			heap.Init(&d.queue)
 			d.qMux.Unlock()
 		}
@@ -282,6 +281,7 @@ func (d *DynamicPriorityQueue) calculatePriorities(ts int64) {
 		d.logger.Error("failed to take state snapshot", "error", err)
 		return
 	}
+func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
 	// Decay tenant workload usages first, because a workload's
 	// priority relies on its tenant's usage.
 	d.decayUsage(ts, state)
@@ -370,19 +370,18 @@ func (d *DynamicPriorityQueue) decayWorkloadUsage(ts int64, usage *UsageList) *U
 	}
 }
 
-func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload, now int64) {
+func (d *DynamicPriorityQueue) setWorkloadPriority(w *Workload, now time.Time) {
 	w.priority = w.eval.Priority +
 		d.ageAdjustment(w, now) +
 		d.sizeAdjustment(w)
 }
 
-func (d *DynamicPriorityQueue) ageAdjustment(w *Workload, now int64) int {
+func (d *DynamicPriorityQueue) ageAdjustment(w *Workload, now time.Time) int {
 	if d.conf.AgeWeight == 0 {
 		return 0
 	}
 
-	create := time.Unix(0, w.eval.CreateTime)
-	elapsed := time.Unix(0, now).Sub(create)
+	elapsed := now.UnixNano() - w.eval.CreateTime
 
 	age := float64(elapsed) / float64(d.conf.MaxAge)
 	ageClamped := min(1.0, max(0.0, age))
