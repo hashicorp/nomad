@@ -472,6 +472,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.Handle("/v1/client/metadata", wrapCORS(s.wrap(s.NodeMetaRequest)))
 	s.mux.Handle("/v1/client/identity", wrapCORS(s.wrap(s.NodeIdentityGetRequest)))
 	s.mux.Handle("/v1/client/identity/renew", wrapCORS(s.wrap(s.NodeIdentityRenewRequest)))
+	s.mux.Handle("/v1/client/service_discovery", wrapCORS(s.wrap(s.ClientServiceDiscoveryRequest)))
 
 	s.mux.HandleFunc("/v1/agent/self", s.wrap(s.AgentSelfRequest))
 	s.mux.HandleFunc("/v1/agent/join", s.wrap(s.AgentJoinRequest))
