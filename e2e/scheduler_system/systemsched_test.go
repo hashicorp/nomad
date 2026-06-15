@@ -30,28 +30,20 @@ func TestSystemScheduler(t *testing.T) {
 func testSystemJobAllNodePools(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/system_job_all_pools.nomad",
-		jobs3.DisableRandomJobID(),
 		jobs3.Timeout(60*time.Second),
 	)
 	t.Cleanup(cleanup)
 
-	deploymentsApi := job.DeploymentsApi()
-	deploymentsList, _, err := deploymentsApi.List(nil)
-	must.NoError(t, err)
-
-	var deployment *api.Deployment
-	for _, d := range deploymentsList {
-		if d.JobID == job.JobID() && d.Status == api.DeploymentStatusRunning {
-			deployment = d
-		}
-	}
-	must.NotNil(t, deployment)
+	// get deployment ID
+	evals := job.Evals()
+	must.Greater(t, 0, len(evals), must.Sprint("expected at least 1 eval for the job"))
+	deploymentID := evals[0].DeploymentID
 
 	// wait for the deployment to become healthy
 	timeout, cancel := context.WithTimeout(t.Context(), 60*time.Second)
 	defer cancel()
 
-	job.WaitForDeploymentFunc(timeout, deployment.ID, func(d *api.Deployment) bool {
+	job.WaitForDeploymentFunc(timeout, deploymentID, func(d *api.Deployment) bool {
 		return d.Status == api.DeploymentStatusSuccessful
 	})
 }
