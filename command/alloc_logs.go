@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/hashicorp/nomad/command/ui"
+	"github.com/hashicorp/nomad/v2/command/ui"
 	"github.com/posener/complete"
 )
 

@@ -6,7 +6,7 @@
 package structs
 
 import (
-	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib"
 )
 
 // Compatibility will translate the LegacyNodeCpuResources into NodeProcessor

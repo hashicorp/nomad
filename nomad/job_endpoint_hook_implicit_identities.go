@@ -4,7 +4,7 @@
 package nomad
 
 import (
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // jobImplicitIdentitiesHook adds implicit `identity` blocks for external

@@ -16,10 +16,10 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-netaddrs"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/helper/testlog"
+	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/shoenig/test/must"
 )
 

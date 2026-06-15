@@ -19,10 +19,10 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hashicorp/nomad/ci"
-	ctu "github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/ci"
+	ctu "github.com/hashicorp/nomad/v2/client/testutil"
+	"github.com/hashicorp/nomad/v2/helper/testlog"
+	"github.com/hashicorp/nomad/v2/testutil"
 )
 
 func testRemoteContainerImage() string {

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/plugins/drivers/utils"
-	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/plugins/drivers/utils"
+	pstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
 	mclient "github.com/moby/moby/client"
 )
 

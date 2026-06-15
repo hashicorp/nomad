@@ -13,8 +13,8 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/go-jose/go-jose/v3/jwt"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // MockWIDSigner allows TaskRunner unit tests to avoid having to setup a Server,

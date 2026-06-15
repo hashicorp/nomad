@@ -14,11 +14,11 @@ import (
 	"strings"
 
 	"github.com/golang/snappy"
-	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/jobspec2"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/acl"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/jobspec2"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // jobNotFoundErr is an error string which can be used as the return string

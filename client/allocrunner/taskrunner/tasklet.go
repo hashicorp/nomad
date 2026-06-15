@@ -10,7 +10,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
 
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/interfaces"
 )
 
 // contextExec allows canceling a interfaces.ScriptExecutor with a context.

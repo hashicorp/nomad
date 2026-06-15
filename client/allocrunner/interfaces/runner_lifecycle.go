@@ -4,8 +4,8 @@
 package interfaces
 
 import (
-	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/taskenv"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // RunnerHook is a lifecycle hook into the life cycle of an allocation runner.

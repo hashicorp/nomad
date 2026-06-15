@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/v3/cluster3"
-	"github.com/hashicorp/nomad/e2e/v3/jobs3"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/v3/cluster3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/jobs3"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )

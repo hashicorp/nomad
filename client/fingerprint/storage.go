@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 const bytesPerMegabyte = 1024 * 1024

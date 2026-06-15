@@ -11,13 +11,13 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/base"
-	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
-	"github.com/hashicorp/nomad/plugins/device"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/v2/helper/pluginutils/singleton"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/base"
+	bstructs "github.com/hashicorp/nomad/v2/plugins/base/structs"
+	"github.com/hashicorp/nomad/v2/plugins/device"
 )
 
 const (

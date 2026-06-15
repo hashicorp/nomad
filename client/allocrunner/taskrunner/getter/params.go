@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-getter"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/v2/helper"
 )
 
 // parameters is encoded by the Nomad client and decoded by the getter sub-process

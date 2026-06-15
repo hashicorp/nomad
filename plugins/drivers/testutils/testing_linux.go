@@ -6,7 +6,7 @@
 package testutils
 
 import (
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/v2/client/lib/cgroupslib"
 	"github.com/shoenig/test/must"
 )
 

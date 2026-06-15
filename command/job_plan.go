@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/scheduler"
+	"github.com/hashicorp/nomad/v2/scheduler"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
 )

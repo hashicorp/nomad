@@ -18,10 +18,10 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/lib/lang"
-	"github.com/hashicorp/nomad/nomad/stream"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/lib/lang"
+	"github.com/hashicorp/nomad/v2/nomad/stream"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // Txn is a transaction against a state store.

@@ -10,9 +10,9 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/lib/lang"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/lib/lang"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // Node attributes acquired via fingerprinting.

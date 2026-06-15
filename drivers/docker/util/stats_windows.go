@@ -6,8 +6,8 @@
 package util
 
 import (
-	"github.com/hashicorp/nomad/client/lib/cpustats"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/v2/client/lib/cpustats"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
 	containerapi "github.com/moby/moby/api/types/container"
 )
 

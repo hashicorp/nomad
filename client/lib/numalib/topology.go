@@ -12,9 +12,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/hashicorp/nomad/client/lib/cpustats"
-	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/v2/client/lib/cpustats"
+	"github.com/hashicorp/nomad/v2/client/lib/idset"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib/hw"
 )
 
 // CoreGrade describes whether a specific core is a performance or efficiency

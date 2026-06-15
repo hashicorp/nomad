@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	te "github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/errors"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 // NewDriverHandle returns a handle for task operations on a specific task

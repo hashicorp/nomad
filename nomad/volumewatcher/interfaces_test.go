@@ -6,9 +6,9 @@ package volumewatcher
 import (
 	"sync/atomic"
 
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/mock"
+	"github.com/hashicorp/nomad/v2/nomad/state"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // Create a client node with plugin info

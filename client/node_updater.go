@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/devicemanager"
-	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
-	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
-	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/devicemanager"
+	hvm "github.com/hashicorp/nomad/v2/client/hostvolumemanager"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/csimanager"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/drivermanager"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 var (

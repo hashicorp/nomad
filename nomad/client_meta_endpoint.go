@@ -8,8 +8,8 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/nomad/structs"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	nstructs "github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 type NodeMeta struct {

@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	flaghelper "github.com/hashicorp/nomad/helper/flags"
+	flaghelper "github.com/hashicorp/nomad/v2/helper/flags"
 	"github.com/posener/complete"
 )
 

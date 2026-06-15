@@ -17,9 +17,9 @@ import (
 	"github.com/go-jose/go-jose/v3"
 	"github.com/golang/protobuf/proto"
 	wrapping "github.com/hashicorp/go-kms-wrapping/v2"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/crypto"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/helper/crypto"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 )
 
 const (

@@ -17,8 +17,8 @@ import (
 
 	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 	"github.com/hashicorp/raft"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"

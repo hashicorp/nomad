@@ -5,7 +5,7 @@ package structs
 
 import (
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	"github.com/hashicorp/nomad/v2/plugins/shared/structs/proto"
 )
 
 func ConvertProtoAttribute(in *proto.Attribute) *Attribute {

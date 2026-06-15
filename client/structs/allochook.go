@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager/csimanager"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // AllocHookResources contains data that is provided by AllocRunner Hooks for

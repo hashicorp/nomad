@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/v2/nomad/structs/config"
 )
 
 // DrainConfig describes a Node's drain behavior on graceful shutdown.

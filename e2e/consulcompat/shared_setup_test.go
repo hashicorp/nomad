@@ -12,9 +12,9 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	consulTestUtil "github.com/hashicorp/consul/sdk/testutil"
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/helper/testlog"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/shoenig/test/must"
 )
 

@@ -7,7 +7,7 @@ package procstats
 
 import (
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/v2/client/lib/cgroupslib"
 )
 
 type Cgrouper interface {

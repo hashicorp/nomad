@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/client/lib/cpustats"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/drivers/docker/util"
-	"github.com/hashicorp/nomad/helper"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/lib/cpustats"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/drivers/docker/util"
+	"github.com/hashicorp/nomad/v2/helper"
+	nstructs "github.com/hashicorp/nomad/v2/nomad/structs"
 	containerapi "github.com/moby/moby/api/types/container"
 	mclient "github.com/moby/moby/client"
 )

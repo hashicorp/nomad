@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/allocdir"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )

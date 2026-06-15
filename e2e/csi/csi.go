@@ -16,10 +16,10 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	e2e "github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/framework"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/testutil"
+	e2e "github.com/hashicorp/nomad/v2/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/framework"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/testutil"
 )
 
 func init() {

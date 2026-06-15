@@ -23,12 +23,12 @@ import (
 	envparse "github.com/hashicorp/go-envparse"
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/nomad/structs"
-	structsc "github.com/hashicorp/nomad/nomad/structs/config"
+	te "github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/errors"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/client/config"
+	"github.com/hashicorp/nomad/v2/client/taskenv"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	structsc "github.com/hashicorp/nomad/v2/nomad/structs/config"
 )
 
 const (

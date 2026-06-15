@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec2"
+	"github.com/hashicorp/nomad/v2/jobspec2"
 	"github.com/posener/complete"
 )
 

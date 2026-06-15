@@ -8,7 +8,7 @@ package nomad
 import (
 	"errors"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // Validate ensures job does not contain any task making use of the

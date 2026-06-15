@@ -13,11 +13,11 @@ import (
 
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	"github.com/hashicorp/nomad/client/servers"
-	"github.com/hashicorp/nomad/helper"
-	inmem "github.com/hashicorp/nomad/helper/codec"
-	"github.com/hashicorp/nomad/helper/pool"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/servers"
+	"github.com/hashicorp/nomad/v2/helper"
+	inmem "github.com/hashicorp/nomad/v2/helper/codec"
+	"github.com/hashicorp/nomad/v2/helper/pool"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // rpcEndpoints holds the RPC endpoints

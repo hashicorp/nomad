@@ -10,8 +10,8 @@ import (
 	"runtime"
 
 	"github.com/hashicorp/cli"
-	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/version"
+	"github.com/hashicorp/nomad/v2/command/agent"
+	"github.com/hashicorp/nomad/v2/version"
 	colorable "github.com/mattn/go-colorable"
 )
 

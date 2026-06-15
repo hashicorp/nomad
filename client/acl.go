@@ -8,8 +8,8 @@ import (
 
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/acl"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 const (

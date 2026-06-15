@@ -6,7 +6,7 @@
 package rawexec
 
 import (
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 func (d *Driver) Validate(cfg drivers.TaskConfig) error {

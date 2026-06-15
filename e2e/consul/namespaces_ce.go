@@ -16,8 +16,8 @@ import (
 	"sort"
 
 	capi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/e2e/framework"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/framework"
 	"github.com/stretchr/testify/require"
 )
 

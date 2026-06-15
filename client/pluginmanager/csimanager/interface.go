@@ -7,9 +7,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/nomad/client/pluginmanager"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/csi"
+	"github.com/hashicorp/nomad/v2/client/pluginmanager"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/csi"
 )
 
 type MountInfo struct {

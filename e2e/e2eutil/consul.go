@@ -9,7 +9,7 @@ import (
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/v2/testutil"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"

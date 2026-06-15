@@ -6,7 +6,7 @@ package uuid
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/helper/crypto"
+	"github.com/hashicorp/nomad/v2/helper/crypto"
 )
 
 // Generate is used to generate a random UUID.

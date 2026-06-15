@@ -10,7 +10,7 @@ import (
 	"unicode"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // fixTime converts any suspected time.Time binary string representation to time.Time

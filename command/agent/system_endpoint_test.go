@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/v2/ci"
 )
 
 func TestHTTP_SystemGarbageCollect(t *testing.T) {

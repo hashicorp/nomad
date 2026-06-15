@@ -8,7 +8,7 @@ import (
 	"maps"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // Handler is the interface the Nomad Client uses to register, update and

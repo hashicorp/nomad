@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/v2/helper"
 )
 
 var chanEvents = make(chan Event)

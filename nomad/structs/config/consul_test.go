@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/v2/ci"
 )
 
 func TestMain(m *testing.M) {

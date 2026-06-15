@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // BlockedStats returns all the stats about the blocked eval tracker.

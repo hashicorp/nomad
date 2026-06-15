@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/hashicorp/nomad/scheduler/tests"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
+	"github.com/hashicorp/nomad/v2/nomad/mock"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	psstructs "github.com/hashicorp/nomad/v2/plugins/shared/structs"
+	"github.com/hashicorp/nomad/v2/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
 

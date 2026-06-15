@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )

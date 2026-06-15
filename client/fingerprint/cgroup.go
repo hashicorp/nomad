@@ -5,7 +5,7 @@ package fingerprint
 
 import (
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/v2/client/lib/cgroupslib"
 )
 
 type CgroupFingerprint struct {

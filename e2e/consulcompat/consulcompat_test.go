@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/v2/client/testutil"
 )
 
 const (

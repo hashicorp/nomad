@@ -3,7 +3,7 @@
 
 package state
 
-import "github.com/hashicorp/nomad/client/dynamicplugins"
+import "github.com/hashicorp/nomad/v2/client/dynamicplugins"
 
 // RegistryState12 is the dynamic plugin registry state persisted
 // before 1.3.0.

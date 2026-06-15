@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/cli"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/command/asset"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/command/asset"
 	"github.com/shoenig/test/must"
 )
 

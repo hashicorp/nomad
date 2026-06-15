@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/v2/e2e/e2eutil"
 	"github.com/shoenig/test/must"
 )
 

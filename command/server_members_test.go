@@ -11,8 +11,8 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/command/agent"
 	"github.com/shoenig/test/must"
 )
 

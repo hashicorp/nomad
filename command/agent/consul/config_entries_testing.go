@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/lib/lang"
+	"github.com/hashicorp/nomad/v2/lib/lang"
 )
 
 var _ ConfigAPI = (*MockConfigsAPI)(nil)

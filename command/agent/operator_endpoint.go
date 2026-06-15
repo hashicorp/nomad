@@ -17,8 +17,8 @@ import (
 	"github.com/hashicorp/raft"
 
 	"github.com/hashicorp/nomad/api"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // OperatorRequest is used route operator/raft API requests to the implementing

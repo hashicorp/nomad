@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/go-iptables/iptables"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 const (

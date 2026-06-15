@@ -5,7 +5,7 @@
 
 package state
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import "github.com/hashicorp/nomad/v2/nomad/structs"
 
 func (s *StateStore) EnforceHostVolumeQuota(_ *structs.HostVolume, _ *structs.HostVolume) error {
 	return nil

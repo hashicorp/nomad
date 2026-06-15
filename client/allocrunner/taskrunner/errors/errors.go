@@ -6,7 +6,7 @@ package errors
 import (
 	"errors"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // ErrTaskNotRunning is returned when the underlying task is not currently

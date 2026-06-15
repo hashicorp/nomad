@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )

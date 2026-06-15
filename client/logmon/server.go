@@ -7,7 +7,7 @@ import (
 	"context"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/nomad/client/logmon/proto"
+	"github.com/hashicorp/nomad/v2/client/logmon/proto"
 )
 
 type logmonServer struct {

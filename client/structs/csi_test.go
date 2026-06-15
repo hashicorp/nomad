@@ -8,7 +8,7 @@ import (
 
 	"github.com/shoenig/test/must"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 func TestClientCSINodeExpandVolumeRequest_Validate(t *testing.T) {

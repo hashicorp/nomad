@@ -12,13 +12,13 @@ import (
 	"github.com/hashicorp/consul-template/signals"
 	log "github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/nomad/client/allocdir"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
-	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/client/widmgr"
-	"github.com/hashicorp/nomad/helper/users"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/allocdir"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/interfaces"
+	ti "github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/client/taskenv"
+	"github.com/hashicorp/nomad/v2/client/widmgr"
+	"github.com/hashicorp/nomad/v2/helper/users"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // identityHook sets the task runner's Nomad workload identity token

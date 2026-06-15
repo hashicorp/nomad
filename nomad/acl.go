@@ -4,8 +4,8 @@
 package nomad
 
 import (
-	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/acl"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 func (s *Server) Authenticate(ctx *RPCContext, args structs.RequestWithIdentity) error {

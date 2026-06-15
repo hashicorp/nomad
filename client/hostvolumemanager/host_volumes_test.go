@@ -15,10 +15,10 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-version"
-	cstate "github.com/hashicorp/nomad/client/state"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad/structs"
+	cstate "github.com/hashicorp/nomad/v2/client/state"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/helper/testlog"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )

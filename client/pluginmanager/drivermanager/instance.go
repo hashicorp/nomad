@@ -10,13 +10,13 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/base"
-	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/helper/pluginutils/loader"
+	"github.com/hashicorp/nomad/v2/helper/pluginutils/singleton"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
+	"github.com/hashicorp/nomad/v2/plugins/base"
+	bstructs "github.com/hashicorp/nomad/v2/plugins/base/structs"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 const (
