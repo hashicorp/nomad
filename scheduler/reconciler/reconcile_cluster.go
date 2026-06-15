@@ -1140,9 +1140,9 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 		return
 	}
 
-	// Filter out any terminal allocations from the untainted set
+	// Filter out any server-terminal allocations from the untainted set
 	// This is so that we don't try to mark them as stopped redundantly
-	working = working.filterByTerminal()
+	working = working.filterByServerTerminal()
 
 	// Prefer stopping any alloc that has the same name as the canaries if we
 	// are promoted
