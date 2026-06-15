@@ -5,6 +5,7 @@ package devices
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -17,6 +18,10 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+const (
+	envGate = "NOMAD_E2E_DEVICES"
+)
+
 // TestDeviceScheduling runs end-to-end tests for traditional device scheduling
 // (count, constraint, affinity without first_available). These tests require:
 // - A Nomad cluster with at least one Linux client
@@ -25,6 +30,11 @@ import (
 //
 // See plugins/device/cmd/example/README.md for setup instructions.
 func TestDeviceScheduling(t *testing.T) {
+	// This test is gated behind an environment variable so it does not run when
+	// the e2e suite is triggered by CI.
+	if os.Getenv(envGate) != "1" {
+		t.Skip(envGate + " is not set; skipping")
+	}
 	cluster3.Establish(t,
 		cluster3.Leader(),
 		cluster3.LinuxClients(1),
