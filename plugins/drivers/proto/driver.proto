@@ -67,6 +67,11 @@ service Driver {
       // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
       DriverTaskEvent) {}
 
+    // Shutdown notifies the driver of an impending shutdown allowing
+    // it to prepare to exit. A best effort is made but there is no
+    // guarantee that this will be called before a driver is terminated.
+    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {}
+  
     // The following RPCs are only implemented if the driver sets the
     // corresponding capability.
 
@@ -789,3 +794,7 @@ message DriverTaskEvent {
     // Annotations allows for additional key/value data to be sent along with the event
     map<string,string> annotations = 6;
 }
+
+message ShutdownRequest {}
+
+message ShutdownResponse {}
