@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: Added the issuing Nomad client's node ID to the metadata of Consul tokens created via workload identity
+```
