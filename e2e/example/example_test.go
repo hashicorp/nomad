@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/e2e/v3/cluster3"
-	"github.com/hashicorp/nomad/e2e/v3/jobs3"
-	"github.com/hashicorp/nomad/e2e/v3/namespaces3"
-	"github.com/hashicorp/nomad/e2e/v3/util3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/cluster3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/jobs3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/namespaces3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/util3"
 	"github.com/shoenig/test/must"
 )
 

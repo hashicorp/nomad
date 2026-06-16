@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/ipaddr"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/helper/ipaddr"
 )
 
 const (

@@ -6,7 +6,7 @@ package nomad
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/peers"
+	"github.com/hashicorp/nomad/v2/nomad/peers"
 	"github.com/hashicorp/serf/serf"
 )
 

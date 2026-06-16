@@ -10,9 +10,9 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/client/lib/cpustats"
-	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/client/lib/cpustats"
+	"github.com/hashicorp/nomad/v2/drivers/shared/executor/procstats"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 )
 
 func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Executor {

@@ -9,7 +9,7 @@ package nomad
 import (
 	"fmt"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 func getProviderConfigs(srv *Server) (map[string]*structs.KEKProviderConfig, error) {

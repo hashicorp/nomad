@@ -14,7 +14,7 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/escapingio"
+	"github.com/hashicorp/nomad/v2/helper/escapingio"
 	"github.com/posener/complete"
 )
 

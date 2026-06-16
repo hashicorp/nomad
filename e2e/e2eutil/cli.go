@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/nomad/e2e/v3/util3"
+	"github.com/hashicorp/nomad/v2/e2e/v3/util3"
 
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"

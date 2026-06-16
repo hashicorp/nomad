@@ -15,9 +15,9 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/e2e/execagent"
-	"github.com/hashicorp/nomad/helper/discover"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/e2e/execagent"
+	"github.com/hashicorp/nomad/v2/helper/discover"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )

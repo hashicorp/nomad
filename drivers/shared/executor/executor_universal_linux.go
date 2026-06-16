@@ -13,10 +13,10 @@ import (
 	"syscall"
 
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/client/lib/cgroupslib"
-	"github.com/hashicorp/nomad/client/lib/nsutil"
-	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/v2/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/v2/client/lib/nsutil"
+	"github.com/hashicorp/nomad/v2/drivers/shared/executor/procstats"
+	"github.com/hashicorp/nomad/v2/plugins/drivers"
 	"github.com/opencontainers/cgroups"
 	"golang.org/x/sys/unix"
 )

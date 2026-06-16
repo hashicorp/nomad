@@ -25,7 +25,7 @@ rules:
             import ...
             ...
       - pattern: |
-          "github.com/hashicorp/nomad/$...B"
+          "github.com/hashicorp/nomad/v2/$...B"
       - metavariable-pattern:
           metavariable: $...B
           patterns:

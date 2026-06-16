@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/v2/client/lib/numalib"
 )
 
 const (

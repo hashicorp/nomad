@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
-	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/nomad/structs"
+	sframer "github.com/hashicorp/nomad/v2/client/lib/streamframer"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 

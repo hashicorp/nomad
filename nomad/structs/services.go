@@ -23,9 +23,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/args"
-	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/v2/helper"
+	"github.com/hashicorp/nomad/v2/helper/args"
+	"github.com/hashicorp/nomad/v2/helper/pointer"
 	"github.com/mitchellh/copystructure"
 )
 

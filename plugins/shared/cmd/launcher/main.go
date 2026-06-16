@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/cli"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/plugins/shared/cmd/launcher/command"
+	"github.com/hashicorp/nomad/v2/plugins/shared/cmd/launcher/command"
 )
 
 const (

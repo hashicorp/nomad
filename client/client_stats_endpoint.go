@@ -7,8 +7,8 @@ import (
 	"time"
 
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/client/structs"
-	nstructs "github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/structs"
+	nstructs "github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // ClientStats endpoint is used for retrieving stats about a client

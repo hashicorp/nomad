@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/v2/helper/users"
 )
 
 // configure new process group for child process

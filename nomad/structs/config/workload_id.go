@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/v2/helper/pointer"
 )
 
 // WorkloadIdentityConfig is the agent configuration block used to define

@@ -13,7 +13,7 @@ import (
 	"text/template"
 
 	"github.com/hashicorp/cli"
-	"github.com/hashicorp/nomad/helper/winsvc"
+	"github.com/hashicorp/nomad/v2/helper/winsvc"
 	"github.com/shoenig/test/must"
 )
 

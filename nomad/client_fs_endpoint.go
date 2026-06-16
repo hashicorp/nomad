@@ -13,11 +13,11 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
-	cstructs "github.com/hashicorp/nomad/client/structs"
+	cstructs "github.com/hashicorp/nomad/v2/client/structs"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
-	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/acl"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // FileSystem endpoint is used for accessing the logs and filesystem of

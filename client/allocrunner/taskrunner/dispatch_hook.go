@@ -10,8 +10,8 @@ import (
 
 	"github.com/golang/snappy"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // dispatchHook writes a dispatch payload to the task dir

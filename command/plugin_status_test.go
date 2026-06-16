@@ -8,8 +8,8 @@ import (
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/v2/ci"
+	"github.com/hashicorp/nomad/v2/nomad/state"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
 )

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/nomad/lib/lang"
+	"github.com/hashicorp/nomad/v2/lib/lang"
 	"oss.indeed.com/go/libtime"
 )
 

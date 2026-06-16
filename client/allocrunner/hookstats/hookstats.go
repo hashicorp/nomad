@@ -7,7 +7,7 @@ import (
 	"time"
 
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/v2/client/allocrunner/interfaces"
 )
 
 // Handler implements interfaces.HookStatsHandler and is used when the operator

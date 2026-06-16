@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/go-connections/nat"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/v2/helper/pluginutils/hclutils"
 )
 
 // publishedPorts is a utility struct to keep track of the port bindings to publish.

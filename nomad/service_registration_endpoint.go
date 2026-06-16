@@ -16,11 +16,11 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 
-	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/nomad/auth"
-	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/state/paginator"
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/acl"
+	"github.com/hashicorp/nomad/v2/nomad/auth"
+	"github.com/hashicorp/nomad/v2/nomad/state"
+	"github.com/hashicorp/nomad/v2/nomad/state/paginator"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 // ServiceRegistration encapsulates the service registrations RPC endpoint

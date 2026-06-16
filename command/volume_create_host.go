@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/v2/helper"
 	"github.com/mitchellh/go-glint"
 	"github.com/mitchellh/go-glint/components"
 )

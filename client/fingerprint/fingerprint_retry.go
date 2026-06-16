@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/v2/client/config"
 )
 
 // RetryWrapper is a fingerprinter wrapper that adds retry logic to an existing

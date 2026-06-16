@@ -8,7 +8,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/v2/helper/uuid"
 )
 
 const (

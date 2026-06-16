@@ -15,8 +15,8 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
-	"github.com/hashicorp/nomad/helper/useragent"
-	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/v2/helper/useragent"
+	"github.com/hashicorp/nomad/v2/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 )
 

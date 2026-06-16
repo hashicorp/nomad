@@ -187,13 +187,12 @@ check: ## Lint the source code
 	@echo "==> Check jobspec2 package is isolated from Nomad core..."
 	@cd ./jobspec2 && \
 		if go list --test -f '{{ join .Deps "\n" }}' . | \
-		grep github.com/hashicorp/nomad/ | \
-		grep -v -e /nomad/jobspec2/ -e nomad/jobspec2.test | \
-		grep -v -e /nomad/api ; then echo \
+		grep github.com/hashicorp/nomad/v2 | \
+		grep -v -e /nomad/v2/jobspec2/ -e nomad/v2/jobspec2.test ; then echo \
 		"  /jobspec2 package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 	@echo "==> Check command package does not import structs..."
-	@cd ./command && if go list -f '{{ join .Imports "\n" }}' . | grep github.com/hashicorp/nomad/nomad/structs; then echo "  /command package imports the structs pkg. Remove such import"; exit 1; fi
+	@cd ./command && if go list -f '{{ join .Imports "\n" }}' . | grep github.com/hashicorp/nomad/v2/nomad/structs; then echo "  /command package imports the structs pkg. Remove such import"; exit 1; fi
 
 	@echo "==> Checking Go mod..."
 	@GO111MODULE=on $(MAKE) tidy
@@ -358,7 +357,7 @@ e2e-test: dev ## Run the Nomad e2e test suite
 		$(if $(ENABLE_RACE),-race) $(if $(VERBOSE),-v) \
 		-timeout=900s \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e
+		github.com/hashicorp/nomad/v2/e2e
 
 .PHONY: integration-test
 integration-test: dev ## Run Nomad integration tests
@@ -369,7 +368,7 @@ integration-test: dev ## Run Nomad integration tests
 		-timeout=900s \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/vaultcompat
+		github.com/hashicorp/nomad/v2/e2e/vaultcompat
 
 .PHONY: integration-test-consul
 integration-test-consul: dev ## Run Nomad integration tests
@@ -380,7 +379,7 @@ integration-test-consul: dev ## Run Nomad integration tests
 		-timeout=900s \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/consulcompat
+		github.com/hashicorp/nomad/v2/e2e/consulcompat
 
 .PHONY: integration-test-client-intro
 integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
@@ -391,7 +390,7 @@ integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
 		-timeout=120s \
 		-count=1 \
 		-tags "$(GO_TAGS)" \
-		github.com/hashicorp/nomad/e2e/client_intro
+		github.com/hashicorp/nomad/v2/e2e/client_intro
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)

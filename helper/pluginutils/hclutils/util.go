@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hcldec"
 	hjson "github.com/hashicorp/hcl/v2/json"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"

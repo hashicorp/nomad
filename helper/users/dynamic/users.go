@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/v2/helper/users"
 )
 
 const (

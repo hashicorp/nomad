@@ -83,15 +83,15 @@ jobs:
           export PATH=/c/go/bin:/c/gopath/bin:$PATH
           gotestsum --format=short-verbose \
             --junitfile results.xml \
-            github.com/hashicorp/nomad/drivers/docker \
-            github.com/hashicorp/nomad/drivers/rawexec \
-            github.com/hashicorp/nomad/drivers/shared/executor \
-            github.com/hashicorp/nomad/client/lib/fifo \
-            github.com/hashicorp/nomad/client/logmon \
-            github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
-            github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter \
-            github.com/hashicorp/nomad/client/allocdir \
-            github.com/hashicorp/nomad/plugins/base
+            github.com/hashicorp/nomad/v2/drivers/docker \
+            github.com/hashicorp/nomad/v2/drivers/rawexec \
+            github.com/hashicorp/nomad/v2/drivers/shared/executor \
+            github.com/hashicorp/nomad/v2/client/lib/fifo \
+            github.com/hashicorp/nomad/v2/client/logmon \
+            github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/template \
+            github.com/hashicorp/nomad/v2/client/allocrunner/taskrunner/getter \
+            github.com/hashicorp/nomad/v2/client/allocdir \
+            github.com/hashicorp/nomad/v2/plugins/base
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: results.xml

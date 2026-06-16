@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
 
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/v2/nomad/structs"
 )
 
 var (
