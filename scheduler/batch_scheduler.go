@@ -4,15 +4,13 @@
 package scheduler
 
 import (
-	"context"
-
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 type DependencyChecker interface {
-	AddDependency(ctx context.Context, state sstructs.State, eval *structs.Evaluation) error
+	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) (bool, error)
 }
 
 type BatchScheduler struct {
@@ -43,10 +41,15 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sst
 }
 
 func (bs *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
-	if len(job.Dependencies) > 0 {
-		if err := bs.dependencyChecker.AddDependency(context.Background(), bs.state, bs.eval); err != nil {
-			return []*structs.Node{}, nil, err
-		}
+
+	ready, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
+	if err != nil {
+		return []*structs.Node{}, nil, err
+	}
+
+	if !ready {
+		_, _, byDC, err := readyNodesInDCsAndPool(bs.state, job.Datacenters, job.NodePool)
+		return []*structs.Node{}, byDC, err
 	}
 
 	return bs.GenericScheduler.setNodes(job)
