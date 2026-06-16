@@ -1,20 +1,26 @@
-package depgraph
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package loop_detection
 
 import (
 	"errors"
 	"testing"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 // Test case diagram:
 // jobA --> jobB
-//   |
-//   +----> jobC
+//
+//	|
+//	+----> jobC
 //
 // Expected:
 // - Add succeeds
 // - No cycle error
 func TestAddNodesNoCycle(t *testing.T) {
-	g := New()
+	g := New(hclog.NewNullLogger())
 
 	if err := g.AddNodes("jobA", "jobB", "jobC"); err != nil {
 		t.Fatalf("unexpected error adding non-cyclic deps: %v", err)
@@ -23,8 +29,9 @@ func TestAddNodesNoCycle(t *testing.T) {
 
 // Test case diagram:
 // jobA --> jobB --> jobC
-//   ^                |
-//   +----------------+
+//
+//	^                |
+//	+----------------+
 //
 // Operation:
 // - add edge jobC -> jobA
@@ -32,7 +39,7 @@ func TestAddNodesNoCycle(t *testing.T) {
 // Expected:
 // - cycle detected (error)
 func TestAddNodesDetectsCycle(t *testing.T) {
-	g := New()
+	g := New(hclog.NewNullLogger())
 
 	if err := g.AddNodes("jobA", "jobB"); err != nil {
 		t.Fatalf("setup failed: %v", err)
@@ -57,7 +64,7 @@ func TestAddNodesDetectsCycle(t *testing.T) {
 // - blocked, because jobA depends on jobB
 // - returns ErrNodeIsDependency
 func TestRemoveNodeBlockedIfDependedUpon(t *testing.T) {
-	g := New()
+	g := New(hclog.NewNullLogger())
 
 	if err := g.AddNodes("jobA", "jobB"); err != nil {
 		t.Fatalf("setup failed: %v", err)
@@ -79,7 +86,7 @@ func TestRemoveNodeBlockedIfDependedUpon(t *testing.T) {
 // - jobA removed
 // - jobB and jobC pruned as orphans (no other dependents)
 func TestRemoveNodePrunesOrphanChain(t *testing.T) {
-	g := New()
+	g := New(hclog.NewNullLogger())
 
 	if err := g.AddNodes("jobA", "jobB"); err != nil {
 		t.Fatalf("setup failed: %v", err)
@@ -102,13 +109,14 @@ func TestRemoveNodePrunesOrphanChain(t *testing.T) {
 
 // Test case diagram:
 // jobX --> jobY
-//   \\----> jobY (duplicate edge in same call)
+//
+//	\\----> jobY (duplicate edge in same call)
 //
 // Expected:
 // - add succeeds
 // - duplicate dependency ignored (no error)
 func TestAddNodesDuplicateDependenciesIgnored(t *testing.T) {
-	g := New()
+	g := New(hclog.NewNullLogger())
 
 	if err := g.AddNodes("jobX", "jobY", "jobY"); err != nil {
 		t.Fatalf("unexpected error for duplicate dependency: %v", err)
@@ -121,7 +129,7 @@ func TestAddNodesDuplicateDependenciesIgnored(t *testing.T) {
 // Expected:
 // - returns ErrSelfDependency
 func TestAddNodesSelfDependencyRejected(t *testing.T) {
-	g := New()
+	g := New(hclog.NewNullLogger())
 
 	err := g.AddNodes("jobZ", "jobZ")
 	if !errors.Is(err, ErrSelfDependency) {
