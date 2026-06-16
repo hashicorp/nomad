@@ -409,7 +409,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Create the dependency Coordinator
 	depCoordinator := dependency.NewCoordinator(s.logger,
-		loop_detection.NewDetector(s.logger), s.blockedEvals)
+		loop_detection.New(s.logger), s.blockedEvals)
 	s.dependencyCoordinator = depCoordinator
 
 	// Create the RPC handler

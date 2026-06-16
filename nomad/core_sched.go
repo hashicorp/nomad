@@ -42,7 +42,7 @@ type CoreScheduler struct {
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
-func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.Planner) sstructs.Scheduler {
+func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.Planner, _ ...sstructs.SchedulerOption) sstructs.Scheduler {
 	s := &CoreScheduler{
 		srv:                      srv,
 		snap:                     snap,

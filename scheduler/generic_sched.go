@@ -487,9 +487,9 @@ func (s *GenericScheduler) computePlacements(
 		return err
 	}
 
-	if len(nodes) == 0 {
+	/* 	if len(nodes) == 0 {
 		return fmt.Errorf("no nodes available/pending dependencies to place on")
-	}
+	} */
 
 	var deploymentID string
 	if s.deployment != nil && s.deployment.Active() {
