@@ -14,7 +14,9 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	dtu "github.com/hashicorp/nomad/plugins/drivers/testutils"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -123,4 +125,88 @@ func TestInstanceManager_dispense(t *testing.T) {
 	cat.AssertNumberOfCalls(t, "Reattach", 1)
 	require.Same(plug, plug2)
 
+}
+
+func TestInstanceManager_cleanup(t *testing.T) {
+	mkInstance := func(t *testing.T, impl drivers.DriverPlugin) *instanceManager {
+		ctx, cancel := context.WithCancel(t.Context())
+		d := dtu.NewTestGRPCDriver(t, impl)
+		instance, err := d.Client.Dispense(base.PluginTypeDriver)
+		must.NoError(t, err)
+		pluginInst := loader.MockBasicExternalPlugin(instance, "")
+		i := &instanceManager{
+			logger:        testlog.HCLogger(t),
+			ctx:           ctx,
+			cancel:        cancel,
+			storeReattach: func(*plugin.ReattachConfig) error { return nil },
+			plugin:        pluginInst,
+		}
+
+		return i
+	}
+
+	t.Run("nil", func(t *testing.T) {
+		instance := mkInstance(t, nil)
+		must.NotPanic(t, instance.cleanup)
+		must.NotNil(t, instance.ctx.Err(), must.Sprint("context should be canceled"))
+	})
+
+	t.Run("no shutdown", func(t *testing.T) {
+		var reattachCalled bool
+		m := &dtu.MockDriver{}
+		instance := mkInstance(t, m)
+		instance.storeReattach = func(*plugin.ReattachConfig) error {
+			reattachCalled = true
+			return nil
+		}
+		instance.cleanup()
+
+		must.True(t, instance.plugin.Exited(), must.Sprint("plugin should have exited"))
+		must.True(t, reattachCalled, must.Sprint("storeReattach was expected"))
+		must.NotNil(t, instance.ctx.Err(), must.Sprint("context should be canceled"))
+	})
+
+	t.Run("with shutdown", func(t *testing.T) {
+		var reattachCalled bool
+		var shutdownCalled bool
+		m := &dtu.MockDriverShutdown{
+			ShutdownF: func(context.Context) error {
+				shutdownCalled = true
+				return nil
+			},
+		}
+		instance := mkInstance(t, m)
+		instance.storeReattach = func(*plugin.ReattachConfig) error {
+			reattachCalled = true
+			return nil
+		}
+		instance.cleanup()
+
+		must.True(t, shutdownCalled, must.Sprint("shutdown was not called"))
+		must.True(t, reattachCalled, must.Sprint("storeReattach was expected"))
+		must.NotNil(t, instance.ctx.Err(), must.Sprint("context should be canceled"))
+	})
+
+	t.Run("already exited", func(t *testing.T) {
+		var reattachCalled bool
+		var shutdownCalled bool
+		m := &dtu.MockDriverShutdown{
+			ShutdownF: func(context.Context) error {
+				shutdownCalled = true
+				return nil
+			},
+		}
+		instance := mkInstance(t, m)
+		instance.storeReattach = func(*plugin.ReattachConfig) error {
+			reattachCalled = true
+			return nil
+		}
+		instance.plugin.Kill() // do this to mark plugin as exited
+
+		instance.cleanup()
+
+		must.False(t, shutdownCalled, must.Sprint("shutdown was called unexpectedly"))
+		must.True(t, reattachCalled, must.Sprint("storeReattach was expected"))
+		must.NotNil(t, instance.ctx.Err(), must.Sprint("context should be canceled"))
+	})
 }

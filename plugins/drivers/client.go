@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -517,5 +518,22 @@ func (d *driverPluginClient) DestroyNetwork(allocID string, spec *NetworkIsolati
 		return grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
+	return nil
+}
+
+func (d *driverPluginClient) Shutdown(ctx context.Context) error {
+	ctx, cancel := joincontext.Join(d.DoneCtx, ctx)
+	defer cancel()
+
+	_, err := d.client.Shutdown(ctx, &proto.ShutdownRequest{})
+	if err != nil {
+		// If the Shutdown function is not implemented, just ignore.
+		if status.Code(err) == codes.Unimplemented {
+			d.logger.Debug("driver plugin does not implement Shutdowner interface")
+			return nil
+		}
+
+		return grpcutils.HandleGrpcErr(err, ctx)
+	}
 	return nil
 }
