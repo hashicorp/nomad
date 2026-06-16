@@ -1,9 +1,14 @@
-package depgraph
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package loop_detection
 
 import (
 	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/hashicorp/go-hclog"
 )
 
 var (
@@ -13,18 +18,13 @@ var (
 	ErrNodeIsDependency = errors.New("cannot remove node: another node depends on it")
 )
 
-// Graph is the only public interface.
-type Graph interface {
-	AddNodes(nodeID string, dependencies ...string) error
-	RemoveNode(nodeID string) error
-}
-
 // Store implements Graph.
 // Internally it keeps:
 // 1) an array of linked lists
 // 2) a map[nodeID]*linkedList
 type Store struct {
-	mu sync.RWMutex
+	logger hclog.Logger
+	mu     sync.RWMutex
 
 	allLists []*linkedList
 	byNode   map[string]*linkedList
@@ -69,8 +69,9 @@ func (l *linkedList) appendUnique(dep string) bool {
 }
 
 // New creates an empty dependency graph.
-func New() *Store {
+func New(logger hclog.Logger) *Store {
 	return &Store{
+		logger:     logger.Named("loop-detection"),
 		allLists:   make([]*linkedList, 0),
 		byNode:     make(map[string]*linkedList),
 		index:      make(map[string]int),
