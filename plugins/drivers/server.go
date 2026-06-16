@@ -26,6 +26,19 @@ type driverPluginServer struct {
 	impl   DriverPlugin
 }
 
+func (b *driverPluginServer) Init(ctx context.Context, req *proto.InitRequest) (*proto.InitResponse, error) {
+	i, ok := b.impl.(DriverIniter)
+	if !ok {
+		return &proto.InitResponse{}, nil
+	}
+
+	if err := i.Init(ctx); err != nil {
+		return nil, err
+	}
+
+	return &proto.InitResponse{}, nil
+}
+
 func (b *driverPluginServer) TaskConfigSchema(ctx context.Context, req *proto.TaskConfigSchemaRequest) (*proto.TaskConfigSchemaResponse, error) {
 	spec, err := b.impl.TaskConfigSchema()
 	if err != nil {

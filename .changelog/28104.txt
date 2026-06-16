@@ -1,0 +1,3 @@
+```release-note:improvement
+driver: Added optional `Init` function for task driver plugins
+```
