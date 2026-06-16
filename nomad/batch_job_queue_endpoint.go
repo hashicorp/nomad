@@ -28,7 +28,7 @@ func (q *BatchJobQueue) Status(args *structs.QueueStatusRequest, reply *structs.
 	if done, err := q.srv.forward("BatchJobQueue.Status", args, args, reply); done {
 		return err
 	}
-	q.srv.MeasureRPCRate("queue", structs.RateMetricList, args)
+	q.srv.MeasureRPCRate("queue.status", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -47,15 +47,16 @@ func (q *BatchJobQueue) Status(args *structs.QueueStatusRequest, reply *structs.
 	if err == structs.ErrPermissionDenied {
 		// return empty results if token isn't authorized for any
 		// namespace, matching other endpoints
-		reply.Workloads = make([]structs.QueueStatusResponse, 0)
+		reply.Results = make([]structs.QueueStatusResponse, 0)
 	} else if err != nil {
 		return err
 	} else {
-		status := q.srv.batchJobQueue.Status(allowableNamespaces)
-		reply.Workloads = status.Workloads
+		status := q.srv.batchJobQueue.Status(allowableNamespaces, *args)
+		reply.Results = status.Results
 		reply.Type = status.Type
 	}
 
 	q.srv.setQueryMeta(&reply.QueryMeta)
+
 	return nil
 }

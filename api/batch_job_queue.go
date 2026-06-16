@@ -23,6 +23,8 @@ const (
 
 	BatchJobQueueTenantMetadata  BatchJobQueueTenant = "metadata"
 	BatchJobQueueTenantNamespace BatchJobQueueTenant = "namespace"
+
+	BatchQueueObjectTenants = "tenants"
 )
 
 type BatchJobQueueConfig struct {
@@ -42,20 +44,35 @@ type DynamicPriorityWorkload struct {
 	SizeAdjustment   int
 }
 
-type BatchJobQueueStatusResponse struct {
-	Type BatchJobQueueType
-	// Workloads contains data about a specific queue
-	// that is important to a consumer of this API.
-	// The struct type is based on the "Type" parameter.
-	Workloads any
+type DynamicPriorityTenant struct {
+	TenantID       string
+	PercentageUsed int
+	TenantUsage    map[string]float64
+	TotalUsage     map[string]float64
 }
 
-type BatchJobQueueStatusOptions struct{}
+type BatchJobQueueStatusResponse struct {
+	Type BatchJobQueueType
+	// Results contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The struct type is based on the "Type" parameter.
+	Results any
+}
+
+type BatchJobQueueStatusOptions struct {
+	Object string `json:"object,omitempty"`
+}
 
 // Status is used to query the current batch job queue.
 func (q *BatchJobQueue) Status(opts *BatchJobQueueStatusOptions, queryOpts *QueryOptions) (*BatchJobQueueStatusResponse, *QueryMeta, error) {
 	var resp BatchJobQueueStatusResponse
-	qm, err := q.client.query("/v1/queue/status", &resp, queryOpts)
+	endpoint := "/v1/queue/status"
+
+	if opts != nil && opts.Object != "" {
+		endpoint += "?object=" + opts.Object
+	}
+
+	qm, err := q.client.query(endpoint, &resp, queryOpts)
 	if err != nil {
 		return nil, nil, err
 	}

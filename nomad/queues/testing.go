@@ -23,8 +23,8 @@ func (m *MockQueue) Enqueue(e *structs.Evaluation) {
 
 func (m *MockQueue) SetEnabled(bool, *state.StateStore) {}
 
-func (m *MockQueue) Status(ns map[string]bool) structs.QueueStatusResponse {
-	args := m.Called(ns)
+func (m *MockQueue) Status(ns map[string]bool, req structs.QueueStatusRequest) structs.QueueStatusResponse {
+	args := m.Called(ns, req)
 
 	if args.Get(0) == nil {
 		return structs.QueueStatusResponse{}

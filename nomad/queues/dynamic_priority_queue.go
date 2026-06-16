@@ -78,6 +78,14 @@ type Tenant struct {
 	totalUsage         *ResourceUsage
 }
 
+func (t *Tenant) totalPercentageUsed(totalUsage *ResourceUsage) int {
+	if totalUsage.Total() == 0 {
+		return 0
+	}
+
+	return int((t.totalUsage.Total() / totalUsage.Total()) * 100)
+}
+
 type UsageList struct {
 	resources *ResourceUsage
 	start     time.Time
@@ -462,12 +470,25 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 	return nil
 }
 
-func (d *DynamicPriorityQueue) Status(namespaces map[string]bool) structs.QueueStatusResponse {
+func (d *DynamicPriorityQueue) Status(namespaces map[string]bool, req structs.QueueStatusRequest) structs.QueueStatusResponse {
 	d.qMux.Lock()
 	defer d.qMux.Unlock()
 
 	var resp structs.QueueStatusResponse
 	resp.Type = structs.BatchQueueTypeDynamic
+	if req.Object == structs.BatchQueueObjectTenants {
+		tenants := []structs.DynamicPriorityTenant{}
+		for _, t := range d.tenants {
+			tenants = append(tenants, structs.DynamicPriorityTenant{
+				TenantID:       string(t.tid),
+				PercentageUsed: t.totalPercentageUsed(d.totalUsage),
+				TenantUsage:    t.totalUsage.UsageByResource(),
+				TotalUsage:     d.totalUsage.UsageByResource(),
+			})
+		}
+		resp.Results = tenants
+		return resp
+	}
 
 	workloads := []structs.DynamicPriorityWorkload{}
 	for _, w := range d.queue {
@@ -484,7 +505,7 @@ func (d *DynamicPriorityQueue) Status(namespaces map[string]bool) structs.QueueS
 			SizeAdjustment:   w.sizeAdjustment,
 		})
 	}
-	resp.Workloads = workloads
+	resp.Results = workloads
 
 	return resp
 }

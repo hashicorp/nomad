@@ -20,6 +20,12 @@ func (s *HTTPServer) BatchJobQueueStatus(resp http.ResponseWriter, req *http.Req
 	var args structs.QueueStatusRequest
 	var out structs.QueueStatusResponse
 
+	query := req.URL.Query()
+	otype, ok := query["object"]
+	if ok {
+		args.Object = otype[0]
+	}
+
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}

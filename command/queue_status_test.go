@@ -64,3 +64,52 @@ func TestQueueStatusCommand_printDynamicQueueJSON(t *testing.T) {
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
+
+func TestQueueStatusCommand_printTenantsFormatted(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueStatusCommand{Meta: Meta{Ui: ui}}
+	testRespTenant := []api.DynamicPriorityTenant{
+		{
+			TenantID:       "testTenant1",
+			PercentageUsed: 100,
+			TenantUsage:    map[string]float64{"cpu": 10, "memory": 20},
+			TotalUsage:     map[string]float64{"cpu": 10, "memory": 20},
+		},
+	}
+	statusResp := &api.BatchJobQueueStatusResponse{
+		Results: testRespTenant,
+	}
+	cmd.printTenants(statusResp, false)
+
+	expectFormatted := `Batch Queue Tenants
+Tenant       Resource  Usage / Total  Percentage
+testTenant1                           100
+             cpu       10.00 / 10.00  
+             memory    20.00 / 20.00  
+`
+	must.Eq(t, expectFormatted, ui.OutputWriter.String())
+
+}
+
+func TestQueueStatusCommand_printTenantsJSON(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueStatusCommand{Meta: Meta{Ui: ui}}
+	testRespTenant := []api.DynamicPriorityTenant{
+		{
+			TenantID:       "testTenant1",
+			PercentageUsed: 100,
+			TenantUsage:    map[string]float64{"cpu": 10, "memory": 20},
+			TotalUsage:     map[string]float64{"cpu": 10, "memory": 20},
+		},
+	}
+	statusResp := &api.BatchJobQueueStatusResponse{
+		Results: testRespTenant,
+	}
+
+	cmd.printTenants(statusResp, true)
+
+	expectJson := `[{"TenantID":"testTenant1","PercentageUsed":100,"TenantUsage":{"cpu":10,"memory":20},"TotalUsage":{"cpu":10,"memory":20}}]` + "\n"
+	must.Eq(t, expectJson, ui.OutputWriter.String())
+}
