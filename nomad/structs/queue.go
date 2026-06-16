@@ -12,7 +12,7 @@ type DynamicPriorityWorkload struct {
 	Tenant           string
 	AdjustedPriority int
 	BasePriority     int
-	UsageAjustment   int
+	UsageAdjustment  int
 	AgeAdjustment    int
 	SizeAdjustment   int
 }
