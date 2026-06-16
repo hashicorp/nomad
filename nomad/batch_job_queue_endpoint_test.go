@@ -13,7 +13,7 @@ import (
 )
 
 // Not much to test here at the moment
-func TestJob_BatchQueue(t *testing.T) {
+func TestBatchJobQueue_Status(t *testing.T) {
 	s, cleanup := TestServer(t, nil)
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, s.RPC)
@@ -26,7 +26,7 @@ func TestJob_BatchQueue(t *testing.T) {
 	}}
 	reply := structs.QueueStatusResponse{}
 
-	err := s.RPC("Job.QueueStatus", &req, &reply)
+	err := s.RPC("BatchJobQueue.Status", &req, &reply)
 	must.NoError(t, err)
 	must.Eq(t, reply.Type, "unset")
 	must.Nil(t, reply.Workloads)
