@@ -37,6 +37,20 @@ type driverPluginClient struct {
 	doneCtx context.Context
 }
 
+func (d *driverPluginClient) Init(ctx context.Context) error {
+	ctx, cancel := joincontext.Join(d.doneCtx, ctx)
+	defer cancel()
+
+	_, err := d.client.Init(ctx, &proto.InitRequest{})
+
+	// If the init function is not implemented, just ignore.
+	if status.Code(err) == codes.Unimplemented {
+		return nil
+	}
+
+	return grpcutils.HandleGrpcErr(err, d.doneCtx)
+}
+
 func (d *driverPluginClient) TaskConfigSchema() (*hclspec.Spec, error) {
 	req := &proto.TaskConfigSchemaRequest{}
 
