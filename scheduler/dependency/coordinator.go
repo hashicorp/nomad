@@ -5,14 +5,18 @@ package dependency
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
+
+var DefaultTimeout = 10 * time.Minute
 
 type evalID = string
 
@@ -32,26 +36,28 @@ type dependency struct {
 }
 
 type Coordinator struct {
-	logger hclog.Logger
-	l      sync.RWMutex
+	mainContext context.Context
+	logger      hclog.Logger
+	l           sync.RWMutex
 
 	dependencies map[evalID]*dependency
 	loopDetector loopDetector
 	blockedEvals evalUnblocker
 }
 
-// TODO: Think how to rebuild out of evals!
+// NewCoordinator does blah blah blah
 func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
 	blockedEvals evalUnblocker) *Coordinator {
 	return &Coordinator{
-		logger:       logger,
+		mainContext:  context.Background(),
+		logger:       logger.Named("dependency-coordinator"),
 		dependencies: make(map[evalID]*dependency),
 		loopDetector: loopDetector,
 		blockedEvals: blockedEvals,
 	}
 }
 
-func (c *Coordinator) unblockDependencies(eval *structs.Evaluation, dependeeJobs ...*structs.Job) error {
+func (c *Coordinator) unblockDependencies(eval *structs.Evaluation, dependeeJobs map[string]*structs.Job) error {
 	for _, job := range dependeeJobs {
 
 		c.blockedEvals.Unblock(eval.ID, job.JobModifyIndex)
@@ -68,12 +74,10 @@ func (c *Coordinator) unblockDependencies(eval *structs.Evaluation, dependeeJobs
 	return nil
 }
 
-func (c *Coordinator) AddDependency(ctx context.Context, state sstructs.State, eval *structs.Evaluation) error {
+func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) (bool, error) {
 
-	job, err := state.JobByID(nil, eval.Namespace, eval.ID)
-	if err != nil {
-		c.logger.Error("failed to get job by ID", "error", err)
-		return err
+	if len(job.Dependencies) == 0 {
+		return true, nil
 	}
 
 	djIDs := []string{}
@@ -81,9 +85,28 @@ func (c *Coordinator) AddDependency(ctx context.Context, state sstructs.State, e
 		djIDs = append(djIDs, d.Job)
 	}
 
+	djs := map[string]*structs.Job{}
+	for _, jID := range djIDs {
+		j, err := state.JobByID(nil, job.Namespace, jID)
+		if err != nil {
+			c.logger.Error("failed to get job by ID", "error", err)
+			continue
+		}
+		djs[jID] = j
+	}
+
+	ready, err := c.verifyDependencies(job, djs)
+	if err != nil {
+		c.logger.Error("failed to verify dependencies", "error", err)
+	}
+
+	if ready {
+		return true, nil
+	}
+
 	c.loopDetector.AddNodes(eval.JobID, djIDs...)
 
-	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(10*time.Minute))
+	ctx, cancel := context.WithDeadline(c.mainContext, time.Now().Add(DefaultTimeout))
 	c.dependencies[eval.JobID] = &dependency{
 		cancelFunc: cancel,
 		job:        job,
@@ -92,7 +115,7 @@ func (c *Coordinator) AddDependency(ctx context.Context, state sstructs.State, e
 
 	go c.waitForDependency(ctx, state, eval, djIDs...)
 
-	return nil
+	return false, nil
 }
 
 func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.State,
@@ -100,7 +123,7 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 
 	for {
 		ws := memdb.NewWatchSet()
-		dj := []*structs.Job{}
+		dj := map[string]*structs.Job{}
 
 		for _, jID := range dependeeJobIDs {
 			j, err := state.JobByID(ws, eval.Namespace, jID)
@@ -108,19 +131,19 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 				c.logger.Error("failed to get job by ID", "error", err)
 			}
 
-			dj = append(dj, j)
+			dj[jID] = j
 		}
 
 		select {
 		case <-ws.WatchCh(ctx):
-			ready, err := c.verifyDependencies(c.dependencies[eval.JobID].job, dj...)
+			ready, err := c.verifyDependencies(c.dependencies[eval.JobID].job, dj)
 			if err != nil {
 				c.logger.Error("failed to verify dependency", "error", err)
 				continue
 			}
 
 			if ready {
-				err := c.unblockDependencies(eval, dj...)
+				err := c.unblockDependencies(eval, dj)
 				if err != nil {
 					c.logger.Error("failed to unblock job", "error", err)
 				}
@@ -133,6 +156,28 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 	}
 }
 
-func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, dependeeJob ...*structs.Job) (bool, error) {
-	return true, nil
+func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[string]*structs.Job) (bool, error) {
+	var mErr multierror.Error
+	ready := true
+
+	for _, d := range dependantJob.Dependencies {
+		job, ok := jobs[d.Job]
+
+		if !ok {
+			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+d.Job))
+			continue
+		}
+
+		if job.Status != d.Output {
+			ready = false
+			break
+		}
+	}
+
+	return ready, mErr.ErrorOrNil()
+}
+
+func (c *Coordinator) Stop() {
+	c.mainContext.Done()
+	c.dependencies = nil
 }
