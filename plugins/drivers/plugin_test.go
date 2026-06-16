@@ -1035,3 +1035,61 @@ func TestDriverPlugin_Shutdown(t *testing.T) {
 		must.ErrorContains(t, err, testErr.Error())
 	})
 }
+
+func TestDriverPlugin_Init(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("not implemented", func(t *testing.T) {
+		mock := &MockDriverPlugin{}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		must.NoError(t, initer.Init(t.Context()))
+	})
+
+	// This test covers when the plugin is built from an earlier version of
+	// nomad and does not include support for the Initer interface, which
+	// results in an Unimplmented error being returned.
+	t.Run("not implemented server", func(t *testing.T) {
+		mock := &MockDriverIniterPlugin{
+			InitFn: func(context.Context) error {
+				return status.Error(codes.Unimplemented, "not implemented")
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		err := initer.Init(t.Context())
+		must.NoError(t, err)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		expectedValue := "test-value"
+		var testValue string
+		mock := &MockDriverIniterPlugin{
+			InitFn: func(context.Context) error {
+				testValue = expectedValue
+				return nil
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		must.NoError(t, initer.Init(t.Context()))
+		must.Eq(t, expectedValue, testValue)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		testErr := errors.New("test-error")
+		mock := &MockDriverIniterPlugin{
+			InitFn: func(context.Context) error {
+				return testErr
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		err := initer.Init(t.Context())
+		must.ErrorContains(t, err, testErr.Error())
+	})
+}

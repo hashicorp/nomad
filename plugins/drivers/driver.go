@@ -78,6 +78,13 @@ type DriverShutdowner interface {
 	Shutdown(ctx context.Context) error
 }
 
+// DriverIniter is the interface which exposes the optional function for initializing
+// the driver plugin.
+type DriverIniter interface {
+	// Init is when a driver plugin is dispensed, after SetConfig has been called.
+	Init(context.Context) error
+}
+
 // ExecTaskStreamingDriver marks that a driver supports streaming exec task.  This represents a user friendly
 // interface to implement, as an alternative to the ExecTaskStreamingRawDriver, the low level interface.
 type ExecTaskStreamingDriver interface {

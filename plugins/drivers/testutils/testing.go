@@ -289,6 +289,15 @@ func (d *MockDriverShutdown) Shutdown(ctx context.Context) error {
 	return d.ShutdownF(ctx)
 }
 
+type MockDriverInit struct {
+	MockDriver
+	InitF func(context.Context) error
+}
+
+func (d *MockDriverInit) Init(ctx context.Context) error {
+	return d.InitF(ctx)
+}
+
 // SetEnvvars sets path and host env vars depending on the FS isolation used.
 func SetEnvvars(envBuilder *taskenv.Builder, fsmode fsisolation.Mode, taskDir *allocdir.TaskDir) {
 
