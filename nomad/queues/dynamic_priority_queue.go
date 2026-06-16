@@ -381,7 +381,8 @@ func (d *DynamicPriorityQueue) ageAdjustment(now time.Time, w *Workload) int {
 	age := float64(elapsed) / float64(d.conf.MaxAge)
 	ageClamped := min(1.0, max(0.0, age))
 
-	return int(ageClamped * float64(d.conf.AgeWeight))
+	w.ageAdjustment = int(ageClamped * float64(d.conf.AgeWeight))
+	return w.ageAdjustment
 }
 
 func (d *DynamicPriorityQueue) sizeAdjustment(w *Workload) int {
@@ -392,7 +393,8 @@ func (d *DynamicPriorityQueue) sizeAdjustment(w *Workload) int {
 	size := w.requestedResources.resources.Total() / float64(d.conf.MaxSize)
 	sizeClamped := min(1.0, max(0.0, size))
 
-	return int((1 - sizeClamped) * float64(d.conf.SizeWeight))
+	w.sizeAdjustment = int((1 - sizeClamped) * float64(d.conf.SizeWeight))
+	return w.sizeAdjustment
 }
 
 // waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
@@ -474,7 +476,7 @@ func (d *DynamicPriorityQueue) Status() structs.QueueStatusResponse {
 			Tenant:           string(w.tid),
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
-			UsageAjustment:   w.usageAdjustment,
+			UsageAdjustment:  w.usageAdjustment,
 			AgeAdjustment:    w.ageAdjustment,
 			SizeAdjustment:   w.sizeAdjustment,
 		})
