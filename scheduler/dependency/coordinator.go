@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/loop_detection"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
@@ -180,4 +181,16 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 func (c *Coordinator) Stop() {
 	c.mainContext.Done()
 	c.dependencies = nil
+}
+
+func (c *Coordinator) HasDependencies(j *structs.Job) (bool, error) {
+	err := c.loopDetector.RemoveNode(j.ID)
+	if err != nil {
+		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
+			return true, nil
+		}
+		return false, err
+	}
+
+	return false, nil
 }
