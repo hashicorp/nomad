@@ -136,7 +136,6 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	consulWIDName := consulBlock.IdentityName()
 
 	// Check if task has an identity for Consul and assume WI flow if it does.
-	// COMPAT simplify this logic and assume WI flow in 1.9+
 	hasConsulIdentity := false
 	for _, wid := range req.Task.Identities {
 		if wid.Name == consulWIDName {
@@ -144,6 +143,12 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 			break
 		}
 	}
+
+	// If we leave the Consul token as an empty string, then consul-template
+	// will try to pick it up from the environment; we want to enforce that we
+	// don't have a Consul token unless intentionally configured
+	h.consulToken = "invalid-token"
+
 	if hasConsulIdentity {
 		consulCluster := req.Task.GetConsulClusterName(tg)
 		consulTokens := h.config.hookResources.GetConsulTokens()
@@ -165,6 +170,14 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		}
 
 		h.consulToken = consulToken.SecretID
+	} else if h.config.clientConfig.TemplateConfig != nil &&
+		h.config.clientConfig.TemplateConfig.UseClientConsulToken {
+		consulCluster := req.Task.GetConsulClusterName(tg)
+		if config, ok := h.config.clientConfig.ConsulConfigs[consulCluster]; ok {
+			h.consulToken = config.Token
+		} else {
+			h.consulToken = ""
+		}
 	}
 
 	// Set vault namespace if specified
