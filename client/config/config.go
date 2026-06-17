@@ -488,6 +488,10 @@ type ClientTemplateConfig struct {
 	// to wait for the cluster to become available, as is customary in distributed
 	// systems.
 	NomadRetry *RetryConfig `hcl:"nomad_retry,optional"`
+
+	// UseClientConsulToken is a compatibility configuration that allows the
+	// template runner to use the Nomad client's own Consul token
+	UseClientConsulToken bool `hcl:"use_client_consul_token"`
 }
 
 func DefaultTemplateConfig() *ClientTemplateConfig {
@@ -515,6 +519,7 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 			Backoff:    new(time.Millisecond * 250),
 			MaxBackoff: new(time.Minute),
 		},
+		UseClientConsulToken: false,
 	}
 }
 
@@ -576,7 +581,8 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.Wait.IsEmpty() &&
 		c.ConsulRetry.IsEmpty() &&
 		c.VaultRetry.IsEmpty() &&
-		c.NomadRetry.IsEmpty()
+		c.NomadRetry.IsEmpty() &&
+		!c.UseClientConsulToken
 }
 
 func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateConfig {
@@ -618,6 +624,9 @@ func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateCon
 	}
 	if o.NomadRetry != nil {
 		result.NomadRetry = c.NomadRetry.Merge(o.NomadRetry)
+	}
+	if o.UseClientConsulToken {
+		result.UseClientConsulToken = true
 	}
 
 	return &result
