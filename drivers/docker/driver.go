@@ -948,23 +948,22 @@ const (
 // (whichever is greater). If resources.memory_max = -1, there is no hard limit
 // and task.config.memory_hard_limit is ignored.
 //
+// It is expected that the scheduler already includede the space for the
+// secrets inside the taskMemory and if oversubscrition is not enabled,
+// askMemory.MemoryMaxMB was set to 0.
+//
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
 func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
-	memHard := driverHardLimitMB
-	memReserved := taskMemory.MemoryMB
-	memMax := taskMemory.MemoryMaxMB
+	if taskMemory.MemoryMaxMB == memoryNoLimit {
+		return 0, mbToBytes(taskMemory.MemoryMB)
+	}
 
-	if memMax == memoryNoLimit {
-		return 0, mbToBytes(memReserved)
+	highLimit := max(driverHardLimitMB, taskMemory.MemoryMaxMB)
+	if highLimit == 0 {
+		return mbToBytes(taskMemory.MemoryMB), 0
 	}
-	if memMax > memHard {
-		memHard = memMax
-	}
-	if memHard <= 0 {
-		memHard = memReserved
-		memReserved = 0
-	}
-	return mbToBytes(memHard), mbToBytes(memReserved)
+
+	return mbToBytes(highLimit), mbToBytes(taskMemory.MemoryMB)
 }
 
 func mbToBytes(n int64) int64 {
@@ -998,11 +997,12 @@ func (d *Driver) cpuResources(requested int64) int64 {
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (createContainerOptions, error) {
 
+	c := createContainerOptions{}
 	// ensure that PortMap variables are populated early on
 	task.Env = taskenv.SetPortMapEnvs(task.Env, driverConfig.PortMap)
 
 	logger := d.logger.With("task_name", task.Name)
-	var c createContainerOptions
+
 	if task.Resources == nil {
 		// Guard against missing resources. We should never have been able to
 		// schedule a job without specifying this.
@@ -1058,6 +1058,10 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
+	if memory > 0 && memoryReservation > memory {
+		return c, fmt.Errorf("task memory requirements exceed driver hard limit of %d MB",
+			driverConfig.MemoryHardLimit)
+	}
 
 	var pidsLimit int64 = -1 // default unlimited
 
