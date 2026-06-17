@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -562,114 +561,30 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			return nil, nil, fmt.Errorf("Failed to parse HCL job: %w", err)
 		}
 
-		// Perform the environment listing here as it is used twice beyond this
-		// point.
-		osEnv := os.Environ()
-
-		// we are parsing HCL2, whether from a file or stdio
-		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+		// we are parsing HCL2, whether from a file or stdio. We'll use the
+		// extended parser that includes the submission object
+		parseResult, err := jobspec2.ParseWithConfigEx(&jobspec2.ParseConfig{
 			Path:     pathName,
 			Body:     source.Bytes(),
 			ArgVars:  j.Vars,
 			AllowFS:  true,
 			VarFiles: j.VarFiles,
-			Envs:     osEnv,
+			Envs:     os.Environ(),
 			Strict:   j.Strict,
 		})
-
-		var varFileCat string
-		var readVarFileErr error
-		if err == nil {
-			// combine any -var-file data into one big blob
-			varFileCat, readVarFileErr = extractVarFiles(j.VarFiles)
-			if readVarFileErr != nil {
-				return nil, nil, fmt.Errorf("Failed to read var file(s): %w", readVarFileErr)
-			}
+		if err != nil {
+			return nil, nil, fmt.Errorf("Error parsing job file from %s:\n%w", jpath, err)
 		}
 
-		// Extract variables declared by the -var flag and as environment
-		// variables.
-		extractedVarFlags := extractVarFlags(j.Vars)
-		extractedEnvVars := extractJobSpecEnvVars(osEnv)
-
-		// Merge the two maps ensuring that variables defined by -var flags
-		// take precedence.
-		maps.Copy(extractedEnvVars, extractedVarFlags)
-
-		// submit the job with the submission with content from -var flags
-		jobSubmission = &api.JobSubmission{
-			VariableFlags: extractedEnvVars,
-			Variables:     varFileCat,
-			Source:        source.String(),
-			Format:        formatHCL2,
-		}
+		jobStruct = parseResult.Job
+		jobSubmission = parseResult.Submission
 	}
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error parsing job file from %s:\n%v", jpath, err)
+		return nil, nil, fmt.Errorf("Error parsing job file from %s:\n%w", jpath, err)
 	}
 
 	return jobSubmission, jobStruct, nil
-}
-
-// extractVarFiles concatenates the content of each file in filenames and
-// returns it all as one big content blob
-func extractVarFiles(filenames []string) (string, error) {
-	var sb strings.Builder
-	for _, filename := range filenames {
-		b, err := os.ReadFile(filename)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(string(b))
-		sb.WriteString("\n")
-	}
-	return sb.String(), nil
-}
-
-// extractVarFlags is used to parse the values of -var command line arguments
-// and turn them into a map to be used for submission. The result is never
-// nil for convenience.
-func extractVarFlags(slice []string) map[string]string {
-	m := make(map[string]string, len(slice))
-	for _, s := range slice {
-		if tokens := strings.SplitN(s, "=", 2); len(tokens) == 1 {
-			m[tokens[0]] = ""
-		} else {
-			m[tokens[0]] = tokens[1]
-		}
-	}
-	return m
-}
-
-// extractJobSpecEnvVars is used to extract Nomad specific HCL variables from
-// the OS environment. The input envVars parameter is expected to be generated
-// from the os.Environment function call. The result is never nil for
-// convenience.
-func extractJobSpecEnvVars(envVars []string) map[string]string {
-
-	m := make(map[string]string)
-
-	for _, raw := range envVars {
-		if !strings.HasPrefix(raw, jobspec2.VarEnvPrefix) {
-			continue
-		}
-
-		// Trim the prefix, so we just have the raw key=value variable
-		// remaining.
-		raw = raw[len(jobspec2.VarEnvPrefix):]
-
-		// Identify the index of the equals sign which is where we split the
-		// variable k/v pair. -1 indicates the equals sign is not found and
-		// therefore the var is not valid.
-		if eq := strings.Index(raw, "="); eq == -1 {
-			continue
-		} else if raw[:eq] != "" {
-			m[raw[:eq]] = raw[eq+1:]
-		}
-	}
-
-	return m
 }
 
 // mergeAutocompleteFlags is used to join multiple flag completion sets.
