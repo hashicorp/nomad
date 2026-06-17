@@ -289,6 +289,10 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 
 	tokens := map[string]string{}
 	for _, service := range h.services {
+		// these tokens will come from the consul_hook using Workload Identity
+		// to login to Consul, but if they're absent because WI is not
+		// configured, the service client will fallback to using the Nomad
+		// client's own token for registering services to Consul
 		cluster := service.GetConsulClusterName(h.tg)
 		if token, ok := allocTokens[cluster][service.MakeUniqueIdentityName()]; ok {
 			tokens[service.Name] = token.SecretID
