@@ -395,11 +395,11 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                   config.Alloc,
+		alloc:                   config.Alloc.Copy(),
 		allocID:                 config.Alloc.ID,
 		clientConfig:            config.ClientConfig,
 		clientBaseLabels:        config.ClientBaseLabels,
-		task:                    config.Task,
+		task:                    config.Task.Copy(),
 		taskDir:                 config.TaskDir,
 		taskName:                config.Task.Name,
 		taskLeader:              config.Task.Leader,
@@ -445,21 +445,19 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.setHookStatsHandler(config.Alloc.Namespace)
 
 	// Pull out the task's resources
-	ares := tr.alloc.AllocatedResources
-	if ares == nil {
+	if tr.alloc.AllocatedResources == nil {
 		return nil, fmt.Errorf("no task resources found on allocation")
 	}
 
-	tres, ok := ares.Tasks[tr.taskName]
-	if !ok {
+	if _, ok := tr.alloc.AllocatedResources.Tasks[tr.taskName]; !ok {
 		return nil, fmt.Errorf("no task resources found on allocation")
 	}
 
 	// we had to allocate the tmpfs with the memory to get correct scheduling
 	// and tracking on the node, but now that we're creating the task driver
 	// config we only care about the memory without the secrets.
-	tres.Memory.MemoryMB -= int64(tr.task.Resources.SecretsMB)
-	tr.taskResources = tres
+
+	tr.taskResources = tr.alloc.AllocatedResources.Tasks[tr.taskName].Copy()
 
 	// Build the restart tracker.
 	rp := config.Task.RestartPolicy
@@ -971,6 +969,11 @@ func (tr *TaskRunner) runDriver() error {
 		}
 		return nil
 	}
+
+	tr.logger.Error("\nmemory limits in task runner", "\n  memory", tr.taskResources.Memory.MemoryMB,
+		"\n  memory_max", tr.taskResources.Memory.MemoryMaxMB)
+	tr.logger.Error("\nmemory limits in driver config ", "\n  memory", taskConfig.Resources.NomadResources.Memory.MemoryMB,
+		"\n  memory_max", taskConfig.Resources.NomadResources.Memory.MemoryMaxMB)
 
 	// Start the job if there's no existing handle (or if RecoverTask failed)
 	handle, net, err := tr.driver.StartTask(taskConfig)
