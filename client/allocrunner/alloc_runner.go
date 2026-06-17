@@ -326,10 +326,10 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 	for _, task := range tasks {
 		trConfig := &taskrunner.Config{
-			Alloc:               ar.alloc,
+			Alloc:               ar.alloc.Copy(),
 			ClientConfig:        ar.clientConfig,
 			ClientBaseLabels:    ar.clientBaseLabels,
-			Task:                task,
+			Task:                task.Copy(),
 			TaskDir:             ar.allocDir.NewTaskDir(task),
 			Logger:              ar.logger,
 			StateDB:             ar.stateDB,
