@@ -970,11 +970,6 @@ func (tr *TaskRunner) runDriver() error {
 		return nil
 	}
 
-	tr.logger.Error("\nmemory limits in task runner", "\n  memory", tr.taskResources.Memory.MemoryMB,
-		"\n  memory_max", tr.taskResources.Memory.MemoryMaxMB)
-	tr.logger.Error("\nmemory limits in driver config ", "\n  memory", taskConfig.Resources.NomadResources.Memory.MemoryMB,
-		"\n  memory_max", taskConfig.Resources.NomadResources.Memory.MemoryMaxMB)
-
 	// Start the job if there's no existing handle (or if RecoverTask failed)
 	handle, net, err := tr.driver.StartTask(taskConfig)
 	if err != nil {
