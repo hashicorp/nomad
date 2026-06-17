@@ -16,7 +16,7 @@ export default class LogsRoute extends Route {
     // An alternative option here is to use just allocation.node
     // as the computed property for logUrl()
     if (this.abilities.can('read client')) {
-      return task.get('allocation.node').then(() => task);
+      return task && task.get('allocation.node').then(() => task);
     }
     return task;
   }
