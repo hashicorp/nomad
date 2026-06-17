@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -31,10 +32,30 @@ func (q *BatchJobQueue) Status(args *structs.QueueStatusRequest, reply *structs.
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
+	aclObj, err := q.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) {
+		return structs.ErrPermissionDenied
+	}
 
-	status := q.srv.batchJobQueue.Status()
+	state, _ := q.srv.State().Snapshot()
 
-	reply.Type = status.Type
-	reply.Workloads = status.Workloads
+	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
+	allowableNamespaces, err := allowedNSes(aclObj, &state.StateStore, allow)
+	if err == structs.ErrPermissionDenied {
+		// return empty results if token isn't authorized for any
+		// namespace, matching other endpoints
+		reply.Workloads = make([]structs.QueueStatusResponse, 0)
+	} else if err != nil {
+		return err
+	} else {
+		status := q.srv.batchJobQueue.Status(allowableNamespaces)
+		reply.Workloads = status.Workloads
+		reply.Type = status.Type
+	}
+
+	q.srv.setQueryMeta(&reply.QueryMeta)
 	return nil
 }
