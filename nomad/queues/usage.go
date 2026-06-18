@@ -30,3 +30,10 @@ func (r *ResourceUsage) Total() float64 {
 
 	return total
 }
+
+func (r *ResourceUsage) UsageByResource() map[string]float64 {
+	return map[string]float64{
+		"cpu":    r.CPU,
+		"memory": r.Memory,
+	}
+}

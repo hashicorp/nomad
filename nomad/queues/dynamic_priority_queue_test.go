@@ -543,12 +543,12 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 	}
 }
 
-func TestDynamicPriorityQueue_Status(t *testing.T) {
+func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	testCases := []struct {
 		name      string
-		workloads []*Workload
 		allowedNs map[string]bool
-		exp       structs.QueueStatusResponse
+		workloads []*Workload
+		exp       structs.QueueJobsResponse
 	}{
 		{
 			name: "status response parses workloads correctly",
@@ -566,21 +566,8 @@ func TestDynamicPriorityQueue_Status(t *testing.T) {
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
-				{
-					id:  "eval2",
-					tid: "tenantB",
-					eval: &structs.Evaluation{
-						ID:       "eval2",
-						JobID:    "job2",
-						Priority: 50,
-					},
-					priority:        63,
-					sizeAdjustment:  7,
-					ageAdjustment:   1,
-					usageAdjustment: 5,
-				},
 			},
-			exp: structs.QueueStatusResponse{
+			exp: structs.QueueJobsResponse{
 				Type: structs.BatchQueueTypeDynamic,
 				Workloads: []structs.DynamicPriorityWorkload{
 					{
@@ -591,15 +578,6 @@ func TestDynamicPriorityQueue_Status(t *testing.T) {
 						SizeAdjustment:   2,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
-					},
-					{
-						JobID:            "job2",
-						Tenant:           "tenantB",
-						AdjustedPriority: 63,
-						BasePriority:     50,
-						SizeAdjustment:   7,
-						AgeAdjustment:    1,
-						UsageAdjustment:  5,
 					},
 				},
 			},
@@ -637,7 +615,7 @@ func TestDynamicPriorityQueue_Status(t *testing.T) {
 					usageAdjustment: 5,
 				},
 			},
-			exp: structs.QueueStatusResponse{
+			exp: structs.QueueJobsResponse{
 				Type: structs.BatchQueueTypeDynamic,
 				Workloads: []structs.DynamicPriorityWorkload{
 					{
@@ -657,7 +635,51 @@ func TestDynamicPriorityQueue_Status(t *testing.T) {
 		testQueue := &DynamicPriorityQueue{
 			queue: tc.workloads,
 		}
-		must.Eq(t, tc.exp, testQueue.Status(tc.allowedNs))
+		must.Eq(t, tc.exp, testQueue.Jobs(tc.allowedNs))
 	}
 
+}
+
+func TestDynamicPriorityQueue_Tenants(t *testing.T) {
+	testCases := []struct {
+		name       string
+		tenants    map[TenantID]*Tenant
+		totalUsage *ResourceUsage
+		exp        structs.QueueTenantsResponse
+	}{
+		{
+			name: "status response parses tenants correctly",
+			tenants: map[TenantID]*Tenant{
+				"tenantA": {
+					tid: "tenantA",
+					totalUsage: &ResourceUsage{
+						CPU:    100,
+						Memory: 200,
+					},
+				},
+			},
+			totalUsage: &ResourceUsage{
+				CPU:    400,
+				Memory: 300,
+			},
+			exp: structs.QueueTenantsResponse{
+				Type: structs.BatchQueueTypeDynamic,
+				Tenants: []structs.DynamicPriorityTenant{
+					{
+						TenantID:       "tenantA",
+						PercentageUsed: 42,
+						TenantUsage:    map[string]float64{"cpu": 100, "memory": 200},
+						TotalUsage:     map[string]float64{"cpu": 400, "memory": 300},
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		testQueue := &DynamicPriorityQueue{
+			tenants:    tc.tenants,
+			totalUsage: tc.totalUsage,
+		}
+		must.Eq(t, tc.exp, testQueue.Tenants())
+	}
 }
