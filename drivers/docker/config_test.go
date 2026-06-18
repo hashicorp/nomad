@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
+	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
@@ -470,6 +471,106 @@ func TestConfig_DriverConfig_GC(t *testing.T) {
 			var tc DriverConfig
 			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
 			require.EqualValues(t, c.expected, tc.GC)
+
+		})
+	}
+}
+
+func TestConfig_DriverConfig_AllowedModes(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		name        string
+		config      string
+		expected    AllowedModesConfig
+		expectedErr string
+	}{
+		{
+			name:     "pure default",
+			config:   `{}`,
+			expected: AllowedModesConfig{},
+		},
+		{
+			name: "uts",
+			config: `{
+				allowed_modes {
+				uts = ["host","container*"]
+				}
+			}`,
+			expected: AllowedModesConfig{
+				PID:    []string{},
+				IPC:    []string{},
+				Userns: []string{},
+				UTS:    []string{"host", "container*"},
+			},
+		},
+		{
+			name: "userns",
+			config: `{
+				allowed_modes {
+				userns = ["container*","auto"]
+				}
+			}`,
+			expected: AllowedModesConfig{
+				PID:    []string{},
+				IPC:    []string{},
+				Userns: []string{"container*", "auto"},
+				UTS:    []string{},
+			},
+		},
+		{
+			name: "ipc only",
+			config: `{
+				allowed_modes {
+				ipc = ["auto","private","container*"]
+				}
+			}`,
+			expected: AllowedModesConfig{
+				PID:    []string{},
+				IPC:    []string{"auto", "private", "container*"},
+				Userns: []string{},
+				UTS:    []string{},
+			},
+		},
+		{
+			name: "pid only",
+			config: `{
+				allowed_modes {
+				pid = ["ns*"]
+				}
+			}`,
+			expected: AllowedModesConfig{
+				PID:    []string{"ns*"},
+				IPC:    []string{},
+				Userns: []string{},
+				UTS:    []string{},
+			},
+		},
+		{
+			name: "invalid value",
+			config: `{
+				allowed_modes {
+				pid = ["DROP"]
+				}
+			}`,
+			expectedErr: "cannot apply allowed_modes configuration",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			if c.expectedErr != "" {
+				d := &Driver{config: &tc, dockerClient: newTestDockerClient(t)}
+				var data []byte
+				must.NoError(t, base.MsgPackEncode(&data, tc))
+				baseConfig := &base.Config{PluginConfig: data}
+
+				err := d.SetConfig(baseConfig)
+				must.ErrorContains(t, err, c.expectedErr)
+				return
+			}
+			must.Eq(t, c.expected, tc.AllowedModes)
 
 		})
 	}
