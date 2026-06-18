@@ -1,10 +1,10 @@
 module github.com/hashicorp/nomad/api
 
-go 1.24
+go 1.25
 
 require (
 	github.com/docker/go-units v0.5.0
-	github.com/felixge/httpsnoop v1.0.4
+	github.com/felixge/httpsnoop v1.1.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/cronexpr v1.1.3
