@@ -1332,12 +1332,27 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
-	hostConfig.ExtraHosts = driverConfig.ExtraHosts
-
+	if ipcErr := d.validateNamespace(d.config.AllowedModes.IPC, "ipc_mode", driverConfig.IPCMode); ipcErr != nil {
+		return c, ipcErr
+	}
 	hostConfig.IpcMode = containerapi.IpcMode(driverConfig.IPCMode)
+
+	if pidErr := d.validateNamespace(d.config.AllowedModes.PID, "pid_mode", driverConfig.PidMode); pidErr != nil {
+		return c, pidErr
+	}
 	hostConfig.PidMode = containerapi.PidMode(driverConfig.PidMode)
+
+	if utsErr := d.validateNamespace(d.config.AllowedModes.UTS, "uts_mode", driverConfig.UTSMode); utsErr != nil {
+		return c, utsErr
+	}
 	hostConfig.UTSMode = containerapi.UTSMode(driverConfig.UTSMode)
+
+	if usernsErr := d.validateNamespace(d.config.AllowedModes.Userns, "userns_mode", driverConfig.UsernsMode); usernsErr != nil {
+		return c, usernsErr
+	}
 	hostConfig.UsernsMode = containerapi.UsernsMode(driverConfig.UsernsMode)
+
+	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 	hostConfig.Sysctls = driverConfig.Sysctl
 
@@ -2123,4 +2138,24 @@ func isDockerTransientError(err error) bool {
 
 func stopWithZeroTimeout() mclient.ContainerStopOptions {
 	return mclient.ContainerStopOptions{Timeout: new(0)}
+}
+
+func (d *Driver) validateNamespace(allowedModes []string, field string, desiredNs string) error {
+	// return early if allow_privileged is configured or
+	// if the desiredNs is empty
+	if d.config.AllowPrivileged {
+		return nil
+	}
+	if desiredNs == "" {
+		return nil
+	}
+
+	for _, v := range allowedModes {
+		// return if the desired namespace matches a value in allowedModes
+		if glob.Glob(v, desiredNs) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cannot apply %q configuration", field)
 }

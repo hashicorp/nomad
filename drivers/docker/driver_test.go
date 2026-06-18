@@ -1124,6 +1124,140 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	must.Eq(t, containerName, c.Name)
 }
+func TestDockerDriver_CreateContainerConfig_AllowedModes(t *testing.T) {
+	ci.Parallel(t)
+	modifyTaskConfig := func(cfg *TaskConfig, field string, value string) TaskConfig {
+		c := *cfg
+		switch field {
+		case "pid":
+			c.PidMode = value
+		case "ipc":
+			c.IPCMode = value
+		case "userns":
+			c.UsernsMode = value
+		case "uts":
+			c.UTSMode = value
+		}
+		return c
+	}
+
+	cases := []struct {
+		name            string
+		modes           *AllowedModesConfig
+		allowPrivileged bool
+		field           string
+		expect          string
+		expectedErr     string
+	}{
+		{
+			name:        "fail to set pid_host",
+			field:       "pid",
+			expect:      "host",
+			expectedErr: "cannot apply \"pid_mode\"",
+		},
+		{
+			name:        "fail to set ipc_host",
+			field:       "ipc",
+			expect:      "host",
+			expectedErr: "cannot apply \"ipc_mode\"",
+		},
+		{
+			name:        "fail to set userns_host",
+			field:       "userns",
+			expect:      "host",
+			expectedErr: "cannot apply \"userns_mode\"",
+		},
+		{
+			name:        "fail to set uts_host",
+			field:       "uts",
+			expect:      "host",
+			expectedErr: "cannot apply \"uts_mode\"",
+		},
+		{
+			name:            "allow_privileged sets pid_host",
+			field:           "pid",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:            "allow_privileged sets ipc_host",
+			field:           "ipc",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:            "allow_privileged sets userns_host",
+			field:           "userns",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:            "allow_privileged sets uts_host",
+			field:           "uts",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:   "allowed_modes sets pid_host",
+			field:  "pid",
+			expect: "host",
+			modes:  &AllowedModesConfig{PID: []string{"host"}},
+		},
+		{
+			name:   "allowed_modes sets ipc container*",
+			field:  "ipc",
+			expect: "container:OtherNamedNamespace",
+			modes:  &AllowedModesConfig{IPC: []string{"container:*"}},
+		},
+		{
+			name:   "allowed_modes sets userns_host",
+			field:  "userns",
+			expect: "host",
+			modes:  &AllowedModesConfig{Userns: []string{"host"}},
+		},
+		{
+			name:   "allowed_modes sets uts_host",
+			field:  "uts",
+			expect: "host",
+			modes:  &AllowedModesConfig{UTS: []string{"host"}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			image := "org/repro:0.1"
+			task, config, _ := dockerTask(t)
+
+			dockerClientConfig := make(map[string]interface{})
+			dockerClientConfig["allowed_modes"] = tc.modes
+			if tc.allowPrivileged {
+				dockerClientConfig["allow_privileged"] = tc.allowPrivileged
+			}
+			dh := dockerDriverHarness(t, dockerClientConfig)
+
+			cfg := modifyTaskConfig(config, tc.field, tc.expect)
+			must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			driver := dh.Impl().(*Driver)
+			c, err := driver.createContainerConfig(task, &cfg, image)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+			must.NoError(t, err)
+			switch tc.field {
+			case "pid":
+				must.Eq(t, false, c.Host.PidMode.IsPrivate())
+			case "ipc":
+				must.Eq(t, false, c.Host.IpcMode.IsPrivate())
+			case "userns":
+				must.Eq(t, false, c.Host.UsernsMode.IsPrivate())
+			case "uts":
+				must.Eq(t, false, c.Host.UTSMode.IsPrivate())
+			}
+
+		})
+	}
+}
 
 func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 	ci.Parallel(t)
@@ -3429,4 +3563,62 @@ DONE:
 
 	// CPU stats should be changed with every interval
 	must.Len(t, statsReceived, tickValues.Slice())
+}
+
+func Test_validateNamespace(t *testing.T) {
+	cases := []struct {
+		name             string
+		allowedModes     []string
+		allowPrivileged  bool
+		field            string
+		desiredNamespace string
+		expectedErr      string
+	}{
+		{
+			name:             "none configured",
+			allowedModes:     []string{},
+			field:            "pid_mode",
+			desiredNamespace: "container",
+			expectedErr:      "cannot apply \"pid_mode\" configuration",
+		},
+		{
+			name:             "allowPrivileged allows anything",
+			allowedModes:     []string{},
+			allowPrivileged:  true,
+			field:            "pid_mode",
+			desiredNamespace: "host",
+		},
+		{
+			name:             "wide opencontainer glob",
+			allowedModes:     []string{"container:*"},
+			allowPrivileged:  true,
+			field:            "pid_mode",
+			desiredNamespace: "container:093dede90-wer323339-3d99d",
+		},
+		{
+			name:             "constrained container glob",
+			allowedModes:     []string{"container:*desired"},
+			field:            "ipc_mode",
+			desiredNamespace: "container:093dede90-3d99d",
+			expectedErr:      "cannot apply \"ipc_mode\" configuration",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dockerClientConfig := make(map[string]interface{})
+
+			if tc.allowPrivileged {
+				dockerClientConfig["allow_privileged"] = tc.allowPrivileged
+			}
+			dh := dockerDriverHarness(t, dockerClientConfig)
+			driver := dh.Impl().(*Driver)
+			err := driver.validateNamespace(tc.allowedModes, tc.field, tc.desiredNamespace)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+			must.NoError(t, err)
+		})
+	}
 }
