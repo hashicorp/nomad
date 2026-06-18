@@ -374,6 +374,8 @@ const (
 	DynamicCalcInterval = "calc_interval"
 	DynamicMaxAge       = "max_age"
 	DynamicHalfLife     = "half_life"
+
+	BatchQueueObjectTenants = "tenants"
 )
 
 type BatchQueue struct {

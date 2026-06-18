@@ -164,6 +164,10 @@ func PluginPolicy(policy string) string {
 	return fmt.Sprintf("plugin {\n\tpolicy = %q\n}\n", policy)
 }
 
+func OperatorPolicy(policy string) string {
+	return fmt.Sprintf("operator {\n\tpolicy = %q\n}\n", policy)
+}
+
 // CreatePolicy creates a policy with the given name and rule.
 func CreatePolicy(t testing.TB, state StateStore, index uint64, name, rule string) {
 	t.Helper()

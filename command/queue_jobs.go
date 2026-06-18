@@ -14,11 +14,11 @@ import (
 	"github.com/ryanuber/columnize"
 )
 
-type QueueStatusCommand struct {
+type QueueJobsCommand struct {
 	Meta
 }
 
-func (c *QueueStatusCommand) Help() string {
+func (c *QueueJobsCommand) Help() string {
 	helpText := `
 Usage: nomad queue status [options]
 
@@ -40,36 +40,39 @@ Eval Options:
 
   -json
     Display output as json
+
 `
 	return strings.TrimSpace(helpText)
 }
 
-func (c *QueueStatusCommand) Synopsis() string {
+func (c *QueueJobsCommand) Synopsis() string {
 	return "View the status of a batch job queue"
 }
 
-func (c *QueueStatusCommand) AutocompleteFlags() complete.Flags {
+func (c *QueueJobsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
 			"-limit":   complete.PredictNothing,
 			"-json":    complete.PredictNothing,
+			"-tenants": complete.PredictNothing,
 		})
 }
 
-func (c *QueueStatusCommand) AutocompleteArgs() complete.Predictor {
+func (c *QueueJobsCommand) AutocompleteArgs() complete.Predictor {
 	return JobPredictor(c.Meta.Client)
 }
 
-func (c *QueueStatusCommand) Name() string { return "queue status" }
+func (c *QueueJobsCommand) Name() string { return "queue status" }
 
-func (c *QueueStatusCommand) Run(args []string) int {
-	var verbose, jsonOut bool
+func (c *QueueJobsCommand) Run(args []string) int {
+	var verbose, jsonOut, tenants bool
 	var limit int
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&jsonOut, "json", false, "")
+	flags.BoolVar(&tenants, "tenants", false, "")
 	flags.IntVar(&limit, "limit", 0, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -91,45 +94,19 @@ func (c *QueueStatusCommand) Run(args []string) int {
 	}
 
 	// Submit the request
-	resp, _, err := client.BatchJobQueue().Status(nil, qo)
+	resp, _, err := client.BatchJobQueue().Jobs(qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
 	}
 	if resp == nil {
 		c.Ui.Error("Empty batch queue response")
+		return 255
 	}
 
 	switch resp.Type {
 	case api.BatchJobQueueTypeDynamic:
-		workloads := []api.DynamicPriorityWorkload{}
-		bytes, err := json.Marshal(resp.Workloads)
-		if err != nil {
-			c.Ui.Error("Error marshaling response status")
-			return 255
-		}
-		if err := json.Unmarshal(bytes, &workloads); err != nil {
-			c.Ui.Error("Invalid Status response from server")
-			return 255
-		}
-
-		slices.SortFunc(workloads, func(a api.DynamicPriorityWorkload, b api.DynamicPriorityWorkload) int {
-			if a.AdjustedPriority < b.AdjustedPriority {
-				return 1
-			} else if b.AdjustedPriority < a.AdjustedPriority {
-				return -1
-			}
-			return 0
-		})
-
-		if jsonOut {
-			if err := c.printDynamicQueueJSON(workloads); err != nil {
-				c.Ui.Error("Error unmarshaling json response")
-				return 255
-			}
-		} else {
-			c.printDynamicQueueFormatted(workloads)
-		}
+		return c.printDynamicQueue(resp, jsonOut)
 	case "unset":
 		c.Ui.Output("No batch job queue configured")
 	default:
@@ -140,7 +117,39 @@ func (c *QueueStatusCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *QueueStatusCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWorkload) error {
+func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse, jsonOut bool) int {
+	workloads := []api.DynamicPriorityWorkload{}
+	bytes, err := json.Marshal(resp.Workloads)
+	if err != nil {
+		c.Ui.Error("Error marshaling response status")
+		return 255
+	}
+	if err := json.Unmarshal(bytes, &workloads); err != nil {
+		c.Ui.Error("Invalid Status response from server")
+		return 255
+	}
+
+	slices.SortFunc(workloads, func(a api.DynamicPriorityWorkload, b api.DynamicPriorityWorkload) int {
+		if a.AdjustedPriority < b.AdjustedPriority {
+			return 1
+		} else if b.AdjustedPriority < a.AdjustedPriority {
+			return -1
+		}
+		return 0
+	})
+
+	if jsonOut {
+		if err := c.printDynamicQueueJSON(workloads); err != nil {
+			c.Ui.Error("Error unmarshaling json response")
+			return 255
+		}
+	} else {
+		c.printDynamicQueueFormatted(workloads)
+	}
+	return 0
+}
+
+func (c *QueueJobsCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWorkload) error {
 	out, err := json.Marshal(resp)
 	if err != nil {
 		return err
@@ -150,7 +159,7 @@ func (c *QueueStatusCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWor
 	return nil
 }
 
-func (c *QueueStatusCommand) printDynamicQueueFormatted(resp []api.DynamicPriorityWorkload) {
+func (c *QueueJobsCommand) printDynamicQueueFormatted(resp []api.DynamicPriorityWorkload) {
 	if resp == nil {
 		return
 	}

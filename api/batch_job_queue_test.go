@@ -10,7 +10,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestJobs_BatchQueue_Status(t *testing.T) {
+func TestJobs_BatchQueue_Jobs(t *testing.T) {
 	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
@@ -18,7 +18,20 @@ func TestJobs_BatchQueue_Status(t *testing.T) {
 	queue := c.BatchJobQueue()
 
 	// The passthrough queue just returns the unset type
-	resp, _, err := queue.Status(nil, nil)
+	resp, _, err := queue.Jobs(nil)
+	must.NoError(t, err)
+	must.Eq(t, resp.Type, "unset")
+}
+
+func TestJobs_BatchQueue_Tenants(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, nil)
+	defer s.Stop()
+	queue := c.BatchJobQueue()
+
+	// The passthrough queue just returns the unset type
+	resp, _, err := queue.Tenants(nil)
 	must.NoError(t, err)
 	must.Eq(t, resp.Type, "unset")
 }

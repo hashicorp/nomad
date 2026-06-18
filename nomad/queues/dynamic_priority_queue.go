@@ -78,6 +78,14 @@ type Tenant struct {
 	totalUsage         *ResourceUsage
 }
 
+func (t *Tenant) totalPercentageUsed(totalUsage *ResourceUsage) int {
+	if totalUsage.Total() == 0 {
+		return 0
+	}
+
+	return int((t.totalUsage.Total() / totalUsage.Total()) * 100)
+}
+
 type UsageList struct {
 	resources *ResourceUsage
 	start     time.Time
@@ -462,12 +470,9 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 	return nil
 }
 
-func (d *DynamicPriorityQueue) Status(namespaces map[string]bool) structs.QueueStatusResponse {
+func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJobsResponse {
 	d.qMux.Lock()
 	defer d.qMux.Unlock()
-
-	var resp structs.QueueStatusResponse
-	resp.Type = structs.BatchQueueTypeDynamic
 
 	workloads := []structs.DynamicPriorityWorkload{}
 	for _, w := range d.queue {
@@ -477,6 +482,7 @@ func (d *DynamicPriorityQueue) Status(namespaces map[string]bool) structs.QueueS
 		workloads = append(workloads, structs.DynamicPriorityWorkload{
 			JobID:            w.eval.JobID,
 			Tenant:           string(w.tid),
+			Index:            w.index,
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
 			UsageAdjustment:  w.usageAdjustment,
@@ -484,9 +490,26 @@ func (d *DynamicPriorityQueue) Status(namespaces map[string]bool) structs.QueueS
 			SizeAdjustment:   w.sizeAdjustment,
 		})
 	}
-	resp.Workloads = workloads
+	return structs.QueueJobsResponse{
+		Type:      structs.BatchQueueTypeDynamic,
+		Workloads: workloads,
+	}
+}
 
-	return resp
+func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
+	tenants := []structs.DynamicPriorityTenant{}
+	for _, t := range d.tenants {
+		tenants = append(tenants, structs.DynamicPriorityTenant{
+			TenantID:       string(t.tid),
+			PercentageUsed: t.totalPercentageUsed(d.totalUsage),
+			TenantUsage:    t.totalUsage.UsageByResource(),
+			TotalUsage:     d.totalUsage.UsageByResource(),
+		})
+	}
+	return structs.QueueTenantsResponse{
+		Type:    structs.BatchQueueTypeDynamic,
+		Tenants: tenants,
+	}
 }
 
 // updateUsage updates the tenant and total usage for a given workload if

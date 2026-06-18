@@ -3,13 +3,10 @@
 
 package structs
 
-type QueueStatusRequest struct {
-	QueryOptions
-}
-
 type DynamicPriorityWorkload struct {
 	JobID            string
 	Tenant           string
+	Index            int
 	AdjustedPriority int
 	BasePriority     int
 	UsageAdjustment  int
@@ -17,7 +14,32 @@ type DynamicPriorityWorkload struct {
 	SizeAdjustment   int
 }
 
-type QueueStatusResponse struct {
+type DynamicPriorityTenant struct {
+	TenantID       string
+	PercentageUsed int
+	TenantUsage    map[string]float64
+	TotalUsage     map[string]float64
+}
+
+type QueueTenantsRequest struct {
+	QueryOptions
+}
+
+type QueueTenantsResponse struct {
+	Type BatchQueueType
+
+	// Tenants contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The actual type is based on the "Type" parameter.
+	Tenants any
+	QueryMeta
+}
+
+type QueueJobsRequest struct {
+	QueryOptions
+}
+
+type QueueJobsResponse struct {
 	Type BatchQueueType
 
 	// Workloads contains data about a specific queue
