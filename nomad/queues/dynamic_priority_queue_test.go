@@ -547,6 +547,7 @@ func TestDynamicPriorityQueue_Status(t *testing.T) {
 	testCases := []struct {
 		name      string
 		workloads []*Workload
+		allowedNs map[string]bool
 		exp       structs.QueueStatusResponse
 	}{
 		{
@@ -603,12 +604,60 @@ func TestDynamicPriorityQueue_Status(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:      "status response screens workloads",
+			allowedNs: map[string]bool{"ns1": true},
+			workloads: []*Workload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:        "eval1",
+						JobID:     "job1",
+						Namespace: "ns1",
+						Priority:  50,
+					},
+					priority:        59,
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval2",
+					tid: "tenantB",
+					eval: &structs.Evaluation{
+						ID:        "eval2",
+						JobID:     "job2",
+						Namespace: "ns2",
+						Priority:  50,
+					},
+					priority:        63,
+					sizeAdjustment:  7,
+					ageAdjustment:   1,
+					usageAdjustment: 5,
+				},
+			},
+			exp: structs.QueueStatusResponse{
+				Type: structs.BatchQueueTypeDynamic,
+				Workloads: []structs.DynamicPriorityWorkload{
+					{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		testQueue := &DynamicPriorityQueue{
 			queue: tc.workloads,
 		}
-		must.Eq(t, tc.exp, testQueue.Status())
+		must.Eq(t, tc.exp, testQueue.Status(tc.allowedNs))
 	}
 
 }

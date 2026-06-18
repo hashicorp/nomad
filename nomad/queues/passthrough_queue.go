@@ -27,6 +27,6 @@ func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.broker.Enqueue(e) 
 
 func (p *PassthroughQueue) SetEnabled(bool, *state.StateStore) {}
 
-func (p *PassthroughQueue) Status() structs.QueueStatusResponse {
+func (p *PassthroughQueue) Status(map[string]bool) structs.QueueStatusResponse {
 	return structs.QueueStatusResponse{Type: "unset"}
 }

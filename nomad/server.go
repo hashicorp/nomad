@@ -1359,6 +1359,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewHostVolumeEndpoint(s, ctx))
 	_ = server.Register(NewTaskGroupVolumeClaimEndpoint(s, ctx))
 	_ = server.Register(NewClientHostVolumeEndpoint(s, ctx))
+	_ = server.Register(NewBatchJobQueueEndpoints(s, ctx))
 
 	// Register non-streaming
 
