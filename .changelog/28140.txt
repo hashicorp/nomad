@@ -1,3 +1,3 @@
 ```release-note:bug
-task runner: Improve the memory managment for secrets
+task runner: Improve the memory management for secrets
 ```

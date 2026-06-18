@@ -948,9 +948,9 @@ const (
 // (whichever is greater). If resources.memory_max = -1, there is no hard limit
 // and task.config.memory_hard_limit is ignored.
 //
-// It is expected that the scheduler already includede the space for the
-// secrets inside the taskMemory and if oversubscrition is not enabled,
-// askMemory.MemoryMaxMB was set to 0.
+// It is expected that the scheduler already included the space for the
+// secrets inside the taskMemory and if oversubscription is not enabled,
+// taskMemory.MemoryMaxMB was set to 0.
 //
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
 func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
