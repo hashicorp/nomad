@@ -23,6 +23,8 @@ const (
 
 	BatchJobQueueTenantMetadata  BatchJobQueueTenant = "metadata"
 	BatchJobQueueTenantNamespace BatchJobQueueTenant = "namespace"
+
+	BatchQueueObjectTenants = "tenants"
 )
 
 type BatchJobQueueConfig struct {
@@ -42,7 +44,14 @@ type DynamicPriorityWorkload struct {
 	SizeAdjustment   int
 }
 
-type BatchJobQueueStatusResponse struct {
+type DynamicPriorityTenant struct {
+	TenantID       string
+	PercentageUsed int
+	TenantUsage    map[string]float64
+	TotalUsage     map[string]float64
+}
+
+type BatchJobQueueJobsResponse struct {
 	Type BatchJobQueueType
 	// Workloads contains data about a specific queue
 	// that is important to a consumer of this API.
@@ -50,12 +59,32 @@ type BatchJobQueueStatusResponse struct {
 	Workloads any
 }
 
-type BatchJobQueueStatusOptions struct{}
+type BatchJobQueueTenantsResponse struct {
+	Type BatchJobQueueType
+	// Tenants contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The struct type is based on the "Type" parameter.
+	Tenants any
+}
 
-// Status is used to query the current batch job queue.
-func (q *BatchJobQueue) Status(opts *BatchJobQueueStatusOptions, queryOpts *QueryOptions) (*BatchJobQueueStatusResponse, *QueryMeta, error) {
-	var resp BatchJobQueueStatusResponse
-	qm, err := q.client.query("/v1/queue/status", &resp, queryOpts)
+// Jobs is used to query the current batch job queue.
+func (q *BatchJobQueue) Jobs(queryOpts *QueryOptions) (*BatchJobQueueJobsResponse, *QueryMeta, error) {
+	var resp BatchJobQueueJobsResponse
+	endpoint := "/v1/queue/jobs"
+
+	qm, err := q.client.query(endpoint, &resp, queryOpts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// Tenants is used to query the current batch job queue.
+func (q *BatchJobQueue) Tenants(queryOpts *QueryOptions) (*BatchJobQueueTenantsResponse, *QueryMeta, error) {
+	var resp BatchJobQueueTenantsResponse
+	endpoint := "/v1/queue/tenants"
+
+	qm, err := q.client.query(endpoint, &resp, queryOpts)
 	if err != nil {
 		return nil, nil, err
 	}

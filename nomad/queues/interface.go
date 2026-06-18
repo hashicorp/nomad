@@ -13,7 +13,8 @@ import (
 type Queue interface {
 	Enqueue(*structs.Evaluation)
 	Start(context.Context) error
-	Status(map[string]bool) structs.QueueStatusResponse
+	Jobs(map[string]bool) structs.QueueJobsResponse
+	Tenants() structs.QueueTenantsResponse
 	SetEnabled(bool, *state.StateStore)
 }
 
