@@ -21,6 +21,10 @@ import (
 	"golang.org/x/time/rate"
 )
 
+type dependencyChecker interface {
+	HasDependencies(j *structs.Job) (bool, error)
+}
+
 // CoreScheduler is a special "scheduler" that is registered
 // as "_core". It is used to run various administrative work
 // across the cluster.
@@ -39,10 +43,11 @@ type CoreScheduler struct {
 	// (e.g., structs.CoreJobEvalGC) and time.Duration that will be used as GC
 	// threshold value.
 	customThresholdForObject map[string]*time.Duration
+	dependecyChecker         dependencyChecker
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
-func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.Planner, _ ...sstructs.SchedulerOption) sstructs.Scheduler {
+func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
 	s := &CoreScheduler{
 		srv:                      srv,
 		snap:                     snap,
@@ -50,6 +55,11 @@ func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.P
 		planner:                  planner,
 		customThresholdForObject: make(map[string]*time.Duration),
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
 	return s
 }
 
@@ -158,6 +168,16 @@ OUTER:
 		// Ignore new jobs.
 		st := time.Unix(0, job.SubmitTime)
 		if st.After(cutoffTime) {
+			continue
+		}
+
+		free, err := c.dependecyChecker.HasDependencies(job)
+		if err != nil {
+			c.logger.Error("job GC failed to get dependencies for job", "job", job.ID, "error", err)
+			continue
+		}
+
+		if free {
 			continue
 		}
 

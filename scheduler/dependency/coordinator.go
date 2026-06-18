@@ -163,13 +163,14 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 
 	for _, d := range dependantJob.Dependencies {
 		job, ok := jobs[d.Job]
-
 		if !ok {
 			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+d.Job))
-			continue
+			ready = false
+			break
 		}
 
-		if job.Status != d.Output {
+		if (job != nil && job.Status != d.Output) || job == nil {
+			c.logger.Debug("job not preset yet", "jobID", d.Job)
 			ready = false
 			break
 		}
@@ -193,4 +194,18 @@ func (c *Coordinator) HasDependencies(j *structs.Job) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (c *Coordinator) Reload(state sstructs.State, evals ...*structs.Evaluation) {
+	for _, eval := range evals {
+		job, err := state.JobByID(nil, eval.Namespace, eval.JobID)
+		if err != nil {
+			c.logger.Error("failed to get job by ID", "error", err)
+			continue
+		}
+		_, err = c.CheckDependency(state, job, eval)
+		if err != nil {
+			c.logger.Error("failed to check dependency", "error", err)
+		}
+	}
 }
