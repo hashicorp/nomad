@@ -8,34 +8,27 @@ import (
 
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/stretchr/testify/mock"
 )
 
-type TestQueue struct {
-	queue []*structs.Evaluation
+type MockQueue struct {
+	mock.Mock
 }
 
 // Start is a noop for the passthrough implementation
-func (p *TestQueue) Start(context.Context) error { return nil }
+func (m *MockQueue) Start(context.Context) error { return nil }
 
-func (p *TestQueue) Enqueue(e *structs.Evaluation) {
-	p.queue = append(p.queue, e)
+func (m *MockQueue) Enqueue(e *structs.Evaluation) {
 }
 
-func (p *TestQueue) SetEnabled(bool, *state.StateStore) {}
+func (m *MockQueue) SetEnabled(bool, *state.StateStore) {}
 
-func (p *TestQueue) Status(ns map[string]bool) structs.QueueStatusResponse {
-	var allow bool
-	if ns == nil {
-		allow = true
+func (m *MockQueue) Status(ns map[string]bool) structs.QueueStatusResponse {
+	args := m.Called(ns)
+
+	if args.Get(0) == nil {
+		return structs.QueueStatusResponse{}
 	}
-	var resp structs.QueueStatusResponse
-	results := []*structs.Evaluation{}
-	for _, e := range p.queue {
-		if allow || ns[e.Namespace] {
-			results = append(results, e)
-		}
-	}
-	resp.Workloads = results
-	resp.Type = "test"
-	return resp
+
+	return args.Get(0).(structs.QueueStatusResponse)
 }
