@@ -23,12 +23,12 @@ func NewBatchJobQueueEndpoints(s *Server, ctx *RPCContext) *BatchJobQueue {
 	}
 }
 
-func (q *BatchJobQueue) Status(args *structs.QueueStatusRequest, reply *structs.QueueStatusResponse) error {
+func (q *BatchJobQueue) Jobs(args *structs.QueueJobsRequest, reply *structs.QueueJobsResponse) error {
 	authErr := q.srv.Authenticate(q.ctx, args)
-	if done, err := q.srv.forward("BatchJobQueue.Status", args, args, reply); done {
+	if done, err := q.srv.forward("BatchJobQueue.Jobs", args, args, reply); done {
 		return err
 	}
-	q.srv.MeasureRPCRate("queue.status", structs.RateMetricList, args)
+	q.srv.MeasureRPCRate("queue.jobs", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -47,14 +47,40 @@ func (q *BatchJobQueue) Status(args *structs.QueueStatusRequest, reply *structs.
 	if err == structs.ErrPermissionDenied {
 		// return empty results if token isn't authorized for any
 		// namespace, matching other endpoints
-		reply.Results = make([]structs.QueueStatusResponse, 0)
+		reply.Workloads = make([]interface{}, 0)
 	} else if err != nil {
 		return err
 	} else {
-		status := q.srv.batchJobQueue.Status(allowableNamespaces, *args)
-		reply.Results = status.Results
+		status := q.srv.batchJobQueue.Jobs(allowableNamespaces)
+		reply.Workloads = status.Workloads
 		reply.Type = status.Type
 	}
+
+	q.srv.setQueryMeta(&reply.QueryMeta)
+
+	return nil
+}
+
+func (q *BatchJobQueue) Tenants(args *structs.QueueTenantsRequest, reply *structs.QueueTenantsResponse) error {
+	authErr := q.srv.Authenticate(q.ctx, args)
+	if done, err := q.srv.forward("BatchJobQueue.Tenants", args, args, reply); done {
+		return err
+	}
+	q.srv.MeasureRPCRate("queue.tenants", structs.RateMetricList, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	aclObj, err := q.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowOperatorRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	status := q.srv.batchJobQueue.Tenants()
+	reply.Tenants = status.Tenants
+	reply.Type = status.Type
 
 	q.srv.setQueryMeta(&reply.QueryMeta)
 

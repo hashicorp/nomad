@@ -3,14 +3,10 @@
 
 package structs
 
-type QueueStatusRequest struct {
-	Object string `json:"object,omitempty"`
-	QueryOptions
-}
-
 type DynamicPriorityWorkload struct {
 	JobID            string
 	Tenant           string
+	Index            int
 	AdjustedPriority int
 	BasePriority     int
 	UsageAdjustment  int
@@ -25,12 +21,30 @@ type DynamicPriorityTenant struct {
 	TotalUsage     map[string]float64
 }
 
-type QueueStatusResponse struct {
+type QueueTenantsRequest struct {
+	QueryOptions
+}
+
+type QueueTenantsResponse struct {
 	Type BatchQueueType
 
-	// Results contains data about a specific queue
+	// Tenants contains data about a specific queue
 	// that is important to a consumer of this API.
 	// The actual type is based on the "Type" parameter.
-	Results any
+	Tenants any
+	QueryMeta
+}
+
+type QueueJobsRequest struct {
+	QueryOptions
+}
+
+type QueueJobsResponse struct {
+	Type BatchQueueType
+
+	// Workloads contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The actual type is based on the "Type" parameter.
+	Workloads any
 	QueryMeta
 }

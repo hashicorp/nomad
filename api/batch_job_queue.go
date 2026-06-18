@@ -51,26 +51,38 @@ type DynamicPriorityTenant struct {
 	TotalUsage     map[string]float64
 }
 
-type BatchJobQueueStatusResponse struct {
+type BatchJobQueueJobsResponse struct {
 	Type BatchJobQueueType
-	// Results contains data about a specific queue
+	// Workloads contains data about a specific queue
 	// that is important to a consumer of this API.
 	// The struct type is based on the "Type" parameter.
-	Results any
+	Workloads any
 }
 
-type BatchJobQueueStatusOptions struct {
-	Object string `json:"object,omitempty"`
+type BatchJobQueueTenantsResponse struct {
+	Type BatchJobQueueType
+	// Tenants contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The struct type is based on the "Type" parameter.
+	Tenants any
 }
 
-// Status is used to query the current batch job queue.
-func (q *BatchJobQueue) Status(opts *BatchJobQueueStatusOptions, queryOpts *QueryOptions) (*BatchJobQueueStatusResponse, *QueryMeta, error) {
-	var resp BatchJobQueueStatusResponse
-	endpoint := "/v1/queue/status"
+// Jobs is used to query the current batch job queue.
+func (q *BatchJobQueue) Jobs(queryOpts *QueryOptions) (*BatchJobQueueJobsResponse, *QueryMeta, error) {
+	var resp BatchJobQueueJobsResponse
+	endpoint := "/v1/queue/jobs"
 
-	if opts != nil && opts.Object != "" {
-		endpoint += "?object=" + opts.Object
+	qm, err := q.client.query(endpoint, &resp, queryOpts)
+	if err != nil {
+		return nil, nil, err
 	}
+	return &resp, qm, nil
+}
+
+// Tenants is used to query the current batch job queue.
+func (q *BatchJobQueue) Tenants(queryOpts *QueryOptions) (*BatchJobQueueTenantsResponse, *QueryMeta, error) {
+	var resp BatchJobQueueTenantsResponse
+	endpoint := "/v1/queue/tenants"
 
 	qm, err := q.client.query(endpoint, &resp, queryOpts)
 	if err != nil {
