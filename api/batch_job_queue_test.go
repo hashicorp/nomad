@@ -15,10 +15,10 @@ func TestJobs_BatchQueue_Status(t *testing.T) {
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
-	jobs := c.Jobs()
+	queue := c.BatchJobQueue()
 
 	// The passthrough queue just returns the unset type
-	resp, _, err := jobs.BatchQueueStatus(nil, nil)
+	resp, _, err := queue.Status(nil, nil)
 	must.NoError(t, err)
 	must.Eq(t, resp.Type, "unset")
 }

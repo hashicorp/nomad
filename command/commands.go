@@ -501,11 +501,6 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"job queue": func() (cli.Command, error) {
-			return &JobQueueCommand{
-				Meta: meta,
-			}, nil
-		},
 		"job revert": func() (cli.Command, error) {
 			return &JobRevertCommand{
 				Meta: meta,
@@ -953,6 +948,12 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"plugin status": func() (cli.Command, error) {
 			return &PluginStatusCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"queue status": func() (cli.Command, error) {
+			return &QueueStatusCommand{
 				Meta: meta,
 			}, nil
 		},

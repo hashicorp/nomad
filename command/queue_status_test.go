@@ -12,15 +12,15 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestJobQueue_Implements(t *testing.T) {
+func TestQueueStatusCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
-	var _ cli.Command = &JobQueueCommand{}
+	var _ cli.Command = &QueueStatusCommand{}
 }
 
-func TestJobQueue_printDynamicQueueFormatted(t *testing.T) {
+func TestQueueStatusCommand_printDynamicQueueFormatted(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	cmd := &JobQueueCommand{Meta: Meta{Ui: ui}}
+	cmd := &QueueStatusCommand{Meta: Meta{Ui: ui}}
 
 	testResp := []api.DynamicPriorityWorkload{
 		{
@@ -42,10 +42,10 @@ func TestJobQueue_printDynamicQueueFormatted(t *testing.T) {
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
 
-func TestJobQueue_printDynamicQueueJSON(t *testing.T) {
+func TestQueueStatusCommand_printDynamicQueueJSON(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	cmd := &JobQueueCommand{Meta: Meta{Ui: ui}}
+	cmd := &QueueStatusCommand{Meta: Meta{Ui: ui}}
 
 	testResp := []api.DynamicPriorityWorkload{
 		{

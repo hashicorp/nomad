@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) JobQueueStatus(resp http.ResponseWriter, req *http.Request) (any, error) {
+func (s *HTTPServer) BatchJobQueueStatus(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		break
@@ -24,7 +24,7 @@ func (s *HTTPServer) JobQueueStatus(resp http.ResponseWriter, req *http.Request)
 		return nil, nil
 	}
 
-	if err := s.agent.RPC("Job.QueueStatus", &args, &out); err != nil {
+	if err := s.agent.RPC("BatchJobQueue.Status", &args, &out); err != nil {
 		return nil, err
 	}
 
