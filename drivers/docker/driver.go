@@ -997,11 +997,11 @@ func (d *Driver) cpuResources(requested int64) int64 {
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (createContainerOptions, error) {
 
+	logger := d.logger.With("task_name", task.Name)
 	c := createContainerOptions{}
+
 	// ensure that PortMap variables are populated early on
 	task.Env = taskenv.SetPortMapEnvs(task.Env, driverConfig.PortMap)
-
-	logger := d.logger.With("task_name", task.Name)
 
 	if task.Resources == nil {
 		// Guard against missing resources. We should never have been able to
@@ -1009,6 +1009,14 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		logger.Error("task.Resources is empty")
 		return c, fmt.Errorf("task.Resources is empty")
 	}
+
+	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit,
+		task.Resources.NomadResources.Memory)
+	if memory > 0 && memoryReservation > memory {
+		return c, fmt.Errorf("task memory requirements exceed driver hard limit of %d MB",
+			driverConfig.MemoryHardLimit)
+	}
+
 	binds, err := d.containerBinds(task, driverConfig)
 	if err != nil {
 		return c, err
@@ -1055,12 +1063,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		if !slices.Contains(windowsIsolationModes, driverConfig.Isolation) {
 			return c, fmt.Errorf("Unsupported isolation mode \"%s\"", driverConfig.Isolation)
 		}
-	}
-
-	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
-	if memory > 0 && memoryReservation > memory {
-		return c, fmt.Errorf("task memory requirements exceed driver hard limit of %d MB",
-			driverConfig.MemoryHardLimit)
 	}
 
 	var pidsLimit int64 = -1 // default unlimited
