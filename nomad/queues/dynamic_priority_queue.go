@@ -462,7 +462,7 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 	return nil
 }
 
-func (d *DynamicPriorityQueue) Status() structs.QueueStatusResponse {
+func (d *DynamicPriorityQueue) Status(namespaces map[string]bool) structs.QueueStatusResponse {
 	d.qMux.Lock()
 	defer d.qMux.Unlock()
 
@@ -471,6 +471,9 @@ func (d *DynamicPriorityQueue) Status() structs.QueueStatusResponse {
 
 	workloads := []structs.DynamicPriorityWorkload{}
 	for _, w := range d.queue {
+		if (namespaces != nil) && !namespaces[w.eval.Namespace] {
+			continue
+		}
 		workloads = append(workloads, structs.DynamicPriorityWorkload{
 			JobID:            w.eval.JobID,
 			Tenant:           string(w.tid),

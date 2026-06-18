@@ -405,8 +405,9 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/jobs", s.wrap(s.JobsRequest))
 	s.mux.HandleFunc("/v1/jobs/parse", s.wrap(s.JobsParseRequest))
 	s.mux.HandleFunc("/v1/jobs/statuses", s.wrap(s.JobStatusesRequest))
-	s.mux.HandleFunc("/v1/jobs/queue/status", s.wrap(s.JobQueueStatus))
 	s.mux.HandleFunc("/v1/job/", s.wrap(s.JobSpecificRequest))
+
+	s.mux.HandleFunc("/v1/queue/status", s.wrap(s.BatchJobQueueStatus))
 
 	s.mux.HandleFunc("/v1/nodes", s.wrap(s.NodesRequest))
 	s.mux.HandleFunc("/v1/node/", s.wrap(s.NodeSpecificRequest))

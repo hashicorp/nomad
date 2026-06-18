@@ -14,18 +14,17 @@ import (
 	"github.com/ryanuber/columnize"
 )
 
-type JobQueueCommand struct {
+type QueueStatusCommand struct {
 	Meta
 }
 
-func (c *JobQueueCommand) Help() string {
+func (c *QueueStatusCommand) Help() string {
 	helpText := `
-Usage: nomad job queue [options]
+Usage: nomad queue status [options]
 
   View the current status of workloads queued in a batch job queue.
 
-  When ACLs are enabled, this command requires a token with either TBD
-  capabilities. Probably at least 'list-jobs'.
+  When ACLs are enabled, this command requires a token with the 'list-jobs' capability. If multiple jobs in the queue are in different namespaces, the output will be filtered to only include jobs in namespaces the token has permissions for.
   
 General Options:
 
@@ -41,16 +40,15 @@ Eval Options:
 
   -json
     Display output as json
-
 `
 	return strings.TrimSpace(helpText)
 }
 
-func (c *JobQueueCommand) Synopsis() string {
+func (c *QueueStatusCommand) Synopsis() string {
 	return "View the status of a batch job queue"
 }
 
-func (c *JobQueueCommand) AutocompleteFlags() complete.Flags {
+func (c *QueueStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
@@ -59,13 +57,13 @@ func (c *JobQueueCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *JobQueueCommand) AutocompleteArgs() complete.Predictor {
+func (c *QueueStatusCommand) AutocompleteArgs() complete.Predictor {
 	return JobPredictor(c.Meta.Client)
 }
 
-func (c *JobQueueCommand) Name() string { return "job queue" }
+func (c *QueueStatusCommand) Name() string { return "queue status" }
 
-func (c *JobQueueCommand) Run(args []string) int {
+func (c *QueueStatusCommand) Run(args []string) int {
 	var verbose, jsonOut bool
 	var limit int
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -93,7 +91,7 @@ func (c *JobQueueCommand) Run(args []string) int {
 	}
 
 	// Submit the request
-	resp, _, err := client.Jobs().BatchQueueStatus(nil, qo)
+	resp, _, err := client.BatchJobQueue().Status(nil, qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
@@ -103,7 +101,7 @@ func (c *JobQueueCommand) Run(args []string) int {
 	}
 
 	switch resp.Type {
-	case api.BatchQueueTypeDynamic:
+	case api.BatchJobQueueTypeDynamic:
 		workloads := []api.DynamicPriorityWorkload{}
 		bytes, err := json.Marshal(resp.Workloads)
 		if err != nil {
@@ -142,7 +140,7 @@ func (c *JobQueueCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *JobQueueCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWorkload) error {
+func (c *QueueStatusCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWorkload) error {
 	out, err := json.Marshal(resp)
 	if err != nil {
 		return err
@@ -152,7 +150,7 @@ func (c *JobQueueCommand) printDynamicQueueJSON(resp []api.DynamicPriorityWorklo
 	return nil
 }
 
-func (c *JobQueueCommand) printDynamicQueueFormatted(resp []api.DynamicPriorityWorkload) {
+func (c *QueueStatusCommand) printDynamicQueueFormatted(resp []api.DynamicPriorityWorkload) {
 	if resp == nil {
 		return
 	}

@@ -179,7 +179,7 @@ type SchedulerConfiguration struct {
 	//
 	// "Scheduling" in this context refers to releasing evaluations
 	// to the eval broker for scheduling with a worker.
-	BatchQueue BatchQueue
+	BatchQueue BatchJobQueueConfig
 
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool
@@ -227,18 +227,11 @@ type SchedulerSetConfigurationResponse struct {
 // allow the config to be user-selectable.
 type (
 	SchedulerAlgorithm string
-	BatchQueueTenant   string
-	BatchQueueType     string
 )
 
 const (
 	SchedulerAlgorithmBinpack SchedulerAlgorithm = "binpack"
 	SchedulerAlgorithmSpread  SchedulerAlgorithm = "spread"
-
-	BatchQueueTypeDynamic BatchQueueType = "dynamic_priority"
-
-	TenantTypeMetadata  BatchQueueTenant = "metadata"
-	TenantTypeNamespace BatchQueueTenant = "namespace"
 )
 
 // PreemptionConfig specifies whether preemption is enabled based on scheduler type
@@ -247,15 +240,6 @@ type PreemptionConfig struct {
 	SysBatchSchedulerEnabled bool
 	BatchSchedulerEnabled    bool
 	ServiceSchedulerEnabled  bool
-}
-
-// BatchQueue is the configuration for a batch job queue used to control scheduling
-// of batch jobs.
-type BatchQueue struct {
-	Type        BatchQueueType
-	TenantType  BatchQueueTenant
-	MetadataKey string
-	Config      map[string]any
 }
 
 // SchedulerGetConfiguration is used to query the current Scheduler configuration.
