@@ -24,7 +24,6 @@ BUG FIXES:
 * cli: Fixed `job dispatch` and `job periodic force` failing with a paginator error against servers older than the CLI [[GH-27680](https://github.com/hashicorp/nomad/issues/27680)]
 * client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
 * consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
-* job (Enterprise): Renabled use of multiple vault namespaces in a single job
 * plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
 * template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
 * ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
@@ -127,7 +126,6 @@ BUG FIXES:
 * client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
 * client: fix a bug where we could accidentally overwrite task states [[GH-27944](https://github.com/hashicorp/nomad/issues/27944)]
 * consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
-* job (Enterprise): Renabled use of multiple vault namespaces in a single job
 * plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
 * template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
 * ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
@@ -145,7 +143,6 @@ BUG FIXES:
 * ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
 * ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
 * ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
-
 
 ## 1.11.5 Enterprise (May 12, 2026)
 
@@ -174,7 +171,7 @@ BUG FIXES:
 * csi: improve check of StagePublishBaseDir being subdirectory of MountDir [[GH-27717](https://github.com/hashicorp/nomad/issues/27717)]
 * deployments: reset ProgressDeadline after pausing and do not fail while paused [[GH-27804](https://github.com/hashicorp/nomad/issues/27804)]
 * drivers: kill plugin instance on dispense failure [[GH-27711](https://github.com/hashicorp/nomad/issues/27711)]
-* job: renabled use of multiple vault namespaces in a single job [[GH-4002](https://github.com/hashicorp/nomad/issues/4002)]
+* job (Enterprise): Renabled use of multiple vault namespaces in a single job
 * plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted [[GH-27885](https://github.com/hashicorp/nomad/issues/27885)]
 * scheduler: Fixed a bug where preemption of allocations by tasks that require devices could incorrectly fail placement [[GH-27880](https://github.com/hashicorp/nomad/issues/27880)]
 
@@ -421,7 +418,6 @@ BUG FIXES:
 * client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
 * client: fix a bug where we could accidentally overwrite task states [[GH-27944](https://github.com/hashicorp/nomad/issues/27944)]
 * consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
-* job (Enterprise): Renabled use of multiple vault namespaces in a single job
 * plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
 * template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
 * ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
@@ -466,7 +462,7 @@ BUG FIXES:
 * csi: improve check of StagePublishBaseDir being subdirectory of MountDir [[GH-27717](https://github.com/hashicorp/nomad/issues/27717)]
 * deployments: reset ProgressDeadline after pausing and do not fail while paused [[GH-27804](https://github.com/hashicorp/nomad/issues/27804)]
 * drivers: kill plugin instance on dispense failure [[GH-27711](https://github.com/hashicorp/nomad/issues/27711)]
-* job: renabled use of multiple vault namespaces in a single job [[GH-4002](https://github.com/hashicorp/nomad/issues/4002)]
+* job (Enterprise): Renabled use of multiple vault namespaces in a single job
 * plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted [[GH-27885](https://github.com/hashicorp/nomad/issues/27885)]
 * scheduler: Fixed a bug where preemption of allocations by tasks that require devices could incorrectly fail placement [[GH-27880](https://github.com/hashicorp/nomad/issues/27880)]
 
