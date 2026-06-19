@@ -376,11 +376,12 @@ NEXTNODE:
 					CpuShares: int64(task.Resources.CPU),
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: safemath.Add(
-						int64(task.Resources.MemoryMB), int64(task.Resources.SecretsMB)),
+					MemoryMB: safemath.Add(int64(task.Resources.MemoryMB),
+						int64(task.Resources.SecretsMB)),
 				},
 			}
-			if iter.memoryOversubscription {
+
+			if iter.memoryOversubscription && task.Resources.MemoryMaxMB > 0 {
 				taskResources.Memory.MemoryMaxMB = safemath.Add(
 					int64(task.Resources.MemoryMaxMB), int64(task.Resources.SecretsMB))
 			}
