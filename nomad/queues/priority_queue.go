@@ -4,18 +4,22 @@
 package queues
 
 import (
-	"container/heap"
+	"github.com/hashicorp/go-set/v3"
 )
 
 // A WorkloadQueue implements heap.Interface and holds *Workload.
-type WorkloadQueue []*Workload
+type WorkloadQueue struct {
+	*set.TreeSet[*Workload]
+}
 
-func (pq WorkloadQueue) Len() int { return len(pq) }
+func NewWorkloadQueue() WorkloadQueue {
+	return WorkloadQueue{set.NewTreeSet[*Workload](workloadSortFn())}
+}
 
-// SortFn returns a function that can be used to sort workloads in the queue in
-// the same way the queue is sorted.
-func (pq *WorkloadQueue) SortFn() func(i, j Workload) int {
-	return func(a, b Workload) int {
+func (pq WorkloadQueue) Len() int { return pq.Size() }
+
+func workloadSortFn() func(i, j *Workload) int {
+	return func(a, b *Workload) int {
 		if a.priority > b.priority {
 			return -1
 		} else if a.priority < b.priority {
@@ -31,49 +35,24 @@ func (pq *WorkloadQueue) SortFn() func(i, j Workload) int {
 	}
 }
 
-func (pq WorkloadQueue) Less(i, j int) bool {
-	if pq[i].priority == pq[j].priority {
-		// If priority is equal, we want the oldest workload to be popped first
-		return pq[i].eval.CreateTime < pq[j].eval.CreateTime
-	} else {
-		// We want Pop to give us the highest, not lowest, priority so we use greater than here.
-		return pq[i].priority > pq[j].priority
+func (pq *WorkloadQueue) Push(w *Workload) {
+	pq.Insert(w)
+}
+
+func (pq *WorkloadQueue) Pop() *Workload {
+	w := pq.Min()
+	pq.Remove(w)
+	return w
+}
+
+func (pq *WorkloadQueue) Workloads() []*Workload {
+	return pq.Slice()
+}
+
+func (pq *WorkloadQueue) UpdateAll(workloadFn func(w *Workload) *Workload) {
+	newQueue := NewWorkloadQueue()
+	for _, w := range pq.Workloads() {
+		newQueue.Push(workloadFn(w))
 	}
-}
-
-func (pq WorkloadQueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
-}
-
-func (pq *WorkloadQueue) Push(x any) {
-	n := len(*pq)
-	item := x.(*Workload)
-	item.index = n
-	*pq = append(*pq, item)
-}
-
-func (pq *WorkloadQueue) Pop() any {
-	old := *pq
-	n := len(old)
-	item := old[n-1]
-	old[n-1] = nil  // don't stop the GC from reclaiming the item eventually
-	item.index = -1 // for safety
-	*pq = old[0 : n-1]
-	return item
-}
-
-// update modifies the priority and value of an Item in the queue.
-func (pq *WorkloadQueue) update(item *Workload, priority int) {
-	item.priority = priority
-	heap.Fix(pq, item.index)
-}
-
-func (pq *WorkloadQueue) Workloads() []Workload {
-	workloads := make([]Workload, len(*pq))
-	for i, w := range *pq {
-		workloads[i] = *w
-	}
-	return workloads
+	*pq = newQueue
 }

@@ -405,7 +405,9 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 
 			queue.tenants[tc.lowUsageTenant.tid] = tc.lowUsageTenant
 			queue.tenants[tc.highUsageTenant.tid] = tc.highUsageTenant
-			queue.queue = WorkloadQueue{lowUsageWorkload, highUsageWorkload}
+			queue.queue = NewWorkloadQueue()
+			queue.queue.Push(lowUsageWorkload)
+			queue.queue.Push(highUsageWorkload)
 
 			queue.calculatePriorities(time.Unix(20, 0))
 
@@ -765,7 +767,10 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		testQueue := &DynamicPriorityQueue{
-			queue: tc.workloads,
+			queue: NewWorkloadQueue(),
+		}
+		for _, w := range tc.workloads {
+			testQueue.queue.Push(w)
 		}
 		must.Eq(t, tc.exp, testQueue.Jobs(tc.allowedNs))
 	}
