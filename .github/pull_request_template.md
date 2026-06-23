@@ -25,6 +25,8 @@ merged.
   [`web-unified-docs` repo](https://github.com/hashicorp/web-unified-docs/). Refer to the [`web-unified-docs` contributor guide](https://github.com/hashicorp/web-unified-docs/blob/main/CONTRIBUTING.md) for docs guidelines.
   Please also consider whether the change requires notes within the [upgrade
   guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific). If you would like help with the docs, tag the `nomad-docs` team in this PR.
+- [ ] **LLM Usage** If an LLM was used to generate any code, please ensure and confirm you have read
+  and followed the [AI usage guide](./contributing/ai.md).
 
 ### Reviewer Checklist
 - [ ] **Backport Labels** Please add the correct backport labels as described by the internal
