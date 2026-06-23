@@ -280,6 +280,11 @@ func (tm *TaskTemplateManager) Run() {
 	// Unblock the task
 	close(tm.config.UnblockCh)
 
+	// Collect change_script templates that should fire on first render.
+	// These are stored and executed later when the task reaches the running
+	// state, triggered via RunFirstRenderScripts from the Poststart hook.
+	tm.firstRenderScripts = tm.collectFirstRenderScripts()
+
 	// handle all subsequent render events.
 	tm.handleTemplateRerenders(time.Now())
 }
