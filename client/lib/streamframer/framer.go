@@ -298,9 +298,14 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 
 		// Create a new frame to send it
 		s.f.Data = s.readData()
+		copied := s.f.Copy()
+		s.l.Unlock()
+
 		select {
-		case s.out <- s.f.Copy():
+		case s.out <- copied:
+			s.l.Lock()
 		case <-s.exitCh:
+			s.l.Lock()
 			return nil
 		}
 

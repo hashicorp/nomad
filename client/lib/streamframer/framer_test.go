@@ -261,3 +261,42 @@ func TestStreamFramer_Order(t *testing.T) {
 		t.Fatal("out channel should be closed")
 	}
 }
+
+
+
+
+func TestStreamFramer_RotationDeadlockUnderLoad(t *testing.T) {
+	out := make(chan *StreamFrame, 1)
+	framer := NewStreamFramer(out, 1*time.Minute, 1*time.Minute, 1024)
+	framer.Run()
+
+	// Saturate the framer by sending just enough to fill the buffer and block the next send
+	framer.Send("test.log", "write", []byte("spam"), 0)
+
+	blockedSendDone := make(chan struct{})
+	go func() {
+		framer.Send("test.log", "write", []byte("spam"), 0)
+		close(blockedSendDone)
+	}()
+
+	// Wait briefly to ensure the goroutine is blocked inside Send()
+	time.Sleep(50 * time.Millisecond)
+
+	done := make(chan struct{})
+	go func() {
+		framer.Destroy()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Success! Destroy didn't deadlock
+	case <-time.After(1 * time.Second):
+			t.Fatal("Destroy() deadlocked while waiting for stream framer lock")
+	}
+
+	// Unblock the channel to allow the test to clean up cleanly
+	// Actually Destroy closes the channel, so we don't need to read from it, but wait for the blocked send to finish
+	<-blockedSendDone
+}
+
