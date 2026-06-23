@@ -26,6 +26,7 @@ func TestQueueJobsCommand_printDynamicQueueFormatted(t *testing.T) {
 		{
 			JobID:            "123",
 			Tenant:           "testTenant1",
+			Position:         1,
 			AdjustedPriority: 10,
 			BasePriority:     10,
 			UsageAdjustment:  10,
@@ -36,8 +37,8 @@ func TestQueueJobsCommand_printDynamicQueueFormatted(t *testing.T) {
 	cmd.printDynamicQueueFormatted(testResp)
 
 	expect := "Batch Queue Workloads\n" +
-		"JobID  Tenant       Adjusted Priority  Base Priority  Usage  Age  Size\n" +
-		"123    testTenant1  10                 10             10     5    6\n"
+		"JobID  Tenant       Adjusted Priority  Base Priority  Position  Usage  Age  Size\n" +
+		"123    testTenant1  10                 10             1         10     5    6\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
@@ -51,6 +52,7 @@ func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
 		{
 			JobID:            "123",
 			Tenant:           "testTenant1",
+			Position:         1,
 			AdjustedPriority: 10,
 			BasePriority:     10,
 			UsageAdjustment:  10,
@@ -60,7 +62,7 @@ func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
 	}
 	cmd.printDynamicQueueJSON(testResp)
 
-	expect := `[{"JobID":"123","Tenant":"testTenant1","AdjustedPriority":10,"BasePriority":10,"UsageAdjustment":10,"AgeAdjustment":5,"SizeAdjustment":6}]` + "\n"
+	expect := `[{"JobID":"123","Tenant":"testTenant1","Position":1,"AdjustedPriority":10,"BasePriority":10,"UsageAdjustment":10,"AgeAdjustment":5,"SizeAdjustment":6}]` + "\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }

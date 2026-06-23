@@ -475,14 +475,14 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 	defer d.qMux.Unlock()
 
 	workloads := []structs.DynamicPriorityWorkload{}
-	for _, w := range d.queue {
+	for pos, w := range d.queue.Sorted() {
 		if (namespaces != nil) && !namespaces[w.eval.Namespace] {
 			continue
 		}
 		workloads = append(workloads, structs.DynamicPriorityWorkload{
 			JobID:            w.eval.JobID,
 			Tenant:           string(w.tid),
-			Index:            w.index,
+			Position:         pos + 1,
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
 			UsageAdjustment:  w.usageAdjustment,

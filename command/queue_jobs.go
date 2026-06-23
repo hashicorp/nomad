@@ -6,7 +6,6 @@ package command
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -129,15 +128,6 @@ func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse
 		return 255
 	}
 
-	slices.SortFunc(workloads, func(a api.DynamicPriorityWorkload, b api.DynamicPriorityWorkload) int {
-		if a.AdjustedPriority < b.AdjustedPriority {
-			return 1
-		} else if b.AdjustedPriority < a.AdjustedPriority {
-			return -1
-		}
-		return 0
-	})
-
 	if jsonOut {
 		if err := c.printDynamicQueueJSON(workloads); err != nil {
 			c.Ui.Error("Error unmarshaling json response")
@@ -165,14 +155,15 @@ func (c *QueueJobsCommand) printDynamicQueueFormatted(resp []api.DynamicPriority
 	}
 
 	out := make([]string, len(resp)+1)
-	out[0] = "JobID|Tenant|Adjusted Priority|Base Priority|Usage|Age|Size"
+	out[0] = "JobID|Tenant|Adjusted Priority|Base Priority|Position|Usage|Age|Size"
 
 	for i, v := range resp {
-		out[i+1] = fmt.Sprintf("%s|%s|%d|%d|%d|%d|%d",
+		out[i+1] = fmt.Sprintf("%s|%s|%d|%d|%d|%d|%d|%d",
 			v.JobID,
 			v.Tenant,
 			v.AdjustedPriority,
 			v.BasePriority,
+			v.Position,
 			v.UsageAdjustment,
 			v.AgeAdjustment,
 			v.SizeAdjustment,
