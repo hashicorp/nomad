@@ -163,4 +163,7 @@ func normalizeChangeScript(ch *api.ChangeScript) {
 	if ch.FailOnError == nil {
 		ch.FailOnError = pointerOf(false)
 	}
+	if ch.RunOnFirstRender == nil {
+		ch.RunOnFirstRender = pointerOf(false)
+	}
 }

@@ -7333,10 +7333,11 @@ func TestChangeScript_Equal(t *testing.T) {
 	must.NotEqual[*ChangeScript](t, nil, new(ChangeScript))
 
 	must.StructEqual(t, &ChangeScript{
-		Command:     "/bin/sleep",
-		Args:        []string{"infinity"},
-		Timeout:     1 * time.Second,
-		FailOnError: true,
+		Command:          "/bin/sleep",
+		Args:             []string{"infinity"},
+		Timeout:          1 * time.Second,
+		FailOnError:      true,
+		RunOnFirstRender: true,
 	}, []must.Tweak[*ChangeScript]{{
 		Field: "Command",
 		Apply: func(c *ChangeScript) { c.Command = "/bin/false" },
@@ -7349,6 +7350,9 @@ func TestChangeScript_Equal(t *testing.T) {
 	}, {
 		Field: "FailOnError",
 		Apply: func(c *ChangeScript) { c.FailOnError = false },
+	}, {
+		Field: "RunOnFirstRender",
+		Apply: func(c *ChangeScript) { c.RunOnFirstRender = false },
 	}})
 }
 

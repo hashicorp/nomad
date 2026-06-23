@@ -68,6 +68,10 @@ type TaskTemplateManager struct {
 	// shutdownCh is used to signal and started goroutine to shutdown
 	shutdownCh chan struct{}
 
+	// firstRenderScripts holds change_scripts that should fire after the
+	// initial template render once the task reaches the running state.
+	firstRenderScripts []*structs.ChangeScript
+
 	// shutdown marks whether the manager has been shutdown
 	shutdown     bool
 	shutdownLock sync.Mutex
@@ -650,6 +654,38 @@ func (tm *TaskTemplateManager) allTemplatesNoop() bool {
 	}
 
 	return true
+}
+
+// collectFirstRenderScripts returns the set of ChangeScript objects from
+// templates that have change_mode "script" with RunOnFirstRender enabled.
+func (tm *TaskTemplateManager) collectFirstRenderScripts() []*structs.ChangeScript {
+	var scripts []*structs.ChangeScript
+	for _, tmpl := range tm.config.Templates {
+		if tmpl.ChangeMode == structs.TemplateChangeModeScript &&
+			tmpl.ChangeScript != nil &&
+			tmpl.ChangeScript.RunOnFirstRender {
+			scripts = append(scripts, tmpl.ChangeScript)
+		}
+	}
+	return scripts
+}
+
+// RunFirstRenderScripts executes the change_scripts collected during the
+// first template render. It is called by the template hook's Poststart
+// method once the task is running and Exec is available.
+func (tm *TaskTemplateManager) RunFirstRenderScripts() {
+	scripts := tm.firstRenderScripts
+	if len(scripts) == 0 {
+		return
+	}
+	tm.firstRenderScripts = nil
+
+	var wg sync.WaitGroup
+	for _, script := range scripts {
+		wg.Add(1)
+		go tm.processScript(script, &wg)
+	}
+	wg.Wait()
 }
 
 // templateRunner returns a consul-template runner for the given templates and a
