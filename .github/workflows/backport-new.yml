@@ -1,0 +1,50 @@
+name: Backport PR
+
+on:
+  pull_request_target:
+    types:
+      - closed
+      - labeled
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  backport:
+    name: Backport to release branch
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    strategy:
+      matrix:
+        label: ${{ github.event.pull_request.labels.*.name }}
+    steps:
+      - name: Check if label is a release branch
+        id: check_label
+        run: |
+          if [[ "${{ matrix.label }}" == release/* ]]; then
+            echo "is_release_label=true" >> $GITHUB_OUTPUT
+            echo "target_branch=${{ matrix.label }}" >> $GITHUB_OUTPUT
+          else
+            echo "is_release_label=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repository
+        if: steps.check_label.outputs.is_release_label == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run backport script
+        if: steps.check_label.outputs.is_release_label == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          TARGET_BRANCH: ${{ steps.check_label.outputs.target_branch }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          bash .github/actions/backport.sh
