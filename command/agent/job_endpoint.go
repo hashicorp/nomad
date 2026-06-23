@@ -1550,10 +1550,11 @@ func apiChangeScriptToStructsChangeScript(changeScript *api.ChangeScript) *struc
 	}
 
 	return &structs.ChangeScript{
-		Command:     *changeScript.Command,
-		Args:        changeScript.Args,
-		Timeout:     *changeScript.Timeout,
-		FailOnError: *changeScript.FailOnError,
+		Command:          *changeScript.Command,
+		Args:             changeScript.Args,
+		Timeout:          *changeScript.Timeout,
+		FailOnError:      *changeScript.FailOnError,
+		RunOnFirstRender: *changeScript.RunOnFirstRender,
 	}
 }
 
