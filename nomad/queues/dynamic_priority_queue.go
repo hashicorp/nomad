@@ -476,14 +476,7 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 	sortedWorkloads := d.queue.Workloads()
 	d.qMux.Unlock()
 
-	slices.SortFunc(sortedWorkloads, func(a, b Workload) int {
-		if a.priority > b.priority {
-			return -1
-		} else if a.priority < b.priority {
-			return 1
-		}
-		return 0
-	})
+	slices.SortFunc(sortedWorkloads, d.queue.SortFn())
 
 	workloads := []structs.DynamicPriorityWorkload{}
 	for pos, w := range sortedWorkloads {
@@ -499,6 +492,7 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 			UsageAdjustment:  w.usageAdjustment,
 			AgeAdjustment:    w.ageAdjustment,
 			SizeAdjustment:   w.sizeAdjustment,
+			CreatedAt:        w.eval.CreateTime,
 		})
 	}
 	return structs.QueueJobsResponse{

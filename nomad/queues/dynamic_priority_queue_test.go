@@ -702,6 +702,66 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "order falls back to createTime if priority is equal",
+			workloads: []*Workload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:         "eval1",
+						JobID:      "job1",
+						Priority:   50,
+						CreateTime: time.Unix(20, 0).UnixNano(),
+					},
+					priority:        59,
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval2",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:         "eval2",
+						JobID:      "job2",
+						Priority:   50,
+						CreateTime: time.Unix(10, 0).UnixNano(),
+					},
+					priority:        59,
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+			},
+			exp: structs.QueueJobsResponse{
+				Type: structs.BatchQueueTypeDynamic,
+				Workloads: []structs.DynamicPriorityWorkload{
+					{
+						JobID:            "job2",
+						Tenant:           "tenantA",
+						Position:         1,
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(10, 0).UnixNano(),
+					},
+					{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						Position:         2,
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(20, 0).UnixNano(),
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		testQueue := &DynamicPriorityQueue{

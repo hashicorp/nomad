@@ -12,9 +12,33 @@ type WorkloadQueue []*Workload
 
 func (pq WorkloadQueue) Len() int { return len(pq) }
 
+// SortFn returns a function that can be used to sort workloads in the queue in
+// the same way the queue is sorted.
+func (pq *WorkloadQueue) SortFn() func(i, j Workload) int {
+	return func(a, b Workload) int {
+		if a.priority > b.priority {
+			return -1
+		} else if a.priority < b.priority {
+			return 1
+		} else {
+			if a.eval.CreateTime < b.eval.CreateTime {
+				return -1
+			} else if a.eval.CreateTime > b.eval.CreateTime {
+				return 1
+			}
+		}
+		return 0
+	}
+}
+
 func (pq WorkloadQueue) Less(i, j int) bool {
-	// We want Pop to give us the highest, not lowest, priority so we use greater than here.
-	return pq[i].priority > pq[j].priority
+	if pq[i].priority == pq[j].priority {
+		// If priority is equal, we want the oldest workload to be popped first
+		return pq[i].eval.CreateTime < pq[j].eval.CreateTime
+	} else {
+		// We want Pop to give us the highest, not lowest, priority so we use greater than here.
+		return pq[i].priority > pq[j].priority
+	}
 }
 
 func (pq WorkloadQueue) Swap(i, j int) {

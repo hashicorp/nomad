@@ -43,6 +43,7 @@ type DynamicPriorityWorkload struct {
 	UsageAdjustment  int
 	AgeAdjustment    int
 	SizeAdjustment   int
+	CreatedAt        int64
 }
 
 type DynamicPriorityTenant struct {
