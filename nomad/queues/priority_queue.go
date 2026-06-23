@@ -5,7 +5,6 @@ package queues
 
 import (
 	"container/heap"
-	"slices"
 )
 
 // A WorkloadQueue implements heap.Interface and holds *Workload.
@@ -47,16 +46,10 @@ func (pq *WorkloadQueue) update(item *Workload, priority int) {
 	heap.Fix(pq, item.index)
 }
 
-func (pq *WorkloadQueue) Sorted() []*Workload {
-	workloads := make([]*Workload, len(*pq))
-	copy(workloads, *pq)
-	slices.SortFunc(workloads, func(a, b *Workload) int {
-		if a.priority > b.priority {
-			return -1
-		} else if a.priority < b.priority {
-			return 1
-		}
-		return 0
-	})
+func (pq *WorkloadQueue) Workloads() []Workload {
+	workloads := make([]Workload, len(*pq))
+	for i, w := range *pq {
+		workloads[i] = *w
+	}
 	return workloads
 }

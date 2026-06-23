@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -472,10 +473,20 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 
 func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJobsResponse {
 	d.qMux.Lock()
-	defer d.qMux.Unlock()
+	sortedWorkloads := d.queue.Workloads()
+	d.qMux.Unlock()
+
+	slices.SortFunc(sortedWorkloads, func(a, b Workload) int {
+		if a.priority > b.priority {
+			return -1
+		} else if a.priority < b.priority {
+			return 1
+		}
+		return 0
+	})
 
 	workloads := []structs.DynamicPriorityWorkload{}
-	for pos, w := range d.queue.Sorted() {
+	for pos, w := range sortedWorkloads {
 		if (namespaces != nil) && !namespaces[w.eval.Namespace] {
 			continue
 		}
