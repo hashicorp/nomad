@@ -1,0 +1,3 @@
+```release-note:deprecation
+agent: Unauthenticated server join via the CLI or API is deprecated.
+```

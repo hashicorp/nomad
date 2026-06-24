@@ -5,6 +5,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -140,6 +141,9 @@ func (a *Agent) Join(addrs ...string) (int, error) {
 	}
 	if resp.Error != "" {
 		return 0, fmt.Errorf("failed joining: %s", resp.Error)
+	}
+	if resp.Warning != "" {
+		return resp.NumJoined, errors.New(resp.Warning)
 	}
 	return resp.NumJoined, nil
 }
@@ -454,6 +458,7 @@ func (a *Agent) pprofRequest(req string, opts PprofOptions, q *QueryOptions) ([]
 type joinResponse struct {
 	NumJoined int    `json:"num_joined"`
 	Error     string `json:"error"`
+	Warning   string `json:"warning"`
 }
 
 type ServerMembers struct {
