@@ -60,20 +60,22 @@ func TestPaginator(t *testing.T) {
 		{
 			name:    "when numbers are numbers",
 			perPage: 2,
-			// "10" is converted to uint64(10) and compared with uint64 index
+			// a bare "10" target exercises the legacy index-only path: "10" is
+			// parsed as uint64(10) and compared numerically with the index.
 			nextToken:         "10",
-			tokenizer:         ModifyIndexTokenizer[*mockObject]("10"),
+			tokenizer:         ModifyIndexAndNamespaceIDTokenizer[*mockObject]("10"),
 			expected:          []string{"10", "11"},
 			expectedNextToken: "",
 		},
 		{
 			name:    "when zero is a number",
 			perPage: 2,
-			// "" is converted to uint64(0) and compared with uint64 index
+			// an empty token starts from the beginning; the next token is the
+			// full "<index>.<namespace>.<id>" cursor (namespace is empty here).
 			nextToken:         "",
-			tokenizer:         ModifyIndexTokenizer[*mockObject](""),
+			tokenizer:         ModifyIndexAndNamespaceIDTokenizer[*mockObject](""),
 			expected:          []string{"0", "1"},
-			expectedNextToken: "2",
+			expectedNextToken: "2..2",
 		},
 		{
 			name:              "starting off the end",

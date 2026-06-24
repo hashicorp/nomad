@@ -1036,6 +1036,53 @@ module('Acceptance | jobs list', function (hooks) {
 
         localStorage.removeItem('nomadPageSize');
       });
+      test('jobs that share a modify index paginate without duplicates or gaps', async function (assert) {
+        // Regression test for the ModifyIndex-only pagination cursor: several
+        // jobs can share a ModifyIndex, and the cursor must still reach each of
+        // them exactly once instead of repeating a page or stranding jobs.
+        const pageSize = 5;
+        const total = 12; // more than two pages, all sharing one modify index
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        for (let i = 0; i < total; i++) {
+          const id = `shared-${String(i).padStart(2, '0')}`;
+          this.server.create('job', {
+            id,
+            name: id,
+            namespaceId: 'default',
+            modifyIndex: 1000, // identical across all of them
+            createAllocations: false,
+            shallow: true,
+          });
+        }
+
+        await JobsList.visit();
+
+        // Walk forward to the end, collecting every job we see on each page.
+        const seen = [];
+        for (let guard = 0; guard <= total; guard++) {
+          for (let i = 0; i < JobsList.jobs.length; i++) {
+            seen.push(JobsList.jobs.objectAt(i).name);
+          }
+          const next = document.querySelector('[data-test-pager="next"]');
+          if (!next || next.disabled) {
+            break;
+          }
+          await click('[data-test-pager="next"]');
+        }
+
+        const unique = new Set(seen);
+        assert.strictEqual(
+          seen.length,
+          unique.size,
+          'no job was shown on more than one page',
+        );
+        assert.strictEqual(
+          unique.size,
+          total,
+          'every job sharing the modify index was reachable',
+        );
+        localStorage.removeItem('nomadPageSize');
+      });
     });
     module('Live updates are reflected in the list', function () {
       test('When you have live updates enabled, the list updates when new jobs are created', async function (assert) {

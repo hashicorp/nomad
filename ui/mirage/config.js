@@ -290,29 +290,58 @@ export default function (config) {
               });
             }
 
+            // The jobs/statuses cursor is "<ModifyIndex>.<namespace>.<id>",
+            // compared numerically on the index then lexically on namespace and
+            // id (matching the server's ModifyIndexAndNamespaceIDTokenizer).
+            const tokenOf = (job) =>
+              `${job.ModifyIndex}.${job.NamespaceID || 'default'}.${job.ID}`;
+            const parseTok = (t) => {
+              const s = String(t);
+              const i = s.indexOf('.');
+              if (i < 0) return { idx: parseInt(s, 10) || 0, ns: '', id: '' };
+              const rest = s.slice(i + 1);
+              const j = rest.indexOf('.');
+              return {
+                idx: parseInt(s.slice(0, i), 10) || 0,
+                ns: j < 0 ? rest : rest.slice(0, j),
+                id: j < 0 ? '' : rest.slice(j + 1),
+              };
+            };
+            const cmpTok = (at, bt) => {
+              const a = parseTok(at);
+              const b = parseTok(bt);
+              if (a.idx !== b.idx) return a.idx - b.idx;
+              if (a.ns !== b.ns) return a.ns < b.ns ? -1 : 1;
+              if (a.id !== b.id) return a.id < b.id ? -1 : 1;
+              return 0;
+            };
+
             let sortedJson = filteredJson
               .sort((a, b) =>
                 reverse
-                  ? a.ModifyIndex - b.ModifyIndex
-                  : b.ModifyIndex - a.ModifyIndex,
+                  ? cmpTok(tokenOf(a), tokenOf(b))
+                  : cmpTok(tokenOf(b), tokenOf(a)),
               )
               .filter((job) => {
                 if (namespace === '*') return true;
                 return namespace === 'default'
                   ? !job.NamespaceID || job.NamespaceID === 'default'
                   : job.NamespaceID === namespace;
-              })
-              .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+              });
             if (nextToken) {
               sortedJson = sortedJson.filter((job) =>
                 reverse
-                  ? job.ModifyIndex >= nextToken
-                  : job.ModifyIndex <= nextToken,
+                  ? cmpTok(tokenOf(job), nextToken) >= 0
+                  : cmpTok(tokenOf(job), nextToken) <= 0,
               );
             }
+            sortedJson = sortedJson.map((job) => ({
+              ...filterKeys(job, 'TaskGroups', 'NamespaceID'),
+              _cursor: tokenOf(job),
+            }));
             return sortedJson;
           },
-          { pagination: true, tokenProperty: 'ModifyIndex' },
+          { pagination: true, tokenProperty: '_cursor' },
         ),
       );
 

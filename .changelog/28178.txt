@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where jobs sharing a ModifyIndex could break /v1/jobs/statuses pagination, causing the jobs index page to show a job on more than one page, fail to page past a group of such jobs, or jump to an incorrect last page
+```
