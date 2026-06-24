@@ -73,7 +73,7 @@ jobs:
       - name: Build nomad
         shell: bash
         run: |-
-          go install .
+          go install -tags "hashicorpmetrics" .
       - name: Run tests with gotestsum
         shell: bash
         env:
@@ -91,7 +91,8 @@ jobs:
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter \
             github.com/hashicorp/nomad/client/allocdir \
-            github.com/hashicorp/nomad/plugins/base
+            github.com/hashicorp/nomad/plugins/base -- \
+            -tags "hashicorpmetrics"
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: results.xml
