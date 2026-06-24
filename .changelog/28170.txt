@@ -1,0 +1,3 @@
+```release-note:bug
+metrics: expired metrics are now periodically cleared from the Prometheus sink even if no collection occurs
+```
