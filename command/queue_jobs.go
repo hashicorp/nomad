@@ -4,8 +4,10 @@
 package command
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -14,6 +16,7 @@ import (
 )
 
 type QueueJobsCommand struct {
+	sortOrder string
 	Meta
 }
 
@@ -31,8 +34,11 @@ General Options:
 
 Eval Options:
 
-  -limit
-    The maximum number of workloads to return
+  -per-page
+    The maximum number of workloads to return per page. If not specified, or set to 0, all results are returned.
+
+  -page-token
+    Where to start pagination
 
   -verbose
     Display full output
@@ -40,6 +46,8 @@ Eval Options:
   -json
     Display output as json
 
+  -sort <>
+    Sort the output by a specific field. Valid fields are: priority, created_at. Default is created_at.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -51,10 +59,11 @@ func (c *QueueJobsCommand) Synopsis() string {
 func (c *QueueJobsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
-			"-limit":   complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-tenants": complete.PredictNothing,
+			"-verbose":    complete.PredictNothing,
+			"-json":       complete.PredictNothing,
+			"-sort":       complete.PredictAnything,
+			"-per-page":   complete.PredictAnything,
+			"-page-token": complete.PredictAnything,
 		})
 }
 
@@ -65,14 +74,16 @@ func (c *QueueJobsCommand) AutocompleteArgs() complete.Predictor {
 func (c *QueueJobsCommand) Name() string { return "queue status" }
 
 func (c *QueueJobsCommand) Run(args []string) int {
-	var verbose, jsonOut, tenants bool
-	var limit int
+	var verbose, jsonOut bool
+	var pageToken string
+	var perPage int
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&jsonOut, "json", false, "")
-	flags.BoolVar(&tenants, "tenants", false, "")
-	flags.IntVar(&limit, "limit", 0, "")
+	flags.StringVar(&c.sortOrder, "sort", "created_at", "")
+	flags.StringVar(&pageToken, "page-token", "", "")
+	flags.IntVar(&perPage, "per-page", 0, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -88,9 +99,8 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	// Setup the options
 	qo := &api.QueryOptions{}
 
-	if limit > 0 {
-		qo.PerPage = int32(limit)
-	}
+	qo.PerPage = int32(perPage)
+	qo.NextToken = pageToken
 
 	// Submit the request
 	resp, _, err := client.BatchJobQueue().Jobs(qo)
@@ -127,6 +137,13 @@ func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse
 		c.Ui.Error("Invalid Status response from server")
 		return 255
 	}
+
+	slices.SortFunc(workloads, func(a, b api.DynamicPriorityWorkload) int {
+		if c.sortOrder == "priority" || a.CreatedAt == b.CreatedAt {
+			return cmp.Compare(a.Position, b.Position)
+		}
+		return cmp.Compare(a.CreatedAt, b.CreatedAt)
+	})
 
 	if jsonOut {
 		if err := c.printDynamicQueueJSON(workloads); err != nil {
