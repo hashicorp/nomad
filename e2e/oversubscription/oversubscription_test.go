@@ -89,10 +89,20 @@ func testRawExecMax(t *testing.T) {
 	job, cleanup := jobs3.Submit(t, "./input/rawexecmax.hcl")
 	t.Cleanup(cleanup)
 
-	// will print memory.low then memory.max
-	logs := job.TaskLogs("group", "cat")
-	logsRe := regexp.MustCompile(`67108864\s+max`)
-	must.RegexMatch(t, logsRe, logs.Stdout)
+	testFunc := func() error {
+		logs := job.TaskLogs("group", "cat")
+		logsRe := regexp.MustCompile(`67108864\s+max`)
+		if !logsRe.MatchString(logs.Stdout) {
+			return fmt.Errorf("expect '%s' in stdout, got: '%s'", logsRe.String(), logs.Stdout)
+		}
+		return nil
+	}
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(testFunc),
+		wait.Timeout(time.Second*20),
+		wait.Gap(time.Second*2),
+	))
 }
 
 func captureSchedulerConfiguration(t *testing.T) {
