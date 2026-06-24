@@ -89,26 +89,20 @@ func testRawExecMax(t *testing.T) {
 	job, cleanup := jobs3.Submit(t, "./input/rawexecmax.hcl")
 	t.Cleanup(cleanup)
 
-testFunc := func() error {
+	testFunc := func() error {
 		logs := job.TaskLogs("group", "cat")
-
-	logsRe := regexp.MustCompile(`67108864\s+max`)
-	must.RegexMatch(t, logsRe, logs.Stdout)
+		logsRe := regexp.MustCompile(`67108864\s+max`)
+		if !logsRe.MatchString(logs.Stdout) {
+			return fmt.Errorf("expect '%s' in stdout, got: '%s'", logsRe.String(), logs.Stdout)
+		}
 		return nil
 	}
 
-
-	// wait for poststart to run, up to 60 seconds.
-	// this accounts for variability in exec task start time.
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(testFunc),
-		wait.Timeout(time.Second*60),
+		wait.Timeout(time.Second*20),
 		wait.Gap(time.Second*2),
 	))
-
-
-	// will print memory.low then memory.max
-
 }
 
 func captureSchedulerConfiguration(t *testing.T) {
