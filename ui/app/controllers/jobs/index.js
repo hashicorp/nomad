@@ -86,12 +86,26 @@ export default class JobsIndexController extends Controller {
   }
 
   // #region pagination
+  // cursorAt is the opaque page-start token for the current page; it is always
+  // a string or undefined (never null, which unlike undefined is not omitted
+  // from the query string). undefined means the first page, which has no cursor.
   @tracked cursorAt;
   @tracked nextToken; // route sets this when new data is fetched
 
+  // cursorFor builds the pagination cursor for a job, matching the server's
+  // "<modifyIndex>.<namespace>.<id>" jobs/statuses page token. Several jobs can
+  // share a ModifyIndex, so the namespace and id are needed to point the cursor
+  // at a single job.
+  cursorFor(job) {
+    if (!job) {
+      return undefined;
+    }
+    const namespace = job.belongsTo('namespace').id() || 'default';
+    return `${job.modifyIndex}.${namespace}.${job.plainId}`;
+  }
+
   /**
-   *
-   * @param {"prev"|"next"} page
+   * @param {"prev"|"next"|"first"|"last"} page
    */
   @action async handlePageChange(page) {
     // reset indexes
@@ -114,12 +128,12 @@ export default class JobsIndexController extends Controller {
       if (!prevPageToken.meta.nextToken) {
         this.cursorAt = undefined;
       } else {
-        // cursorAt should be the highest modifyIndex from the previous query.
+        // cursorAt should be the newest job from the previous query.
         // This will immediately fire the route model hook with the new cursorAt
         const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
-        this.cursorAt = prevPageToken
-          ? sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex
-          : undefined;
+        this.cursorAt = this.cursorFor(
+          sortedPrevPage[sortedPrevPage.length - 1],
+        );
       }
     } else if (page === 'next') {
       if (!this.nextToken) {
@@ -131,7 +145,7 @@ export default class JobsIndexController extends Controller {
     } else if (page === 'last') {
       let prevPageToken = await this.loadPreviousPageToken({ last: true });
       const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
-      this.cursorAt = sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex;
+      this.cursorAt = this.cursorFor(sortedPrevPage[sortedPrevPage.length - 1]);
     }
   }
 
@@ -278,19 +292,24 @@ export default class JobsIndexController extends Controller {
       });
   }
 
-  // Ask for the previous #page_size jobs, starting at the first job that's currently shown
-  // on our page, and the last one in our list should be the one we use for our
-  // subsequent nextToken.
+  // Ask for the previous #page_size jobs, starting at the first job that's
+  // currently shown on our page, and the newest one in the result is the one we
+  // use for our subsequent cursorAt. The page cursor is inclusive of the job it
+  // points at, so for "prev" we start at the current page's first job and ask
+  // for one extra to make room for it (handlePageChange drops it by taking the
+  // newest job). "last" has no such anchor, so it asks for a plain page.
   async loadPreviousPageToken({ last = false } = {}) {
-    let next_token = +this.cursorAt + 1;
+    let next_token = this.cursorAt;
+    let per_page = this.pageSize + 1;
     if (last) {
       next_token = undefined;
+      per_page = this.pageSize;
     }
     let prevPageToken = await this.store.query(
       'job',
       {
         next_token,
-        per_page: this.pageSize,
+        per_page,
         reverse: true,
       },
       {
@@ -600,7 +619,7 @@ export default class JobsIndexController extends Controller {
 
   @action
   updateFilter() {
-    this.cursorAt = null;
+    this.cursorAt = undefined;
     this.filter = this.computedFilter;
   }
 

@@ -75,17 +75,53 @@ func CreateIndexAndIDTokenizer[T idAndCreateIndexGetter](target string) Tokenize
 	}
 }
 
-// ModifyIndexTokenizer returns a tokenizer by ModifyIndex.
-func ModifyIndexTokenizer[T modifyIndexGetter](target string) Tokenizer[T] {
-	// attempt to convert token to uint for iterators ordered numerically.
-	// it's safe to ignore the error here because the `next` method ignores
-	// this field for string tokens and 0 is valid for an unset numeric token.
-	targetIndex, _ := strconv.ParseUint(target, 10, 64)
-
+// ModifyIndexAndNamespaceIDTokenizer returns a tokenizer by ModifyIndex, with
+// Namespace and ID as a tiebreaker. ModifyIndex is not unique across objects
+// (several may be written in one Raft transaction), so ModifyIndex alone does
+// not identify a unique position to resume pagination from. Namespace and ID
+// make the token a total order that matches the memdb iteration order of the
+// non-unique modify_index index, which breaks ties on the (Namespace, ID)
+// primary key.
+func ModifyIndexAndNamespaceIDTokenizer[T modifyIndexAndNamespaceIDGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
 		index := item.GetModifyIndex()
-		token := fmt.Sprintf("%d", index)
-		return token, cmp.Compare(index, targetIndex)
+		ns := item.GetNamespace()
+		id := item.GetID()
+		token := fmt.Sprintf("%d.%s.%s", index, ns, id)
+
+		// Namespace cannot contain '.', so the index and namespace are the first
+		// two segments; the ID (which may contain '.') is the remainder.
+		parts := strings.SplitN(target, ".", 3)
+
+		// Parse the index numerically so values like 12 and 102 compare
+		// correctly rather than lexicographically. A target whose first segment
+		// isn't an integer is malformed -- only reachable from a hand-crafted
+		// token, since real next_tokens are empty or start with an index -- so
+		// degrade to first-page behavior: returning 0 ("matched") makes the
+		// paginator skip nothing and start from the beginning, matching the
+		// previous ModifyIndex-only tokenizer.
+		targetIndex, err := strconv.ParseUint(parts[0], 10, 64)
+		if err != nil {
+			return token, 0
+		}
+		if c := cmp.Compare(index, targetIndex); c != 0 {
+			return token, c
+		}
+
+		// Indexes are equal; break the tie by namespace then ID. A target with
+		// fewer segments (e.g. a legacy bare-integer token from before this
+		// tiebreaker existed, seen during a rolling upgrade) compares only the
+		// segments it has, degrading to the previous index-only behavior.
+		if len(parts) < 2 {
+			return token, 0
+		}
+		if c := cmp.Compare(ns, parts[1]); c != 0 {
+			return token, c
+		}
+		if len(parts) < 3 {
+			return token, 0
+		}
+		return token, cmp.Compare(id, parts[2])
 	}
 }
 
@@ -119,4 +155,11 @@ type idAndCreateIndexGetter interface {
 // as their pagination token.
 type modifyIndexGetter interface {
 	GetModifyIndex() uint64
+}
+
+// modifyIndexAndNamespaceIDGetter must be implemented by structs that want to
+// use ModifyIndex with a Namespace and ID tiebreaker as their pagination token.
+type modifyIndexAndNamespaceIDGetter interface {
+	modifyIndexGetter
+	namespaceIDGetter
 }
