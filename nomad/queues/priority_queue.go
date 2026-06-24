@@ -13,7 +13,7 @@ type WorkloadQueue struct {
 }
 
 func NewWorkloadQueue() WorkloadQueue {
-	return WorkloadQueue{set.NewTreeSet[*Workload](workloadSortFn())}
+	return WorkloadQueue{set.NewTreeSet(workloadSortFn())}
 }
 
 func (pq WorkloadQueue) Len() int { return pq.Size() }
@@ -25,9 +25,9 @@ func workloadSortFn() func(i, j *Workload) int {
 		} else if a.priority < b.priority {
 			return 1
 		} else {
-			if a.eval.CreateTime < b.eval.CreateTime {
+			if a.eval.CreateIndex < b.eval.CreateIndex {
 				return -1
-			} else if a.eval.CreateTime > b.eval.CreateTime {
+			} else if a.eval.CreateIndex > b.eval.CreateIndex {
 				return 1
 			}
 		}

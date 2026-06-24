@@ -705,16 +705,17 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 			},
 		},
 		{
-			name: "order falls back to createTime if priority is equal",
+			name: "order falls back to createIndex if priority is equal",
 			workloads: []*Workload{
 				{
 					id:  "eval1",
 					tid: "tenantA",
 					eval: &structs.Evaluation{
-						ID:         "eval1",
-						JobID:      "job1",
-						Priority:   50,
-						CreateTime: time.Unix(20, 0).UnixNano(),
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateTime:  time.Unix(20, 0).UnixNano(),
+						CreateIndex: 2,
 					},
 					priority:        59,
 					sizeAdjustment:  2,
@@ -725,10 +726,11 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 					id:  "eval2",
 					tid: "tenantA",
 					eval: &structs.Evaluation{
-						ID:         "eval2",
-						JobID:      "job2",
-						Priority:   50,
-						CreateTime: time.Unix(10, 0).UnixNano(),
+						ID:          "eval2",
+						JobID:       "job2",
+						Priority:    50,
+						CreateTime:  time.Unix(10, 0).UnixNano(),
+						CreateIndex: 1,
 					},
 					priority:        59,
 					sizeAdjustment:  2,
