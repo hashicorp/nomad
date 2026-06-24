@@ -13,6 +13,127 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestChildEscapesParentDir(t *testing.T) {
+	// this is the main error we want to catch, from os.Root.Stat()
+	pathEscapesParent := "path escapes from parent"
+
+	tmp := t.TempDir()
+
+	// set up directory structure
+
+	// parent/
+	parent := filepath.Join(tmp, "parent")
+	must.NoError(t, os.Mkdir(parent, 0755))
+
+	// parent/just-a-file
+	absFile := filepath.Join(parent, "just-a-file")
+	must.NoError(t, os.WriteFile(absFile, []byte("hi"), 0600))
+
+	// parent/subdir/
+	subdir := filepath.Join(parent, "subdir")
+	must.NoError(t, os.Mkdir(subdir, 0755))
+
+	// symlinks - a symlink is safe if the link itself is in the parent, either
+	// absolute or relative, and the target is a relative path in the parent.
+	safeLink := filepath.Join(parent, "safe-link")
+	must.NoError(t, os.Symlink("just-a-file", safeLink))
+
+	// absolute symlink targets are not allowed, even if they are in the parent.
+	unsafeLink := filepath.Join(parent, "absolute-target-link")
+	must.NoError(t, os.Symlink(absFile, unsafeLink))
+
+	// symlink target must not escape the parent.
+	// note: target needs to actually exist. "001" is part of Go's t.TempDir()
+	escapeLink := filepath.Join(parent, "escape-link")
+	must.NoError(t, os.Symlink("../../001", escapeLink))
+
+	cases := []struct {
+		name      string
+		child     string
+		expectErr string
+	}{
+		{
+			name:  "child is parent",
+			child: parent,
+		},
+		// relative paths
+		{
+			name:  "relative child inside parent",
+			child: "just-a-file",
+		},
+		{
+			name:  "relative subdirectory inside parent",
+			child: "subdir",
+		},
+		{
+			name:  "relative non-existent child",
+			child: "no-exist",
+		},
+		{
+			name:      "relative escape via traversal",
+			child:     "../escape",
+			expectErr: pathEscapesParent,
+		},
+		// absolute paths
+		{
+			name:  "absolute child inside parent",
+			child: absFile,
+		},
+		{
+			name:  "absolute non-existent child inside parent",
+			child: filepath.Join(parent, "no-exist"),
+		},
+		{
+			name:      "absolute child outside parent",
+			child:     "/tmp",
+			expectErr: pathEscapesParent,
+		},
+		// symlinks
+		{
+			name:  "relative symlink to relative path inside parent",
+			child: "safe-link",
+		},
+		{
+			name:  "absolute symlink to relative path inside parent",
+			child: filepath.Join(parent, "safe-link"),
+		},
+		{
+			name:      "symlink to absolute path inside parent",
+			child:     "absolute-target-link",
+			expectErr: pathEscapesParent,
+		},
+		{
+			name:      "symlink escaping parent",
+			child:     "escape-link",
+			expectErr: pathEscapesParent,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ChildEscapesParentDir(parent, tc.child)
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+			} else {
+				must.ErrorContains(t, err, tc.expectErr)
+			}
+		})
+	}
+
+	t.Run("relative parent", func(t *testing.T) {
+		must.NoError(t, os.Chdir(tmp))
+
+		must.NoError(t, ChildEscapesParentDir("./parent", "./parent/just-a-file"))
+
+		dotdot := filepath.Join("..", filepath.Base(tmp), "parent") // ../001/parent
+		must.NoError(t, ChildEscapesParentDir(dotdot, "./parent/just-a-file"))
+
+		absChildErr := fmt.Sprintf("Rel: can't make %s relative to ./parent", absFile)
+		must.EqError(t, ChildEscapesParentDir("./parent", absFile), absChildErr)
+	})
+
+}
+
 func write(t *testing.T, file, data string) {
 	err := os.WriteFile(file, []byte(data), 0600)
 	require.NoError(t, err)
