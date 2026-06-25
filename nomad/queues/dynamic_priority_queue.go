@@ -682,7 +682,9 @@ func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
 		}
 
 		workloadResources := workload.requestedResources
-		workloadResources.start = time.Unix(0, workload.eval.ModifyTime) // TODO we should validate this
+		// this method should only be called when a workload was successfully placed,
+		// so we can use the ModifyTime as the for when decay will start.
+		workloadResources.start = time.Unix(0, workload.eval.ModifyTime)
 		tenant.totalUsage = tenant.totalUsage.Add(workloadResources.resources)
 		d.totalUsage = d.totalUsage.Add(workloadResources.resources)
 
