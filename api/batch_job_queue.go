@@ -37,11 +37,13 @@ type BatchJobQueueConfig struct {
 type DynamicPriorityWorkload struct {
 	JobID            string
 	Tenant           string
+	Position         int
 	AdjustedPriority int
 	BasePriority     int
 	UsageAdjustment  int
 	AgeAdjustment    int
 	SizeAdjustment   int
+	CreatedAt        int64
 }
 
 type DynamicPriorityTenant struct {

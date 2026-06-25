@@ -4,7 +4,6 @@
 package queues
 
 import (
-	"container/heap"
 	"context"
 	"errors"
 	"math"
@@ -107,7 +106,7 @@ type Workload struct {
 func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
 		tenants:     make(map[TenantID]*Tenant),
-		queue:       WorkloadQueue{},
+		queue:       NewWorkloadQueue(),
 		enqueueCh:   make(chan *Workload, 8192),
 		evalBroker:  broker,
 		qMux:        sync.Mutex{},
@@ -163,7 +162,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case w := <-d.enqueueCh:
 			d.qMux.Lock()
 			d.setWorkloadPriority(time.Now(), w)
-			heap.Push(&d.queue, w)
+			d.queue.Push(w)
 			d.qMux.Unlock()
 
 			// Notify Workload consumer of new workload
@@ -178,7 +177,6 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 
 			d.qMux.Lock()
 			d.calculatePriorities(time.Now())
-			heap.Init(&d.queue)
 			d.qMux.Unlock()
 		}
 	}
@@ -196,7 +194,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 
 			// Pop a workload off the queue if available
 			d.qMux.Lock()
-			workload := heap.Pop(&d.queue).(*Workload)
+			workload := d.queue.Pop()
 			d.qMux.Unlock()
 
 			// Give the eval to the eval broker
@@ -292,10 +290,11 @@ func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
 	d.decayUsage(now, state)
 
 	// Now that we have accurate tenant usage, calculate
-	// each workloads new priority
-	for _, workload := range d.queue {
-		d.setWorkloadPriority(now, workload)
-	}
+	// each workloads new priority and update the queue
+	d.queue.UpdateAll(func(w *Workload) *Workload {
+		d.setWorkloadPriority(now, w)
+		return w
+	})
 }
 
 // setWorkloadPriority calculates an individual workload's priority based on
@@ -472,22 +471,24 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 
 func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJobsResponse {
 	d.qMux.Lock()
-	defer d.qMux.Unlock()
+	sortedWorkloads := d.queue.Workloads()
+	d.qMux.Unlock()
 
 	workloads := []structs.DynamicPriorityWorkload{}
-	for _, w := range d.queue {
+	for pos, w := range sortedWorkloads {
 		if (namespaces != nil) && !namespaces[w.eval.Namespace] {
 			continue
 		}
 		workloads = append(workloads, structs.DynamicPriorityWorkload{
 			JobID:            w.eval.JobID,
 			Tenant:           string(w.tid),
-			Index:            w.index,
+			Position:         pos + 1,
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
 			UsageAdjustment:  w.usageAdjustment,
 			AgeAdjustment:    w.ageAdjustment,
 			SizeAdjustment:   w.sizeAdjustment,
+			CreatedAt:        w.eval.CreateTime,
 		})
 	}
 	return structs.QueueJobsResponse{
