@@ -147,33 +147,23 @@ func TestHTTP_AgentSelf_ACL(t *testing.T) {
 
 func TestHTTP_AgentJoin(t *testing.T) {
 	ci.Parallel(t)
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
 		addr := net.JoinHostPort(member.Addr.String(), strconv.Itoa(int(member.Port)))
 
-		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodPut,
 			fmt.Sprintf("/v1/agent/join?address=%s&address=%s", addr, addr), nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 		respW := httptest.NewRecorder()
 
-		// Make the request
 		obj, err := s.Server.AgentJoinRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
-		// Check the job
 		join := obj.(joinResult)
-		if join.NumJoined != 2 {
-			t.Fatalf("bad: %#v", join)
-		}
-		if join.Error != "" {
-			t.Fatalf("bad: %#v", join)
-		}
+		must.Eq(t, 2, join.NumJoined)
+		must.Eq(t, "", join.Error)
+		must.Eq(t, "anonymous server join is deprecated and will be removed in a future version of Nomad", join.Warning)
 	})
 }
 

@@ -70,8 +70,13 @@ func (c *ServerJoinCommand) Run(args []string) int {
 	// Attempt the join
 	n, err := client.Agent().Join(nodes...)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error joining: %s", err))
-		return 1
+		if n == 0 {
+			c.Ui.Error(fmt.Sprintf("Error joining: %s", err))
+			return 1
+		} else {
+			c.Ui.Warn(fmt.Sprintf("Joined %d servers successfully but got warning: %s", n, err))
+			return 0
+		}
 	}
 
 	// Success
