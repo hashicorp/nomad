@@ -86,21 +86,26 @@ func testRawExec(t *testing.T) {
 }
 
 func testRawExecMax(t *testing.T) {
+	waitForMemoryOversubscriptionEnabled(t)
+
 	job, cleanup := jobs3.Submit(t, "./input/rawexecmax.hcl")
 	t.Cleanup(cleanup)
 
 	testFunc := func() error {
 		logs := job.TaskLogs("group", "cat")
+
 		logsRe := regexp.MustCompile(`67108864\s+max`)
 		if !logsRe.MatchString(logs.Stdout) {
-			return fmt.Errorf("expect '%s' in stdout, got: '%s'", logsRe.String(), logs.Stdout)
+			return fmt.Errorf("expect '%s' in stdout, got: '%s'\n%s", logsRe.String(), logs.Stdout, oversubscriptionDebugInfo(t, job.JobID()))
 		}
 		return nil
 	}
 
+	// wait for poststart to run, up to 60 seconds.
+	// this accounts for variability in exec task start time.
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(testFunc),
-		wait.Timeout(time.Second*20),
+		wait.Timeout(time.Second*60),
 		wait.Gap(time.Second*2),
 	))
 }
@@ -121,6 +126,38 @@ func enableMemoryOversubscription(t *testing.T) {
 	operatorAPI := e2eutil.NomadClient(t).Operator()
 	_, _, err := operatorAPI.SchedulerCASConfiguration(schedulerConfig, nil)
 	must.NoError(t, err)
+
+	waitForMemoryOversubscriptionEnabled(t)
+}
+
+func waitForMemoryOversubscriptionEnabled(t *testing.T) {
+	testFunc := func() error {
+		nodePool := api.NodePoolDefault
+		schedulerConfig := getSchedulerConfiguration(t)
+		if !schedulerConfig.MemoryOversubscriptionEnabled {
+			return fmt.Errorf("memory oversubscription expected enabled but was disabled")
+		}
+
+		nomadClient := e2eutil.NomadClient(t)
+		pool, _, err := nomadClient.NodePools().Info(nodePool, nil)
+		if err != nil {
+			return fmt.Errorf("failed reading node pool %q: %w", nodePool, err)
+		}
+
+		if pool.SchedulerConfiguration != nil &&
+			pool.SchedulerConfiguration.MemoryOversubscriptionEnabled != nil &&
+			!*pool.SchedulerConfiguration.MemoryOversubscriptionEnabled {
+			return fmt.Errorf("memory oversubscription disabled by node pool %q override", nodePool)
+		}
+
+		return nil
+	}
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(testFunc),
+		wait.Timeout(time.Second*30),
+		wait.Gap(time.Second),
+	))
 }
 
 func getSchedulerConfiguration(t *testing.T) *api.SchedulerConfiguration {
@@ -128,4 +165,35 @@ func getSchedulerConfiguration(t *testing.T) *api.SchedulerConfiguration {
 	resp, _, err := operatorAPI.SchedulerGetConfiguration(nil)
 	must.NoError(t, err)
 	return resp.SchedulerConfig
+}
+
+func oversubscriptionDebugInfo(t *testing.T, jobID string) string {
+	nomadClient := e2eutil.NomadClient(t)
+
+	global := getSchedulerConfiguration(t)
+	globalEnabled := global.MemoryOversubscriptionEnabled
+
+	nodePoolName := api.NodePoolDefault
+	job, _, err := nomadClient.Jobs().Info(jobID, nil)
+	if err != nil {
+		return fmt.Sprintf("oversub-debug: failed job info for %q: %v (global_enabled=%t)", jobID, err, globalEnabled)
+	}
+	if job != nil && job.NodePool != nil && *job.NodePool != "" {
+		nodePoolName = *job.NodePool
+	}
+
+	pool, _, err := nomadClient.NodePools().Info(nodePoolName, nil)
+	if err != nil {
+		return fmt.Sprintf("oversub-debug: job_id=%s node_pool=%s global_enabled=%t pool_read_error=%v", jobID, nodePoolName, globalEnabled, err)
+	}
+
+	poolOverride := "unset"
+	effectiveEnabled := globalEnabled
+	if pool != nil && pool.SchedulerConfiguration != nil && pool.SchedulerConfiguration.MemoryOversubscriptionEnabled != nil {
+		override := *pool.SchedulerConfiguration.MemoryOversubscriptionEnabled
+		poolOverride = fmt.Sprintf("%t", override)
+		effectiveEnabled = override
+	}
+
+	return fmt.Sprintf("oversub-debug: job_id=%s node_pool=%s global_enabled=%t pool_override=%s effective_enabled=%t", jobID, nodePoolName, globalEnabled, poolOverride, effectiveEnabled)
 }
