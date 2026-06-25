@@ -99,7 +99,7 @@ type Workload struct {
 	ageAdjustment   int
 	usageAdjustment int
 
-	// waitOnRestore signals that is workload was previously popped off the
+	// waitOnRestore signals this workload was previously popped off the
 	// queue and is waiting to be placed. This is detected on restore
 	// and this workload will be pushed to the front of the queue and
 	// waited on before processing regular workloads.
