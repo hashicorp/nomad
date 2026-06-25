@@ -131,10 +131,12 @@ func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
 	return nil
 }
 
+// SetEnabled is called during leadership transfer and initiates a state restore
+// and enabled the queue to start processing evaluations.
+//
 // TODO: When disabled, we don't actually stop the producer/consumer, so SetEnabled
 // handles restoring from state on a server restart, but leadership transfers
 // will result in duplicate usage calculations.
-//
 // The fix for this is in the batch queue manager branch which starts and stops queues
 // during leadership transfers.
 func (d *DynamicPriorityQueue) SetEnabled(enabled bool, ss *state.StateStore) {
