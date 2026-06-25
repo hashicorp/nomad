@@ -565,7 +565,7 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 // isSchedulingComplete detects whether a workload was actually placed by following the
 // evaluation's BlockedEvals and NextEvals.
 // Similar to waitForPlacement, isSchedulingComplete will record usage in the event an
-// actual placement occured.
+// actual placement occurred.
 //
 // TODO see if can dedup with waitForPlacement
 func (d *DynamicPriorityQueue) isSchedulingComplete(workload *Workload) (bool, error) {
