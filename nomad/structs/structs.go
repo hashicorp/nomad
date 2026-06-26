@@ -2411,9 +2411,9 @@ func (r *Resources) DiskInBytes() int64 {
 }
 
 const (
-	// memoryNoLimit is a sentinel value indicating there is no upper hard
+	// MemoryNoLimit is a sentinel value indicating there is no upper hard
 	// memory limit
-	memoryNoLimit = -1
+	MemoryNoLimit = -1
 )
 
 func (r *Resources) Validate() error {
@@ -2457,7 +2457,7 @@ func (r *Resources) Validate() error {
 
 	// Ensure memory_max is greater than memory, unless it is set to 0 or -1 which
 	// are both sentinel values
-	if (r.MemoryMaxMB != 0 && r.MemoryMaxMB != memoryNoLimit) && r.MemoryMaxMB < r.MemoryMB {
+	if (r.MemoryMaxMB != 0 && r.MemoryMaxMB != MemoryNoLimit) && r.MemoryMaxMB < r.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
 	}
 
