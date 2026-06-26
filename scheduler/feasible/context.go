@@ -253,7 +253,7 @@ func (e *EvalEligibility) Reset() {
 func (e *EvalEligibility) SetJob(job *structs.Job) {
 	// Determine whether the job has escaped constraints.
 	e.jobEscaped = len(structs.EscapedConstraints(job.Constraints)) != 0 ||
-		len(job.Dependencies) != 0
+		job.Dependencies != nil
 
 	// Determine the escaped constraints per task group.
 	for _, tg := range job.TaskGroups {
