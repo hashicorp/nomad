@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
@@ -2263,17 +2264,18 @@ func ApiAffinitiesToStructs(in []*api.Affinity) []*structs.Affinity {
 	return out
 }
 
-func ApiDependenciesToStructs(in []*api.Dependency) []*structs.Dependency {
-	if in == nil {
+func ApiDependenciesToStructs(in []*api.Dependency) *structs.Dependency {
+	if len(in) == 0 {
 		return nil
 	}
 
-	out := make([]*structs.Dependency, len(in))
-	for i, dep := range in {
-		out[i] = ApiDependencyToStructs(dep)
+	for _, dep := range in {
+		if dep != nil {
+			return ApiDependencyToStructs(dep)
+		}
 	}
 
-	return out
+	return nil
 }
 
 func ApiDependencyToStructs(in *api.Dependency) *structs.Dependency {
@@ -2281,10 +2283,24 @@ func ApiDependencyToStructs(in *api.Dependency) *structs.Dependency {
 		return nil
 	}
 
+	jobs := make([]*structs.JobDependency, 0, len(in.Jobs))
+	for _, j := range in.Jobs {
+		if j == nil {
+			continue
+		}
+
+		jobs = append(jobs, &structs.JobDependency{
+			Name:   j.Name,
+			Status: j.Status,
+		})
+	}
+
+	timeout, _ := time.ParseDuration(in.Timeout)
+
 	return &structs.Dependency{
-		Job:    in.Job,
-		Output: in.Output,
-		Name:   in.Name,
+		Timeout:         timeout,
+		ActionOnTimeout: in.ActionOnTimeout,
+		Jobs:            jobs,
 	}
 }
 

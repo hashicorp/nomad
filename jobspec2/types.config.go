@@ -151,6 +151,7 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 	var diags hcl.Diagnostics
 
 	var foundVault *hcl.Block
+	var foundDependency *hcl.Block
 	for _, b := range content.Blocks {
 		switch b.Type {
 		case vaultLabel:
@@ -189,12 +190,23 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 			}
 
 		case dependencyLabel:
+			if foundDependency != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  fmt.Sprintf("Duplicate %s block", b.Type),
+					Detail: fmt.Sprintf(
+						"Only one block of type %q is allowed. Previous definition was at %s.",
+						b.Type, foundDependency.DefRange.String(),
+					),
+					Subject: &b.DefRange,
+				})
+				continue
+			}
+			foundDependency = b
+
 			d := &api.Dependency{}
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, d)...)
-			if len(b.Labels) == 1 {
-				d.Name = b.Labels[0]
-				c.Dependencies = append(c.Dependencies, d)
-			}
+			c.Dependencies = append(c.Dependencies, d)
 		}
 	}
 
@@ -300,7 +312,7 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 				{Type: "vault"},
 				{Type: "secret", LabelNames: []string{"name"}},
 				{Type: "task", LabelNames: []string{"name"}},
-				{Type: "dependency", LabelNames: []string{"name"}},
+				{Type: "dependency"},
 			},
 		})
 

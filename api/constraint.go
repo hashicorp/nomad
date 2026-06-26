@@ -3,6 +3,11 @@
 
 package api
 
+import (
+	"errors"
+	"fmt"
+)
+
 const (
 	ConstraintDistinctProperty  = "distinct_property"
 	ConstraintDistinctHosts     = "distinct_hosts"
@@ -32,28 +37,76 @@ func NewConstraint(left, operand, right string) *Constraint {
 	}
 }
 
-// Dependency is used to serialize a job placement dependency.
-type Dependency struct {
-	Name   string `hcl:"name,label"`
-	Output string `hcl:"output,optional"`
-	Job    string `hcl:"job"`
+type JobDependency struct {
+	Name   string `hcl:"name,optional"`
+	Status string `hcl:"status,optional"`
 }
 
-func NewDependency(name, job, output string) *Dependency {
-	return &Dependency{
+// JobDepdendency is kept as an alias for compatibility with callers using the
+// legacy misspelled type name.
+type JobDepdendency = JobDependency
+
+func NewJobDependency(name, status string) *JobDependency {
+	return &JobDependency{
 		Name:   name,
-		Job:    job,
-		Output: output,
+		Status: status,
+	}
+}
+
+func (d *JobDependency) Canonicalize() {
+	if d.Status == "" {
+		d.Status = "completed"
+	}
+}
+
+func (d *JobDependency) Copy() *JobDependency {
+	if d == nil {
+		return nil
+	}
+
+	copy := *d
+	return &copy
+}
+
+func (d *JobDependency) Validate() error {
+	if d.Name == "" {
+		return errors.New("dependency job name is required")
+	}
+
+	if d.Status == "" {
+		return errors.New("dependency job status is required")
+	}
+
+	return nil
+}
+
+// Dependency is used to serialize a job placement dependency.
+type Dependency struct {
+	Timeout         string           `hcl:"timeout,optional"`
+	ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
+	Jobs            []*JobDependency `hcl:"job,block"`
+}
+
+func NewDependency(timeout, actionOnTimeout string, jobs ...JobDepdendency) *Dependency {
+	copyJobs := make([]*JobDependency, 0, len(jobs))
+	for _, job := range jobs {
+		copyJobs = append(copyJobs, (&job).Copy())
+	}
+
+	return &Dependency{
+		Timeout:         timeout,
+		Jobs:            copyJobs,
+		ActionOnTimeout: actionOnTimeout,
 	}
 }
 
 func (d *Dependency) Canonicalize() {
-	if d.Name == "" {
-		d.Name = d.Job
+	if d.ActionOnTimeout == "" {
+		d.ActionOnTimeout = "reject"
 	}
 
-	if d.Output == "" {
-		d.Output = "dead"
+	for _, job := range d.Jobs {
+		job.Canonicalize()
 	}
 }
 
@@ -61,9 +114,45 @@ func (d *Dependency) Copy() *Dependency {
 	if d == nil {
 		return nil
 	}
-	return &Dependency{
-		Job:    d.Job,
-		Output: d.Output,
-		Name:   d.Name,
+
+	jobs := make([]*JobDependency, 0, len(d.Jobs))
+	for _, job := range d.Jobs {
+		jobs = append(jobs, job.Copy())
 	}
+
+	return &Dependency{
+		Timeout:         d.Timeout,
+		ActionOnTimeout: d.ActionOnTimeout,
+		Jobs:            jobs,
+	}
+}
+
+func (d *Dependency) Validate() error {
+	if d == nil {
+		return nil
+	}
+
+	if d.Timeout == "" {
+		return errors.New("dependency timeout is required")
+	}
+
+	if d.ActionOnTimeout == "" {
+		return errors.New("dependency action_on_timeout is required")
+	}
+
+	if d.ActionOnTimeout != "reject" {
+		return fmt.Errorf("invalid dependency action_on_timeout %q", d.ActionOnTimeout)
+	}
+
+	if len(d.Jobs) == 0 {
+		return errors.New("dependency requires at least one job block")
+	}
+
+	for _, job := range d.Jobs {
+		if err := job.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

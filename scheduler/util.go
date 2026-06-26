@@ -165,6 +165,11 @@ var same = comparison{modified: false}
 // tasksUpdated creates a comparison between task groups to see if the tasks, their
 // drivers, environment variables or config have been modified.
 func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
+	if (jobA.Dependencies == nil) != (jobB.Dependencies == nil) ||
+		(jobA.Dependencies != nil && !jobA.Dependencies.Equal(jobB.Dependencies)) {
+		return difference("job dependencies", jobA.Dependencies, jobB.Dependencies)
+	}
+
 	a := jobA.LookupTaskGroup(taskGroup)
 	b := jobB.LookupTaskGroup(taskGroup)
 
