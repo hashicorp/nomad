@@ -4676,3 +4676,24 @@ func TestConversion_ApiJobVersionTagToStructs(t *testing.T) {
 		must.Eq(t, expected, result)
 	})
 }
+
+func TestConversion_ApiDependencyToStructs(t *testing.T) {
+	t.Run("nil dependency", func(t *testing.T) {
+		must.Nil(t, ApiDependencyToStructs(nil))
+	})
+
+	t.Run("maps timeout, action and nested jobs", func(t *testing.T) {
+		in := &api.Dependency{
+			Timeout:         "10m",
+			ActionOnTimeout: "reject",
+			Jobs: []*api.JobDependency{
+				{Name: "service-123", Status: "completed"},
+			},
+		}
+
+		out := ApiDependencyToStructs(in)
+		must.Eq(t, 10*time.Minute, out.Timeout)
+		must.Eq(t, "reject", out.ActionOnTimeout)
+		must.Eq(t, []*structs.JobDependency{{Name: "service-123", Status: "completed"}}, out.Jobs)
+	})
+}
