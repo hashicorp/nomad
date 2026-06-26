@@ -77,13 +77,22 @@ func (c *Coordinator) unblockDependencies(eval *structs.Evaluation, dependeeJobs
 
 func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) (bool, error) {
 
-	if len(job.Dependencies) == 0 {
+	if job.Dependencies == nil {
 		return true, nil
 	}
 
-	djIDs := []string{}
-	for _, d := range job.Dependencies {
-		djIDs = append(djIDs, d.Job)
+	djSet := map[string]struct{}{}
+	for _, depJob := range job.Dependencies.Jobs {
+		if depJob == nil || depJob.Name == "" {
+			continue
+		}
+
+		djSet[depJob.Name] = struct{}{}
+	}
+
+	djIDs := make([]string, 0, len(djSet))
+	for jobID := range djSet {
+		djIDs = append(djIDs, jobID)
 	}
 
 	djs := map[string]*structs.Job{}
@@ -107,7 +116,7 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job, ev
 
 	c.loopDetector.AddNodes(eval.JobID, djIDs...)
 
-	ctx, cancel := context.WithDeadline(c.mainContext, time.Now().Add(DefaultTimeout))
+	ctx, cancel := context.WithDeadline(c.mainContext, time.Now().Add(dependencyTimeout(job)))
 	c.dependencies[eval.JobID] = &dependency{
 		cancelFunc: cancel,
 		job:        job,
@@ -152,6 +161,7 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 			}
 
 		case <-ctx.Done():
+			c.logger.Debug("dependency timeout reached", "jobID", eval.JobID)
 			return
 		}
 	}
@@ -161,22 +171,51 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 	var mErr multierror.Error
 	ready := true
 
-	for _, d := range dependantJob.Dependencies {
-		job, ok := jobs[d.Job]
+	for _, depJob := range dependantJob.Dependencies.Jobs {
+		if depJob == nil {
+			continue
+		}
+
+		job, ok := jobs[depJob.Name]
 		if !ok {
-			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+d.Job))
+			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+depJob.Name))
 			ready = false
 			break
 		}
 
-		if (job != nil && job.Status != d.Output) || job == nil {
-			c.logger.Debug("job not preset yet", "jobID", d.Job)
+		if job == nil || !statusMatches(job.Status, depJob.Status) {
+			c.logger.Debug("job not preset yet", "jobID", depJob.Name)
 			ready = false
 			break
 		}
 	}
 
 	return ready, mErr.ErrorOrNil()
+}
+
+func statusMatches(actual, expected string) bool {
+	if expected == "" {
+		return actual == ""
+	}
+
+	if expected == "completed" {
+		return actual == structs.JobStatusDead
+	}
+
+	return actual == expected
+}
+
+func dependencyTimeout(job *structs.Job) time.Duration {
+	timeout := DefaultTimeout
+	if job.Dependencies != nil && job.Dependencies.Timeout > 0 {
+		timeout = job.Dependencies.Timeout
+	}
+
+	if timeout <= 0 {
+		return DefaultTimeout
+	}
+
+	return timeout
 }
 
 func (c *Coordinator) Stop() {

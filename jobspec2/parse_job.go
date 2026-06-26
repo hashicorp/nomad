@@ -109,12 +109,18 @@ func normalizeDependency(d *api.Dependency) {
 		return
 	}
 
-	if d.Output == "" {
-		d.Output = "completed"
+	if d.ActionOnTimeout == "" {
+		d.ActionOnTimeout = "reject"
 	}
 
-	if d.Name == "" {
-		d.Name = d.Job
+	for _, depJob := range d.Jobs {
+		if depJob == nil {
+			continue
+		}
+
+		if depJob.Status == "" {
+			depJob.Status = "completed"
+		}
 	}
 }
 
