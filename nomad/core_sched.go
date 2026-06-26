@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/dependency"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"golang.org/x/time/rate"
 )
@@ -54,6 +55,7 @@ func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.P
 		logger:                   srv.logger.ResetNamed("core.sched"),
 		planner:                  planner,
 		customThresholdForObject: make(map[string]*time.Duration),
+		dependecyChecker:         dependencyChecker(&dependency.NoOpCoordinator{}), // default to no-op dependency checker
 	}
 
 	for _, opt := range opts {
