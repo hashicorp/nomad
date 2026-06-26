@@ -6,6 +6,7 @@ package nomad
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -199,6 +200,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
+	// The *maximum* we'll return is the number requested.
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
 	// Setup the blocking query. We wait for at least one of the requested
@@ -249,6 +251,10 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 
 			// Setup the output
 			if thresholdMet {
+				// Filter out nils, only if there are any to avoid superfluous mallocs.
+				if slices.Contains(allocs, nil) {
+					allocs = slices.DeleteFunc(allocs, func(a *structs.Allocation) bool { return a == nil })
+				}
 				reply.Allocs = allocs
 				reply.Index = maxIndex
 			} else {
