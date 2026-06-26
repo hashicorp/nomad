@@ -47,6 +47,7 @@ type SetupVaultCommand struct {
 
 	jwksURL        string
 	jwksCACertPath string
+	kvPath         string
 
 	destroy bool
 	autoYes bool
@@ -84,6 +85,10 @@ Setup Vault options:
     Path to a CA certificate file that will be used to validate the
     JWKS URL if it uses TLS
 
+  -kv-path <path>
+    Path to the Vault KV secrets engine mount that the generated
+    workload policy grants access to. Defaults to "secret".
+
   -destroy
     Removes all configuration components this command created from the
     Vault cluster.
@@ -116,6 +121,7 @@ func (s *SetupVaultCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-jwks-url":     complete.PredictAnything,
 			"-jwks-ca-file": complete.PredictAnything,
+			"-kv-path":      complete.PredictAnything,
 			"-destroy":      complete.PredictSet("true", "false"),
 			"-y":            complete.PredictSet("true", "false"),
 
@@ -146,6 +152,7 @@ func (s *SetupVaultCommand) Run(args []string) int {
 	flags.BoolVar(&s.autoYes, "y", false, "")
 	flags.StringVar(&s.jwksURL, "jwks-url", "http://localhost:4646/.well-known/jwks.json", "")
 	flags.StringVar(&s.jwksCACertPath, "jwks-ca-file", "", "")
+	flags.StringVar(&s.kvPath, "kv-path", "secret", "")
 
 	// Options for -check.
 	flags.BoolVar(&s.check, "check", false, "")
@@ -160,6 +167,12 @@ func (s *SetupVaultCommand) Run(args []string) int {
 	// Check that we got no arguments.
 	if len(flags.Args()) != 0 {
 		s.Ui.Error(uiMessageNoArguments)
+		s.Ui.Error(commandErrorText(s))
+		return 1
+	}
+
+	if strings.Trim(s.kvPath, "/") == "" {
+		s.Ui.Error("The -kv-path option must specify a non-empty mount path")
 		s.Ui.Error(commandErrorText(s))
 		return 1
 	}
@@ -327,8 +340,8 @@ and a policy associated with that role.
 		s.Ui.Output(fmt.Sprintf(`
 These are the rules for the policy %q that we will create. It uses a templated
 policy to allow Nomad tasks to access secrets in the path
-"secrets/data/<job namespace>/<job name>":
-`, vaultPolicyName))
+"%s/data/<job namespace>/<job name>":
+`, vaultPolicyName, strings.Trim(s.kvPath, "/")))
 
 		policyBody, err := s.renderPolicy()
 		if err != nil {
@@ -454,8 +467,13 @@ func (s *SetupVaultCommand) renderPolicy() (string, error) {
 	}
 	accessor := secret.Data["accessor"].(string)
 
-	policyTextStr := string(vaultPolicyBody)
-	return strings.ReplaceAll(policyTextStr, "auth_jwt_X", accessor), nil
+	return renderVaultPolicy(string(vaultPolicyBody), accessor, s.kvPath), nil
+}
+
+func renderVaultPolicy(policyBody, accessor, kvPath string) string {
+	policyText := strings.ReplaceAll(policyBody, "auth_jwt_X", accessor)
+	mount := strings.Trim(kvPath, "/")
+	return strings.ReplaceAll(policyText, "secret/", mount+"/")
 }
 
 func (s *SetupVaultCommand) createPolicy(policyText string) error {
