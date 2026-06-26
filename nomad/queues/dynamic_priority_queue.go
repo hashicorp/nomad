@@ -88,12 +88,14 @@ type UsageList struct {
 }
 
 type Workload struct {
-	id                 string
+	// id uniquely identifies this workload
+	// and is set to the evaluation ID.
+	id string
+
 	tid                TenantID
 	priority           int
 	eval               *structs.Evaluation
 	requestedResources *UsageList
-	index              int
 
 	sizeAdjustment  int
 	ageAdjustment   int
@@ -167,6 +169,9 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 	// The DPQ needs to rebuild it's internal usage state when enabled.
 	// The actual queue will be rebuilt when establishing leadership
 	// via pending eval enqueuing
+	d.qMux.Lock()
+	defer d.qMux.Unlock()
+
 	ws := memdb.NewWatchSet()
 	iter, err := ss.Evals(ws, state.SortDefault)
 	if err != nil {
@@ -202,15 +207,13 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 		// When checking for workload placements, we never want to actually block
 		// in SetEnabled, but it's also entirely possible a queue eval is blocked and
 		// waiting to be placed from a previous DPQ placement. If that happens
-		// we should allow it to be processed via the initWorkload chan.
+		// we should enqueue it and push it to the front of the queue.
 		placed, err := d.isSchedulingComplete(w)
 		if err != nil {
 			d.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		}
 
 		if !placed {
-			// if this workload has been placed, we will push it to the queue.
-			// The queue implementation will check this and force it to the top.
 			w.waitOnRestore = true
 			d.enqueueCh <- w
 		}
@@ -549,14 +552,9 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 			delete(ws, k)
 		}
 	}
-	if eval.Status == structs.EvalStatusComplete {
-		// If the eval is terminal and has plan annotations, something might
-		// have been placed and we should update tenant usage accordingly.
-		if eval.PlanAnnotations != nil && eval.PlanAnnotations.DesiredTGUpdates != nil {
-			d.qMux.Lock()
-			d.updateUsage(workload)
-			d.qMux.Unlock()
-		}
+
+	if evalHasPlacement(eval) {
+		d.updateUsage(workload)
 	}
 
 	return nil
@@ -566,8 +564,6 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 // evaluation's BlockedEvals and NextEvals.
 // Similar to waitForPlacement, isSchedulingComplete will record usage in the event an
 // actual placement occurred.
-//
-// TODO see if can dedup with waitForPlacement
 func (d *DynamicPriorityQueue) isSchedulingComplete(workload *Workload) (bool, error) {
 	snap, err := d.state.Snapshot()
 	if err != nil {
@@ -599,33 +595,26 @@ func (d *DynamicPriorityQueue) isSchedulingComplete(workload *Workload) (bool, e
 			return false, nil
 		}
 	}
+
+	if evalHasPlacement(eval) {
+		d.updateUsage(workload)
+	}
+
 	if eval.Status == structs.EvalStatusComplete {
-		// If the eval is terminal and has plan annotations, something might
-		// have been placed and we should update tenant usage accordingly.
-		if eval.PlanAnnotations != nil && eval.PlanAnnotations.DesiredTGUpdates != nil {
-			d.qMux.Lock()
-			d.updateUsage(workload)
-			d.qMux.Unlock()
-
-		}
-
-		// The workload placement is complete. It may not have actually resulted in a placement,
-		// but the chain of followup evals is complete
 		return true, nil
 	}
 
-	// This would only happen if an eval was not terminal and did not
+	// This would only happen if an eval was not complete and did not
 	// yet have a followup eval
 	return false, nil
 }
 
 func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJobsResponse {
 	d.qMux.Lock()
-	sortedWorkloads := d.queue.Slice()
-	d.qMux.Unlock()
+	defer d.qMux.Unlock()
 
 	workloads := []structs.DynamicPriorityWorkload{}
-	for pos, w := range sortedWorkloads {
+	for pos, w := range d.queue.Slice() {
 		if (namespaces != nil) && !namespaces[w.eval.Namespace] || w.waitOnRestore {
 			continue
 		}
@@ -648,6 +637,9 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 }
 
 func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
+	d.qMux.Lock()
+	defer d.qMux.Unlock()
+
 	tenants := []structs.DynamicPriorityTenant{}
 	for _, t := range d.tenants {
 		tenants = append(tenants, structs.DynamicPriorityTenant{
@@ -663,33 +655,40 @@ func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
 	}
 }
 
-// updateUsage updates the tenant and total usage for a given workload if
-// anything has been placed.
+// updateUsage updates the tenant and total usage for a given workload.
 func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
+	d.qMux.Lock()
+	defer d.qMux.Unlock()
+
 	tenant := d.tenants[workload.tid]
-	placed := false
 
-	for _, desired := range workload.eval.PlanAnnotations.DesiredTGUpdates {
-		if desired.Place != 0 {
-			placed = true
-			break
-		}
+	_, ok := tenant.placedWorkloadById[workload.id]
+	// If the workload has already been placed, don't count the usage again.
+	if ok {
+		return
 	}
 
-	if placed {
-		_, ok := tenant.placedWorkloadById[workload.id]
-		// If the workload has already been placed, don't count the usage again.
-		if ok {
-			return
-		}
+	workloadResources := workload.requestedResources
+	// this method should only be called when a workload was successfully placed,
+	// so we can use the ModifyTime as the for when decay will start.
+	workloadResources.start = time.Unix(0, workload.eval.ModifyTime)
+	tenant.totalUsage = tenant.totalUsage.Add(workloadResources.resources)
+	d.totalUsage = d.totalUsage.Add(workloadResources.resources)
 
-		workloadResources := workload.requestedResources
-		// this method should only be called when a workload was successfully placed,
-		// so we can use the ModifyTime as the for when decay will start.
-		workloadResources.start = time.Unix(0, workload.eval.ModifyTime)
-		tenant.totalUsage = tenant.totalUsage.Add(workloadResources.resources)
-		d.totalUsage = d.totalUsage.Add(workloadResources.resources)
+	tenant.placedWorkloadById[workload.id] = workload
+}
 
-		tenant.placedWorkloadById[workload.id] = workload
+func evalHasPlacement(e *structs.Evaluation) bool {
+	if e.Status != structs.EvalStatusComplete {
+		return false
 	}
+
+	if e.PlanAnnotations != nil && e.PlanAnnotations.DesiredTGUpdates != nil {
+		for _, update := range e.PlanAnnotations.DesiredTGUpdates {
+			if update.Place > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
