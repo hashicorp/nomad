@@ -146,6 +146,7 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 
 		select {
 		case <-ws.WatchCh(ctx):
+
 			ready, err := c.verifyDependencies(c.dependencies[eval.JobID].job, dj)
 			if err != nil {
 				c.logger.Error("failed to verify dependency", "error", err)
@@ -161,6 +162,7 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 			}
 
 		case <-ctx.Done():
+			c.unblockDependencies(eval, dj)
 			c.logger.Debug("dependency timeout reached", "jobID", eval.JobID)
 			return
 		}
@@ -229,7 +231,10 @@ func (c *Coordinator) HasDependencies(j *structs.Job) (bool, error) {
 		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
 			return true, nil
 		}
-		return false, err
+
+		if !errors.Is(err, loop_detection.ErrNodeNotFound) {
+			return false, err
+		}
 	}
 
 	return false, nil
@@ -247,4 +252,10 @@ func (c *Coordinator) Reload(state sstructs.State, evals ...*structs.Evaluation)
 			c.logger.Error("failed to check dependency", "error", err)
 		}
 	}
+}
+
+type NoOpCoordinator struct{}
+
+func (c *NoOpCoordinator) HasDependencies(j *structs.Job) (bool, error) {
+	return false, nil
 }
