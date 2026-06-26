@@ -262,36 +262,9 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 	return diags
 }
 
-var dependencySpec = hcldec.ObjectSpec{
-	"job":    &hcldec.AttrSpec{Name: "job", Type: cty.String, Required: true},
-	"output": &hcldec.AttrSpec{Name: "output", Type: cty.String, Required: false},
-	"name":   &hcldec.AttrSpec{Name: "name", Type: cty.String, Required: false},
-}
-
 func decodeDependency(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	d := val.(*api.Dependency)
-
-	v, diags := hcldec.Decode(body, dependencySpec, ctx)
-	if len(diags) != 0 {
-		return diags
-	}
-
-	attr := func(name string) string {
-		a := v.GetAttr(name)
-		if a.IsNull() {
-			return ""
-		}
-		return a.AsString()
-	}
-
-	d.Job = attr("job")
-	d.Output = attr("output")
-
-	if d.Name == "" {
-		d.Name = attr("name")
-	}
-
-	return diags
+	return gohcl.DecodeBody(body, ctx, d)
 }
 
 func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
