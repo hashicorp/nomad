@@ -147,6 +147,70 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	}
 }
 
+// TestBinPackIterator_memoryMax asserts that the memory_max value of a task is
+// propagated to the allocated task resources when memory oversubscription is
+// enabled, including the -1 sentinel that indicates there is no hard memory
+// limit.
+func TestBinPackIterator_memoryMax(t *testing.T) {
+	ci.Parallel(t)
+
+	legacyCpuResources, processorResources := tests.CpuResources(4096)
+
+	cases := []struct {
+		name        string
+		memoryMaxMB int
+		expected    int64
+	}{
+		{name: "no max", memoryMaxMB: 0, expected: 0},
+		{name: "explicit max", memoryMaxMB: 2048, expected: 2048},
+		{name: "no limit", memoryMaxMB: structs.MemoryNoLimit, expected: structs.MemoryNoLimit},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ctx := MockContext(t)
+
+			nodes := []*RankedNode{
+				{
+					Node: &structs.Node{
+						NodeResources: &structs.NodeResources{
+							Processors: processorResources,
+							Cpu:        legacyCpuResources,
+							Memory: structs.NodeMemoryResources{
+								MemoryMB: 4096,
+							},
+						},
+					},
+				},
+			}
+			static := NewStaticRankIterator(ctx, nodes)
+
+			taskGroup := &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:         1024,
+							MemoryMB:    1024,
+							MemoryMaxMB: tc.memoryMaxMB,
+						},
+					},
+				},
+			}
+
+			binp := NewBinPackIterator(ctx, static, false, 0)
+			binp.SetTaskGroup(taskGroup)
+			binp.SetSchedulerConfiguration(testSchedulerConfig)
+
+			out := binp.Next()
+			must.NotNil(t, out)
+			must.MapContainsKey(t, out.TaskResources, "web")
+			must.Eq(t, tc.expected, out.TaskResources["web"].Memory.MemoryMaxMB)
+		})
+	}
+}
+
 // TestBinPackIterator_NoExistingAlloc_MixedReserve asserts that node's with
 // reserved resources are scored equivalent to as if they had a lower amount of
 // resources.
