@@ -20,16 +20,22 @@ func (pq WorkloadQueue) Len() int { return pq.Size() }
 
 func workloadSortFn() func(i, j *Workload) int {
 	return func(a, b *Workload) int {
+		if a.waitOnRestore {
+			return -1
+		} else if b.waitOnRestore {
+			return 1
+		}
+
 		if a.priority > b.priority {
 			return -1
 		} else if a.priority < b.priority {
 			return 1
-		} else {
-			if a.eval.CreateIndex < b.eval.CreateIndex {
-				return -1
-			} else if a.eval.CreateIndex > b.eval.CreateIndex {
-				return 1
-			}
+		}
+
+		if a.eval.CreateIndex < b.eval.CreateIndex {
+			return -1
+		} else if a.eval.CreateIndex > b.eval.CreateIndex {
+			return 1
 		}
 		return 0
 	}
@@ -45,14 +51,13 @@ func (pq *WorkloadQueue) Pop() *Workload {
 	return w
 }
 
-func (pq *WorkloadQueue) Workloads() []*Workload {
-	return pq.Slice()
-}
-
-func (pq *WorkloadQueue) UpdateAll(workloadFn func(w *Workload) *Workload) {
+// UpdateAll takes a function that mutates a workload and updates
+// all workloads in the queue via this function.
+func (pq *WorkloadQueue) UpdateAll(updateFn func(w *Workload)) {
 	newQueue := NewWorkloadQueue()
-	for _, w := range pq.Workloads() {
-		newQueue.Push(workloadFn(w))
+	for _, w := range pq.Slice() {
+		updateFn(w)
+		newQueue.Push(w)
 	}
 	*pq = newQueue
 }
