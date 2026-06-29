@@ -554,7 +554,9 @@ func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *W
 	}
 
 	if evalHasPlacement(eval) {
+		d.qMux.Lock()
 		d.updateUsage(workload)
+		d.qMux.Unlock()
 	}
 
 	return nil
@@ -657,9 +659,6 @@ func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
 
 // updateUsage updates the tenant and total usage for a given workload.
 func (d *DynamicPriorityQueue) updateUsage(workload *Workload) {
-	d.qMux.Lock()
-	defer d.qMux.Unlock()
-
 	tenant := d.tenants[workload.tid]
 
 	_, ok := tenant.placedWorkloadById[workload.id]
