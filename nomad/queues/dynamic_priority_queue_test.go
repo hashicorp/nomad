@@ -822,3 +822,376 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 		must.Eq(t, tc.exp, testQueue.Tenants())
 	}
 }
+
+func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
+	t.Run("pending eval results in false", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue.SetEnabled(true, ss)
+
+		testEval := mock.Eval()
+		testEval.Status = structs.EvalStatusPending
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		workload := &Workload{
+			id:   testEval.ID,
+			tid:  TenantID("tenant"),
+			eval: testEval.Copy(),
+		}
+
+		complete, err := testQueue.isSchedulingComplete(workload)
+		must.NoError(t, err)
+		must.False(t, complete)
+	})
+
+	t.Run("eval with pending blockedEval results in false", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue.SetEnabled(true, ss)
+
+		testEval := mock.Eval()
+		blocked := mock.Eval()
+
+		testEval.Status = structs.EvalStatusComplete
+		testEval.BlockedEval = blocked.ID
+		blocked.Status = structs.EvalStatusPending
+
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
+
+		workload := &Workload{
+			id:   testEval.ID,
+			tid:  TenantID("tenant"),
+			eval: testEval.Copy(),
+		}
+
+		complete, err := testQueue.isSchedulingComplete(workload)
+		must.NoError(t, err)
+		must.False(t, complete)
+	})
+
+	t.Run("eval with complete blockedEval results in true", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue.SetEnabled(true, ss)
+
+		testEval := mock.Eval()
+		blocked := mock.Eval()
+
+		testEval.Status = structs.EvalStatusComplete
+		testEval.BlockedEval = blocked.ID
+		blocked.Status = structs.EvalStatusComplete
+
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
+
+		workload := &Workload{
+			id:   testEval.ID,
+			tid:  TenantID("tenant"),
+			eval: testEval.Copy(),
+		}
+
+		complete, err := testQueue.isSchedulingComplete(workload)
+		must.NoError(t, err)
+		must.True(t, complete)
+	})
+
+	t.Run("complete eval with placement updates usage", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue.SetEnabled(true, ss)
+
+		testEval := mock.Eval()
+		testEval.Status = structs.EvalStatusComplete
+		testEval.PlanAnnotations = &structs.PlanAnnotations{
+			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
+				"group": {Place: 1},
+			},
+		}
+
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		workload := &Workload{
+			id:   testEval.ID,
+			tid:  TenantID("tenant"),
+			eval: testEval.Copy(),
+			requestedResources: &UsageList{
+				resources: &ResourceUsage{CPU: 100, Memory: 200},
+			},
+		}
+
+		testQueue.ensureTenant(workload.tid)
+
+		complete, err := testQueue.isSchedulingComplete(workload)
+		must.NoError(t, err)
+		must.True(t, complete)
+
+		// Verify usage was updated
+		tenant := testQueue.tenants[workload.tid]
+		must.NotNil(t, tenant.placedWorkloadById[workload.id])
+		must.Eq(t, 100.0, tenant.totalUsage.CPU)
+		must.Eq(t, 200.0, tenant.totalUsage.Memory)
+	})
+
+	t.Run("complete eval without placement does not update usage", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue.SetEnabled(true, ss)
+
+		testEval := mock.Eval()
+		testEval.Status = structs.EvalStatusComplete
+		testEval.PlanAnnotations = &structs.PlanAnnotations{
+			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
+				"group": {Place: 0},
+			},
+		}
+
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		workload := &Workload{
+			id:   testEval.ID,
+			tid:  TenantID("tenant"),
+			eval: testEval.Copy(),
+			requestedResources: &UsageList{
+				resources: &ResourceUsage{CPU: 100, Memory: 200},
+			},
+		}
+
+		testQueue.ensureTenant(workload.tid)
+
+		complete, err := testQueue.isSchedulingComplete(workload)
+		must.NoError(t, err)
+		must.True(t, complete)
+
+		// Verify usage was NOT updated
+		tenant := testQueue.tenants[workload.tid]
+		must.Nil(t, tenant.placedWorkloadById[workload.id])
+		must.Eq(t, 0.0, tenant.totalUsage.CPU)
+		must.Eq(t, 0.0, tenant.totalUsage.Memory)
+	})
+}
+
+func TestDynamicPriorityQueue_restore(t *testing.T) {
+	t.Run("unplaced workload is enqueued", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{
+			TenantType: "namespace",
+		}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+
+		// Set the state store before calling restore
+		testQueue.state = ss
+
+		// Create a job and eval that hasn't been placed yet
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
+
+		now := time.Now()
+
+		testEval := mock.Eval()
+		testEval.JobID = job.ID
+		testEval.Namespace = job.Namespace
+		testEval.Type = structs.JobTypeBatch
+		testEval.TriggeredBy = structs.EvalTriggerJobRegister
+		testEval.Status = structs.EvalStatusBlocked
+		testEval.CreateTime = now.UnixNano()
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+
+		snap, err := ss.Snapshot()
+		must.NoError(t, err)
+
+		err = testQueue.restore(snap, now)
+		must.NoError(t, err)
+
+		// Verify the workload was enqueued
+		select {
+		case w := <-testQueue.enqueueCh:
+			must.Eq(t, testEval.ID, w.id)
+			must.Eq(t, TenantID(job.Namespace), w.tid)
+			must.True(t, w.waitOnRestore)
+		default:
+			t.Fatal("expected workload in enqueueCh channel")
+		}
+	})
+
+	t.Run("skips pending/non-batch/non-register evals", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{
+			TenantType: "namespace",
+		}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+
+		// Set the state store before calling restore
+		testQueue.state = ss
+
+		// Create jobs for different eval types
+		batchJob := mock.Job()
+		batchJob.Type = structs.JobTypeBatch
+		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, batchJob)
+
+		serviceJob := mock.Job()
+		serviceJob.Type = structs.JobTypeService
+		ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, serviceJob)
+
+		// Create various evals that should be skipped
+		pendingEval := mock.Eval()
+		pendingEval.JobID = batchJob.ID
+		pendingEval.Namespace = batchJob.Namespace
+		pendingEval.Type = structs.JobTypeBatch
+		pendingEval.TriggeredBy = structs.EvalTriggerJobRegister
+		pendingEval.Status = structs.EvalStatusPending
+
+		serviceEval := mock.Eval()
+		serviceEval.JobID = serviceJob.ID
+		// serviceEval.Namespace = serviceJob.Namespace
+		serviceEval.Type = structs.JobTypeService
+		// serviceEval.TriggeredBy = structs.EvalTriggerJobRegister
+		// serviceEval.Status = structs.EvalStatusComplete
+
+		nonRegisterEval := mock.Eval()
+		nonRegisterEval.JobID = batchJob.ID
+		nonRegisterEval.Namespace = batchJob.Namespace
+		nonRegisterEval.Type = structs.JobTypeBatch
+		nonRegisterEval.TriggeredBy = structs.EvalTriggerNodeUpdate
+		nonRegisterEval.Status = structs.EvalStatusComplete
+
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{
+			pendingEval,
+			serviceEval,
+			nonRegisterEval,
+		})
+
+		snap, err := ss.Snapshot()
+		must.NoError(t, err)
+
+		err = testQueue.restore(snap, time.Now())
+		must.NoError(t, err)
+
+		// Verify no tenants were created (all evals should be skipped)
+		must.Eq(t, 0, len(testQueue.tenants))
+	})
+
+	t.Run("restores usage correctly", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{
+			TenantType: "namespace",
+		}, &structs.DynamicQueueConfig{
+			HalfLife: 10 * time.Second,
+		}, hclog.New(hclog.DefaultOptions))
+
+		// Set the state store before calling restore
+		testQueue.state = ss
+
+		// Create a job with task resources
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		job.TaskGroups[0].Count = 2
+		job.TaskGroups[0].Tasks[0].Resources.CPU = 100
+		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = 256
+		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
+
+		now := time.Now()
+
+		// Create a completed eval with placement
+		testEval := mock.Eval()
+		testEval.JobID = job.ID
+		testEval.Namespace = job.Namespace
+		testEval.Type = structs.JobTypeBatch
+		testEval.TriggeredBy = structs.EvalTriggerJobRegister
+		testEval.Status = structs.EvalStatusComplete
+		testEval.PlanAnnotations = &structs.PlanAnnotations{
+			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {Place: 2},
+			},
+		}
+		testEval.ModifyTime = now.UnixNano()
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+
+		snap, err := ss.Snapshot()
+		must.NoError(t, err)
+
+		err = testQueue.restore(snap, now)
+		must.NoError(t, err)
+
+		// Verify tenant was created and usage was tracked
+		tenant, ok := testQueue.tenants[TenantID(job.Namespace)]
+		must.True(t, ok)
+		must.NotNil(t, tenant)
+
+		// Verify the workload is tracked
+		workload, ok := tenant.placedWorkloadById[testEval.ID]
+		must.True(t, ok)
+		must.NotNil(t, workload)
+
+		// Expected resources: 2 tasks * (100 CPU + 256 MB)
+		expectedCPU := 200.0
+		expectedMemory := 512.0
+
+		must.Eq(t, expectedCPU, tenant.totalUsage.CPU)
+		must.Eq(t, expectedMemory, tenant.totalUsage.Memory)
+		must.Eq(t, expectedCPU, testQueue.totalUsage.CPU)
+		must.Eq(t, expectedMemory, testQueue.totalUsage.Memory)
+	})
+
+	t.Run("decays usage properly", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		halfLife := 10 * time.Second
+		testQueue := NewDynamicPriorityQueue(nil, &structs.BatchQueue{
+			TenantType: "namespace",
+		}, &structs.DynamicQueueConfig{
+			HalfLife: halfLife,
+		}, hclog.New(hclog.DefaultOptions))
+
+		// Set the state store before calling restore
+		testQueue.state = ss
+
+		// Create a job with task resources
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		job.TaskGroups[0].Count = 1
+		job.TaskGroups[0].Tasks[0].Resources.CPU = 100
+		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = 256
+		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
+
+		// Set restore time to be exactly one half-life after eval creation
+		now := time.Now()
+		evalCreateTime := now.Add(-halfLife)
+
+		// Create a completed eval with placement
+		testEval := mock.Eval()
+		testEval.JobID = job.ID
+		testEval.Namespace = job.Namespace
+		testEval.Type = structs.JobTypeBatch
+		testEval.TriggeredBy = structs.EvalTriggerJobRegister
+		testEval.Status = structs.EvalStatusComplete
+		testEval.PlanAnnotations = &structs.PlanAnnotations{
+			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {Place: 2},
+			},
+		}
+		testEval.ModifyTime = evalCreateTime.UnixNano()
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+
+		snap, err := ss.Snapshot()
+		must.NoError(t, err)
+
+		err = testQueue.restore(snap, now)
+		must.NoError(t, err)
+
+		// Verify tenant was created and usage was tracked
+		tenant, ok := testQueue.tenants[TenantID(job.Namespace)]
+		must.True(t, ok)
+		must.NotNil(t, tenant)
+
+		// Verify the workload is tracked
+		workload, ok := tenant.placedWorkloadById[testEval.ID]
+		must.True(t, ok)
+		must.NotNil(t, workload)
+
+		// Expected resources after decay: 1 task (100 CPU + 256 MB) / 2 (half-life decay)
+		expectedCPU := 50.0
+		expectedMemory := 128.0
+
+		must.Eq(t, expectedCPU, tenant.totalUsage.CPU)
+		must.Eq(t, expectedMemory, tenant.totalUsage.Memory)
+		must.Eq(t, expectedCPU, testQueue.totalUsage.CPU)
+		must.Eq(t, expectedMemory, testQueue.totalUsage.Memory)
+	})
+}
