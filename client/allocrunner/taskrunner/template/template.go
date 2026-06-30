@@ -999,6 +999,11 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		}
 
+		// Set the user-specificed Vault DefaultLeaseDuration
+                if cc.TemplateConfig.VaultDefaultLeaseDuration != nil {
+			conf.Vault.DefaultLeaseDuration = cc.TemplateConfig.VaultDefaultLeaseDuration
+		}
+
 		// Set the user-specified Vault RetryConfig
 		if cc.TemplateConfig.VaultRetry != nil {
 			var err error

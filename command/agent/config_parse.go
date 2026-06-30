@@ -163,6 +163,11 @@ func ParseConfigFile(path string) (*Config, error) {
 				c.Client.TemplateConfig.ConsulRetry.MaxBackoff = d
 			},
 		},
+		{"client.template.vault_default_lease_duration", nil, &c.Client.TemplateConfig.VaultDefaultLeaseDurationHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.VaultDefaultLeaseDuration = d
+			},
+		},
 		{"client.template.vault_retry.backoff", nil, &c.Client.TemplateConfig.VaultRetry.BackoffHCL,
 			func(d *time.Duration) {
 				c.Client.TemplateConfig.VaultRetry.Backoff = d

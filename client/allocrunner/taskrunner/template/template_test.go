@@ -2436,6 +2436,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 
 	clientConfig.TemplateConfig.MaxStale = new(5 * time.Second)
 	clientConfig.TemplateConfig.BlockQueryWaitTime = new(60 * time.Second)
+	clientConfig.TemplateConfig.VaultDefaultLeaseDuration = new(60 * time.Second)
 	clientConfig.TemplateConfig.Wait = waitConfig.Copy()
 	clientConfig.TemplateConfig.ConsulRetry = retryConfig.Copy()
 	clientConfig.TemplateConfig.VaultRetry = retryConfig.Copy()
@@ -2464,6 +2465,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&config.ClientTemplateConfig{
 				MaxStale:           new(5 * time.Second),
 				BlockQueryWaitTime: new(60 * time.Second),
+				VaultDefaultLeaseDuration: new(60 * time.Second),
 				Wait:               waitConfig.Copy(),
 				ConsulRetry:        retryConfig.Copy(),
 				VaultRetry:         retryConfig.Copy(),
@@ -2480,6 +2482,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				TemplateConfig: &config.ClientTemplateConfig{
 					MaxStale:           new(5 * time.Second),
 					BlockQueryWaitTime: new(60 * time.Second),
+					VaultDefaultLeaseDuration: new(60 * time.Second),
 					Wait:               waitConfig.Copy(),
 					ConsulRetry:        retryConfig.Copy(),
 					VaultRetry:         retryConfig.Copy(),
@@ -2499,6 +2502,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&config.ClientTemplateConfig{
 				MaxStale:           new(5 * time.Second),
 				BlockQueryWaitTime: new(60 * time.Second),
+				VaultDefaultLeaseDuration: new(60 * time.Second),
 				Wait:               waitConfig.Copy(),
 				ConsulRetry:        retryConfig.Copy(),
 				VaultRetry:         retryConfig.Copy(),
@@ -2515,6 +2519,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				TemplateConfig: &config.ClientTemplateConfig{
 					MaxStale:           new(5 * time.Second),
 					BlockQueryWaitTime: new(60 * time.Second),
+					VaultDefaultLeaseDuration: new(60 * time.Second),
 					Wait:               waitConfig.Copy(),
 					ConsulRetry:        retryConfig.Copy(),
 					VaultRetry:         retryConfig.Copy(),
@@ -2534,6 +2539,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			&config.ClientTemplateConfig{
 				MaxStale:           new(5 * time.Second),
 				BlockQueryWaitTime: new(60 * time.Second),
+				VaultDefaultLeaseDuration: new(60 * time.Second),
 				Wait:               waitConfig.Copy(),
 				WaitBounds: &config.WaitConfig{
 					Min: new(3 * time.Second),
@@ -2562,6 +2568,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 				TemplateConfig: &config.ClientTemplateConfig{
 					MaxStale:           new(5 * time.Second),
 					BlockQueryWaitTime: new(60 * time.Second),
+					VaultDefaultLeaseDuration: new(60 * time.Second),
 					Wait:               waitConfig.Copy(),
 					WaitBounds: &config.WaitConfig{
 						Min: new(3 * time.Second),
