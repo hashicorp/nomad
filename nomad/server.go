@@ -24,7 +24,12 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
+<<<<<<< HEAD
 	metrics "github.com/hashicorp/go-metrics"
+=======
+	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
+>>>>>>> e7d51ccf75 (func: add reload and clean up after removing a dependency)
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
@@ -111,6 +116,12 @@ type raftBackend interface {
 	raft.LogStore
 	raft.StableStore
 	Close() error
+}
+
+type DependencyCoordinator interface {
+	Reload(state sstructs.State, evals memdb.ResultIterator)
+	HasDependencies(j *structs.Job) (bool, error)
+	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) (bool, error)
 }
 
 // Server is Nomad server which manages the job queues,
@@ -212,7 +223,7 @@ type Server struct {
 	// capacity changes.
 	blockedEvals *BlockedEvals
 
-	dependencyCoordinator *dependency.Coordinator
+	dependencyCoordinator DependencyCoordinator
 
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
