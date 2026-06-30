@@ -1,6 +1,9 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
-
+// TODOS:
+// - Add a way to cancel the evaluation and job when the dependency timeout is reached
+// - There is a exception happening when the dependency timeout is reached and the job is dispatched. The job is dispatched but the evaluation is not removed from the dependencies map. This causes a memory leak and the evaluation will never be unblocked.
+// - Error when unmarshalling a job with dependencies. The error is "json: cannot unmarshal object into Go struct field Job.Dependencies of type string". This is because the job dependencies are defined as a string in the job struct but the API returns an object. The job struct should be updated to match the API response.
 package dependency
 
 import (
@@ -17,7 +20,8 @@ import (
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
-var DefaultTimeout = 10 * time.Minute
+var DefaultTimeout = 2 * time.Minute
+var errDependencyTimeout = errors.New("dependency timeout reached")
 
 type evalID = string
 
@@ -66,7 +70,6 @@ func (c *Coordinator) unblockDependencies(eval *structs.Evaluation, dependeeJobs
 		c.l.Lock()
 		defer c.l.Unlock()
 
-		delete(c.dependencies, eval.ID)
 		if err := c.loopDetector.RemoveNode(eval.JobID); err != nil {
 			c.logger.Error("failed to remove dependency", "error", err)
 		}
@@ -116,8 +119,9 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job, ev
 
 	c.loopDetector.AddNodes(eval.JobID, djIDs...)
 
-	ctx, cancel := context.WithDeadline(c.mainContext, time.Now().Add(dependencyTimeout(job)))
-	c.dependencies[eval.JobID] = &dependency{
+	ctx, cancel := context.WithDeadlineCause(c.mainContext,
+		time.Now().Add(dependencyTimeout(job)), errDependencyTimeout)
+	c.dependencies[eval.ID] = &dependency{
 		cancelFunc: cancel,
 		job:        job,
 		dependees:  djIDs,
@@ -130,6 +134,12 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job, ev
 
 func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.State,
 	eval *structs.Evaluation, dependeeJobIDs ...string) {
+	dep := c.dependencies[eval.ID]
+	defer func() {
+		dep.cancelFunc()
+		delete(c.dependencies, eval.ID)
+		c.logger.Error(" this is running!! **** ")
+	}()
 
 	for {
 		ws := memdb.NewWatchSet()
@@ -146,14 +156,14 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 
 		select {
 		case <-ws.WatchCh(ctx):
-
-			ready, err := c.verifyDependencies(c.dependencies[eval.JobID].job, dj)
+			ready, err := c.verifyDependencies(dep.job, dj)
 			if err != nil {
 				c.logger.Error("failed to verify dependency", "error", err)
 				continue
 			}
 
 			if ready {
+				c.logger.Error("dependency ready, unblocking job", "job", eval.JobID, "eval", eval.ID, "ready", ready)
 				err := c.unblockDependencies(eval, dj)
 				if err != nil {
 					c.logger.Error("failed to unblock job", "error", err)
@@ -162,11 +172,19 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 			}
 
 		case <-ctx.Done():
-			c.unblockDependencies(eval, dj)
-			c.logger.Debug("dependency timeout reached", "jobID", eval.JobID)
-			return
+			c.logger.Error("dependency timeout reached", "job", eval.JobID, "eval", eval.ID)
+			if context.Cause(ctx) == errDependencyTimeout &&
+				dep.job.Dependencies.ActionOnTimeout == structs.DependencyActionDispatch {
+				c.logger.Error("dependency timeout reached, dispatching job",
+					"job", eval.JobID, "eval", eval.ID, "action", dep.job.Dependencies.ActionOnTimeout)
+				c.unblockDependencies(eval, dj)
+			}
+
+			// TODO: Find a way to delete the eval and cancel the job
+			break
 		}
 	}
+
 }
 
 func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[string]*structs.Job) (bool, error) {
@@ -186,7 +204,6 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 		}
 
 		if job == nil || !statusMatches(job.Status, depJob.Status) {
-			c.logger.Debug("job not preset yet", "jobID", depJob.Name)
 			ready = false
 			break
 		}
@@ -240,8 +257,19 @@ func (c *Coordinator) HasDependencies(j *structs.Job) (bool, error) {
 	return false, nil
 }
 
-func (c *Coordinator) Reload(state sstructs.State, evals ...*structs.Evaluation) {
-	for _, eval := range evals {
+func (c *Coordinator) Reload(state sstructs.State, evals memdb.ResultIterator) {
+	for {
+		raw := evals.Next()
+		if raw == nil {
+			break
+		}
+
+		eval, ok := raw.(*structs.Evaluation)
+		if !ok {
+			c.logger.Error("failed to cast evaluation")
+			continue
+		}
+
 		job, err := state.JobByID(nil, eval.Namespace, eval.JobID)
 		if err != nil {
 			c.logger.Error("failed to get job by ID", "error", err)
@@ -258,4 +286,9 @@ type NoOpCoordinator struct{}
 
 func (c *NoOpCoordinator) HasDependencies(j *structs.Job) (bool, error) {
 	return false, nil
+}
+
+func (c *NoOpCoordinator) CheckDependency(state sstructs.State, job *structs.Job,
+	eval *structs.Evaluation) (bool, error) {
+	return true, nil
 }
