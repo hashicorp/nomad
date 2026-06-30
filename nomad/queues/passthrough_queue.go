@@ -19,6 +19,10 @@ func NewPassthroughQueue(b Broker) *PassthroughQueue {
 	}
 }
 
+func (p *PassthroughQueue) Type() structs.BatchQueueType {
+	return "unset"
+}
+
 // Start is a noop for the passthrough implementation
 func (p *PassthroughQueue) Start(context.Context) error { return nil }
 
@@ -26,8 +30,8 @@ func (p *PassthroughQueue) Stop() {}
 
 func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.broker.Enqueue(e) }
 
-func (p *PassthroughQueue) Jobs(map[string]bool) structs.QueueJobsResponse {
-	return structs.QueueJobsResponse{Type: "unset"}
+func (p *PassthroughQueue) Jobs() *WorkloadIter {
+	return &WorkloadIter{}
 }
 
 func (p *PassthroughQueue) Tenants() structs.QueueTenantsResponse {

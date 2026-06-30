@@ -3,9 +3,17 @@
 
 package structs
 
+type QueueWorkload interface {
+	GetID() string
+	GetCreateIndex() uint64
+	GetNamespace() string
+	// Stub() (QueueWorkload, error)
+}
+
 type DynamicPriorityWorkload struct {
 	JobID            string
 	Tenant           string
+	Namespace        string
 	Position         int
 	AdjustedPriority int
 	BasePriority     int
@@ -13,6 +21,22 @@ type DynamicPriorityWorkload struct {
 	AgeAdjustment    int
 	SizeAdjustment   int
 	CreatedAt        int64
+}
+
+func (w *DynamicPriorityWorkload) GetID() string {
+	return w.JobID
+}
+
+func (w *DynamicPriorityWorkload) GetCreateIndex() uint64 {
+	return uint64(w.CreatedAt)
+}
+
+func (w *DynamicPriorityWorkload) GetNamespace() string {
+	return w.Namespace
+}
+
+func (w *DynamicPriorityWorkload) Stub() (QueueWorkload, error) {
+	return w, nil
 }
 
 type DynamicPriorityTenant struct {
