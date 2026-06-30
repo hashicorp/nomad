@@ -491,6 +491,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
+	// Repopulate the dependency coordinator state. This is done both when
+	//  starting up or when a leader fail over happens.
+	evals, err := s.fsm.State().Evals(nil, false)
+	if err != nil {
+		s.logger.Error("failed to repopulate dependency coordinator state", "error", err)
+		return err
+	}
+	s.dependencyCoordinator.Reload(s.fsm.State(), evals)
+
 	// If ACLs are enabled, the leader needs to start a number of long-lived
 	// routines. Exactly which routines, depends on whether this leader is
 	// running within the authoritative region or not.
