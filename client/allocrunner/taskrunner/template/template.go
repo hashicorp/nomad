@@ -1000,7 +1000,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		}
 
 		// Set the user-specificed Vault DefaultLeaseDuration
-                if cc.TemplateConfig.VaultDefaultLeaseDuration != nil {
+		if cc.TemplateConfig.VaultDefaultLeaseDuration != nil {
 			conf.Vault.DefaultLeaseDuration = cc.TemplateConfig.VaultDefaultLeaseDuration
 		}
 

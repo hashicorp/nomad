@@ -477,11 +477,11 @@ type ClientTemplateConfig struct {
 
 	// This controls how often non-renewable, non-leased secrets from Vault are
 	// re-polled.  In practice this will primarily be KVv2 secrets.
-	// Consul Template is opinionated by default and sets this value to 5 minutes 
-	// which is a very safe level.  In low-write situations with many polling 
+	// Consul Template is opinionated by default and sets this value to 5 minutes
+	// which is a very safe level.  In low-write situations with many polling
 	// clients in a large cluster this may be overall too aggressive.
-        VaultDefaultLeaseDuration    *time.Duration `hcl:"-"`
-        VaultDefaultLeaseDurationHCL string	    `hcl:"vault_default_lease_duration,optional"`
+	VaultDefaultLeaseDuration    *time.Duration `hcl:"-"`
+	VaultDefaultLeaseDurationHCL string         `hcl:"vault_default_lease_duration,optional"`
 
 	// This controls the retry behavior when an error is returned from Vault.
 	// Consul Template is highly fault tolerant, meaning it does not exit in the
