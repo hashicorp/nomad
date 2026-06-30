@@ -26,6 +26,18 @@ type dependencyChecker interface {
 	HasDependencies(j *structs.Job) (bool, error)
 }
 
+// withCoreDependencyChecker returns a SchedulerOption that injects the given
+// dependencyChecker into a CoreScheduler. It must live in the nomad package to
+// avoid an import cycle between nomad and scheduler.
+func withCoreDependencyChecker(checker dependencyChecker) sstructs.SchedulerOption {
+	return func(s sstructs.Scheduler) error {
+		if c, ok := s.(*CoreScheduler); ok {
+			c.dependecyChecker = checker
+		}
+		return nil
+	}
+}
+
 // CoreScheduler is a special "scheduler" that is registered
 // as "_core". It is used to run various administrative work
 // across the cluster.
