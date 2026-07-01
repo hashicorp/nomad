@@ -105,6 +105,18 @@ export default class TopoVizNode extends Component {
   }
 
   @action
+  highlightReserved({ target }) {
+    this.args.onReservedFocus &&
+      this.args.onReservedFocus(
+        {
+          cpu: this.args.node.node?.reserved?.cpu,
+          memory: this.args.node.node?.reserved?.memory,
+        },
+        target
+      );
+  }
+
+  @action
   allocationBlur() {
     this.args.onAllocationBlur && this.args.onAllocationBlur();
   }
@@ -177,20 +189,50 @@ export default class TopoVizNode extends Component {
       memoryOffset += memoryPercent;
     }
 
+    const cpuReservedRaw = this.args.node.node?.reserved?.cpu;
+    const memoryReservedRaw = this.args.node.node?.reserved?.memory;
+
+    const cpuReservedPercent = cpuReservedRaw
+      ? cpuReservedRaw / this.args.node.cpu
+      : 0;
+    const memoryReservedPercent = memoryReservedRaw
+      ? memoryReservedRaw / this.args.node.memory
+      : 0;
+
     const cpuRemainder = {
       x: cpuOffset * width + 0.5,
-      width: Math.max(width - cpuOffset * width, 0),
+      width: Math.max((1 - cpuReservedPercent) * width - cpuOffset * width, 0),
     };
     const memoryRemainder = {
       x: memoryOffset * width + 0.5,
-      width: Math.max(width - memoryOffset * width, 0),
+      width: Math.max(
+        (1 - memoryReservedPercent) * width - memoryOffset * width,
+        0
+      ),
     };
+
+    const cpuReserved =
+      cpuReservedPercent > 0
+        ? {
+            x: (1 - cpuReservedPercent) * width + 0.5,
+            width: Math.max(cpuReservedPercent * width - 0.5, 0),
+          }
+        : null;
+    const memoryReserved =
+      memoryReservedPercent > 0
+        ? {
+            x: (1 - memoryReservedPercent) * width + 0.5,
+            width: Math.max(memoryReservedPercent * width - 0.5, 0),
+          }
+        : null;
 
     return {
       cpu,
       memory,
       cpuRemainder,
       memoryRemainder,
+      cpuReserved,
+      memoryReserved,
       cpuLabel: { x: -this.paddingLeft / 2, y: this.height / 2 + this.yOffset },
       memoryLabel: { x: -this.paddingLeft / 2, y: this.height / 2 },
     };
