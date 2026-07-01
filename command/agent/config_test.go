@@ -329,10 +329,11 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist:   client.DefaultTemplateFunctionDenylist,
-				DisableSandbox:     false,
-				BlockQueryWaitTime: new(5 * time.Minute),
-				MaxStale:           new(client.DefaultTemplateMaxStale),
+				FunctionDenylist:          client.DefaultTemplateFunctionDenylist,
+				DisableSandbox:            false,
+				BlockQueryWaitTime:        new(5 * time.Minute),
+				VaultDefaultLeaseDuration: new(5 * time.Minute),
+				MaxStale:                  new(client.DefaultTemplateMaxStale),
 				Wait: &client.WaitConfig{
 					Min: new(5 * time.Second),
 					Max: new(4 * time.Minute),
@@ -1703,6 +1704,7 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 		// check all the complex defaults
 		must.Eq(t, 87600*time.Hour, *templateConfig.MaxStale)
 		must.Eq(t, 5*time.Minute, *templateConfig.BlockQueryWaitTime)
+		must.Eq(t, 5*time.Minute, *templateConfig.VaultDefaultLeaseDuration)
 
 		// Wait
 		must.NotNil(t, templateConfig.Wait)
