@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/nomad/scheduler/tests"
@@ -474,6 +475,57 @@ func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {
 		newPlanned = append(newPlanned, allocList...)
 	}
 	must.SliceLen(t, 10, newPlanned)
+}
+
+func TestServiceSched_JobRegister_StickyStaticHostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	// A node with a static host volume (its ID is empty).
+	node := mock.Node()
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// A job that requests the static volume with sticky, which is only valid for
+	// dynamic host volumes.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:   "host",
+			Source: "foo",
+			Sticky: true,
+		},
+	}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// Nothing is placed, so the scheduler submits no plan.
+	must.SliceLen(t, 0, h.Plans)
+
+	// The unplaced allocation spawns a blocked eval, and the node is filtered
+	// out for the host volume constraint.
+	must.SliceLen(t, 1, h.CreateEvals)
+	must.Eq(t, structs.EvalStatusBlocked, h.CreateEvals[0].Status)
+
+	must.SliceLen(t, 1, h.Evals)
+	outEval := h.Evals[0]
+	must.MapLen(t, 1, outEval.FailedTGAllocs)
+	metrics := outEval.FailedTGAllocs[job.TaskGroups[0].Name]
+	must.NotNil(t, metrics)
+	must.MapContainsKey(t, metrics.ConstraintFiltered, feasible.FilterConstraintHostVolumes)
 }
 
 func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {

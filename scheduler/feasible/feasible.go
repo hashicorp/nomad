@@ -330,60 +330,81 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	}
 
 	for _, req := range h.volumeReqs {
-		volCfg, ok := n.HostVolumes[req.Source]
-		if !ok {
+		if !h.nodeIsFeasibleForRequest(n, req, proposed) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// nodeIsFeasibleForRequest determines if the node can satisfy a single host
+// volume request. hasVolumes calls it for every request and rejects the node if
+// any one is infeasible, so a request that is satisfied here must not
+// short-circuit the checks for the other requests.
+func (h *HostVolumeChecker) nodeIsFeasibleForRequest(n *structs.Node, req *structs.VolumeRequest, proposed []*structs.Allocation) bool {
+	volCfg, ok := n.HostVolumes[req.Source]
+	if !ok {
+		return false
+	}
+
+	if volCfg.ID != "" { // dynamic host volume
+		vol, err := h.ctx.State().HostVolumeByID(nil, h.namespace, volCfg.ID, false)
+		if err != nil || vol == nil {
+			// the dynamic host volume in the node fingerprint does not
+			// belong to the namespace we need. or the volume is no longer
+			// in the state store because the batched fingerprint update
+			// from a delete RPC is written before the delete RPC's raft
+			// entry completes
+			return false
+		}
+		if !h.hostVolumeIsAvailable(vol,
+			req.AccessMode,
+			req.AttachmentMode,
+			req.ReadOnly,
+			proposed,
+		) {
 			return false
 		}
 
-		if volCfg.ID != "" { // dynamic host volume
-			vol, err := h.ctx.State().HostVolumeByID(nil, h.namespace, volCfg.ID, false)
-			if err != nil || vol == nil {
-				// the dynamic host volume in the node fingerprint does not
-				// belong to the namespace we need. or the volume is no longer
-				// in the state store because the batched fingerprint update
-				// from a delete RPC is written before the delete RPC's raft
-				// entry completes
-				return false
-			}
-			if !h.hostVolumeIsAvailable(vol,
-				req.AccessMode,
-				req.AttachmentMode,
-				req.ReadOnly,
-				proposed,
-			) {
-				return false
+		if req.Sticky {
+			// the node is feasible for this request if there are no remaining
+			// claims to fulfill or if there's an exact match
+			if len(h.unmetClaims) == 0 {
+				return true
 			}
 
-			if req.Sticky {
-				// the node is feasible if there are no remaining claims to
-				// fulfill or if there's an exact match
-				if len(h.unmetClaims) == 0 {
+			for _, c := range h.unmetClaims {
+				if c.VolumeID == vol.ID {
+					// if we have a match for a volume claim, delete this
+					// claim from the claims list in the feasibility
+					// checker. This is needed for situations when jobs get
+					// scaled up and new allocations need to be placed on
+					// the same node.
+					h.unmetClaims = slices.DeleteFunc(h.unmetClaims,
+						func(claim *structs.TaskGroupHostVolumeClaim) bool {
+							return claim.VolumeID == vol.ID
+						})
 					return true
 				}
-
-				for _, c := range h.unmetClaims {
-					if c.VolumeID == vol.ID {
-						// if we have a match for a volume claim, delete this
-						// claim from the claims list in the feasibility
-						// checker. This is needed for situations when jobs get
-						// scaled up and new allocations need to be placed on
-						// the same node.
-						h.unmetClaims = slices.DeleteFunc(h.unmetClaims,
-							func(claim *structs.TaskGroupHostVolumeClaim) bool {
-								return claim.VolumeID == vol.ID
-							})
-						return true
-					}
-				}
-				return false
 			}
-		} else if !req.ReadOnly {
-			// this is a static host volume and can only be mounted ReadOnly,
-			// validate that no requests for it are ReadWrite.
-			if volCfg.ReadOnly {
-				return false
-			}
+			return false
 		}
+
+		return true
+	}
+
+	// this is a static host volume
+
+	// sticky is only supported on dynamic host volumes
+	if req.Sticky {
+		return false
+	}
+
+	// a static host volume that is configured read-only can only be mounted
+	// ReadOnly, so validate that no requests for it are ReadWrite
+	if !req.ReadOnly && volCfg.ReadOnly {
+		return false
 	}
 
 	return true

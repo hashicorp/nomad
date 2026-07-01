@@ -240,6 +240,116 @@ func TestHostVolumeChecker_Static(t *testing.T) {
 	}
 }
 
+func TestHostVolumeChecker_StaticSticky(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+
+	node := mock.Node()
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {}, // static host volume: ID is empty
+	}
+
+	// sticky is only supported on dynamic host volumes, so requesting it on a
+	// static host volume must fail feasibility regardless of ReadOnly.
+	cases := []struct {
+		name   string
+		req    *structs.VolumeRequest
+		result bool
+	}{
+		{
+			name:   "sticky read-write",
+			req:    &structs.VolumeRequest{Type: "host", Source: "foo", Sticky: true},
+			result: false,
+		},
+		{
+			name:   "sticky read-only",
+			req:    &structs.VolumeRequest{Type: "host", Source: "foo", Sticky: true, ReadOnly: true},
+			result: false,
+		},
+		{
+			name:   "not sticky",
+			req:    &structs.VolumeRequest{Type: "host", Source: "foo"},
+			result: true,
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	job := mock.Job()
+	taskGroup := job.TaskGroups[0]
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checker.SetVolumes(alloc.Name, structs.DefaultNamespace, job.ID, taskGroup.Name,
+				map[string]*structs.VolumeRequest{"foo": tc.req})
+			must.Eq(t, tc.result, checker.Feasible(node))
+		})
+	}
+}
+
+func TestHostVolumeChecker_StaticStickyMultiVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := MockContext(t)
+
+	// the node has one dynamic host volume (ID set) and one static host volume
+	// (ID empty)
+	dhvID := uuid.Generate()
+	node := mock.Node()
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"dyn":  {ID: dhvID},
+		"stat": {},
+	}
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+
+	dhv := &structs.HostVolume{
+		Namespace: structs.DefaultNamespace,
+		ID:        dhvID,
+		Name:      "dyn",
+		NodeID:    node.ID,
+		RequestedCapabilities: []*structs.HostVolumeCapability{{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
+		}},
+		State: structs.HostVolumeStateReady,
+	}
+	must.NoError(t, store.UpsertHostVolume(1000, dhv))
+
+	// both volumes are requested sticky. The dynamic one is available with no
+	// outstanding claims, so on its own it satisfies the per-request check; the
+	// static one is invalid for sticky. The node must be infeasible no matter
+	// which request is checked first.
+	dynReq := &structs.VolumeRequest{
+		Type:           "host",
+		Source:         "dyn",
+		Sticky:         true,
+		AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+	}
+	statReq := &structs.VolumeRequest{Type: "host", Source: "stat", Sticky: true}
+
+	checker := NewHostVolumeChecker(ctx)
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	job := mock.Job()
+	taskGroup := job.TaskGroups[0]
+	checker.SetVolumes(alloc.Name, structs.DefaultNamespace, job.ID, taskGroup.Name,
+		map[string]*structs.VolumeRequest{"dyn": dynReq, "stat": statReq})
+
+	// SetVolumes builds volumeReqs from a map, so set the order explicitly and
+	// check both: a satisfied dynamic request must not let the static one slip
+	// through whether it is checked first or second.
+	checker.volumeReqs = []*structs.VolumeRequest{dynReq, statReq}
+	must.False(t, checker.Feasible(node),
+		must.Sprint("infeasible with the dynamic request checked first"))
+
+	checker.volumeReqs = []*structs.VolumeRequest{statReq, dynReq}
+	must.False(t, checker.Feasible(node),
+		must.Sprint("infeasible with the static request checked first"))
+}
+
 func TestHostVolumeChecker_Dynamic(t *testing.T) {
 	ci.Parallel(t)
 
