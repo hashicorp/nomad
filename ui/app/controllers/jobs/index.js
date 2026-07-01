@@ -89,9 +89,25 @@ export default class JobsIndexController extends Controller {
   @tracked cursorAt;
   @tracked nextToken; // route sets this when new data is fetched
 
+  // Stack of the page-start cursors we've navigated through, so "prev" can step
+  // back without re-deriving a token. Each entry is the cursorAt that started a
+  // page (null for the first page). The pagination token is opaque, so we never
+  // do arithmetic on it.
+  @tracked previousTokens = [];
+
+  // cursorFor builds the pagination cursor for a job, matching the server's
+  // "<modifyIndex>.<namespace>.<id>" jobs/statuses page token. Only "last" has
+  // to synthesize a cursor; first/next/prev reuse tokens we've already seen.
+  cursorFor(job) {
+    if (!job) {
+      return undefined;
+    }
+    const namespace = job.belongsTo('namespace').id() || 'default';
+    return `${job.modifyIndex}.${namespace}.${job.plainId}`;
+  }
+
   /**
-   *
-   * @param {"prev"|"next"} page
+   * @param {"prev"|"next"|"first"|"last"} page
    */
   @action async handlePageChange(page) {
     // reset indexes
@@ -99,39 +115,34 @@ export default class JobsIndexController extends Controller {
     this.jobAllocsQueryIndex = 0;
 
     if (page === 'prev') {
-      if (!this.cursorAt) {
-        return;
-      }
-      // Note (and TODO:) this isn't particularly efficient!
-      // We're making an extra full request to get the nextToken we need,
-      // but actually the results of that request are the reverse order, plus one job,
-      // of what we actually want to show on the page!
-      // I should investigate whether I can use the results of this query to
-      // overwrite this controller's jobIDs, leverage its index, and
-      // restart a blocking watchJobIDs here.
-      let prevPageToken = await this.loadPreviousPageToken();
-      // If there's no nextToken, we're at the "start" of our list and can drop the cursorAt
-      if (!prevPageToken.meta.nextToken) {
-        this.cursorAt = undefined;
-      } else {
-        // cursorAt should be the highest modifyIndex from the previous query.
-        // This will immediately fire the route model hook with the new cursorAt
-        const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
-        this.cursorAt = prevPageToken
-          ? sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex
-          : undefined;
-      }
+      // Step back to the previous page's cursor. Nothing to pop means we're
+      // returning to the first page.
+      const tokens = [...this.previousTokens];
+      const prev = tokens.pop();
+      this.previousTokens = tokens;
+      this.cursorAt = prev ?? undefined;
     } else if (page === 'next') {
       if (!this.nextToken) {
         return;
       }
+      // Remember where this page started, then advance using the opaque token
+      // the server handed us.
+      this.previousTokens = [...this.previousTokens, this.cursorAt ?? null];
       this.cursorAt = this.nextToken;
     } else if (page === 'first') {
+      this.previousTokens = [];
       this.cursorAt = undefined;
     } else if (page === 'last') {
-      let prevPageToken = await this.loadPreviousPageToken({ last: true });
-      const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
-      this.cursorAt = sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex;
+      // We don't have the last page's start cursor, so fetch the final page
+      // from the opposite (reverse) end and use its newest job as the cursor.
+      // Record the current position so "prev" returns here.
+      const lastPage = await this.loadLastPage();
+      const sorted = lastPage.sortBy('modifyIndex');
+      const boundary = sorted[sorted.length - 1];
+      if (boundary) {
+        this.previousTokens = [...this.previousTokens, this.cursorAt ?? null];
+        this.cursorAt = this.cursorFor(boundary);
+      }
     }
   }
 
@@ -278,18 +289,12 @@ export default class JobsIndexController extends Controller {
       });
   }
 
-  // Ask for the previous #page_size jobs, starting at the first job that's currently shown
-  // on our page, and the last one in our list should be the one we use for our
-  // subsequent nextToken.
-  async loadPreviousPageToken({ last = false } = {}) {
-    let next_token = +this.cursorAt + 1;
-    if (last) {
-      next_token = undefined;
-    }
-    let prevPageToken = await this.store.query(
+  // Fetch the final page by querying from the opposite (reverse) end. The
+  // newest job in that page is where the last page starts.
+  async loadLastPage() {
+    return this.store.query(
       'job',
       {
-        next_token,
         per_page: this.pageSize,
         reverse: true,
       },
@@ -299,7 +304,6 @@ export default class JobsIndexController extends Controller {
         },
       },
     );
-    return prevPageToken;
   }
 
   @restartableTask *watchJobIDs(
@@ -601,6 +605,7 @@ export default class JobsIndexController extends Controller {
   @action
   updateFilter() {
     this.cursorAt = null;
+    this.previousTokens = [];
     this.filter = this.computedFilter;
   }
 
