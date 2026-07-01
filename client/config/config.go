@@ -634,7 +634,7 @@ func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateCon
 	if o.ConsulRetry != nil {
 		result.ConsulRetry = c.ConsulRetry.Merge(o.ConsulRetry)
 	}
-	o.VaultDefaultLeaseDuration = pointer.Merge(result.VaultDefaultLeaseDuration, o.VaultDefaultLeaseDuration)
+	result.VaultDefaultLeaseDuration = pointer.Merge(result.VaultDefaultLeaseDuration, o.VaultDefaultLeaseDuration)
 	if o.VaultRetry != nil {
 		result.VaultRetry = c.VaultRetry.Merge(o.VaultRetry)
 	}
