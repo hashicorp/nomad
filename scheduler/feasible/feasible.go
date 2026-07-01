@@ -452,9 +452,8 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 			if err != nil {
 				return false
 			}
-			tg := job.LookupTaskGroup(alloc.TaskGroup)
-			for _, req := range tg.Volumes {
-				if req.Type == structs.VolumeTypeHost && req.Source == vol.Name {
+			for _, req := range job.LookupTaskGroup(alloc.TaskGroup).Volumes {
+				if vol.MatchesRequestSource(req, alloc) {
 					if !req.ReadOnly {
 						return false
 					}
