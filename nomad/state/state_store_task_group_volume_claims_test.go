@@ -320,3 +320,63 @@ func TestStateStore_claimUpsertForAlloc(t *testing.T) {
 		must.Eq(t, newAlloc.TaskGroup, claim.TaskGroupName)
 	})
 }
+
+func TestStateStore_DeleteTaskGroupHostVolumeClaim(t *testing.T) {
+	ci.Parallel(t)
+	store := testStateStore(t)
+
+	job := mock.Job()
+	node := mock.Node()
+	volumeID := uuid.Generate()
+	chv := &structs.ClientHostVolumeConfig{
+		Name:     "test-volume",
+		Path:     "/data",
+		ReadOnly: false,
+		ID:       volumeID,
+	}
+
+	alloc := mock.Alloc()
+	alloc.JobID = job.ID
+	alloc.Job = job
+	alloc.NodeID = node.ID
+	alloc.TaskGroup = "web"
+	alloc.Namespace = "prod"
+
+	index, _ := store.LatestIndex()
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	txn := store.db.ReadTxn()
+	claim, err := store.claimToUpsertForAlloc(txn, alloc, "test-volume", chv)
+	must.NoError(t, err)
+	claimID := claim.ID
+
+	index++
+	err = store.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, index, claim)
+	must.NoError(t, err)
+
+	claim, err = store.TaskGroupHostVolumeClaimByID(nil, "default", claimID)
+	must.NoError(t, err)
+	must.Nil(t, claim)
+	claim, err = store.TaskGroupHostVolumeClaimByID(nil, "prod", claimID)
+	must.NoError(t, err)
+	must.NotNil(t, claim)
+
+	// deleting from the wrong namespace
+	index++
+	err = store.DeleteTaskGroupHostVolumeClaim(index, "default", claimID)
+	must.EqError(t, err, "task group volume claim does not exist")
+	claim, err = store.TaskGroupHostVolumeClaimByID(nil, "prod", claimID)
+	must.NoError(t, err)
+	must.NotNil(t, claim)
+
+	// successful delete
+	index++
+	err = store.DeleteTaskGroupHostVolumeClaim(index, "prod", claimID)
+	must.NoError(t, err)
+	claim, err = store.TaskGroupHostVolumeClaimByID(nil, "prod", claimID)
+	must.NoError(t, err)
+	must.Nil(t, claim)
+}

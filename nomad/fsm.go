@@ -2504,7 +2504,7 @@ func (n *nomadFSM) applyTaskGroupHostVolumeClaimDelete(buf []byte, index uint64)
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteTaskGroupHostVolumeClaim(index, req.ClaimID); err != nil {
+	if err := n.state.DeleteTaskGroupHostVolumeClaim(index, req.RequestNamespace(), req.ClaimID); err != nil {
 		n.logger.Error("DeleteTaskGroupHostVolumeClaim failed", "error", err)
 		return err
 	}
