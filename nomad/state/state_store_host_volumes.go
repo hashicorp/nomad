@@ -41,8 +41,8 @@ func (s *StateStore) HostVolumeByID(ws memdb.WatchSet, ns, id string, withAllocs
 		if alloc.ClientTerminalStatus() {
 			continue
 		}
-		for _, volClaim := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Volumes {
-			if volClaim.Type == structs.VolumeTypeHost && volClaim.Source == vol.Name {
+		for _, volReq := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Volumes {
+			if vol.MatchesRequestSource(volReq, alloc) {
 				vol.Allocations = append(vol.Allocations, alloc.Stub(nil))
 			}
 		}
@@ -153,8 +153,8 @@ func (s *StateStore) deleteHostVolumeTxn(txn *txn, index uint64, ns string, id s
 			if alloc.ClientTerminalStatus() {
 				continue
 			}
-			for _, volClaim := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Volumes {
-				if volClaim.Type == structs.VolumeTypeHost && volClaim.Name == vol.Name {
+			for _, volReq := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Volumes {
+				if vol.MatchesRequestSource(volReq, alloc) {
 					return fmt.Errorf("could not delete volume %s in use by alloc %s",
 						vol.ID, alloc.ID)
 				}
@@ -233,9 +233,9 @@ func (s *StateStore) HostVolumesByIDPrefix(ws memdb.WatchSet, ns, prefix string,
 	return wrappedIter, nil
 }
 
-// HostVolumesByName retrieves all host volumes of the same name
-func (s *StateStore) HostVolumesByName(ws memdb.WatchSet, ns, name string, sort SortOption) (memdb.ResultIterator, error) {
-	return s.hostVolumesIter(ws, "name_prefix", sort, ns, name)
+// HostVolumesByNamePrefix retrieves all host volumes of the same name prefix
+func (s *StateStore) HostVolumesByNamePrefix(ws memdb.WatchSet, ns, prefix string, sort SortOption) (memdb.ResultIterator, error) {
+	return s.hostVolumesIter(ws, "name_prefix", sort, ns, prefix)
 }
 
 // HostVolumesByNodeID retrieves all host volumes on the same node
