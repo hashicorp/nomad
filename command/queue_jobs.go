@@ -6,6 +6,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -107,7 +108,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	}
 
 	// Submit the request
-	resp, _, err := client.BatchJobQueue().Jobs(qo)
+	resp, qm, err := client.BatchJobQueue().Jobs(qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
@@ -119,7 +120,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 
 	switch resp.Type {
 	case api.BatchJobQueueTypeDynamic:
-		return c.printDynamicQueue(resp, jsonOut)
+		c.printDynamicQueue(resp, qm, jsonOut)
 	case "unset":
 		c.Ui.Output("No batch job queue configured")
 	default:
@@ -130,7 +131,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse, jsonOut bool) int {
+func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse, qm *api.QueryMeta, jsonOut bool) int {
 	workloads := []api.DynamicPriorityWorkload{}
 	bytes, err := json.Marshal(resp.Workloads)
 	if err != nil {
@@ -149,6 +150,12 @@ func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse
 		}
 	} else {
 		c.printDynamicQueueFormatted(workloads)
+		if qm.NextToken != "" {
+			c.Ui.Output(fmt.Sprintf(`
+Results have been paginated. To get the next page run:
+
+%s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
+		}
 	}
 	return 0
 }
