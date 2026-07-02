@@ -18,7 +18,7 @@ var (
 
 // StreamFrame is used to frame data of a file when streaming
 type StreamFrame struct {
-	// Offset is the offset the data was read from
+	// Offset is the next file offset after Data.
 	Offset int64 `json:",omitempty"`
 
 	// Data is the read data
@@ -30,6 +30,15 @@ type StreamFrame struct {
 	// FileEvent is the last file event that occurred that could cause the
 	// streams position to change or end
 	FileEvent string `json:",omitempty"`
+
+	// GlobalOffset is the next allocation-lifetime stable offset after this frame.
+	GlobalOffset int64 `json:",omitempty"`
+
+	// FileIndex indicates which rotation file this data came from (0, 1, 2...)
+	FileIndex int64 `json:",omitempty"`
+
+	// ByteOffset is the next offset within the specific file after this frame.
+	ByteOffset int64 `json:",omitempty"`
 }
 
 // IsHeartbeat returns if the frame is a heartbeat frame
@@ -42,6 +51,9 @@ func (s *StreamFrame) Clear() {
 	s.Data = nil
 	s.File = ""
 	s.FileEvent = ""
+	s.GlobalOffset = 0
+	s.FileIndex = 0
+	s.ByteOffset = 0
 }
 
 func (s *StreamFrame) IsCleared() bool {
@@ -224,7 +236,11 @@ func (s *StreamFramer) send() {
 	default:
 	}
 
+	endOffset := s.f.Offset
 	s.f.Data = s.readData()
+	if len(s.f.Data) > 0 {
+		s.f.Offset = endOffset - int64(s.data.Len())
+	}
 	select {
 	case s.out <- s.f.Copy():
 		s.f.Clear()
@@ -268,13 +284,13 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 
 	// Store the new data as the current frame.
 	if s.f.IsCleared() {
-		s.f.Offset = offset
 		s.f.File = file
 		s.f.FileEvent = fileEvent
 	}
 
 	// Write the data to the buffer
 	s.data.Write(data)
+	s.f.Offset = offset
 
 	// Handle the delete case in which there is no data
 	force := s.data.Len() == 0 && s.f.FileEvent != ""
@@ -297,15 +313,17 @@ func (s *StreamFramer) Send(file, fileEvent string, data []byte, offset int64) e
 		}
 
 		// Create a new frame to send it
+		endOffset := s.f.Offset
 		s.f.Data = s.readData()
+		if len(s.f.Data) > 0 {
+			s.f.Offset = endOffset - int64(s.data.Len())
+		}
 		select {
 		case s.out <- s.f.Copy():
 		case <-s.exitCh:
 			return nil
 		}
-
-		// Update the offset
-		s.f.Offset += int64(len(s.f.Data))
+		s.f.Offset = endOffset
 	}
 
 	return nil
@@ -318,7 +336,11 @@ func (s *StreamFramer) IsFlushed() bool {
 func (s *StreamFramer) Flush() bool {
 	s.l.Lock()
 	// Send() may have left a partial frame. Send it now.
+	endOffset := s.f.Offset
 	s.f.Data = s.readData()
+	if len(s.f.Data) > 0 {
+		s.f.Offset = endOffset - int64(s.data.Len())
+	}
 
 	// Only send if there's actually data left
 	if len(s.f.Data) > 0 {
