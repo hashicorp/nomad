@@ -1745,6 +1745,35 @@ func TestResolveAuthorizedClientNodePoolHelpers(t *testing.T) {
 			alloc,
 			nil,
 		), structs.ErrPermissionDenied)
+
+		// A node authenticating with node identity claims rather than a
+		// client secret must also be authorized for its own allocs.
+		claimsIdentity := &structs.AuthenticatedIdentity{
+			Claims: &structs.IdentityClaims{
+				NodeIdentityClaims: &structs.NodeIdentityClaims{
+					NodeID:   node.ID,
+					NodePool: node.NodePool,
+				},
+			},
+		}
+		must.NoError(t, auth.AuthorizeClientAllocation(
+			claimsIdentity,
+			acl.NewClientACL("other-pool"),
+			alloc,
+			nil,
+		))
+
+		// An unplaced alloc must not match a non-node identity, whose
+		// authenticated node ID is also empty.
+		unplacedAlloc := mock.Alloc()
+		unplacedAlloc.Job.NodePool = "other-pool"
+		unplacedAlloc.NodeID = ""
+		must.ErrorIs(t, auth.AuthorizeClientAllocation(
+			&structs.AuthenticatedIdentity{},
+			aclObj,
+			unplacedAlloc,
+			nil,
+		), structs.ErrPermissionDenied)
 	})
 
 	t.Run("resolve by service registration id", func(t *testing.T) {
