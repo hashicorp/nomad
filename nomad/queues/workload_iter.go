@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
 package queues
 
 import (
@@ -21,9 +24,6 @@ func NewWorkloadIter(workloads []structs.QueueWorkload) *WorkloadIter {
 
 func (i *WorkloadIter) SortByCreateIndex() {
 	slices.SortFunc(i.Workloads, func(a, b structs.QueueWorkload) int {
-		if a.GetCreateIndex() == b.GetCreateIndex() {
-			return cmp.Compare(a.GetID(), b.GetID())
-		}
 		return cmp.Compare(a.GetCreateIndex(), b.GetCreateIndex())
 	})
 }
