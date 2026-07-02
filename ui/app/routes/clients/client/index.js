@@ -21,7 +21,12 @@ export default class ClientRoute extends Route.extend(WithWatchers) {
     return super.setupController(...arguments);
   }
 
-  resetController(controller) {
+  resetController(controller, isExiting) {
+    if (isExiting) {
+      controller.set('watchModel', null);
+      controller.set('watchAllocations', null);
+    }
+
     controller.setProperties({
       eligibilityError: null,
       stopDrainError: null,
@@ -34,10 +39,12 @@ export default class ClientRoute extends Route.extend(WithWatchers) {
   }
 
   startWatchers(controller, model) {
-    if (model) {
-      controller.set('watchModel', this.watch.perform(model));
-      controller.set('watchAllocations', this.watchAllocations.perform(model));
+    if (!model) {
+      return;
     }
+
+    controller.set('watchModel', this.watch.perform(model));
+    controller.set('watchAllocations', this.watchAllocations.perform(model));
   }
 
   @watchRecord('node') watch;
