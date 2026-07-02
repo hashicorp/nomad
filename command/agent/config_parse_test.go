@@ -1221,6 +1221,7 @@ func TestConfig_Template(t *testing.T) {
 			must.Eq(t, new(550*time.Millisecond), cfg.Client.TemplateConfig.ConsulRetry.Backoff)
 			must.Eq(t, new(10*time.Minute), cfg.Client.TemplateConfig.ConsulRetry.MaxBackoff)
 
+			must.NotNil(t, cfg.Client.TemplateConfig.VaultDefaultLeaseDuration)
 			must.NotNil(t, cfg.Client.TemplateConfig.VaultRetry)
 			must.Eq(t, 6, *cfg.Client.TemplateConfig.VaultRetry.Attempts)
 			must.Eq(t, new(550*time.Millisecond), cfg.Client.TemplateConfig.VaultRetry.Backoff)
