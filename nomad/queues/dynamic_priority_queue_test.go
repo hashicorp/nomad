@@ -542,20 +542,59 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	testCases := []struct {
 		name      string
-		allowedNs map[string]bool
+		sortOrder structs.SortOrder
 		workloads []*Workload
 		exp       *WorkloadIter
 	}{
 		{
-			name: "status response parses workloads correctly",
+			name:      "status response parses workloads correctly",
+			sortOrder: structs.SortDefault,
 			workloads: []*Workload{
 				{
 					id:  "eval1",
 					tid: "tenantA",
 					eval: &structs.Evaluation{
-						ID:       "eval1",
-						JobID:    "job1",
-						Priority: 50,
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateTime:  time.Unix(20, 0).UnixNano(),
+						CreateIndex: 10,
+					},
+					priority:        59,
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+			},
+			exp: &WorkloadIter{
+				Workloads: []structs.QueueWorkload{
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						Position:         1,
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(20, 0).UnixNano(),
+						CreateIndex:      10,
+					},
+				},
+			},
+		},
+		{
+			name:      "default sort returns workloads in order of createIndex",
+			sortOrder: structs.SortDefault,
+			workloads: []*Workload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateIndex: 14,
 					},
 					priority:        59,
 					sizeAdjustment:  2,
@@ -566,9 +605,10 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 					id:  "eval2",
 					tid: "tenantA",
 					eval: &structs.Evaluation{
-						ID:       "eval2",
-						JobID:    "job2",
-						Priority: 50,
+						ID:          "eval2",
+						JobID:       "job2",
+						Priority:    50,
+						CreateIndex: 12,
 					},
 					priority:        66,
 					sizeAdjustment:  12,
@@ -579,9 +619,95 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 					id:  "eval3",
 					tid: "tenantA",
 					eval: &structs.Evaluation{
-						ID:       "eval3",
-						JobID:    "job3",
-						Priority: 50,
+						ID:          "eval3",
+						JobID:       "job3",
+						Priority:    50,
+						CreateIndex: 10,
+					},
+					priority:        51,
+					sizeAdjustment:  0,
+					ageAdjustment:   0,
+					usageAdjustment: 1,
+				},
+			},
+			exp: &WorkloadIter{
+				Workloads: []structs.QueueWorkload{
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job3",
+						Tenant:           "tenantA",
+						Position:         3,
+						AdjustedPriority: 51,
+						BasePriority:     50,
+						SizeAdjustment:   0,
+						AgeAdjustment:    0,
+						UsageAdjustment:  1,
+						CreateIndex:      10,
+					},
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job2",
+						Tenant:           "tenantA",
+						Position:         1,
+						AdjustedPriority: 66,
+						BasePriority:     50,
+						SizeAdjustment:   12,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreateIndex:      12,
+					},
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						Position:         2,
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreateIndex:      14,
+					},
+				},
+			},
+		},
+		{
+			name:      "priority order returns workloads in order of adjusted priority",
+			sortOrder: structs.SortByPriority,
+			workloads: []*Workload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateIndex: 14,
+					},
+					priority:        59,
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval2",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval2",
+						JobID:       "job2",
+						Priority:    50,
+						CreateIndex: 12,
+					},
+					priority:        66,
+					sizeAdjustment:  12,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval3",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval3",
+						JobID:       "job3",
+						Priority:    50,
+						CreateIndex: 10,
 					},
 					priority:        51,
 					sizeAdjustment:  0,
@@ -600,6 +726,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						SizeAdjustment:   12,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
+						CreateIndex:      12,
 					},
 					&structs.DynamicPriorityWorkload{
 						JobID:            "job1",
@@ -610,6 +737,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						SizeAdjustment:   2,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
+						CreateIndex:      14,
 					},
 					&structs.DynamicPriorityWorkload{
 						JobID:            "job3",
@@ -620,12 +748,14 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						SizeAdjustment:   0,
 						AgeAdjustment:    0,
 						UsageAdjustment:  1,
+						CreateIndex:      10,
 					},
 				},
 			},
 		},
 		{
-			name: "order falls back to createIndex if priority is equal",
+			name:      "priority order falls back to createIndex if priority is equal",
+			sortOrder: structs.SortByPriority,
 			workloads: []*Workload{
 				{
 					id:  "eval1",
@@ -635,7 +765,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						JobID:       "job1",
 						Priority:    50,
 						CreateTime:  time.Unix(20, 0).UnixNano(),
-						CreateIndex: 2,
+						CreateIndex: 12,
 					},
 					priority:        59,
 					sizeAdjustment:  2,
@@ -650,7 +780,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						JobID:       "job2",
 						Priority:    50,
 						CreateTime:  time.Unix(10, 0).UnixNano(),
-						CreateIndex: 1,
+						CreateIndex: 10,
 					},
 					priority:        59,
 					sizeAdjustment:  2,
@@ -670,6 +800,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreatedAt:        time.Unix(10, 0).UnixNano(),
+						CreateIndex:      10,
 					},
 					&structs.DynamicPriorityWorkload{
 						JobID:            "job1",
@@ -681,21 +812,30 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreatedAt:        time.Unix(20, 0).UnixNano(),
+						CreateIndex:      12,
 					},
 				},
 			},
 		},
 	}
 	for _, tc := range testCases {
-		testQueue := &DynamicPriorityQueue{
-			queue: NewWorkloadQueue(),
-		}
-		for _, w := range tc.workloads {
-			testQueue.queue.Push(w)
-		}
-		must.Eq(t, tc.exp, testQueue.Jobs(), must.Sprint(tc.name))
-	}
+		t.Run(tc.name, func(t *testing.T) {
+			testQueue := &DynamicPriorityQueue{
+				queue: NewWorkloadQueue(),
+			}
+			for _, w := range tc.workloads {
+				testQueue.queue.Push(w)
+			}
 
+			got := testQueue.Jobs(tc.sortOrder)
+			must.Eq(t, len(tc.exp.Workloads), len(got.Workloads))
+			for i := range tc.exp.Workloads {
+				expWorkload := tc.exp.Workloads[i].(*structs.DynamicPriorityWorkload)
+				gotWorkload := got.Workloads[i].(*structs.DynamicPriorityWorkload)
+				must.Eq(t, *expWorkload, *gotWorkload)
+			}
+		})
+	}
 }
 
 func TestDynamicPriorityQueue_Tenants(t *testing.T) {

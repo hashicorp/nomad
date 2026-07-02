@@ -28,8 +28,8 @@ func (m *MockQueue) Enqueue(e *structs.Evaluation) {
 	m.Called(e)
 }
 
-func (m *MockQueue) Jobs() *WorkloadIter {
-	args := m.Called()
+func (m *MockQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
+	args := m.Called(sortOrder)
 
 	if args.Get(0) == nil {
 		return &WorkloadIter{}

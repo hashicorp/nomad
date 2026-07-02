@@ -7,8 +7,14 @@ type QueueWorkload interface {
 	GetID() string
 	GetCreateIndex() uint64
 	GetNamespace() string
-	// Stub() (QueueWorkload, error)
 }
+
+type SortOrder string
+
+const (
+	SortByPriority SortOrder = "priority"
+	SortDefault    SortOrder = "default"
+)
 
 type DynamicPriorityWorkload struct {
 	JobID            string
@@ -21,6 +27,7 @@ type DynamicPriorityWorkload struct {
 	AgeAdjustment    int
 	SizeAdjustment   int
 	CreatedAt        int64
+	CreateIndex      uint64
 }
 
 func (w *DynamicPriorityWorkload) GetID() string {
@@ -28,15 +35,11 @@ func (w *DynamicPriorityWorkload) GetID() string {
 }
 
 func (w *DynamicPriorityWorkload) GetCreateIndex() uint64 {
-	return uint64(w.CreatedAt)
+	return w.CreateIndex
 }
 
 func (w *DynamicPriorityWorkload) GetNamespace() string {
 	return w.Namespace
-}
-
-func (w *DynamicPriorityWorkload) Stub() (QueueWorkload, error) {
-	return w, nil
 }
 
 type DynamicPriorityTenant struct {
@@ -61,6 +64,7 @@ type QueueTenantsResponse struct {
 }
 
 type QueueJobsRequest struct {
+	Sort SortOrder `json:"sort,omitempty"`
 	QueryOptions
 }
 

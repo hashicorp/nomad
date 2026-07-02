@@ -600,7 +600,7 @@ func (d *DynamicPriorityQueue) isSchedulingComplete(workload *Workload) (bool, e
 	return false, nil
 }
 
-func (d *DynamicPriorityQueue) Jobs() *WorkloadIter {
+func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
 	d.qMux.Lock()
 	sortedWorkloads := d.queue.Slice()
 	defer d.qMux.Unlock()
@@ -625,12 +625,16 @@ func (d *DynamicPriorityQueue) Jobs() *WorkloadIter {
 			AgeAdjustment:    w.ageAdjustment,
 			SizeAdjustment:   w.sizeAdjustment,
 			CreatedAt:        w.eval.CreateTime,
+			CreateIndex:      w.eval.CreateIndex,
 		})
 	}
-	return &WorkloadIter{
-		Workloads: workloads,
-		index:     0,
+	iter := NewWorkloadIter(workloads)
+
+	if sortOrder != structs.SortByPriority {
+		iter.SortByCreateIndex()
 	}
+
+	return iter
 }
 
 func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {

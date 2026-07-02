@@ -13,7 +13,7 @@ type Queue interface {
 	Start(context.Context) error
 	Stop()
 	Enqueue(*structs.Evaluation)
-	Jobs() *WorkloadIter
+	Jobs(structs.SortOrder) *WorkloadIter
 	Tenants() structs.QueueTenantsResponse
 	Type() structs.BatchQueueType
 }
@@ -21,18 +21,4 @@ type Queue interface {
 // Broker is the interface for an evaluation broker
 type Broker interface {
 	Enqueue(*structs.Evaluation)
-}
-
-type WorkloadIter struct {
-	Workloads []structs.QueueWorkload
-	index     int
-}
-
-func (i *WorkloadIter) Next() interface{} {
-	if i.index >= len(i.Workloads) {
-		return nil
-	}
-	w := i.Workloads[i.index]
-	i.index++
-	return w
 }

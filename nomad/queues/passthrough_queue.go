@@ -30,7 +30,7 @@ func (p *PassthroughQueue) Stop() {}
 
 func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.broker.Enqueue(e) }
 
-func (p *PassthroughQueue) Jobs() *WorkloadIter {
+func (p *PassthroughQueue) Jobs(structs.SortOrder) *WorkloadIter {
 	return &WorkloadIter{}
 }
 
