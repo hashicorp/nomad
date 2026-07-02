@@ -3,7 +3,9 @@
 
 package structs
 
-import "maps"
+import (
+	"maps"
+)
 
 // DeviceAccounter is used to account for device usage on a node. It can detect
 // when a node is oversubscribed and can be used for deciding what devices are
@@ -42,6 +44,20 @@ func (dai *DeviceAccounterInstance) Copy() *DeviceAccounterInstance {
 		Device:    dai.Device.Copy(),
 		Instances: maps.Clone(dai.Instances),
 	}
+}
+
+// GetSharedByID returns the underlying Shared string value of the instance
+// of the specific deviceID.
+//
+// If no instance matching the deviceID is found or if Shared is nil
+// an empty string, equivalent to DeviceSharingUnset is returned
+func (dai *DeviceAccounterInstance) GetSharedByID(instanceID string) Shared {
+	for _, instance := range dai.Device.Instances {
+		if instance.ID == instanceID {
+			return instance.Shared
+		}
+	}
+	return ""
 }
 
 // NewDeviceAccounter returns a new device accounter. The node is used to
@@ -90,7 +106,8 @@ func (d *DeviceAccounter) Copy() *DeviceAccounter {
 
 // AddAllocs takes a set of allocations and internally marks which devices are
 // used. If a device is used more than once by the set of passed allocations,
-// the collision will be returned as true.
+// the collision will be returned as true unless it has been placed on a
+// device that explicitly allows sharing.
 func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 	for _, a := range allocs {
 		// Filter any terminal allocation
@@ -109,20 +126,23 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 		for _, tr := range a.AllocatedResources.Tasks {
 
 			// Go through each assigned device group
-			for _, device := range tr.Devices {
-				devID := device.ID()
+			for _, allocatedDeviceGroup := range tr.Devices {
 
+				devID := allocatedDeviceGroup.ID()
 				// Go through each assigned device
-				for _, instanceID := range device.DeviceIDs {
+				for _, instanceID := range allocatedDeviceGroup.DeviceIDs {
 
 					// Mark that we are using the device. It may not be in the
 					// map if the device is no longer being fingerprinted, is
 					// unhealthy, etc.
-					if devInst, ok := d.Devices[*devID]; ok {
-						if i, ok := devInst.Instances[instanceID]; ok {
+					if devAccounter, ok := d.Devices[*devID]; ok {
+						if i, ok := devAccounter.Instances[instanceID]; ok {
 							// Mark that the device is in use
-							devInst.Instances[instanceID]++
-
+							devAccounter.Instances[instanceID]++
+							shared := devAccounter.GetSharedByID(instanceID)
+							if shared == DeviceSharingActive {
+								continue
+							}
 							if i != 0 {
 								collision = true
 							}
@@ -136,30 +156,54 @@ func (d *DeviceAccounter) AddAllocs(allocs []*Allocation) (collision bool) {
 	return
 }
 
+// willingToShare is called in the loop that marks each reserved instance as used
+// in the accounter. It takes a deviceID string and uses it to look up
+// return the task requesting the device is willing to share
+func willingToShare(res *AllocatedDeviceResource, deviceID string) bool {
+	// res.WillShare is nil => return false as default and do reservation as usual
+	if res.WillShare == nil {
+		return false
+	}
+	// does exist, is true = > this is the shared device, it will share => return true
+	if willing, exists := res.WillShare[deviceID]; willing && exists {
+		return true
+	}
+	// In all remaining cases we return false
+	return false
+}
+
 // AddReserved marks the device instances in the passed device reservation as
-// used and returns if there is a collision.
+// used, checks the res.WillingToShare map to see if the createOffer expected the device
+// to share. If the device will share we do not report a collision even if it
+// has already been used
 func (d *DeviceAccounter) AddReserved(res *AllocatedDeviceResource) (collision bool) {
-	// Lookup the device.
-	devInst, ok := d.Devices[*res.ID()]
+	// Lookup the deviceAccounter
+	devAccounter, ok := d.Devices[*res.ID()]
 	if !ok {
 		return false
 	}
 
 	// For each reserved instance, mark it as used
 	for _, id := range res.DeviceIDs {
-		cur, ok := devInst.Instances[id]
+		cur, ok := devAccounter.Instances[id]
 		if !ok {
 			continue
 		}
 
-		// It has already been used, so mark that there is a collision
+		// if offer expects device will share, mark device as used
+		// and continue without marking collision
+		if willingToShare(res, id) {
+			devAccounter.Instances[id]++
+			continue
+		}
+
+		// mark collision if device will not share and has already been used
 		if cur != 0 {
 			collision = true
 		}
+		devAccounter.Instances[id]++
 
-		devInst.Instances[id]++
 	}
-
 	return
 }
 

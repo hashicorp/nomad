@@ -32,6 +32,13 @@ func nvidiaAlloc() *Allocation {
 	return a
 }
 
+// sets the supplied DeviceSharing on the node and returns the node and 1st deviceID
+func sharedNodeWithDeviceID(node *Node, sharingStatus Shared) (*Node, string) {
+	node.NodeResources.Devices[0].Instances[0].Shared = sharingStatus
+	deviceID := node.NodeResources.Devices[0].Instances[0].ID
+	return node, deviceID
+}
+
 // devNode returns a node containing two devices, an nvidia gpu and an intel
 // FPGA.
 func devNode() *Node {
@@ -150,20 +157,157 @@ func TestDeviceAccounter_AddAllocs_UnknownID(t *testing.T) {
 func TestDeviceAccounter_AddAllocs_Collision(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-	n := devNode()
-	d := NewDeviceAccounter(n)
-	require.NotNil(d)
+	for _, tc := range []struct {
+		name         string
+		shared       bool
+		expCollision bool
+	}{
+		{
+			name:         "standard",
+			shared:       false,
+			expCollision: true,
+		}, {
+			name:         "sharedNode",
+			shared:       true,
+			expCollision: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 
-	// Create two allocations, both with the same device
-	a1, a2 := nvidiaAlloc(), nvidiaAlloc()
+			n := devNode()
+			if tc.shared {
+				n.NodeResources.Devices[0].Instances[0].Shared = DeviceSharingActive
+				n.NodeResources.Devices[0].Instances[1].Shared = DeviceSharingActive
+			}
+			d := NewDeviceAccounter(n)
+			must.NotNil(t, d)
+			// Create two allocations, both with the same device
+			a1, a2 := nvidiaAlloc(), nvidiaAlloc()
 
-	nvidiaDev0ID := n.NodeResources.Devices[0].Instances[0].ID
-	a1.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
-	a2.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
+			nvidiaDev0ID := n.NodeResources.Devices[0].Instances[0].ID
+			a1.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
+			a2.AllocatedResources.Tasks["web"].Devices[0].DeviceIDs = []string{nvidiaDev0ID}
 
-	allocs := []*Allocation{a1, a2}
-	require.True(d.AddAllocs(allocs))
+			allocs := []*Allocation{a1, a2}
+			must.Eq(t, tc.expCollision, d.AddAllocs(allocs))
+
+		})
+	}
+}
+
+// Tests that allocs on any shared devices can be double scheduled
+// if device and request both agree to share
+func TestDeviceAccounter_AllocateAndReserveSharedDevices(t *testing.T) {
+	ci.Parallel(t)
+
+	nvidiaNode, nvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharingUnset)
+	sharedNvidiaNode, sharedNvidiaSharedDeviceId := sharedNodeWithDeviceID(MockNvidiaNode(), DeviceSharingActive)
+	sharedIntelNode, sharedIntelNodeSharedDeviceId := sharedNodeWithDeviceID(MockIntelNode(), DeviceSharingActive)
+	genNvidiaOrIntelAllocs := func(isNvidia bool, willShare bool, count int, sharedSharedDeviceId string) []*Allocation {
+		var (
+			allocs    []*Allocation
+			allocated *AllocatedDeviceResource
+		)
+		if isNvidia {
+			allocated = &AllocatedDeviceResource{
+				Type:   "gpu",
+				Vendor: "nvidia",
+				Name:   "1080ti",
+			}
+		} else {
+			allocated = &AllocatedDeviceResource{
+				Type:   "fpga",
+				Vendor: "intel",
+				Name:   "F100",
+			}
+		}
+		// function to generate a single intel or nvidia allocation
+		genAlloc := func(ID string, allocated *AllocatedDeviceResource, willShare bool) *Allocation {
+			var SharedDeviceId string
+			if len(ID) == 0 {
+				SharedDeviceId = uuid.Generate()
+			} else {
+				SharedDeviceId = ID
+			}
+			allocated.DeviceIDs = []string{SharedDeviceId}
+			allocated.WillShare = map[string]bool{SharedDeviceId: willShare}
+
+			a := MockAlloc()
+			a.AllocatedResources.Tasks["web"].Devices = []*AllocatedDeviceResource{allocated}
+			a.ClientStatus = AllocClientStatusPending
+			return a
+		}
+
+		// build []*Allocation
+		for range count {
+			allocs = append(allocs, genAlloc(sharedSharedDeviceId, allocated, willShare))
+		}
+
+		return allocs
+
+	}
+	for _, tc := range []struct {
+		name               string
+		node               *Node
+		SharedDeviceId     string
+		allocs             []*Allocation
+		allocWillCollide   bool
+		reserveWillCollide bool
+		expectedCount      int
+	}{
+		{
+			name:               "shared device- alloc passes, willing request- reservation passes",
+			node:               sharedNvidiaNode,
+			allocs:             genNvidiaOrIntelAllocs(true, true, 2, sharedNvidiaSharedDeviceId),
+			SharedDeviceId:     sharedNvidiaSharedDeviceId,
+			allocWillCollide:   false,
+			reserveWillCollide: false,
+			expectedCount:      3,
+		},
+		{
+			name:               "intel , reservation passes",
+			node:               sharedIntelNode,
+			allocs:             genNvidiaOrIntelAllocs(false, true, 2, sharedIntelNodeSharedDeviceId),
+			SharedDeviceId:     sharedIntelNodeSharedDeviceId,
+			allocWillCollide:   false,
+			reserveWillCollide: false,
+			expectedCount:      3,
+		},
+		{
+			name:               "unshared device- alloc collides, unsharing request- reservation collides",
+			node:               nvidiaNode,
+			allocs:             genNvidiaOrIntelAllocs(true, false, 2, nvidiaSharedDeviceId),
+			SharedDeviceId:     nvidiaSharedDeviceId,
+			allocWillCollide:   true,
+			reserveWillCollide: true,
+			expectedCount:      3,
+		},
+		{
+			name:               "shared device- alloc passes, unsharing request - reservation collides",
+			node:               sharedNvidiaNode,
+			allocs:             genNvidiaOrIntelAllocs(true, false, 2, sharedNvidiaSharedDeviceId),
+			SharedDeviceId:     sharedNvidiaSharedDeviceId,
+			allocWillCollide:   false,
+			reserveWillCollide: true,
+			expectedCount:      3,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := NewDeviceAccounter(tc.node)
+			// create allocations
+			collision := d.AddAllocs(tc.allocs)
+
+			must.Eq(t, tc.allocWillCollide, collision)
+			// attempt to reserve one of the previously allocated devices
+			device := tc.allocs[0].AllocatedResources.Tasks["web"].Devices[0]
+
+			deviceName := DeviceIdTuple{device.Vendor, device.Type, device.Name}
+			must.Eq(t, tc.reserveWillCollide, d.AddReserved(device))
+			//demonstrate the Instance counter was incremented at each attempt
+			must.Eq(t, tc.expectedCount, d.Devices[deviceName].Instances[tc.SharedDeviceId])
+		})
+	}
+
 }
 
 // Assert that devices are not freed when an alloc's ServerTerminalStatus is
