@@ -47,10 +47,19 @@ export default class AccessControlPoliciesIndexController extends Controller {
 
   get policies() {
     return this.model.policies.map((policy) => {
-      policy.tokens = (this.model.tokens || []).filter((token) => {
+      const tokens = (this.model.tokens || []).filter((token) => {
         return token.policies.includes(policy);
       });
-      return policy;
+
+      return {
+        id: policy.id,
+        name: policy.name,
+        description: policy.description,
+        rules: policy.rules,
+        rulesJSON: policy.rulesJSON,
+        tokens,
+        record: policy,
+      };
     });
   }
 
@@ -64,22 +73,24 @@ export default class AccessControlPoliciesIndexController extends Controller {
 
   @task(function* (policy) {
     try {
-      yield policy.deleteRecord();
-      yield policy.save();
+      const record = policy.record || policy;
+
+      yield record.deleteRecord();
+      yield record.save();
 
       // Cleanup: Remove references from roles and tokens
       this.store.peekAll('role').forEach((role) => {
-        role.policies.removeObject(policy);
+        role.policies.removeObject(record);
       });
       this.store.peekAll('token').forEach((token) => {
-        token.policies.removeObject(policy);
+        token.policies.removeObject(record);
       });
-      if (this.store.peekRecord('policy', policy.id)) {
-        this.store.unloadRecord(policy);
+      if (this.store.peekRecord('policy', record.id)) {
+        this.store.unloadRecord(record);
       }
 
       this.notifications.add({
-        title: `Policy ${policy.name} successfully deleted`,
+        title: `Policy ${record.name} successfully deleted`,
         color: 'success',
       });
     } catch (err) {

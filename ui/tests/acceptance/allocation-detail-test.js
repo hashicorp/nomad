@@ -509,17 +509,16 @@ module('Acceptance | allocation detail', function (hooks) {
     await click('[data-test-breadcrumb="jobs.job.index"]');
     await click('[data-test-tab="allocations"] > a');
 
-    const component = this.owner.lookup('component:allocation-row');
+    const previousURL = currentURL();
     const router = this.owner.lookup('service:router');
     const allocRoute = this.owner.lookup('route:allocations.allocation');
     const originalMethod = allocRoute.goBackToReferrer;
-    allocRoute.goBackToReferrer = () => {
-      assert.step('Transition dispatched.');
-      router.transitionTo('jobs.job.allocations');
-    };
+    let redirectCount = 0;
 
-    component.onClick = () =>
-      router.transitionTo('allocations.allocation', 'aaa');
+    allocRoute.goBackToReferrer = () => {
+      redirectCount++;
+      return router.transitionTo('jobs.job.allocations');
+    };
 
     this.server.get('/allocation/:id', function () {
       return new AdapterError([
@@ -530,11 +529,24 @@ module('Acceptance | allocation detail', function (hooks) {
       ]);
     });
 
-    component.onClick();
+    try {
+      await router.transitionTo('allocations.allocation', 'aaa');
+    } catch (error) {
+      assert.strictEqual(
+        error?.name,
+        'TransitionAborted',
+        'The failed allocation transition aborts after redirecting',
+      );
+    }
 
     await waitFor('.flash-message.alert-critical');
 
-    assert.verifySteps(['Transition dispatched.']);
+    assert.ok(redirectCount > 0, 'Redirect was dispatched');
+    assert.strictEqual(
+      currentURL(),
+      previousURL,
+      'The user remains on the previous page after the missing allocation redirect',
+    );
     assert
       .dom('.flash-message.alert-critical')
       .exists('A toast error message pops up.');

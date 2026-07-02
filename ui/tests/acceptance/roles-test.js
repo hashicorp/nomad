@@ -47,19 +47,20 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Roles index: deletion', async function (assert) {
+    const initialRoleCount = this.server.db.roles.length;
+
     // Delete every role
     assert
       .dom('[data-test-empty-role-list-headline]')
       .doesNotExist('no empty state');
-    const roleRows = findAll('[data-test-role-row]');
-    for (const row of roleRows) {
-      const deleteButton = row.querySelector('[data-test-delete-role]');
-      await click(deleteButton);
+    assert.dom('[data-test-role-row]').exists({ count: initialRoleCount });
+
+    while (findAll('[data-test-role-row]').length) {
+      await click('[data-test-role-row] [data-test-delete-role]');
     }
-    // there should be as many success messages as there were roles
-    assert
-      .dom('.flash-message.alert-success')
-      .exists({ count: roleRows.length });
+    assert.dom('.flash-message.alert-success').exists('shows success feedback');
+    assert.dom('[data-test-role-row]').doesNotExist('all rows were removed');
+    assert.strictEqual(this.server.db.roles.length, 0, 'all roles are deleted');
 
     assert.dom('[data-test-empty-role-list-headline]').exists('empty state');
   });
@@ -284,10 +285,8 @@ module('Acceptance | roles', function (hooks) {
 
     // Now, try deleting all policies then doing this again. There'll be a warning on the roles/new page.
     await Administration.visitPolicies();
-    const policyRows = findAll('[data-test-policy-row]');
-    for (const row of policyRows) {
-      const deleteButton = row.querySelector('[data-test-delete-policy]');
-      await click(deleteButton);
+    while (findAll('[data-test-policy-row]').length) {
+      await click('[data-test-policy-row] [data-test-delete-policy]');
     }
     assert.dom('[data-test-empty-policies-list-headline]').exists();
     await Administration.visitRoles();

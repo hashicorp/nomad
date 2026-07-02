@@ -12,10 +12,10 @@
       as |t|
     >
       <t.head>
-        <t.sort-by @prop="name">Name</t.sort-by>
-        <t.sort-by @prop="level">Level</t.sort-by>
+        <t.sortBy @prop="name">Name</t.sortBy>
+        <t.sortBy @prop="level">Level</t.sortBy>
         <th>Tags</th>
-        <t.sort-by @prop="numAllocs">Number of Allocations</t.sort-by>
+        <t.sortBy @prop="numAllocs">Number of Allocations</t.sortBy>
       </t.head>
       <t.body as |row|>
         <JobServiceRow

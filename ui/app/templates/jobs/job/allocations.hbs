@@ -12,7 +12,7 @@
         <SearchBox
           data-test-allocations-search
           @searchTerm={{mut this.searchTerm}}
-          @onChange={{this.resetPagination}}
+          @onChange={{queue (fn (mut this.searchTerm)) this.resetPagination}}
           @placeholder="Search allocations..."
         />
       </div>
@@ -73,22 +73,22 @@
           <t.head>
             <th class="is-narrow"><span class="visually-hidden">Driver Health,
                 Scheduling, and Preemption</span></th>
-            <t.sort-by @prop="shortId">ID</t.sort-by>
-            <t.sort-by @prop="taskGroupName">Task Group</t.sort-by>
-            <t.sort-by
+            <t.sortBy @prop="shortId">ID</t.sortBy>
+            <t.sortBy @prop="taskGroupName">Task Group</t.sortBy>
+            <t.sortBy
               @prop="createIndex"
               @title="Create Index"
-            >Created</t.sort-by>
-            <t.sort-by
+            >Created</t.sortBy>
+            <t.sortBy
               @prop="modifyIndex"
               @title="Modify Index"
-            >Modified</t.sort-by>
+            >Modified</t.sortBy>
             {{#if this.job.isBatchOrSysbatch}}
-              <t.sort-by @prop="maxRunDeadline">Max Run Deadline</t.sort-by>
+              <t.sortBy @prop="maxRunDeadline">Max Run Deadline</t.sortBy>
             {{/if}}
-            <t.sort-by @prop="statusIndex">Status</t.sort-by>
-            <t.sort-by @prop="jobVersion">Version</t.sort-by>
-            <t.sort-by @prop="node.shortId">Client</t.sort-by>
+            <t.sortBy @prop="statusIndex">Status</t.sortBy>
+            <t.sortBy @prop="jobVersion">Version</t.sortBy>
+            <t.sortBy @prop="node.shortId">Client</t.sortBy>
             <th>Volume</th>
             <th>CPU</th>
             <th>Memory</th>
@@ -102,7 +102,7 @@
                 enumerated=true
                 action=(fn this.gotoAllocation row.model)
               }}
-              @data-test-allocation={{row.model.id}}
+              data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="job"
               @showMaxRunDeadline={{this.job.isBatchOrSysbatch}}

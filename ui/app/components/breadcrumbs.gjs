@@ -1,0 +1,13 @@
+/**
+ * Copyright IBM Corp. 2015, 2026
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+import Component from '@glimmer/component';
+import { service } from '@ember/service';
+
+export default class Breadcrumbs extends Component {
+  @service breadcrumbs;
+
+  <template>{{yield this.breadcrumbs.crumbs}}</template>
+}

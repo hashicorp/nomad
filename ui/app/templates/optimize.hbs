@@ -12,7 +12,10 @@
           {{#if this.summaries}}
             <SearchBox
               data-test-recommendation-summaries-search
-              @onChange={{this.syncActiveSummary}}
+              @onChange={{queue
+                (fn (mut this.searchTerm))
+                this.syncActiveSummary
+              }}
               @searchTerm={{mut this.searchTerm}}
               @placeholder="Search
         {{this.summaries.length}}

@@ -322,12 +322,16 @@ export default class ClientController extends Controller.extend(
     if (event.key === 'Escape') {
       this.resetNewMetaData();
       this.editingMetadata = false;
+      return;
     }
+
+    // Keep tracked state reactive when nested key/value fields are mutated.
+    this.newMetaData = { ...this.newMetaData };
   }
 
   @action async addDynamicMetaData({ key, value }, e) {
     try {
-      e.preventDefault();
+      e?.preventDefault?.();
       await this.model.addMeta({ [key]: value });
 
       this.notifications.add({
