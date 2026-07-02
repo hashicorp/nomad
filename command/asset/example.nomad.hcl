@@ -300,6 +300,17 @@ job "example" {
         auth_soft_fail = true
       }
 
+      # Specifies the duration to wait when killing a task between removing its
+      # service registrations from Consul or Nomad, and sending it a shutdown
+      # signal. Ideally services would fail health checks once they receive a
+      # shutdown signal.
+      #
+      # For more information on the "shutdown_delay" parameter, refer to:
+      #
+      #     https://developer.hashicorp.com/nomad/docs/job-specification/task#shutdown_delay
+      #
+      shutdown_delay = "10s"
+
       # The "artifact" block instructs Nomad to download an artifact from a
       # remote source prior to starting the task. This provides a convenient
       # mechanism for downloading configuration files or data needed to run the
