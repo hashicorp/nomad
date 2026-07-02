@@ -164,7 +164,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 				}
 				reply.Alloc = out
 
-				// Re-check namespace in case it differs from request.
+				// Authorize the caller against the alloc we found: allow the
+				// node the alloc is placed on, client ACLs for the alloc's
+				// node pool, or namespace read-job as a fallback.
 				if err := a.srv.AuthorizeClientAllocation(args.GetIdentity(), aclObj, out, allowNsOp); err != nil {
 					return structs.NewErrUnknownAllocation(args.AllocID)
 				}
