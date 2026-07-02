@@ -1861,6 +1861,7 @@ const (
 	NodeStatusReady        = "ready"
 	NodeStatusDown         = "down"
 	NodeStatusDisconnected = "disconnected"
+	NodeStatusNoRecord     = "no_record"
 )
 
 // ShouldDrainNode checks if a given node status should trigger an
