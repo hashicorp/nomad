@@ -36,6 +36,7 @@ func newHCLDecoder() *gohcl.Decoder {
 	// custom nomad types
 	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
 	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Dependency{}), decodeDependency)
 
 	return decoder
 }
@@ -259,6 +260,11 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 		c.Operand = "="
 	}
 	return diags
+}
+
+func decodeDependency(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	d := val.(*api.Dependency)
+	return gohcl.DecodeBody(body, ctx, d)
 }
 
 func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {

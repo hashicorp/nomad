@@ -62,7 +62,7 @@ type GenericScheduler struct {
 	plan       *structs.Plan
 	planResult *structs.PlanResult
 	ctx        *feasible.EvalContext
-	stack      *feasible.GenericStack
+	stack      feasible.Stack
 
 	// followUpEvals are evals with WaitUntil set, which are delayed until that time
 	// before being rescheduled
@@ -70,14 +70,16 @@ type GenericScheduler struct {
 
 	deployment *structs.Deployment
 
-	blocked         *structs.Evaluation
-	failedTGAllocs  map[string]*structs.AllocMetric
-	queuedAllocs    map[string]int
-	planAnnotations *structs.PlanAnnotations
+	blocked           *structs.Evaluation
+	failedTGAllocs    map[string]*structs.AllocMetric
+	queuedAllocs      map[string]int
+	planAnnotations   *structs.PlanAnnotations
+	getAvailableNodes func(job *structs.Job) ([]*structs.Node, map[string]int, error)
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{},
+	state sstructs.State, planner sstructs.Planner, _ ...sstructs.SchedulerOption) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("service_sched"),
 		eventsCh: eventsCh,
@@ -85,18 +87,9 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state s
 		planner:  planner,
 		batch:    false,
 	}
-	return s
-}
 
-// NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
-	s := &GenericScheduler{
-		logger:   logger.Named("batch_sched"),
-		eventsCh: eventsCh,
-		state:    state,
-		planner:  planner,
-		batch:    true,
-	}
+	s.getAvailableNodes = s.setNodes
+
 	return s
 }
 
@@ -484,10 +477,14 @@ func (s *GenericScheduler) computePlacements(
 ) error {
 
 	// Get the base nodes
-	nodes, byDC, err := s.setNodes(s.job)
+	nodes, byDC, err := s.getAvailableNodes(s.job)
 	if err != nil {
 		return err
 	}
+
+	/* 	if len(nodes) == 0 {
+		return fmt.Errorf("no nodes available/pending dependencies to place on")
+	} */
 
 	var deploymentID string
 	if s.deployment != nil && s.deployment.Active() {
@@ -546,7 +543,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(downgradedJob)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(downgradedJob)
+					nodes, byDC, err = s.getAvailableNodes(downgradedJob)
 					if err != nil {
 						return err
 					}
@@ -588,7 +585,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(s.job)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(s.job)
+					nodes, byDC, err = s.getAvailableNodes(s.job)
 					if err != nil {
 						return err
 					}

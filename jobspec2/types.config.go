@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	variablesLabel = "variables"
-	variableLabel  = "variable"
-	localsLabel    = "locals"
-	vaultLabel     = "vault"
-	taskLabel      = "task"
-	secretLabel    = "secret"
+	variablesLabel  = "variables"
+	variableLabel   = "variable"
+	localsLabel     = "locals"
+	vaultLabel      = "vault"
+	taskLabel       = "task"
+	secretLabel     = "secret"
+	dependencyLabel = "dependency"
 
 	inputVariablesAccessor = "var"
 	localsAccessor         = "local"
@@ -32,9 +33,10 @@ type jobConfig struct {
 
 	ParseConfig *ParseConfig
 
-	Vault   *api.Vault    `hcl:"vault,block"`
-	Secrets []*api.Secret `hcl:"secret,block"`
-	Tasks   []*api.Task   `hcl:"task,block"`
+	Vault        *api.Vault        `hcl:"vault,block"`
+	Secrets      []*api.Secret     `hcl:"secret,block"`
+	Tasks        []*api.Task       `hcl:"task,block"`
+	Dependencies []*api.Dependency `hcl:"dependency,block"`
 
 	InputVariables Variables
 	LocalVariables Variables
@@ -149,8 +151,10 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 	var diags hcl.Diagnostics
 
 	var foundVault *hcl.Block
+	var foundDependency *hcl.Block
 	for _, b := range content.Blocks {
-		if b.Type == vaultLabel {
+		switch b.Type {
+		case vaultLabel:
 			if foundVault != nil {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -169,20 +173,40 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, v)...)
 			c.Vault = v
 
-		} else if b.Type == taskLabel {
+		case taskLabel:
 			t := &api.Task{}
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, t)...)
 			if len(b.Labels) == 1 {
 				t.Name = b.Labels[0]
 				c.Tasks = append(c.Tasks, t)
 			}
-		} else if b.Type == secretLabel {
+
+		case secretLabel:
 			t := &api.Secret{}
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, t)...)
 			if len(b.Labels) == 1 {
 				t.Name = b.Labels[0]
 				c.Secrets = append(c.Secrets, t)
 			}
+
+		case dependencyLabel:
+			if foundDependency != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  fmt.Sprintf("Duplicate %s block", b.Type),
+					Detail: fmt.Sprintf(
+						"Only one block of type %q is allowed. Previous definition was at %s.",
+						b.Type, foundDependency.DefRange.String(),
+					),
+					Subject: &b.DefRange,
+				})
+				continue
+			}
+			foundDependency = b
+
+			d := &api.Dependency{}
+			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, d)...)
+			c.Dependencies = append(c.Dependencies, d)
 		}
 	}
 
@@ -288,6 +312,7 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 				{Type: "vault"},
 				{Type: "secret", LabelNames: []string{"name"}},
 				{Type: "task", LabelNames: []string{"name"}},
+				{Type: "dependency"},
 			},
 		})
 
