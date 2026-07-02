@@ -4,6 +4,7 @@
 package command
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"strings"
@@ -304,4 +305,79 @@ func TestPlanCommand_JSON(t *testing.T) {
 	code := cmd.Run(args)
 	must.Eq(t, 255, code)
 	must.StrContains(t, ui.ErrorWriter.String(), "Error during plan: Put")
+}
+
+func TestPlanCommand_JsonOutputAndTemplateMutuallyExclusive(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+
+	args := []string{
+		"-json-output",
+		"-t", "{{.JobModifyIndex}}",
+		"testdata/example-short.json",
+	}
+	code := cmd.Run(args)
+	must.Eq(t, 255, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "Both -json-output and -t formatting are not allowed")
+}
+
+func TestPlanCommand_JsonOutput(t *testing.T) {
+	// Create a Vault server
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Create a Nomad server
+	s := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
+		c.Vaults[0].Address = v.HTTPAddr
+		c.Vaults[0].Enabled = true
+		c.Vaults[0].AllowUnauthenticated = pointer.Of(false)
+		c.Vaults[0].Token = v.RootToken
+	})
+	defer s.Stop()
+
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+	args := []string{"-address", "http://" + s.HTTPAddr, "-json-output", "testdata/example-basic.nomad"}
+	code := cmd.Run(args)
+	// Exit code 1 means allocations created/destroyed (no client running to place)
+	must.Eq(t, 1, code, must.Sprintf("expected exit code 1, got %d: stderr=%s", code, ui.ErrorWriter.String()))
+
+	// Verify the output is valid JSON matching the JobPlanResponse structure
+	out := ui.OutputWriter.Bytes()
+	var resp api.JobPlanResponse
+	must.NoError(t, json.Unmarshal(out, &resp), must.Sprintf("output should be valid JSON: %s", string(out)))
+
+	// The response should have a Diff and Annotations since we always request diff
+	must.NotNil(t, resp.Diff)
+	must.NotNil(t, resp.Annotations)
+}
+
+func TestPlanCommand_TemplateOutput(t *testing.T) {
+	// Create a Vault server
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
+	// Create a Nomad server
+	s := testutil.NewTestServer(t, func(c *testutil.TestServerConfig) {
+		c.Vaults[0].Address = v.HTTPAddr
+		c.Vaults[0].Enabled = true
+		c.Vaults[0].AllowUnauthenticated = pointer.Of(false)
+		c.Vaults[0].Token = v.RootToken
+	})
+	defer s.Stop()
+
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+	args := []string{
+		"-address", "http://" + s.HTTPAddr,
+		"-t", "{{.Diff.ID}}",
+		"testdata/example-basic.nomad",
+	}
+	code := cmd.Run(args)
+	must.Eq(t, 1, code, must.Sprintf("expected exit code 1, got %d: stderr=%s", code, ui.ErrorWriter.String()))
+
+	// The template should produce the job ID from the diff
+	out := strings.TrimSpace(ui.OutputWriter.String())
+	must.Eq(t, "example", out, must.Sprintf("expected job ID 'example', got: %s", out))
 }

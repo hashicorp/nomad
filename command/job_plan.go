@@ -104,6 +104,12 @@ Plan Options:
 
   -verbose
     Increase diff verbosity.
+
+  -json-output
+    Output the plan result in JSON format.
+
+  -t
+    Format and display the plan result using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -119,10 +125,12 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
 			"-json":            complete.PredictNothing,
+			"-json-output":     complete.PredictNothing,
 			"-hcl2-strict":     complete.PredictNothing,
 			"-vault-namespace": complete.PredictAnything,
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
+			"-t":               complete.PredictAnything,
 		})
 }
 
@@ -136,8 +144,8 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
-	var diff, policyOverride, verbose bool
-	var vaultNamespace string
+	var diff, policyOverride, verbose, jsonOutput bool
+	var vaultNamespace, tmpl string
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
@@ -145,12 +153,19 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
+	flagSet.BoolVar(&jsonOutput, "json-output", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
+	flagSet.StringVar(&tmpl, "t", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 
 	if err := flagSet.Parse(args); err != nil {
+		return 255
+	}
+
+	if jsonOutput && len(tmpl) > 0 {
+		c.Ui.Error("Both -json-output and -t formatting are not allowed")
 		return 255
 	}
 
@@ -207,7 +222,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	}
 
 	if job.IsMultiregion() {
-		return c.multiregionPlan(client, job, opts, diff, verbose)
+		return c.multiregionPlan(client, job, opts, diff, verbose, jsonOutput, tmpl)
 	}
 
 	// Submit the job
@@ -215,6 +230,17 @@ func (c *JobPlanCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
 		return 255
+	}
+
+	// If JSON or template output is requested, format the response and return.
+	if jsonOutput || len(tmpl) > 0 {
+		out, err := Format(jsonOutput, tmpl, resp)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 255
+		}
+		c.Ui.Output(out)
+		return getExitCode(resp)
 	}
 
 	runArgs := strings.Builder{}
@@ -242,7 +268,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	return exitCode
 }
 
-func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts *api.PlanOptions, diff, verbose bool) int {
+func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts *api.PlanOptions, diff, verbose, jsonOutput bool, tmpl string) int {
 
 	var exitCode int
 	plans := map[string]*api.JobPlanResponse{}
@@ -262,6 +288,24 @@ func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts 
 	}
 
 	if exitCode > 0 {
+		return exitCode
+	}
+
+	// If JSON or template output is requested, format the full map of region
+	// plans and return.
+	if jsonOutput || len(tmpl) > 0 {
+		out, err := Format(jsonOutput, tmpl, plans)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 255
+		}
+		c.Ui.Output(out)
+		for _, resp := range plans {
+			regionExitCode := getExitCode(resp)
+			if regionExitCode > exitCode {
+				exitCode = regionExitCode
+			}
+		}
 		return exitCode
 	}
 
