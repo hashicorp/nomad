@@ -16,7 +16,27 @@ import (
 const (
 	// DeviceTypeGPU is a canonical device type for a GPU.
 	DeviceTypeGPU = "gpu"
+
+	SharingUnset      Shared = ""
+	SharingIneligible Shared = "ineligible"
+	SharingActive     Shared = "active"
+	SharingInactive   Shared = "inactive"
 )
+
+type Shared string
+
+func (s Shared) String() string {
+	switch s {
+	case SharingInactive:
+		return "inactive"
+	case SharingIneligible:
+		return "inelegible"
+	case SharingActive:
+		return "active"
+	default:
+		return "unset"
+	}
+}
 
 var (
 	// ErrPluginDisabled indicates that the device plugin is disabled
@@ -133,6 +153,9 @@ type Device struct {
 
 	// HwLocality captures hardware locality information for the device.
 	HwLocality *DeviceLocality
+
+	// Shared marks whether Device Sharing is enabled
+	Shared Shared
 }
 
 // Validate validates that the device is valid
