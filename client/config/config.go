@@ -475,6 +475,14 @@ type ClientTemplateConfig struct {
 	// systems.
 	ConsulRetry *RetryConfig `hcl:"consul_retry,optional"`
 
+	// This controls how often non-renewable, non-leased secrets from Vault are
+	// re-polled.  In practice this will primarily be KVv2 secrets.
+	// Consul Template is opinionated by default and sets this value to 5 minutes
+	// which is a very safe level.  In low-write situations with many polling
+	// clients in a large cluster this may be overall too aggressive.
+	VaultDefaultLeaseDuration    *time.Duration `hcl:"-"`
+	VaultDefaultLeaseDurationHCL string         `hcl:"vault_default_lease_duration,optional"`
+
 	// This controls the retry behavior when an error is returned from Vault.
 	// Consul Template is highly fault tolerant, meaning it does not exit in the
 	// face of failure. Instead, it uses exponential back-off and retry functions
@@ -488,6 +496,10 @@ type ClientTemplateConfig struct {
 	// to wait for the cluster to become available, as is customary in distributed
 	// systems.
 	NomadRetry *RetryConfig `hcl:"nomad_retry,optional"`
+
+	// UseClientConsulToken is a compatibility configuration that allows the
+	// template runner to use the Nomad client's own Consul token
+	UseClientConsulToken bool `hcl:"use_client_consul_token"`
 }
 
 func DefaultTemplateConfig() *ClientTemplateConfig {
@@ -505,6 +517,7 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 			Backoff:    new(time.Millisecond * 250),
 			MaxBackoff: new(time.Minute),
 		},
+		VaultDefaultLeaseDuration: new(5 * time.Minute), // match Consul Template default
 		VaultRetry: &RetryConfig{
 			Attempts:   new(12),
 			Backoff:    new(time.Millisecond * 250),
@@ -515,6 +528,7 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 			Backoff:    new(time.Millisecond * 250),
 			MaxBackoff: new(time.Minute),
 		},
+		UseClientConsulToken: false,
 	}
 }
 
@@ -550,6 +564,10 @@ func (c *ClientTemplateConfig) Copy() *ClientTemplateConfig {
 		nc.ConsulRetry = c.ConsulRetry.Copy()
 	}
 
+	if c.VaultDefaultLeaseDuration != nil {
+		nc.VaultDefaultLeaseDuration = &*c.VaultDefaultLeaseDuration
+	}
+
 	if c.VaultRetry != nil {
 		nc.VaultRetry = c.VaultRetry.Copy()
 	}
@@ -575,8 +593,11 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.MaxStaleHCL == "" &&
 		c.Wait.IsEmpty() &&
 		c.ConsulRetry.IsEmpty() &&
+		c.VaultDefaultLeaseDuration == nil &&
+		c.VaultDefaultLeaseDurationHCL == "" &&
 		c.VaultRetry.IsEmpty() &&
-		c.NomadRetry.IsEmpty()
+		c.NomadRetry.IsEmpty() &&
+		!c.UseClientConsulToken
 }
 
 func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateConfig {
@@ -613,11 +634,15 @@ func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateCon
 	if o.ConsulRetry != nil {
 		result.ConsulRetry = c.ConsulRetry.Merge(o.ConsulRetry)
 	}
+	result.VaultDefaultLeaseDuration = pointer.Merge(result.VaultDefaultLeaseDuration, o.VaultDefaultLeaseDuration)
 	if o.VaultRetry != nil {
 		result.VaultRetry = c.VaultRetry.Merge(o.VaultRetry)
 	}
 	if o.NomadRetry != nil {
 		result.NomadRetry = c.NomadRetry.Merge(o.NomadRetry)
+	}
+	if o.UseClientConsulToken {
+		result.UseClientConsulToken = true
 	}
 
 	return &result

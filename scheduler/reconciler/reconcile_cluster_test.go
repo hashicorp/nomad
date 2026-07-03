@@ -1381,6 +1381,72 @@ func TestReconciler_MigrateDisablePlacementBatchAllocs(t *testing.T) {
 	assertPlacementsAreRescheduled(t, 0, r.Place)
 }
 
+// Tests that the reconciler does not place a replacement when a follow-up
+// evaluation runs for a batch allocation that is still draining. The first
+// drain eval flips DesiredStatus to stop and sets the migrate transition
+// flags; while the client is still finishing the allocation, a subsequent
+// eval (for example the node-update eval triggered when an operator makes
+// the draining node eligible again before the drain completes) must keep
+// counting the still-running allocation toward the desired total instead of
+// scheduling a replacement.
+func TestReconciler_MigrateDisablePlacementBatchAllocs_StillRunningAfterStop(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.BatchJob()
+
+	// Create 10 existing allocations.
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.BatchAlloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		allocs = append(allocs, alloc)
+	}
+
+	// Simulate the state of two allocations after the first drain eval has
+	// been applied: the server has marked them stopped and set the migrate +
+	// disable-placement transition flags, but the client has not yet finished
+	// shutting them down.
+	for i := 0; i < 2; i++ {
+		allocs[i].DesiredStatus = structs.AllocDesiredStatusStop
+		allocs[i].ClientStatus = structs.AllocClientStatusRunning
+		allocs[i].DesiredTransition.Migrate = new(true)
+		allocs[i].DesiredTransition.MigrateDisablePlacement = new(true)
+	}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        true,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			Now: time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	// No replacement should be placed; no allocation should be re-stopped.
+	// All allocations (the 8 still running normally plus the 2 draining) must
+	// remain counted toward the desired total, so they end up in Ignore.
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+		},
+	})
+}
+
 // Tests that the reconciler properly handles batch job allocations that
 // are flagged as should migrate and should reschedule. This behavior is
 // used when stopping a batch allocation using the `alloc stop` command.

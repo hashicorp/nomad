@@ -376,13 +376,25 @@ NEXTNODE:
 					CpuShares: int64(task.Resources.CPU),
 				},
 				Memory: structs.AllocatedMemoryResources{
-					MemoryMB: safemath.Add(
-						int64(task.Resources.MemoryMB), int64(task.Resources.SecretsMB)),
+					MemoryMB: safemath.Add(int64(task.Resources.MemoryMB),
+						int64(task.Resources.SecretsMB)),
 				},
 			}
+
 			if iter.memoryOversubscription {
-				taskResources.Memory.MemoryMaxMB = safemath.Add(
-					int64(task.Resources.MemoryMaxMB), int64(task.Resources.SecretsMB))
+
+				// If the max memory value is a positive number, then we will
+				// add the secrets memory to it. If the max memory value is -1,
+				// then we will set the max memory value to -1 meaning no limit.
+				// If the max memory value is 0, then we will not set a max
+				// memory value.
+				if task.Resources.MemoryMaxMB > 0 {
+					taskResources.Memory.MemoryMaxMB = safemath.Add(
+						int64(task.Resources.MemoryMaxMB), int64(task.Resources.SecretsMB))
+
+				} else if task.Resources.MemoryMaxMB == structs.MemoryNoLimit {
+					taskResources.Memory.MemoryMaxMB = structs.MemoryNoLimit
+				}
 			}
 
 			// Check if we need a network resource

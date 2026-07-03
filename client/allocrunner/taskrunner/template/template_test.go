@@ -1403,6 +1403,59 @@ OUTER:
 	}
 }
 
+// TestTaskTemplateManager_FirstRenderScript verifies that a template with
+// change_mode "script" and RunOnFirstRender collects the script so it can
+// be executed once the task reaches the running state via RunFirstRenderScripts.
+func TestTaskTemplateManager_FirstRenderScript(t *testing.T) {
+	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
+	key := "first_render_key"
+	t1 := &structs.Template{
+		EmbeddedTmpl: `FOO={{key "first_render_key"}}` + "\n",
+		DestPath:     "first_render.env",
+		ChangeMode:   structs.TemplateChangeModeScript,
+		ChangeScript: &structs.ChangeScript{
+			Command:          "/bin/foo",
+			Args:             []string{},
+			Timeout:          5 * time.Second,
+			FailOnError:      false,
+			RunOnFirstRender: true,
+		},
+		Envvars: true,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{t1}, true, false)
+	harness.mockHooks.SetupExecTest(0, nil)
+	harness.start(t)
+	defer harness.stop()
+
+	// Write key so the template renders
+	harness.consul.SetKV(t, key, []byte("hello"))
+
+	// Wait for unblock (first render complete)
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatal("Task unblock should have been called")
+	}
+
+	// Simulate the Poststart hook by calling RunFirstRenderScripts directly
+	harness.mockHooks.HasHandle = true
+	harness.manager.RunFirstRenderScripts()
+
+	// Verify script execution event was emitted
+	timeout := time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second)
+	select {
+	case ev := <-harness.mockHooks.EmitEventCh:
+		if !strings.Contains(ev.DisplayMessage, t1.ChangeScript.Command) {
+			t.Fatalf("expected script event, got: %s", ev.DisplayMessage)
+		}
+	case <-timeout:
+		t.Fatal("should have received a script execution event")
+	}
+}
+
 // TestTaskTemplateManager_ScriptExecutionFailTask tests whether we fail the
 // task upon script execution failure if that's how it's configured.
 func TestTaskTemplateManager_ScriptExecutionFailTask(t *testing.T) {
@@ -2383,6 +2436,7 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 
 	clientConfig.TemplateConfig.MaxStale = new(5 * time.Second)
 	clientConfig.TemplateConfig.BlockQueryWaitTime = new(60 * time.Second)
+	clientConfig.TemplateConfig.VaultDefaultLeaseDuration = new(60 * time.Second)
 	clientConfig.TemplateConfig.Wait = waitConfig.Copy()
 	clientConfig.TemplateConfig.ConsulRetry = retryConfig.Copy()
 	clientConfig.TemplateConfig.VaultRetry = retryConfig.Copy()
@@ -2409,12 +2463,13 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 		{
 			"basic-wait-config",
 			&config.ClientTemplateConfig{
-				MaxStale:           new(5 * time.Second),
-				BlockQueryWaitTime: new(60 * time.Second),
-				Wait:               waitConfig.Copy(),
-				ConsulRetry:        retryConfig.Copy(),
-				VaultRetry:         retryConfig.Copy(),
-				NomadRetry:         retryConfig.Copy(),
+				MaxStale:                  new(5 * time.Second),
+				BlockQueryWaitTime:        new(60 * time.Second),
+				VaultDefaultLeaseDuration: new(60 * time.Second),
+				Wait:                      waitConfig.Copy(),
+				ConsulRetry:               retryConfig.Copy(),
+				VaultRetry:                retryConfig.Copy(),
+				NomadRetry:                retryConfig.Copy(),
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
@@ -2425,12 +2480,13 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&config.Config{
 				TemplateConfig: &config.ClientTemplateConfig{
-					MaxStale:           new(5 * time.Second),
-					BlockQueryWaitTime: new(60 * time.Second),
-					Wait:               waitConfig.Copy(),
-					ConsulRetry:        retryConfig.Copy(),
-					VaultRetry:         retryConfig.Copy(),
-					NomadRetry:         retryConfig.Copy(),
+					MaxStale:                  new(5 * time.Second),
+					BlockQueryWaitTime:        new(60 * time.Second),
+					VaultDefaultLeaseDuration: new(60 * time.Second),
+					Wait:                      waitConfig.Copy(),
+					ConsulRetry:               retryConfig.Copy(),
+					VaultRetry:                retryConfig.Copy(),
+					NomadRetry:                retryConfig.Copy(),
 				},
 			},
 			&templateconfig.TemplateConfig{
@@ -2444,12 +2500,13 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 		{
 			"template-override",
 			&config.ClientTemplateConfig{
-				MaxStale:           new(5 * time.Second),
-				BlockQueryWaitTime: new(60 * time.Second),
-				Wait:               waitConfig.Copy(),
-				ConsulRetry:        retryConfig.Copy(),
-				VaultRetry:         retryConfig.Copy(),
-				NomadRetry:         retryConfig.Copy(),
+				MaxStale:                  new(5 * time.Second),
+				BlockQueryWaitTime:        new(60 * time.Second),
+				VaultDefaultLeaseDuration: new(60 * time.Second),
+				Wait:                      waitConfig.Copy(),
+				ConsulRetry:               retryConfig.Copy(),
+				VaultRetry:                retryConfig.Copy(),
+				NomadRetry:                retryConfig.Copy(),
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
@@ -2460,12 +2517,13 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&config.Config{
 				TemplateConfig: &config.ClientTemplateConfig{
-					MaxStale:           new(5 * time.Second),
-					BlockQueryWaitTime: new(60 * time.Second),
-					Wait:               waitConfig.Copy(),
-					ConsulRetry:        retryConfig.Copy(),
-					VaultRetry:         retryConfig.Copy(),
-					NomadRetry:         retryConfig.Copy(),
+					MaxStale:                  new(5 * time.Second),
+					BlockQueryWaitTime:        new(60 * time.Second),
+					VaultDefaultLeaseDuration: new(60 * time.Second),
+					Wait:                      waitConfig.Copy(),
+					ConsulRetry:               retryConfig.Copy(),
+					VaultRetry:                retryConfig.Copy(),
+					NomadRetry:                retryConfig.Copy(),
 				},
 			},
 			&templateconfig.TemplateConfig{
@@ -2479,9 +2537,10 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 		{
 			"bounds-override",
 			&config.ClientTemplateConfig{
-				MaxStale:           new(5 * time.Second),
-				BlockQueryWaitTime: new(60 * time.Second),
-				Wait:               waitConfig.Copy(),
+				MaxStale:                  new(5 * time.Second),
+				BlockQueryWaitTime:        new(60 * time.Second),
+				VaultDefaultLeaseDuration: new(60 * time.Second),
+				Wait:                      waitConfig.Copy(),
 				WaitBounds: &config.WaitConfig{
 					Min: new(3 * time.Second),
 					Max: new(11 * time.Second),
@@ -2507,9 +2566,10 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&config.Config{
 				TemplateConfig: &config.ClientTemplateConfig{
-					MaxStale:           new(5 * time.Second),
-					BlockQueryWaitTime: new(60 * time.Second),
-					Wait:               waitConfig.Copy(),
+					MaxStale:                  new(5 * time.Second),
+					BlockQueryWaitTime:        new(60 * time.Second),
+					VaultDefaultLeaseDuration: new(60 * time.Second),
+					Wait:                      waitConfig.Copy(),
 					WaitBounds: &config.WaitConfig{
 						Min: new(3 * time.Second),
 						Max: new(11 * time.Second),

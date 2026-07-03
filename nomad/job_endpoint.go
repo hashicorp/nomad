@@ -1811,11 +1811,6 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
-	// Enforce Sentinel policies
-	nomadACLToken, err := snap.ACLTokenBySecretID(nil, args.AuthToken)
-	if err != nil && !strings.Contains(err.Error(), "missing secret id") {
-		return err
-	}
 	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
 	if err != nil {
 		return err
@@ -1828,7 +1823,8 @@ func (j *Job) Plan(args *structs.JobPlanRequest, reply *structs.JobPlanResponse)
 		return err
 	}
 
-	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job, existingJob, nomadACLToken, ns)
+	policyWarnings, err := j.enforceSubmitJob(args.PolicyOverride, args.Job.Copy(),
+		existingJob, args.GetIdentity().GetACLToken(), ns)
 	if err != nil {
 		return err
 	}

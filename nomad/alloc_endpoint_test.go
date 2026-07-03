@@ -989,6 +989,20 @@ func TestAllocEndpoint_GetAllocs(t *testing.T) {
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp); err == nil {
 		t.Fatalf("expect error")
 	}
+
+	// Lookup mixed existing and not-existing allocs to assert partial results.
+	get = &structs.AllocsGetRequest{
+		AllocIDs: []string{alloc.ID, "00000000-0000-0000-0000-000000000000", alloc2.ID},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
+	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.GetAllocs", get, &resp))
+	// The reply should include only the 2 real allocs, and importantly *not* any nils.
+	must.Len(t, 2, resp.Allocs, must.Sprint("should only include the two existing allocs"))
+	must.NotNil(t, resp.Allocs[0], must.Sprint("alloc should not be nil"))
+	must.NotNil(t, resp.Allocs[1], must.Sprint("alloc should not be nil"))
 }
 
 func TestAllocEndpoint_GetAllocs_Blocking(t *testing.T) {

@@ -31,7 +31,7 @@
     "test:ember": "ember test"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
+    "@babel/core": "^7.29.6",
     "@babel/eslint-parser": "^7.28.6",
     "@babel/plugin-proposal-decorators": "^7.29.0",
     "@ember/legacy-built-in-components": "^0.5.0",
@@ -70,7 +70,7 @@
     "d3-shape": "^3.2.0",
     "d3-time-format": "^4.1.0",
     "d3-transition": "^3.0.1",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.9",
     "duration-js": "^4.0.0",
     "ember-a11y-testing": "^8.0.0",
     "ember-auto-import": "^2.13.1",

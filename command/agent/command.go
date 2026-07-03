@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -1351,6 +1352,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		if err != nil {
 			return inm, err
 		}
+		promSink.RunBackgroundCleanup(context.Background())
 		fanout = append(fanout, promSink)
 	}
 
