@@ -89,7 +89,7 @@ export default class Job extends Model {
 
   /**
    * @typedef {Object} CurrentStatus
-   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"|"Stopped"|"Scaled Down"} label - The current status of the job
+   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"|"Stopped"|"Scaled Down"|"Pending"} label - The current status of the job
    * @property {"highlight"|"success"|"warning"|"critical"|"neutral"} state -
    */
 
@@ -280,7 +280,7 @@ export default class Job extends Model {
         return { label: 'Running', state: 'success' };
       }
 
-      if (this.allocations?.length === 0 && this.status === 'pending') {
+      if (this.type === 'batch' && this.status === 'pending') {
         return { label: 'Pending', state: 'neutral' };
       }
     }
