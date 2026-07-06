@@ -26,7 +26,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -600,11 +599,11 @@ func TestParseBool(t *testing.T) {
 		},
 		{
 			Input:    "true",
-			Expected: pointer.Of(true),
+			Expected: new(true),
 		},
 		{
 			Input:    "false",
-			Expected: pointer.Of(false),
+			Expected: new(false),
 		},
 		{
 			Input: "1234",
@@ -647,11 +646,11 @@ func Test_parseInt(t *testing.T) {
 		},
 		{
 			Input:    "13",
-			Expected: pointer.Of(13),
+			Expected: new(13),
 		},
 		{
 			Input:    "99",
-			Expected: pointer.Of(99),
+			Expected: new(99),
 		},
 		{
 			Input: "ten",
@@ -1089,13 +1088,13 @@ func TestHTTPServer_Limits_Error(t *testing.T) {
 		{
 			tls:         true,
 			timeout:     "5s",
-			limit:       pointer.Of(-1),
+			limit:       new(-1),
 			expectedErr: "http_max_conns_per_client must be >= 0",
 		},
 		{
 			tls:         false,
 			timeout:     "5s",
-			limit:       pointer.Of(-1),
+			limit:       new(-1),
 			expectedErr: "http_max_conns_per_client must be >= 0",
 		},
 	}
@@ -1192,28 +1191,28 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		{
 			tls:           false,
 			timeout:       "0",
-			limit:         pointer.Of(2),
+			limit:         new(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           true,
 			timeout:       "0",
-			limit:         pointer.Of(2),
+			limit:         new(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           false,
 			timeout:       "5s",
-			limit:         pointer.Of(2),
+			limit:         new(2),
 			assertTimeout: false,
 			assertLimit:   true,
 		},
 		{
 			tls:           true,
 			timeout:       "5s",
-			limit:         pointer.Of(2),
+			limit:         new(2),
 			assertTimeout: true,
 			assertLimit:   true,
 		},
@@ -1506,7 +1505,7 @@ func TestHTTPServer_ResolveToken(t *testing.T) {
 		must.NoError(t, srv.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 100, []*structs.ACLPolicy{policy}))
 		must.NoError(t, srv.State().UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
-		claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wih, identity).
+		claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wih, identity, mock.Namespace()).
 			WithTask(task).Build(time.Now())
 
 		testutil.WaitForKeyring(t, srv.RPC, "global")

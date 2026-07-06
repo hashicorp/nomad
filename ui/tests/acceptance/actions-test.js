@@ -216,7 +216,6 @@ module('Acceptance | actions', function (hooks) {
       "The first action's dropdown subcontent exists",
     );
 
-
     // run on a random alloc
     await Actions.titleActions.multiAllocActions[0].subActions[0].click();
 
@@ -384,7 +383,6 @@ module('Acceptance | actions', function (hooks) {
 
     // Clear finished actions and take a snapshot
     await click('button[data-test-clear-finished-actions]');
-
 
     // Close flyout; global button is no longer present
     await Actions.flyout.close();

@@ -1,0 +1,3 @@
+```release-note:bug
+audit (Enterprise): Fixed a bug where alloc exec and job actions requests from the webbrowser would be marked as anonymous in audit logs
+```

@@ -59,7 +59,6 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit();
 
-
     const sortedJobs = this.server.db.jobs
       .sortBy('id')
       .sortBy('modifyIndex')
@@ -144,7 +143,6 @@ module('Acceptance | jobs list', function (hooks) {
   test('when there are no jobs, there is an empty message', async function (assert) {
     faker.seed(1);
     await JobsList.visit();
-
 
     assert.ok(JobsList.isEmpty, 'There is an empty message');
     assert.deepEqual(
@@ -286,7 +284,6 @@ module('Acceptance | jobs list', function (hooks) {
     assert
       .dom('.flash-message.alert-critical')
       .exists('A toast error message pops up.');
-
 
     await click('[data-test-pause-fetching]');
     assert
@@ -760,7 +757,6 @@ module('Acceptance | jobs list', function (hooks) {
     assert
       .dom('[data-test-job-row="ancient-system-job"] [data-test-job-status]')
       .hasText('Failed', 'System job with no allocs is failed');
-
   });
 
   test('Jobs with schedule blocks indicate when a task is paused', async function (assert) {

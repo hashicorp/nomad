@@ -11,7 +11,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -29,7 +28,7 @@ var (
 	// allocations part of a deployment to be rescheduled. We create a one off
 	// variable to avoid creating a new object for every request.
 	allowRescheduleTransition = &structs.DesiredTransition{
-		Reschedule: pointer.Of(true),
+		Reschedule: new(true),
 	}
 )
 
@@ -237,7 +236,7 @@ func (w *deploymentWatcher) setAllocHealth(
 	resp.DeploymentModifyIndex = index
 	resp.Index = index
 	if j != nil {
-		resp.RevertedJobVersion = pointer.Of(j.Version)
+		resp.RevertedJobVersion = new(j.Version)
 	}
 	return nil
 }
@@ -398,7 +397,7 @@ func (w *deploymentWatcher) FailDeployment(
 	resp.DeploymentModifyIndex = i
 	resp.Index = i
 	if rollbackJob != nil {
-		resp.RevertedJobVersion = pointer.Of(rollbackJob.Version)
+		resp.RevertedJobVersion = new(rollbackJob.Version)
 	}
 	return nil
 }

@@ -83,13 +83,12 @@ module('Acceptance | job allocations', function (hooks) {
     assert.deepEqual(getPageTitle(), `Job ${job.name} allocations - Nomad`);
   });
 
-
   test('allocations show max run deadline for batch jobs that have one configured', async function (assert) {
     const maxRunDuration = 10 * 60 * 1000000000;
     const startedAt = new Date('2025-01-02T03:04:05Z');
     const taskGroup = this.server.db.taskGroups.where({ jobId: job.id })[0];
     const expectedDeadline = new Date(
-      startedAt.getTime() + maxRunDuration / 1000000
+      startedAt.getTime() + maxRunDuration / 1000000,
     );
 
     job.update({ type: 'batch' });

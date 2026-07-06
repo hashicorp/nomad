@@ -307,7 +307,6 @@ module('Integration | Component | job-editor', function (hooks) {
       'The scheduler dry-run warning block is not present when there is an error but no warnings',
     );
 
-
   });
 
   test('When the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {

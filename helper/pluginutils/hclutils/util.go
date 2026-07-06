@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package hclutils
@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	hcl "github.com/hashicorp/hcl/v2"
@@ -58,6 +60,133 @@ func ParseHclInterface(val interface{}, spec hcldec.Spec, vars map[string]cty.Va
 	}
 
 	return value, diag, nil
+}
+
+// CtyValueToMapInterface converts a decoded cty value into a Go
+// map[string]interface{}.
+//
+// ParseHclInterface returns a cty.Value and callers sometimes need a generic
+// map payload (for example for plugin config maps). This helper converts that
+// value recursively into native Go values.
+func CtyValueToMapInterface(val cty.Value) (map[string]any, error) {
+	if !val.IsKnown() {
+		return nil, fmt.Errorf("value is not known")
+	}
+
+	if val.IsNull() {
+		return nil, nil
+	}
+
+	t := val.Type()
+	if !t.IsMapType() && !t.IsObjectType() {
+		return nil, fmt.Errorf("expected map/object cty value, got %s", t.FriendlyName())
+	}
+
+	v, err := ctyValueToInterface(val)
+	if err != nil {
+		return nil, err
+	}
+
+	m, ok := v.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("expected map/object cty value, got %T", v)
+	}
+
+	return m, nil
+}
+
+func ctyValueToInterface(val cty.Value) (interface{}, error) {
+	t := val.Type()
+
+	if val.IsNull() {
+		return nil, nil
+	}
+
+	if !val.IsKnown() {
+		return nil, fmt.Errorf("value is not known")
+	}
+
+	switch {
+	case t.IsPrimitiveType():
+		switch t {
+		case cty.String:
+			return val.AsString(), nil
+		case cty.Number:
+			if val.RawEquals(cty.PositiveInfinity) {
+				return math.Inf(1), nil
+			}
+			if val.RawEquals(cty.NegativeInfinity) {
+				return math.Inf(-1), nil
+			}
+			return smallestNumber(val.AsBigFloat()), nil
+		case cty.Bool:
+			return val.True(), nil
+		default:
+			panic("unsupported primitive type")
+		}
+
+	case t.IsListType(), t.IsSetType(), t.IsTupleType():
+		result := []interface{}{}
+
+		it := val.ElementIterator()
+		for it.Next() {
+			_, ev := it.Element()
+			evi, err := ctyValueToInterface(ev)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, evi)
+		}
+		return result, nil
+
+	case t.IsMapType():
+		result := map[string]interface{}{}
+
+		it := val.ElementIterator()
+		for it.Next() {
+			ek, ev := it.Element()
+
+			evv, err := ctyValueToInterface(ev)
+			if err != nil {
+				return nil, err
+			}
+
+			result[ek.AsString()] = evv
+		}
+		return result, nil
+
+	case t.IsObjectType():
+		result := map[string]interface{}{}
+
+		for k := range t.AttributeTypes() {
+			av := val.GetAttr(k)
+			avv, err := ctyValueToInterface(av)
+			if err != nil {
+				return nil, err
+			}
+
+			result[k] = avv
+		}
+		return result, nil
+
+	case t.IsCapsuleType():
+		return val.EncapsulatedValue(), nil
+
+	default:
+		return nil, fmt.Errorf("cannot serialize %s", t.FriendlyName())
+	}
+}
+
+func smallestNumber(b *big.Float) interface{} {
+	if v, acc := b.Int64(); acc == big.Exact {
+		if int64(int(v)) == v {
+			return int(v)
+		}
+		return v
+	}
+
+	v, _ := b.Float64()
+	return v
 }
 
 // GetStdlibFuncs returns the set of stdlib functions.

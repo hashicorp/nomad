@@ -128,7 +128,6 @@ module('Acceptance | evaluations list', function (hooks) {
 
     await visit('/evaluations');
 
-
     assert
       .dom('[data-test-empty-evaluations-list]')
       .exists('We display empty table message.');
@@ -155,7 +154,6 @@ module('Acceptance | evaluations list', function (hooks) {
     });
 
     await visit('/evaluations');
-
 
     assert
       .dom('[data-test-eval-table]')
@@ -673,7 +671,6 @@ module('Acceptance | evaluations list', function (hooks) {
 
       const evalId = '5fb1b8cd';
       await click(`[data-test-evaluation='${evalId}']`);
-
 
       assert
         .dom('[data-test-eval-detail-is-open]')

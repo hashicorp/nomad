@@ -183,6 +183,29 @@ func (h *DriverHarness) WaitUntilStarted(taskID string, timeout time.Duration) e
 	}
 }
 
+type TestGRPCDriver struct {
+	Client *plugin.GRPCClient
+	Server *plugin.GRPCServer
+}
+
+// NewTestGRPCDriver creates a new test plugin GRPC and returns the client
+// and server. The server stop and client close is automatically added to
+// the test cleanup.
+func NewTestGRPCDriver(t *testing.T, d drivers.DriverPlugin) *TestGRPCDriver {
+	logger := testlog.HCLogger(t).Named("driver_raw")
+	client, server := plugin.TestPluginGRPCConn(t, true, map[string]plugin.Plugin{
+		base.PluginTypeBase:   &base.PluginBase{Impl: d},
+		base.PluginTypeDriver: drivers.NewDriverPlugin(d, logger),
+	})
+
+	t.Cleanup(func() {
+		client.Close()
+		server.Stop()
+	})
+
+	return &TestGRPCDriver{Client: client, Server: server}
+}
+
 // MockDriver is used for testing.
 // Each function can be set as a closure to make assertions about how data
 // is passed through the base plugin layer.
@@ -253,6 +276,26 @@ func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration
 
 func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts *drivers.ExecOptions) (*drivers.ExitResult, error) {
 	return d.ExecTaskStreamingF(ctx, taskID, execOpts)
+}
+
+// MockDriverShutdown is used for testing. It implements the optional
+// drivers.Shutdowner interface.
+type MockDriverShutdown struct {
+	MockDriver
+	ShutdownF func(ctx context.Context) error
+}
+
+func (d *MockDriverShutdown) Shutdown(ctx context.Context) error {
+	return d.ShutdownF(ctx)
+}
+
+type MockDriverInit struct {
+	MockDriver
+	InitF func(context.Context) error
+}
+
+func (d *MockDriverInit) Init(ctx context.Context) error {
+	return d.InitF(ctx)
 }
 
 // SetEnvvars sets path and host env vars depending on the FS isolation used.

@@ -66,7 +66,6 @@ module('Acceptance | sentinel policies', function (hooks) {
     assert
       .dom('[data-test-sentinel-policy-row]')
       .exists({ count: this.server.db.sentinelPolicies.length });
-
   });
 
   test('Sentinel Policies index: deletion', async function (assert) {
@@ -232,7 +231,6 @@ module('Acceptance | sentinel policies', function (hooks) {
       '/administration/sentinel-policies/new?template=no-friday-deploys',
       'New Policy page has query param',
     );
-
 
     assert.dom('[data-test-policy-name-input]').hasValue('no-friday-deploys');
     assert

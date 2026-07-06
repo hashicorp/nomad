@@ -25,27 +25,13 @@
     "lint:types": "tsc --noEmit",
     "local:exam": "ember exam --server --load-balance --parallel=4",
     "local:test": "ember test --server",
-    "precommit": "lint-staged",
     "start": "ember server",
     "start:proxy": "USE_MIRAGE=false ember server --port 4646 --proxy http://127.0.0.1:4646",
     "test": "concurrently \"pnpm:lint\" \"pnpm:test:*\" --names \"lint,test:\" --prefixColors auto",
     "test:ember": "ember test"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "{app,tests,config,lib,mirage}/**/*.js": [
-      "prettier --write"
-    ],
-    "app/styles/**/*.*": [
-      "prettier --write"
-    ]
-  },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
+    "@babel/core": "^7.29.6",
     "@babel/eslint-parser": "^7.28.6",
     "@babel/plugin-proposal-decorators": "^7.29.0",
     "@ember/legacy-built-in-components": "^0.5.0",
@@ -64,7 +50,6 @@
     "@hashicorp/design-system-components": "4.13.0",
     "@nullvoxpopuli/ember-composable-helpers": "^5.3.1",
     "@nullvoxpopuli/legacy-prototype-extensions": "^0.1.0",
-
     "@tsconfig/ember": "^3.0.12",
     "@types/qunit": "^2.19.13",
     "@types/rsvp": "^4.0.9",
@@ -85,7 +70,7 @@
     "d3-shape": "^3.2.0",
     "d3-time-format": "^4.1.0",
     "d3-transition": "^3.0.1",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.9",
     "duration-js": "^4.0.0",
     "ember-a11y-testing": "^8.0.0",
     "ember-auto-import": "^2.13.1",

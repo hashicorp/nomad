@@ -65,7 +65,6 @@ module('Acceptance | storage list', function (hooks) {
 
     await StorageList.visit();
 
-
     const sortedVolumes = this.server.db.csiVolumes.sortBy('id');
 
     assert.deepEqual(StorageList.csiVolumes.length, StorageList.pageSize);
@@ -142,7 +141,6 @@ module('Acceptance | storage list', function (hooks) {
 
   test('when there are no csi volumes, there is an empty message', async function (assert) {
     await StorageList.visit();
-
 
     assert.ok(StorageList.csiIsEmpty);
     assert.deepEqual(StorageList.csiEmptyState, 'No CSI Volumes found');

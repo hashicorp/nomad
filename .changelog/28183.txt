@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Add a `-kv-path` flag to `nomad setup vault` to configure the Vault KV mount used by the generated workload policy
+```

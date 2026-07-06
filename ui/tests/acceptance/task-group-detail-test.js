@@ -91,7 +91,7 @@ module('Acceptance | task group detail', function (hooks) {
     const maxRunDuration = 10 * 60 * 1000000000;
     const startedAt = new Date('2025-01-02T03:04:05Z');
     const expectedDeadline = new Date(
-      startedAt.getTime() + maxRunDuration / 1000000
+      startedAt.getTime() + maxRunDuration / 1000000,
     );
 
     job.update({ type: 'batch' });
@@ -113,7 +113,7 @@ module('Acceptance | task group detail', function (hooks) {
     assert.equal(
       TaskGroup.allocations[0].maxRunDeadlineTooltip,
       moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'The task group allocations table shows the computed max run deadline'
+      'The task group allocations table shows the computed max run deadline',
     );
   });
 

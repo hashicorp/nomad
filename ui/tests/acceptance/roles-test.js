@@ -61,7 +61,6 @@ module('Acceptance | roles', function (hooks) {
     assert
       .dom('[data-test-role-row]')
       .exists({ count: this.server.db.roles.length });
-
   });
 
   test('Roles index: deletion', async function (assert) {
@@ -259,7 +258,6 @@ module('Acceptance | roles', function (hooks) {
     assert
       .dom('[data-test-role-token-row]:last-child [data-test-token-name]')
       .hasText(`Example Token for ${role.name}`);
-
 
     await Administration.visitTokens();
     assert

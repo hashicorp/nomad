@@ -1,0 +1,3 @@
+```release-note:bug
+template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering
+```

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -143,7 +142,7 @@ func TestEvalStatusCommand_Format(t *testing.T) {
 			DimensionExhausted: map[string]int{"memory": 2},
 			QuotaExhausted:     []string{},
 			ResourcesExhausted: map[string]*api.Resources{"web": {
-				Cores: pointer.Of(3),
+				Cores: new(3),
 			}},
 			Scores:            map[string]float64{},
 			AllocationTime:    0,

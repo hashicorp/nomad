@@ -13,7 +13,6 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -251,7 +250,7 @@ func getDeviceGroup(devices []*device.Device) *device.DeviceGroup {
 		Devices: devices,
 		Attributes: map[string]*structs.Attribute{
 			"cool-attribute": {
-				String: pointer.Of("attribute-wearing-sunglasses"),
+				String: new("attribute-wearing-sunglasses"),
 			},
 		},
 	}
@@ -351,23 +350,23 @@ func (d *FsDevice) collectStats() (*device.DeviceGroupStats, error) {
 
 		s := &device.DeviceStats{
 			Summary: &structs.StatValue{
-				IntNumeratorVal: pointer.Of(f.Size()),
+				IntNumeratorVal: new(f.Size()),
 				Unit:            "bytes",
 				Desc:            "Filesize in bytes",
 			},
 			Stats: &structs.StatObject{
 				Attributes: map[string]*structs.StatValue{
 					"size": {
-						IntNumeratorVal: pointer.Of(f.Size()),
+						IntNumeratorVal: new(f.Size()),
 						Unit:            "bytes",
 						Desc:            "Filesize in bytes",
 					},
 					"modify_time": {
-						StringVal: pointer.Of(f.ModTime().String()),
+						StringVal: new(f.ModTime().String()),
 						Desc:      "Last modified",
 					},
 					"mode": {
-						StringVal: pointer.Of(f.Mode().String()),
+						StringVal: new(f.Mode().String()),
 						Desc:      "File mode",
 					},
 				},

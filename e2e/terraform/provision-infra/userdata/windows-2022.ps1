@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2015, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 <powershell>
@@ -32,7 +32,9 @@ Set-Location C:\opt
 
 Try {
     $releases = "https://releases.hashicorp.com"
-    $version = "1.21.1+ent"
+    # Keep this in sync with CONSUL_VERSION in
+    # packer/ubuntu-jammy-amd64/setup.sh.
+    $version = "2.0.1+ent"
     $url = "${releases}/consul/${version}/consul_${version}_windows_amd64.zip"
 
     Write-Output "Downloading Consul from: $url"

@@ -398,13 +398,13 @@ module('Acceptance | job detail max run deadline', function (hooks) {
 
   test('recent allocations show max run deadline when configured', async function (assert) {
     const expectedDeadline = moment('2025-01-02T03:14:05Z').format(
-      "MMM DD, 'YY HH:mm:ss ZZ"
+      "MMM DD, 'YY HH:mm:ss ZZ",
     );
 
     assert.equal(
       JobDetail.allocations[0].maxRunDeadlineTooltip,
       expectedDeadline,
-      'The recent allocations table shows the computed max run deadline'
+      'The recent allocations table shows the computed max run deadline',
     );
   });
 });
@@ -840,7 +840,6 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     assert
       .dom('.flash-message.alert-critical')
       .exists('A toast error message pops up.');
-
   });
 
   test('handles when a job is remotely purged, from a job subnav page', async function (assert) {

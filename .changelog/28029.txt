@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed the drain popover deadline field so its label is properly associated with the input for improved accessibility
+```

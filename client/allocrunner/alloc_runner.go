@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"os"
 	"sync"
 	"time"
 
@@ -38,7 +39,6 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/client/widmgr"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -404,7 +404,6 @@ func (ar *allocRunner) Run() {
 
 	// Run the runners (blocks until they exit)
 	ar.runTasks()
-
 	if ar.isShuttingDown() {
 		return
 	}
@@ -473,6 +472,13 @@ func (ar *allocRunner) GetAllocDir() allocdir.Interface {
 // Restore state from database. Must be called after NewAllocRunner but before
 // Run.
 func (ar *allocRunner) Restore() error {
+	// We should not carry on to restoring an allocation whose directory is
+	// inaccessible. This can happen if allocation storage is ephemeral, e.g.
+	// a tmpfs or cloud local SSDs.
+	if _, err := os.Stat(ar.allocDir.AllocDirPath()); err != nil {
+		return fmt.Errorf("allocation directory is inaccessible: %w", err)
+	}
+
 	// Retrieve deployment status to avoid reseting it across agent
 	// restarts. Once a deployment status is set Nomad no longer monitors
 	// alloc health, so we must persist deployment state across restarts.
@@ -741,11 +747,20 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		event := structs.NewTaskEvent(structs.TaskKilling).
 			SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
 
-		if ar.state.MaxRunDurationExceeded {
+		if ar.maxRunDurationExceeded() {
 			event.SetDisplayMessage(structs.AllocTimeoutReasonMaxRunDuration)
 		}
-
 		return event
+	}
+
+	if ar.maxRunDurationExceeded() {
+		// prevent any not-yet-running post stop tasks from starting when we
+		// kill the main task
+		for _, tr := range ar.tasks {
+			if tr.IsPoststopTask() {
+				tr.Kill(context.TODO(), taskEventFn(tr))
+			}
+		}
 	}
 
 	// Kill leader first, synchronously
@@ -816,23 +831,6 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	}
 	wg.Wait()
 
-	// Skip poststop tasks entirely when max_run_duration has been exceeded so
-	// they are not started after the allocation has timed out.
-	if ar.state.MaxRunDurationExceeded {
-		for name, tr := range ar.tasks {
-			if !tr.IsPoststopTask() {
-				continue
-			}
-
-			state := tr.TaskState()
-			if state != nil {
-				states[name] = state
-			}
-		}
-
-		return states
-	}
-
 	// Perform no action on post stop tasks, but retain their states if they exist. This
 	// commonly happens at the time of alloc GC from the client node.
 	for name, tr := range ar.tasks {
@@ -890,7 +888,7 @@ func (ar *allocRunner) clientAlloc(taskStates map[string]*structs.TaskState) *st
 		if a.ClientStatus == structs.AllocClientStatusFailed &&
 			alloc.DeploymentID != "" && !a.DeploymentStatus.HasHealth() {
 			a.DeploymentStatus = &structs.AllocDeploymentStatus{
-				Healthy: pointer.Of(false),
+				Healthy: new(false),
 			}
 		}
 
@@ -1127,6 +1125,12 @@ func (ar *allocRunner) EnforceMaxRunDurationTimeout(deadline time.Time) {
 
 	ar.logger.Debug("allocation exceeded max_run_duration, killing tasks", "deadline", deadline)
 	ar.killTasks()
+}
+
+func (ar *allocRunner) maxRunDurationExceeded() bool {
+	ar.stateLock.Lock()
+	defer ar.stateLock.Unlock()
+	return ar.state.MaxRunDurationExceeded
 }
 
 func (ar *allocRunner) destroyImpl() {

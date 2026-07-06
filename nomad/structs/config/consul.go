@@ -13,7 +13,6 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -199,18 +198,18 @@ func DefaultConsulConfig() *ConsulConfig {
 		ServerRPCCheckName:        "Nomad Server RPC Check",
 		ClientServiceName:         "nomad-client",
 		ClientHTTPCheckName:       "Nomad Client HTTP Check",
-		AutoAdvertise:             pointer.Of(true),
-		ChecksUseAdvertise:        pointer.Of(false),
-		ServerAutoJoin:            pointer.Of(true),
-		ClientAutoJoin:            pointer.Of(true),
+		AutoAdvertise:             new(true),
+		ChecksUseAdvertise:        new(false),
+		ServerAutoJoin:            new(true),
+		ClientAutoJoin:            new(true),
 		Timeout:                   5 * time.Second,
 		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
 		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
 
 		// From Consul api package defaults
 		Addr:      def.Address,
-		EnableSSL: pointer.Of(def.Scheme == "https"),
-		VerifySSL: pointer.Of(!def.TLSConfig.InsecureSkipVerify),
+		EnableSSL: new(def.Scheme == "https"),
+		VerifySSL: new(!def.TLSConfig.InsecureSkipVerify),
 		CAFile:    def.TLSConfig.CAFile,
 		Namespace: def.Namespace,
 		Token:     def.Token,
@@ -256,7 +255,7 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	result.Tags = append(result.Tags, b.Tags...)
 	if b.AutoAdvertise != nil {
-		result.AutoAdvertise = pointer.Of(*b.AutoAdvertise)
+		result.AutoAdvertise = new(*b.AutoAdvertise)
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
@@ -277,13 +276,13 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.Auth = b.Auth
 	}
 	if b.EnableSSL != nil {
-		result.EnableSSL = pointer.Of(*b.EnableSSL)
+		result.EnableSSL = new(*b.EnableSSL)
 	}
 	if b.VerifySSL != nil {
-		result.VerifySSL = pointer.Of(*b.VerifySSL)
+		result.VerifySSL = new(*b.VerifySSL)
 	}
 	if b.ShareSSL != nil {
-		result.ShareSSL = pointer.Of(*b.ShareSSL)
+		result.ShareSSL = new(*b.ShareSSL)
 	}
 	if b.GRPCCAFile != "" {
 		result.GRPCCAFile = b.GRPCCAFile
@@ -298,13 +297,13 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 		result.KeyFile = b.KeyFile
 	}
 	if b.ServerAutoJoin != nil {
-		result.ServerAutoJoin = pointer.Of(*b.ServerAutoJoin)
+		result.ServerAutoJoin = new(*b.ServerAutoJoin)
 	}
 	if b.ClientAutoJoin != nil {
-		result.ClientAutoJoin = pointer.Of(*b.ClientAutoJoin)
+		result.ClientAutoJoin = new(*b.ClientAutoJoin)
 	}
 	if b.ChecksUseAdvertise != nil {
-		result.ChecksUseAdvertise = pointer.Of(*b.ChecksUseAdvertise)
+		result.ChecksUseAdvertise = new(*b.ChecksUseAdvertise)
 	}
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace

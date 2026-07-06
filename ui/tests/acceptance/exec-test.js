@@ -108,7 +108,6 @@ module('Acceptance | exec', function (hooks) {
     assert.notOk(Exec.taskGroups[0].tasks[0].isActive);
     assert.ok(Exec.taskGroups[0].chevron.isDown);
 
-
     await Exec.taskGroups[0].click();
     assert.deepEqual(Exec.taskGroups[0].tasks.length, 0);
   });

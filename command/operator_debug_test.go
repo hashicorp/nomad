@@ -1,9 +1,11 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,7 +26,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	mon "github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
@@ -891,7 +892,7 @@ func testServerWithoutLeader(t *testing.T, runClient bool, cb func(*agent.Config
 	a := agent.NewTestAgent(t, t.Name(), func(config *agent.Config) {
 		config.Client.Enabled = runClient
 		config.Server.Enabled = true
-		config.Server.NumSchedulers = pointer.Of(0)
+		config.Server.NumSchedulers = new(0)
 		config.Server.BootstrapExpect = 3
 
 		if cb != nil {
@@ -1192,4 +1193,127 @@ func TestDebug_MonitorExportFiles(t *testing.T) {
 
 		})
 	}
+}
+
+func TestOperatorDebugCommand_toSafeFlag(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name       string
+		flagName   string
+		value      string
+		inputVault string
+		wantRedact bool
+	}{
+		{name: "nomad token", flagName: "token", value: "secret-nomad-token", wantRedact: true},
+		{name: "consul-auth", flagName: "consul-auth", value: "user:password", wantRedact: true},
+		{name: "consul-token", flagName: "consul-token", value: "secret-consul-token", wantRedact: true},
+		{name: "consul-client-key", flagName: "consul-client-key", value: "/path/to/key.pem", wantRedact: true},
+		{name: "vault-token", flagName: "vault-token", value: "secret-vault-token", wantRedact: true},
+		{name: "vault-client-key", flagName: "vault-client-key", value: "/path/to/vault-key.pem", wantRedact: true},
+		{name: "client-key", flagName: "client-key", value: "/path/to/client.key", wantRedact: true},
+		{name: "vault-token with default", flagName: "vault-token", value: "live-token", inputVault: "default-token", wantRedact: true},
+		{name: "unset sensitive flag", flagName: "token", wantRedact: false},
+		{name: "address", flagName: "address", value: "http://127.0.0.1:4646", wantRedact: false},
+		{name: "log-level", flagName: "log-level", value: "DEBUG", inputVault: "INFO", wantRedact: false},
+		{name: "duration", flagName: "duration", value: "2m", inputVault: "30s", wantRedact: false},
+		{name: "consul-http-addr", flagName: "consul-http-addr", value: "http://127.0.0.1:8500", wantRedact: false},
+		{name: "vault-address", flagName: "vault-address", value: "https://vault.example.com", wantRedact: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			fs := flag.NewFlagSet("test", flag.ContinueOnError)
+			var val string
+			fs.StringVar(&val, tc.flagName, tc.inputVault, "")
+			must.NoError(t, fs.Parse([]string{"-" + tc.flagName, tc.value}))
+
+			f := fs.Lookup(tc.flagName)
+			must.NotNil(t, f)
+
+			safe := toSafeFlag(f)
+			must.Eq(t, tc.flagName, safe.Name)
+
+			if tc.wantRedact {
+				must.Eq(t, redactedFlagValue, safe.Value)
+			} else {
+				must.Eq(t, tc.value, safe.Value)
+			}
+		})
+	}
+}
+
+func TestOperatorDebugCommand_writeFlags(t *testing.T) {
+	ci.Parallel(t)
+
+	// Build a flag set that mirrors the sensitive flags registered by
+	// OperatorDebugCommand so we can exercise the full writeFlags path.
+	fs := flag.NewFlagSet("operator debug", flag.ContinueOnError)
+	var (
+		tokenVal        string
+		consulAuth      string
+		consulToken     string
+		consulClientKey string
+		vaultToken      string
+		logLevel        string
+		duration        string
+	)
+	fs.StringVar(&tokenVal, "token", "", "")
+	fs.StringVar(&consulAuth, "consul-auth", "", "")
+	fs.StringVar(&consulToken, "consul-token", "", "")
+	fs.StringVar(&consulClientKey, "consul-client-key", "", "")
+	fs.StringVar(&vaultToken, "vault-token", "", "")
+	fs.StringVar(&logLevel, "log-level", "TRACE", "")
+	fs.StringVar(&duration, "duration", "2m", "")
+
+	must.NoError(t, fs.Parse([]string{
+		"-token", "super-secret-nomad-token",
+		"-consul-auth", "user:p4ssw0rd",
+		"-consul-token", "super-secret-consul-token",
+		"-consul-client-key", "/private/consul.key",
+		"-vault-token", "super-secret-vault-token",
+		"-log-level", "DEBUG",
+		"-duration", "5m",
+	}))
+
+	testDir := t.TempDir()
+
+	ui := cli.NewMockUi()
+	cmd := &OperatorDebugCommand{
+		Meta:       Meta{Ui: ui},
+		collectDir: testDir,
+	}
+
+	cmd.writeFlags(fs)
+
+	// Decode the produced JSON file into flagExport so we can assert on
+	// individual flag values rather than doing raw string matching.
+	rawJSON, err := os.ReadFile(filepath.Join(testDir, clusterDir, "cli-flags.json"))
+	must.NoError(t, err)
+
+	var got flagExport
+	must.NoError(t, json.Unmarshal(rawJSON, &got))
+
+	// Every sensitive flag that was explicitly set must appear in Actual with
+	// its value replaced by the redaction placeholder.
+	for _, flagName := range []string{
+		"token", "consul-auth", "consul-token", "consul-client-key", "vault-token",
+	} {
+		actualFlag, ok := got.Actual[flagName]
+		must.True(t, ok)
+		must.Eq(t, redactedFlagValue, actualFlag.Value)
+
+		effectiveFlag, ok := got.Effective[flagName]
+		must.True(t, ok)
+		must.Eq(t, redactedFlagValue, effectiveFlag.Value)
+
+		formalFlag, ok := got.Formal[flagName]
+		must.True(t, ok)
+		must.Eq(t, redactedFlagValue, formalFlag.Value)
+	}
+
+	// Ensure that non-sensitive flags persist their flags.
+	must.Eq(t, "DEBUG", got.Actual["log-level"].Value)
+	must.Eq(t, "5m", got.Actual["duration"].Value)
 }

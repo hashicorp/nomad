@@ -218,9 +218,36 @@ export default class Watchable extends ApplicationAdapter {
             json,
           );
           if (replace) {
-            store.unloadAll(relationship.type);
+            // Capture existing record IDs before pushing new data.
+            // We must push first so that the relationship's LID references are
+            // updated before any old records are removed. Calling
+            // store.unloadAll() first leaves dangling LID references in the
+            // hasMany relationship state, which causes Ember Data 4.12+ to
+            // throw "Cannot create a record ... as no resource data exists"
+            // when the relationship is accessed.
+            const existingIds = store
+              .peekAll(relationship.type)
+              .map((r) => r.id);
+            const newIds = new Set(
+              (normalizedData.data || []).map((r) => r.id),
+            );
+
+            store.push(normalizedData);
+
+            // Remove records that were not present in the new payload using
+            // removeRecord, which safely unlinks the record from all of its
+            // relationships before unloading it from the store.
+            existingIds.forEach((id) => {
+              if (!newIds.has(id)) {
+                const record = store.peekRecord(relationship.type, id);
+                if (record) {
+                  removeRecord(store, record);
+                }
+              }
+            });
+          } else {
+            store.push(normalizedData);
           }
-          store.push(normalizedData);
         },
         (error) => {
           if (error instanceof AbortError || error.name === 'AbortError') {
@@ -241,9 +268,16 @@ export default class Watchable extends ApplicationAdapter {
       : null;
     const newIndex = headerIndex || fallbackIndex;
 
+    // When the response carries a real X-Nomad-Index header we always cache it.
+    // The blocking `index` query param travels in the request body options and
+    // is not reflected on `requestData` by the underlying fetch adapter, so we
+    // must not gate header-derived indexes behind `hasWatchIndex`. The
+    // hasWatchIndex guard only applies to the test-only pre-advance fallback.
+    const shouldStoreIndex = headerIndex ? true : hasWatchIndex(requestData);
+
     if (
       newIndex &&
-      hasWatchIndex(requestData) &&
+      shouldStoreIndex &&
       !this.isDestroying &&
       !this.isDestroyed
     ) {

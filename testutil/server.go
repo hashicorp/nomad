@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package testutil
@@ -28,7 +28,6 @@ import (
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/discover"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -143,7 +142,7 @@ func defaultServerConfig() *TestServerConfig {
 		},
 		Vaults: []*VaultConfig{{
 			Enabled:              false,
-			AllowUnauthenticated: pointer.Of(true),
+			AllowUnauthenticated: new(true),
 		}},
 		ACL: &ACLConfig{
 			Enabled: false,

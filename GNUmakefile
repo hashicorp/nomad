@@ -288,6 +288,23 @@ dev: hclfmt ## Build for the current development platform
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(BIN)
 
+.PHONY: dev-debug
+dev-debug: GOOS=$(shell go env GOOS)
+dev-debug: GOARCH=$(shell go env GOARCH)
+dev-debug: ## Build for the current platform with debug symbols and no optimizations
+	@echo "==> Removing old development build..."
+	@rm -f $(PROJECT_ROOT)/bin/nomad
+	@rm -f $(BIN)/nomad
+	@echo "==> Done"
+	@echo "==> Building debug binary..."
+	@go build \
+	    -gcflags "all=-N -l" \
+		-ldflags "$(GO_LDFLAGS)" \
+		-tags "$(GO_TAGS) $(NOMAD_UI_TAG)" \
+		-o $(PROJECT_ROOT)/bin/nomad
+	@cp $(PROJECT_ROOT)/bin/nomad $(BIN)
+	@echo "==> Done"
+
 .PHONY: dev-static
 dev-static:
 	@$(MAKE) CGO_ENABLED=0 dev ## Build a dev binary with no CGO

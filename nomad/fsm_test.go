@@ -23,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1569,7 +1568,7 @@ func TestFSM_UpdateAllocDesiredTransition(t *testing.T) {
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc, alloc2}))
 
 	t1 := &structs.DesiredTransition{
-		Migrate: pointer.Of(true),
+		Migrate: new(true),
 	}
 
 	eval := &structs.Evaluation{
@@ -1905,7 +1904,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -1913,7 +1912,7 @@ func TestFSM_DeploymentPromotion(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {

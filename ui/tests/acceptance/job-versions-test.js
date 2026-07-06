@@ -220,7 +220,6 @@ module('Acceptance | job versions', function (hooks) {
     assert
       .dom('[data-test-tagged-version="false"] .tag-description')
       .hasText('', 'Tag description is empty');
-
   });
 
   test('existing version tags can be edited', async function (assert) {
@@ -314,7 +313,6 @@ module('Acceptance | job versions', function (hooks) {
     assert
       .dom('.flash-message.alert.alert-success')
       .exists('Shows a success toast notification on edit.');
-
   });
 });
 
@@ -422,7 +420,6 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=job-spec`,
       'Taken to the definition page in edit mode',
     );
-
   });
 
   test('Clone as new version when version is 0', async function (assert) {
@@ -450,7 +447,6 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     );
 
     assert.dom('[data-test-json-warning]').exists();
-
   });
 
   test('Clone as a new job', async function (assert) {

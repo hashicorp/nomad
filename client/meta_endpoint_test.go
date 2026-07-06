@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package client
@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -34,7 +33,7 @@ func TestNodeMeta_ACL(t *testing.T) {
 	applyReq := &structs.NodeMetaApplyRequest{
 		NodeID: c1.NodeID(),
 		Meta: map[string]*string{
-			"foo": pointer.Of("bar"),
+			"foo": new("bar"),
 		},
 	}
 
@@ -86,13 +85,13 @@ func TestNodeMeta_Validation(t *testing.T) {
 	must.ErrorContains(t, err, "missing required Meta")
 
 	// empty keys are prohibited
-	applyReq.Meta[""] = pointer.Of("bad")
+	applyReq.Meta[""] = new("bad")
 	err = c1.ClientRPC("NodeMeta.Apply", applyReq, &resp)
 	must.ErrorContains(t, err, "empty")
 
 	// * is prohibited in keys
 	delete(applyReq.Meta, "")
-	applyReq.Meta["*"] = pointer.Of("bad")
+	applyReq.Meta["*"] = new("bad")
 	err = c1.ClientRPC("NodeMeta.Apply", applyReq, &resp)
 	must.ErrorContains(t, err, "*")
 }
@@ -114,7 +113,7 @@ func TestNodeMeta_unset(t *testing.T) {
 	applyReq := &structs.NodeMetaApplyRequest{
 		NodeID: c1.NodeID(),
 		Meta: map[string]*string{
-			"dynamic_meta": pointer.Of("true"),
+			"dynamic_meta": new("true"),
 		},
 	}
 	var resp structs.NodeMetaResponse

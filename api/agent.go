@@ -5,6 +5,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -141,6 +142,9 @@ func (a *Agent) Join(addrs ...string) (int, error) {
 	if resp.Error != "" {
 		return 0, fmt.Errorf("failed joining: %s", resp.Error)
 	}
+	if resp.Warning != "" {
+		return resp.NumJoined, errors.New(resp.Warning)
+	}
 	return resp.NumJoined, nil
 }
 
@@ -217,6 +221,14 @@ func (a *Agent) ListKeys() (*KeyringResponse, error) {
 		return nil, err
 	}
 	return &resp, nil
+}
+
+type AgentReloadOpts struct{}
+
+// Reload requests the agent to reload its configuration.
+func (a *Agent) Reload(_ *AgentReloadOpts, q *WriteOptions) error {
+	_, err := a.client.put("/v1/agent/reload", nil, nil, q)
+	return err
 }
 
 // InstallKey installs a key in the keyrings of all the serf members
@@ -446,6 +458,7 @@ func (a *Agent) pprofRequest(req string, opts PprofOptions, q *QueryOptions) ([]
 type joinResponse struct {
 	NumJoined int    `json:"num_joined"`
 	Error     string `json:"error"`
+	Warning   string `json:"warning"`
 }
 
 type ServerMembers struct {

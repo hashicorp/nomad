@@ -27,7 +27,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -68,6 +67,10 @@ type TaskTemplateManager struct {
 
 	// shutdownCh is used to signal and started goroutine to shutdown
 	shutdownCh chan struct{}
+
+	// firstRenderScripts holds change_scripts that should fire after the
+	// initial template render once the task reaches the running state.
+	firstRenderScripts []*structs.ChangeScript
 
 	// shutdown marks whether the manager has been shutdown
 	shutdown     bool
@@ -277,10 +280,10 @@ func (tm *TaskTemplateManager) Run() {
 	// Unblock the task
 	close(tm.config.UnblockCh)
 
-	// If all our templates are change mode no-op, then we can exit here
-	if tm.allTemplatesNoop() {
-		return
-	}
+	// Collect change_script templates that should fire on first render.
+	// These are stored and executed later when the task reaches the running
+	// state, triggered via RunFirstRenderScripts from the Poststart hook.
+	tm.firstRenderScripts = tm.collectFirstRenderScripts()
 
 	// handle all subsequent render events.
 	tm.handleTemplateRerenders(time.Now())
@@ -658,6 +661,38 @@ func (tm *TaskTemplateManager) allTemplatesNoop() bool {
 	return true
 }
 
+// collectFirstRenderScripts returns the set of ChangeScript objects from
+// templates that have change_mode "script" with RunOnFirstRender enabled.
+func (tm *TaskTemplateManager) collectFirstRenderScripts() []*structs.ChangeScript {
+	var scripts []*structs.ChangeScript
+	for _, tmpl := range tm.config.Templates {
+		if tmpl.ChangeMode == structs.TemplateChangeModeScript &&
+			tmpl.ChangeScript != nil &&
+			tmpl.ChangeScript.RunOnFirstRender {
+			scripts = append(scripts, tmpl.ChangeScript)
+		}
+	}
+	return scripts
+}
+
+// RunFirstRenderScripts executes the change_scripts collected during the
+// first template render. It is called by the template hook's Poststart
+// method once the task is running and Exec is available.
+func (tm *TaskTemplateManager) RunFirstRenderScripts() {
+	scripts := tm.firstRenderScripts
+	if len(scripts) == 0 {
+		return
+	}
+	tm.firstRenderScripts = nil
+
+	var wg sync.WaitGroup
+	for _, script := range scripts {
+		wg.Add(1)
+		go tm.processScript(script, &wg)
+	}
+	wg.Wait()
+}
+
 // templateRunner returns a consul-template runner for the given templates and a
 // lookup by destination to the template. If no templates are in the config, a
 // nil template runner and lookup is returned.
@@ -763,7 +798,7 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 			}
 
 			ct.Wait = &ctconf.WaitConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 				Min:     tmpl.Wait.Min,
 				Max:     tmpl.Wait.Max,
 			}
@@ -881,7 +916,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
 			verify := config.ConsulConfig.VerifySSL != nil && *config.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 				Verify:  &verify,
 				Cert:    &config.ConsulConfig.CertFile,
 				Key:     &config.ConsulConfig.KeyFile,
@@ -896,7 +931,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 
 			conf.Consul.Auth = &ctconf.AuthConfig{
-				Enabled:  pointer.Of(true),
+				Enabled:  new(true),
 				Username: &parts[0],
 				Password: &parts[1],
 			}
@@ -925,7 +960,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	// Set up the Vault config
 	// Always set these to ensure nothing is picked up from the environment
 	emptyStr := ""
-	conf.Vault.RenewToken = pointer.Of(false)
+	conf.Vault.RenewToken = new(false)
 	conf.Vault.Token = &emptyStr
 	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
 		conf.Vault.Address = &config.VaultConfig.Addr
@@ -944,7 +979,7 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    pointer.Of(true),
+				Enabled:    new(true),
 				Verify:     &verify,
 				Cert:       &config.VaultConfig.TLSCertFile,
 				Key:        &config.VaultConfig.TLSKeyFile,
@@ -954,14 +989,19 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
-				Enabled:    pointer.Of(false),
-				Verify:     pointer.Of(false),
+				Enabled:    new(false),
+				Verify:     new(false),
 				Cert:       &emptyStr,
 				Key:        &emptyStr,
 				CaCert:     &emptyStr,
 				CaPath:     &emptyStr,
 				ServerName: &emptyStr,
 			}
+		}
+
+		// Set the user-specificed Vault DefaultLeaseDuration
+		if cc.TemplateConfig.VaultDefaultLeaseDuration != nil {
+			conf.Vault.DefaultLeaseDuration = cc.TemplateConfig.VaultDefaultLeaseDuration
 		}
 
 		// Set the user-specified Vault RetryConfig

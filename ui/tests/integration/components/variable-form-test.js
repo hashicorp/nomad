@@ -439,7 +439,6 @@ module('Integration | Component | variable-form', function (hooks) {
         hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`,
       );
 
-
       const keyValuesAsJSON = keyValues.reduce((acc, { key, value }) => {
         acc[key] = value;
         return acc;
