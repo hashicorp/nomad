@@ -363,7 +363,7 @@ func (t *TaskEnv) ParseAndReplace(args []string) []string {
 
 	replaced := make([]string, len(args))
 	for i, arg := range args {
-		replaced[i] = hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs)
+		replaced[i] = hargs.ReplaceEnv(arg, t.EnvMap, t.NodeAttrs, t.TaskSecrets)
 	}
 
 	return replaced
