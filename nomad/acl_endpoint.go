@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -640,7 +640,12 @@ func (a *ACL) upsertTokens(
 				return structs.NewErrRPCCodedf(http.StatusInternalServerError, "token lookup failed: %v", err)
 			}
 			if out == nil {
-				return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find token %s", token.AccessorID)
+				// Check if the token is meant to uploaded
+				if !helper.IsUUID(token.AccessorID) || !helper.IsUUID(token.SecretID) || (token.Type == structs.ACLManagementToken) {
+					return structs.NewErrRPCCodedf(http.StatusBadRequest, "cannot find token %s", token.AccessorID)
+				}
+
+				// existingToken remains nil, so this is treated as a creation.
 			}
 			existingToken = out
 		}

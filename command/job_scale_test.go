@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -90,17 +89,17 @@ func TestJobScaleCommand_MultiGroup(t *testing.T) {
 		SetConfig("run_for", "5s").
 		SetConfig("exit_code", 0).
 		Require(&api.Resources{
-			MemoryMB: pointer.Of(256),
-			CPU:      pointer.Of(100),
+			MemoryMB: new(256),
+			CPU:      new(100),
 		}).
 		SetLogConfig(&api.LogConfig{
-			MaxFiles:      pointer.Of(1),
-			MaxFileSizeMB: pointer.Of(2),
+			MaxFiles:      new(1),
+			MaxFileSizeMB: new(2),
 		})
 	group2 := api.NewTaskGroup("group2", 1).
 		AddTask(task).
 		RequireDisk(&api.EphemeralDisk{
-			SizeMB: pointer.Of(20),
+			SizeMB: new(20),
 		})
 	job.AddTaskGroup(group2)
 

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -44,6 +44,13 @@ const (
 	// by the API which indicates the caller does not have permission to
 	// perform the action.
 	PermissionDeniedErrorContent = "Permission denied"
+
+	// ResultPaginatorErrorContent is the string content of an error returned by
+	// the API when it cannot build the paginator for a list query, for example
+	// when the server is unable to evaluate the requested filter expression.
+	// This duplicates the message of structs.ErrResultPaginatorCreation, which
+	// the server emits. The api module cannot import structs, so keep them in sync.
+	ResultPaginatorErrorContent = "failed to create result paginator"
 )
 
 // QueryOptions are used to parametrize a query

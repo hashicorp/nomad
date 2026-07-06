@@ -1,11 +1,10 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
 import { click, currentURL, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -13,7 +12,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import Definition from 'nomad-ui/tests/pages/jobs/job/definition';
-import { JOB_JSON } from 'nomad-ui/tests/utils/generate-raw-json-job';
 
 let job;
 
@@ -87,7 +85,6 @@ module('Acceptance | job definition', function (hooks) {
     const formattedJobDefinition = JSON.parse(jobSubmission).Source;
 
     await Definition.edit();
-    await percySnapshot(assert);
 
     assert.deepEqual(
       Definition.editor.editor.contents,
@@ -115,7 +112,6 @@ module('Acceptance | job definition', function (hooks) {
 
   test('when the job for the definition is not found, an error message is shown, but the URL persists', async function (assert) {
     await Definition.visit({ id: 'not-a-real-job' });
-    await percySnapshot(assert);
 
     assert.deepEqual(
       this.server.pretender.handledRequests
@@ -152,6 +148,7 @@ module('Acceptance | job definition | full specification', function (hooks) {
   });
 
   test('it allows users to select between full specification and JSON definition', async function (assert) {
+    assert.expect(7);
     const specification_response = {
       Format: 'hcl2',
       JobID: 'example',
@@ -163,17 +160,16 @@ module('Acceptance | job definition | full specification', function (hooks) {
       Variables: '',
       Version: 0,
     };
-    this.server.get('/job/:id', () => JOB_JSON);
+
     this.server.get('/job/:id/submission', () => specification_response);
 
     await Definition.visit({ id: job.id });
-    await percySnapshot(assert);
 
     assert
       .dom('[data-test-select="job-spec"]')
-      .exists('A select button exists and defaults to full definition');
+      .exists('A select button exists and defaults to job spec');
     let codeMirror = this.getCodeMirrorInstance();
-    assert.deepEqual(
+    assert.equal(
       codeMirror.getValue(),
       specification_response.Source,
       'Shows the full definition as written by the user',
@@ -181,6 +177,31 @@ module('Acceptance | job definition | full specification', function (hooks) {
 
     await click('[data-test-select-full]');
     codeMirror = this.getCodeMirrorInstance();
-    assert.propContains(JSON.parse(codeMirror.getValue()), JOB_JSON);
+    const fullDefinition = JSON.parse(codeMirror.getValue());
+    assert
+      .dom('[data-test-select="full-definition"]')
+      .exists('View switches to full definition mode');
+    assert.equal(
+      fullDefinition.ID,
+      job.id,
+      'Full definition shows the correct job ID',
+    );
+    assert.equal(
+      fullDefinition.Name,
+      job.name,
+      'Full definition shows the correct job name',
+    );
+    assert.ok(
+      fullDefinition.TaskGroups,
+      'Full definition includes task groups',
+    );
+
+    await click('[data-test-select="full-definition"] button:first-child');
+    codeMirror = this.getCodeMirrorInstance();
+    assert.equal(
+      codeMirror.getValue(),
+      specification_response.Source,
+      'Switching back to job spec restores the original specification source',
+    );
   });
 });

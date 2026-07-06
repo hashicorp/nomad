@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -15,7 +15,6 @@ import {
 import { setupApplicationTest } from 'ember-qunit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
@@ -37,7 +36,6 @@ module('Acceptance | policies', function (hooks) {
       .dom('[data-test-policy-row]')
       .exists({ count: this.server.db.policies.length });
     await a11yAudit(assert);
-    await percySnapshot(assert);
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });
@@ -131,7 +129,6 @@ module('Acceptance | policies', function (hooks) {
     assert.ok(newPolicy, 'Policy is in the list');
     await click(newPolicy);
     assert.deepEqual(currentURL(), '/administration/policies/My-Fun-Policy');
-    await percySnapshot(assert);
     // Reset Token
     window.localStorage.nomadTokenSecret = null;
   });

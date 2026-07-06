@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/go-msgpack/v2/codec"
 
 	"github.com/hashicorp/nomad/acl"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -38,13 +37,13 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
 	if err := decoder.Decode(&args); err != nil {
-		handleJsonResultError(err, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(err, new(int64(500)), encoder)
 		return
 	}
 
 	authErr := e.srv.Authenticate(nil, &args)
 	if authErr != nil {
-		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		handleJsonResultError(structs.ErrPermissionDenied, new(int64(403)), encoder)
 		return
 	}
 
@@ -52,7 +51,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	if args.Region != e.srv.config.Region {
 		err := e.forwardStreamingRPC(args.Region, "Event.Stream", args, conn)
 		if err != nil {
-			handleJsonResultError(err, pointer.Of(int64(500)), encoder)
+			handleJsonResultError(err, new(int64(500)), encoder)
 		}
 		return
 	}
@@ -61,13 +60,13 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 
 	resolvedACL, err := e.srv.ResolveACL(&args)
 	if err != nil {
-		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		handleJsonResultError(structs.ErrPermissionDenied, new(int64(403)), encoder)
 		return
 	}
 
 	validatedNses, err := e.validateACL(args.Namespace, args.Topics, resolvedACL)
 	if err != nil {
-		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		handleJsonResultError(structs.ErrPermissionDenied, new(int64(403)), encoder)
 		return
 	}
 
@@ -114,7 +113,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	// Get the servers broker and subscribe
 	publisher, err := e.srv.State().EventBroker()
 	if err != nil {
-		handleJsonResultError(err, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(err, new(int64(500)), encoder)
 		return
 	}
 
@@ -124,7 +123,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 
 	subscription, subErr = publisher.Subscribe(subReq)
 	if subErr != nil {
-		handleJsonResultError(subErr, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(subErr, new(int64(500)), encoder)
 		return
 	}
 	defer subscription.Unsubscribe()
@@ -217,7 +216,7 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		handleJsonResultError(streamErr, pointer.Of(int64(500)), encoder)
+		handleJsonResultError(streamErr, new(int64(500)), encoder)
 		return
 	}
 

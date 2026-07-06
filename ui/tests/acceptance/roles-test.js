@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -11,7 +11,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Administration from 'nomad-ui/tests/pages/administration';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | roles', function (hooks) {
@@ -45,8 +44,6 @@ module('Acceptance | roles', function (hooks) {
     assert
       .dom('[data-test-role-row]')
       .exists({ count: this.server.db.roles.length });
-
-    await percySnapshot(assert);
   });
 
   test('Roles index: deletion', async function (assert) {
@@ -102,7 +99,6 @@ module('Acceptance | roles', function (hooks) {
       `/administration/roles/${role.name}`,
       'remain on page after save',
     );
-    await percySnapshot(assert);
 
     // Go back to the roles index
     await Administration.visitRoles();
@@ -245,8 +241,6 @@ module('Acceptance | roles', function (hooks) {
     assert
       .dom('[data-test-role-token-row]:last-child [data-test-token-name]')
       .hasText(`Example Token for ${role.name}`);
-
-    await percySnapshot(assert);
 
     await Administration.visitTokens();
     assert

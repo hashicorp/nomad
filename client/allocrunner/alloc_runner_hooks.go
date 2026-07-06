@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocrunner
@@ -111,6 +111,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newMaxRunDurationHook(hookLogger, alloc, ar.clientBaseLabels, ar.EnforceMaxRunDurationTimeout),
 		newConsulHook(consulHookConfig{
 			alloc:                   ar.alloc,
 			allocdir:                ar.allocDir,

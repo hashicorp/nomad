@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package jobspec2
@@ -162,5 +162,8 @@ func normalizeChangeScript(ch *api.ChangeScript) {
 
 	if ch.FailOnError == nil {
 		ch.FailOnError = pointerOf(false)
+	}
+	if ch.RunOnFirstRender == nil {
+		ch.RunOnFirstRender = pointerOf(false)
 	}
 }

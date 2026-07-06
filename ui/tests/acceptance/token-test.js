@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -23,7 +23,6 @@ import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import Administration from 'nomad-ui/tests/pages/administration';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
 import { _cancelTimers as cancelTimers } from '@ember/runloop';
@@ -151,8 +150,6 @@ module('Acceptance | tokens', function (hooks) {
 
     await Tokens.visit();
     await Tokens.secret(secretId).submit();
-
-    await percySnapshot(assert);
 
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
@@ -345,10 +342,6 @@ module('Acceptance | tokens', function (hooks) {
         .doesNotExist('No notification yet for a token with 10m5s left');
       notificationNotRendered();
       setTimeout(async () => {
-        await percySnapshot(assert, {
-          percyCSS: '[data-test-expiration-timestamp] { display: none; }',
-        });
-
         assert
           .dom('.flash-message.alert-warning')
           .exists('Notification is rendered at the 10m mark');
@@ -393,8 +386,6 @@ module('Acceptance | tokens', function (hooks) {
     await click('[data-test-oidc-account="Manager"]');
     await waitUntil(() => currentURL().startsWith('/settings/tokens'));
     await waitUntil(() => !!find('[data-test-token-name]'));
-
-    await percySnapshot(assert);
 
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Manager');
@@ -464,7 +455,6 @@ module('Acceptance | tokens', function (hooks) {
       'Redirected with failure state',
     );
 
-    await percySnapshot(assert);
     assert.ok(Tokens.ssoErrorMessage);
   });
 
@@ -764,7 +754,6 @@ module('Acceptance | tokens', function (hooks) {
         { count: existingTokens.length },
         'One fewer token after deletion',
       );
-    await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
   });
 
@@ -805,7 +794,6 @@ module('Acceptance | tokens', function (hooks) {
     assert
       .dom('[data-test-policy-token-row]:last-child [data-test-token-name]')
       .hasText(`Example Token for ${testPolicy.name}`);
-    await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
   });
 
@@ -977,8 +965,6 @@ module('Acceptance | tokens', function (hooks) {
       assert.dom(policyBlocks[1]).hasText('client-reader');
       assert.dom(policyBlocks[2]).hasText('job-reader');
 
-      await percySnapshot(assert);
-
       await Tokens.clear();
 
       // User with 2 roles, each containing 1 policy, and one of the policies is also directly on their token
@@ -1061,8 +1047,6 @@ module('Acceptance | tokens', function (hooks) {
       assert
         .dom('[data-test-token-row]')
         .exists({ count: this.server.db.tokens.length });
-
-      await percySnapshot(assert);
     });
 
     test('Tokens index, management token handling', async function (assert) {
@@ -1370,8 +1354,6 @@ module('Acceptance | tokens', function (hooks) {
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
 
-      await percySnapshot(assert);
-
       await Administration.visitTokens();
       // Policies cell for our clay token should read "No Policies"
       const clayToken = this.server.db.tokens.findBy({
@@ -1454,7 +1436,6 @@ module('Acceptance | tokens', function (hooks) {
       assert
         .dom('[data-test-token-expiration-time-input]')
         .exists('HTML datetime-local picker exists');
-      await percySnapshot(assert);
       // select a date/time for 100 minutes into the future in GMT
       const soon = new Date();
       soon.setMinutes(soon.getMinutes() + 100);
@@ -1568,7 +1549,6 @@ module('Tokens and Regions', function (hooks) {
       'america',
       'Global token is saved in the authoritative region, regardless of active UI region',
     );
-    await percySnapshot(assert);
   });
 
   test('A token can be created in a non-authoritative region', async function (assert) {

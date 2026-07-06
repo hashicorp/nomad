@@ -66,7 +66,7 @@ jobs:
           jq . < results.sarif
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@8fd294e26a0e458834582b0fe4988d79966c7c0a # codeql-bundle-v2.18.4
+        uses: github/codeql-action/upload-sarif@c35d1b164463ee62a100735382aaaa525c5d3496 # codeql-bundle-v2.25.6
         with:
           sarif_file: results.sarif
 

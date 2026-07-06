@@ -117,7 +117,7 @@ The following diagram illustrates the logic flow of the cluster reconciler:
                |                are terminal or from older job ver are
                |                put into "ignore" bucket
                |                - cancelUnneededCanaries
-               |                - filterByTainted: results in 6 buckets
+               |                - classifyAllocs: results in 7 buckets
                |                mentioned in the paragraphs above:
                |                untainted, migrate, lost, disconnecting,
                |                reconnecting, ignore and expiring.

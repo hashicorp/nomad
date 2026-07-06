@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,6 @@ import (
 	"github.com/hashicorp/nomad/helper/bufconndialer"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
@@ -134,6 +134,10 @@ type Agent struct {
 	taskAPIServer *builtinAPI
 
 	inmemSink *metrics.InmemSink
+
+	// configReloader triggers a full agent configuration
+	// reload, equivalent to SIGHUP
+	configReloader func() error
 
 	// tlsMetrics is the process that handles periodically emitting agent TLS
 	// certificate expiry metrics. If the agent is not configured within TLS,
@@ -693,7 +697,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	// Interpret job_max_source_size as bytes from string value
 	if agentConfig.Server.JobMaxSourceSize == nil {
-		agentConfig.Server.JobMaxSourceSize = pointer.Of("1M")
+		agentConfig.Server.JobMaxSourceSize = new("1M")
 	}
 	jobMaxSourceBytes, err := humanize.ParseBytes(*agentConfig.Server.JobMaxSourceSize)
 	if err != nil {
@@ -1161,6 +1165,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	conf.LogFile = agentConfig.LogFile
+	conf.DefaultIneligible = agentConfig.Client.DefaultIneligible
+
 	return conf, nil
 }
 
@@ -1590,6 +1596,12 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 		agent = true
 	}
 
+	// Check if known config files or paths have changed.
+	if !slices.Equal(a.config.Files, newConfig.Files) ||
+		!slices.Equal(a.config.ConfigPaths, newConfig.ConfigPaths) {
+		agent = true
+	}
+
 	isEqual, err := a.config.TLSConfig.CertificateInfoIsEqual(newConfig.TLSConfig)
 	if err != nil {
 		a.logger.Error("parsing TLS certificate", "error", err)
@@ -1616,6 +1628,15 @@ func (a *Agent) ShouldReload(newConfig *Config) (agent, http bool) {
 	return agent, http
 }
 
+// ConfigReload triggers a full agent configuration reload, equivalent to
+// receiving a SIGHUP signal. The reload logic lives in Command.handleReload.
+func (a *Agent) ConfigReload() error {
+	if a.configReloader == nil {
+		return nil
+	}
+	return a.configReloader()
+}
+
 // Reload handles configuration changes for the agent. Provides a method that
 // is easier to unit test, as this action is invoked via SIGHUP.
 func (a *Agent) Reload(newConfig *Config) error {
@@ -1634,6 +1655,9 @@ func (a *Agent) Reload(newConfig *Config) error {
 		current.LogLevel = newConfig.LogLevel
 		a.logger.SetLevel(log.LevelFromString(current.LogLevel))
 	}
+
+	current.Files = slices.Clone(newConfig.Files)
+	current.ConfigPaths = slices.Clone(newConfig.ConfigPaths)
 
 	// Update eventer config
 	if newConfig.Audit != nil {

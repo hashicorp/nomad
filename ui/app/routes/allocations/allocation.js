@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -54,7 +54,7 @@ export default class AllocationRoute extends Route.extend(WithWatchers) {
         await allocation.reload();
       }
       const jobId = allocation.belongsTo('job').id();
-      await this.store.findRecord('job', jobId);
+      await this.store.findRecord('job', jobId, { reload: true });
 
       // Force fragment-array materialization before first render so Ember does
       // not lazily write `services` during template computation.

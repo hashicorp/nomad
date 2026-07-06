@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -107,9 +107,21 @@ func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Reques
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
+
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
+	}
+
+	var secret string
+	s.parseToken(req, &secret)
+
+	// COMPAT(2.1.0): this will return an error in Nomad 2.1
+	// ref https://hashicorp.atlassian.net/browse/NMD-1507
+	var warning string
+	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
+		warning = "anonymous server join is deprecated and will be removed in a future version of Nomad"
+		s.logger.Warn(warning)
 	}
 
 	// Get the join addresses
@@ -125,7 +137,11 @@ func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Reques
 	if err != nil {
 		errStr = err.Error()
 	}
-	return joinResult{num, errStr}, nil
+	return joinResult{
+		NumJoined: num,
+		Error:     errStr,
+		Warning:   warning,
+	}, nil
 }
 
 func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -563,6 +579,26 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	return peers, nil
 }
 
+func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	aclObj, err := s.ResolveToken(req)
+	if err != nil {
+		return nil, err
+	}
+	if !aclObj.AllowAgentWrite() {
+		return nil, structs.ErrPermissionDenied
+	}
+
+	if err := s.agent.ConfigReload(); err != nil {
+		return nil, CodedError(500, err.Error())
+	}
+
+	return nil, nil
+}
+
 func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	client := s.agent.Client()
 	if client == nil {
@@ -662,6 +698,7 @@ type agentSelf struct {
 type joinResult struct {
 	NumJoined int    `json:"num_joined"`
 	Error     string `json:"error"`
+	Warning   string `json:"warning"`
 }
 
 func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {

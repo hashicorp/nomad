@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -269,11 +269,16 @@ func jobTableSchema() *memdb.TableSchema {
 					Field: "NodePool",
 				},
 			},
-			// ModifyIndex allows sorting by last-changed
+			// ModifyIndex allows sorting by last-changed. This index is NOT
+			// unique: when a single Raft transaction writes multiple jobs (e.g.
+			// rescheduling several allocations after a node goes down), those
+			// jobs share a ModifyIndex. Marking it Unique would collapse them
+			// into a single index entry and drop the rest from any query that
+			// iterates this index (e.g. Job.Statuses, backing the UI jobs page).
 			"modify_index": {
 				Name:         "modify_index",
 				AllowMissing: false,
-				Unique:       true,
+				Unique:       false,
 				Indexer: &memdb.UintFieldIndex{
 					Field: "ModifyIndex",
 				},

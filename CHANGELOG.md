@@ -1,3 +1,84 @@
+## 2.0.3 (June 09, 2026)
+
+FEATURES:
+
+* core: timeouts for batch jobs [[GH-27803](https://github.com/hashicorp/nomad/issues/27803)]
+
+SECURITY:
+
+* cli: Redact token and certificate key CLI flags and environment variables when writing debug bundle [[GH-28063](https://github.com/hashicorp/nomad/issues/28063)]
+
+IMPROVEMENTS:
+
+* acl: Support uploading client ACL tokens [[GH-27741](https://github.com/hashicorp/nomad/issues/27741)]
+* alloc: don't restore when allocDir is inaccessible [[GH-27933](https://github.com/hashicorp/nomad/issues/27933)]
+* api: added agent reload endpoint [[GH-27106](https://github.com/hashicorp/nomad/issues/27106)]
+* build: Updated Go to 1.26.4 [[GH-28080](https://github.com/hashicorp/nomad/issues/28080)]
+* client: Adds default_ineligible configuration option [[GH-27965](https://github.com/hashicorp/nomad/issues/27965)]
+* identity: allow additional claims to be added to workload identities [[GH-27786](https://github.com/hashicorp/nomad/issues/27786)]
+* vault: adds token renewal retries [[GH-27947](https://github.com/hashicorp/nomad/issues/27947)]
+
+BUG FIXES:
+
+* audit (Enterprise): Fixed a bug where alloc exec and job actions requests from the webbrowser would be marked as anonymous in audit logs [[GH-28025](https://github.com/hashicorp/nomad/issues/28025)]
+* cli: Fixed `job dispatch` and `job periodic force` failing with a paginator error against servers older than the CLI [[GH-27680](https://github.com/hashicorp/nomad/issues/27680)]
+* client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
+* consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
+* plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
+* template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
+* ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
+* ui: Fix service detail page not rendering [[GH-28005](https://github.com/hashicorp/nomad/issues/28005)]
+* ui: Fixed flickering on the log streaming pop out when viewing them from job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+* ui: Fixed the client drain popover form to provide an accessible name for assistive technologies [[GH-28047](https://github.com/hashicorp/nomad/issues/28047)]
+* ui: Fixed the drain popover deadline field so its label is properly associated with the input for improved accessibility [[GH-28029](https://github.com/hashicorp/nomad/issues/28029)]
+* ui: Fixed the namespace list being continually fetched when on the job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+
+## 2.0.2 (May 22, 2026)
+
+BUG FIXES:
+
+* acl: fix rpc permission denied error when using node_pool="all" [[GH-27973](https://github.com/hashicorp/nomad/issues/27973)]
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+
+## 2.0.1 (May 12, 2026)
+
+BREAKING CHANGES:
+
+* logging: The allocation logs directory is bind-mounted read-only for task drivers that support with filesystem isolation [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+
+SECURITY:
+
+* dynamic host volumes: Prevent unintended code execution outside the plugin directory (CVE-2026-7474) [[GH-27919](https://github.com/hashicorp/nomad/issues/27919)]
+* logging: Protect logging FIFO from symlink swap attacks (CVE-2026-6959) [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+* sentinel: require sentinel-override ACL capability for overriding soft-mandatory policies on volumes
+* ui: Upgraded Ember to 6.10 [[GH-27674](https://github.com/hashicorp/nomad/issues/27674)]
+
+IMPROVEMENTS:
+
+* api: Add "latest" flag for tagging the latest version of a job [[GH-27764](https://github.com/hashicorp/nomad/issues/27764)]
+* build: Update Go toolchain to 1.26.3 [[GH-27924](https://github.com/hashicorp/nomad/issues/27924)]
+* cli: Added retry for nomad job run monitoring [[GH-27887](https://github.com/hashicorp/nomad/issues/27887)]
+* cli: Automatically expand `nomad exec -it` to `-i -t` [[GH-27906](https://github.com/hashicorp/nomad/issues/27906)]
+* cli: `job plan` now propagates `-hcl2-strict=false` into the suggested `nomad job run -check-index` invocation when the user passed it on the plan command line [[GH-23656](https://github.com/hashicorp/nomad/issues/23656)]
+* cli: add monitoring and verbose option to job dispatch [[GH-27541](https://github.com/hashicorp/nomad/issues/27541)]
+* drivers: include volume RequestName within mount config information if available [[GH-27710](https://github.com/hashicorp/nomad/issues/27710)]
+* scheduler: Add a configuration field for the number of nodes that the scheduler considers when spread or affinity is in use. This can improve scheduler performance for some cluster shapes. [[GH-27650](https://github.com/hashicorp/nomad/issues/27650)]
+* server: RPC dial timeout is configurable [[GH-27862](https://github.com/hashicorp/nomad/issues/27862)]
+* services: warn on job submit when job has services but no shutdown_delay [[GH-27782](https://github.com/hashicorp/nomad/issues/27782)]
+
+BUG FIXES:
+
+* api: Fix a bug where the Create Job, Update Job, and Scale Job APIs could fail to respect EnforceIndex under concurrent requests [[GH-27832](https://github.com/hashicorp/nomad/issues/27832)]
+* core: avoid setting job to dead while waiting for allocations to reschedule [[GH-27852](https://github.com/hashicorp/nomad/issues/27852)]
+* csi: improve check of StagePublishBaseDir being subdirectory of MountDir [[GH-27717](https://github.com/hashicorp/nomad/issues/27717)]
+* deployments: reset ProgressDeadline after pausing and do not fail while paused [[GH-27804](https://github.com/hashicorp/nomad/issues/27804)]
+* drivers: kill plugin instance on dispense failure [[GH-27711](https://github.com/hashicorp/nomad/issues/27711)]
+* job (Enterprise): Renabled use of multiple vault namespaces in a single job
+* plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted [[GH-27885](https://github.com/hashicorp/nomad/issues/27885)]
+* scheduler: Fixed a bug where preemption of allocations by tasks that require devices could incorrectly fail placement [[GH-27880](https://github.com/hashicorp/nomad/issues/27880)]
+
 ## 2.0.0 (April 21, 2026)
 
 FEATURES:
@@ -27,6 +108,72 @@ BUG FIXES:
 * identity: fix bug where client identity failed to renew after server upgrade to >=1.11.0 [[GH-27773](https://github.com/hashicorp/nomad/issues/27773)]
 * oidc: Fixed a bug where the request cache could be corrupted by concurrent requests with the same nonce [[GH-27747](https://github.com/hashicorp/nomad/issues/27747)]
 * tls: fix parsing of combined key files when creating tls expiry metric [[GH-27667](https://github.com/hashicorp/nomad/issues/27667)]
+
+## 1.11.7 Enterprise (June 09, 2026)
+
+SECURITY:
+
+* cli: Redact token and certificate key CLI flags and environment variables when writing debug bundle [[GH-28063](https://github.com/hashicorp/nomad/issues/28063)]
+
+IMPROVEMENTS:
+
+* build: Updated Go to 1.26.4 [[GH-28080](https://github.com/hashicorp/nomad/issues/28080)]
+* vault: adds token renewal retries [[GH-27947](https://github.com/hashicorp/nomad/issues/27947)]
+
+BUG FIXES:
+
+* audit (Enterprise): Fixed a bug where alloc exec and job actions requests from the webbrowser would be marked as anonymous in audit logs [[GH-28025](https://github.com/hashicorp/nomad/issues/28025)]
+* client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
+* client: fix a bug where we could accidentally overwrite task states [[GH-27944](https://github.com/hashicorp/nomad/issues/27944)]
+* consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
+* plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
+* template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
+* ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
+* ui: Fix service detail page not rendering [[GH-28005](https://github.com/hashicorp/nomad/issues/28005)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+* ui: Fixed flickering on the log streaming pop out when viewing them from job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+* ui: Fixed the client drain popover form to provide an accessible name for assistive technologies [[GH-28047](https://github.com/hashicorp/nomad/issues/28047)]
+* ui: Fixed the drain popover deadline field so its label is properly associated with the input for improved accessibility [[GH-28029](https://github.com/hashicorp/nomad/issues/28029)]
+* ui: Fixed the namespace list being continually fetched when on the job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+
+## 1.11.6 Enterprise (May 22, 2026)
+
+BUG FIXES:
+
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+
+## 1.11.5 Enterprise (May 12, 2026)
+
+BREAKING CHANGES:
+
+* logging: The allocation logs directory is bind-mounted read-only for task drivers that support with filesystem isolation [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+
+SECURITY:
+
+* dynamic host volumes: Prevent unintended code execution outside the plugin directory (CVE-2026-7474) [[GH-27919](https://github.com/hashicorp/nomad/issues/27919)]
+* logging: Protect logging FIFO from symlink swap attacks (CVE-2026-6959) [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+* sentinel: require sentinel-override ACL capability for overriding soft-mandatory policies on volumes
+* ui: Upgraded Ember to 6.10 [[GH-27674](https://github.com/hashicorp/nomad/issues/27674)]
+
+IMPROVEMENTS:
+
+* build: Update Go toolchain to 1.26.3 [[GH-27924](https://github.com/hashicorp/nomad/issues/27924)]
+* drivers: include volume RequestName within mount config information if available [[GH-27710](https://github.com/hashicorp/nomad/issues/27710)]
+* server: RPC dial timeout is configurable [[GH-27862](https://github.com/hashicorp/nomad/issues/27862)]
+* services: warn on job submit when job has services but no shutdown_delay [[GH-27782](https://github.com/hashicorp/nomad/issues/27782)]
+
+BUG FIXES:
+
+* api: Fix a bug where the Create Job, Update Job, and Scale Job APIs could fail to respect EnforceIndex under concurrent requests [[GH-27832](https://github.com/hashicorp/nomad/issues/27832)]
+* core: avoid setting job to dead while waiting for allocations to reschedule [[GH-27852](https://github.com/hashicorp/nomad/issues/27852)]
+* csi: improve check of StagePublishBaseDir being subdirectory of MountDir [[GH-27717](https://github.com/hashicorp/nomad/issues/27717)]
+* deployments: reset ProgressDeadline after pausing and do not fail while paused [[GH-27804](https://github.com/hashicorp/nomad/issues/27804)]
+* drivers: kill plugin instance on dispense failure [[GH-27711](https://github.com/hashicorp/nomad/issues/27711)]
+* job (Enterprise): Renabled use of multiple vault namespaces in a single job
+* plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted [[GH-27885](https://github.com/hashicorp/nomad/issues/27885)]
+* scheduler: Fixed a bug where preemption of allocations by tasks that require devices could incorrectly fail placement [[GH-27880](https://github.com/hashicorp/nomad/issues/27880)]
 
 ## 1.11.4 Enterprise (April 21, 2026)
 
@@ -253,6 +400,71 @@ BUG FIXES:
 * state: Fixed a bug where the server could panic when attempting to remove unneeded evals from the eval broker [[GH-26872](https://github.com/hashicorp/nomad/issues/26872)]
 * ui: Fixed a bug where action fly-outs would fail to open due to a missing module [[GH-26833](https://github.com/hashicorp/nomad/issues/26833)]
 * windows: Fixed a bug where agents would not gracefully shut down on Ctrl-C [[GH-26780](https://github.com/hashicorp/nomad/issues/26780)]
+
+## 1.10.13 Enterprise (June 09, 2026)
+
+SECURITY:
+
+* cli: Redact token and certificate key CLI flags and environment variables when writing debug bundle [[GH-28063](https://github.com/hashicorp/nomad/issues/28063)]
+
+IMPROVEMENTS:
+
+* build: Updated Go to 1.26.4 [[GH-28080](https://github.com/hashicorp/nomad/issues/28080)]
+* vault: adds token renewal retries [[GH-27947](https://github.com/hashicorp/nomad/issues/27947)]
+
+BUG FIXES:
+
+* audit (Enterprise): Fixed a bug where alloc exec and job actions requests from the webbrowser would be marked as anonymous in audit logs [[GH-28025](https://github.com/hashicorp/nomad/issues/28025)]
+* client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
+* client: fix a bug where we could accidentally overwrite task states [[GH-27944](https://github.com/hashicorp/nomad/issues/27944)]
+* consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
+* plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
+* template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
+* ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
+* ui: Fix service detail page not rendering [[GH-28005](https://github.com/hashicorp/nomad/issues/28005)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+* ui: Fixed flickering on the log streaming pop out when viewing them from job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+* ui: Fixed the client drain popover form to provide an accessible name for assistive technologies [[GH-28047](https://github.com/hashicorp/nomad/issues/28047)]
+* ui: Fixed the drain popover deadline field so its label is properly associated with the input for improved accessibility [[GH-28029](https://github.com/hashicorp/nomad/issues/28029)]
+* ui: Fixed the namespace list being continually fetched when on the job overview page [[GH-28074](https://github.com/hashicorp/nomad/issues/28074)]
+
+## 1.10.12 Enterprise (May 22, 2026)
+
+BUG FIXES:
+
+* ui: Fixed a bug where the client detail page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the topology page would fail to render [[GH-27958](https://github.com/hashicorp/nomad/issues/27958)]
+* ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
+
+## 1.10.11 Enterprise (May 12, 2026)
+
+BREAKING CHANGES:
+
+* logging: The allocation logs directory is bind-mounted read-only for task drivers that support with filesystem isolation [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+
+SECURITY:
+
+* dynamic host volumes: Prevent unintended code execution outside the plugin directory (CVE-2026-7474) [[GH-27919](https://github.com/hashicorp/nomad/issues/27919)]
+* logging: Protect logging FIFO from symlink swap attacks (CVE-2026-6959) [[GH-27918](https://github.com/hashicorp/nomad/issues/27918)]
+* sentinel: require sentinel-override ACL capability for overriding soft-mandatory policies on volumes
+* ui: Upgraded Ember to 6.10 [[GH-27674](https://github.com/hashicorp/nomad/issues/27674)]
+
+IMPROVEMENTS:
+
+* build: Update Go toolchain to 1.26.3 [[GH-27924](https://github.com/hashicorp/nomad/issues/27924)]
+* drivers: include volume RequestName within mount config information if available [[GH-27710](https://github.com/hashicorp/nomad/issues/27710)]
+* server: RPC dial timeout is configurable [[GH-27862](https://github.com/hashicorp/nomad/issues/27862)]
+* services: warn on job submit when job has services but no shutdown_delay [[GH-27782](https://github.com/hashicorp/nomad/issues/27782)]
+
+BUG FIXES:
+
+* api: Fix a bug where the Create Job, Update Job, and Scale Job APIs could fail to respect EnforceIndex under concurrent requests [[GH-27832](https://github.com/hashicorp/nomad/issues/27832)]
+* csi: improve check of StagePublishBaseDir being subdirectory of MountDir [[GH-27717](https://github.com/hashicorp/nomad/issues/27717)]
+* deployments: reset ProgressDeadline after pausing and do not fail while paused [[GH-27804](https://github.com/hashicorp/nomad/issues/27804)]
+* drivers: kill plugin instance on dispense failure [[GH-27711](https://github.com/hashicorp/nomad/issues/27711)]
+* job (Enterprise): Renabled use of multiple vault namespaces in a single job
+* plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted [[GH-27885](https://github.com/hashicorp/nomad/issues/27885)]
+* scheduler: Fixed a bug where preemption of allocations by tasks that require devices could incorrectly fail placement [[GH-27880](https://github.com/hashicorp/nomad/issues/27880)]
 
 ## 1.10.10 Enterprise (April 21, 2026)
 

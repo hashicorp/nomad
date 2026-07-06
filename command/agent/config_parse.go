@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -161,6 +161,11 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"client.template.consul_retry.max_backoff", nil, &c.Client.TemplateConfig.ConsulRetry.MaxBackoffHCL,
 			func(d *time.Duration) {
 				c.Client.TemplateConfig.ConsulRetry.MaxBackoff = d
+			},
+		},
+		{"client.template.vault_default_lease_duration", nil, &c.Client.TemplateConfig.VaultDefaultLeaseDurationHCL,
+			func(d *time.Duration) {
+				c.Client.TemplateConfig.VaultDefaultLeaseDuration = d
 			},
 		},
 		{"client.template.vault_retry.backoff", nil, &c.Client.TemplateConfig.VaultRetry.BackoffHCL,

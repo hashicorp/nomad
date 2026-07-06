@@ -1,19 +1,68 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
+
+func TestSetupVaultCommand_renderVaultPolicy(t *testing.T) {
+	ci.Parallel(t)
+
+	const accessor = "auth_jwt_0a1b2c3d"
+	policyBody := string(vaultPolicyBody)
+
+	// The default "secret" mount renders identically to substituting only the
+	// accessor, so omitting -kv-path leaves the policy byte-for-byte unchanged.
+	must.Eq(t,
+		strings.ReplaceAll(policyBody, "auth_jwt_X", accessor),
+		renderVaultPolicy(policyBody, accessor, "secret"),
+	)
+
+	testCases := []struct {
+		name   string
+		kvPath string
+		want   string
+	}{
+		{name: "custom mount", kvPath: "kv", want: "kv/data/"},
+		{name: "nested mount", kvPath: "kv/mongo", want: "kv/mongo/data/"},
+		{name: "trailing slash trimmed", kvPath: "kv/", want: "kv/data/"},
+		{name: "leading slash trimmed", kvPath: "/kv", want: `path "kv/data/`},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := renderVaultPolicy(policyBody, accessor, tc.kvPath)
+			must.StrContains(t, got, tc.want)
+			must.StrContains(t, got, accessor)
+			must.StrNotContains(t, got, "secret/")
+			must.StrNotContains(t, got, "auth_jwt_X")
+			// every path stanza survives the substitution
+			must.Eq(t, strings.Count(policyBody, `path "`), strings.Count(got, `path "`))
+		})
+	}
+}
+
+func TestSetupVaultCommand_Run_emptyKVPath(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, kvPath := range []string{"", "/", "///"} {
+		ui := cli.NewMockUi()
+		cmd := &SetupVaultCommand{Meta: Meta{Ui: ui}}
+		rc := cmd.Run([]string{"-kv-path", kvPath})
+		must.Eq(t, 1, rc)
+		must.StrContains(t, ui.ErrorWriter.String(), "non-empty mount path")
+	}
+}
 
 func TestSetupVaultCommand_Run(t *testing.T) {
 	ci.Parallel(t)
@@ -22,7 +71,7 @@ func TestSetupVaultCommand_Run(t *testing.T) {
 	srv, client, url := testServer(t, true, func(c *agent.Config) {
 		c.DevMode = true
 		c.Vaults[0].Name = "default"
-		c.Vaults[0].Enabled = pointer.Of(true)
+		c.Vaults[0].Enabled = new(true)
 	})
 	defer srv.Shutdown()
 

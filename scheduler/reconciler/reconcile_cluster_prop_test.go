@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package reconciler
@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -257,7 +256,7 @@ func TestAllocReconciler_cancelUnneededCanaries(t *testing.T) {
 			}
 		}
 		canarySet := all.fromKeys(expectedCanaries)
-		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := canarySet.filterByTainted(clusterState)
+		canariesOnUntaintedNodes, migrate, lost, _, _, _, _ := canarySet.classifyAllocs(clusterState)
 
 		stopSet = stopSet.union(migrate, lost)
 
@@ -494,7 +493,7 @@ func genTaskGroup(idg *idGenerator) *rapid.Generator[*structs.TaskGroup] {
 			Update: genUpdateBlock(tgCount).Draw(t, "tg_update_block"),
 			Disconnect: &structs.DisconnectStrategy{
 				LostAfter: maybeDuration(50, 300).Draw(t, "disconnect:lost_after"),
-				Replace:   pointer.Of(rapid.Bool().Draw(t, "disconnect:replace")),
+				Replace:   new(rapid.Bool().Draw(t, "disconnect:replace")),
 				Reconcile: structs.ReconcileOptionBestScore,
 			},
 			// we'll use a fairly static policy and then use the alloc

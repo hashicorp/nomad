@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -17,7 +17,6 @@ import { handleRouteRedirects } from '../utils/route-redirector';
 export default class ApplicationRoute extends Route {
   @service config;
   @service system;
-  @service store;
   @service token;
   @service router;
 
@@ -89,16 +88,18 @@ export default class ApplicationRoute extends Route {
     const queryParam = transition.to.queryParams.region;
     const defaultRegion = this.get('system.defaultRegion.region');
     const currentRegion = this.get('system.activeRegion') || defaultRegion;
+    const nextRegion = queryParam || defaultRegion;
+    const regionChanged = nextRegion !== currentRegion;
 
-    // Only reset the store if the region actually changed
-    if (
-      (queryParam && queryParam !== currentRegion) ||
-      (!queryParam && currentRegion !== defaultRegion)
-    ) {
-      this.store.unloadAll();
+    // Update the active region - the adapter will use this for all API requests
+    this.set('system.activeRegion', nextRegion);
+
+    // Refresh for child routes if region changes and only if query-param-only transitions
+    if (regionChanged && transition.queryParamsOnly) {
+      later(() => {
+        this.refresh();
+      }, 0);
     }
-
-    this.set('system.activeRegion', queryParam || defaultRegion);
 
     return promises;
   }

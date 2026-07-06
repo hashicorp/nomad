@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -415,17 +415,19 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 func TestPlanApply_signAllocIdentities(t *testing.T) {
 	// note: this is mutated by the method under test
 	alloc := mockAlloc()
-	job := alloc.Job
-	taskName := job.TaskGroups[0].Tasks[0].Name // "web"
-	allocs := []*structs.Allocation{alloc}
 
 	signErr := errors.New("could not sign the thing")
 
 	cases := []struct {
-		name      string
-		signer    *mockSigner
-		expectErr error
-		callNum   int
+		name             string
+		signer           *mockSigner
+		expectErr        error
+		callNum          int
+		alloc            *structs.Allocation
+		ns               *structs.Namespace
+		expectedToken    string
+		expectedKeyID    string
+		additionalChecks func(*testing.T, *structs.IdentityClaims)
 	}{
 		{
 			name: "signer error",
@@ -434,6 +436,8 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 			},
 			expectErr: signErr,
 			callNum:   1,
+			alloc:     alloc,
+			ns:        mock.Namespace(),
 		},
 		{
 			name: "first signing",
@@ -441,7 +445,11 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 				nextToken: "first-token",
 				nextKeyID: "first-key",
 			},
-			callNum: 1,
+			callNum:       1,
+			alloc:         alloc,
+			ns:            mock.Namespace(),
+			expectedToken: "first-token",
+			expectedKeyID: "first-key",
 		},
 		{
 			name: "second signing",
@@ -449,14 +457,57 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 				nextToken: "dont-sign-token",
 				nextKeyID: "dont-sign-key",
 			},
-			callNum: 0,
+			callNum:       0,
+			alloc:         alloc,
+			ns:            mock.Namespace(),
+			expectedToken: "first-token",
+			expectedKeyID: "first-key",
+		},
+		{
+			name: "signing with additional claims",
+			signer: &mockSigner{
+				nextToken: "signed-this-token",
+				nextKeyID: "signed-this-key",
+			},
+			callNum: 1,
+			alloc: func() *structs.Allocation {
+				alloc := mockAlloc()
+				job := alloc.Job
+				job.Meta = map[string]string{"customer": "important"}
+				job.TaskGroups[0].Tasks[0].Identity = &structs.WorkloadIdentity{
+					Name: structs.WorkloadIdentityDefaultName,
+					ExtraClaims: []string{
+						"customer_claim",
+					},
+				}
+				return alloc
+			}(),
+			ns: &structs.Namespace{
+				Name: "default",
+				RequiredExtraClaims: map[string]string{
+					"required_claim": "${job.namespace}",
+				},
+				OptionalExtraClaims: map[string]string{
+					"customer_claim": "acct-${job.meta.customer}",
+				},
+			},
+			expectedToken: "signed-this-token",
+			expectedKeyID: "signed-this-key",
+			expectErr:     nil,
+			additionalChecks: func(t *testing.T, idClaims *structs.IdentityClaims) {
+				must.Eq(t, "default", idClaims.ExtraClaims["required_claim"])
+				must.Eq(t, "acct-important", idClaims.ExtraClaims["customer_claim"])
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			err := signAllocIdentities(tc.signer, job, allocs, time.Now())
+			job := tc.alloc.Job
+			taskName := job.TaskGroups[0].Tasks[0].Name
+
+			err := signAllocIdentities(tc.signer, job, []*structs.Allocation{tc.alloc}, tc.ns, time.Now())
 
 			if tc.expectErr != nil {
 				must.Error(t, err)
@@ -464,22 +515,24 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 			} else {
 				must.NoError(t, err)
 				// assert mutations happened
-				must.MapLen(t, 1, allocs[0].SignedIdentities)
+				must.MapLen(t, 1, tc.alloc.SignedIdentities)
 				// we should always keep the first signing
-				must.Eq(t, "first-token", allocs[0].SignedIdentities[taskName])
-				must.Eq(t, "first-key", allocs[0].SigningKeyID)
+				must.Eq(t, tc.expectedToken, tc.alloc.SignedIdentities[taskName])
+				must.Eq(t, tc.expectedKeyID, tc.alloc.SigningKeyID)
 			}
 
 			must.Len(t, tc.callNum, tc.signer.calls, must.Sprint("unexpected call count"))
 			if tc.callNum > 0 {
 				call := tc.signer.calls[tc.callNum-1]
 				must.NotNil(t, call)
-				must.Eq(t, call.AllocationID, alloc.ID)
-				must.Eq(t, call.Namespace, alloc.Namespace)
+				must.Eq(t, call.AllocationID, tc.alloc.ID)
+				must.Eq(t, call.Namespace, tc.alloc.Namespace)
 				must.Eq(t, call.JobID, job.ID)
 				must.Eq(t, call.TaskName, taskName)
+				if tc.additionalChecks != nil {
+					tc.additionalChecks(t, call)
+				}
 			}
-
 		})
 	}
 }

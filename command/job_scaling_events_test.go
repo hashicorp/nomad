@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -70,7 +69,7 @@ func TestJobScalingEventsCommand_Run(t *testing.T) {
 	// Perform a scaling action to generate an event.
 	_, _, err = client.Jobs().Scale(
 		"scale_events_test_job",
-		"group1", pointer.Of(2),
+		"group1", new(2),
 		"searchable custom test message", false, nil, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -18,12 +18,28 @@ import (
 func TestNewIdentityClaims(t *testing.T) {
 	ci.Parallel(t)
 
+	namespace := &Namespace{
+		Name: "default",
+		OptionalExtraClaims: map[string]string{
+			"other":             "value",
+			"meta":              "${job.meta.customer}/${job.meta.environment}",
+			"unknown_meta":      "${job.meta.missing}",
+			"unknown_token":     "${job.unknown}",
+			"empty_and_meta":    "x${job.meta.customer}y",
+			"nomad_workload_id": "other",
+		},
+	}
+
 	job := &Job{
 		ID:        "job",
 		ParentID:  "parentJob",
 		Name:      "job",
-		Namespace: "default",
+		Namespace: namespace.Name,
 		Region:    "global",
+		Meta: map[string]string{
+			"customer":    "important",
+			"environment": "prod",
+		},
 
 		TaskGroups: []*TaskGroup{
 			{
@@ -54,6 +70,21 @@ func TestNewIdentityClaims(t *testing.T) {
 							{
 								Name:     "vault_default",
 								Audience: []string{"vault.io"},
+							},
+							{
+								Name:        "vault_overwrite",
+								Audience:    []string{"vault.io"},
+								ExtraClaims: []string{"nomad_workload_id"},
+							},
+							{
+								Name:        "identity-optional-claims",
+								Audience:    []string{"opt.example.com"},
+								ExtraClaims: []string{"other", "meta", "unknown_meta", "unknown_token", "empty_and_meta", "nomad_workload_id"},
+							},
+							{
+								Name:        "nonexistant-option",
+								Audience:    []string{"opt.example.com"},
+								ExtraClaims: []string{"secret"},
 							},
 						},
 						Services: []*Service{{
@@ -175,6 +206,39 @@ func TestNewIdentityClaims(t *testing.T) {
 	}
 	job.Canonicalize()
 
+	otherNamespace := &Namespace{
+		Name: "other",
+		RequiredExtraClaims: map[string]string{
+			"required": "${job.meta.required}",
+		},
+	}
+	job2 := &Job{
+		ID:        "other-job",
+		ParentID:  "parentJob",
+		Name:      "other-job",
+		Namespace: otherNamespace.Name,
+		Region:    "global",
+		Meta: map[string]string{
+			"required":    "more-information",
+			"environment": "prod",
+		},
+
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "group",
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Identity: &WorkloadIdentity{
+							Name:     "default-identity",
+							Audience: []string{"example.com"},
+						},
+					},
+				},
+			},
+		},
+	}
+
 	expectedClaims := map[string]*IdentityClaims{
 		// group: no consul.
 		"job/group/services/group-service": {
@@ -246,6 +310,53 @@ func TestNewIdentityClaims(t *testing.T) {
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:group:task:vault_default",
 				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		"job/group/task/vault_overwrite": {
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				VaultNamespace: "",
+				Namespace:      "default",
+				JobID:          "parentJob",
+				TaskName:       "task",
+				VaultRole:      "", // not specified in jobspec
+				ExtraClaims: map[string]string{
+					"nomad_workload_id": "global:default:parentJob",
+				},
+			},
+			Claims: jwt.Claims{
+				Subject:  "global:default:parentJob:group:task:vault_overwrite",
+				Audience: jwt.Audience{"vault.io"},
+			},
+		},
+		"job/group/task/identity-optional-claims": {
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace: "default",
+				JobID:     "parentJob",
+				TaskName:  "task",
+				ExtraClaims: map[string]string{
+					"empty_and_meta":    "ximportanty",
+					"meta":              "important/prod",
+					"nomad_workload_id": "other",
+					"other":             "value",
+					"unknown_meta":      "${job.meta.missing}",
+					"unknown_token":     "${job.unknown}",
+				},
+			},
+			Claims: jwt.Claims{
+				Subject:  "global:default:parentJob:group:task:identity-optional-claims",
+				Audience: jwt.Audience{"opt.example.com"},
+			},
+		},
+		"job/group/task/nonexistant-option": {
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace:   "default",
+				JobID:       "parentJob",
+				TaskName:    "task",
+				ExtraClaims: map[string]string{},
+			},
+			Claims: jwt.Claims{
+				Subject:  "global:default:parentJob:group:task:nonexistant-option",
+				Audience: jwt.Audience{"opt.example.com"},
 			},
 		},
 		"job/group/task/services/task-service": {
@@ -476,6 +587,20 @@ func TestNewIdentityClaims(t *testing.T) {
 				Audience: jwt.Audience{"task-service.consul.io"},
 			},
 		},
+		"other-job/group/task/default-identity": {
+			WorkloadIdentityClaims: &WorkloadIdentityClaims{
+				Namespace: "other",
+				JobID:     "parentJob",
+				TaskName:  "task",
+				ExtraClaims: map[string]string{
+					"required": "more-information",
+				},
+			},
+			Claims: jwt.Claims{
+				Subject:  "global:other:parentJob:group:task:default-identity",
+				Audience: jwt.Audience{"example.com"},
+			},
+		},
 	}
 
 	// Generate service identity names.
@@ -499,6 +624,8 @@ func TestNewIdentityClaims(t *testing.T) {
 	type testCase struct {
 		name           string
 		group          string
+		job            *Job
+		ns             *Namespace
 		task           *Task
 		svc            *Service
 		wid            *WorkloadIdentity
@@ -515,6 +642,8 @@ func TestNewIdentityClaims(t *testing.T) {
 			testCases = append(testCases, testCase{
 				name:           path,
 				group:          tg.Name,
+				job:            job,
+				ns:             namespace,
 				svc:            s,
 				wid:            s.Identity,
 				wiHandle:       s.IdentityHandle(nil),
@@ -533,6 +662,8 @@ func TestNewIdentityClaims(t *testing.T) {
 				path := path + "/" + wid.Name
 				testCases = append(testCases, testCase{
 					name:           path,
+					job:            job,
+					ns:             namespace,
 					group:          tg.Name,
 					task:           t,
 					wid:            wid,
@@ -545,6 +676,8 @@ func TestNewIdentityClaims(t *testing.T) {
 				path := path + "/services/" + s.Name
 				testCases = append(testCases, testCase{
 					name:           path,
+					job:            job,
+					ns:             namespace,
 					group:          tg.Name,
 					task:           t,
 					svc:            s,
@@ -556,21 +689,38 @@ func TestNewIdentityClaims(t *testing.T) {
 		}
 	}
 
+	testCases = append(testCases, testCase{
+		name:     "other-job/group/task/default-identity",
+		group:    "group",
+		job:      job2,
+		ns:       otherNamespace,
+		wid:      job2.TaskGroups[0].Tasks[0].Identity,
+		wiHandle: job2.TaskGroups[0].Tasks[0].IdentityHandle(job2.TaskGroups[0].Tasks[0].Identity),
+		task: &Task{
+			Name: "task",
+			Identity: &WorkloadIdentity{
+				Name:     "default-identity",
+				Audience: []string{"example.com"},
+			},
+		},
+		expectedClaims: expectedClaims["other-job/group/task/default-identity"],
+	})
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.expectedClaims == nil {
-				t.Skip("missing expected claims")
+				t.Skip("missing expected claims", tc.name)
 			}
 
 			now := time.Now()
 			alloc := &Allocation{
 				ID:        uuid.Generate(),
-				Namespace: job.Namespace,
-				JobID:     job.ID,
+				Namespace: tc.ns.Name,
+				JobID:     tc.job.ID,
 				TaskGroup: tc.group,
 			}
 
-			got := NewIdentityClaimsBuilder(job, alloc, tc.wiHandle, tc.wid).
+			got := NewIdentityClaimsBuilder(tc.job, alloc, tc.wiHandle, tc.wid, tc.ns).
 				WithTask(tc.task).
 				WithService(tc.svc).
 				WithConsul().

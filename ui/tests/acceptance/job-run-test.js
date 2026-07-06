@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -22,7 +22,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import JobRun from 'nomad-ui/tests/pages/jobs/run';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const newJobName = 'new-job';
@@ -496,7 +495,6 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('[data-test-template-list]')
         .exists('A list of templates is visible');
-      await percySnapshot(assert);
       await click('[data-test-edit-template="nomad/job-templates/foo"]');
       assert.deepEqual(
         currentRouteName(),
@@ -622,8 +620,6 @@ module('Acceptance | job run', function (hooks) {
       assert
         .dom('[data-test-template-card]')
         .exists({ count: NUMBER_OF_DEFAULT_TEMPLATES });
-
-      await percySnapshot(assert);
 
       await click('[data-test-template-card="Hello world"]');
       await click('[data-test-apply]');

@@ -10,9 +10,8 @@
   },
   "scripts": {
     "build": "ember build --environment=production",
-    "exam": "percy exec -- ember exam --split=4 --parallel",
-    "exam:ci": "percy exec --parallel -- ember exam --load-balance --random=false",
-    "exam:parallel": "percy exec --parallel -- ember exam",
+    "exam": "ember exam --split=4 --parallel",
+    "exam:ci": "ember exam --load-balance --random=false",
     "format": "prettier . --cache --write",
     "lint": "concurrently \"pnpm:lint:*(!fix)\" --names \"lint:\" --prefixColors auto",
     "lint:css": "stylelint \"**/*.scss\"",
@@ -26,29 +25,13 @@
     "lint:types": "tsc --noEmit",
     "local:exam": "ember exam --server --load-balance --parallel=4",
     "local:test": "ember test --server",
-    "percy": "percy",
-    "precommit": "lint-staged",
-    "seedless-test": "USE_PERCY=false ember test",
     "start": "ember server",
     "start:proxy": "USE_MIRAGE=false ember server --port 4646 --proxy http://127.0.0.1:4646",
     "test": "concurrently \"pnpm:lint\" \"pnpm:test:*\" --names \"lint,test:\" --prefixColors auto",
-    "test:ember": "percy exec -- ember test"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "{app,tests,config,lib,mirage}/**/*.js": [
-      "prettier --write"
-    ],
-    "app/styles/**/*.*": [
-      "prettier --write"
-    ]
+    "test:ember": "ember test"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
+    "@babel/core": "^7.29.6",
     "@babel/eslint-parser": "^7.28.6",
     "@babel/plugin-proposal-decorators": "^7.29.0",
     "@ember/legacy-built-in-components": "^0.5.0",
@@ -67,8 +50,6 @@
     "@hashicorp/design-system-components": "4.13.0",
     "@nullvoxpopuli/ember-composable-helpers": "^5.3.1",
     "@nullvoxpopuli/legacy-prototype-extensions": "^0.1.0",
-    "@percy/cli": "^1.31.13",
-    "@percy/ember": "^5.0.1",
     "@tsconfig/ember": "^3.0.12",
     "@types/qunit": "^2.19.13",
     "@types/rsvp": "^4.0.9",
@@ -89,7 +70,7 @@
     "d3-shape": "^3.2.0",
     "d3-time-format": "^4.1.0",
     "d3-transition": "^3.0.1",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.9",
     "duration-js": "^4.0.0",
     "ember-a11y-testing": "^8.0.0",
     "ember-auto-import": "^2.13.1",
@@ -117,6 +98,7 @@
     "ember-concurrency": "^4.0.6",
     "ember-copy": "^2.0.1",
     "ember-data": "~4.12.8",
+    "@ember-data/store": "~4.12.8",
     "ember-data-model-fragments": "7.0.3",
     "ember-decorators": "^6.1.1",
     "ember-exam": "10.1.0",

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -104,7 +104,7 @@ func (c *JobStartCommand) Run(args []string) int {
 		length = fullId
 	}
 
-	job, err := c.JobByPrefix(client, jobIDPrefix, "")
+	job, err := c.JobByPrefix(client, jobIDPrefix)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

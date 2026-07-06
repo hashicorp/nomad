@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package client
@@ -32,7 +32,6 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad"
@@ -1560,7 +1559,7 @@ func TestClient_handleNodeUpdateResponse(t *testing.T) {
 			{RPCAdvertiseAddr: "10.0.0.2:4647", Datacenter: "dc1"},
 			{RPCAdvertiseAddr: "10.0.0.3:4647", Datacenter: "dc1"},
 		},
-		SignedIdentity: pointer.Of("node-identity"),
+		SignedIdentity: new("node-identity"),
 	}
 
 	// Perform the update and test the outcome.
@@ -2294,6 +2293,91 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	require.NotNil(t, runner, "expected alloc runner")
 	require.False(t, invalid, "expected alloc to not be marked invalid")
 	require.Equal(t, unknownAlloc.AllocModifyIndex, finalAlloc.AllocModifyIndex)
+}
+
+func TestClient_DefaultIneligible(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := testServer(t, nil)
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.DevMode = false
+		c.DefaultIneligible = true
+		c.RPCHandler = s1
+	})
+	defer cleanupC1()
+
+	must.Eq(t, structs.NodeSchedulingIneligible, c1.Node().SchedulingEligibility)
+
+	req := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out structs.SingleNodeResponse
+
+	// Register should succeed
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			err := s1.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return err
+			}
+			if out.Node == nil {
+				return fmt.Errorf("missing reg")
+			}
+			return nil
+		}),
+	))
+
+	// Set node as eligible
+	req2 := structs.NodeUpdateEligibilityRequest{
+		NodeID:       c1.Node().ID,
+		Eligibility:  structs.NodeSchedulingEligible,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var out2 structs.NodeEligibilityUpdateResponse
+
+	err := s1.RPC("Node.UpdateEligibility", &req2, &out2)
+	must.NoError(t, err)
+	must.NotEq(t, out2.NodeModifyIndex, out.Index)
+
+	// Query node to confirm eligibility was toggled on
+	req3 := structs.NodeSpecificRequest{
+		NodeID:       c1.Node().ID,
+		QueryOptions: structs.QueryOptions{Region: "global"},
+	}
+	var out3 structs.SingleNodeResponse
+	err = s1.RPC("Node.GetNode", &req3, &out3)
+	must.NoError(t, err)
+	must.Eq(t, structs.NodeSchedulingEligible, out3.Node.SchedulingEligibility)
+
+	// Save client config, shutdown and start new client
+	c1Config := c1.config.Copy()
+	must.NoError(t, c1.Shutdown())
+	c2, err := NewClient(c1Config, c1.consulCatalog, nil, c1.consulServices, nil)
+	must.NoError(t, err)
+	t.Cleanup(func() {
+		test.NoError(t, c2.Shutdown())
+	})
+
+	// Assert new client and old client are same node
+	must.Eq(t, c1.NodeID(), c2.NodeID())
+
+	// Query to confirm restarted node is still eligible
+	req4 := structs.NodeSpecificRequest{
+		NodeID: c2.Node().ID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			MinQueryIndex: out3.Index + 1,
+		},
+	}
+	var out4 structs.SingleNodeResponse
+	err = s1.RPC("Node.GetNode", &req4, &out4)
+	must.NoError(t, err)
+	must.Eq(t, structs.NodeSchedulingEligible, out4.Node.SchedulingEligibility)
+
 }
 
 // TestClient_AllocPrerunErrorDuringRestore ensures that a running allocation,

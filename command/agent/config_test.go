@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test"
@@ -65,7 +64,7 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               false,
 		EnableSyslog:              false,
 		SyslogFacility:            "local0.info",
-		DisableUpdateCheck:        pointer.Of(false),
+		DisableUpdateCheck:        new(false),
 		DisableAnonymousSignature: false,
 		BindAddr:                  "127.0.0.1",
 		Telemetry: &Telemetry{
@@ -75,7 +74,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    false,
-			DisableAllocationHookMetrics:       pointer.Of(false),
+			DisableAllocationHookMetrics:       new(false),
 			CirconusAPIToken:                   "0",
 			CirconusAPIApp:                     "nomadic",
 			CirconusAPIURL:                     "http://api.circonus.com/v2",
@@ -92,7 +91,7 @@ func TestConfig_Merge(t *testing.T) {
 			PrefixFilter:                       []string{"filter1", "filter2"},
 		},
 		Audit: &config.AuditConfig{
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 			Sinks: []*config.AuditSink{
 				{
 					DeliveryGuarantee: "enforced",
@@ -134,7 +133,7 @@ func TestConfig_Merge(t *testing.T) {
 				DiskMB:        10,
 				ReservedPorts: "1,10-30,55",
 			},
-			NomadServiceDiscovery: pointer.Of(false),
+			NomadServiceDiscovery: new(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                false,
@@ -143,11 +142,11 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data1",
 			ProtocolVersion:        1,
 			RaftProtocol:           1,
-			RaftMultiplier:         pointer.Of(5),
-			RaftSnapshotThreshold:  pointer.Of(100),
-			RaftSnapshotInterval:   pointer.Of("30m"),
-			RaftTrailingLogs:       pointer.Of(200),
-			NumSchedulers:          pointer.Of(1),
+			RaftMultiplier:         new(5),
+			RaftSnapshotThreshold:  new(100),
+			RaftSnapshotInterval:   new("30m"),
+			RaftTrailingLogs:       new(200),
+			NumSchedulers:          new(1),
 			NodeGCThreshold:        "1h",
 			BatchEvalGCThreshold:   "4h",
 			HeartbeatGrace:         30 * time.Second,
@@ -155,10 +154,10 @@ func TestConfig_Merge(t *testing.T) {
 			MaxHeartbeatsPerSecond: 30.0,
 			RedundancyZone:         "foo",
 			UpgradeVersion:         "foo",
-			EnableEventBroker:      pointer.Of(false),
-			EventBufferSize:        pointer.Of(0),
+			EnableEventBroker:      new(false),
+			EventBufferSize:        new(0),
 			PlanRejectionTracker: &PlanRejectionTracker{
-				Enabled:       pointer.Of(true),
+				Enabled:       new(true),
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
@@ -257,11 +256,11 @@ func TestConfig_Merge(t *testing.T) {
 		LeaveOnTerm:               true,
 		EnableSyslog:              true,
 		SyslogFacility:            "local0.debug",
-		DisableUpdateCheck:        pointer.Of(true),
+		DisableUpdateCheck:        new(true),
 		DisableAnonymousSignature: true,
 		BindAddr:                  "127.0.0.2",
 		Audit: &config.AuditConfig{
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 			Sinks: []*config.AuditSink{
 				{
 					DeliveryGuarantee: "enforced",
@@ -283,7 +282,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    true,
-			DisableAllocationHookMetrics:       pointer.Of(true),
+			DisableAllocationHookMetrics:       new(true),
 			PublishNodeMetrics:                 true,
 			PublishAllocationMetrics:           true,
 			CirconusAPIToken:                   "1",
@@ -303,7 +302,7 @@ func TestConfig_Merge(t *testing.T) {
 			DisableDispatchedJobSummaryMetrics: true,
 			DisableQuotaUtilizationMetrics:     false,
 			DisableRPCRateMetricsLabels:        true,
-			FilterDefault:                      pointer.Of(false),
+			FilterDefault:                      new(false),
 		},
 		Client: &ClientConfig{
 			Enabled:   true,
@@ -330,17 +329,18 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist:   client.DefaultTemplateFunctionDenylist,
-				DisableSandbox:     false,
-				BlockQueryWaitTime: pointer.Of(5 * time.Minute),
-				MaxStale:           pointer.Of(client.DefaultTemplateMaxStale),
+				FunctionDenylist:          client.DefaultTemplateFunctionDenylist,
+				DisableSandbox:            false,
+				BlockQueryWaitTime:        new(5 * time.Minute),
+				VaultDefaultLeaseDuration: new(5 * time.Minute),
+				MaxStale:                  new(client.DefaultTemplateMaxStale),
 				Wait: &client.WaitConfig{
-					Min: pointer.Of(5 * time.Second),
-					Max: pointer.Of(4 * time.Minute),
+					Min: new(5 * time.Second),
+					Max: new(4 * time.Minute),
 				},
-				ConsulRetry: &client.RetryConfig{Attempts: pointer.Of(0)},
-				VaultRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
-				NomadRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
+				ConsulRetry: &client.RetryConfig{Attempts: new(0)},
+				VaultRetry:  &client.RetryConfig{Attempts: new(0)},
+				NomadRetry:  &client.RetryConfig{Attempts: new(0)},
 			},
 			Reserved: &Resources{
 				CPU:           15,
@@ -352,7 +352,7 @@ func TestConfig_Merge(t *testing.T) {
 			GCParallelDestroys:    6,
 			GCDiskUsageThreshold:  71,
 			GCInodeUsageThreshold: 86,
-			NomadServiceDiscovery: pointer.Of(false),
+			NomadServiceDiscovery: new(false),
 		},
 		Server: &ServerConfig{
 			Enabled:                true,
@@ -361,11 +361,11 @@ func TestConfig_Merge(t *testing.T) {
 			DataDir:                "/tmp/data2",
 			ProtocolVersion:        2,
 			RaftProtocol:           2,
-			RaftMultiplier:         pointer.Of(6),
-			RaftSnapshotThreshold:  pointer.Of(100),
-			RaftSnapshotInterval:   pointer.Of("30m"),
-			RaftTrailingLogs:       pointer.Of(200),
-			NumSchedulers:          pointer.Of(2),
+			RaftMultiplier:         new(6),
+			RaftSnapshotThreshold:  new(100),
+			RaftSnapshotInterval:   new("30m"),
+			RaftTrailingLogs:       new(200),
+			NumSchedulers:          new(2),
 			EnabledSchedulers:      []string{structs.JobTypeBatch},
 			NodeGCThreshold:        "12h",
 			BatchEvalGCThreshold:   "4h",
@@ -379,16 +379,16 @@ func TestConfig_Merge(t *testing.T) {
 			NonVotingServer:        true,
 			RedundancyZone:         "bar",
 			UpgradeVersion:         "bar",
-			EnableEventBroker:      pointer.Of(true),
-			EventBufferSize:        pointer.Of(100),
+			EnableEventBroker:      new(true),
+			EventBufferSize:        new(100),
 			PlanRejectionTracker: &PlanRejectionTracker{
-				Enabled:       pointer.Of(true),
+				Enabled:       new(true),
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
-			JobMaxPriority:     pointer.Of(200),
-			JobDefaultPriority: pointer.Of(100),
-			JobMaxCount:        pointer.Of(1000),
+			JobMaxPriority:     new(200),
+			JobDefaultPriority: new(100),
+			JobMaxCount:        new(1000),
 			OIDCIssuer:         "https://oidc.test.nomadproject.io",
 			StartTimeout:       "1m",
 		},
@@ -492,7 +492,7 @@ func TestConfig_Merge(t *testing.T) {
 		},
 		Reporting: &config.ReportingConfig{
 			License: &config.LicenseReportingConfig{
-				Enabled: pointer.Of(true),
+				Enabled: new(true),
 			},
 		},
 		Eventlog: &Eventlog{
@@ -1627,8 +1627,8 @@ func TestEventBroker_Parse(t *testing.T) {
 	require := require.New(t)
 	{
 		a := &ServerConfig{
-			EnableEventBroker: pointer.Of(false),
-			EventBufferSize:   pointer.Of(0),
+			EnableEventBroker: new(false),
+			EventBufferSize:   new(0),
 		}
 		b := DefaultConfig().Server
 		b.EnableEventBroker = nil
@@ -1641,8 +1641,8 @@ func TestEventBroker_Parse(t *testing.T) {
 
 	{
 		a := &ServerConfig{
-			EnableEventBroker: pointer.Of(true),
-			EventBufferSize:   pointer.Of(5000),
+			EnableEventBroker: new(true),
+			EventBufferSize:   new(5000),
 		}
 		b := DefaultConfig().Server
 		b.EnableEventBroker = nil
@@ -1655,12 +1655,12 @@ func TestEventBroker_Parse(t *testing.T) {
 
 	{
 		a := &ServerConfig{
-			EnableEventBroker: pointer.Of(false),
-			EventBufferSize:   pointer.Of(0),
+			EnableEventBroker: new(false),
+			EventBufferSize:   new(0),
 		}
 		b := DefaultConfig().Server
-		b.EnableEventBroker = pointer.Of(true)
-		b.EventBufferSize = pointer.Of(20000)
+		b.EnableEventBroker = new(true)
+		b.EventBufferSize = new(20000)
 
 		result := a.Merge(b)
 		require.Equal(true, *result.EnableEventBroker)
@@ -1704,6 +1704,7 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 		// check all the complex defaults
 		must.Eq(t, 87600*time.Hour, *templateConfig.MaxStale)
 		must.Eq(t, 5*time.Minute, *templateConfig.BlockQueryWaitTime)
+		must.Eq(t, 5*time.Minute, *templateConfig.VaultDefaultLeaseDuration)
 
 		// Wait
 		must.NotNil(t, templateConfig.Wait)
@@ -1912,11 +1913,11 @@ func Test_mergeConsulConfigs(t *testing.T) {
 			{
 				ServiceIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"consul.io"},
-					TTL:      pointer.Of(time.Hour),
+					TTL:      new(time.Hour),
 				},
 				TaskIdentity: &config.WorkloadIdentityConfig{
 					Audience: []string{"consul.io"},
-					TTL:      pointer.Of(time.Hour),
+					TTL:      new(time.Hour),
 				},
 			},
 		},
@@ -2010,7 +2011,7 @@ func Test_mergeClientFingerprinterConfigs(t *testing.T) {
 		},
 		{
 			Name:          "env_gce",
-			ExitOnFailure: pointer.Of(false),
+			ExitOnFailure: new(false),
 		},
 	}
 	right := []*client.Fingerprint{
@@ -2022,11 +2023,11 @@ func Test_mergeClientFingerprinterConfigs(t *testing.T) {
 			Name:          "env_gce",
 			RetryAttempts: 10,
 			RetryInterval: 10 * time.Second,
-			ExitOnFailure: pointer.Of(true),
+			ExitOnFailure: new(true),
 		},
 		{
 			Name:          "env_azure",
-			ExitOnFailure: pointer.Of(true),
+			ExitOnFailure: new(true),
 		},
 	}
 
@@ -2040,11 +2041,11 @@ func Test_mergeClientFingerprinterConfigs(t *testing.T) {
 			Name:          "env_gce",
 			RetryAttempts: 10,
 			RetryInterval: 10 * time.Second,
-			ExitOnFailure: pointer.Of(true),
+			ExitOnFailure: new(true),
 		},
 		{
 			Name:          "env_azure",
-			ExitOnFailure: pointer.Of(true),
+			ExitOnFailure: new(true),
 		},
 	}, mergeClientFingerprinterConfigs(left, right))
 }

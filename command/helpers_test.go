@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -19,9 +19,7 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/flatmap"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test/must"
 )
@@ -235,19 +233,19 @@ const (
 
 var (
 	expectedApiJob = &api.Job{
-		ID:          pointer.Of("job1"),
-		Name:        pointer.Of("job1"),
-		Type:        pointer.Of("service"),
+		ID:          new("job1"),
+		Name:        new("job1"),
+		Type:        new("service"),
 		Datacenters: []string{"dc1"},
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name:  pointer.Of("group1"),
-				Count: pointer.Of(1),
+				Name:  new("group1"),
+				Count: new(1),
 				RestartPolicy: &api.RestartPolicy{
-					Attempts:        pointer.Of(10),
-					Interval:        pointer.Of(15 * time.Second),
-					Mode:            pointer.Of("delay"),
-					RenderTemplates: pointer.Of(false),
+					Attempts:        new(10),
+					Interval:        new(15 * time.Second),
+					Mode:            new("delay"),
+					RenderTemplates: new(false),
 				},
 
 				Tasks: []*api.Task{
@@ -393,6 +391,215 @@ unsedVar2 = "from-varfile"
 	must.Eq(t, expected, j.Datacenters)
 }
 
+func TestJobGetter_HCL2_Variables_ListsAndObjects(t *testing.T) {
+
+	jobspec := `
+variable "datacenters" {
+  type = list(string)
+}
+
+variable "env" {
+  type = object({
+    foo = string
+    bar = string
+  })
+}
+
+variable "count" {
+  type = number
+}
+
+variable "user" {
+  type = string
+}
+
+job "example" {
+  datacenters = var.datacenters
+
+  group "g" {
+    count = var.count
+    task "t" {
+      user = var.user
+      env = var.env
+    }
+  }
+}
+`
+
+	testCases := []struct {
+		name        string
+		fileVars    string
+		cliVarFlags []string
+
+		expectErrMsgs     []string
+		expectVariables   string
+		expectVarFlags    map[string]string
+		expectCount       int
+		expectDatacenters []string
+		expectUser        string
+		expectEnv         map[string]string
+	}{
+		{
+			name: "file only unescaped",
+			fileVars: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "www-data"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			cliVarFlags:    nil,
+			expectVarFlags: map[string]string{},
+			expectVariables: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "www-data"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+`,
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        "www-data",
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+		{
+			name: "collections in file with primitive flags",
+			fileVars: `
+datacenters = ["dc1", "dc2"]
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			cliVarFlags:    []string{`count=2`, `user=www-data`},
+			expectVarFlags: map[string]string{"count": "2", "user": "www-data"},
+			expectVariables: `
+datacenters = ["dc1", "dc2"]
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+`,
+			// simple types (count, user) go to VariableFlags, while complex
+			// types (datacenters, env) stay in Variables
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        "www-data",
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+		{
+			name: "incorrectly escaped collection for flags",
+			// this is the equivalent of:
+			// -var 'datacenters="[\"dc1\", \"dc2\"]"'
+			cliVarFlags: []string{
+				`count=2`,
+				`user=www-data`,
+				`datacenters="[\"dc1\", \"dc2\"]"`,
+				`env="{foo=\"foo1\", bar=\"bar1\"}"`,
+			},
+			expectErrMsgs: []string{
+				"list of string required, but have string",
+				"object required, but have string",
+			},
+		},
+		{
+			name: "collections for unescaped flags from shell",
+			fileVars: `
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			// this is the equivalent of:
+			// -var datacenters="$(printf "[\"dc1\", \"dc2\"]")"
+			cliVarFlags: []string{
+				`count=2`,
+				`user=www-data`,
+				`datacenters=["dc1", "dc2"]`,
+			},
+			// complex types (datacenters) are moved to Variables in HCL format,
+			// while simple types stay in VariableFlags
+			expectVarFlags: map[string]string{"count": "2", "user": "www-data"},
+			expectVariables: `
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+datacenters = ["dc1", "dc2"]`,
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        "www-data",
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+		{
+			name: "collections in file with json-escaped primitives",
+			fileVars: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "{\"name\": \"www-data\"}"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+`,
+			expectVarFlags: map[string]string{},
+			expectVariables: `
+datacenters = ["dc1", "dc2"]
+count = 2
+user = "{\"name\": \"www-data\"}"
+env = {
+  foo = "foo1"
+  bar = "bar1"
+}
+
+`,
+			expectCount:       2,
+			expectDatacenters: []string{"dc1", "dc2"},
+			expectUser:        `{"name": "www-data"}`,
+			expectEnv:         map[string]string{"foo": "foo1", "bar": "bar1"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpdir := t.TempDir()
+			varFileName := filepath.Join(tmpdir, "vars.hcl")
+			specFileName := filepath.Join(tmpdir, "example.nomad.hcl")
+
+			must.NoError(t, os.WriteFile(varFileName, []byte(tc.fileVars), 0700))
+			must.NoError(t, os.WriteFile(specFileName, []byte(jobspec), 0700))
+
+			jg := &JobGetter{
+				Vars:     tc.cliVarFlags,
+				VarFiles: []string{varFileName},
+				Strict:   false,
+			}
+
+			sub, j, err := jg.Get(specFileName)
+			if len(tc.expectErrMsgs) > 0 {
+				for _, errMsg := range tc.expectErrMsgs {
+					must.ErrorContains(t, err, errMsg)
+				}
+				return
+			}
+
+			must.NoError(t, err)
+			must.NotNil(t, j)
+			must.Eq(t, tc.expectDatacenters, j.Datacenters)
+
+			must.Eq(t, tc.expectVariables, sub.Variables)
+			must.MapEq(t, tc.expectVarFlags, sub.VariableFlags)
+		})
+	}
+}
+
 // Test StructJob with jobfile from HTTP Server
 func TestJobGetter_HTTPServer(t *testing.T) {
 	ci.Parallel(t)
@@ -461,6 +668,45 @@ func TestJobGetter_Validate(t *testing.T) {
 
 		})
 	}
+}
+
+func TestJobTaskGroupMaxRunDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+
+	// The alloc was created 5 minutes ago.
+	createtime := time.Now().Add(-5 * time.Minute).Round(time.Second)
+	expectedDeadline := createtime.Add(maxRunDuration)
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+
+	deadline, ok := jobTaskGroupMaxRunDeadline(job, groupName, createtime.UnixNano())
+	must.True(t, ok)
+	must.Eq(t, expectedDeadline.UTC(), deadline.UTC())
+}
+
+// TestJobTaskGroupMaxRunDeadline_ZeroCreateTime verifies that a zero CreateTime
+// (alloc not yet scheduled) produces no deadline.
+func TestJobTaskGroupMaxRunDeadline_ZeroCreateTime(t *testing.T) {
+	ci.Parallel(t)
+
+	jobType := api.JobTypeBatch
+	groupName := "group"
+	maxRunDuration := 10 * time.Minute
+
+	job := &api.Job{
+		Type:       &jobType,
+		TaskGroups: []*api.TaskGroup{{Name: &groupName, MaxRunDuration: &maxRunDuration}},
+	}
+
+	_, ok := jobTaskGroupMaxRunDeadline(job, groupName, 0)
+	must.False(t, ok)
 }
 
 func TestPrettyTimeDiff(t *testing.T) {
@@ -550,107 +796,6 @@ func TestUiErrorWriter(t *testing.T) {
 
 	expectedErr += "and thensome more\n"
 	must.Eq(t, expectedErr, errBuf.String())
-}
-
-func Test_extractVarFiles(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("none", func(t *testing.T) {
-		result, err := extractVarFiles(nil)
-		must.NoError(t, err)
-		must.Eq(t, "", result)
-	})
-
-	t.Run("files", func(t *testing.T) {
-		d := t.TempDir()
-		fileOne := filepath.Join(d, "one.hcl")
-		fileTwo := filepath.Join(d, "two.hcl")
-
-		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o644))
-		must.NoError(t, os.WriteFile(fileTwo, []byte(`baz = 42`), 0o644))
-
-		result, err := extractVarFiles([]string{fileOne, fileTwo})
-		must.NoError(t, err)
-		must.Eq(t, "foo = \"bar\"\nbaz = 42\n", result)
-	})
-
-	t.Run("unreadble", func(t *testing.T) {
-		testutil.RequireNonRoot(t)
-
-		d := t.TempDir()
-		fileOne := filepath.Join(d, "one.hcl")
-
-		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o200))
-
-		_, err := extractVarFiles([]string{fileOne})
-		must.ErrorContains(t, err, "permission denied")
-	})
-}
-
-func Test_extractVarFlags(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("nil", func(t *testing.T) {
-		result := extractVarFlags(nil)
-		must.MapEmpty(t, result)
-	})
-
-	t.Run("complete", func(t *testing.T) {
-		result := extractVarFlags([]string{"one=1", "two=2", "three"})
-		must.Eq(t, map[string]string{
-			"one":   "1",
-			"two":   "2",
-			"three": "",
-		}, result)
-	})
-}
-
-func Test_extractJobSpecEnvVars(t *testing.T) {
-	ci.Parallel(t)
-
-	t.Run("nil", func(t *testing.T) {
-		must.MapEmpty(t, extractJobSpecEnvVars(nil))
-	})
-
-	t.Run("complete", func(t *testing.T) {
-		result := extractJobSpecEnvVars([]string{
-			"NOMAD_VAR_count=13",
-			"GOPATH=/Users/jrasell/go",
-			"NOMAD_VAR_image=redis:7",
-		})
-		must.Eq(t, map[string]string{
-			"count": "13",
-			"image": "redis:7",
-		}, result)
-	})
-
-	t.Run("whitespace", func(t *testing.T) {
-		result := extractJobSpecEnvVars([]string{
-			"NOMAD_VAR_count = 13",
-			"GOPATH = /Users/jrasell/go",
-		})
-		must.Eq(t, map[string]string{
-			"count ": " 13",
-		}, result)
-	})
-
-	t.Run("empty key", func(t *testing.T) {
-		result := extractJobSpecEnvVars([]string{
-			"NOMAD_VAR_=13",
-			"=/Users/jrasell/go",
-		})
-		must.Eq(t, map[string]string{}, result)
-	})
-
-	t.Run("empty value", func(t *testing.T) {
-		result := extractJobSpecEnvVars([]string{
-			"NOMAD_VAR_count=",
-			"GOPATH=",
-		})
-		must.Eq(t, map[string]string{
-			"count": "",
-		}, result)
-	})
 }
 
 // TestHelperGetByPrefix exercises the generic getByPrefix function used by

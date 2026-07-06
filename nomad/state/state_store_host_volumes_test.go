@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -43,6 +43,7 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		mock.HostVolume(),
 		mock.HostVolume(),
 		mock.HostVolume(),
+		mock.HostVolume(),
 	}
 	vols[0].NodeID = nodes[0].ID
 	vols[1].NodeID = nodes[1].ID
@@ -52,12 +53,16 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	vols[3].Namespace = ns.Name
 	vols[3].NodeID = nodes[2].ID
 	vols[3].NodePool = nodes[2].NodePool
+	vols[4].NodeID = nodes[2].ID
+	vols[4].NodePool = nodes[2].NodePool
+	vols[4].Name = "example[0]" // per_alloc
 
 	index++
 	must.NoError(t, store.UpsertHostVolume(index, vols[0]))
 	must.NoError(t, store.UpsertHostVolume(index, vols[1]))
 	must.NoError(t, store.UpsertHostVolume(index, vols[2]))
 	must.NoError(t, store.UpsertHostVolume(index, vols[3]))
+	must.NoError(t, store.UpsertHostVolume(index, vols[4]))
 
 	vol, err := store.HostVolumeByID(nil, vols[0].Namespace, vols[0].ID, true)
 	must.NoError(t, err)
@@ -80,26 +85,29 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		return got
 	}
 
-	iter, err := store.HostVolumesByName(nil, structs.DefaultNamespace, "example", SortDefault)
+	iter, err := store.HostVolumesByNamePrefix(nil, structs.DefaultNamespace, "example", SortDefault)
 	must.NoError(t, err)
 	got := consumeIter(iter)
 	must.NotNil(t, got[vols[0].ID], must.Sprint("expected vol0"))
 	must.NotNil(t, got[vols[2].ID], must.Sprint("expected vol2"))
-	must.MapLen(t, 2, got, must.Sprint(`expected 2 volumes named "example" in default namespace`))
+	must.NotNil(t, got[vols[4].ID], must.Sprint("expected vol4"))
+	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes prefixed "example" in default namespace`))
 
 	iter, err = store.HostVolumesByNodePool(nil, nodes[2].NodePool, SortDefault)
 	must.NoError(t, err)
 	got = consumeIter(iter)
 	must.NotNil(t, got[vols[2].ID], must.Sprint("expected vol2"))
 	must.NotNil(t, got[vols[3].ID], must.Sprint("expected vol3"))
-	must.MapLen(t, 2, got, must.Sprint(`expected 2 volumes in prod node pool`))
+	must.NotNil(t, got[vols[4].ID], must.Sprint("expected vol4"))
+	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes in prod node pool`))
 
 	iter, err = store.HostVolumesByNodeID(nil, nodes[2].ID, SortDefault)
 	must.NoError(t, err)
 	got = consumeIter(iter)
 	must.NotNil(t, got[vols[2].ID], must.Sprint("expected vol2"))
 	must.NotNil(t, got[vols[3].ID], must.Sprint("expected vol3"))
-	must.MapLen(t, 2, got, must.Sprint(`expected 2 volumes on node 2`))
+	must.NotNil(t, got[vols[4].ID], must.Sprint("expected vol4"))
+	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes on node 2`))
 
 	// simulate a node registering one of the volumes
 	nodes[2] = nodes[2].Copy()
@@ -120,10 +128,10 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		must.NoError(t, store.UpsertHostVolume(index, vol))
 	}
 
-	iter, err = store.HostVolumesByName(nil, structs.DefaultNamespace, "example", SortDefault)
+	iter, err = store.HostVolumesByNamePrefix(nil, structs.DefaultNamespace, "example", SortDefault)
 	must.NoError(t, err)
 	got = consumeIter(iter)
-	must.MapLen(t, 2, got, must.Sprint(`expected 2 volumes named "example" in default namespace`))
+	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes prefixed "example" in default namespace`))
 
 	vol0 := got[vols[0].ID]
 	must.NotNil(t, vol0)
@@ -135,17 +143,26 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		"expected volume state to be updated because its been fingerprinted by a node"))
 
 	mockJob := mock.Job()
-	mockJob.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"example": {
-		Name:   "example",
-		Type:   structs.VolumeTypeHost,
-		Source: vols[2].Name,
-	}}
+	mockJob.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"example": {
+			Name:   "example",
+			Type:   structs.VolumeTypeHost,
+			Source: "example",
+		},
+		"example_per_alloc": {
+			Name:     "example_per_alloc",
+			Type:     structs.VolumeTypeHost,
+			Source:   "example",
+			PerAlloc: true,
+		},
+	}
 
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, mockJob))
 
 	alloc := mock.AllocForNode(nodes[2])
 	alloc.Job = mockJob
 	alloc.JobID = mockJob.ID
+	alloc.Name = structs.AllocName(mockJob.ID, alloc.TaskGroup, 0)
 
 	index++
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup,
@@ -155,6 +172,11 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	err = store.DeleteHostVolume(index, vol2.Namespace, vols[2].ID)
 	must.EqError(t, err, fmt.Sprintf(
 		"could not delete volume %s in use by alloc %s", vols[2].ID, alloc.ID))
+
+	index++
+	err = store.DeleteHostVolume(index, vols[4].Namespace, vols[4].ID)
+	must.EqError(t, err, fmt.Sprintf(
+		"could not delete volume %s in use by alloc %s", vols[4].ID, alloc.ID))
 
 	alloc = alloc.Copy()
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
@@ -173,6 +195,12 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		"could not delete volume %s in use by alloc %s", vols[2].ID, alloc.ID),
 		must.Sprint("allocs must be client-terminal to delete their volumes"))
 
+	index++
+	err = store.DeleteHostVolume(index, vols[4].Namespace, vols[4].ID)
+	must.EqError(t, err, fmt.Sprintf(
+		"could not delete volume %s in use by alloc %s", vols[4].ID, alloc.ID),
+		must.Sprint("allocs must be client-terminal to delete their volumes"))
+
 	err = store.DeleteHostVolume(index, vol2.Namespace, vols[1].ID)
 	must.NoError(t, err)
 	vol, err = store.HostVolumeByID(nil, vols[1].Namespace, vols[1].ID, true)
@@ -184,10 +212,15 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NotNil(t, vol)
 	must.Len(t, 1, vol.Allocations)
 
+	vol, err = store.HostVolumeByID(nil, vols[4].Namespace, vols[4].ID, true)
+	must.NoError(t, err)
+	must.NotNil(t, vol)
+	must.Len(t, 1, vol.Allocations)
+
 	iter, err = store.HostVolumes(nil, SortReverse)
 	must.NoError(t, err)
 	got = consumeIter(iter)
-	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes remain`))
+	must.MapLen(t, 4, got, must.Sprint(`expected 4 volumes remain`))
 
 	prefix := vol.ID[:30] // sufficiently long prefix to avoid flakes
 	iter, err = store.HostVolumesByIDPrefix(nil, "*", prefix, SortDefault)

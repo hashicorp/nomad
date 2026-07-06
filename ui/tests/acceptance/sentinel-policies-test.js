@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -11,7 +11,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Administration from 'nomad-ui/tests/pages/administration';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | sentinel policies', function (hooks) {
@@ -44,8 +43,6 @@ module('Acceptance | sentinel policies', function (hooks) {
     assert
       .dom('[data-test-sentinel-policy-row]')
       .exists({ count: this.server.db.sentinelPolicies.length });
-
-    await percySnapshot(assert);
   });
 
   test('Sentinel Policies index: deletion', async function (assert) {
@@ -195,7 +192,6 @@ module('Acceptance | sentinel policies', function (hooks) {
   test('New Sentinel Policy from Template', async function (assert) {
     await click('[data-test-create-sentinel-policy-from-template]');
     assert.deepEqual(currentURL(), '/administration/sentinel-policies/gallery');
-    await percySnapshot(assert);
     const template = find('[data-test-template-card="no-friday-deploys"]');
     await click(template);
     assert.ok(
@@ -212,8 +208,6 @@ module('Acceptance | sentinel policies', function (hooks) {
       '/administration/sentinel-policies/new?template=no-friday-deploys',
       'New Policy page has query param',
     );
-
-    await percySnapshot('New sentinel policy from template');
 
     assert.dom('[data-test-policy-name-input]').hasValue('no-friday-deploys');
     assert

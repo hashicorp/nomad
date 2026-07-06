@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package drivermanager
@@ -27,6 +27,10 @@ const (
 	// driverFPBackoffLimit is the limit of the exponential backoff for fingerprinting
 	// a driver.
 	driverFPBackoffLimit = 2 * time.Minute
+
+	// driverShutdownTimeout is the amount of time to allow for a shutdown request
+	// sent to a plugin.
+	driverShutdownTimeout = 2 * time.Second
 )
 
 // instanceManagerConfig configures a driver instance manager
@@ -227,6 +231,14 @@ func (i *instanceManager) dispense() (plugin drivers.DriverPlugin, err error) {
 		return nil, fmt.Errorf("plugin loaded does not implement the driver interface")
 	}
 
+	// Initialize the plugin if it supports it.
+	if initer, ok := driver.(drivers.DriverIniter); ok {
+		if err := initer.Init(i.ctx); err != nil {
+			pluginInstance.Kill()
+			return nil, fmt.Errorf("init of plugin %s failed: %w", i.id, err)
+		}
+	}
+
 	// Store the plugin and driver
 	i.plugin = pluginInstance
 	i.driver = driver
@@ -248,18 +260,43 @@ func (i *instanceManager) cleanup() {
 	defer i.pluginLock.Unlock()
 	defer i.shutdownLock.Unlock()
 
+	// Ensure the instance context is canceled once we are done.
+	defer i.cancel()
+
+	// Nothing to do if no plugin is currently set.
 	if i.plugin == nil {
 		return
 	}
 
+	// If the plugin is still running, notify the plugin that it
+	// is being shutdown via request if implemented by the plugin.
 	if !i.plugin.Exited() {
-		i.plugin.Kill()
-		if err := i.storeReattach(nil); err != nil {
-			i.logger.Warn("error clearing plugin reattach config from state store", "error", err)
+		if s, ok := i.plugin.Plugin().(drivers.DriverShutdowner); ok {
+			i.logger.Trace("requesting shutdown of plugin")
+
+			// Use the background context since it is likely that
+			// the instance manager context will be done (having
+			// been canceled by the manager shutdown). Set a
+			// timeout on the request for two seconds which matches
+			// the amount of time go-plugin allows on kill.
+			ctx, cancel := context.WithTimeout(context.Background(), driverShutdownTimeout)
+			defer cancel()
+
+			if err := s.Shutdown(ctx); err != nil {
+				i.logger.Warn("error during shutdown request", "error", err)
+			}
 		}
 	}
 
-	i.cancel()
+	// If the plugin has not exited, kill it.
+	if !i.plugin.Exited() {
+		i.plugin.Kill()
+	}
+
+	// Clear reattach config from the state store.
+	if err := i.storeReattach(nil); err != nil {
+		i.logger.Warn("error clearing plugin reattach config from state store", "error", err)
+	}
 }
 
 // dispenseFingerprintCh dispenses a driver and makes a Fingerprint RPC call

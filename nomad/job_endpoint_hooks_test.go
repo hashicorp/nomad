@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -75,7 +74,7 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 					structs.ConsulDefaultCluster: {
 						ServiceIdentity: &config.WorkloadIdentityConfig{
 							Audience: []string{"consul.io"},
-							TTL:      pointer.Of(time.Hour),
+							TTL:      new(time.Hour),
 						},
 					},
 				},
@@ -178,7 +177,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				structs.VaultDefaultCluster: {
 					DefaultIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"vault.io"},
-						TTL:      pointer.Of(time.Hour),
+						TTL:      new(time.Hour),
 					},
 				},
 			},
@@ -194,7 +193,7 @@ func Test_jobValidate_Validate_vault(t *testing.T) {
 				"other": {
 					DefaultIdentity: &config.WorkloadIdentityConfig{
 						Audience: []string{"vault.io"},
-						TTL:      pointer.Of(time.Hour),
+						TTL:      new(time.Hour),
 					},
 				},
 			},

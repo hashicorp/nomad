@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/posener/complete"
 )
 
@@ -59,7 +58,7 @@ Alias: nomad run
   mount CSI volumes require a token with the 'csi-mount-volume' capability for
   the volume's namespace. Jobs that mount host volumes require a token with the
   'host_volume' capability for that volume.
-  
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
@@ -244,11 +243,11 @@ func (c *JobRunCommand) Run(args []string) int {
 	multiregion := job.IsMultiregion()
 
 	if consulNamespace != "" {
-		job.ConsulNamespace = pointer.Of(consulNamespace)
+		job.ConsulNamespace = new(consulNamespace)
 	}
 
 	if vaultNamespace != "" {
-		job.VaultNamespace = pointer.Of(vaultNamespace)
+		job.VaultNamespace = new(vaultNamespace)
 	}
 
 	if output {

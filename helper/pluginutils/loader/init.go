@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package loader
@@ -54,37 +54,44 @@ func validateConfig(config *PluginLoaderConfig) error {
 
 // init initializes the plugin loader by compiling both internal and external
 // plugins and selecting the highest versioned version of any given plugin.
-func (l *PluginLoader) init(config *PluginLoaderConfig) error {
+func (l *PluginLoader) init(cfg *PluginLoaderConfig) (map[string]*config.PluginConfig, error) {
 	// Create a mapping of name to config
-	configMap := configMap(config.Configs)
+	configMap := configMap(cfg.Configs)
 
 	// Initialize the internal plugins
-	internal, err := l.initInternal(config.InternalPlugins, configMap)
+	internal, err := l.initInternal(cfg.InternalPlugins, configMap)
 	if err != nil {
-		return fmt.Errorf("failed to fingerprint internal plugins: %v", err)
+		return nil, fmt.Errorf("failed to fingerprint internal plugins: %v", err)
 	}
 
 	// Scan for eligibile binaries
 	plugins, err := l.scan()
 	if err != nil {
-		return fmt.Errorf("failed to scan plugin directory %q: %v", l.pluginDir, err)
+		return nil, fmt.Errorf("failed to scan plugin directory %q: %v", l.pluginDir, err)
 	}
 
 	// Fingerprint the passed plugins
 	external, err := l.fingerprintPlugins(plugins, configMap)
 	if err != nil {
-		return fmt.Errorf("failed to fingerprint plugins: %v", err)
+		return nil, fmt.Errorf("failed to fingerprint plugins: %v", err)
 	}
 
 	// Merge external and internal plugins
 	l.plugins = l.mergePlugins(internal, external)
 
 	// Validate that the configs are valid for the plugins
-	if err := l.validatePluginConfigs(); err != nil {
-		return fmt.Errorf("parsing plugin configurations failed: %v", err)
+	canonicalizedConfigs, err := l.validatePluginConfigs()
+	if err != nil {
+		return nil, fmt.Errorf("parsing plugin configurations failed: %v", err)
 	}
 
-	return nil
+	for i := range configMap {
+		if updated, ok := canonicalizedConfigs[i]; ok {
+			configMap[i].Config = updated.Config
+		}
+	}
+
+	return configMap, nil
 }
 
 // initInternal initializes internal plugins.
@@ -430,40 +437,48 @@ func (l *PluginLoader) mergePlugins(internal, external map[PluginID]*pluginInfo)
 
 // validatePluginConfigs is used to validate each plugins' configuration. If the
 // plugin has a config, it is parsed with the plugins config schema and
-// SetConfig is called to ensure the config is valid.
-func (l *PluginLoader) validatePluginConfigs() error {
+// SetConfig is called to ensure the config is valid, it returns all the
+// errors encountered during validation and the canonicalized configurations
+// from the plugins.
+func (l *PluginLoader) validatePluginConfigs() (map[string]*InternalPluginConfig, error) {
 	var mErr multierror.Error
-	for id, info := range l.plugins {
-		if err := l.validatePluginConfig(id, info); err != nil {
+	config := map[string]*InternalPluginConfig{}
+	for id := range l.plugins {
+		pc, err := l.validatePluginConfig(id, l.plugins[id])
+		if err != nil {
 			wrapped := multierror.Prefix(err, fmt.Sprintf("plugin %s:", id))
 			_ = multierror.Append(&mErr, wrapped)
 		}
+
+		config[id.Name] = &InternalPluginConfig{
+			Config: pc,
+		}
 	}
 
-	return mErr.ErrorOrNil()
+	return config, mErr.ErrorOrNil()
 }
 
 // validatePluginConfig is used to validate the plugin's configuration. If the
 // plugin has a config, it is parsed with the plugins config schema and
 // SetConfig is called to ensure the config is valid.
-func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error {
+func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) (map[string]interface{}, error) {
 	var mErr multierror.Error
 
 	// Check if a config is allowed
 	if info.configSchema == nil {
 		if info.config != nil {
-			return fmt.Errorf("configuration not allowed but config passed")
+			return nil, fmt.Errorf("configuration not allowed but config passed")
 		}
 
 		// Nothing to do
-		return nil
+		return nil, nil
 	}
 
 	// Convert the schema to hcl
 	spec, diag := hclspecutils.Convert(info.configSchema)
 	if diag.HasErrors() {
 		_ = multierror.Append(&mErr, diag.Errs()...)
-		return multierror.Prefix(&mErr, "failed converting config schema:")
+		return nil, multierror.Prefix(&mErr, "failed converting config schema:")
 	}
 
 	// If there is no config, initialize it to an empty map so we can still
@@ -476,14 +491,14 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	val, diag, diagErrs := hclutils.ParseHclInterface(info.config, spec, nil)
 	if diag.HasErrors() {
 		_ = multierror.Append(&mErr, diagErrs...)
-		return multierror.Prefix(&mErr, "failed to parse config: ")
+		return nil, multierror.Prefix(&mErr, "failed to parse config: ")
 
 	}
 
 	// Marshal the value
 	cdata, err := msgpack.Marshal(val, val.Type())
 	if err != nil {
-		return fmt.Errorf("failed to msgpack encode config: %v", err)
+		return nil, fmt.Errorf("failed to msgpack encode config: %v", err)
 	}
 
 	// Store the marshalled config
@@ -492,13 +507,13 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	// Dispense the plugin and set its config and ensure it is error free
 	instance, err := l.Dispense(id.Name, id.PluginType, nil, l.logger)
 	if err != nil {
-		return fmt.Errorf("failed to dispense plugin: %v", err)
+		return nil, fmt.Errorf("failed to dispense plugin: %v", err)
 	}
 	defer instance.Kill()
 
 	b, ok := instance.Plugin().(base.BasePlugin)
 	if !ok {
-		return fmt.Errorf("dispensed plugin %s doesn't meet base plugin interface", id)
+		return nil, fmt.Errorf("dispensed plugin %s doesn't meet base plugin interface", id)
 	}
 
 	c := &base.Config{
@@ -508,7 +523,13 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) error
 	}
 
 	if err := b.SetConfig(c); err != nil {
-		return fmt.Errorf("setting config on plugin failed: %v", err)
+		return nil, fmt.Errorf("setting config on plugin failed: %v", err)
 	}
-	return nil
+
+	parsedConfig, err := hclutils.CtyValueToMapInterface(val)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert parsed config to map: %v", err)
+	}
+
+	return parsedConfig, nil
 }

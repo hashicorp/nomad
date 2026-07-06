@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package scheduler_system
@@ -21,9 +21,31 @@ func TestSystemScheduler(t *testing.T) {
 		cluster3.LinuxClients(3),
 	)
 
+	t.Run("testSystemJobAllNodePools", testSystemJobAllNodePools)
 	t.Run("testJobUpdateOnIneligibleNode", testJobUpdateOnIneligbleNode)
 	t.Run("testCanaryUpdate", testCanaryUpdate)
 	t.Run("testCanaryDeploymentToAllEligibleNodes", testCanaryDeploymentToAllEligibleNodes)
+}
+
+func testSystemJobAllNodePools(t *testing.T) {
+	job, cleanup := jobs3.Submit(t,
+		"./input/system_job_all_pools.nomad",
+		jobs3.Timeout(60*time.Second),
+	)
+	t.Cleanup(cleanup)
+
+	// get deployment ID
+	evals := job.Evals()
+	must.Greater(t, 0, len(evals), must.Sprint("expected at least 1 eval for the job"))
+	deploymentID := evals[0].DeploymentID
+
+	// wait for the deployment to become healthy
+	timeout, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	defer cancel()
+
+	job.WaitForDeploymentFunc(timeout, deploymentID, func(d *api.Deployment) bool {
+		return d.Status == api.DeploymentStatusSuccessful
+	})
 }
 
 func testJobUpdateOnIneligbleNode(t *testing.T) {

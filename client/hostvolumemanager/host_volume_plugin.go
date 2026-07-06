@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package hostvolumemanager
@@ -223,20 +223,27 @@ var _ HostVolumePlugin = &HostVolumePluginExternal{}
 // if the specified executable exists on disk.
 func NewHostVolumePluginExternal(log hclog.Logger,
 	pluginDir, filename, volumesDir, nodePool string) (*HostVolumePluginExternal, error) {
-	// this should only be called with already-detected executables,
-	// but we'll double-check it anyway, so we can provide a tidy error message
-	// if it has changed between fingerprinting and execution.
-	executable := filepath.Join(pluginDir, filename)
-	f, err := os.Stat(executable)
+	// this should only be called with already-detected executables, but we'll
+	// double-check it anyway, so we can provide a tidy error message if it has
+	// changed between fingerprinting and execution and to ensure that the
+	// plugin ID can't traverse outside the plugin directory.
+	root, err := os.OpenRoot(pluginDir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
-		}
-		return nil, err
+		return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
+	}
+
+	f, err := root.Stat(filename)
+	if err != nil {
+		// note we intentionally obscure the root-escape error here and return a
+		// ErrPluginNotExists, because there's no legitimate reason to ever get
+		// this error
+		return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
 	}
 	if !helper.IsExecutable(f) {
 		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, filename)
 	}
+	executable := filepath.Join(pluginDir, filename)
+
 	return &HostVolumePluginExternal{
 		ID:         filename,
 		Executable: executable,

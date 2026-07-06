@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/cap/util"
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	colorable "github.com/mattn/go-colorable"
 	"github.com/mitchellh/colorstring"
 	"github.com/posener/complete"
@@ -295,7 +294,7 @@ func (m *Meta) SetupUi(args []string) {
 	showCLIHints := os.Getenv(EnvNomadCLIShowHints)
 	if showCLIHints != "" {
 		if show, err := strconv.ParseBool(showCLIHints); err == nil {
-			m.showCLIHints = pointer.Of(show)
+			m.showCLIHints = new(show)
 		} else {
 			m.Ui.Warn(fmt.Sprintf("Invalid value %q for %s: %v", showCLIHints, EnvNomadCLIShowHints, err))
 		}
@@ -324,8 +323,8 @@ func (e *NoJobWithPrefixError) Error() string {
 // JobByPrefix returns the job that best matches the given prefix. Returns an
 // error if there are no matches or if there are more than one exact match
 // across namespaces.
-func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter string) (*api.Job, error) {
-	jobID, namespace, err := m.JobIDByPrefix(client, prefix, filter)
+func (m *Meta) JobByPrefix(client *api.Client, prefix string) (*api.Job, error) {
+	jobID, namespace, err := m.JobIDByPrefix(client, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -335,27 +334,58 @@ func (m *Meta) JobByPrefix(client *api.Client, prefix string, filter string) (*a
 	if err != nil {
 		return nil, fmt.Errorf("Error querying job %q: %s", jobID, err)
 	}
-	job.Namespace = pointer.Of(namespace)
+	job.Namespace = new(namespace)
 
 	return job, nil
 }
+
+// JobByPrefixFilterFunc filters jobs during a client-side prefix match. It is
+// the fallback for servers that cannot evaluate the server-side filter expression.
+type JobByPrefixFilterFunc func(*api.JobListStub) bool
 
 // JobIDByPrefix provides best effort match for the given job prefix.
 // Returns the prefix itself if job prefix search is not allowed and an error
 // if there are no matches or if there are more than one exact match across
 // namespaces.
-func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter string) (string, string, error) {
+func (m *Meta) JobIDByPrefix(client *api.Client, prefix string) (string, string, error) {
+	return m.jobIDByPrefix(client, prefix, "", nil)
+}
+
+// jobIDByPrefix backs JobIDByPrefix. When clientFilter is set and the server is
+// too old to parse the filter expression (the "is not nil" operator landed in
+// 1.11.3), it retries without the server-side filter and applies clientFilter
+// to the results instead.
+func (m *Meta) jobIDByPrefix(client *api.Client, prefix, filter string, clientFilter JobByPrefixFilterFunc) (string, string, error) {
 	maxResults := 20 // reduce load for large sets
 	jobs, _, err := client.Jobs().ListOptions(nil, &api.QueryOptions{
 		Prefix:  prefix,
 		Filter:  filter,
 		PerPage: int32(maxResults),
 	})
+	truncated := len(jobs) >= maxResults
 	if err != nil {
 		if strings.Contains(err.Error(), api.PermissionDeniedErrorContent) {
 			return prefix, "", nil
 		}
-		return "", "", fmt.Errorf("Error querying job prefix %q: %s", prefix, err)
+		// Servers older than 1.11.3 reject the "is not nil" filter operator
+		// while building the result paginator. Retry without the server-side
+		// filter and narrow the results on the client.
+		// COMPAT(2.0): remove this fallback once 1.10LTS is out of support
+		if clientFilter == nil || !strings.Contains(err.Error(), api.ResultPaginatorErrorContent) {
+			return "", "", fmt.Errorf("Error querying job prefix %q: %s", prefix, err)
+		}
+		jobs, _, err = client.Jobs().PrefixList(prefix)
+		if err != nil {
+			return "", "", fmt.Errorf("Error querying job prefix %q: %s", prefix, err)
+		}
+		var filtered []*api.JobListStub
+		for _, j := range jobs {
+			if clientFilter(j) {
+				filtered = append(filtered, j)
+			}
+		}
+		jobs = filtered
+		truncated = false // the unfiltered prefix list is complete
 	}
 
 	if len(jobs) == 0 {
@@ -365,7 +395,7 @@ func (m *Meta) JobIDByPrefix(client *api.Client, prefix string, filter string) (
 		exactMatch := prefix == jobs[0].ID
 		matchInMultipleNamespaces := m.allNamespaces() && jobs[0].ID == jobs[1].ID
 		truncatedMsg := ""
-		if len(jobs) >= maxResults {
+		if truncated {
 			truncatedMsg = "\n(results may be truncated)"
 		}
 		if !exactMatch || matchInMultipleNamespaces {

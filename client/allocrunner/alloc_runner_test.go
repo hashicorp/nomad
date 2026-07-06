@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocrunner
@@ -495,6 +495,99 @@ func TestAllocRunner_Lifecycle_Poststop(t *testing.T) {
 		t.Fatalf("error waiting for initial state:\n%v", err)
 	})
 
+}
+
+func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.LifecycleAlloc()
+	alloc.CreateTime = time.Now().UnixNano()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+
+	alloc.Job.Type = structs.JobTypeBatch
+	maxRunDuration := 1 * time.Second
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+
+	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
+	mainTask.Config["run_for"] = "100s"
+	mainTask.KillTimeout = 10 * time.Millisecond
+
+	poststopTask := alloc.Job.TaskGroups[0].Tasks[1]
+	poststopTask.Name = "poststop"
+	poststopTask.Lifecycle.Hook = structs.TaskLifecycleHookPoststop
+	poststopTask.Config["run_for"] = "10s"
+
+	alloc.Job.TaskGroups[0].Tasks = []*structs.Task{mainTask, poststopTask}
+	alloc.AllocatedResources.Tasks = map[string]*structs.AllocatedTaskResources{
+		mainTask.Name:     tr,
+		poststopTask.Name: tr,
+	}
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	go ar.Run()
+	defer destroy(ar)
+
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last == nil {
+				return fmt.Errorf("no updates")
+			}
+			if last.ClientStatus != structs.AllocClientStatusRunning {
+				return fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+				return fmt.Errorf("expected main task to be running not %s", s)
+			}
+			if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
+				return fmt.Errorf("expected poststop task to be pending not %s", s)
+			}
+			return nil
+		}),
+		wait.Timeout(200*time.Millisecond), // max_run_duration is 1s
+		wait.Gap(5*time.Millisecond),
+	))
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last.ClientStatus != structs.AllocClientStatusComplete {
+				return fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
+			}
+			if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+				return fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+				return fmt.Errorf("expected main task to be dead not %s", s)
+			}
+
+			// poststop task would run for 10s if not for max_run_duration of
+			// 1s; all tasks should be dead by now and poststop tasks should
+			// never have run
+			poststopState := last.TaskStates[poststopTask.Name]
+			if poststopState.State != structs.TaskStateDead {
+				return fmt.Errorf("expected poststop task to be dead not %s", poststopState.State)
+			}
+			events := poststopState.Events
+			if len(events) != 2 {
+				return fmt.Errorf("expected poststop task to have event for max_run_duration: %+v", events)
+			}
+			if events[1].DisplayMessage != "allocation exceeded max_run_duration" {
+				return fmt.Errorf("expected poststop task to be dead because of max_run_duration")
+			}
+			return nil
+		}),
+		wait.Timeout(2000*time.Millisecond),
+		wait.Gap(5*time.Millisecond),
+	))
 }
 
 func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
@@ -1237,6 +1330,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	must.NoError(t, err)
 	defer destroy(ar2)
 
+	must.NoError(t, ar2.(*allocRunner).allocDir.Build())
 	if err := ar2.Restore(); err != nil {
 		t.Fatalf("error restoring state: %v", err)
 	}
@@ -1313,6 +1407,7 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	arIface2, err := NewAllocRunner(conf)
 	must.NoError(t, err)
 	ar2 := arIface2.(*allocRunner)
+	must.NoError(t, ar2.allocDir.Build())
 	must.NoError(t, ar2.Restore())
 
 	go ar2.Run()
@@ -1328,6 +1423,33 @@ func TestAllocRunner_Restore_LifecycleHooks(t *testing.T) {
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["side"].Task())
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["web"].Task())
 	tasklifecycle.RequireTaskAllowed(t, ar2.taskCoordinator, ar2.tasks["poststart"].Task())
+}
+
+// TestAllocRunner_Restore_MissingAllocDir asserts that Restore() fails when the
+// allocation directory is missing, which can happen if allocation storage is
+// ephemeral (e.g., tmpfs or cloud local SSDs).
+func TestAllocRunner_Restore_MissingAllocDir(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	// Get the allocation directory path before deleting it
+	allocDirPath := ar.allocDir.AllocDirPath()
+
+	// Remove the allocation directory to simulate ephemeral storage being deleted
+	err = os.RemoveAll(allocDirPath)
+	must.NoError(t, err)
+
+	// Call Restore() and verify it fails with appropriate error
+	err = ar.Restore()
+	must.Error(t, err)
+	must.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestAllocRunner_Update_Semantics(t *testing.T) {
@@ -2674,6 +2796,133 @@ func TestAllocRunner_GetUpdatePriority(t *testing.T) {
 	ar.SetClientStatus(structs.AllocClientStatusFailed)
 	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
 	must.Eq(t, cstructs.AllocUpdatePriorityUrgent, ar.GetUpdatePriority(calloc))
+}
+
+func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.CreateTime = time.Now().UnixNano()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	task.KillTimeout = 10 * time.Millisecond
+	maxRunDuration := 50 * time.Millisecond
+	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	go ar.Run()
+	defer destroy(ar)
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+		if state == nil {
+			return false, fmt.Errorf("no alloc state")
+		}
+		if state.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		if state.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+			return false, fmt.Errorf("got description %q; want %q", state.ClientDescription, structs.AllocTimeoutReasonMaxRunDuration)
+		}
+		if !state.MaxRunDurationExceeded {
+			return false, fmt.Errorf("max run duration was not marked exceeded")
+		}
+		return true, nil
+	}, func(err error) {
+		state := ar.AllocState()
+		t.Fatalf("timed out waiting for alloc runner max_run_duration enforcement: %v; state=%#v", err, state)
+	})
+}
+
+func TestAllocRunner_MaxRunDuration_UpdateExtendsRunningAlloc(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.CreateTime = time.Now().UnixNano()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "10s",
+	}
+	task.KillTimeout = 10 * time.Millisecond
+
+	// Scale timings with TestMultiplier so the test is reliable on slow CI
+	// environments. The deadline is anchored to CreateTime (set above), so we
+	// need the update to land well before the initial deadline fires.
+	m := time.Duration(testutil.TestMultiplier())
+	initialMaxRunDuration := m * 250 * time.Millisecond
+	alloc.Job.TaskGroups[0].MaxRunDuration = &initialMaxRunDuration
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+
+	arIface, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+	ar := arIface.(*allocRunner)
+
+	go ar.Run()
+	defer destroy(ar)
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+		if state == nil {
+			return false, fmt.Errorf("no alloc state")
+		}
+		if state.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusRunning)
+		}
+		return true, nil
+	}, func(err error) {
+		state := ar.AllocState()
+		t.Fatalf("timed out waiting for alloc runner to start: %v; state=%#v", err, state)
+	})
+
+	// Apply the update well before initialMaxRunDuration elapses from CreateTime.
+	time.Sleep(m * 100 * time.Millisecond)
+
+	updatedAlloc := ar.Alloc().Copy()
+	updatedAlloc.AllocModifyIndex++
+	updatedMaxRunDuration := initialMaxRunDuration * 4
+	updatedAlloc.Job.TaskGroups[0].MaxRunDuration = &updatedMaxRunDuration
+	ar.Update(updatedAlloc)
+
+	// Sleep past the original deadline. The alloc should still be running
+	// because the update extended the deadline to initialMaxRunDuration*4.
+	time.Sleep(initialMaxRunDuration)
+
+	state := ar.AllocState()
+	must.NotNil(t, state)
+	must.False(t, state.MaxRunDurationExceeded)
+	must.Eq(t, structs.AllocClientStatusRunning, state.ClientStatus)
+
+	testutil.WaitForResult(func() (bool, error) {
+		state := ar.AllocState()
+		if state == nil {
+			return false, fmt.Errorf("no alloc state")
+		}
+		if state.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got status %v; want %v", state.ClientStatus, structs.AllocClientStatusComplete)
+		}
+		if state.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+			return false, fmt.Errorf("got description %q; want %q", state.ClientDescription, structs.AllocTimeoutReasonMaxRunDuration)
+		}
+		if !state.MaxRunDurationExceeded {
+			return false, fmt.Errorf("max run duration was not marked exceeded")
+		}
+		return true, nil
+	}, func(err error) {
+		state := ar.AllocState()
+		t.Fatalf("timed out waiting for alloc runner max_run_duration enforcement after update: %v; state=%#v", err, state)
+	})
 }
 
 func TestAllocRunner_setHookStatsHandler(t *testing.T) {

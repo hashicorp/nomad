@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -36,7 +36,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -769,15 +768,20 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
 	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
 	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
+	selinuxLabel := d.config.Volumes.SelinuxLabel
+
 	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
 
-	selinuxLabel := d.config.Volumes.SelinuxLabel
+	logsROFlag := "ro"
 	if selinuxLabel != "" {
 		// Apply SELinux Label to each built-in bind
 		for i := range binds {
 			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
 		}
+		logsROFlag = "ro," + selinuxLabel
 	}
+	allocLogsDirBind := fmt.Sprintf("%s/logs:%s/logs:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir], logsROFlag)
+	binds = append(binds, allocLogsDirBind)
 
 	for _, userbind := range driverConfig.Volumes {
 		// This assumes host OS = docker container OS.
@@ -944,23 +948,22 @@ const (
 // (whichever is greater). If resources.memory_max = -1, there is no hard limit
 // and task.config.memory_hard_limit is ignored.
 //
+// It is expected that the scheduler already included the space for the
+// secrets inside the taskMemory and if oversubscription is not enabled,
+// taskMemory.MemoryMaxMB was set to 0.
+//
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
 func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
-	memHard := driverHardLimitMB
-	memReserved := taskMemory.MemoryMB
-	memMax := taskMemory.MemoryMaxMB
+	if taskMemory.MemoryMaxMB == memoryNoLimit {
+		return 0, mbToBytes(taskMemory.MemoryMB)
+	}
 
-	if memMax == memoryNoLimit {
-		return 0, mbToBytes(memReserved)
+	highLimit := max(driverHardLimitMB, taskMemory.MemoryMaxMB)
+	if highLimit == 0 {
+		return mbToBytes(taskMemory.MemoryMB), 0
 	}
-	if memMax > memHard {
-		memHard = memMax
-	}
-	if memHard <= 0 {
-		memHard = memReserved
-		memReserved = 0
-	}
-	return mbToBytes(memHard), mbToBytes(memReserved)
+
+	return mbToBytes(highLimit), mbToBytes(taskMemory.MemoryMB)
 }
 
 func mbToBytes(n int64) int64 {
@@ -994,17 +997,26 @@ func (d *Driver) cpuResources(requested int64) int64 {
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (createContainerOptions, error) {
 
+	logger := d.logger.With("task_name", task.Name)
+	c := createContainerOptions{}
+
 	// ensure that PortMap variables are populated early on
 	task.Env = taskenv.SetPortMapEnvs(task.Env, driverConfig.PortMap)
 
-	logger := d.logger.With("task_name", task.Name)
-	var c createContainerOptions
 	if task.Resources == nil {
 		// Guard against missing resources. We should never have been able to
 		// schedule a job without specifying this.
 		logger.Error("task.Resources is empty")
 		return c, fmt.Errorf("task.Resources is empty")
 	}
+
+	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit,
+		task.Resources.NomadResources.Memory)
+	if memory > 0 && memoryReservation > memory {
+		return c, fmt.Errorf("task memory requirements exceed driver hard limit of %d MB",
+			driverConfig.MemoryHardLimit)
+	}
+
 	binds, err := d.containerBinds(task, driverConfig)
 	if err != nil {
 		return c, err
@@ -1052,8 +1064,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			return c, fmt.Errorf("Unsupported isolation mode \"%s\"", driverConfig.Isolation)
 		}
 	}
-
-	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
 
 	var pidsLimit int64 = -1 // default unlimited
 
@@ -1135,7 +1145,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 		// disable swap explicitly in non-Windows environments
 		if cgroupslib.MaybeDisableMemorySwappiness() != nil {
-			hostConfig.MemorySwappiness = pointer.Of(int64(*(cgroupslib.MaybeDisableMemorySwappiness())))
+			hostConfig.MemorySwappiness = new(int64(*(cgroupslib.MaybeDisableMemorySwappiness())))
 		} else {
 			hostConfig.MemorySwappiness = nil
 		}
@@ -1745,7 +1755,7 @@ func (d *Driver) DestroyTask(taskID string, force bool) error {
 			if !force {
 				return fmt.Errorf("must call StopTask for the given task before Destroy or set force to true")
 			}
-			if _, err := dockerClient.ContainerStop(d.ctx, h.containerID, mclient.ContainerStopOptions{Timeout: pointer.Of(0)}); err != nil {
+			if _, err := dockerClient.ContainerStop(d.ctx, h.containerID, mclient.ContainerStopOptions{Timeout: new(0)}); err != nil {
 				h.logger.Warn("failed to stop container during destroy", "error", err)
 			}
 		}
@@ -2111,5 +2121,5 @@ func isDockerTransientError(err error) bool {
 }
 
 func stopWithZeroTimeout() mclient.ContainerStopOptions {
-	return mclient.ContainerStopOptions{Timeout: pointer.Of(0)}
+	return mclient.ContainerStopOptions{Timeout: new(0)}
 }

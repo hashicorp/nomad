@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2015, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 # this unnamed (default) config should merge cleanly onto the basic config

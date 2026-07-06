@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package drivers
@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	sproto "github.com/hashicorp/nomad/plugins/shared/structs/proto"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -34,6 +35,20 @@ type driverPluginClient struct {
 
 	// doneCtx is closed when the plugin exits
 	doneCtx context.Context
+}
+
+func (d *driverPluginClient) Init(ctx context.Context) error {
+	ctx, cancel := joincontext.Join(d.doneCtx, ctx)
+	defer cancel()
+
+	_, err := d.client.Init(ctx, &proto.InitRequest{})
+
+	// If the init function is not implemented, just ignore.
+	if status.Code(err) == codes.Unimplemented {
+		return nil
+	}
+
+	return grpcutils.HandleGrpcErr(err, d.doneCtx)
 }
 
 func (d *driverPluginClient) TaskConfigSchema() (*hclspec.Spec, error) {
@@ -517,5 +532,22 @@ func (d *driverPluginClient) DestroyNetwork(allocID string, spec *NetworkIsolati
 		return grpcutils.HandleGrpcErr(err, d.doneCtx)
 	}
 
+	return nil
+}
+
+func (d *driverPluginClient) Shutdown(ctx context.Context) error {
+	ctx, cancel := joincontext.Join(d.DoneCtx, ctx)
+	defer cancel()
+
+	_, err := d.client.Shutdown(ctx, &proto.ShutdownRequest{})
+	if err != nil {
+		// If the Shutdown function is not implemented, just ignore.
+		if status.Code(err) == codes.Unimplemented {
+			d.logger.Debug("driver plugin does not implement Shutdowner interface")
+			return nil
+		}
+
+		return grpcutils.HandleGrpcErr(err, ctx)
+	}
 	return nil
 }

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 job "countdash" {
@@ -64,6 +64,7 @@ job "countdash" {
         auth_soft_fail = true
       }
 
+      consul {}
 
       # this template can't be used for the COUNTING_SERVICE_URL because it
       # needs the Nomad-assigned upstream address here and not the Consul

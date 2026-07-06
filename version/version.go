@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package version
@@ -19,7 +19,7 @@ var (
 	GitDescribe string
 
 	// The main version number that is being run at the moment.
-	Version = "2.0.1"
+	Version = "2.0.4"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
