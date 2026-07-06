@@ -1,0 +1,129 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package queues
+
+import (
+	"context"
+	"sync"
+	"sync/atomic"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+type BatchQueueManager struct {
+	defaultQueue Queue
+	defaultConf  structs.BatchQueue
+	broker       Broker
+	state        *state.StateStore
+	enabled      atomic.Bool
+	shutdownCtx  context.Context
+	mux          sync.Mutex
+	logger       hclog.Logger
+}
+
+func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueue, broker Broker, logger hclog.Logger) *BatchQueueManager {
+	return &BatchQueueManager{
+		defaultConf: defaultConf,
+		broker:      broker,
+		shutdownCtx: ctx,
+		mux:         sync.Mutex{},
+		logger:      logger,
+	}
+}
+
+// Enqueue takes an evaluation and passes it to the respective queue.
+// Happens in Raft
+func (b *BatchQueueManager) Enqueue(e *structs.Evaluation) {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+	if !b.enabled.Load() {
+		return
+	}
+
+	// If an enqueue happens before SetEnabled = true, throw it away,
+	// it will be processed during eval restore
+	if b.state == nil || b.defaultQueue == nil {
+		return
+	}
+
+	b.defaultQueue.Enqueue(e)
+}
+
+// Happens in leader loop
+func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	if enabled {
+		// already enabled is a noop
+		if b.enabled.Load() {
+			return
+		}
+
+		if b.state == nil {
+			b.state = state
+		}
+		b.startQueues()
+	} else {
+		if b.defaultQueue != nil {
+			// stop default queue
+			b.defaultQueue.Stop()
+			b.defaultQueue = nil
+		}
+	}
+
+	b.enabled.Store(enabled)
+}
+
+// not safe
+func (b *BatchQueueManager) Queue() Queue {
+	return b.defaultQueue
+}
+
+// Update is used to either update the default queue or a specific node pools queue.
+func (b *BatchQueueManager) Update(conf *structs.BatchQueue) {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	if !b.enabled.Load() {
+		return
+	}
+
+	if b.defaultQueue != nil {
+		b.defaultQueue.Stop()
+	}
+
+	queue, err := NewQueue(b.state, conf, b.broker, b.logger)
+	if err != nil {
+		b.logger.Error("failed to update batch queue", "err", err)
+		return
+	}
+
+	b.defaultQueue = queue
+	b.defaultQueue.Start(b.shutdownCtx)
+}
+
+func (b *BatchQueueManager) startQueues() {
+	defaultConf := b.defaultConf
+	_, conf, err := b.state.SchedulerConfig()
+	if err != nil {
+		b.logger.Error("failed to get scheduler config from state, skipping queue creation", "err", err)
+		return
+	}
+
+	if conf != nil {
+		defaultConf = conf.BatchQueue
+	}
+
+	queue, err := NewQueue(b.state, &defaultConf, b.broker, b.logger)
+	if err != nil {
+		b.logger.Error("failed to create default batch queue", "err", err)
+		return
+	}
+
+	b.defaultQueue = queue
+	b.defaultQueue.Start(b.shutdownCtx)
+}

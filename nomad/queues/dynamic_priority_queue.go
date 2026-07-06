@@ -8,7 +8,6 @@ import (
 	"errors"
 	"math"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -58,13 +57,13 @@ type DynamicPriorityQueue struct {
 	// on to be scheduled by Nomad
 	evalBroker Broker
 
-	// enabled tracks whether the server running the batch job queue is the leader
-	// so should process evaluations
-	enabled atomic.Bool
-
 	// state is the in-memory state store used for both reconciling tenant
 	// workload usages, and polling submitted evaluations for placement
-	state  *state.StateStore
+	state *state.StateStore
+
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+
 	logger hclog.Logger
 }
 
@@ -110,7 +109,7 @@ type Workload struct {
 	waitOnRestore bool
 }
 
-func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
+func NewDynamicPriorityQueue(ss *state.StateStore, broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
 		tenants:     make(map[TenantID]*Tenant),
 		queue:       NewWorkloadQueue(),
@@ -123,44 +122,38 @@ func NewDynamicPriorityQueue(broker Broker, qconf *structs.BatchQueue, conf *str
 		conf:        conf,
 		logger:      logger.Named("Dynamic Priority Queue"),
 		totalUsage:  &ResourceUsage{},
+		wg:          sync.WaitGroup{},
+		state:       ss,
 	}
 }
 
 func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
-	go d.runProducer(ctx)
-	go d.runConsumer(ctx)
-
-	return nil
-}
-
-// SetEnabled is called during leadership transfer and initiates a state restore
-// and enabled the queue to start processing evaluations.
-//
-// TODO: When disabled, we don't actually stop the producer/consumer, so SetEnabled
-// handles restoring from state on a server restart, but leadership transfers
-// will result in duplicate usage calculations.
-// The fix for this is in the batch queue manager branch which starts and stops queues
-// during leadership transfers.
-func (d *DynamicPriorityQueue) SetEnabled(enabled bool, ss *state.StateStore) {
-	if !enabled {
-		d.enabled.Store(false)
-		return
-	}
-
-	// set state
-	d.state = ss
+	rCtx, cancel := context.WithCancel(ctx)
+	d.cancel = cancel
 
 	snap, err := d.state.Snapshot()
 	if err != nil {
 		d.logger.Error("failed to get state snapshot", "err", err)
-		return
+		return err
 	}
 
 	if err := d.restore(snap, time.Now()); err != nil {
-		return
+		return err
 	}
 
-	d.enabled.Store(true)
+	d.wg.Go(func() {
+		d.runProducer(rCtx)
+	})
+	d.wg.Go(func() {
+		d.runConsumer(rCtx)
+	})
+
+	return nil
+}
+
+func (d *DynamicPriorityQueue) Stop() {
+	d.cancel()
+	d.wg.Wait()
 }
 
 // restore scans all evaluations and restores the usage state of the queue by
@@ -229,10 +222,6 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 // to an internal channel to be processed and added to the actual
 // heap container.
 func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
-	if !d.enabled.Load() {
-		return
-	}
-
 	w := d.generateWorkload(e)
 
 	// in the event of an empty workload, just pass eval to eval broker
@@ -265,10 +254,6 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			default:
 			}
 		case <-time.After(d.conf.CalcInterval):
-			if !d.enabled.Load() {
-				continue
-			}
-
 			d.qMux.Lock()
 			d.calculatePriorities(time.Now())
 			d.qMux.Unlock()
@@ -615,15 +600,17 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 	d.qMux.Lock()
 	defer d.qMux.Unlock()
 
+	pos := 1
 	workloads := []structs.DynamicPriorityWorkload{}
-	for pos, w := range d.queue.Slice() {
+	for _, w := range d.queue.Slice() {
 		if (namespaces != nil) && !namespaces[w.eval.Namespace] || w.waitOnRestore {
 			continue
 		}
+
 		workloads = append(workloads, structs.DynamicPriorityWorkload{
 			JobID:            w.eval.JobID,
 			Tenant:           string(w.tid),
-			Position:         pos + 1,
+			Position:         pos,
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
 			UsageAdjustment:  w.usageAdjustment,
@@ -631,6 +618,8 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 			SizeAdjustment:   w.sizeAdjustment,
 			CreatedAt:        w.eval.CreateTime,
 		})
+
+		pos++
 	}
 	return structs.QueueJobsResponse{
 		Type:      structs.BatchQueueTypeDynamic,

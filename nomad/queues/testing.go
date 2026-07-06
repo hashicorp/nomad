@@ -6,7 +6,6 @@ package queues
 import (
 	"context"
 
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/mock"
 )
@@ -18,10 +17,13 @@ type MockQueue struct {
 // Start is a noop for the passthrough implementation
 func (m *MockQueue) Start(context.Context) error { return nil }
 
-func (m *MockQueue) Enqueue(e *structs.Evaluation) {
+func (m *MockQueue) Stop() {
+	m.Called()
 }
 
-func (m *MockQueue) SetEnabled(bool, *state.StateStore) {}
+func (m *MockQueue) Enqueue(e *structs.Evaluation) {
+	m.Called(e)
+}
 
 func (m *MockQueue) Jobs(ns map[string]bool) structs.QueueJobsResponse {
 	args := m.Called(ns)
