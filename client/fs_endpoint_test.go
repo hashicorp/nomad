@@ -2227,21 +2227,50 @@ func TestFS_logsImpl_GlobalOffset(t *testing.T) {
 	require.NoError(t, err)
 
 	var got []byte
-	var last *sframer.StreamFrame
 	for len(frames) > 0 {
 		frame := <-frames
 		if frame.IsHeartbeat() {
 			continue
 		}
 		got = append(got, frame.Data...)
-		last = frame
 	}
 
 	require.Equal(t, []byte("ef"), got)
-	require.NotNil(t, last)
-	require.Equal(t, int64(1), last.FileIndex)
-	require.Equal(t, int64(3), last.ByteOffset)
-	require.Equal(t, int64(6), last.GlobalOffset)
+}
+
+func TestFS_setGlobalLogOffset(t *testing.T) {
+	ci.Parallel(t)
+
+	ad := tempAllocDir(t)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
+
+	manifest := logging.OffsetManifest{
+		Version:      1,
+		BaseFileName: "foo.stdout",
+		Files: map[string]logging.OffsetManifestLog{
+			"0": {Index: 0, Base: 0, Size: 3},
+			"1": {Index: 1, Base: 3, Size: 3},
+		},
+	}
+	manifestBytes, err := json.Marshal(manifest)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(ad.SharedDir, logging.OffsetManifestFile("foo.stdout")),
+		manifestBytes,
+		0644,
+	))
+
+	frame := &sframer.StreamFrame{
+		File:   filepath.Join(allocdir.SharedAllocName, allocdir.LogDirName, "foo.stdout.1"),
+		Offset: 3,
+		Data:   []byte("def"),
+	}
+
+	require.NoError(t, setGlobalLogOffset(ad, "foo", "stdout", frame))
+	require.Equal(t, int64(1), frame.FileIndex)
+	require.Equal(t, int64(3), frame.ByteOffset)
+	require.Equal(t, int64(6), frame.GlobalOffset)
 }
 
 func TestFS_logsImpl_GlobalOffsetUnavailable(t *testing.T) {
