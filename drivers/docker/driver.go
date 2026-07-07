@@ -36,6 +36,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -804,8 +805,10 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 			src = filepath.Clean(src)
 		}
 
-		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, src) {
-			return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
+		if !d.config.Volumes.Enabled {
+			if err := escapingfs.ChildEscapesParentDir(task.AllocDir, src); err != nil {
+				return nil, fmt.Errorf("volumes are not enabled; cannot mount host path: %q", userbind)
+			}
 		}
 
 		bind := src + ":" + dst
@@ -1568,12 +1571,10 @@ func (d *Driver) toDockerMount(m *DockerMount, task *drivers.TaskConfig) (*mount
 	case "bind":
 		hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
 
-		// paths inside alloc dir are always allowed as they mount within
-		// a container, and treated as relative to task dir
-		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
-			return nil, fmt.Errorf(
-				"volumes are not enabled; cannot mount host path: %q %q",
-				hm.Source, task.AllocDir)
+		if !d.config.Volumes.Enabled {
+			if err := escapingfs.ChildEscapesParentDir(task.AllocDir, hm.Source); err != nil {
+				return nil, fmt.Errorf("volumes are not enabled; cannot mount host path: %q", hm.Source)
+			}
 		}
 	case "tmpfs":
 		// no source, so no sandbox check required
