@@ -111,9 +111,14 @@ func TestTaskGroupHostVolumeClaimEndpoint_List(t *testing.T) {
 		resultCh <- &res{err: err, reply: &claimsResp3}
 	}(resultCh)
 
+	// Should not be allowed
+	must.EqError(t, testServer.fsm.State().DeleteTaskGroupHostVolumeClaim(
+		claimsResp2.Index+10, "some-other-ns", existingClaims[0].ID),
+		"task group volume claim does not exist")
+
 	// Delete a claim from state which should return the blocking query.
 	must.NoError(t, testServer.fsm.State().DeleteTaskGroupHostVolumeClaim(
-		claimsResp2.Index+10, existingClaims[0].ID))
+		claimsResp2.Index+10, existingClaims[0].Namespace, existingClaims[0].ID))
 
 	// Wait until the test within the routine is complete.
 	result := <-resultCh
@@ -150,6 +155,10 @@ func TestTaskGroupHostVolumeClaimEndpoint_Delete(t *testing.T) {
 
 	goodToken := mock.CreatePolicyAndToken(t, store, 999, "good",
 		`namespace "default" { capabilities = ["host-volume-write"] }
+         node { policy = "write" }`).SecretID
+
+	badToken := mock.CreatePolicyAndToken(t, store, 999, "bad",
+		`namespace "other" { capabilities = ["host-volume-write"] }
          node { policy = "write" }`).SecretID
 
 	stickyJob := mock.Job()
@@ -199,16 +208,29 @@ func TestTaskGroupHostVolumeClaimEndpoint_Delete(t *testing.T) {
 	err := msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimDeleteRPCMethod, claimsReq1, &claimsResp1)
 	must.EqError(t, err, "Permission denied")
 
-	// Try deleting claim with a valid ACL token.
+	// Try deleting across namespaces with a valid ACL token for the other namespace
 	claimsReq2 := &structs.TaskGroupVolumeClaimDeleteRequest{
+		ClaimID: existingClaims[0].ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    DefaultRegion,
+			Namespace: "other",
+			AuthToken: badToken,
+		},
+	}
+	var claimsResp2 structs.TaskGroupVolumeClaimDeleteResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimDeleteRPCMethod, claimsReq2, &claimsResp2)
+	must.EqError(t, err, "task group volume claim does not exist")
+
+	// Try deleting claim with a valid ACL token.
+	claimsReq3 := &structs.TaskGroupVolumeClaimDeleteRequest{
 		ClaimID: existingClaims[0].ID,
 		WriteRequest: structs.WriteRequest{
 			Region:    DefaultRegion,
 			AuthToken: goodToken,
 		},
 	}
-	var claimsResp2 structs.TaskGroupVolumeClaimDeleteResponse
-	err = msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimDeleteRPCMethod, claimsReq2, &claimsResp2)
+	var claimsResp3 structs.TaskGroupVolumeClaimDeleteResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimDeleteRPCMethod, claimsReq3, &claimsResp3)
 	must.NoError(t, err)
 
 	// Ensure the claim is gone
@@ -225,14 +247,14 @@ func TestTaskGroupHostVolumeClaimEndpoint_Delete(t *testing.T) {
 	must.SliceNotContains(t, claimsLookup, existingClaims[0])
 
 	// Try to delete the previously deleted claim; this should fail.
-	claimsReq3 := &structs.TaskGroupVolumeClaimDeleteRequest{
+	claimsReq4 := &structs.TaskGroupVolumeClaimDeleteRequest{
 		ClaimID: existingClaims[0].ID,
 		WriteRequest: structs.WriteRequest{
 			Region:    DefaultRegion,
 			AuthToken: goodToken,
 		},
 	}
-	var claimsResp3 structs.TaskGroupVolumeClaimDeleteResponse
-	err = msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimDeleteRPCMethod, claimsReq3, &claimsResp3)
-	must.EqError(t, err, "Task group volume claim does not exist")
+	var claimsResp4 structs.TaskGroupVolumeClaimDeleteResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimDeleteRPCMethod, claimsReq4, &claimsResp4)
+	must.EqError(t, err, "task group volume claim does not exist")
 }
