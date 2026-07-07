@@ -506,6 +506,8 @@ func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 // updates.
 func (s *StateStore) upsertDeploymentUpdates(index uint64, now int64, updates []*structs.DeploymentStatusUpdate, txn *txn) error {
 	for _, u := range updates {
+		u.UpdatedAt = now
+
 		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
 			return err
 		}
@@ -4815,16 +4817,19 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.ModifyTime = u.UpdatedAt
 
 	// check each TaskGroup for ProgressDeadline and reset RequireProgressBy
-	// to u.UpdatedAt + ProgressDeadline if neither equal 0
+	// to ProgressDeadline if the deployment is running or paused. This is to
+	// ensure that the RequireProgressBy is reset on a deployment that has been
+	// paused and resumed.
 	for _, dState := range copy.TaskGroups {
-		if dState == nil {
+		if dState == nil || dState.ProgressDeadline == 0 {
 			continue
 		}
-		if u.UpdatedAt != 0 && dState.ProgressDeadline != 0 {
-			updateTime := time.Unix(0, u.UpdatedAt)
-			dState.RequireProgressBy = updateTime.Add(dState.ProgressDeadline)
+
+		if copy.Status == structs.DeploymentStatusPaused || copy.Status == structs.DeploymentStatusRunning {
+			dState.RequireProgressBy = time.Unix(0, u.UpdatedAt).Add(dState.ProgressDeadline)
 		}
 	}
+
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
 		return err
