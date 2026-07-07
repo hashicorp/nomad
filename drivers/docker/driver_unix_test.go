@@ -270,7 +270,14 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	allocDir := "/tmp/nomad/alloc-dir"
+	// volume mount protection expects the "parent" (alloc) dir to exist.
+	tmp := t.TempDir()
+
+	allocID := "long-alloc-id"
+	allocDir := filepath.Join(tmp, allocID)
+	must.NoError(t, os.MkdirAll(allocDir, 0755))
+
+	taskName := "task-name"
 
 	cases := []struct {
 		name            string
@@ -307,7 +314,7 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 			requiresVolumes: false,
 			volumeDriver:    "",
 			volumes:         []string{"test-path:/tmp/taskpath"},
-			expectedVolumes: []string{"/tmp/nomad/alloc-dir/demo/test-path:/tmp/taskpath"},
+			expectedVolumes: []string{filepath.Join(tmp, allocID, taskName, "test-path") + ":/tmp/taskpath"},
 		},
 		{
 			name:            "named volume local driver",
@@ -321,14 +328,14 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 			requiresVolumes: false,
 			volumeDriver:    "",
 			volumes:         []string{"../test-path:/tmp/taskpath"},
-			expectedVolumes: []string{"/tmp/nomad/alloc-dir/test-path:/tmp/taskpath"},
+			expectedVolumes: []string{filepath.Join(allocDir, "test-path") + ":/tmp/taskpath"},
 		},
 		{
 			name:            "relative outside alloc-dir default driver",
 			requiresVolumes: true,
 			volumeDriver:    "",
 			volumes:         []string{"../../test-path:/tmp/taskpath"},
-			expectedVolumes: []string{"/tmp/nomad/test-path:/tmp/taskpath"},
+			expectedVolumes: []string{filepath.Join(tmp, "test-path") + ":/tmp/taskpath"},
 		},
 		{
 			name:            "clean path local driver",
@@ -351,7 +358,7 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 				cfg.Volumes = c.volumes
 
 				task.AllocDir = allocDir
-				task.Name = "demo"
+				task.Name = taskName
 
 				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -359,7 +366,7 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 				must.NoError(t, err)
 
 				for _, v := range c.expectedVolumes {
-					must.SliceContains(t, cc.Host.Binds, v)
+					must.SliceContains(t, cc.Host.Binds, v, must.Sprintf("slice has:\n * %s", strings.Join(cc.Host.Binds, "\n * ")))
 				}
 			})
 		}
@@ -377,7 +384,7 @@ func TestDockerDriver_BindMountsHonorVolumesEnabledFlag(t *testing.T) {
 				cfg.Volumes = c.volumes
 
 				task.AllocDir = allocDir
-				task.Name = "demo"
+				task.Name = taskName
 
 				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -403,7 +410,14 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	allocDir := "/tmp/nomad/alloc-dir"
+	// volume mount protection expects the "parent" (alloc) dir to exist.
+	tmp := t.TempDir()
+
+	allocID := "long-alloc-id"
+	allocDir := filepath.Join(tmp, allocID)
+	must.NoError(t, os.MkdirAll(allocDir, 0755))
+
+	taskName := "task-name"
 
 	cases := []struct {
 		name            string
@@ -444,7 +458,7 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 				{
 					Type:        "bind",
 					Target:      "/nomad",
-					Source:      "/tmp/nomad/alloc-dir/demo/test",
+					Source:      filepath.Join(tmp, allocID, taskName, "test"),
 					BindOptions: &mount.BindOptions{},
 				},
 			},
@@ -482,7 +496,7 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 				{
 					Type:        "bind",
 					Target:      "/nomad",
-					Source:      "/tmp/nomad/test",
+					Source:      filepath.Join(tmp, "test"),
 					BindOptions: &mount.BindOptions{},
 				},
 			},
@@ -524,7 +538,7 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 				cfg.Mounts = c.passedMounts
 
 				task.AllocDir = allocDir
-				task.Name = "demo"
+				task.Name = taskName
 
 				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
@@ -547,7 +561,7 @@ func TestDockerDriver_MountsSerialization(t *testing.T) {
 				cfg.Mounts = c.passedMounts
 
 				task.AllocDir = allocDir
-				task.Name = "demo"
+				task.Name = taskName
 
 				must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
