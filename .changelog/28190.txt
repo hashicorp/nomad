@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Enforce allowed_modes or allow_privileged requirement to set host namespace modes in task
+```
