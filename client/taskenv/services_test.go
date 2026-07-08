@@ -118,6 +118,47 @@ func TestInterpolateServices(t *testing.T) {
 	require.Equal(t, exp, interpolated)
 }
 
+// TestInterpolateServices_TaskSecrets asserts that task secrets are
+// interpolated into service check Header and Args, and service Tags, all of
+// which route through TaskEnv.ParseAndReplace.
+//
+// Regression test for https://github.com/hashicorp/nomad/issues/28195
+func TestInterpolateServices_TaskSecrets(t *testing.T) {
+	ci.Parallel(t)
+
+	services := []*structs.Service{
+		{
+			Name: "example",
+			Tags: []string{"${secret.FOO}"},
+			Checks: []*structs.ServiceCheck{
+				{
+					Name: "check",
+					Args: []string{"${secret.FOO}"},
+					Header: map[string][]string{
+						"Authorization": {"Bearer ${secret.FOO}"},
+					},
+				},
+			},
+		},
+	}
+
+	env := &TaskEnv{
+		TaskSecrets: map[string]string{
+			"secret.FOO": "s3cr3t",
+		},
+	}
+
+	interpolated := InterpolateServices(env, services)
+	require.Len(t, interpolated, 1)
+
+	check := interpolated[0].Checks[0]
+	require.Equal(t, map[string][]string{
+		"Authorization": {"Bearer s3cr3t"},
+	}, check.Header)
+	require.Equal(t, []string{"s3cr3t"}, check.Args)
+	require.Equal(t, []string{"s3cr3t"}, interpolated[0].Tags)
+}
+
 var testEnv = NewTaskEnv(
 	map[string]string{"foo": "bar", "baz": "blah"},
 	map[string]string{"foo": "bar", "baz": "blah"},

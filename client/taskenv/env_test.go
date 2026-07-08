@@ -151,6 +151,19 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 	}
 }
 
+func TestEnvironment_ParseAndReplace_Secrets(t *testing.T) {
+	ci.Parallel(t)
+
+	input := []string{fmt.Sprintf("${%v}", testSecret)}
+	exp := []string{testSecret}
+	env := testEnvBuilder()
+	act := env.Build().ParseAndReplace(input)
+
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
+	}
+}
+
 func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 	ci.Parallel(t)
 
