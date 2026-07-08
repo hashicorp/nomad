@@ -1,3 +1,39 @@
+## 2.0.4 (July 07, 2026)
+
+SECURITY:
+
+* docker: Enforce `allowed_modes` or `allow_privileged` requirement to set host namespace modes in task. This is CVE-2026-14891. [[GH-28190](https://github.com/hashicorp/nomad/issues/28190)]
+* docker: Fixed a bug where docker tasks could use a symlink to bypass the plugin configuration for volumes.enabled=false. This is CVE-2026-14896. [[GH-28177](https://github.com/hashicorp/nomad/issues/28177)]
+* dynamic host volumes: Fixed a bug where users with `host-volume-delete` in one namespace could delete claims from another namespace [[GH-28205](https://github.com/hashicorp/nomad/issues/28205)]
+
+IMPROVEMENTS:
+
+* cli: Add a `-kv-path` flag to `nomad setup vault` to configure the Vault KV mount used by the generated workload policy [[GH-28183](https://github.com/hashicorp/nomad/issues/28183)]
+* cli: Added `-json` and `-t` options to the `operator autopilot get-config` command. [[GH-27991](https://github.com/hashicorp/nomad/issues/27991)]
+* client: Add tunable for Vault default lease duration on templates for paths without leases. [[GH-28199](https://github.com/hashicorp/nomad/issues/28199)]
+* consul: Allow service, template, and connect blocks to fallback to the Nomad client agent's Consul token if workload identity is unavailable [[GH-28106](https://github.com/hashicorp/nomad/issues/28106)]
+* driver: Added optional `Init` function for task driver plugins [[GH-28104](https://github.com/hashicorp/nomad/issues/28104)]
+* driver: Added optional `Shutdown` function for task driver plugins [[GH-28102](https://github.com/hashicorp/nomad/issues/28102)]
+* scheduler: Stop failed allocations first when downscaling a task group [[GH-27971](https://github.com/hashicorp/nomad/issues/27971)]
+
+DEPRECATIONS:
+
+* agent: Unauthenticated server join via the CLI or API is deprecated. [[GH-28176](https://github.com/hashicorp/nomad/issues/28176)]
+
+BUG FIXES:
+
+* api: allow using WI tokens on plan endpoint [[GH-28139](https://github.com/hashicorp/nomad/issues/28139)]
+* cli: Fixed a bug where complex HCL variables passed via -var flag could not be edited in the web UI [[GH-28138](https://github.com/hashicorp/nomad/issues/28138)]
+* client: Fixed a bug where a client could panic after an alloc is GC'd [[GH-28185](https://github.com/hashicorp/nomad/issues/28185)]
+* dynamic host volumes: Fixed a bug where allocations claiming host volumes with the per_alloc flag would not prevent the volume from being deleted [[GH-28198](https://github.com/hashicorp/nomad/issues/28198)]
+* metrics: expired metrics are now periodically cleared from the Prometheus sink even if no collection occurs [[GH-28170](https://github.com/hashicorp/nomad/issues/28170)]
+* scheduler: Fixed a bug where a node could be marked feasible for a task group requesting multiple host volumes when a satisfied sticky volume request short-circuited the checks for the remaining requests [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: Fixed a bug where setting `sticky` on a static host volume could fail the evaluation instead of being rejected during feasibility checking [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: keep draining batch alloc counted when node is re-enabled [[GH-28018](https://github.com/hashicorp/nomad/issues/28018)]
+* task runner: Improve the memory management for secrets [[GH-28140](https://github.com/hashicorp/nomad/issues/28140)]
+* ui: Fixed a bug where jobs that share a ModifyIndex (for example, several jobs rescheduled in a single Raft transaction after a node failure) were omitted from the jobs page and the `/v1/jobs/statuses` endpoint [[GH-28132](https://github.com/hashicorp/nomad/issues/28132)]
+* ui: fixes an issue where streaming task logs would error [[GH-28137](https://github.com/hashicorp/nomad/issues/28137)]
+
 ## 2.0.3 (June 09, 2026)
 
 FEATURES:
@@ -108,6 +144,33 @@ BUG FIXES:
 * identity: fix bug where client identity failed to renew after server upgrade to >=1.11.0 [[GH-27773](https://github.com/hashicorp/nomad/issues/27773)]
 * oidc: Fixed a bug where the request cache could be corrupted by concurrent requests with the same nonce [[GH-27747](https://github.com/hashicorp/nomad/issues/27747)]
 * tls: fix parsing of combined key files when creating tls expiry metric [[GH-27667](https://github.com/hashicorp/nomad/issues/27667)]
+
+## 1.11.8 Enterprise (July 07, 2026)
+
+SECURITY:
+
+* docker: Enforce `allowed_modes` or `allow_privileged` requirement to set host namespace modes in task. This is CVE-2026-14891. [[GH-28190](https://github.com/hashicorp/nomad/issues/28190)]
+* docker: Fixed a bug where docker tasks could use a symlink to bypass the plugin configuration for volumes.enabled=false. This is CVE-2026-14896. [[GH-28177](https://github.com/hashicorp/nomad/issues/28177)]
+* dynamic host volumes: Fixed a bug where users with `host-volume-delete` in one namespace could delete claims from another namespace [[GH-28205](https://github.com/hashicorp/nomad/issues/28205)]
+
+IMPROVEMENTS:
+
+* consul: Allow service, template, and connect blocks to fallback to the Nomad client agent's Consul token if workload identity is unavailable [[GH-28106](https://github.com/hashicorp/nomad/issues/28106)]
+* driver: Added optional `Init` function for task driver plugins [[GH-28104](https://github.com/hashicorp/nomad/issues/28104)]
+* driver: Added optional `Shutdown` function for task driver plugins [[GH-28102](https://github.com/hashicorp/nomad/issues/28102)]
+
+BUG FIXES:
+
+* api: allow using WI tokens on plan endpoint [[GH-28139](https://github.com/hashicorp/nomad/issues/28139)]
+* cli: Fixed a bug where complex HCL variables passed via -var flag could not be edited in the web UI [[GH-28138](https://github.com/hashicorp/nomad/issues/28138)]
+* dynamic host volumes: Fixed a bug where allocations claiming host volumes with the per_alloc flag would not prevent the volume from being deleted [[GH-28198](https://github.com/hashicorp/nomad/issues/28198)]
+* metrics: expired metrics are now periodically cleared from the Prometheus sink even if no collection occurs [[GH-28170](https://github.com/hashicorp/nomad/issues/28170)]
+* scheduler: Fixed a bug where a node could be marked feasible for a task group requesting multiple host volumes when a satisfied sticky volume request short-circuited the checks for the remaining requests [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: Fixed a bug where setting `sticky` on a static host volume could fail the evaluation instead of being rejected during feasibility checking [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: keep draining batch alloc counted when node is re-enabled [[GH-28018](https://github.com/hashicorp/nomad/issues/28018)]
+* task runner: Improve the memory management for secrets [[GH-28140](https://github.com/hashicorp/nomad/issues/28140)]
+* ui: Fixed a bug where jobs that share a ModifyIndex (for example, several jobs rescheduled in a single Raft transaction after a node failure) were omitted from the jobs page and the `/v1/jobs/statuses` endpoint [[GH-28132](https://github.com/hashicorp/nomad/issues/28132)]
+* ui: fixes an issue where streaming task logs would error [[GH-28137](https://github.com/hashicorp/nomad/issues/28137)]
 
 ## 1.11.7 Enterprise (June 09, 2026)
 
@@ -400,6 +463,33 @@ BUG FIXES:
 * state: Fixed a bug where the server could panic when attempting to remove unneeded evals from the eval broker [[GH-26872](https://github.com/hashicorp/nomad/issues/26872)]
 * ui: Fixed a bug where action fly-outs would fail to open due to a missing module [[GH-26833](https://github.com/hashicorp/nomad/issues/26833)]
 * windows: Fixed a bug where agents would not gracefully shut down on Ctrl-C [[GH-26780](https://github.com/hashicorp/nomad/issues/26780)]
+
+## 1.10.14 Enterprise (July 07, 2026)
+
+SECURITY:
+
+* docker: Enforce `allowed_modes` or `allow_privileged` requirement to set host namespace modes in task. This is CVE-2026-14891. [[GH-28190](https://github.com/hashicorp/nomad/issues/28190)]
+* docker: Fixed a bug where docker tasks could use a symlink to bypass the plugin configuration for volumes.enabled=false. This is CVE-2026-14896. [[GH-28177](https://github.com/hashicorp/nomad/issues/28177)]
+* dynamic host volumes: Fixed a bug where users with `host-volume-delete` in one namespace could delete claims from another namespace [[GH-28205](https://github.com/hashicorp/nomad/issues/28205)]
+
+IMPROVEMENTS:
+
+* consul: Allow service, template, and connect blocks to fallback to the Nomad client agent's Consul token if workload identity is unavailable [[GH-28106](https://github.com/hashicorp/nomad/issues/28106)]
+* driver: Added optional `Init` function for task driver plugins [[GH-28104](https://github.com/hashicorp/nomad/issues/28104)]
+* driver: Added optional `Shutdown` function for task driver plugins [[GH-28102](https://github.com/hashicorp/nomad/issues/28102)]
+
+BUG FIXES:
+
+* api: allow using WI tokens on plan endpoint [[GH-28139](https://github.com/hashicorp/nomad/issues/28139)]
+* cli: Fixed a bug where complex HCL variables passed via -var flag could not be edited in the web UI [[GH-28138](https://github.com/hashicorp/nomad/issues/28138)]
+* dynamic host volumes: Fixed a bug where allocations claiming host volumes with the per_alloc flag would not prevent the volume from being deleted [[GH-28198](https://github.com/hashicorp/nomad/issues/28198)]
+* metrics: expired metrics are now periodically cleared from the Prometheus sink even if no collection occurs [[GH-28170](https://github.com/hashicorp/nomad/issues/28170)]
+* scheduler: Fixed a bug where a node could be marked feasible for a task group requesting multiple host volumes when a satisfied sticky volume request short-circuited the checks for the remaining requests [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: Fixed a bug where setting `sticky` on a static host volume could fail the evaluation instead of being rejected during feasibility checking [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: keep draining batch alloc counted when node is re-enabled [[GH-28018](https://github.com/hashicorp/nomad/issues/28018)]
+* task runner: Improve the memory management for secrets [[GH-28140](https://github.com/hashicorp/nomad/issues/28140)]
+* ui: Fixed a bug where jobs that share a ModifyIndex (for example, several jobs rescheduled in a single Raft transaction after a node failure) were omitted from the jobs page and the `/v1/jobs/statuses` endpoint [[GH-28132](https://github.com/hashicorp/nomad/issues/28132)]
+* ui: fixes an issue where streaming task logs would error [[GH-28137](https://github.com/hashicorp/nomad/issues/28137)]
 
 ## 1.10.13 Enterprise (June 09, 2026)
 
