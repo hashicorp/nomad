@@ -283,7 +283,7 @@ func Test_consulHook_Postrun(t *testing.T) {
 	must.MapEmpty(t, tokens["default"])
 }
 
-func Test_consulHook_consulTokenMetaIncludesNodeID(t *testing.T) {
+func Test_consulHook_prepareConsulTokensForTask_includeAdditionalMeta(t *testing.T) {
 	ci.Parallel(t)
 
 	hook, mockClient := consulHookTestHarness(t)
@@ -292,11 +292,25 @@ func Test_consulHook_consulTokenMetaIncludesNodeID(t *testing.T) {
 	tokens := map[string]map[string]*consulapi.ACLToken{}
 	must.NoError(t, hook.prepareConsulTokensForTask(task, nil, tokens))
 
-	found := false
+	must.SliceLen(t, 1, mockClient.Requests)
 	for _, req := range mockClient.Requests {
-		if req.Meta["node_id"] == hook.alloc.NodeID {
-			found = true
-		}
+		must.Eq(t, hook.alloc.NodeID, req.Meta["node_id"])
 	}
-	must.True(t, found, must.Sprint("expected node_id in the Consul login request meta"))
+}
+
+func Test_consulHook_prepareConsulTokensForServices_includeAdditionalMeta(t *testing.T) {
+	ci.Parallel(t)
+
+	hook, mockClient := consulHookTestHarness(t)
+	task := hook.alloc.LookupTask("web")
+	env := taskenv.NewBuilder(mock.Node(), hook.alloc, task, "global").
+		Build().WithTask(hook.alloc, task)
+
+	tokens := map[string]map[string]*consulapi.ACLToken{}
+	must.NoError(t, hook.prepareConsulTokensForServices(task.Services, nil, tokens, env))
+
+	must.SliceLen(t, 1, mockClient.Requests)
+	for _, req := range mockClient.Requests {
+		must.Eq(t, hook.alloc.NodeID, req.Meta["node_id"])
+	}
 }
