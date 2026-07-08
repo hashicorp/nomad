@@ -1,3 +1,29 @@
+## 1.10.14 Enterprise (July 08, 2026)
+
+SECURITY:
+
+* dynamic host volumes: Fixed a bug where users with  in one namespace could delete claims from another namespace [[GH-28205](https://github.com/hashicorp/nomad/issues/28205)]
+
+IMPROVEMENTS:
+
+* consul: Allow service, template, and connect blocks to fallback to the Nomad client agent's Consul token if workload identity is unavailable [[GH-28106](https://github.com/hashicorp/nomad/issues/28106)]
+* driver: Added optional  function for task driver plugins [[GH-28104](https://github.com/hashicorp/nomad/issues/28104)]
+* driver: Added optional  function for task driver plugins [[GH-28102](https://github.com/hashicorp/nomad/issues/28102)]
+
+BUG FIXES:
+
+* api: allow using WI tokens on plan endpoint [[GH-28139](https://github.com/hashicorp/nomad/issues/28139)]
+* cli: Fixed a bug where complex HCL variables passed via -var flag could not be edited in the web UI [[GH-28138](https://github.com/hashicorp/nomad/issues/28138)]
+* docker: Enforce allowed_modes or allow_privileged requirement to set host namespace modes in task [[GH-28190](https://github.com/hashicorp/nomad/issues/28190)]
+* dynamic host volumes: Fixed a bug where allocations claiming host volumes with the per_alloc flag would not prevent the volume from being deleted [[GH-28198](https://github.com/hashicorp/nomad/issues/28198)]
+* metrics: expired metrics are now periodically cleared from the Prometheus sink even if no collection occurs [[GH-28170](https://github.com/hashicorp/nomad/issues/28170)]
+* scheduler: Fixed a bug where a node could be marked feasible for a task group requesting multiple host volumes when a satisfied sticky volume request short-circuited the checks for the remaining requests [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: Fixed a bug where setting  on a static host volume could fail the evaluation instead of being rejected during feasibility checking [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: keep draining batch alloc counted when node is re-enabled [[GH-28018](https://github.com/hashicorp/nomad/issues/28018)]
+* task runner: Improve the memory management for secrets [[GH-28140](https://github.com/hashicorp/nomad/issues/28140)]
+* ui: Fixed a bug where jobs that share a ModifyIndex (for example, several jobs rescheduled in a single Raft transaction after a node failure) were omitted from the jobs page and the  endpoint [[GH-28132](https://github.com/hashicorp/nomad/issues/28132)]
+* ui: fixes an issue where streaming task logs would error [[GH-28137](https://github.com/hashicorp/nomad/issues/28137)]
+
 ## 1.10.13 Enterprise (June 09, 2026)
 
 SECURITY:
