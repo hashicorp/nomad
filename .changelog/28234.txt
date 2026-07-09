@@ -1,0 +1,3 @@
+```release-note:bug
+ui: check websocket upgrade headers with multiple values
+```
