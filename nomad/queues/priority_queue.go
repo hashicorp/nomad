@@ -20,7 +20,11 @@ func (pq WorkloadQueue) Len() int { return pq.Size() }
 
 func workloadSortFn() func(i, j *Workload) int {
 	return func(a, b *Workload) int {
-		if a.waitOnRestore {
+		// A workload needs to be able to compare with
+		// itself and return 0
+		if a.waitOnRestore && b.waitOnRestore {
+			return 0
+		} else if a.waitOnRestore {
 			return -1
 		} else if b.waitOnRestore {
 			return 1
