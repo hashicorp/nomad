@@ -140,7 +140,7 @@
     "lru_map": "^0.4.1",
     "marked": "^17.0.4",
     "miragejs": "^0.1.48",
-    "morgan": "^1.10.1",
+    "morgan": "^1.11.0",
     "change-case": "^5.4.4",
     "pretender": "^3.4.7",
     "prettier": "^3.8.3",
