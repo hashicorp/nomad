@@ -461,6 +461,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 		Deployment:        dnew,
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
 		EvalID:            eval.ID,
+		UpdatedAt:         time.Now().UnixNano(),
 	}
 
 	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
@@ -483,6 +484,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	test.Eq(t, update.Status, doutstandingout.Status)
 	test.Eq(t, update.StatusDescription, doutstandingout.StatusDescription)
 	test.Eq(t, 1000, doutstandingout.ModifyIndex)
+	test.NotEq(t, 0, doutstandingout.ModifyTime)
 
 	evalOut, err := state.EvalByID(ws, eval.ID)
 	must.NoError(t, err)
