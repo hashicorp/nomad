@@ -358,8 +358,8 @@ importers:
         specifier: ^0.1.48
         version: 0.1.48
       morgan:
-        specifier: ^1.10.1
-        version: 1.10.1
+        specifier: ^1.11.0
+        version: 1.11.0
       pretender:
         specifier: ^3.4.7
         version: 3.4.7
@@ -5258,8 +5258,8 @@ packages:
   moment@2.30.1:
     resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
 
-  morgan@1.10.1:
-    resolution: {integrity: sha512-223dMRJtI/l25dJKWpgij2cMtywuG/WiUKXdvwfbhGKBhy1puASqXwFzmWZ7+K73vUPoR7SS2Qz2cI/g9MKw0A==}
+  morgan@1.11.0:
+    resolution: {integrity: sha512-zSkVu3t18r39pw4ixfBKvfZi3y2UOqr7d4WYwcj3m8nXpEQK4rPO6GLzs/CExoRgmX3y9EjmmcXqv6jq0SK46g==}
     engines: {node: '>= 0.8.0'}
 
   ms@2.0.0:
@@ -11083,7 +11083,7 @@ snapshots:
       markdown-it: 14.1.1
       markdown-it-terminal: 0.4.0(markdown-it@14.1.1)
       minimatch: 10.2.5
-      morgan: 1.10.1
+      morgan: 1.11.0
       nopt: 3.0.6
       npm-package-arg: 13.0.2
       os-locale: 6.0.2
@@ -13317,12 +13317,12 @@ snapshots:
 
   moment@2.30.1: {}
 
-  morgan@1.10.1:
+  morgan@1.11.0:
     dependencies:
       basic-auth: 2.0.1
       debug: 2.6.9
       depd: 2.0.0
-      on-finished: 2.3.0
+      on-finished: 2.4.1
       on-headers: 1.1.0
     transitivePeerDependencies:
       - supports-color
