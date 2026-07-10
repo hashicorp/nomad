@@ -220,3 +220,53 @@ func TestHTTP_ReadWsHandshake(t *testing.T) {
 		})
 	}
 }
+
+func TestIsWebsocketUpgrade_TokenListMismatch(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name               string
+		connectionHeader   string
+		upgradeHeader      string
+		isWebsocketUpgrade bool
+	}{
+		{
+			name:               "standard upgrade",
+			connectionHeader:   "Upgrade",
+			upgradeHeader:      "websocket",
+			isWebsocketUpgrade: true,
+		},
+		{
+			name:               "comma-separated connection header",
+			connectionHeader:   "keep-alive, Upgrade",
+			upgradeHeader:      "websocket",
+			isWebsocketUpgrade: true,
+		},
+		{
+			name:               "not a websocket upgrade",
+			connectionHeader:   "keep-alive",
+			upgradeHeader:      "h2c",
+			isWebsocketUpgrade: false,
+		},
+		{
+			name:               "missing upgrade header",
+			connectionHeader:   "upgrade",
+			isWebsocketUpgrade: false,
+		},
+		{
+			name:               "missing connection header",
+			upgradeHeader:      "websocket",
+			isWebsocketUpgrade: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/v1/client/allocation/abc/exec", nil)
+			req.Header.Set("Connection", tc.connectionHeader)
+			req.Header.Set("Upgrade", tc.upgradeHeader)
+
+			must.Eq(t, tc.isWebsocketUpgrade, isWebsocketUpgrade(req))
+		})
+	}
+}

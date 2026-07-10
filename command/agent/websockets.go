@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/websocket"
 )
@@ -18,10 +17,9 @@ const (
 	ctxKeyWebSocketAuthToken = "ws_auth_token"
 )
 
-// isWebsocketUpgrade checks if the request is a websocket upgrade request
+// isWebsocketUpgrade checks if the request is a websocket upgrade request.
 func isWebsocketUpgrade(req *http.Request) bool {
-	return strings.EqualFold(req.Header.Get("Upgrade"), "websocket") &&
-		strings.EqualFold(req.Header.Get("Connection"), "upgrade")
+	return websocket.IsWebSocketUpgrade(req)
 }
 
 // wrapWebsocketHandler upgrades the HTTP connection to a websocket. Auditing
