@@ -5,6 +5,7 @@
 
 import Route from '@ember/routing/route';
 import { service } from '@ember/service';
+import RSVP from 'rsvp';
 
 export default class SettingsTokensRoute extends Route {
   @service store;
@@ -25,8 +26,10 @@ export default class SettingsTokensRoute extends Route {
   }
 
   model() {
-    return {
+    // use an RSVP.hash for the model so usages of
+    // authMethods are properly recomputed.
+    return RSVP.hash({
       authMethods: this.store.findAll('auth-method'),
-    };
+    });
   }
 }
