@@ -49,6 +49,26 @@ type DynamicPriorityTenant struct {
 	TotalUsage     map[string]float64
 }
 
+type Workload struct {
+	JobID       string
+	Namespace   string
+	Position    int
+	CreatedAt   int64
+	CreateIndex uint64
+}
+
+func (w *Workload) GetID() string {
+	return w.JobID
+}
+
+func (w *Workload) GetCreateIndex() uint64 {
+	return w.CreateIndex
+}
+
+func (w *Workload) GetNamespace() string {
+	return w.Namespace
+}
+
 type QueueTenantsRequest struct {
 	QueryOptions
 }

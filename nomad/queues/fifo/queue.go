@@ -207,8 +207,29 @@ func (f *FifoQueue) Type() structs.BatchQueueType {
 	return structs.BatchQueueTypeFifo
 }
 
-func (f *FifoQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
-	return &queue.WorkloadIter{}
+func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
+	f.qMux.Lock()
+	sortedWorkloads := f.queue.Slice()
+	defer f.qMux.Unlock()
+
+	workloads := []structs.QueueWorkload{}
+	for pos, workload := range sortedWorkloads {
+		eval := workload.GetEval()
+		workloads = append(workloads, &structs.Workload{
+			JobID:       eval.JobID,
+			Namespace:   eval.Namespace,
+			Position:    pos + 1,
+			CreatedAt:   eval.CreateTime,
+			CreateIndex: eval.CreateIndex,
+		})
+	}
+	iter := queue.NewWorkloadIter(workloads)
+
+	if sortOrder != structs.SortByPriority {
+		iter.SortByJobId()
+	}
+
+	return iter
 }
 
 func (f *FifoQueue) Tenants() structs.QueueTenantsResponse {
