@@ -31,6 +31,11 @@ binary {
       vulnerabilities = [
         "GO-2022-0635", // github.com/aws/aws-sdk-go@v1.55.6 TODO(jrasell): remove when dep updated.
         "GO-2025-3543", // github.com/opencontainers/runc    TODO(jrasell): remove once withdrawn from DBs.
+        // Ref: https://pkg.go.dev/vuln/GO-2026-5932
+        //
+        // Exists in the "golang.org/x/crypto/openpgp" package which is not used
+        // by Nomad and is deprecated and unmaintained.
+        "GO-2026-5932",
       ]
     }
   }
