@@ -282,6 +282,12 @@ func TestBatchQueue_Validate(t *testing.T) {
 			},
 			err: "half_life must be greater than zero",
 		},
+		{
+			name: "fifo",
+			batchConfig: BatchQueue{
+				Type: BatchQueueTypeFifo,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

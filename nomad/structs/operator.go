@@ -425,6 +425,8 @@ func (b *BatchQueue) Validate() error {
 
 	switch b.Type {
 	case BatchQueueTypeDynamic:
+	case BatchQueueTypeFifo:
+		return nil
 	default:
 		return fmt.Errorf("unsupported batch queue type: %q", b.Type)
 	}
