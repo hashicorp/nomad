@@ -22,20 +22,20 @@ func NewWorkloadIter(workloads []structs.QueueWorkload) *WorkloadIter {
 	}
 }
 
-func (i *WorkloadIter) SortByCreateIndex() {
+func (i *WorkloadIter) SortByJobId() {
 	slices.SortFunc(i.Workloads, func(a, b structs.QueueWorkload) int {
-		return cmp.Compare(a.GetCreateIndex(), b.GetCreateIndex())
+		return cmp.Compare(a.GetID(), b.GetID())
 	})
 }
 
-func (i *WorkloadIter) Sort(sortFn func(i, j interface{}) int) {
+func (i *WorkloadIter) Sort(sortFn func(i, j any) int) {
 	slices.SortFunc(i.Workloads, func(a, b structs.QueueWorkload) int {
 		return sortFn(a, b)
 	})
 	i.index = 0
 }
 
-func (i *WorkloadIter) Next() interface{} {
+func (i *WorkloadIter) Next() any {
 	if i.index >= len(i.Workloads) {
 		return nil
 	}
