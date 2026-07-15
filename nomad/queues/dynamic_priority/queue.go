@@ -87,17 +87,13 @@ func (d *DynamicPriorityQueue) Type() structs.BatchQueueType {
 
 func workloadSortFn() func(i, j queue.Workload) int {
 	return func(i, j queue.Workload) int {
+		wait := queue.CmpWaitOnRestore(i, j)
+		if wait != 0 {
+			return wait
+		}
+
 		a := i.(*dynamicPriorityWorkload)
 		b := j.(*dynamicPriorityWorkload)
-		// A workload needs to be able to compare with
-		// itself and return 0
-		if a.waitOnRestore && b.waitOnRestore {
-			return 0
-		} else if a.waitOnRestore {
-			return -1
-		} else if b.waitOnRestore {
-			return 1
-		}
 
 		if a.priority > b.priority {
 			return -1
