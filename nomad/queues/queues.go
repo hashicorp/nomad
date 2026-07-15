@@ -6,6 +6,7 @@ package queues
 import (
 	"github.com/hashicorp/go-hclog"
 	dynamic "github.com/hashicorp/nomad/nomad/queues/dynamic_priority"
+	"github.com/hashicorp/nomad/nomad/queues/fifo"
 	"github.com/hashicorp/nomad/nomad/queues/passthrough"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -20,6 +21,8 @@ func NewQueue(ss *state.StateStore, sconf *structs.BatchQueue, broker queue.Brok
 			return nil, err
 		}
 		return dynamic.NewDynamicPriorityQueue(ss, broker, sconf, qconf, logger), nil
+	case structs.BatchQueueTypeFifo:
+		return fifo.NewFifoQueue(ss, broker, logger), nil
 	default:
 		return passthrough.NewPassthroughQueue(broker), nil
 	}
