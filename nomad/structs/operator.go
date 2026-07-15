@@ -366,7 +366,9 @@ type (
 )
 
 const (
-	BatchQueueTypeDynamic BatchQueueType = "dynamic_priority"
+	BatchQueueTypeDynamic     BatchQueueType = "dynamic_priority"
+	BatchQueueTypeFifo        BatchQueueType = "fifo"
+	BatchQueueTypePassthrough BatchQueueType = "unset"
 
 	TenantTypeMetadata  BatchQueueTenant = "metadata"
 	TenantTypeNamespace BatchQueueTenant = "namespace"

@@ -1,7 +1,7 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
-package queues
+package dynamic
 
 import (
 	"fmt"
@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -32,7 +33,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 		doneCh := make(chan error)
 		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), workload, ws)
+			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
 			doneCh <- err
 		}()
 
@@ -60,7 +61,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 		doneCh := make(chan error)
 		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), workload, ws)
+			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
 			doneCh <- err
 		}()
 
@@ -106,7 +107,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 		doneCh := make(chan error)
 		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
 		go func() {
-			err := testQueue.waitForPlacement(t.Context(), workload, ws)
+			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
 			doneCh <- err
 		}()
 
@@ -393,18 +394,18 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			queue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, tc.conf, hclog.New(hclog.DefaultOptions))
+			q := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, tc.conf, hclog.New(hclog.DefaultOptions))
 
 			lowUsageWorkload := &dynamicPriorityWorkload{tid: tc.lowUsageTenant.tid, eval: &structs.Evaluation{Priority: 5}}
 			highUsageWorkload := &dynamicPriorityWorkload{tid: tc.highUsageTenant.tid, eval: &structs.Evaluation{Priority: 5}}
 
-			queue.tenants[tc.lowUsageTenant.tid] = tc.lowUsageTenant
-			queue.tenants[tc.highUsageTenant.tid] = tc.highUsageTenant
-			queue.queue = NewWorkloadQueue(queue.workloadSortFn())
-			queue.queue.Push(lowUsageWorkload)
-			queue.queue.Push(highUsageWorkload)
+			q.tenants[tc.lowUsageTenant.tid] = tc.lowUsageTenant
+			q.tenants[tc.highUsageTenant.tid] = tc.highUsageTenant
+			q.queue = queue.NewWorkloadQueue(workloadSortFn())
+			q.queue.Push(lowUsageWorkload)
+			q.queue.Push(highUsageWorkload)
 
-			queue.calculatePriorities(time.Unix(20, 0))
+			q.calculatePriorities(time.Unix(20, 0))
 
 			switch tc.expectedHigherPriorityTenant {
 			case tc.lowUsageTenant.tid:
@@ -415,7 +416,7 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 				t.Fatalf("test case has unknown expectedHigherPriorityTenant: %q", tc.expectedHigherPriorityTenant)
 			}
 
-			must.Eq(t, queue.totalUsage, tc.expectedTotalUsage, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
+			must.Eq(t, q.totalUsage, tc.expectedTotalUsage, must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
 		})
 	}
 }
@@ -545,7 +546,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 		name      string
 		sortOrder structs.SortOrder
 		workloads []*dynamicPriorityWorkload
-		exp       *WorkloadIter
+		exp       *queue.WorkloadIter
 	}{
 		{
 			name:      "status response parses workloads correctly",
@@ -567,7 +568,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 					usageAdjustment: 4,
 				},
 			},
-			exp: &WorkloadIter{
+			exp: &queue.WorkloadIter{
 				Workloads: []structs.QueueWorkload{
 					&structs.DynamicPriorityWorkload{
 						JobID:            "job1",
@@ -631,7 +632,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 					usageAdjustment: 1,
 				},
 			},
-			exp: &WorkloadIter{
+			exp: &queue.WorkloadIter{
 				Workloads: []structs.QueueWorkload{
 					&structs.DynamicPriorityWorkload{
 						JobID:            "job1",
@@ -716,7 +717,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 					usageAdjustment: 1,
 				},
 			},
-			exp: &WorkloadIter{
+			exp: &queue.WorkloadIter{
 				Workloads: []structs.QueueWorkload{
 					&structs.DynamicPriorityWorkload{
 						JobID:            "job2",
@@ -789,7 +790,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 					usageAdjustment: 4,
 				},
 			},
-			exp: &WorkloadIter{
+			exp: &queue.WorkloadIter{
 				Workloads: []structs.QueueWorkload{
 					&structs.DynamicPriorityWorkload{
 						JobID:            "job2",
@@ -822,7 +823,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			testQueue := &DynamicPriorityQueue{}
-			testQueue.queue = NewWorkloadQueue(testQueue.workloadSortFn())
+			testQueue.queue = queue.NewWorkloadQueue(workloadSortFn())
 			for _, w := range tc.workloads {
 				testQueue.queue.Push(w)
 			}
@@ -897,7 +898,7 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 			eval: testEval.Copy(),
 		}
 
-		complete, err := testQueue.isSchedulingComplete(workload)
+		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
 		must.NoError(t, err)
 		must.False(t, complete)
 	})
@@ -921,7 +922,7 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 			eval: testEval.Copy(),
 		}
 
-		complete, err := testQueue.isSchedulingComplete(workload)
+		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
 		must.NoError(t, err)
 		must.False(t, complete)
 	})
@@ -945,81 +946,9 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 			eval: testEval.Copy(),
 		}
 
-		complete, err := testQueue.isSchedulingComplete(workload)
+		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
 		must.NoError(t, err)
 		must.True(t, complete)
-	})
-
-	t.Run("complete eval with placement updates usage", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		testEval.Status = structs.EvalStatusComplete
-		testEval.PlanAnnotations = &structs.PlanAnnotations{
-			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
-				"group": {Place: 1},
-			},
-		}
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-			requestedResources: &UsageList{
-				resources: &ResourceUsage{CPU: 100, Memory: 200},
-			},
-		}
-
-		testQueue.ensureTenant(workload.tid)
-
-		complete, err := testQueue.isSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.True(t, complete)
-
-		// Verify usage was updated
-		tenant := testQueue.tenants[workload.tid]
-		must.NotNil(t, tenant.placedWorkloadById[workload.id])
-		must.Eq(t, 100.0, tenant.totalUsage.CPU)
-		must.Eq(t, 200.0, tenant.totalUsage.Memory)
-	})
-
-	t.Run("complete eval without placement does not update usage", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		testEval.Status = structs.EvalStatusComplete
-		testEval.PlanAnnotations = &structs.PlanAnnotations{
-			DesiredTGUpdates: map[string]*structs.DesiredUpdates{
-				"group": {Place: 0},
-			},
-		}
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-			requestedResources: &UsageList{
-				resources: &ResourceUsage{CPU: 100, Memory: 200},
-			},
-		}
-
-		testQueue.ensureTenant(workload.tid)
-
-		complete, err := testQueue.isSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.True(t, complete)
-
-		// Verify usage was NOT updated
-		tenant := testQueue.tenants[workload.tid]
-		must.Nil(t, tenant.placedWorkloadById[workload.id])
-		must.Eq(t, 0.0, tenant.totalUsage.CPU)
-		must.Eq(t, 0.0, tenant.totalUsage.Memory)
 	})
 }
 

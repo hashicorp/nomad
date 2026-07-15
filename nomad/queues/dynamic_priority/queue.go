@@ -1,39 +1,35 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
-package queues
+package dynamic
 
 import (
 	"context"
-	"errors"
 	"math"
 	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-var ErrWatchedEvalNotFound = errors.New("watched evaluation not found")
-
 type TenantID string
 
 type DynamicPriorityQueue struct {
+	// This is using a TreeSet from Hashicorp's go-set module due to it's
+	// ability for log(n) insert and delete and allows for Top(k) lookups
+	queue queue.WorkloadQueue
+
+	// qMux locks the queue during concurrent access
+	qMux sync.Mutex
+
 	// tenants is used to keep track of cluster usage for this queue.
 	// When workloads are placed or the  configured interval is passed,
 	// cluster usage is updated for the workloads of each tenant.
 	tenants map[TenantID]*Tenant
-
-	// queue is the main datastructure that contains all pending workloads
-	//
-	// This is using a TreeSet from Hashicorp's go-set module due to it's
-	// ability for log(n) insert and delete and allows for Top(k) lookups
-	queue WorkloadQueue
-
-	// qMux locks the queue during concurrent access
-	qMux sync.Mutex
 
 	// qNotify allows for notifying the consumer that workloads
 	// have been added to the queue
@@ -55,7 +51,7 @@ type DynamicPriorityQueue struct {
 
 	// evalBroker is the injected broker for passing an evaluation
 	// on to be scheduled by Nomad
-	evalBroker Broker
+	evalBroker queue.Broker
 
 	// state is the in-memory state store used for both reconciling tenant
 	// workload usages, and polling submitted evaluations for placement
@@ -67,73 +63,30 @@ type DynamicPriorityQueue struct {
 	logger hclog.Logger
 }
 
-type Tenant struct {
-	tid                TenantID
-	placedWorkloadById map[string]*dynamicPriorityWorkload
-	totalUsage         *ResourceUsage
-}
-
-func (t *Tenant) totalPercentageUsed(totalUsage *ResourceUsage) int {
-	if totalUsage.Total() == 0 {
-		return 0
-	}
-
-	return int((t.totalUsage.Total() / totalUsage.Total()) * 100)
-}
-
-type UsageList struct {
-	resources *ResourceUsage
-	start     time.Time
-}
-
-type dynamicPriorityWorkload struct {
-	// id uniquely identifies this workload
-	// and is set to the evaluation ID.
-	id string
-
-	tid                TenantID
-	priority           int
-	eval               *structs.Evaluation
-	requestedResources *UsageList
-
-	sizeAdjustment  int
-	ageAdjustment   int
-	usageAdjustment int
-
-	// waitOnRestore signals this workload was previously popped off the
-	// queue and is waiting to be placed. This is detected on restore
-	// and this workload will be pushed to the front of the queue and
-	// waited on before processing regular workloads.
-	// By doing this, we can ensure at most 1 queue workloads blocked
-	// due to resource contraints even in the event of queue restores.
-	waitOnRestore bool
-}
-
-func NewDynamicPriorityQueue(ss *state.StateStore, broker Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
-	d := &DynamicPriorityQueue{
-		tenants:     make(map[TenantID]*Tenant),
-		enqueueCh:   make(chan *dynamicPriorityWorkload, 8192),
+func NewDynamicPriorityQueue(ss *state.StateStore, broker queue.Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
+	return &DynamicPriorityQueue{
+		queue:       queue.NewWorkloadQueue(workloadSortFn()),
 		evalBroker:  broker,
 		qMux:        sync.Mutex{},
+		tenants:     make(map[TenantID]*Tenant),
+		enqueueCh:   make(chan *dynamicPriorityWorkload, 8192),
 		qNotify:     make(chan struct{}, 1),
 		tenantType:  qconf.TenantType,
 		metadataKey: qconf.MetadataKey,
 		conf:        conf,
-		logger:      logger.Named("Dynamic Priority Queue"),
 		totalUsage:  &ResourceUsage{},
 		wg:          sync.WaitGroup{},
 		state:       ss,
+		logger:      logger.Named("Dynamic Priority Queue"),
 	}
-	d.queue = NewWorkloadQueue(d.workloadSortFn())
-	return d
 }
 
 func (d *DynamicPriorityQueue) Type() structs.BatchQueueType {
 	return structs.BatchQueueTypeDynamic
 }
 
-func (d *DynamicPriorityQueue) workloadSortFn() func(i, j Workload) int {
-	return func(i, j Workload) int {
+func workloadSortFn() func(i, j queue.Workload) int {
+	return func(i, j queue.Workload) int {
 		a := i.(*dynamicPriorityWorkload)
 		b := j.(*dynamicPriorityWorkload)
 		// A workload needs to be able to compare with
@@ -235,9 +188,13 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 		// in SetEnabled, but it's also entirely possible a queue eval is blocked and
 		// waiting to be placed from a previous DPQ placement. If that happens
 		// we should enqueue it and push it to the front of the queue.
-		placed, err := d.isSchedulingComplete(w)
+		placed, err := queue.IsSchedulingComplete(w, d.state)
 		if err != nil {
 			d.logger.Error("failed to wait for placement while enabling queue", "err", err)
+		}
+
+		if placed && evalHasPlacement(w.GetEval()) {
+			d.updateUsage(w)
 		}
 
 		if !placed {
@@ -310,21 +267,22 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			w := d.queue.Pop()
 			d.qMux.Unlock()
 
-			workload := w.(*dynamicPriorityWorkload)
-
 			// We don't need to pass the waitOnRestore workload
 			// to the eval broker, that already happened.
-			if !workload.waitOnRestore {
-				d.evalBroker.Enqueue(workload.eval)
+			if !w.WaitOnRestore() {
+				d.evalBroker.Enqueue(w.GetEval())
 			}
 
 			// Wait for the eval to be placed
-			err := d.waitForPlacement(ctx, workload, memdb.NewWatchSet())
+			err := queue.WaitForPlacement(ctx, w, d.state, memdb.NewWatchSet())
 			if err != nil {
-				d.logger.Error("failure waiting for workload placement", "evalID", workload.id)
+				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
 			}
 
 			d.qMux.Lock()
+			if evalHasPlacement(w.GetEval()) {
+				d.updateUsage(w)
+			}
 			l := d.queue.Len()
 			d.qMux.Unlock()
 
@@ -410,7 +368,7 @@ func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
 
 	// Now that we have accurate tenant usage, calculate
 	// each workloads new priority and update the queue
-	d.queue.UpdateAll(func(w Workload) {
+	d.queue.UpdateAll(func(w queue.Workload) {
 		workload := w.(*dynamicPriorityWorkload)
 		d.setWorkloadPriority(now, workload)
 	})
@@ -523,117 +481,7 @@ func (d *DynamicPriorityQueue) sizeAdjustment(w *dynamicPriorityWorkload) int {
 	return w.sizeAdjustment
 }
 
-// waitForPlacement follows a given evalutation in the state store until it, or it's nexted/blocked evals
-// have been marked terminal, indicating the workload has been scheduled.
-//
-// Note: If a job with an unsatisfiable contraint is given to the Eval Broker, this function will block
-// until a Nomad operator manually intervenes and stops the job. In the future, we can add an optional
-// configurable timeout for this blocking query.
-func (d *DynamicPriorityQueue) waitForPlacement(ctx context.Context, workload *dynamicPriorityWorkload, ws memdb.WatchSet) error {
-	eval := workload.eval
-	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
-		id := eval.ID
-
-		if eval.BlockedEval != "" {
-			id = eval.BlockedEval
-		} else if eval.NextEval != "" {
-			id = eval.NextEval
-		}
-
-		snap, err := d.state.Snapshot()
-		if err != nil {
-			return err
-		}
-
-		// TODO: handle snapshot restores
-		abandonCh := snap.AbandonCh()
-		ws.Add(abandonCh)
-
-		eval, err = snap.EvalByID(ws, id)
-		if err != nil {
-			return err
-		}
-		if eval == nil {
-			return ErrWatchedEvalNotFound
-		}
-
-		workload.eval = eval
-
-		if eval.TerminalStatus() {
-			continue
-		}
-
-		// If the latest version of the eval isn't terminal, wait for an update
-		if err = ws.WatchCtx(ctx); err != nil {
-			return err
-		}
-
-		// The watch channel will be closed, we should delete it to
-		// prevent immediately firing on the next WatchCtx
-		for k := range ws {
-			delete(ws, k)
-		}
-	}
-
-	if evalHasPlacement(eval) {
-		d.qMux.Lock()
-		d.updateUsage(workload)
-		d.qMux.Unlock()
-	}
-
-	return nil
-}
-
-// isSchedulingComplete detects whether a workload was actually placed by following the
-// evaluation's BlockedEvals and NextEvals.
-// Similar to waitForPlacement, isSchedulingComplete will record usage in the event an
-// actual placement occurred.
-func (d *DynamicPriorityQueue) isSchedulingComplete(workload *dynamicPriorityWorkload) (bool, error) {
-	snap, err := d.state.Snapshot()
-	if err != nil {
-		return false, err
-	}
-
-	ws := memdb.NewWatchSet()
-	eval := workload.eval
-	for eval.BlockedEval != "" || eval.NextEval != "" {
-		id := eval.ID
-
-		if eval.BlockedEval != "" {
-			id = eval.BlockedEval
-		} else if eval.NextEval != "" {
-			id = eval.NextEval
-		}
-
-		eval, err = snap.EvalByID(ws, id)
-		if err != nil {
-			return false, err
-		}
-		if eval == nil {
-			return false, ErrWatchedEvalNotFound
-		}
-
-		workload.eval = eval
-
-		if !eval.TerminalStatus() {
-			return false, nil
-		}
-	}
-
-	if evalHasPlacement(eval) {
-		d.updateUsage(workload)
-	}
-
-	if eval.Status == structs.EvalStatusComplete {
-		return true, nil
-	}
-
-	// This would only happen if an eval was not complete and did not
-	// yet have a followup eval
-	return false, nil
-}
-
-func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
+func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	d.qMux.Lock()
 	sortedWorkloads := d.queue.Slice()
 	d.qMux.Unlock()
@@ -662,7 +510,7 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
 			CreateIndex:      w.eval.CreateIndex,
 		})
 	}
-	iter := NewWorkloadIter(workloads)
+	iter := queue.NewWorkloadIter(workloads)
 
 	if sortOrder != structs.SortByPriority {
 		iter.SortByJobId()
@@ -691,7 +539,9 @@ func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
 }
 
 // updateUsage updates the tenant and total usage for a given workload.
-func (d *DynamicPriorityQueue) updateUsage(workload *dynamicPriorityWorkload) {
+func (d *DynamicPriorityQueue) updateUsage(w queue.Workload) {
+
+	workload := w.(*dynamicPriorityWorkload)
 	tenant := d.tenants[workload.tid]
 
 	_, ok := tenant.placedWorkloadById[workload.id]
@@ -711,10 +561,6 @@ func (d *DynamicPriorityQueue) updateUsage(workload *dynamicPriorityWorkload) {
 }
 
 func evalHasPlacement(e *structs.Evaluation) bool {
-	if e.Status != structs.EvalStatusComplete {
-		return false
-	}
-
 	if e.PlanAnnotations != nil && e.PlanAnnotations.DesiredTGUpdates != nil {
 		for _, update := range e.PlanAnnotations.DesiredTGUpdates {
 			if update.Place > 0 {
