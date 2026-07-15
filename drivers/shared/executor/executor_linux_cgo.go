@@ -34,11 +34,12 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/moby/sys/devices"
 	"github.com/opencontainers/cgroups"
 	_ "github.com/opencontainers/cgroups/devices"
+	"github.com/opencontainers/cgroups/devices/config"
 	"github.com/opencontainers/runc/libcontainer"
 	runc "github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -872,8 +873,8 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*runc.Config, error) {
 	cfg := &runc.Config{
 		ParentDeathSignal: 9,
-		Cgroups: &runc.Cgroup{
-			Resources: &runc.Resources{
+		Cgroups: &cgroups.Cgroup{
+			Resources: &cgroups.Resources{
 				MemorySwappiness: nil,
 			},
 		},
@@ -918,12 +919,12 @@ func (l *LibcontainerExecutor) clampCpuShares(shares int64) int64 {
 }
 
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
-func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error) {
+func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*config.Device, error) {
 	if len(driverDevices) == 0 {
 		return nil, nil
 	}
 
-	r := make([]*devices.Device, len(driverDevices))
+	r := make([]*config.Device, len(driverDevices))
 
 	for i, d := range driverDevices {
 		ed, err := devices.DeviceFromPath(d.HostPath, d.Permissions)
