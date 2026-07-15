@@ -1371,6 +1371,7 @@ func TestPlanApply_PipelinedPlans(t *testing.T) {
 
 	// Configure Raft to increase batching window
 	srv, cleanup := TestServer(t, func(c *Config) {
+		c.PlanApplyPipeline = 16
 		c.RaftConfig.CommitTimeout = 100 * time.Millisecond
 		c.RaftConfig.MaxAppendEntries = 64
 	})

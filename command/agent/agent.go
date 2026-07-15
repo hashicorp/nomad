@@ -632,6 +632,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			conf.NodePlanRejectionWindow = planRejectConf.NodeWindow
 		}
 	}
+	conf.PlanApplyPipeline = agentConfig.Server.PlanApplyPipeline
 
 	// Add Enterprise license configs
 	conf.LicenseConfig = &nomad.LicenseConfig{

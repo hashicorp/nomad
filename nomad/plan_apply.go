@@ -97,12 +97,12 @@ func newPlanner(s *Server) (*planner, error) {
 // for Raft. Schedulers cannot proceed until their plan is committed, so
 // they will stall, but there are many schedulers and only a single plan
 // applier.
-func (p *planner) planApply() {
+func (p *planner) planApply(maxPipelineDepth int) {
+	maxPipelineDepth = max(maxPipelineDepth, 1)
 	// planIndexCh is used to track an outstanding Raft write and receive its
 	// committed index, while the snapshot holds an optimistic state that
 	// includes the plan application. The buffer size is set to roughly 2x the
 	// expected pipeline depth to reduce blocking but still provide backpressure
-	const maxPipelineDepth = 16
 	planIndexCh := make(chan uint64, maxPipelineDepth)
 	var snap *state.StateSnapshot
 
