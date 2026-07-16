@@ -34,8 +34,11 @@ func TestFifoQueue_workloadSortFn(t *testing.T) {
 		sortFn := workloadSortFn()
 		sortedQ := queue.NewWorkloadQueue(sortFn)
 
-		first := &fifoWorkload{counter: 2, waitOnRestore: true}
-		second := &fifoWorkload{counter: 1, waitOnRestore: false}
+		first := &fifoWorkload{eval: mock.Eval(), waitOnRestore: true}
+		second := &fifoWorkload{eval: mock.Eval(), waitOnRestore: false}
+
+		first.eval.CreateIndex = 3
+		second.eval.CreateIndex = 1
 
 		sortedQ.Push(second)
 		sortedQ.Push(first)
@@ -49,8 +52,11 @@ func TestFifoQueue_workloadSortFn(t *testing.T) {
 		sortFn := workloadSortFn()
 		sortedQ := queue.NewWorkloadQueue(sortFn)
 
-		first := &fifoWorkload{counter: 1}
-		second := &fifoWorkload{counter: 2}
+		first := &fifoWorkload{eval: mock.Eval()}
+		second := &fifoWorkload{eval: mock.Eval()}
+
+		first.eval.CreateIndex = 1
+		second.eval.CreateIndex = 5
 
 		sortedQ.Push(second)
 		sortedQ.Push(first)
@@ -157,7 +163,8 @@ func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	eval2.Type = structs.JobTypeBatch
 	eval2.Status = structs.EvalStatusComplete
 
-	ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{eval1, eval2})
+	ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval1})
+	ss.UpsertEvals(structs.MsgTypeTestSetup, 5, []*structs.Evaluation{eval2})
 
 	q.Enqueue(eval1)
 	q.Enqueue(eval2)

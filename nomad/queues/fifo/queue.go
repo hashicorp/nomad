@@ -37,8 +37,6 @@ type FifoQueue struct {
 	// are processed by the manager and pushed onto the queue
 	enqueueCh chan *fifoWorkload
 
-	counter atomic.Uint64
-
 	// qNotify allows for notifying the consumer that workloads
 	// have been added to the queue
 	qNotify chan struct{}
@@ -61,15 +59,12 @@ func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger
 
 func workloadSortFn() func(i, j queue.Workload) int {
 	return func(i, j queue.Workload) int {
-		a := i.(*fifoWorkload)
-		b := j.(*fifoWorkload)
-
-		wait := queue.CmpWaitOnRestore(a, b)
+		wait := queue.CmpWaitOnRestore(i, j)
 		if wait != 0 {
 			return wait
 		}
 
-		return cmp.Compare(a.counter, b.counter)
+		return cmp.Compare(i.GetEval().CreateIndex, j.GetEval().CreateIndex)
 	}
 }
 
@@ -113,16 +108,14 @@ func (f *FifoQueue) runProducer(ctx context.Context) {
 			return
 		case w := <-f.enqueueCh:
 			f.qMux.Lock()
-			w.counter = f.incrementCounter()
 			f.queue.Push(w)
 			f.qMux.Unlock()
-			f.qNotify <- struct{}{}
+			select {
+			case f.qNotify <- struct{}{}:
+			default:
+			}
 		}
 	}
-}
-
-func (f *FifoQueue) incrementCounter() uint64 {
-	return f.counter.Add(1)
 }
 
 func (f *FifoQueue) runConsumer(ctx context.Context) {
