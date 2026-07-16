@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"syscall"
 
@@ -56,8 +57,8 @@ func (e *UniversalExecutor) shutdownProcess(sig os.Signal, proc *os.Process) err
 	return nil
 }
 
-// setCmdUser takes a user id as a string and looks up the user, and sets the command
-// to execute as that user.
+// setCmdUser looks up the user and overrides the command's user environment.
+// Except on Darwin, it also configures the command to execute as that user.
 func setCmdUser(cmd *exec.Cmd, userid string) error {
 	u, err := users.Lookup(userid)
 	if err != nil {
@@ -90,16 +91,18 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 		return fmt.Errorf("unable to convert groupid to uint32: %s", err)
 	}
 
-	// Set the command to run as that user and group.
-	if cmd.SysProcAttr == nil {
-		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	// User switching is not supported by the executor on Darwin.
+	if runtime.GOOS != "darwin" {
+		if cmd.SysProcAttr == nil {
+			cmd.SysProcAttr = &syscall.SysProcAttr{}
+		}
+		if cmd.SysProcAttr.Credential == nil {
+			cmd.SysProcAttr.Credential = &syscall.Credential{}
+		}
+		cmd.SysProcAttr.Credential.Uid = uint32(uid)
+		cmd.SysProcAttr.Credential.Gid = uint32(gid)
+		cmd.SysProcAttr.Credential.Groups = gids
 	}
-	if cmd.SysProcAttr.Credential == nil {
-		cmd.SysProcAttr.Credential = &syscall.Credential{}
-	}
-	cmd.SysProcAttr.Credential.Uid = uint32(uid)
-	cmd.SysProcAttr.Credential.Gid = uint32(gid)
-	cmd.SysProcAttr.Credential.Groups = gids
 
 	// Override USER, LOGNAME, and HOME environment variables.
 	cmd.Env = append(cmd.Env, fmt.Sprintf("USER=%s", u.Username))
