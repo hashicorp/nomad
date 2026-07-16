@@ -52,7 +52,8 @@ func (b *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 	b.defaultQueue.Enqueue(e)
 }
 
-// Happens in leader loop
+// SetEnabled is called during leadership transfers and is responsible for starting
+// and stopping queues.
 func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
 	b.mux.Lock()
 	defer b.mux.Unlock()
@@ -67,19 +68,29 @@ func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
 			b.state = state
 		}
 		b.startQueues()
-	} else {
-		if b.defaultQueue != nil {
-			// stop default queue
-			b.defaultQueue.Stop()
-			b.defaultQueue = nil
-		}
+	} else if b.defaultQueue != nil {
+		// stop default queue
+		b.defaultQueue.Stop()
+		b.defaultQueue = nil
 	}
 
 	b.enabled.Store(enabled)
 }
 
-// not safe
+// Queue returns a copy of the queue. This is used by RPC handlers
+// to call methods directly on a queue to view the status of a queue.
 func (b *BatchQueueManager) Queue() Queue {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
+	// if the queue is currently nil of some update
+	// just return the default passthrough queue. This
+	// is unlikely to happen, but guards against a nil
+	// value being returned
+	if b.defaultQueue == nil {
+		return &PassthroughQueue{}
+	}
+
 	return b.defaultQueue
 }
 
