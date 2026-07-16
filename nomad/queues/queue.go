@@ -4,8 +4,6 @@
 package queues
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
