@@ -36,6 +36,14 @@ updates:
     schedule:
       interval: "cron"
       cronjob: "0 9 15 * *" # once a month, mid-month
+    allow:
+      - dependency-type: "production"
+        update-types:
+          - "version-update:semver-patch"
+      - dependency-type: "development"
+        update-types:
+          - "version-update:semver-patch"
+    versioning-strategy: "increase"
     groups:
       ui-dev:
          patterns:
