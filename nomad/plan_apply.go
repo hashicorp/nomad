@@ -101,8 +101,7 @@ func (p *planner) planApply(maxPipelineDepth int) {
 	maxPipelineDepth = max(maxPipelineDepth, 1)
 	// planIndexCh is used to track an outstanding Raft write and receive its
 	// committed index, while the snapshot holds an optimistic state that
-	// includes the plan application. The buffer size is set to roughly 2x the
-	// expected pipeline depth to reduce blocking but still provide backpressure
+	// includes the plan application.
 	planIndexCh := make(chan uint64, maxPipelineDepth)
 	var snap *state.StateSnapshot
 
@@ -213,7 +212,7 @@ func (p *planner) planApply(maxPipelineDepth int) {
 		// Apply backpressure to prevent dropping indexes because the future
 		// makes a non-blocking send; this never invalidates the snapshot
 		// because we want to optimistically update it instead
-		if inFlightPlans >= maxPipelineDepth {
+		for inFlightPlans >= maxPipelineDepth {
 			idx := <-planIndexCh
 			inFlightPlans--
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
