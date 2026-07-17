@@ -235,11 +235,26 @@ export default class JobStatusPanelSteadyComponent extends Component {
       };
     }
 
-    if (this.totalAllocs === 0 && !this.job.hasClientStatus) {
-      return {
-        label: 'Scaled Down',
-        state: 'neutral',
-      };
+    if (totalAllocs === 0) {
+      if (!this.job.hasClientStatus) {
+        return {
+          label: 'Scaled Down',
+          state: 'neutral',
+        };
+      }
+
+      const hasFailureSignal =
+        (this.allocBlocks.failed?.healthy?.nonCanary?.length || 0) +
+          (this.allocBlocks.lost?.healthy?.nonCanary?.length || 0) +
+          (this.allocBlocks.unplaced?.healthy?.nonCanary?.length || 0) >
+        0;
+
+      if (!hasFailureSignal) {
+        return {
+          label: 'Scaled Down',
+          state: 'neutral',
+        };
+      }
     }
 
     if (this.job.type === 'batch' || this.job.type === 'sysbatch') {
