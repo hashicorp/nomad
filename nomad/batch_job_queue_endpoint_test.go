@@ -23,8 +23,8 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, s.RPC)
 
-	s.batchJobQueue = new(queues.MockQueue)
-	s.batchJobQueue.(*queues.MockQueue).On("Jobs", tmock.MatchedBy(func(m map[string]bool) bool {
+	mockQueue := new(queues.MockQueue)
+	mockQueue.On("Jobs", tmock.MatchedBy(func(m map[string]bool) bool {
 		return m == nil
 	})).Return(structs.QueueJobsResponse{
 		Type: "test",
@@ -33,6 +33,9 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 			{ID: "eval2"},
 		},
 	})
+	mockQueue.On("Stop").Return()
+
+	s.batchQueueMgr = queues.NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, nil, queues.WithQueue(mockQueue))
 
 	req := structs.QueueJobsRequest{QueryOptions: structs.QueryOptions{
 		Region: "global",
@@ -42,7 +45,6 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 
 	err := s.RPC("BatchJobQueue.Jobs", &req, &reply)
 	must.NoError(t, err)
-	s.batchJobQueue.(*queues.MockQueue).AssertExpectations(t)
 	must.Eq(t, reply.Type, "test")
 	must.Len(t, 2, reply.Workloads.([]*structs.Evaluation))
 }
@@ -93,19 +95,21 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			s1.batchJobQueue = new(queues.MockQueue)
-			s1.batchJobQueue.(*queues.MockQueue).On("Jobs", tmock.MatchedBy(func(m map[string]bool) bool {
+			mockQueue := new(queues.MockQueue)
+			mockQueue.On("Jobs", tmock.MatchedBy(func(m map[string]bool) bool {
 				return maps.Equal(tc.expectedAllowedNamespaces, m)
 			}), tmock.Anything).Return(tc.resp)
+			mockQueue.On("Stop").Return()
 
 			resp := structs.QueueJobsResponse{}
+			s1.batchQueueMgr = queues.NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, nil, queues.WithQueue(mockQueue))
+
 			err = s1.RPC("BatchJobQueue.Jobs", &tc.req, &resp)
 			if tc.err != "" {
 				must.ErrorContains(t, err, tc.err)
 				return
 			}
 			must.NoError(t, err)
-			s1.batchJobQueue.(*queues.MockQueue).AssertExpectations(t)
 			must.Eq(t, tc.resp, resp)
 		})
 	}
@@ -117,13 +121,14 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, s.RPC)
 
-	s.batchJobQueue = new(queues.MockQueue)
-	s.batchJobQueue.(*queues.MockQueue).On("Tenants").Return(structs.QueueTenantsResponse{
+	mockQueue := new(queues.MockQueue)
+	mockQueue.On("Tenants").Return(structs.QueueTenantsResponse{
 		Type: "test",
 		Tenants: []string{
 			"ns1", "ns2",
 		},
 	})
+	mockQueue.On("Stop").Return()
 
 	req := structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{
 		Region: "global",
@@ -131,9 +136,10 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 
 	reply := structs.QueueTenantsResponse{}
 
+	s.batchQueueMgr = queues.NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, nil, queues.WithQueue(mockQueue))
+
 	err := s.RPC("BatchJobQueue.Tenants", &req, &reply)
 	must.NoError(t, err)
-	s.batchJobQueue.(*queues.MockQueue).AssertExpectations(t)
 	must.Eq(t, reply.Type, "test")
 	must.Len(t, 2, reply.Tenants.([]string))
 }
@@ -178,10 +184,14 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			s1.batchJobQueue = new(queues.MockQueue)
-			s1.batchJobQueue.(*queues.MockQueue).On("Tenants").Return(tc.resp)
+			mockQueue := new(queues.MockQueue)
+			mockQueue.On("Tenants").Return(tc.resp)
+			mockQueue.On("Stop").Return()
 
 			reply := structs.QueueTenantsResponse{}
+
+			s1.batchQueueMgr = queues.NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, nil, queues.WithQueue(mockQueue))
+
 			err := s1.RPC("BatchJobQueue.Tenants", &tc.req, &reply)
 
 			if tc.err != "" {
@@ -190,7 +200,6 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 			}
 
 			must.NoError(t, err)
-			s1.batchJobQueue.(*queues.MockQueue).AssertExpectations(t)
 			must.Eq(t, tc.resp, reply)
 		})
 	}

@@ -24,14 +24,29 @@ type BatchQueueManager struct {
 	logger       hclog.Logger
 }
 
-func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueue, broker Broker, logger hclog.Logger) *BatchQueueManager {
-	return &BatchQueueManager{
+type QueueMgrOpt func(*BatchQueueManager)
+
+// WithQueue allows passing in a default queue in the constructor
+func WithQueue(q Queue) QueueMgrOpt {
+	return func(b *BatchQueueManager) {
+		b.defaultQueue = q
+	}
+}
+
+func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueue, broker Broker, logger hclog.Logger, opt ...QueueMgrOpt) *BatchQueueManager {
+	mgr := &BatchQueueManager{
 		defaultConf: defaultConf,
 		broker:      broker,
 		shutdownCtx: ctx,
 		mux:         sync.Mutex{},
 		logger:      logger,
 	}
+
+	for _, fn := range opt {
+		fn(mgr)
+	}
+
+	return mgr
 }
 
 // Enqueue takes an evaluation and passes it to the respective queue.
@@ -77,8 +92,8 @@ func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
 	b.enabled.Store(enabled)
 }
 
-// Queue returns a copy of the queue. This is used by RPC handlers
-// to call methods directly on a queue to view the status of a queue.
+// Queue returns a pointer to a queue. This is used by RPC handlers
+// to get the jobs or tenants in a queue.
 func (b *BatchQueueManager) Queue() Queue {
 	b.mux.Lock()
 	defer b.mux.Unlock()
