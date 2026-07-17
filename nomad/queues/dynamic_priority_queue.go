@@ -600,10 +600,16 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 	d.qMux.Lock()
 	defer d.qMux.Unlock()
 
-	pos := 1
+	pos := 0
 	workloads := []structs.DynamicPriorityWorkload{}
 	for _, w := range d.queue.Slice() {
-		if (namespaces != nil) && !namespaces[w.eval.Namespace] || w.waitOnRestore {
+		// waitOnRestore does not count towards position in queue
+		if w.waitOnRestore {
+			continue
+		}
+		pos++
+
+		if (namespaces != nil) && !namespaces[w.eval.Namespace] {
 			continue
 		}
 
@@ -618,8 +624,6 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 			SizeAdjustment:   w.sizeAdjustment,
 			CreatedAt:        w.eval.CreateTime,
 		})
-
-		pos++
 	}
 	return structs.QueueJobsResponse{
 		Type:      structs.BatchQueueTypeDynamic,

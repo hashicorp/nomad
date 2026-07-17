@@ -768,7 +768,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 		for _, w := range tc.workloads {
 			testQueue.queue.Push(w)
 		}
-		must.Eq(t, tc.exp, testQueue.Jobs(tc.allowedNs))
+		must.Eq(t, tc.exp, testQueue.Jobs(tc.allowedNs), must.Sprint(tc.name))
 	}
 
 }
