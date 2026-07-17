@@ -617,6 +617,35 @@ func TestHTTP_AllocStats(t *testing.T) {
 	})
 }
 
+// TestHTTP_AllocStats_UnknownNode asserts the client stats endpoint returns a
+// 404 rather than a 500 when the allocation's node cannot be found, matching
+// the unknown-allocation and no-path-to-node cases. See issue 26838.
+func TestHTTP_AllocStats_UnknownNode(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Insert an allocation whose node is not registered, so the server RPC
+		// resolves the allocation but fails to find its node.
+		state := s.Agent.server.State()
+		alloc := mock.Alloc()
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID), nil)
+		must.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		must.Error(t, err)
+		must.True(t, structs.IsErrUnknownNode(err))
+
+		codedErr, ok := err.(HTTPCodedError)
+		must.True(t, ok)
+		must.Eq(t, 404, codedErr.Code())
+	})
+}
+
 func TestHTTP_AllocStats_ACL(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
