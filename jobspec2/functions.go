@@ -4,6 +4,7 @@
 package jobspec2
 
 import (
+	"crypto/fips140"
 	"fmt"
 
 	"github.com/hashicorp/go-cty-funcs/cidr"
@@ -64,7 +65,6 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"lookup":          stdlib.LookupFunc,
 		"lower":           stdlib.LowerFunc,
 		"max":             stdlib.MaxFunc,
-		"md5":             crypto.Md5Func,
 		"merge":           stdlib.MergeFunc,
 		"min":             stdlib.MinFunc,
 		"parseint":        stdlib.ParseIntFunc,
@@ -77,7 +77,6 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"setintersection": stdlib.SetIntersectionFunc,
 		"setproduct":      stdlib.SetProductFunc,
 		"setunion":        stdlib.SetUnionFunc,
-		"sha1":            crypto.Sha1Func,
 		"sha256":          crypto.Sha256Func,
 		"sha512":          crypto.Sha512Func,
 		"signum":          stdlib.SignumFunc,
@@ -112,6 +111,11 @@ func Functions(basedir string, allowFS bool) map[string]function.Function {
 		"fileexists": guardFS(allowFS, filesystem.MakeFileExistsFunc(basedir)),
 		"fileset":    guardFS(allowFS, filesystem.MakeFileSetFunc(basedir)),
 		"pathexpand": guardFS(allowFS, filesystem.PathExpandFunc),
+	}
+
+	if !fips140.Enabled() {
+		funcs["md5"] = crypto.Md5Func
+		funcs["sha1"] = crypto.Sha1Func
 	}
 
 	return funcs

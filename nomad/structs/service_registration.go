@@ -4,9 +4,12 @@
 package structs
 
 import (
+	"crypto/fips140"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"slices"
 
 	"github.com/hashicorp/nomad/helper"
@@ -187,7 +190,18 @@ func (s *ServiceRegistration) HashWith(key string) string {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(s.Port))
 
-	sum := md5.New()
+	var sum hash.Hash
+	if fips140.Enabled() {
+		sum = sha256.New()
+	} else {
+		// Note: these hashes are not being used for their cryptographic
+		// properties. Because workloads outlive the Nomad client process, we
+		// can't migrate to using SHA256 without breaking backwards
+		// compatibility with existing services. But FIPS-mode binaries are not
+		// intended to be backwards compatible.
+		sum = md5.New()
+	}
+
 	sum.Write(buf)
 	sum.Write([]byte(s.AllocID))
 	sum.Write([]byte(s.ID))

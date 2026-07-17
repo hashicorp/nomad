@@ -4,8 +4,11 @@
 package structs
 
 import (
+	"crypto/fips140"
 	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
+	"hash"
 	"strconv"
 )
 
@@ -77,7 +80,18 @@ const (
 //
 // Checks of group-level services have no task.
 func NomadCheckID(allocID, group string, c *ServiceCheck) CheckID {
-	sum := md5.New()
+	var sum hash.Hash
+	if fips140.Enabled() {
+		sum = sha256.New()
+	} else {
+		// Note: these hashes are not being used for their cryptographic
+		// properties. Because workloads outlive the Nomad client process, we
+		// can't migrate to using SHA256 without breaking backwards
+		// compatibility with existing services. But FIPS-mode binaries are not
+		// intended to be backwards compatible.
+		sum = md5.New()
+	}
+
 	hashString(sum, allocID)
 	hashString(sum, group)
 	hashString(sum, c.TaskName)

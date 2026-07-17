@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"crypto/fips140"
 	"fmt"
 	"io"
 	"maps"
@@ -397,6 +398,10 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 		Tty:     isTTY,
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	if fips140.Enabled() {
+		return nil, fmt.Errorf("job actions are disallowed in FIPS-140 mode")
+	}
 
 	conn, err := s.getWebsocketConnection(req)
 	if err != nil {

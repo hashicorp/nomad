@@ -4,11 +4,13 @@
 package api
 
 import (
+	"crypto/fips140"
 	"crypto/md5"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"strings"
@@ -52,6 +54,9 @@ func newChecksumValidatingReader(r io.ReadCloser, digest string) (io.ReadCloser,
 	case "sha-512":
 		hash = sha512.New()
 	case "md5":
+		if fips140.Enabled() {
+			return nil, fmt.Errorf("md5 checksums are not supported in FIPS-140 mode")
+		}
 		hash = md5.New()
 	}
 

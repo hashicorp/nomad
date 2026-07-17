@@ -5,8 +5,6 @@ package nomad
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/x509"
@@ -24,7 +22,7 @@ import (
 	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/go-hclog"
 	kms "github.com/hashicorp/go-kms-wrapping/v2"
-	"github.com/hashicorp/go-kms-wrapping/v2/aead"
+	"github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2"
@@ -80,7 +78,7 @@ type Encrypter struct {
 // disambiguate which signing algorithm to use.
 type cipherSet struct {
 	rootKey           *structs.UnwrappedRootKey
-	cipher            cipher.AEAD
+	wrapper           kms.Wrapper
 	eddsaPrivateKey   ed25519.PrivateKey
 	rsaPrivateKey     *rsa.PrivateKey
 	rsaPKCS1PublicKey []byte // PKCS #1 DER encoded public key for JWKS
@@ -277,26 +275,17 @@ func (e *Encrypter) Encrypt(cleartext []byte) ([]byte, string, error) {
 		return nil, "", err
 	}
 
-	nonce, err := crypto.Bytes(cs.cipher.NonceSize())
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate key wrapper nonce: %v", err)
-	}
-
 	keyID := cs.rootKey.Meta.KeyID
-	additional := []byte(keyID) // include the keyID in the signature inputs
-
-	// we use the nonce as the dst buffer so that the ciphertext is appended to
-	// that buffer and we always keep the nonce and ciphertext together, and so
-	// that we're not tempted to reuse the cleartext buffer which the caller
-	// still owns
-	ciphertext := cs.cipher.Seal(nonce, nonce, cleartext, additional)
-	return ciphertext, keyID, nil
+	bi, err := cs.wrapper.Encrypt(context.Background(), cleartext, kms.WithAad([]byte(keyID)))
+	if err != nil {
+		return nil, "", fmt.Errorf("could not encrypt: %w", err)
+	}
+	return bi.Ciphertext, keyID, nil
 }
 
 // Decrypt takes an encrypted buffer and then root key ID. It extracts
 // the nonce, decrypts the content, and returns the cleartext data.
 func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
-
 	ctx, cancel := context.WithTimeout(e.srv.shutdownCtx, time.Second)
 	defer cancel()
 	ks, err := e.waitForKey(ctx, keyID)
@@ -304,11 +293,10 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 		return nil, err
 	}
 
-	nonceSize := ks.cipher.NonceSize()
-	nonce := ciphertext[:nonceSize] // nonce was stored alongside ciphertext
-	additional := []byte(keyID)     // keyID was included in the signature inputs
-
-	return ks.cipher.Open(nil, nonce, ciphertext[nonceSize:], additional)
+	bi := &kms.BlobInfo{
+		Ciphertext: ciphertext,
+	}
+	return ks.wrapper.Decrypt(ctx, bi, kms.WithAad([]byte(keyID)))
 }
 
 // keyIDHeader is the JWT header for the Nomad Key ID used to sign the
@@ -667,17 +655,19 @@ func (e *Encrypter) generateCipher(rootKey *structs.UnwrappedRootKey) (*cipherSe
 	if rootKey == nil || rootKey.Meta == nil {
 		return nil, fmt.Errorf("missing metadata")
 	}
-	var aeadCipher cipher.AEAD
+	var wrapper kms.Wrapper
 
 	switch rootKey.Meta.Algorithm {
 	case structs.EncryptionAlgorithmAES256GCM:
-		block, err := aes.NewCipher(rootKey.Key)
+		wrapper = aead.NewWrapper()
+		_, err := wrapper.SetConfig(context.Background(),
+			aead.WithAeadType(kms.AeadTypeAesGcm),
+			aead.WithHashType(kms.HashTypeSha256),
+			aead.WithKey(rootKey.Key),
+			kms.WithKeyId(rootKey.Meta.KeyID),
+		)
 		if err != nil {
-			return nil, fmt.Errorf("could not create cipher: %v", err)
-		}
-		aeadCipher, err = cipher.NewGCM(block)
-		if err != nil {
-			return nil, fmt.Errorf("could not create cipher: %v", err)
+			return nil, fmt.Errorf("could not configure cipher: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf("invalid algorithm %s", rootKey.Meta.Algorithm)
@@ -687,7 +677,7 @@ func (e *Encrypter) generateCipher(rootKey *structs.UnwrappedRootKey) (*cipherSe
 
 	cs := cipherSet{
 		rootKey:         rootKey,
-		cipher:          aeadCipher,
+		wrapper:         wrapper,
 		eddsaPrivateKey: ed25519Key,
 	}
 
@@ -1083,14 +1073,14 @@ func (e *Encrypter) newKMSWrapper(provider *structs.KEKProviderConfig, keyID str
 
 	default: // "aead"
 		wrapper := aead.NewWrapper()
-		wrapper.SetConfig(context.Background(),
+		_, err := wrapper.SetConfig(context.Background(),
 			aead.WithAeadType(kms.AeadTypeAesGcm),
 			aead.WithHashType(kms.HashTypeSha256),
+			aead.WithKey(kek),
 			kms.WithKeyId(keyID),
 		)
-		err := wrapper.SetAesGcmKeyBytes(kek)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("could not configure cipher: %w", err)
 		}
 		return wrapper, nil
 	}
@@ -1108,7 +1098,7 @@ func (e *Encrypter) newKMSWrapper(provider *structs.KEKProviderConfig, keyID str
 // KeyringReplicator supports the legacy (pre-1.9.0) keyring management where
 // wrapped keys were stored outside of Raft.
 //
-// COMPAT(1.12.0) - remove in 1.12.0 LTS
+// COMPAT(3.0) - remove in 3.0
 type KeyringReplicator struct {
 	srv       *Server
 	encrypter *Encrypter

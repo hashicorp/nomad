@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"crypto/fips140"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -612,6 +613,10 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 		Tty:     ttyB,
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	if fips140.Enabled() {
+		return nil, fmt.Errorf("alloc exec is disallowed in FIPS-140 mode")
+	}
 
 	conn, err := s.getWebsocketConnection(req)
 	if err != nil {

@@ -5,7 +5,7 @@ package drivers
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"maps"
@@ -589,7 +589,7 @@ func (d *DriverNetwork) Hash() []byte {
 	if d == nil {
 		return []byte{}
 	}
-	h := md5.New()
+	h := sha256.New()
 	io.WriteString(h, d.IP)
 	io.WriteString(h, strconv.FormatBool(d.AutoAdvertise))
 	for k, v := range d.PortMap {

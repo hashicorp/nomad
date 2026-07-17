@@ -4,7 +4,9 @@
 package structs
 
 import (
+	"crypto/fips140"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -483,7 +485,18 @@ func (sc *ServiceCheck) TriggersRestarts() bool {
 // the PortLabel is blank, the Service's PortLabel will be used after Hash is
 // called.
 func (sc *ServiceCheck) Hash(serviceID string) string {
-	h := sha1.New()
+	var h hash.Hash
+	if fips140.Enabled() {
+		h = sha256.New()
+	} else {
+		// Note: these hashes are not being used for their cryptographic
+		// properties. Because workloads outlive the Nomad client process, we
+		// can't migrate to using SHA256 without breaking backwards
+		// compatibility with existing services. But FIPS-mode binaries are not
+		// intended to be backwards compatible.
+		h = sha1.New()
+	}
+
 	hashString(h, serviceID)
 	hashString(h, sc.Name)
 	hashString(h, sc.Type)
@@ -957,7 +970,18 @@ func (s *Service) ValidateName(name string) error {
 // as they're hashed independently and the provider in order to not cause churn
 // during cluster upgrades.
 func (s *Service) Hash(allocID, taskName string, canary bool) string {
-	h := sha1.New()
+	var h hash.Hash
+	if fips140.Enabled() {
+		h = sha256.New()
+	} else {
+		// Note: these hashes are not being used for their cryptographic
+		// properties. Because workloads outlive the Nomad client process, we
+		// can't migrate to using SHA256 without breaking backwards
+		// compatibility with existing services. But FIPS-mode binaries are not
+		// intended to be backwards compatible.
+		h = sha1.New()
+	}
+
 	hashString(h, allocID)
 	hashString(h, taskName)
 	hashString(h, s.Name)

@@ -6,6 +6,10 @@ go 1.26.5
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-nomad-1
+
+	github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 => ../go-kms-wrapping/wrappers/aead
+	github.com/hashicorp/go-kms-wrapping/v2/aead => ../go-kms-wrapping/aead
+	github.com/hashicorp/go-kms-wrapping/v2 => ../go-kms-wrapping
 )
 
 // Nomad is built using the current source of the API module.
@@ -60,6 +64,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.23
+	github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 v2.0.10
 	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.15
 	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.14
