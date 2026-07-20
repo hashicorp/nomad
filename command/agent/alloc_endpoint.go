@@ -323,7 +323,7 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -355,7 +355,7 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -394,7 +394,7 @@ func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -439,7 +439,7 @@ func (s *HTTPServer) allocPauseGet(allocID string, resp http.ResponseWriter, req
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -493,7 +493,7 @@ func (s *HTTPServer) allocPauseSet(allocID string, resp http.ResponseWriter, req
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -545,7 +545,7 @@ func (s *HTTPServer) allocStats(allocID string, resp http.ResponseWriter, req *h
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -578,7 +578,7 @@ func (s *HTTPServer) allocChecks(allocID string, resp http.ResponseWriter, req *
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
