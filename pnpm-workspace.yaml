@@ -18,6 +18,7 @@ overrides:
   tmp@<0.2.6: '>=0.2.6'
   tmp@<=0.2.3: '>=0.2.4'
   uuid@<11.1.1: '>=11.1.1'
+  websocket-driver: ' >=0.7.5'
   ws@>=8.0.0 <8.20.1: '>=8.20.1'
 
 peerDependencyRules:
