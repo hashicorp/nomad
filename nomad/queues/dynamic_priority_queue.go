@@ -603,7 +603,7 @@ func (d *DynamicPriorityQueue) isSchedulingComplete(workload *Workload) (bool, e
 func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
 	d.qMux.Lock()
 	sortedWorkloads := d.queue.Slice()
-	defer d.qMux.Unlock()
+	d.qMux.Unlock()
 
 	pos := 0
 	workloads := []structs.QueueWorkload{}
