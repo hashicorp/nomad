@@ -22,6 +22,7 @@ func (m *MockQueue) Type() structs.BatchQueueType {
 func (m *MockQueue) Start(context.Context) error { return nil }
 
 func (m *MockQueue) Stop() {
+	m.Called()
 }
 
 func (m *MockQueue) Enqueue(e *structs.Evaluation) {

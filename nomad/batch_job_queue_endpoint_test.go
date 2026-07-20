@@ -70,6 +70,7 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 			mockQueue.On("Jobs", tmock.Anything).Return(&queues.WorkloadIter{
 				Workloads: []structs.QueueWorkload{workload1, workload2, workload3},
 			})
+			mockQueue.On("Stop")
 			s.batchQueueMgr = queues.NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, nil, queues.WithQueue(mockQueue))
 
 			reply := structs.QueueJobsResponse{}
@@ -149,6 +150,7 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 				},
 			})
 
+			mockQueue.On("Stop")
 			resp := structs.QueueJobsResponse{}
 			s1.batchQueueMgr = queues.NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, nil, queues.WithQueue(mockQueue))
 
@@ -176,6 +178,7 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 			"ns1", "ns2",
 		},
 	})
+	mockQueue.On("Stop")
 
 	req := structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{
 		Region: "global",
@@ -233,6 +236,7 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockQueue := new(queues.MockQueue)
 			mockQueue.On("Tenants").Return(tc.resp)
+			mockQueue.On("Stop")
 
 			reply := structs.QueueTenantsResponse{}
 
