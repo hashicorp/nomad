@@ -24,7 +24,7 @@ BUG FIXES:
 
 * api: allow using WI tokens on plan endpoint [[GH-28139](https://github.com/hashicorp/nomad/issues/28139)]
 * cli: Fixed a bug where complex HCL variables passed via -var flag could not be edited in the web UI [[GH-28138](https://github.com/hashicorp/nomad/issues/28138)]
-* client: Fixed a bug where a client could panic after an alloc is GC'd [[GH-28185](https://github.com/hashicorp/nomad/issues/28185)]
+* client: Fixed a bug where a client could panic after an alloc is GC'd [[GH-28187](https://github.com/hashicorp/nomad/issues/28187)]
 * dynamic host volumes: Fixed a bug where allocations claiming host volumes with the per_alloc flag would not prevent the volume from being deleted [[GH-28198](https://github.com/hashicorp/nomad/issues/28198)]
 * metrics: expired metrics are now periodically cleared from the Prometheus sink even if no collection occurs [[GH-28170](https://github.com/hashicorp/nomad/issues/28170)]
 * scheduler: Fixed a bug where a node could be marked feasible for a task group requesting multiple host volumes when a satisfied sticky volume request short-circuited the checks for the remaining requests [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
