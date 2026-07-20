@@ -51,7 +51,7 @@ func (q *BatchJobQueue) Jobs(args *structs.QueueJobsRequest, reply *structs.Queu
 	} else if err != nil {
 		return err
 	} else {
-		status := q.srv.batchJobQueue.Jobs(allowableNamespaces)
+		status := q.srv.batchQueueMgr.Queue().Jobs(allowableNamespaces)
 		reply.Workloads = status.Workloads
 		reply.Type = status.Type
 	}
@@ -78,7 +78,7 @@ func (q *BatchJobQueue) Tenants(args *structs.QueueTenantsRequest, reply *struct
 		return structs.ErrPermissionDenied
 	}
 
-	status := q.srv.batchJobQueue.Tenants()
+	status := q.srv.batchQueueMgr.Queue().Tenants()
 	reply.Tenants = status.Tenants
 	reply.Type = status.Type
 

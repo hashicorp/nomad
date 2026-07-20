@@ -215,9 +215,9 @@ type Server struct {
 	// that are waiting to be brokered to a sub-scheduler
 	evalBroker *EvalBroker
 
-	// batchJobQueue is the interface for enqueuing job
+	// batchQueueMgr is responsible for enqueuing job
 	// register evaluations on a queue implementation
-	batchJobQueue queues.Queue
+	batchQueueMgr *queues.BatchQueueManager
 
 	// brokerLock is used to synchronise the alteration of the blockedEvals and
 	// evalBroker enabled state. These two subsystems change state when
@@ -487,10 +487,10 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		Encrypter:      s.encrypter,
 	})
 
-	// Creates the batch job queue
-	s.batchJobQueue, err = queues.NewQueue(
-		&s.config.DefaultSchedulerConfig.BatchQueue,
-		evalBroker,
+	s.batchQueueMgr = queues.NewBatchQueueMgr(
+		s.shutdownCtx,
+		s.config.DefaultSchedulerConfig.BatchQueue,
+		s.evalBroker,
 		logger,
 	)
 	if err != nil {
@@ -504,12 +504,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		s.Shutdown()
 		s.logger.Error("failed to start Raft", "error", err)
 		return nil, fmt.Errorf("Failed to start Raft: %v", err)
-	}
-
-	if err := s.batchJobQueue.Start(s.shutdownCtx); err != nil {
-		s.Shutdown()
-		s.logger.Error("failed to start batch job queue", "error", err)
-		return nil, fmt.Errorf("Failed to start batcj job queue: %v", err)
 	}
 
 	// Initialize the wan Serf
@@ -1380,7 +1374,7 @@ func (s *Server) setupRaft() error {
 	// Create the FSM
 	fsmConfig := &FSMConfig{
 		EvalBroker:         s.evalBroker,
-		BatchQueue:         s.batchJobQueue,
+		BatchQueue:         s.batchQueueMgr,
 		Periodic:           s.periodicDispatcher,
 		Blocked:            s.blockedEvals,
 		Encrypter:          s.encrypter,
