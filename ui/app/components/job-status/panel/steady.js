@@ -258,9 +258,11 @@ export default class JobStatusPanelSteadyComponent extends Component {
     }
 
     if (this.job.type === 'batch' || this.job.type === 'sysbatch') {
-      // If all the allocs are complete, the job is Complete
+      // If all the allocs are complete, the job is Complete.
+      // Guard against totalAllocs === 0: 0 === 0 would falsely report Complete
+      // for a zero-allocation sysbatch/batch job that should be Scaled Down.
       const completeAllocs = this.allocBlocks.complete?.healthy?.nonCanary;
-      if (completeAllocs?.length === totalAllocs) {
+      if (totalAllocs > 0 && completeAllocs?.length === totalAllocs) {
         return { label: 'Complete', state: 'success' };
       }
 
