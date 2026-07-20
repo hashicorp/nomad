@@ -7,7 +7,6 @@ import (
 	"cmp"
 	"context"
 	"sync"
-	"sync/atomic"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
