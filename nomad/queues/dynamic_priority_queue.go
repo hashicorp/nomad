@@ -127,6 +127,10 @@ func NewDynamicPriorityQueue(ss *state.StateStore, broker Broker, qconf *structs
 	}
 }
 
+func (d *DynamicPriorityQueue) Type() structs.BatchQueueType {
+	return structs.BatchQueueTypeDynamic
+}
+
 func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
 	rCtx, cancel := context.WithCancel(ctx)
 	d.cancel = cancel
@@ -596,26 +600,24 @@ func (d *DynamicPriorityQueue) isSchedulingComplete(workload *Workload) (bool, e
 	return false, nil
 }
 
-func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJobsResponse {
+func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
 	d.qMux.Lock()
-	defer d.qMux.Unlock()
+	sortedWorkloads := d.queue.Slice()
+	d.qMux.Unlock()
 
 	pos := 0
-	workloads := []structs.DynamicPriorityWorkload{}
-	for _, w := range d.queue.Slice() {
+	workloads := []structs.QueueWorkload{}
+	for _, w := range sortedWorkloads {
 		// waitOnRestore does not count towards position in queue
 		if w.waitOnRestore {
 			continue
 		}
 		pos++
 
-		if (namespaces != nil) && !namespaces[w.eval.Namespace] {
-			continue
-		}
-
-		workloads = append(workloads, structs.DynamicPriorityWorkload{
+		workloads = append(workloads, &structs.DynamicPriorityWorkload{
 			JobID:            w.eval.JobID,
 			Tenant:           string(w.tid),
+			Namespace:        w.eval.Namespace,
 			Position:         pos,
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
@@ -623,12 +625,16 @@ func (d *DynamicPriorityQueue) Jobs(namespaces map[string]bool) structs.QueueJob
 			AgeAdjustment:    w.ageAdjustment,
 			SizeAdjustment:   w.sizeAdjustment,
 			CreatedAt:        w.eval.CreateTime,
+			CreateIndex:      w.eval.CreateIndex,
 		})
 	}
-	return structs.QueueJobsResponse{
-		Type:      structs.BatchQueueTypeDynamic,
-		Workloads: workloads,
+	iter := NewWorkloadIter(workloads)
+
+	if sortOrder != structs.SortByPriority {
+		iter.SortByJobId()
 	}
+
+	return iter
 }
 
 func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {

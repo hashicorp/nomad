@@ -13,8 +13,9 @@ type Queue interface {
 	Start(context.Context) error
 	Stop()
 	Enqueue(*structs.Evaluation)
-	Jobs(map[string]bool) structs.QueueJobsResponse
+	Jobs(structs.SortOrder) *WorkloadIter
 	Tenants() structs.QueueTenantsResponse
+	Type() structs.BatchQueueType
 }
 
 // Broker is the interface for an evaluation broker
