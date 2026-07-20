@@ -14,6 +14,10 @@ type MockQueue struct {
 	mock.Mock
 }
 
+func (m *MockQueue) Type() structs.BatchQueueType {
+	return "test"
+}
+
 // Start is a noop for the passthrough implementation
 func (m *MockQueue) Start(context.Context) error { return nil }
 
@@ -25,14 +29,14 @@ func (m *MockQueue) Enqueue(e *structs.Evaluation) {
 	m.Called(e)
 }
 
-func (m *MockQueue) Jobs(ns map[string]bool) structs.QueueJobsResponse {
-	args := m.Called(ns)
+func (m *MockQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
+	args := m.Called(sortOrder)
 
 	if args.Get(0) == nil {
-		return structs.QueueJobsResponse{}
+		return &WorkloadIter{}
 	}
 
-	return args.Get(0).(structs.QueueJobsResponse)
+	return args.Get(0).(*WorkloadIter)
 }
 
 func (m *MockQueue) Tenants() structs.QueueTenantsResponse {

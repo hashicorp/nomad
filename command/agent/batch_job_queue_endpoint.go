@@ -23,6 +23,8 @@ func (s *HTTPServer) BatchJobQueueJobsRequest(resp http.ResponseWriter, req *htt
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+	query := req.URL.Query()
+	args.Sort = structs.SortOrder(query.Get("sort"))
 
 	if err := s.agent.RPC("BatchJobQueue.Jobs", &args, &out); err != nil {
 		return nil, err

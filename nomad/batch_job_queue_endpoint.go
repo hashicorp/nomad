@@ -6,6 +6,7 @@ package nomad
 import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/acl"
+	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -47,15 +48,39 @@ func (q *BatchJobQueue) Jobs(args *structs.QueueJobsRequest, reply *structs.Queu
 	if err == structs.ErrPermissionDenied {
 		// return empty results if token isn't authorized for any
 		// namespace, matching other endpoints
-		reply.Workloads = make([]interface{}, 0)
-	} else if err != nil {
+		reply.Workloads = make([]any, 0)
+		q.srv.setQueryMeta(&reply.QueryMeta)
 		return err
-	} else {
-		status := q.srv.batchQueueMgr.Queue().Jobs(allowableNamespaces)
-		reply.Workloads = status.Workloads
-		reply.Type = status.Type
 	}
 
+	batchJobQueue := q.srv.batchQueueMgr.Queue()
+	iter := batchJobQueue.Jobs(args.Sort)
+
+	selector := func(workload structs.QueueWorkload) bool {
+		if len(allowableNamespaces) == 0 {
+			return true
+		}
+		// Filter by namespace
+		if !allowableNamespaces[workload.GetNamespace()] {
+			return false
+		}
+		return true
+	}
+
+	pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector, paginator.CreateIndexAndIDTokenizer[structs.QueueWorkload](args.NextToken), func(workload structs.QueueWorkload) (structs.QueueWorkload, error) {
+		return workload, nil
+	})
+	if err != nil {
+		return err
+	}
+	workloads, token, err := pager.Page()
+	if err != nil {
+		return err
+	}
+	reply.Workloads = workloads
+
+	reply.Type = batchJobQueue.Type()
+	reply.QueryMeta.NextToken = token
 	q.srv.setQueryMeta(&reply.QueryMeta)
 
 	return nil

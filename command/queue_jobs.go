@@ -6,6 +6,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -31,8 +32,11 @@ General Options:
 
 Eval Options:
 
-  -limit
-    The maximum number of workloads to return
+  -per-page
+    The maximum number of workloads to return per page. If not specified, or set to 0, all results are returned.
+
+  -page-token
+    Where to start pagination
 
   -verbose
     Display full output
@@ -40,6 +44,8 @@ Eval Options:
   -json
     Display output as json
 
+  -p 
+    Sort output by priority instead of creation time
 `
 	return strings.TrimSpace(helpText)
 }
@@ -51,10 +57,11 @@ func (c *QueueJobsCommand) Synopsis() string {
 func (c *QueueJobsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
-			"-limit":   complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-tenants": complete.PredictNothing,
+			"-verbose":    complete.PredictNothing,
+			"-json":       complete.PredictNothing,
+			"-p":          complete.PredictNothing,
+			"-per-page":   complete.PredictAnything,
+			"-page-token": complete.PredictAnything,
 		})
 }
 
@@ -65,14 +72,16 @@ func (c *QueueJobsCommand) AutocompleteArgs() complete.Predictor {
 func (c *QueueJobsCommand) Name() string { return "queue status" }
 
 func (c *QueueJobsCommand) Run(args []string) int {
-	var verbose, jsonOut, tenants bool
-	var limit int
+	var verbose, jsonOut, prioritySort bool
+	var pageToken string
+	var perPage int
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&jsonOut, "json", false, "")
-	flags.BoolVar(&tenants, "tenants", false, "")
-	flags.IntVar(&limit, "limit", 0, "")
+	flags.BoolVar(&prioritySort, "p", false, "")
+	flags.StringVar(&pageToken, "page-token", "", "")
+	flags.IntVar(&perPage, "per-page", 0, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -86,14 +95,20 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	}
 
 	// Setup the options
-	qo := &api.QueryOptions{}
+	qo := &api.QueryOptions{
+		PerPage:   int32(perPage),
+		NextToken: pageToken,
+		Params: map[string]string{
+			"sort": "default",
+		},
+	}
 
-	if limit > 0 {
-		qo.PerPage = int32(limit)
+	if prioritySort {
+		qo.Params["sort"] = "priority"
 	}
 
 	// Submit the request
-	resp, _, err := client.BatchJobQueue().Jobs(qo)
+	resp, qm, err := client.BatchJobQueue().Jobs(qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
@@ -105,7 +120,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 
 	switch resp.Type {
 	case api.BatchJobQueueTypeDynamic:
-		return c.printDynamicQueue(resp, jsonOut)
+		c.printDynamicQueue(resp, qm, jsonOut)
 	case "unset":
 		c.Ui.Output("No batch job queue configured")
 	default:
@@ -116,7 +131,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	return 0
 }
 
-func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse, jsonOut bool) int {
+func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse, qm *api.QueryMeta, jsonOut bool) int {
 	workloads := []api.DynamicPriorityWorkload{}
 	bytes, err := json.Marshal(resp.Workloads)
 	if err != nil {
@@ -135,6 +150,12 @@ func (c *QueueJobsCommand) printDynamicQueue(resp *api.BatchJobQueueJobsResponse
 		}
 	} else {
 		c.printDynamicQueueFormatted(workloads)
+		if qm.NextToken != "" {
+			c.Ui.Output(fmt.Sprintf(`
+Results have been paginated. To get the next page run:
+
+%s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
+		}
 	}
 	return 0
 }
