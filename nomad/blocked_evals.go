@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -102,9 +103,10 @@ type unblockEvent struct {
 
 // capacityUpdate stores unblock data.
 type capacityUpdate struct {
-	computedClass string
-	quotaChange   string
-	nodeID        string
+	computedClass    string
+	quotaChange      string
+	nodeID           string
+	nonNodeResources []string
 
 	blockedEval  *structs.Evaluation
 	blockToken   string
@@ -382,6 +384,14 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 			return false
 		}
 
+		for _, missing := range eval.MissingNonNodeResources {
+			if missing == id && eval.SnapshotIndex < u.index {
+				// The evaluation was processed before the missing resource was
+				// updated, so unblock the evaluation
+				return true
+			}
+		}
+
 		elig, ok := eval.ClassEligibility[id]
 		if !ok && eval.SnapshotIndex < u.index {
 			// The evaluation was processed and did not encounter this class
@@ -600,6 +610,40 @@ func (b *BlockedEvals) UnblockNode(nodeID string) chan struct{} {
 	return fut
 }
 
+// UnblockNonNodeResources causes evaluation to be enqueued in the eval broker
+// if they escape a node class but could potentially make progress on capacity
+// changes to specific non-node resources (ex. CSI volumes added).
+func (b *BlockedEvals) UnblockNonNodeResources(resources []string, index uint64) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	// Store the index in which the unblock happened. We use this on subsequent
+	// block calls in case the evaluation was in the scheduler when a trigger
+	// occurred.
+	b.unblockIndexesLock.Lock()
+	now := time.Now().UTC()
+	for _, resource := range resources {
+		b.unblockIndexes[resource] = unblockEvent{index, now}
+	}
+	b.unblockIndexesLock.Unlock()
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{nonNodeResources: resources, future: fut}:
+	}
+
+	return fut
+}
+
 // watchCapacity is a long lived function that watches for capacity changes in
 // nodes and unblocks the correct set of evals.
 func (b *BlockedEvals) watchCapacity(
@@ -622,13 +666,13 @@ func (b *BlockedEvals) watchCapacity(
 				continue
 			}
 
-			b.unblock(update.computedClass, update.quotaChange, update.nodeID)
+			b.unblock(update.computedClass, update.quotaChange, update.nodeID, update.nonNodeResources)
 			close(update.future)
 		}
 	}
 }
 
-func (b *BlockedEvals) unblock(computedClass, quota, nodeID string) {
+func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []string) {
 
 	// Protect against the case of a flush.
 	b.flushLock.RLock()
@@ -645,8 +689,18 @@ func (b *BlockedEvals) unblock(computedClass, quota, nodeID string) {
 	numEscaped := len(b.escaped)
 	unblocked := make(map[*structs.Evaluation]string, max(uint64(numEscaped), 4))
 
-	if numEscaped != 0 && computedClass != "" {
+	if numEscaped != 0 && (computedClass != "" || len(resources) > 0) {
 		for id, wrapped := range b.escaped {
+			if len(resources) > 0 {
+				// this is an unblock for a specific set of resources and we
+				// unblock the eval if any of its missing non-node resources
+				// overlap, to account for cases where multiple required
+				// resources are added across separate Raft updates
+				if !foundAnyMissingResources(wrapped.eval.MissingNonNodeResources, resources) {
+					continue // the resources were not present
+				}
+			}
+
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.escaped, id)
 			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
@@ -699,6 +753,18 @@ SKIP_TO_NODE:
 		// Enqueue all the unblocked evals into the broker.
 		b.evalBroker.EnqueueAll(unblocked)
 	}
+}
+
+func foundAnyMissingResources(missing, updated []string) bool {
+	if len(missing) == 0 {
+		return true
+	}
+	for _, m := range missing {
+		if slices.Contains(updated, m) {
+			return true
+		}
+	}
+	return false
 }
 
 // UnblockFailed unblocks all blocked evaluation that were due to scheduler

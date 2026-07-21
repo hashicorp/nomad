@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -28,7 +29,7 @@ const (
 	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
 	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
 	FilterConstraintCSIVolumesLookupFailed         = "CSI volume lookup failed"
-	FilterConstraintCSIVolumeNotFoundTemplate      = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNotFoundTemplate      = "missing CSI volume(s) %s"
 	FilterConstraintCSIVolumeNoReadTemplate        = "CSI volume %s is unschedulable or has exhausted its available reader claims"
 	FilterConstraintCSIVolumeNoWriteTemplate       = "CSI volume %s is unschedulable or is read-only"
 	FilterConstraintCSIVolumeInUseTemplate         = "CSI volume %s has exhausted its available writer claims"
@@ -490,10 +491,12 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 }
 
 type CSIVolumeChecker struct {
-	ctx       Context
-	namespace string
-	jobID     string
-	volumes   map[string]*structs.VolumeRequest
+	ctx        Context
+	namespace  string
+	jobID      string
+	volumeReqs map[string]*structs.VolumeRequest
+	volumes    map[string]*structs.CSIVolume
+	missing    []string
 }
 
 func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
@@ -510,28 +513,51 @@ func (c *CSIVolumeChecker) SetNamespace(namespace string) {
 	c.namespace = namespace
 }
 
-func (c *CSIVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
+func (c *CSIVolumeChecker) SetVolumes(allocName string, volumeReqs map[string]*structs.VolumeRequest) {
 
-	xs := make(map[string]*structs.VolumeRequest)
+	reqs := make(map[string]*structs.VolumeRequest, len(volumeReqs))
+	vols := make(map[string]*structs.CSIVolume, len(volumeReqs))
+	missing := []string{}
 
-	// Filter to only CSI Volumes
-	for alias, req := range volumes {
+	for alias, req := range volumeReqs {
 		if req.Type != structs.VolumeTypeCSI {
-			continue
+			continue // filter to only CSI volumes
 		}
+		id := req.Source
 		if req.PerAlloc {
 			// provide a unique volume source per allocation
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			xs[alias] = copied
+			id = copied.Source
+			reqs[alias] = copied
 		} else {
-			xs[alias] = req
+			reqs[alias] = req
 		}
+
+		vol, err := c.ctx.State().CSIVolumeByID(nil, c.namespace, id)
+		if vol == nil || err != nil {
+			missing = append(missing, id)
+			continue
+		}
+		vols[alias] = vol
 	}
-	c.volumes = xs
+	c.volumes = vols
+	c.volumeReqs = reqs
+	c.missing = missing
 }
 
 func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
+	if len(c.missing) > 0 {
+		missing := helper.ConvertSlice(c.missing, func(id string) string {
+			return fmt.Sprintf("csi-volume:%s:%s", c.namespace, id)
+		})
+
+		c.ctx.Eligibility().SetMissingResources(missing)
+		c.ctx.Metrics().FilterNode(n, fmt.Sprintf(FilterConstraintCSIVolumeNotFoundTemplate,
+			strings.Join(c.missing, ", ")))
+		return false
+	}
+
 	ok, failReason := c.isFeasible(n)
 	if ok {
 		return true
@@ -548,7 +574,7 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 	// - this node is running the node plugin, implies matching topology
 
 	// Fast path: Requested no volumes. No need to check further.
-	if len(c.volumes) == 0 {
+	if len(c.volumeReqs) == 0 {
 		return true, ""
 	}
 
@@ -573,12 +599,9 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 	}
 
 	// For volume requests, find volumes and determine feasibility
-	for _, req := range c.volumes {
-		vol, err := c.ctx.State().CSIVolumeByID(ws, c.namespace, req.Source)
-		if err != nil {
-			return false, FilterConstraintCSIVolumesLookupFailed
-		}
-		if vol == nil {
+	for alias, req := range c.volumeReqs {
+		vol, ok := c.volumes[alias]
+		if !ok {
 			return false, fmt.Sprintf(FilterConstraintCSIVolumeNotFoundTemplate, req.Source)
 		}
 
@@ -1496,8 +1519,9 @@ OUTER:
 			evalElig.SetTaskGroupEligibility(true, w.tg, option.ComputedClass)
 		}
 
-		// tgAvailable handlers are available transiently, so we test them without
-		// affecting the computed class
+		// tgAvailable handlers are available transiently (ex. volumes which can
+		// have a maximum number of claims), so we test them without affecting
+		// the computed class
 		if !w.available(option) {
 			continue OUTER
 		}
@@ -1510,11 +1534,6 @@ OUTER:
 // e.g. the health status of a plugin or driver, or that are not considered in node
 // computed class, e.g. host volumes.
 func (w *FeasibilityWrapper) available(option *structs.Node) bool {
-	// If we don't have any availability checks, we're available
-	if len(w.tgAvailable) == 0 {
-		return true
-	}
-
 	for _, check := range w.tgAvailable {
 		if !check.Feasible(option) {
 			return false

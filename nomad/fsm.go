@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -1424,6 +1425,11 @@ func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} 
 		return err
 	}
 
+	// unblock evals waiting on these volumes
+	resources := helper.ConvertSlice(req.Volumes,
+		func(v *structs.CSIVolume) string { return "csi-volume:" + v.Namespace + ":" + v.ID })
+
+	n.blockedEvals.UnblockNonNodeResources(resources, index)
 	return nil
 }
 
