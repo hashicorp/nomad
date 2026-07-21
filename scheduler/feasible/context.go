@@ -5,10 +5,12 @@ package feasible
 
 import (
 	"regexp"
+	"slices"
 	"testing"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -241,6 +243,10 @@ type EvalEligibility struct {
 	// quotaReached marks that the quota limit has been reached for the given
 	// quota
 	quotaReached string
+
+	// missingResources marks that the cluster is missing some non-node resource
+	// that's needed by the job, like a CSI volume
+	missingResources *set.Set[string]
 }
 
 // NewEvalEligibility returns an eligibility tracker for the context of an evaluation.
@@ -249,6 +255,7 @@ func NewEvalEligibility() *EvalEligibility {
 		job:                  make(map[string]ComputedClassFeasibility),
 		taskGroups:           make(map[string]map[string]ComputedClassFeasibility),
 		tgEscapedConstraints: make(map[string]bool),
+		missingResources:     set.New[string](0),
 	}
 }
 
@@ -257,6 +264,7 @@ func (e *EvalEligibility) Reset() {
 	e.job = make(map[string]ComputedClassFeasibility)
 	e.taskGroups = make(map[string]map[string]ComputedClassFeasibility)
 	e.tgEscapedConstraints = make(map[string]bool)
+	e.missingResources = set.New[string](0)
 }
 
 // SetJob takes the job being evaluated and calculates the escaped constraints
@@ -271,8 +279,20 @@ func (e *EvalEligibility) SetJob(job *structs.Job) {
 		for _, task := range tg.Tasks {
 			constraints = append(constraints, task.Constraints...)
 		}
+		if len(structs.EscapedConstraints(constraints)) > 0 {
+			e.tgEscapedConstraints[tg.Name] = true
+			continue
+		}
 
-		e.tgEscapedConstraints[tg.Name] = len(structs.EscapedConstraints(constraints)) != 0
+		// CSI volume requests always escape node class because the volume may
+		// not *currently* be on the node
+		csiVolsCount := 0
+		for _, vol := range tg.Volumes {
+			if vol.Type == structs.VolumeTypeCSI {
+				csiVolsCount++
+			}
+		}
+		e.tgEscapedConstraints[tg.Name] = csiVolsCount != 0
 	}
 }
 
@@ -396,6 +416,17 @@ func (e *EvalEligibility) SetQuotaLimitReached(quota string) {
 // QuotaLimitReached returns the quota name if the quota limit has been reached.
 func (e *EvalEligibility) QuotaLimitReached() string {
 	return e.quotaReached
+}
+
+// SetMissingResources marks that the cluster is missing some non-node resource
+// required by the job (ex. CSI volume)
+func (e *EvalEligibility) SetMissingResources(resources []string) {
+	e.missingResources.InsertSlice(resources)
+}
+
+// MissingResources returns a list of missing non-node resources, if any
+func (e *EvalEligibility) MissingResources() []string {
+	return slices.Sorted(e.missingResources.Items())
 }
 
 func MockContext(t testing.TB) (*state.StateStore, *EvalContext) {

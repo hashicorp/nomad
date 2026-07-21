@@ -654,6 +654,44 @@ func TestBlockedEvals_UnblockNode(t *testing.T) {
 	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
+func TestBlockedEvals_UnblockNonNodeResource(t *testing.T) {
+	ci.Parallel(t)
+
+	blocked, broker := testBlockedEvals(t)
+
+	e0 := mock.BlockedEval()
+	e0.Namespace = "foo"
+	e0.SnapshotIndex = 999
+	e0.EscapedComputedClass = true
+	e0.MissingNonNodeResources = []string{"csi-volume:foo", "whatever:bar"}
+	<-blocked.Block(e0)
+
+	// Verify block did track
+	stats := blocked.Stats()
+	must.Eq(t, 1, stats.TotalBlocked)
+	must.MapLen(t, 1, stats.BlockedResources.ByJob)
+	must.MapLen(t, 1, blocked.escaped)
+
+	<-blocked.UnblockNonNodeResources([]string{"csi-volume:foo", "whatever:bar"}, 1001)
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
+
+	e1 := mock.BlockedEval()
+	e1.Namespace = "bar"
+	e1.SnapshotIndex = 1000 // newer than previous eval, older than unblock
+	e1.MissingNonNodeResources = []string{"csi-volume:foo", "whatever:bar"}
+	e1.EscapedComputedClass = true
+
+	fut := blocked.Block(e1)
+	select {
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("expected block to be immediately enqueued because of newer unblock")
+	case <-fut:
+	}
+
+	brokerStats := broker.Stats()
+	must.Eq(t, 2, brokerStats.TotalReady)
+}
+
 func TestBlockedEvals_SystemUntrack(t *testing.T) {
 	ci.Parallel(t)
 	blocked, _ := testBlockedEvals(t)
