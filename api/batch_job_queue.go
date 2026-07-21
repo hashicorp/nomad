@@ -20,6 +20,7 @@ type (
 
 const (
 	BatchJobQueueTypeDynamic BatchJobQueueType = "dynamic_priority"
+	BatchJobQueueTypeFifo    BatchJobQueueType = "fifo"
 
 	BatchJobQueueTenantMetadata  BatchJobQueueTenant = "metadata"
 	BatchJobQueueTenantNamespace BatchJobQueueTenant = "namespace"
@@ -51,6 +52,12 @@ type DynamicPriorityTenant struct {
 	PercentageUsed int
 	TenantUsage    map[string]float64
 	TotalUsage     map[string]float64
+}
+
+type Workload struct {
+	JobID     string
+	Position  int
+	CreatedAt int64
 }
 
 type BatchJobQueueJobsResponse struct {

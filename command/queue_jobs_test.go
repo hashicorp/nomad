@@ -70,3 +70,43 @@ func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
+
+func TestQueueJobsCommand_printQueueFormatted(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueJobsCommand{Meta: Meta{Ui: ui}}
+
+	testResp := []api.Workload{
+		{
+			JobID:     "123",
+			Position:  1,
+			CreatedAt: time.Now().UnixNano(),
+		},
+	}
+	cmd.printQueueFormatted(testResp)
+
+	expect := "Batch Queue Workloads\n" +
+		"JobID  Position  CreatedAt\n" +
+		fmt.Sprintf("123    1         %v\n", formatUnixNanoTime(testResp[0].CreatedAt))
+
+	must.Eq(t, expect, ui.OutputWriter.String())
+}
+
+func TestQueueJobsCommand_printQueueJSON(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueJobsCommand{Meta: Meta{Ui: ui}}
+
+	testResp := []api.Workload{
+		{
+			JobID:     "123",
+			Position:  1,
+			CreatedAt: time.Now().UnixNano(),
+		},
+	}
+	cmd.printQueueJSON(testResp)
+
+	expect := `[{"JobID":"123","Position":1,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `}]` + "\n"
+
+	must.Eq(t, expect, ui.OutputWriter.String())
+}

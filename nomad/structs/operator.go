@@ -366,7 +366,9 @@ type (
 )
 
 const (
-	BatchQueueTypeDynamic BatchQueueType = "dynamic_priority"
+	BatchQueueTypeDynamic     BatchQueueType = "dynamic_priority"
+	BatchQueueTypeFifo        BatchQueueType = "fifo"
+	BatchQueueTypePassthrough BatchQueueType = "unset"
 
 	TenantTypeMetadata  BatchQueueTenant = "metadata"
 	TenantTypeNamespace BatchQueueTenant = "namespace"
@@ -423,6 +425,8 @@ func (b *BatchQueue) Validate() error {
 
 	switch b.Type {
 	case BatchQueueTypeDynamic:
+	case BatchQueueTypeFifo:
+		return nil
 	default:
 		return fmt.Errorf("unsupported batch queue type: %q", b.Type)
 	}

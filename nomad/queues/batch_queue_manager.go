@@ -9,14 +9,16 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/nomad/queues/passthrough"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type BatchQueueManager struct {
-	defaultQueue Queue
+	defaultQueue queue.Queue
 	defaultConf  structs.BatchQueue
-	broker       Broker
+	broker       queue.Broker
 	state        *state.StateStore
 	enabled      atomic.Bool
 	shutdownCtx  context.Context
@@ -27,13 +29,13 @@ type BatchQueueManager struct {
 type QueueMgrOpt func(*BatchQueueManager)
 
 // WithQueue allows passing in a default queue in the constructor
-func WithQueue(q Queue) QueueMgrOpt {
+func WithQueue(q queue.Queue) QueueMgrOpt {
 	return func(b *BatchQueueManager) {
 		b.defaultQueue = q
 	}
 }
 
-func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueue, broker Broker, logger hclog.Logger, opt ...QueueMgrOpt) *BatchQueueManager {
+func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueue, broker queue.Broker, logger hclog.Logger, opt ...QueueMgrOpt) *BatchQueueManager {
 	mgr := &BatchQueueManager{
 		defaultConf: defaultConf,
 		broker:      broker,
@@ -94,7 +96,7 @@ func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
 
 // Queue returns a pointer to a queue. This is used by RPC handlers
 // to get the jobs or tenants in a queue.
-func (b *BatchQueueManager) Queue() Queue {
+func (b *BatchQueueManager) Queue() queue.Queue {
 	b.mux.Lock()
 	defer b.mux.Unlock()
 
@@ -103,7 +105,7 @@ func (b *BatchQueueManager) Queue() Queue {
 	// is unlikely to happen, but guards against a nil
 	// value being returned
 	if b.defaultQueue == nil {
-		return &PassthroughQueue{}
+		return &passthrough.PassthroughQueue{}
 	}
 
 	return b.defaultQueue
