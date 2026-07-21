@@ -1014,7 +1014,6 @@ func (d *Driver) cpuSet(taskResources *drivers.Resources) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read usable cores: %w", err)
 	}
-	d.logger.Error("taskResources.LinuxResources.CpusetCgroupPath is empty", "source", source, "value", string(b))
 
 	return idset.Parse[hw.CoreID](string(b)).String(), nil
 }
@@ -1107,11 +1106,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	cpuShares := d.cpuResources(task.Resources.LinuxResources.CPUShares)
 
-	clientCpus, err := d.cpuSet(task.Resources)
-	if err != nil {
-		d.logger.Error("blah")
-	}
-
 	hostConfig := &containerapi.HostConfig{
 		CgroupnsMode: containerapi.CgroupnsMode(driverConfig.CgroupnsMode),
 		// do not set cgroup parent anymore
@@ -1135,12 +1129,17 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
 		CPUShares:         cpuShares,
-		CpusetCpus:        clientCpus,
+		CpusetCpus:        task.Resources.LinuxResources.CpusetCpus,
 		PidsLimit:         &pidsLimit,
 	}
 
-	if task.Resources.LinuxResources.CpusetCpus != "" {
-		hostConfig.Resources.CpusetCpus = task.Resources.LinuxResources.CpusetCpus
+	if hostConfig.Resources.CpusetCpus == "" {
+		clientCpus, err := d.cpuSet(task.Resources)
+		if err != nil {
+			d.logger.Warn("failed to read cpuset from cgroup, ignoring", "error", err)
+		}
+
+		hostConfig.Resources.CpusetCpus = clientCpus
 	}
 
 	// Setting cpuset_cpus in driver config is no longer supported (it has
