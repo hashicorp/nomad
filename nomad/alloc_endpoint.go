@@ -164,8 +164,10 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 				}
 				reply.Alloc = out
 
-				// Re-check namespace in case it differs from request.
-				if err := a.srv.AuthorizeClientAllocation(aclObj, out, allowNsOp); err != nil {
+				// Authorize the caller against the alloc we found: allow the
+				// node the alloc is placed on, client ACLs for the alloc's
+				// node pool, or namespace read-job as a fallback.
+				if err := a.srv.AuthorizeClientAllocation(args.GetIdentity(), aclObj, out, allowNsOp); err != nil {
 					return structs.NewErrUnknownAllocation(args.AllocID)
 				}
 
@@ -232,7 +234,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 					continue
 				}
 
-				if err := a.srv.AuthorizeClientAllocation(aclObj, out, nil); err != nil {
+				if err := a.srv.AuthorizeClientAllocation(args.GetIdentity(), aclObj, out, nil); err != nil {
 					return err
 				}
 
@@ -497,7 +499,7 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 					continue
 				}
 
-				if err := a.srv.AuthorizeClientAllocation(aclObj, out, nil); err != nil {
+				if err := a.srv.AuthorizeClientAllocation(args.GetIdentity(), aclObj, out, nil); err != nil {
 					return err
 				}
 
