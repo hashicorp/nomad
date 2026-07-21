@@ -999,7 +999,7 @@ func (d *Driver) cpuResources(requested int64) int64 {
 	return result
 }
 
-// cpuSet reads the avialable cores from the nomad client in order to assign
+// cpuSet reads the available cores from the nomad client in order to assign
 // them to the new container, ensuring all tasks run in nomad assigned cpus.
 func (d *Driver) cpuSet(taskResources *drivers.Resources) (string, error) {
 
