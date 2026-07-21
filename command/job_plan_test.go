@@ -4,6 +4,7 @@
 package command
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"strings"
@@ -304,4 +305,52 @@ func TestPlanCommand_JSON(t *testing.T) {
 	code := cmd.Run(args)
 	must.Eq(t, 255, code)
 	must.StrContains(t, ui.ErrorWriter.String(), "Error during plan: Put")
+}
+
+func TestPlanCommand_JsonOutputAndTemplateMutuallyExclusive(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{
+		"-json-output",
+		"-t", "{{.JobModifyIndex}}",
+		"testdata/example-short.json",
+	})
+	must.Eq(t, 255, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "Both -json-output and -t formatting are not allowed")
+}
+
+func TestPlanCommand_JsonOutput(t *testing.T) {
+	_, _, addr := testServer(t, false, nil)
+
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+	code := cmd.Run([]string{"-address", addr, "-json-output", "testdata/example-basic.nomad"})
+	// Exit 1: plan succeeds but would create/destroy allocations (no client).
+	must.Eq(t, 1, code, must.Sprintf("expected exit code 1, got %d: stderr=%s", code, ui.ErrorWriter.String()))
+
+	var resp api.JobPlanResponse
+	must.NoError(t, json.Unmarshal(ui.OutputWriter.Bytes(), &resp),
+		must.Sprintf("output should be valid JSON: %s", ui.OutputWriter.String()))
+	must.NotNil(t, resp.Diff)
+	must.Eq(t, "job1", resp.Diff.ID)
+	// Human-readable check-index help should not appear in structured output.
+	must.StrNotContains(t, ui.OutputWriter.String(), "Job Modify Index:")
+}
+
+func TestPlanCommand_TemplateOutput(t *testing.T) {
+	_, _, addr := testServer(t, false, nil)
+
+	ui := cli.NewMockUi()
+	cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
+	code := cmd.Run([]string{
+		"-address", addr,
+		"-t", "{{.Diff.ID}}",
+		"testdata/example-basic.nomad",
+	})
+	must.Eq(t, 1, code, must.Sprintf("expected exit code 1, got %d: stderr=%s", code, ui.ErrorWriter.String()))
+
+	out := strings.TrimSpace(ui.OutputWriter.String())
+	must.Eq(t, "job1", out, must.Sprintf("expected job ID 'job1', got: %s", out))
 }
