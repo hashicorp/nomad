@@ -1003,15 +1003,18 @@ func (d *Driver) cpuResources(requested int64) int64 {
 // them to the new container, ensuring all tasks run in nomad assigned cpus.
 func (d *Driver) cpuSet(taskResources *drivers.Resources) (string, error) {
 
-	//if taskResources
-	d.logger.Error("path", " **** path\n", taskResources.LinuxResources.CpusetCgroupPath)
-	source := filepath.Join(taskResources.LinuxResources.CpusetCgroupPath, effectiveCpusetFile())
+	if taskResources.LinuxResources != nil &&
+		taskResources.LinuxResources.CpusetCgroupPath == "" {
+		return "", nil
+	}
 
 	// read the current value of usable cores
+	source := filepath.Join(taskResources.LinuxResources.CpusetCgroupPath, effectiveCpusetFile())
 	b, err := os.ReadFile(source)
 	if err != nil {
-		return "", fmt.Errorf("unable to read client cpuset: %w", err)
+		return "", fmt.Errorf("unable to read usable cores: %w", err)
 	}
+	d.logger.Error("taskResources.LinuxResources.CpusetCgroupPath is empty", "source", source, "value", string(b))
 
 	return idset.Parse[hw.CoreID](string(b)).String(), nil
 }
