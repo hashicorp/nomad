@@ -215,7 +215,7 @@ func TestDockerDriver_CpuSet(t *testing.T) {
 
 			got, err := d.cpuSet(resources)
 			if tc.wantErrText != "" {
-				must.ErrContains(t, err, tc.wantErrText)
+				must.ErrorContains(t, err, tc.wantErrText)
 				return
 			}
 
