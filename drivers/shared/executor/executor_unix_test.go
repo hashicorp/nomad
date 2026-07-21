@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os/exec"
 	"os/user"
-	"runtime"
 	"strconv"
 	"syscall"
 	"testing"
@@ -29,18 +28,14 @@ func TestSetCmdUser(t *testing.T) {
 		credential = cmd.SysProcAttr.Credential
 	}
 
-	if runtime.GOOS == "darwin" {
-		must.Nil(t, credential)
-	} else {
-		uid, err := strconv.ParseUint(u.Uid, 10, 32)
-		must.NoError(t, err)
-		gid, err := strconv.ParseUint(u.Gid, 10, 32)
-		must.NoError(t, err)
+	uid, err := strconv.ParseUint(u.Uid, 10, 32)
+	must.NoError(t, err)
+	gid, err := strconv.ParseUint(u.Gid, 10, 32)
+	must.NoError(t, err)
 
-		must.NotNil(t, credential)
-		must.Eq(t, uint32(uid), credential.Uid)
-		must.Eq(t, uint32(gid), credential.Gid)
-	}
+	must.NotNil(t, credential)
+	must.Eq(t, uint32(uid), credential.Uid)
+	must.Eq(t, uint32(gid), credential.Gid)
 
 	must.SliceContains(t, cmd.Env, fmt.Sprintf("USER=%s", u.Username))
 	must.SliceContains(t, cmd.Env, fmt.Sprintf("LOGNAME=%s", u.Username))
