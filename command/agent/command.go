@@ -917,9 +917,11 @@ func (c *Command) Run(args []string) int {
 	info["bind addrs"] = c.getBindAddrSynopsis()
 	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
 	if config.Server.Enabled {
-		serverConfig, err := c.agent.serverConfig()
-		if err == nil {
-			info["node id"] = serverConfig.NodeID
+		// Use the running server's NodeID (loaded/persisted in setupNodeID).
+		// Calling serverConfig() again would regenerate a fresh UUID and
+		// print a different id than the live server (#28269).
+		if c.agent != nil && c.agent.server != nil {
+			info["node id"] = c.agent.server.GetConfig().NodeID
 		}
 	}
 
