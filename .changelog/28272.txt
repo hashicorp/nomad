@@ -1,0 +1,3 @@
+```release-note:bug
+docker: add default cpuset to all containers
+```
