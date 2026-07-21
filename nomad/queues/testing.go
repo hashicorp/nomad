@@ -6,6 +6,7 @@ package queues
 import (
 	"context"
 
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/mock"
 )
@@ -29,14 +30,14 @@ func (m *MockQueue) Enqueue(e *structs.Evaluation) {
 	m.Called(e)
 }
 
-func (m *MockQueue) Jobs(sortOrder structs.SortOrder) *WorkloadIter {
+func (m *MockQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	args := m.Called(sortOrder)
 
 	if args.Get(0) == nil {
-		return &WorkloadIter{}
+		return &queue.WorkloadIter{}
 	}
 
-	return args.Get(0).(*WorkloadIter)
+	return args.Get(0).(*queue.WorkloadIter)
 }
 
 func (m *MockQueue) Tenants() structs.QueueTenantsResponse {

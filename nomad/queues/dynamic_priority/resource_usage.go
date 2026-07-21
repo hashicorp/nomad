@@ -1,7 +1,14 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
-package queues
+package dynamic
+
+import "time"
+
+type UsageList struct {
+	resources *ResourceUsage
+	start     time.Time
+}
 
 type ResourceUsage struct {
 	CPU    float64

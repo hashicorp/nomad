@@ -1,7 +1,7 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
-package queues
+package queue
 
 import (
 	"context"
@@ -21,4 +21,10 @@ type Queue interface {
 // Broker is the interface for an evaluation broker
 type Broker interface {
 	Enqueue(*structs.Evaluation)
+}
+
+type Workload interface {
+	GetEval() *structs.Evaluation
+	SetEval(*structs.Evaluation)
+	WaitOnRestore() bool
 }

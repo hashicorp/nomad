@@ -121,6 +121,8 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	switch resp.Type {
 	case api.BatchJobQueueTypeDynamic:
 		c.printDynamicQueue(resp, qm, jsonOut)
+	case api.BatchJobQueueTypeFifo:
+		c.printQueue(resp, qm, jsonOut)
 	case "unset":
 		c.Ui.Output("No batch job queue configured")
 	default:
@@ -188,6 +190,65 @@ func (c *QueueJobsCommand) printDynamicQueueFormatted(resp []api.DynamicPriority
 			v.UsageAdjustment,
 			v.AgeAdjustment,
 			v.SizeAdjustment,
+			formatUnixNanoTime(v.CreatedAt),
+		)
+	}
+
+	c.Ui.Output(c.Colorize().Color("[bold]Batch Queue Workloads[reset]"))
+	c.Ui.Output(columnize.SimpleFormat(out))
+}
+
+func (c *QueueJobsCommand) printQueue(resp *api.BatchJobQueueJobsResponse, qm *api.QueryMeta, jsonOut bool) int {
+	workloads := []api.Workload{}
+	bytes, err := json.Marshal(resp.Workloads)
+	if err != nil {
+		c.Ui.Error("Error marshaling response status")
+		return 255
+	}
+	if err := json.Unmarshal(bytes, &workloads); err != nil {
+		c.Ui.Error("Invalid Status response from server")
+		return 255
+	}
+
+	if jsonOut {
+		if err := c.printQueueJSON(workloads); err != nil {
+			c.Ui.Error("Error unmarshaling json response")
+			return 255
+		}
+	} else {
+		c.printQueueFormatted(workloads)
+		if qm.NextToken != "" {
+			c.Ui.Output(fmt.Sprintf(`
+Results have been paginated. To get the next page run:
+
+%s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
+		}
+	}
+	return 0
+}
+
+func (c *QueueJobsCommand) printQueueJSON(resp []api.Workload) error {
+	out, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+
+	c.Ui.Output(string(out))
+	return nil
+}
+
+func (c *QueueJobsCommand) printQueueFormatted(resp []api.Workload) {
+	if resp == nil {
+		return
+	}
+
+	out := make([]string, len(resp)+1)
+	out[0] = "JobID|Position|CreatedAt"
+
+	for i, v := range resp {
+		out[i+1] = fmt.Sprintf("%s|%d|%s",
+			v.JobID,
+			v.Position,
 			formatUnixNanoTime(v.CreatedAt),
 		)
 	}
