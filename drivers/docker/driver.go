@@ -29,6 +29,8 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -997,6 +999,23 @@ func (d *Driver) cpuResources(requested int64) int64 {
 	return result
 }
 
+// cpuSet reads the avialable cores from the nomad client in order to assign
+// them to the new container, ensuring all tasks run in nomad assigned cpus.
+func (d *Driver) cpuSet(taskResources *drivers.Resources) (string, error) {
+
+	//if taskResources
+	d.logger.Error("path", " **** path\n", taskResources.LinuxResources.CpusetCgroupPath)
+	source := filepath.Join(taskResources.LinuxResources.CpusetCgroupPath, effectiveCpusetFile())
+
+	// read the current value of usable cores
+	b, err := os.ReadFile(source)
+	if err != nil {
+		return "", fmt.Errorf("unable to read client cpuset: %w", err)
+	}
+
+	return idset.Parse[hw.CoreID](string(b)).String(), nil
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (createContainerOptions, error) {
 
@@ -1085,6 +1104,11 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 
 	cpuShares := d.cpuResources(task.Resources.LinuxResources.CPUShares)
 
+	clientCpus, err := d.cpuSet(task.Resources)
+	if err != nil {
+		d.logger.Error("blah")
+	}
+
 	hostConfig := &containerapi.HostConfig{
 		CgroupnsMode: containerapi.CgroupnsMode(driverConfig.CgroupnsMode),
 		// do not set cgroup parent anymore
@@ -1108,8 +1132,12 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
 		CPUShares:         cpuShares,
-		CpusetCpus:        task.Resources.LinuxResources.CpusetCpus,
+		CpusetCpus:        clientCpus,
 		PidsLimit:         &pidsLimit,
+	}
+
+	if task.Resources.LinuxResources.CpusetCpus != "" {
+		hostConfig.Resources.CpusetCpus = task.Resources.LinuxResources.CpusetCpus
 	}
 
 	// Setting cpuset_cpus in driver config is no longer supported (it has
