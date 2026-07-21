@@ -1714,14 +1714,66 @@ func TestResolveAuthorizedClientNodePoolHelpers(t *testing.T) {
 	t.Run("authorize client allocation", func(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job.NodePool = node.NodePool
+		alloc.NodeID = node.ID
 
-		must.NoError(t, auth.AuthorizeClientAllocation(aclObj, alloc, nil))
-		must.ErrorIs(t, auth.AuthorizeClientAllocation(acl.NewClientACL("other-pool"), alloc, nil), structs.ErrPermissionDenied)
+		must.NoError(t, auth.AuthorizeClientAllocation(nil, aclObj, alloc, nil))
+		must.ErrorIs(t, auth.AuthorizeClientAllocation(nil, acl.NewClientACL("other-pool"), alloc, nil), structs.ErrPermissionDenied)
 		must.NoError(t, auth.AuthorizeClientAllocation(
+			nil,
 			acl.NewClientACL("other-pool"),
 			alloc,
 			func(_ *acl.ACL, ns string) bool { return ns == alloc.Namespace },
 		))
+
+		// Test identity-based authorization when node pool mismatches
+		matchingIdentity := &structs.AuthenticatedIdentity{
+			ClientID: node.ID,
+		}
+		must.NoError(t, auth.AuthorizeClientAllocation(
+			matchingIdentity,
+			acl.NewClientACL("other-pool"),
+			alloc,
+			nil,
+		))
+
+		mismatchIdentity := &structs.AuthenticatedIdentity{
+			ClientID: "other-node",
+		}
+		must.ErrorIs(t, auth.AuthorizeClientAllocation(
+			mismatchIdentity,
+			acl.NewClientACL("other-pool"),
+			alloc,
+			nil,
+		), structs.ErrPermissionDenied)
+
+		// A node authenticating with node identity claims rather than a
+		// client secret must also be authorized for its own allocs.
+		claimsIdentity := &structs.AuthenticatedIdentity{
+			Claims: &structs.IdentityClaims{
+				NodeIdentityClaims: &structs.NodeIdentityClaims{
+					NodeID:   node.ID,
+					NodePool: node.NodePool,
+				},
+			},
+		}
+		must.NoError(t, auth.AuthorizeClientAllocation(
+			claimsIdentity,
+			acl.NewClientACL("other-pool"),
+			alloc,
+			nil,
+		))
+
+		// An unplaced alloc must not match a non-node identity, whose
+		// authenticated node ID is also empty.
+		unplacedAlloc := mock.Alloc()
+		unplacedAlloc.Job.NodePool = "other-pool"
+		unplacedAlloc.NodeID = ""
+		must.ErrorIs(t, auth.AuthorizeClientAllocation(
+			&structs.AuthenticatedIdentity{},
+			aclObj,
+			unplacedAlloc,
+			nil,
+		), structs.ErrPermissionDenied)
 	})
 
 	t.Run("resolve by service registration id", func(t *testing.T) {
