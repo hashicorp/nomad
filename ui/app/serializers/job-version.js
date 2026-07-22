@@ -26,11 +26,9 @@ export default class JobVersionSerializer extends ApplicationSerializer {
         ID: `${version.ID}-${version.Version}`,
         SubmitTime: Math.floor(version.SubmitTime / 1000000),
         SubmitTimeNanos: version.SubmitTime % 1000000,
+        // Contruct the JobID so version properly links to the job.
+        JobID: JSON.stringify([version.ID, version.Namespace || 'default']),
       });
-
-      // Versions are loaded from a parent job.hasMany("versions") request,
-      // so omit ambiguous JobID payload data and let Ember Data bind back to parent.
-      delete normalizedVersion.JobID;
 
       return normalizedVersion;
     });
