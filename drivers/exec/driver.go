@@ -591,14 +591,18 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 	var result *drivers.ExitResult
 	ps, err := handle.exec.Wait(ctx)
 	if err != nil {
-		result = &drivers.ExitResult{
-			Err: fmt.Errorf("executor: error waiting on process: %v", err),
-		}
-		// if process state is nil, we've probably been killed, so return a reasonable
-		// exit state to the handlers
+		// if process state is nil, the executor process likely crashed or was
+		// killed (e.g. OOM). Wrap the raw RPC error with a clearer message.
 		if ps == nil {
-			result.ExitCode = -1
-			result.OOMKilled = false
+			result = &drivers.ExitResult{
+				Err:       fmt.Errorf("executor: the executor process terminated unexpectedly: %v", err),
+				ExitCode:  -1,
+				OOMKilled: false,
+			}
+		} else {
+			result = &drivers.ExitResult{
+				Err: fmt.Errorf("executor: error waiting on process: %v", err),
+			}
 		}
 	} else {
 		result = &drivers.ExitResult{
