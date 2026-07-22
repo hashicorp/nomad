@@ -119,3 +119,27 @@ func (tc *NetworkingE2ETest) TestNetworking_DockerBridgedCNIEnvVars(f *framework
 	f.Contains(envOutput, "NOMAD_ALLOC_PORT_dummy", "namespace port env var not found")
 	f.Contains(envOutput, "NOMAD_ALLOC_ADDR_dummy", "namespace addr env var not found")
 }
+
+func (tc *NetworkingE2ETest) TestNetworking_DockerBridgedDefaultIPv6(f *framework.F) {
+
+	jobID := "test-networking-" + uuid.Generate()[0:8]
+	f.NoError(e2eutil.Register(jobID, "networking/inputs/docker_bridged_ipv6.nomad.hcl"))
+	tc.jobIDs = append(tc.jobIDs, jobID)
+	f.NoError(e2eutil.WaitForAllocStatusExpected(jobID, "default", []string{"running"}),
+		"job should be running with 1 alloc")
+
+	// Grab the allocations for the job.
+	allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, nil)
+	f.NoError(err, "failed to get allocs for job")
+	f.Len(allocs, 1, "job should have one alloc")
+
+	// check that within bridge network we can curl IPv6 address
+	_, err = e2eutil.AllocExec(allocs[0].ID, "t", "chmod +x /local/bridge_ipv6.sh", "default", nil)
+	f.NoError(err, "failed to run chmod exec command")
+	_, err = e2eutil.AllocExec(allocs[0].ID, "t", "./local/bridge_ipv6.sh", "default", nil)
+	f.NoError(err, "failed to run script exec command")
+	curlOutput, err := e2eutil.AllocExec(allocs[0].ID, "t", "curl -s [::]:8000", "default", nil)
+	f.NoError(err, "failed to run curl IPv6 exec command")
+	f.Equal("hellooo-thereee:P", strings.TrimSpace(curlOutput), "incorrect IPv6 response")
+
+}
