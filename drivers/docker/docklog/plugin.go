@@ -39,11 +39,14 @@ func LaunchDockerLogger(logger hclog.Logger) (DockerLogger, *plugin.Client, erro
 
 	rpcClient, err := client.Client()
 	if err != nil {
+		// Kill the launched plugin process so it is not leaked.
+		client.Kill()
 		return nil, nil, err
 	}
 
 	raw, err := rpcClient.Dispense(PluginName)
 	if err != nil {
+		client.Kill()
 		return nil, nil, err
 	}
 

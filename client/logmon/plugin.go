@@ -49,13 +49,24 @@ func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (L
 
 	client := plugin.NewClient(conf)
 
+	// If we launched a new plugin process and fail before returning
+	// successfully, kill it so it is not leaked. Reattached processes are left
+	// running as they may not be plugins at all (see #24798).
+	cleanup := func() {
+		if reattachConfig == nil {
+			client.Kill()
+		}
+	}
+
 	rpcClient, err := client.Client()
 	if err != nil {
+		cleanup()
 		return nil, nil, err
 	}
 
 	raw, err := rpcClient.Dispense("logmon")
 	if err != nil {
+		cleanup()
 		return nil, nil, err
 	}
 

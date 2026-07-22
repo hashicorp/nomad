@@ -101,17 +101,30 @@ func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logg
 
 func newExecutorClient(config *plugin.ClientConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
 	executorClient := plugin.NewClient(config)
+
+	// If we launched a new plugin process and fail before returning
+	// successfully, kill it so it is not leaked. Reattached processes are left
+	// running as they may not be plugins at all (see #24538).
+	cleanup := func() {
+		if config.Reattach == nil {
+			executorClient.Kill()
+		}
+	}
+
 	rpcClient, err := executorClient.Client()
 	if err != nil {
+		cleanup()
 		return nil, nil, fmt.Errorf("error creating rpc client for executor plugin: %v", err)
 	}
 
 	raw, err := rpcClient.Dispense("executor")
 	if err != nil {
+		cleanup()
 		return nil, nil, fmt.Errorf("unable to dispense the executor plugin: %v", err)
 	}
 	executorPlugin, ok := raw.(Executor)
 	if !ok {
+		cleanup()
 		return nil, nil, fmt.Errorf("unexpected executor rpc type: %T", raw)
 	}
 	return executorPlugin, executorClient, nil
