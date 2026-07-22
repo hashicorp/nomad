@@ -331,7 +331,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Determine the tainted nodes containing job allocs
-	tainted, err := taintedNodes(s.state, allocs)
+	tainted, err := getTaintedNodes(s.state, allocs)
 	if err != nil {
 		return fmt.Errorf("failed to get tainted nodes for job '%s': %v",
 			s.eval.JobID, err)
