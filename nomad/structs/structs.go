@@ -7240,6 +7240,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	// Check that there is only one leader task if any
 	tasks := make(map[string]int)
 	leaderTasks := 0
+	mainTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
 			mErr = multierror.Append(mErr, fmt.Errorf("Task %d missing name", idx+1))
@@ -7252,10 +7253,20 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if task.Leader {
 			leaderTasks++
 		}
+
+		if task.IsMain() {
+			mainTasks++
+		}
 	}
 
 	if leaderTasks > 1 {
 		mErr = multierror.Append(mErr, fmt.Errorf("Only one task may be marked as leader"))
+	}
+
+	// A task group made up entirely of lifecycle tasks (prestart, poststart, or
+	// poststop) has no main task to run, which is invalid.
+	if len(tg.Tasks) > 0 && mainTasks == 0 {
+		mErr = multierror.Append(mErr, fmt.Errorf("Task group %s must have at least one main task", tg.Name))
 	}
 
 	// Validate the volume requests
