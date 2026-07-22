@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where the previous allocation watcher would retry forever when the server returned a permanent error during data migration
+```
