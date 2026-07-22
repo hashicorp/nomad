@@ -25,6 +25,7 @@
       @onAllocationSelect={{this.associateAllocations}}
       @onAllocationFocus={{this.showTooltip}}
       @onAllocationBlur={{this.hideTooltip}}
+      @onReservedFocus={{this.showReservedTooltip}}
       @onNodeSelect={{this.showNodeDetails}}
     />
   </FlexMasonry>
@@ -60,6 +61,21 @@
         <li>
           <span class="label">CPU</span>
           <span class="value">{{format-scheduled-hertz allocation.cpu}}</span>
+        </li>
+      </ol>
+    {{/let}}
+  </div>
+
+  <div class="chart-tooltip is-absolute {{if this.highlightReserved "active" "inactive"}}" style={{this.tooltipStyle}}>
+    {{#let this.highlightReserved as |reserved|}}
+      <ol class="is-static">
+        <li>
+          <span class="label">Memory</span>
+          <span class="value">{{format-scheduled-bytes reserved.memory start="MiB"}} reserved</span>
+        </li>
+        <li>
+          <span class="label">CPU</span>
+          <span class="value">{{format-scheduled-hertz reserved.cpu}} reserved</span>
         </li>
       </ol>
     {{/let}}
