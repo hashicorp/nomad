@@ -3303,7 +3303,23 @@ func TestDeviceChecker(t *testing.T) {
 			},
 		}
 	}
+	// will create a taskgroup with with len(devices) tasks, each task will request
+	// all devices
+	getSharedTg := func(devices ...*structs.RequestedDevice) *structs.TaskGroup {
+		var tasks []*structs.Task
 
+		for range devices {
+			tasks = append(tasks, &structs.Task{
+				Resources: &structs.Resources{
+					Devices: devices,
+				},
+			})
+		}
+		return &structs.TaskGroup{
+			Name:  "example",
+			Tasks: tasks,
+		}
+	}
 	// Just type
 	gpuTypeReq := &structs.RequestedDevice{
 		Name:  "gpu",
@@ -3345,7 +3361,6 @@ func TestDeviceChecker(t *testing.T) {
 		n.NodeResources.Devices = devices
 		return n
 	}
-
 	nvidia_A := &structs.NodeDeviceResource{
 		Vendor: "nvidia",
 		Type:   "gpu",
@@ -3387,7 +3402,12 @@ func TestDeviceChecker(t *testing.T) {
 			},
 		},
 	}
-
+	makeDeviceSharable := func(device *structs.NodeDeviceResource) *structs.NodeDeviceResource {
+		for _, v := range device.Instances {
+			v.Shared = structs.DeviceSharingActive
+		}
+		return device
+	}
 	nvidiaUnhealthy := &structs.NodeDeviceResource{
 		Vendor: "nvidia",
 		Type:   "gpu",
@@ -3409,6 +3429,7 @@ func TestDeviceChecker(t *testing.T) {
 		Result           bool
 		NodeDevices      []*structs.NodeDeviceResource
 		RequestedDevices []*structs.RequestedDevice
+		isShared         bool
 	}{
 		{
 			Name:             "no devices on node",
@@ -3469,6 +3490,20 @@ func TestDeviceChecker(t *testing.T) {
 			Result:           false,
 			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
 			RequestedDevices: []*structs.RequestedDevice{gpuTypeHighCountReq},
+		},
+		{
+			Name:             "shared device and two tasks",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{makeDeviceSharable(nvidia_A)},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq, gpuTypeReq},
+			isShared:         true,
+		},
+		{
+			Name:             "unshared device and two tasks",
+			Result:           true,
+			NodeDevices:      []*structs.NodeDeviceResource{nvidia_A},
+			RequestedDevices: []*structs.RequestedDevice{gpuTypeReq, gpuTypeReq},
+			isShared:         true,
 		},
 		{
 			Name:        "meets constraints requirement",
@@ -3674,12 +3709,170 @@ func TestDeviceChecker(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:        "first_available first option satisfied",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti",
+								},
+							},
+						},
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "2080ti",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available fallback to second option",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_B}, // only has 2080ti
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti", // not available
+								},
+							},
+						},
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "2080ti", // available
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available no options satisfy",
+			Result:      false,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "H100", // not available
+								},
+							},
+						},
+						{
+							Count: 1,
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "GH200", // not available
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available with base constraint applied",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A, nvidia_B},
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					// Base constraint that must be satisfied
+					Constraints: []*structs.Constraint{
+						{
+							Operand: ">",
+							LTarget: "${device.attr.memory}",
+							RTarget: "3 GiB",
+						},
+					},
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 2, // need 2 devices
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:        "first_available count not satisfiable falls back",
+			Result:      true,
+			NodeDevices: []*structs.NodeDeviceResource{nvidia_A}, // only has 2 instances
+			RequestedDevices: []*structs.RequestedDevice{
+				{
+					Name: "nvidia/gpu",
+					FirstAvailable: []*structs.DeviceOption{
+						{
+							Count: 4, // can't satisfy - need 4 but only 2 available
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti",
+								},
+							},
+						},
+						{
+							Count: 1, // can satisfy
+							Constraints: []*structs.Constraint{
+								{
+									Operand: "=",
+									LTarget: "${device.model}",
+									RTarget: "1080ti",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			_, ctx := MockContext(t)
 			checker := NewDeviceChecker(ctx)
+			var tg *structs.TaskGroup
+			tg = getTg(c.RequestedDevices...)
+			if c.isShared {
+				getSharedTg(c.RequestedDevices...)
+			}
+			checker.SetTaskGroup(tg)
+
 			checker.SetTaskGroup(getTg(c.RequestedDevices...))
 			if act := checker.Feasible(getNode(c.NodeDevices...)); act != c.Result {
 				t.Fatalf("got %v; want %v", act, c.Result)

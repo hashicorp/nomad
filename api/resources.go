@@ -245,6 +245,10 @@ type NodeDevice struct {
 	// Locality stores HW locality information for the node to optionally be
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
+
+	// Shared mirrors a string enum on device.DetectedDevice that some
+	// devices use to report status and presence of sharing subsystems
+	Shared Shared
 }
 
 // Attribute is used to describe the value of an attribute, optionally
@@ -289,11 +293,61 @@ func (a Attribute) String() string {
 	}
 }
 
+// Shared mirrors the plugin.Shared string enum found
+// on Devices.DetectedDevice that some devices use to
+// report the status and presence of sharing subsystems
+
+type Shared string
+
+const (
+	DeviceSharingUnset      Shared = ""
+	DeviceSharingIneligible Shared = "ineligible"
+	DeviceSharingActive     Shared = "active"
+	DeviceSharingInactive   Shared = "inactive"
+)
+
 // NodeDeviceLocality stores information about the devices hardware locality on
 // the node.
 type NodeDeviceLocality struct {
 	// PciBusID is the PCI Bus ID for the device.
 	PciBusID string
+}
+
+// ShareDevices indicates whether the task is willing to share it's device
+type ShareDevices struct {
+	// Enabled
+	Enabled bool `hcl:"enabled"`
+	// SharedDeviceID is an optional field for use in environments with
+	// multiple shared devices, to make the shared device ID available to
+	// the plugin. If in use alongside the device.id constraint, the two must
+	// match or the job will not be placed.
+	SharedDeviceId string `hcl:"shared_device_id,optional"`
+}
+
+// DeviceOption represents a single option in a first_available device selection.
+// Each option specifies a count and optional constraints that must be satisfied
+// for this option to be selected.
+type DeviceOption struct {
+	// Count is the number of requested devices for this option
+	Count *uint64 `hcl:"count,optional"`
+
+	// Constraints are a set of constraints to apply when selecting the device
+	// to use for this option.
+	Constraints []*Constraint `hcl:"constraint,block"`
+
+	// ShareDevices indicates whether this device option is willing to share
+	// TODO: determine if ShareDevices should be inherited or if, like count,
+	// it should only be set on one or the other
+	ShareDevices *ShareDevices `hcl:"share_devices,block"`
+}
+
+func (o *DeviceOption) Canonicalize() {
+	if o == nil {
+		return
+	}
+	if o.Count == nil {
+		o.Count = pointerOf(uint64(1))
+	}
 }
 
 // RequestedDevice is used to request a device for a task.
@@ -309,20 +363,37 @@ type RequestedDevice struct {
 	// * "nvidia/gpu/GTX2080Ti"
 	Name string `hcl:",label"`
 
-	// Count is the number of requested devices
+	// Count is the number of requested devices. Mutually exclusive with
+	// FirstAvailable.
 	Count *uint64 `hcl:"count,optional"`
 
 	// Constraints are a set of constraints to apply when selecting the device
-	// to use.
+	// to use. When FirstAvailable is specified, these constraints are applied
+	// as base constraints that all options must also satisfy.
 	Constraints []*Constraint `hcl:"constraint,block"`
 
-	// Affinities are a set of affinites to apply when selecting the device
-	// to use.
+	// Affinities are a set of affinities to apply when selecting the device
+	// to use. When FirstAvailable is specified, these affinities are applied
+	// as base affinities for all options.
 	Affinities []*Affinity `hcl:"affinity,block"`
+
+	// ShareDevices reports whether the task should be placed on a shared device
+	ShareDevices *ShareDevices `hcl:"share_devices,block"`
+
+	//// FirstAvailable specifies a prioritized list of device options. The
+	//// scheduler will attempt to satisfy each option in order, selecting the
+	//// first one that can be fulfilled. Mutually exclusive with Count.
+	FirstAvailable []*DeviceOption `hcl:"first_available,block"`
 }
 
 func (d *RequestedDevice) Canonicalize() {
-	if d.Count == nil {
+	// If using first_available, canonicalize each option but don't set default count
+	if len(d.FirstAvailable) > 0 {
+		for _, opt := range d.FirstAvailable {
+			opt.Canonicalize()
+		}
+	} else if d.Count == nil {
+		// Only set default count when not using first_available
 		d.Count = pointerOf(uint64(1))
 	}
 

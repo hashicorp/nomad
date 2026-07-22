@@ -1624,13 +1624,37 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 
 	if len(in.Devices) > 0 {
 		out.Devices = []*structs.RequestedDevice{}
+
 		for _, d := range in.Devices {
-			out.Devices = append(out.Devices, &structs.RequestedDevice{
+			rd := &structs.RequestedDevice{
 				Name:        d.Name,
-				Count:       *d.Count,
 				Constraints: ApiConstraintsToStructs(d.Constraints),
 				Affinities:  ApiAffinitiesToStructs(d.Affinities),
-			})
+			}
+			// Only set Count if not using FirstAvailable
+			if d.Count != nil && len(d.FirstAvailable) == 0 {
+				rd.Count = *d.Count
+			}
+			// Only set ShareDevices if not using FirstAvailable
+			if d.ShareDevices != nil && len(d.FirstAvailable) == 0 {
+				rd.ShareDevices = ApiShareDevicesToStructs(d.ShareDevices)
+			}
+			//// Convert FirstAvailable options
+			if len(d.FirstAvailable) > 0 {
+				rd.FirstAvailable = make([]*structs.DeviceOption, len(d.FirstAvailable))
+				for i, opt := range d.FirstAvailable {
+					rd.FirstAvailable[i] = &structs.DeviceOption{
+						Constraints: ApiConstraintsToStructs(opt.Constraints),
+					}
+					if opt.Count != nil {
+						rd.FirstAvailable[i].Count = *opt.Count
+					}
+					if opt.ShareDevices != nil {
+						rd.FirstAvailable[i].ShareDevices = ApiShareDevicesToStructs(opt.ShareDevices)
+					}
+				}
+			}
+			out.Devices = append(out.Devices, rd)
 		}
 	}
 
@@ -1646,6 +1670,16 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	}
 
 	return out
+}
+func ApiShareDevicesToStructs(in *api.ShareDevices) *structs.ShareDevices {
+	if in == nil {
+		return nil
+	}
+	return &structs.ShareDevices{
+		Enabled:        in.Enabled,
+		SharedDeviceId: in.SharedDeviceId,
+	}
+
 }
 
 func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkResource {
