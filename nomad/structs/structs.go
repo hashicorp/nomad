@@ -3038,6 +3038,18 @@ func (ns Networks) Modes() *set.Set[string] {
 	})
 }
 
+// ShareDevices indicates whether the task should be placed on a shared device
+// ShareDevices indicates whether the task should be placed on a shared device
+type ShareDevices struct {
+	// Enabled
+	Enabled bool `hcl:"enabled"`
+	// SharedDeviceID is an optional field for use in environments with
+	// multiple shared devices, to make the shared device ID available to
+	// the plugin. If in use alongside the device.id constraint, the two must
+	// match or the job will not be placed.
+	SharedDeviceId string
+}
+
 // RequestedDevice is used to request a device for a task.
 type RequestedDevice struct {
 	// Name is the request name. The possible values are as follows:
@@ -3061,6 +3073,10 @@ type RequestedDevice struct {
 	// Affinities are a set of affinities to apply when selecting the device
 	// to use.
 	Affinities Affinities
+
+	// ShareDevices indicates whether the job should be placed on a shared device
+	// and is willing to share
+	ShareDevices *ShareDevices
 }
 
 func (r *RequestedDevice) String() string {
@@ -3575,6 +3591,32 @@ func (n *NodeDeviceResource) Equal(o *NodeDeviceResource) bool {
 	return true
 }
 
+// Shared mirrors the plugin.Shared string enum found
+// on Devices.DetectedDevice that some devices use to
+// report the status and presence of sharing subsystems
+type Shared string
+
+func (s Shared) String() string {
+	switch s {
+	case DeviceSharingInactive:
+		return "inactive"
+	case DeviceSharingIneligible:
+		return "inelgible"
+	case DeviceSharingActive:
+		return "active"
+	case DeviceSharingUnset:
+		return ""
+	}
+	return ""
+}
+
+const (
+	DeviceSharingUnset      Shared = ""
+	DeviceSharingIneligible Shared = "ineligible"
+	DeviceSharingActive     Shared = "active"
+	DeviceSharingInactive   Shared = "inactive"
+)
+
 // NodeDevice is an instance of a particular device.
 type NodeDevice struct {
 	// ID is the ID of the device.
@@ -3590,6 +3632,10 @@ type NodeDevice struct {
 	// Locality stores HW locality information for the node to optionally be
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
+
+	// Shared mirrors a string enum on device.DetectedDevice that some
+	// devices use to report status and presence of sharing subsystems
+	Shared Shared
 }
 
 func (n *NodeDevice) Equal(o *NodeDevice) bool {
@@ -3609,6 +3655,8 @@ func (n *NodeDevice) Equal(o *NodeDevice) bool {
 		return false
 	} else if !n.Locality.Equal(o.Locality) {
 		return false
+	} else if n.Shared != o.Shared {
+		return false
 	}
 
 	return true
@@ -3624,7 +3672,6 @@ func (n *NodeDevice) Copy() *NodeDevice {
 
 	// Copy the locality
 	nn.Locality = nn.Locality.Copy()
-
 	return &nn
 }
 
@@ -4176,6 +4223,10 @@ type AllocatedDeviceResource struct {
 
 	// DeviceIDs is the set of allocated devices
 	DeviceIDs []string
+
+	// WillShare is a map of DeviceIDs[bool] that indicates whether the
+	// requesting task is willing to share the device
+	WillShare map[string]bool
 }
 
 func (a *AllocatedDeviceResource) ID() *DeviceIdTuple {
@@ -4208,6 +4259,7 @@ func (a *AllocatedDeviceResource) Copy() *AllocatedDeviceResource {
 	// Copy the devices
 	na.DeviceIDs = make([]string, len(a.DeviceIDs))
 	copy(na.DeviceIDs, a.DeviceIDs)
+	na.WillShare = make(map[string]bool, len(a.DeviceIDs))
 	return &na
 }
 

@@ -35,6 +35,19 @@ func deviceRequest(name string, count uint64,
 	}
 }
 
+// sharedDeviceRequest takes the name, count and potential constraints and affinities
+// and returns a device request.
+func sharedDeviceRequest(name string, count uint64,
+	constraints []*structs.Constraint, affinities []*structs.Affinity, shareDevices *structs.ShareDevices) *structs.RequestedDevice {
+	return &structs.RequestedDevice{
+		Name:         name,
+		Count:        count,
+		Constraints:  constraints,
+		Affinities:   affinities,
+		ShareDevices: shareDevices,
+	}
+}
+
 // devNode returns a node containing two devices, an nvidia gpu and an intel
 // FPGA.
 func devNode() *structs.Node {
@@ -614,4 +627,98 @@ func Test_memoryNodeMatcher(t *testing.T) {
 			must.Eq(t, tc.exp, result)
 		})
 	}
+}
+
+func TestDeviceAllocator_Allocate_SharedDevices(t *testing.T) {
+	ci.Parallel(t)
+
+	n := mock.SharedNvidiaNode()
+	nvidia0 := n.NodeResources.Devices[0]
+	SharedDeviceId0 := n.NodeResources.Devices[0].Instances[0]
+	SharedDeviceId1 := n.NodeResources.Devices[0].Instances[1]
+	_, ctx := MockContext(t)
+	d := newDeviceAllocator(ctx, n)
+	must.NotNil(t, d)
+	mem := &memoryNodeMatcher{
+		memoryNode: -1, // we are not testing
+	}
+
+	for _, tc := range []struct {
+		name         string
+		deviceName   string
+		deviceID     string
+		shareDevices *structs.ShareDevices
+		count        uint64
+		expectedErr  string
+	}{
+		{
+			name:         "happy path",
+			deviceName:   "nvidia/gpu",
+			deviceID:     SharedDeviceId0.ID,
+			shareDevices: &structs.ShareDevices{Enabled: true},
+			count:        1,
+		},
+		{
+			name:         "structs.ShareDevices can be nil",
+			deviceName:   "nvidia/gpu",
+			deviceID:     SharedDeviceId0.ID,
+			shareDevices: nil,
+			count:        1,
+		},
+		{
+			name:         "if present, shareDevices must match device",
+			deviceName:   "nvidia/gpu",
+			deviceID:     SharedDeviceId0.ID,
+			shareDevices: &structs.ShareDevices{Enabled: false},
+			count:        1,
+			expectedErr:  "no devices match request",
+		},
+		{
+			name:         "if present, gpu_id must match device",
+			deviceName:   "nvidia/gpu",
+			deviceID:     SharedDeviceId0.ID,
+			shareDevices: &structs.ShareDevices{Enabled: false, SharedDeviceId: SharedDeviceId1.ID},
+			count:        1,
+			expectedErr:  "no devices match request",
+		},
+		{
+			name:         "sharing passes, constraint doesn't match",
+			deviceName:   "nvidia/gpu",
+			deviceID:     "notanID",
+			shareDevices: &structs.ShareDevices{Enabled: true},
+			count:        1,
+			expectedErr:  "no devices match request",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testConstraints := []*structs.Constraint{
+				{
+					LTarget: "${device.ids}",
+					Operand: "set_contains",
+					RTarget: tc.deviceID,
+				},
+			}
+			ask := sharedDeviceRequest(tc.deviceName, tc.count, testConstraints, nil, tc.shareDevices)
+
+			out, _, err := d.createOffer(mem, ask)
+			if len(tc.expectedErr) != 0 {
+				must.ErrorContains(t, err, tc.expectedErr)
+				must.Nil(t, out)
+				return
+			}
+			must.NoError(t, err)
+			must.NotNil(t, out)
+			must.Len(t, 1, out.DeviceIDs)
+			// validate expected instance and device IDs
+			must.SliceContains(t, collectInstanceIDs(nvidia0), out.DeviceIDs[0])
+			must.SliceContains(t, out.DeviceIDs, nvidia0.Instances[0].ID)
+			must.Eq(t, tc.deviceID, out.DeviceIDs[0])
+
+			if tc.shareDevices != nil {
+				must.MapContainsKey(t, out.WillShare, out.DeviceIDs[0])
+			}
+
+		})
+	}
+
 }

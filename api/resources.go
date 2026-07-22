@@ -245,6 +245,10 @@ type NodeDevice struct {
 	// Locality stores HW locality information for the node to optionally be
 	// used when making placement decisions.
 	Locality *NodeDeviceLocality
+
+	// Shared mirrors a string enum on device.DetectedDevice that some
+	// devices use to report status and presence of sharing subsystems
+	Shared Shared
 }
 
 // Attribute is used to describe the value of an attribute, optionally
@@ -289,11 +293,39 @@ func (a Attribute) String() string {
 	}
 }
 
+type Shared string
+
+// DeviceSharing mirrors the plugin.DeviceSharing struct found
+// on Devices.DetectedDevice. It holds a string that some
+// devices use to report the status and presence of sharing
+// subsystems
+type DeviceSharing struct {
+	Shared Shared
+}
+
+const (
+	DeviceSharingUnset      Shared = ""
+	DeviceSharingIneligible Shared = "ineligible"
+	DeviceSharingActive     Shared = "active"
+	DeviceSharingInactive   Shared = "inactive"
+)
+
 // NodeDeviceLocality stores information about the devices hardware locality on
 // the node.
 type NodeDeviceLocality struct {
 	// PciBusID is the PCI Bus ID for the device.
 	PciBusID string
+}
+
+// ShareDevices indicates whether the task should be placed on a shared device
+type ShareDevices struct {
+	// Enabled
+	Enabled bool `hcl:"enabled"`
+	// SharedDeviceID is an optional field for use in environments with
+	// multiple shared devices, to make the shared device ID available to
+	// the plugin. If in use alongside the device.id constraint, the two must
+	// match or the job will not be placed.
+	SharedDeviceId string `hcl:"shared_device_id,optional"`
 }
 
 // RequestedDevice is used to request a device for a task.
@@ -319,6 +351,9 @@ type RequestedDevice struct {
 	// Affinities are a set of affinites to apply when selecting the device
 	// to use.
 	Affinities []*Affinity `hcl:"affinity,block"`
+
+	// ShareDevices reports whether the task should be placed on a shared device
+	ShareDevices *ShareDevices `hcl:"share_devices,block"`
 }
 
 func (d *RequestedDevice) Canonicalize() {
