@@ -17,6 +17,10 @@ export default class DeploymentSerializer extends ApplicationSerializer {
 
   normalize(typeHash, hash) {
     if (hash) {
+      // Construct the version ID so the deployment record properly links
+      // to the version.
+      hash.VersionID = `${hash.JobID}-${hash.JobVersion}`;
+
       hash.PlainJobId = hash.JobID;
       hash.Namespace =
         hash.Namespace || get(hash, 'Job.Namespace') || 'default';

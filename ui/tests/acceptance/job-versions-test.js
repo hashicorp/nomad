@@ -43,10 +43,12 @@ module('Acceptance | job versions', function (hooks) {
     // Create some versions
     this.server.create('job-version', {
       job: job,
+      namespace: namespace.id,
       version: 0,
     });
     this.server.create('job-version', {
       job: job,
+      namespace: namespace.id,
       version: 1,
       versionTag: {
         Name: 'test-tag',
