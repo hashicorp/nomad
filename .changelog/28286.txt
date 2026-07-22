@@ -1,0 +1,3 @@
+```release-note: bug
+plugins: Fixed a bug where the logmon, executor, or docker_logger plugin process was leaked when the plugin client failed during setup
+```
