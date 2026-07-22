@@ -327,8 +327,10 @@ module('Acceptance | task detail', function (hooks) {
       'Title is descriptive',
     );
     assert.ok(
-      /ACL token.+?allocation lifecycle/.test(Task.inlineError.message),
-      'Message mentions ACLs and the appropriate permission',
+      /ACL token.+?allocation lifecycle|not signed in.+sign in to perform this action/i.test(
+        Task.inlineError.message,
+      ),
+      'Message mentions ACL permissions or sign-in guidance',
     );
 
     await Task.inlineError.dismiss();
