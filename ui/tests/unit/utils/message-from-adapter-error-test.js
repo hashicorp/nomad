@@ -53,9 +53,12 @@ module('Unit | Util | messageFromAdapterError', function (hooks) {
     window.localStorage.removeItem('nomadTokenSecret');
 
     assert.deepEqual(
-      messageFromAdapterError(new ForbiddenError([], "Can't do that"), 'run tests'),
+      messageFromAdapterError(
+        new ForbiddenError([], "Can't do that"),
+        'run tests',
+      ),
       'You are not signed in. Please sign in to perform this action.',
-      'Returns sign-in guidance when no token is present'
+      'Returns sign-in guidance when no token is present',
     );
   });
 
@@ -63,9 +66,12 @@ module('Unit | Util | messageFromAdapterError', function (hooks) {
     window.localStorage.nomadTokenSecret = 'some-token';
 
     assert.deepEqual(
-      messageFromAdapterError(new ForbiddenError([], "Can't do that"), 'run tests'),
+      messageFromAdapterError(
+        new ForbiddenError([], "Can't do that"),
+        'run tests',
+      ),
       'Your ACL token does not grant permission to run tests.',
-      'Returns permission message when token is present'
+      'Returns permission message when token is present',
     );
   });
 
