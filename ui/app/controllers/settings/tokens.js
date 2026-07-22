@@ -159,7 +159,7 @@ export default class Tokens extends Controller {
 
       // Set bearer token instead of findSelf etc.
       TokenAdapter.loginJWT(secret, methodName).then(
-        await (token) => {
+        async (token) => {
           this.token.setProperties({
             secret: token.secret,
             tokenNotFound: false,
@@ -188,7 +188,7 @@ export default class Tokens extends Controller {
       this.set('secret', null);
 
       TokenAdapter.findSelf().then(
-        await () => {
+        async () => {
           // Clear out all data to ensure only data the new token is privileged to see is shown
           this.resetStore();
 
