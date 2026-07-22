@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package auth
@@ -660,17 +660,22 @@ func (s *Authenticator) ResolveAuthorizedClientNodePoolByNodeID(aclObj *acl.ACL,
 	return resolveAuthorizedClientNodePoolByNodeID(snap, aclObj, nodeID)
 }
 
-// AuthorizeClientAllocation returns ErrPermissionDenied unless aclObj is
-// authorized for alloc's node pool. If allowNsOp is provided, callers may
-// fall back to namespace-based authorization when client-scoped authorization
-// does not apply.
+// AuthorizeClientAllocation returns ErrPermissionDenied unless the identity
+// is the node the alloc is placed on or aclObj is authorized for alloc's
+// node pool. If allowNsOp is provided, callers may fall back to
+// namespace-based authorization when client-scoped authorization does not apply.
 func (s *Authenticator) AuthorizeClientAllocation(
+	identity *structs.AuthenticatedIdentity,
 	aclObj *acl.ACL,
 	alloc *structs.Allocation,
 	allowNsOp func(*acl.ACL, string) bool,
 ) error {
 	if alloc == nil || alloc.Job == nil {
 		return structs.ErrPermissionDenied
+	}
+
+	if alloc.NodeID != "" && AuthorizeSameNode(identity, alloc.NodeID) == nil {
+		return nil
 	}
 
 	if aclObj.AllowClientOp(alloc.Job.NodePool) {

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -19,7 +19,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -507,6 +506,8 @@ func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 // updates.
 func (s *StateStore) upsertDeploymentUpdates(index uint64, now int64, updates []*structs.DeploymentStatusUpdate, txn *txn) error {
 	for _, u := range updates {
+		u.UpdatedAt = now
+
 		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
 			return err
 		}
@@ -4126,7 +4127,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64,
 		// We got new health information from the client
 		if newHasHealthy && (!oldHasHealthy || *copyAlloc.DeploymentStatus.Healthy != *alloc.DeploymentStatus.Healthy) {
 			// Updated deployment health and timestamp
-			copyAlloc.DeploymentStatus.Healthy = pointer.Of(*alloc.DeploymentStatus.Healthy)
+			copyAlloc.DeploymentStatus.Healthy = new(*alloc.DeploymentStatus.Healthy)
 			copyAlloc.DeploymentStatus.Timestamp = alloc.DeploymentStatus.Timestamp
 			copyAlloc.DeploymentStatus.ModifyIndex = index
 		}
@@ -4816,16 +4817,19 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.ModifyTime = u.UpdatedAt
 
 	// check each TaskGroup for ProgressDeadline and reset RequireProgressBy
-	// to u.UpdatedAt + ProgressDeadline if neither equal 0
+	// to ProgressDeadline if the deployment is running or paused. This is to
+	// ensure that the RequireProgressBy is reset on a deployment that has been
+	// paused and resumed.
 	for _, dState := range copy.TaskGroups {
-		if dState == nil {
+		if dState == nil || dState.ProgressDeadline == 0 {
 			continue
 		}
-		if u.UpdatedAt != 0 && dState.ProgressDeadline != 0 {
-			updateTime := time.Unix(0, u.UpdatedAt)
-			dState.RequireProgressBy = updateTime.Add(dState.ProgressDeadline)
+
+		if copy.Status == structs.DeploymentStatusPaused || copy.Status == structs.DeploymentStatusRunning {
+			dState.RequireProgressBy = time.Unix(0, u.UpdatedAt).Add(dState.ProgressDeadline)
 		}
 	}
+
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
 		return err
@@ -5166,7 +5170,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 			if copy.DeploymentStatus == nil {
 				copy.DeploymentStatus = &structs.AllocDeploymentStatus{}
 			}
-			copy.DeploymentStatus.Healthy = pointer.Of(healthy)
+			copy.DeploymentStatus.Healthy = new(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
 			copy.ModifyTime = req.Timestamp.UnixNano()

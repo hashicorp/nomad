@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -85,7 +84,7 @@ func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 			},
 			pool: &NodePool{
 				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
-					MemoryOversubscriptionEnabled: pointer.Of(true),
+					MemoryOversubscriptionEnabled: new(true),
 				},
 			},
 			expected: &SchedulerConfiguration{

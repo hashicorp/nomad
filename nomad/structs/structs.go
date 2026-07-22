@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -2411,9 +2411,9 @@ func (r *Resources) DiskInBytes() int64 {
 }
 
 const (
-	// memoryNoLimit is a sentinel value indicating there is no upper hard
+	// MemoryNoLimit is a sentinel value indicating there is no upper hard
 	// memory limit
-	memoryNoLimit = -1
+	MemoryNoLimit = -1
 )
 
 func (r *Resources) Validate() error {
@@ -2457,7 +2457,7 @@ func (r *Resources) Validate() error {
 
 	// Ensure memory_max is greater than memory, unless it is set to 0 or -1 which
 	// are both sentinel values
-	if (r.MemoryMaxMB != 0 && r.MemoryMaxMB != memoryNoLimit) && r.MemoryMaxMB < r.MemoryMB {
+	if (r.MemoryMaxMB != 0 && r.MemoryMaxMB != MemoryNoLimit) && r.MemoryMaxMB < r.MemoryMB {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("MemoryMaxMB value (%d) should be larger than MemoryMB value (%d)", r.MemoryMaxMB, r.MemoryMB))
 	}
 
@@ -5613,6 +5613,10 @@ type Namespace struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// Additional claims for workload identities
+	RequiredExtraClaims map[string]string
+	OptionalExtraClaims map[string]string
 }
 
 // NamespaceCapabilities represents a set of capabilities allowed for this
@@ -6937,6 +6941,11 @@ type TaskGroup struct {
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
 
+	// MaxRunDuration is the maximum amount of time a batch or sysbatch task
+	// group allocation may run after entering the running state before Nomad
+	// stops it.
+	MaxRunDuration *time.Duration
+
 	// StopAfterClientDisconnect, if set, configures the client to stop the task group
 	// after this duration since the last known good heartbeat
 	// To be deprecated after 1.8.0 infavor of Disconnect.StopOnClientAfter
@@ -7003,6 +7012,10 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 
 	if tg.ShutdownDelay != nil {
 		ntg.ShutdownDelay = tg.ShutdownDelay
+	}
+
+	if tg.MaxRunDuration != nil {
+		ntg.MaxRunDuration = tg.MaxRunDuration
 	}
 
 	return ntg
@@ -7121,6 +7134,18 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	if tg.Disconnect != nil {
 		if err := tg.Disconnect.Validate(j); err != nil {
 			mErr = multierror.Append(mErr, err)
+		}
+	}
+
+	if tg.MaxRunDuration != nil {
+		if *tg.MaxRunDuration <= 0 {
+			mErr = multierror.Append(mErr, errors.New("MaxRunDuration must be greater than zero"))
+		}
+
+		switch j.Type {
+		case JobTypeBatch, JobTypeSysBatch:
+		default:
+			mErr = multierror.Append(mErr, fmt.Errorf("Job type %q does not allow max_run_duration", j.Type))
 		}
 	}
 
@@ -8989,6 +9014,10 @@ type ChangeScript struct {
 	// FailOnError indicates whether a task should fail in case script execution
 	// fails or log script failure and don't interrupt the task
 	FailOnError bool
+	// RunOnFirstRender indicates that the script should also be triggered
+	// after the initial template render, not only on subsequent re-renders.
+	// The script will execute once the task reaches the running state.
+	RunOnFirstRender bool
 }
 
 func (cs *ChangeScript) Equal(o *ChangeScript) bool {
@@ -9004,6 +9033,8 @@ func (cs *ChangeScript) Equal(o *ChangeScript) bool {
 		return false
 	case cs.FailOnError != o.FailOnError:
 		return false
+	case cs.RunOnFirstRender != o.RunOnFirstRender:
+		return false
 	}
 	return true
 }
@@ -9013,10 +9044,11 @@ func (cs *ChangeScript) Copy() *ChangeScript {
 		return nil
 	}
 	return &ChangeScript{
-		Command:     cs.Command,
-		Args:        slices.Clone(cs.Args),
-		Timeout:     cs.Timeout,
-		FailOnError: cs.FailOnError,
+		Command:          cs.Command,
+		Args:             slices.Clone(cs.Args),
+		Timeout:          cs.Timeout,
+		FailOnError:      cs.FailOnError,
+		RunOnFirstRender: cs.RunOnFirstRender,
 	}
 }
 

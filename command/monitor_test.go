@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -238,7 +237,7 @@ func TestMonitor_MonitorBlockedEval(t *testing.T) {
 	// Submit a service job.
 	// Since there are no clients this will create a blocked eval.
 	job := testJob("job1")
-	job.Type = pointer.Of("service")
+	job.Type = new("service")
 	job.TaskGroups[0].Tasks[0].Config["run_for"] = "300s"
 
 	resp, _, err := client.Jobs().Register(job, nil)

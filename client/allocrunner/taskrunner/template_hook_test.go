@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -36,14 +35,21 @@ func TestTemplateHook_Prestart_ConsulWI(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
+	agentToken := uuid.Generate()
+	clientConfig := &config.Config{
+		Region:         "global",
+		TemplateConfig: &config.ClientTemplateConfig{UseClientConsulToken: true},
+		ConsulConfigs:  map[string]*structsc.ConsulConfig{"default": {Token: agentToken}},
+	}
+
 	// Create some alloc hook resources, one with tokens and an empty one.
-	defaultToken := uuid.Generate()
+	derivedToken := uuid.Generate()
 	hrTokens := cstructs.NewAllocHookResources()
 	hrTokens.SetConsulTokens(
 		map[string]map[string]*consulapi.ACLToken{
 			structs.ConsulDefaultCluster: {
 				fmt.Sprintf("consul_%s/web", structs.ConsulDefaultCluster): &consulapi.ACLToken{
-					SecretID: defaultToken,
+					SecretID: derivedToken,
 				},
 			},
 		},
@@ -60,21 +66,21 @@ func TestTemplateHook_Prestart_ConsulWI(t *testing.T) {
 		legacyFlow      bool
 	}{
 		{
-			// COMPAT remove in 1.9+
 			name:            "legacy flow",
 			hr:              hrEmpty,
 			legacyFlow:      true,
-			wantConsulToken: "",
+			wantConsulToken: agentToken,
 		},
 		{
-			name:       "task missing Consul token",
-			hr:         hrEmpty,
-			wantErrMsg: "not found",
+			name:            "task missing Consul token",
+			hr:              hrEmpty,
+			wantErrMsg:      "not found",
+			wantConsulToken: "invalid-token",
 		},
 		{
 			name:            "task without consul blocks uses default cluster",
 			hr:              hrTokens,
-			wantConsulToken: defaultToken,
+			wantConsulToken: derivedToken,
 		},
 		{
 			name: "task with consul block at task level",
@@ -82,7 +88,7 @@ func TestTemplateHook_Prestart_ConsulWI(t *testing.T) {
 			taskConsul: &structs.Consul{
 				Cluster: structs.ConsulDefaultCluster,
 			},
-			wantConsulToken: defaultToken,
+			wantConsulToken: derivedToken,
 		},
 		{
 			name: "task with consul block at group level",
@@ -90,7 +96,7 @@ func TestTemplateHook_Prestart_ConsulWI(t *testing.T) {
 			groupConsul: &structs.Consul{
 				Cluster: structs.ConsulDefaultCluster,
 			},
-			wantConsulToken: defaultToken,
+			wantConsulToken: derivedToken,
 		},
 	}
 	for _, tt := range tests {
@@ -107,7 +113,6 @@ func TestTemplateHook_Prestart_ConsulWI(t *testing.T) {
 				}
 			}
 
-			clientConfig := &config.Config{Region: "global"}
 			envBuilder := taskenv.NewBuilder(mock.Node(), a, task, clientConfig.Region)
 			taskHooks := trtesting.NewMockTaskHooks()
 
@@ -177,7 +182,7 @@ func TestTemplateHook_Prestart_Vault(t *testing.T) {
 	clientConfig.VaultConfigs = map[string]*structsc.VaultConfig{
 		structs.VaultDefaultCluster: {
 			Name:    structs.VaultDefaultCluster,
-			Enabled: pointer.Of(true),
+			Enabled: new(true),
 			Addr:    defaultVaultServer.URL,
 		},
 	}

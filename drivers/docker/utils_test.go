@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -10,18 +10,6 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
-
-func TestIsParentPath(t *testing.T) {
-	ci.Parallel(t)
-	require.True(t, isParentPath("/a/b/c", "/a/b/c"))
-	require.True(t, isParentPath("/a/b/c", "/a/b/c/d"))
-	require.True(t, isParentPath("/a/b/c", "/a/b/c/d/e"))
-
-	require.False(t, isParentPath("/a/b/c", "/a/b/d"))
-	require.False(t, isParentPath("/a/b/c", "/a/b/cd"))
-	require.False(t, isParentPath("/a/b/c", "/a/d/c"))
-	require.False(t, isParentPath("/a/b/c", "/d/e/c"))
-}
 
 func TestParseVolumeSpec_Linux(t *testing.T) {
 	ci.Parallel(t)

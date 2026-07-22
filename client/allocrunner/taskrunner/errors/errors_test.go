@@ -1,7 +1,7 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
-package taskrunner
+package errors
 
 import (
 	"errors"
@@ -9,11 +9,11 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // Statically assert error implements the expected interfaces
-var _ structs.Recoverable = (*hookError)(nil)
+var _ structs.Recoverable = (*HookError)(nil)
 
 // TestHookError_Recoverable asserts that a NewHookError is recoverable if
 // passed a recoverable error.
@@ -31,10 +31,10 @@ func TestHookError_Recoverable(t *testing.T) {
 
 	herr := NewHookError(recov, ev)
 
-	require.Equal(t, ev, herr.(*hookError).taskEvent)
-	require.True(t, structs.IsRecoverable(herr))
-	require.Equal(t, root.Error(), herr.Error())
-	require.Equal(t, recov.Error(), herr.Error())
+	must.Eq(t, ev, herr.(*HookError).TaskEvent)
+	must.True(t, structs.IsRecoverable(herr))
+	must.Eq(t, root.Error(), herr.Error())
+	must.Eq(t, recov.Error(), herr.Error())
 }
 
 // TestHookError_Unrecoverable asserts that a NewHookError is not recoverable
@@ -50,7 +50,7 @@ func TestHookError_Unrecoverable(t *testing.T) {
 
 	herr := NewHookError(err, ev)
 
-	require.Equal(t, ev, herr.(*hookError).taskEvent)
-	require.False(t, structs.IsRecoverable(herr))
-	require.Equal(t, err.Error(), herr.Error())
+	must.Eq(t, ev, herr.(*HookError).TaskEvent)
+	must.False(t, structs.IsRecoverable(herr))
+	must.Eq(t, err.Error(), herr.Error())
 }

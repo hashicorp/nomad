@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskenv
@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
@@ -117,6 +116,47 @@ func TestInterpolateServices(t *testing.T) {
 	}
 
 	require.Equal(t, exp, interpolated)
+}
+
+// TestInterpolateServices_TaskSecrets asserts that task secrets are
+// interpolated into service check Header and Args, and service Tags, all of
+// which route through TaskEnv.ParseAndReplace.
+//
+// Regression test for https://github.com/hashicorp/nomad/issues/28195
+func TestInterpolateServices_TaskSecrets(t *testing.T) {
+	ci.Parallel(t)
+
+	services := []*structs.Service{
+		{
+			Name: "example",
+			Tags: []string{"${secret.FOO}"},
+			Checks: []*structs.ServiceCheck{
+				{
+					Name: "check",
+					Args: []string{"${secret.FOO}"},
+					Header: map[string][]string{
+						"Authorization": {"Bearer ${secret.FOO}"},
+					},
+				},
+			},
+		},
+	}
+
+	env := &TaskEnv{
+		TaskSecrets: map[string]string{
+			"secret.FOO": "s3cr3t",
+		},
+	}
+
+	interpolated := InterpolateServices(env, services)
+	require.Len(t, interpolated, 1)
+
+	check := interpolated[0].Checks[0]
+	require.Equal(t, map[string][]string{
+		"Authorization": {"Bearer s3cr3t"},
+	}, check.Header)
+	require.Equal(t, []string{"s3cr3t"}, check.Args)
+	require.Equal(t, []string{"s3cr3t"}, interpolated[0].Tags)
 }
 
 var testEnv = NewTaskEnv(
@@ -290,17 +330,17 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 				}},
 			},
 			Meta:        map[string]string{"${meta1}": "${meta2}"},
-			KillTimeout: pointer.Of(1 * time.Second),
+			KillTimeout: new(1 * time.Second),
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      1,
 				MaxFileSizeMB: 2,
 			},
-			ShutdownDelay: pointer.Of(2 * time.Second),
+			ShutdownDelay: new(2 * time.Second),
 			KillSignal:    "${signal1}",
 		},
 		Gateway: &structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				ConnectTimeout:                  pointer.Of(3 * time.Second),
+				ConnectTimeout:                  new(3 * time.Second),
 				EnvoyGatewayBindTaggedAddresses: true,
 				EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 					"${bind1}": {
@@ -400,17 +440,17 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 				}},
 			},
 			Meta:        map[string]string{"_meta1": "_meta2"},
-			KillTimeout: pointer.Of(1 * time.Second),
+			KillTimeout: new(1 * time.Second),
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      1,
 				MaxFileSizeMB: 2,
 			},
-			ShutdownDelay: pointer.Of(2 * time.Second),
+			ShutdownDelay: new(2 * time.Second),
 			KillSignal:    "_signal1",
 		},
 		Gateway: &structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				ConnectTimeout:                  pointer.Of(3 * time.Second),
+				ConnectTimeout:                  new(3 * time.Second),
 				EnvoyGatewayBindTaggedAddresses: true,
 				EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
 					"_bind1": {

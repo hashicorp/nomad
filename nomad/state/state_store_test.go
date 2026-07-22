@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -14,7 +14,6 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -462,6 +461,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 		Deployment:        dnew,
 		DeploymentUpdates: []*structs.DeploymentStatusUpdate{update},
 		EvalID:            eval.ID,
+		UpdatedAt:         time.Now().UnixNano(),
 	}
 
 	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
@@ -484,6 +484,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	test.Eq(t, update.Status, doutstandingout.Status)
 	test.Eq(t, update.StatusDescription, doutstandingout.StatusDescription)
 	test.Eq(t, 1000, doutstandingout.ModifyIndex)
+	test.NotEq(t, 0, doutstandingout.ModifyTime)
 
 	evalOut, err := state.EvalByID(ws, eval.ID)
 	must.NoError(t, err)
@@ -3441,6 +3442,58 @@ func TestStateStore_JobsByGC(t *testing.T) {
 	must.False(t, watchFired(ws), must.Sprint("watch should not have fired"))
 }
 
+// TestStateStore_JobsByModifyIndex_SharedModifyIndex is a regression test for
+// jobs sharing a ModifyIndex being dropped from JobsByModifyIndex, which backs
+// the Job.Statuses RPC and the UI jobs page.
+//
+// Several jobs can share a ModifyIndex when a single Raft transaction writes
+// them together (for example, rescheduling allocations after a node goes down).
+// The jobs-table "modify_index" index must therefore be non-unique; if it is
+// marked Unique, colliding jobs collapse into a single index entry and the rest
+// silently disappear from any query that iterates this index, while remaining
+// visible via the unique "id" index (used by /v1/jobs and the CLI).
+func TestStateStore_JobsByModifyIndex_SharedModifyIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, n := range []int{2, 3, 7} {
+		t.Run(fmt.Sprintf("cluster_of_%d", n), func(t *testing.T) {
+			state := testStateStore(t)
+
+			// n jobs written at the same index => identical ModifyIndex.
+			const sharedIndex = 1000
+			want := make([]string, 0, n+2)
+			for i := range n {
+				job := mock.Job()
+				job.ID = fmt.Sprintf("shared-%d", i)
+				want = append(want, job.ID)
+				must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, sharedIndex, nil, job))
+			}
+			// a couple of control jobs with their own unique indexes.
+			for i, idx := range []uint64{1001, 1002} {
+				job := mock.Job()
+				job.ID = fmt.Sprintf("unique-%d", i)
+				want = append(want, job.ID)
+				must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, job))
+			}
+
+			ws := memdb.NewWatchSet()
+			iter, err := state.JobsByModifyIndex(ws, SortDefault)
+			must.NoError(t, err)
+
+			got := make([]string, 0, len(want))
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				got = append(got, raw.(*structs.Job).ID)
+			}
+
+			// every job must be returned; none dropped due to a shared index.
+			must.SliceContainsAll(t, want, got,
+				must.Sprintf("JobsByModifyIndex dropped jobs sharing a ModifyIndex: want %v, got %v", want, got))
+			must.Len(t, len(want), got,
+				must.Sprintf("expected %d jobs, got %d: %v", len(want), len(got), got))
+		})
+	}
+}
+
 func TestStateStore_UpsertPeriodicLaunch(t *testing.T) {
 	ci.Parallel(t)
 
@@ -5586,7 +5639,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 				JobID:        alloc.JobID,
 				TaskGroup:    alloc.TaskGroup,
 				DeploymentStatus: &structs.AllocDeploymentStatus{
-					Healthy:   pointer.Of(true),
+					Healthy:   new(true),
 					Timestamp: healthy,
 				},
 			},
@@ -5671,8 +5724,8 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 
 	updateAlloc = updateAlloc.Copy()
 	updateAlloc.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true), // should update
-		Canary:  false,            // should not update
+		Healthy: new(true), // should update
+		Canary:  false,     // should not update
 	}
 
 	updateReq2 := structs.AllocUpdateRequest{
@@ -6309,10 +6362,10 @@ func TestStateStore_UpdateAllocDesiredTransition(t *testing.T) {
 	must.Nil(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	t1 := &structs.DesiredTransition{
-		Migrate: pointer.Of(true),
+		Migrate: new(true),
 	}
 	t2 := &structs.DesiredTransition{
-		Migrate: pointer.Of(false),
+		Migrate: new(false),
 	}
 	eval := &structs.Evaluation{
 		ID:             uuid.Generate(),
@@ -7942,7 +7995,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c3.JobID = j.ID
 	c3.DeploymentID = d.ID
 	c3.DesiredStatus = structs.AllocDesiredStatusStop
-	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
+	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: new(true)}
 	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
 
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2, c3}))
@@ -8021,7 +8074,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -8029,7 +8082,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}))
@@ -8099,7 +8152,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 		Canary:  true,
 	}
 
@@ -8110,7 +8163,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 		Canary:  true,
 	}
 
@@ -8119,7 +8172,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	c3.DeploymentID = d.ID
 	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
 	c3.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(false),
+		Healthy: new(false),
 		Canary:  true,
 	}
 
@@ -8253,7 +8306,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	a.JobID = job.ID
 	a.DeploymentID = d1.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(false),
+		Healthy: new(false),
 		Canary:  true,
 	}
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}))
@@ -8271,7 +8324,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	b.JobID = job.ID
 	b.DeploymentID = d1.ID
 	b.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(false),
+		Healthy: new(false),
 		Canary:  false,
 	}
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{b}))
@@ -8292,7 +8345,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 	c.JobID = job.ID
 	c.DeploymentID = d2.ID
 	c.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(false),
+		Healthy: new(false),
 		Canary:  true,
 	}
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 6, []*structs.Allocation{c}))
@@ -8323,7 +8376,7 @@ func TestStateStore_UpsertDeploymentAlloc_NoCanaries(t *testing.T) {
 	a.JobID = job.ID
 	a.DeploymentID = d1.ID
 	a.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 		Canary:  false,
 	}
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}))

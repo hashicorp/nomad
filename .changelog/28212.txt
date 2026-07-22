@@ -1,0 +1,3 @@
+```release-note:bug
+services: Fixed a bug where task secrets were not interpolated into service check `Header` and `Args`, or into service `Tags`
+```

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -29,11 +29,12 @@ func (s *Server) ResolveAuthorizedClientNodePoolByNodeID(aclObj *acl.ACL, nodeID
 }
 
 func (s *Server) AuthorizeClientAllocation(
+	identity *structs.AuthenticatedIdentity,
 	aclObj *acl.ACL,
 	alloc *structs.Allocation,
 	allowNsOp func(*acl.ACL, string) bool,
 ) error {
-	return s.auth.AuthorizeClientAllocation(aclObj, alloc, allowNsOp)
+	return s.auth.AuthorizeClientAllocation(identity, aclObj, alloc, allowNsOp)
 }
 
 func (s *Server) ResolveAuthorizedClientNodePoolByServiceRegistrationID(

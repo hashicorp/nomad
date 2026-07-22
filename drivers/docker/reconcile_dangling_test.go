@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -20,7 +20,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -238,7 +237,7 @@ func TestDanglingContainerRemoval_Stopped(t *testing.T) {
 	_, err = dockerClient.ContainerStart(ctx, cont.ID, mclient.ContainerStartOptions{})
 	must.NoError(t, err)
 
-	_, err = dockerClient.ContainerStop(ctx, cont.ID, mclient.ContainerStopOptions{Timeout: pointer.Of(60)})
+	_, err = dockerClient.ContainerStop(ctx, cont.ID, mclient.ContainerStopOptions{Timeout: new(60)})
 	must.NoError(t, err)
 
 	dd := dockerDriverHarness(t, nil).Impl().(*Driver)

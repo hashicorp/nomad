@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -11,7 +11,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | application errors ', function (hooks) {
@@ -30,7 +29,6 @@ module('Acceptance | application errors ', function (hooks) {
     this.server.pretender.get('/v1/nodes', () => [500, {}, null]);
     await ClientsList.visit();
     await a11yAudit(assert);
-    await percySnapshot(assert);
   });
 
   test('transitioning away from an error page resets the global error', async function (assert) {
@@ -59,8 +57,6 @@ module('Acceptance | application errors ', function (hooks) {
       'Not Authorized',
       'Error message is for 403',
     );
-    await percySnapshot(assert);
-
     await Job.error.seekHelp();
     assert.deepEqual(
       currentURL(),
@@ -84,7 +80,6 @@ module('Acceptance | application errors ', function (hooks) {
       'No Cluster Leader',
       'The error is specifically for the lack of a cluster leader',
     );
-    await percySnapshot(assert);
   });
 
   test('error pages include links to the jobs, clients and auth pages', async function (assert) {

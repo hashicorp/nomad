@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -80,6 +80,8 @@ type Namespace struct {
 	Meta                  map[string]string
 	CreateIndex           uint64
 	ModifyIndex           uint64
+	RequiredExtraClaims   map[string]string
+	OptionalExtraClaims   map[string]string
 }
 
 // NamespaceCapabilities represents a set of capabilities allowed for this

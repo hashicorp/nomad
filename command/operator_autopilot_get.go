@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -15,7 +15,11 @@ type OperatorAutopilotGetCommand struct {
 }
 
 func (c *OperatorAutopilotGetCommand) AutocompleteFlags() complete.Flags {
-	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient))
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-json": complete.PredictNothing,
+			"-t":    complete.PredictAnything,
+		})
 }
 
 func (c *OperatorAutopilotGetCommand) AutocompleteArgs() complete.Predictor {
@@ -24,8 +28,13 @@ func (c *OperatorAutopilotGetCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *OperatorAutopilotGetCommand) Name() string { return "operator autopilot get-config" }
 func (c *OperatorAutopilotGetCommand) Run(args []string) int {
+	var json bool
+	var tmpl string
+
 	flags := c.Meta.FlagSet("autopilot", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&json, "json", false, "")
+	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
@@ -45,6 +54,17 @@ func (c *OperatorAutopilotGetCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error querying Autopilot configuration: %s", err))
 		return 1
 	}
+
+	if json || len(tmpl) > 0 {
+		out, err := Format(json, tmpl, config)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+		c.Ui.Output(out)
+		return 0
+	}
+
 	c.Ui.Output(fmt.Sprintf("CleanupDeadServers = %v", config.CleanupDeadServers))
 	c.Ui.Output(fmt.Sprintf("LastContactThreshold = %v", config.LastContactThreshold.String()))
 	c.Ui.Output(fmt.Sprintf("MaxTrailingLogs = %v", config.MaxTrailingLogs))
@@ -72,7 +92,16 @@ Usage: nomad operator autopilot get-config [options]
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
+Get Config Options:
+
+  -json
+    Output the Autopilot configuration in JSON format.
+
+  -t
+    Format and display the Autopilot configuration using a Go template.
+`
 
 	return strings.TrimSpace(helpText)
 }

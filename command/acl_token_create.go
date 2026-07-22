@@ -1,10 +1,12 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -23,9 +25,15 @@ type ACLTokenCreateCommand struct {
 
 func (c *ACLTokenCreateCommand) Help() string {
 	helpText := `
-Usage: nomad acl token create [options]
+Usage: nomad acl token create [options] [<path>]
 
   Create is used to issue new ACL tokens. Requires a management token.
+
+  By default, Nomad generates the AccessorID and SecretID automatically. To
+  upload (restore) a client token with pre-specified IDs — for example, when
+  recovering tokens from a backup — provide -accessor and supply the SecretID
+  via a file at <path>, or pass "-" to read it from stdin. Only client tokens
+  may be uploaded; management tokens must always be created fresh.
 
 General Options:
 
@@ -47,15 +55,24 @@ Create Options:
     but only with client type tokens.
 
   -role-id
-     ID of a role to use for this token. May be specified multiple times.
+     ID of an ACL role to associate with this token. ACL roles are
+     created with "nomad acl role create". May be specified multiple times,
+     but only with client type tokens.
 
   -role-name
-     Name of a role to use for this token. May be specified multiple times.
+     Name of an ACL role to associate with this token. ACL roles are created
+     with "nomad acl role create". May be specified multiple times, but only
+     with client type tokens.
 
   -ttl
     Specifies the time-to-live of the created ACL token. This takes the form of
     a time duration such as "5m" and "1h". By default, tokens will be created
     without a TTL and therefore never expire.
+
+  -accessor=""
+    Pre-specified AccessorID (UUID) for the token. When provided, the SecretID
+    must be supplied via <path> (a file or "-" for stdin). The token is uploaded
+    rather than generated. Only valid for client tokens.
 
   -json
     Output the ACL token information in JSON format.
@@ -76,6 +93,7 @@ func (c *ACLTokenCreateCommand) AutocompleteFlags() complete.Flags {
 			"role-id":   complete.PredictAnything,
 			"role-name": complete.PredictAnything,
 			"ttl":       complete.PredictAnything,
+			"accessor":  complete.PredictAnything,
 			"-json":     complete.PredictNothing,
 			"-t":        complete.PredictAnything,
 		})
@@ -92,7 +110,7 @@ func (c *ACLTokenCreateCommand) Synopsis() string {
 func (c *ACLTokenCreateCommand) Name() string { return "acl token create" }
 
 func (c *ACLTokenCreateCommand) Run(args []string) int {
-	var name, tokenType, ttl, tmpl string
+	var name, tokenType, ttl, tmpl, accessorID string
 	var global, json bool
 	var policies []string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -103,6 +121,7 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 	flags.StringVar(&ttl, "ttl", "", "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&accessorID, "accessor", "", "")
 	flags.Var((funcVar)(func(s string) error {
 		policies = append(policies, s)
 		return nil
@@ -119,12 +138,52 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
 	args = flags.Args()
-	if l := len(args); l != 0 {
-		c.Ui.Error(uiMessageNoArguments)
+	if l := len(args); l > 1 {
+		c.Ui.Error("This command takes up to one argument")
 		c.Ui.Error(commandErrorText(c))
 		return 1
+	}
+
+	// If -accessor is set, the caller must also supply the SecretID via a file
+	// or stdin (positional argument).
+	if accessorID != "" && len(args) == 0 {
+		c.Ui.Error("-accessor requires a SecretID supplied as a file path or \"-\" for stdin")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+	if accessorID == "" && len(args) == 1 {
+		c.Ui.Error("A SecretID file path was provided but -accessor was not set")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
+	if accessorID != "" && !helper.IsUUID(accessorID) {
+		c.Ui.Error("-accessor value must be a valid UUID")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
+	var secretID string
+	if len(args) == 1 {
+		var raw []byte
+		var err error
+		switch args[0] {
+		case "-":
+			raw, err = io.ReadAll(os.Stdin)
+		default:
+			raw, err = os.ReadFile(args[0])
+		}
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error reading SecretID: %v", err))
+			return 1
+		}
+		secretID = strings.TrimSpace(string(raw))
+		if !helper.IsUUID(secretID) {
+			c.Ui.Error("SecretID must be a valid UUID")
+			c.Ui.Error(commandErrorText(c))
+			return 1
+		}
 	}
 
 	// Set up the token.
@@ -162,11 +221,22 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 		}
 	}
 
-	// Create the bootstrap token
-	token, _, err := client.ACLTokens().Create(tk, nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error creating token: %s", err))
-		return 1
+	var token *api.ACLToken
+
+	if accessorID != "" {
+		tk.AccessorID = accessorID
+		tk.SecretID = secretID
+		token, _, err = client.ACLTokens().Upload(tk, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error uploading token: %s", err))
+			return 1
+		}
+	} else {
+		token, _, err = client.ACLTokens().Create(tk, nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error creating token: %s", err))
+			return 1
+		}
 	}
 
 	if json || len(tmpl) > 0 {

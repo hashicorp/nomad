@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -94,6 +94,7 @@ type RPCer interface {
 	Stats() map[string]map[string]string
 	GetConfig() *Config
 	GetMetricsSink() *metrics.InmemSink
+	ConfigReload() error
 }
 
 // HTTPServer is used to wrap an Agent and expose it over an HTTP interface
@@ -482,6 +483,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/agent/keyring/", s.wrap(s.KeyringOperationRequest))
 	s.mux.HandleFunc("/v1/agent/health", s.wrap(s.HealthRequest))
 	s.mux.HandleFunc("/v1/agent/host", s.wrap(s.AgentHostRequest))
+	s.mux.HandleFunc("/v1/agent/reload", s.wrap(s.AgentReloadRequest))
 
 	// Register our service registration handlers.
 	s.mux.HandleFunc("/v1/services", s.wrap(s.ServiceRegistrationListRequest))
@@ -735,8 +737,8 @@ func errCodeFromHandler(err error) (int, string) {
 }
 
 // wrap is used to wrap functions to make them more convenient
-func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)) func(resp http.ResponseWriter, req *http.Request) {
-	f := func(resp http.ResponseWriter, req *http.Request) {
+func (s *HTTPServer) wrap(handler handlerFn) func(resp http.ResponseWriter, req *http.Request) {
+	return func(resp http.ResponseWriter, req *http.Request) {
 		setHeaders(resp, s.agent.GetConfig().HTTPAPIResponseHeaders)
 		// Invoke the handler
 		reqURL := req.URL.String()
@@ -744,7 +746,17 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		defer func() {
 			s.logger.Debug("request complete", "method", req.Method, "path", reqURL, "duration", time.Since(start))
 		}()
-		obj, err := s.auditHandler(handler)(resp, req)
+
+		var obj any
+		var err error
+		if isWebsocketUpgrade(req) {
+			// Because the browser WebSocket API doesn't allow for setting the
+			// auth headers, we have to perform the upgrade and extract the auth
+			// token from the first message before we can audit the request
+			obj, err = s.wrapWebsocketHandler(s.auditHandler(handler))(resp, req)
+		} else {
+			obj, err = s.auditHandler(handler)(resp, req)
+		}
 
 		// Check for an error
 	HAS_ERR:
@@ -811,7 +823,6 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 			resp.Write(buf.Bytes())
 		}
 	}
-	return f
 }
 
 // wrapNonJSON is used to wrap functions returning non JSON
@@ -1016,8 +1027,9 @@ func parseInt(req *http.Request, field string) (*int, error) {
 	return nil, nil
 }
 
-// parseToken is used to parse the X-Nomad-Token param
+// parseToken is used to get an authentication token from the request
 func (s *HTTPServer) parseToken(req *http.Request, token *string) {
+
 	if other := req.Header.Get("X-Nomad-Token"); other != "" {
 		*token = strings.TrimSpace(other)
 		return
@@ -1040,7 +1052,18 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 				// Since Bearer tokens shouldn't contain spaces (rfc6750#section-2.1)
 				// "value" is tokenized, only the first item is used
 				*token = strings.TrimSpace(strings.Split(value, " ")[0])
+				return
 			}
+		}
+	}
+
+	// Websocket requests may not have an auth header if they came from a
+	// browser, so extract the token from the request context added when we
+	// upgraded the connection instead
+	if ctxVal := req.Context().Value(ctxKeyWebSocketAuthToken); ctxVal != nil {
+		if ctxToken, ok := ctxVal.(string); ok && ctxToken != "" {
+			*token = ctxToken
+			return
 		}
 	}
 }

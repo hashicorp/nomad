@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -285,6 +285,18 @@ func (hv *HostVolume) GetNamespace() string {
 // GetID implements the paginator.IDGetter interface
 func (hv *HostVolume) GetID() string {
 	return hv.ID
+}
+
+// MatchesRequestSource returns true if the volume request source matches the
+// volume name, accounting for the per_alloc feature
+func (hv *HostVolume) MatchesRequestSource(req *VolumeRequest, alloc *Allocation) bool {
+	if req.Type != VolumeTypeHost {
+		return false
+	}
+	if req.PerAlloc && alloc != nil {
+		return hv.Name == fmt.Sprintf("%s%s", req.Source, AllocSuffix(alloc.Name))
+	}
+	return req.Source == hv.Name
 }
 
 // HostVolumeCapability is the requested attachment and access mode for a volume

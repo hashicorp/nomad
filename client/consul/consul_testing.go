@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package consul
@@ -14,7 +14,8 @@ import (
 )
 
 type MockConsulClient struct {
-	tokens map[string]*consulapi.ACLToken
+	tokens   map[string]*consulapi.ACLToken
+	Requests []JWTLoginRequest
 }
 
 func NewMockConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, error) {
@@ -25,6 +26,8 @@ func NewMockConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Clie
 // the request ID for the AccessorID and the md5 checksum of the request ID for
 // the SecretID
 func (mc *MockConsulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
+	mc.Requests = append(mc.Requests, req)
+
 	if t, ok := mc.tokens[req.JWT]; ok {
 		return t, nil
 	}

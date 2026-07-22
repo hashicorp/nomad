@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package executor
@@ -29,8 +29,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/opencontainers/cgroups/devices/config"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -743,8 +743,8 @@ func TestExecutor_cmdDevices(t *testing.T) {
 		},
 	}
 
-	expected := &devices.Device{
-		Rule: devices.Rule{
+	expected := &config.Device{
+		Rule: config.Rule{
 			Type:        99,
 			Major:       1,
 			Minor:       3,
@@ -1095,7 +1095,7 @@ func TestCgroupDeviceRules(t *testing.T) {
 	cfg, err := executor.newLibcontainerConfig(command)
 	must.NoError(t, err)
 
-	must.SliceContains(t, cfg.Cgroups.Devices, &devices.Rule{
+	must.SliceContains(t, cfg.Cgroups.Devices, &config.Rule{
 		Type:        'c',
 		Major:       0x0a,
 		Minor:       0xe5,

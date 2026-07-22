@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -99,6 +99,50 @@ module('Acceptance | allocation detail', function (hooks) {
       currentURL(),
       `/clients/${node.id}`,
       'Client link navigates to the client',
+    );
+  });
+
+  test('/allocation/:id shows max run deadline for batch allocations that have one configured', async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000,
+    );
+
+    const batchJob = this.server.create('job', {
+      groupsCount: 1,
+      withGroupServices: true,
+      createAllocations: false,
+      type: 'batch',
+    });
+    const taskGroup = this.server.db.taskGroups.findBy({ jobId: batchJob.id });
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    const batchAllocation = this.server.create(
+      'allocation',
+      'withTaskWithPorts',
+      {
+        clientStatus: 'running',
+        jobId: batchJob.id,
+        taskGroup: taskGroup.name,
+      },
+    );
+
+    this.server.db.taskStates
+      .where({ allocationId: batchAllocation.id })
+      .forEach((taskState) => {
+        this.server.db.taskStates.update(taskState.id, {
+          state: 'running',
+          startedAt,
+        });
+      });
+
+    await Allocation.visit({ id: batchAllocation.id });
+
+    assert.equal(
+      Allocation.details.maxRunDeadlineTooltip,
+      moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'Allocation details show the computed max run deadline',
     );
   });
 

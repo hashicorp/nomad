@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -84,6 +84,36 @@ module('Acceptance | task group detail', function (hooks) {
   test('it passes an accessibility audit', async function (assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
     await a11yAudit(assert);
+  });
+
+  test('task group allocations show max run deadline when configured', async function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const expectedDeadline = new Date(
+      startedAt.getTime() + maxRunDuration / 1000000,
+    );
+
+    job.update({ type: 'batch' });
+    this.server.db.taskGroups.update(taskGroup.id, { maxRunDuration });
+
+    allocations.forEach((allocation) => {
+      this.server.db.taskStates
+        .where({ allocationId: allocation.id })
+        .forEach((taskState) => {
+          this.server.db.taskStates.update(taskState.id, {
+            state: 'running',
+            startedAt,
+          });
+        });
+    });
+
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
+    assert.equal(
+      TaskGroup.allocations[0].maxRunDeadlineTooltip,
+      moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
+      'The task group allocations table shows the computed max run deadline',
+    );
   });
 
   test('/jobs/:id/:task-group should list high-level metrics for the allocation', async function (assert) {

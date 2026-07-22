@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package hostvolumemanager
@@ -363,7 +363,7 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 		}
 		must.NoError(t, state.PutDynamicHostVolume(vol))
 
-		hvm := NewHostVolumeManager(log, Config{StateMgr: state})
+		hvm := NewHostVolumeManager(log, Config{StateMgr: state, PluginDir: t.TempDir()})
 		vols, err := hvm.restoreFromState(timeout(t))
 		must.ErrorIs(t, err, ErrPluginNotExists)
 		must.MapEmpty(t, vols)

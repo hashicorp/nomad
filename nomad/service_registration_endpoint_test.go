@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -974,7 +974,7 @@ func TestServiceRegistration_List(t *testing.T) {
 				job.Namespace = "platform"
 				allocs[0].Namespace = "platform"
 				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
-				signAllocIdentities(s.encrypter, job, allocs, time.Now())
+				signAllocIdentities(s.encrypter, job, allocs, ns, time.Now())
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]
@@ -1251,7 +1251,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				allocs := []*structs.Allocation{mock.Alloc()}
 				job := allocs[0].Job
 				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
-				signAllocIdentities(s.encrypter, job, allocs, time.Now())
+				signAllocIdentities(s.encrypter, job, allocs, mock.Namespace(), time.Now())
 				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]

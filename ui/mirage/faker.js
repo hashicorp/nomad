@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -8,11 +8,7 @@ import config from 'nomad-ui/config/environment';
 
 const searchIncludesSeed = window.location.search.includes('faker-seed');
 
-if (
-  config.environment !== 'test' ||
-  config.percy.enabled ||
-  searchIncludesSeed
-) {
+if (config.environment !== 'test' || searchIncludesSeed) {
   if (searchIncludesSeed) {
     const params = new URLSearchParams(window.location.search);
     const seed = parseInt(params.get('faker-seed'));

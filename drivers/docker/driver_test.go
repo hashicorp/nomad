@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -1124,6 +1124,140 @@ func TestDockerDriver_CreateContainerConfig(t *testing.T) {
 	containerName := fmt.Sprintf("%s-%s", strings.Replace(task.Name, "/", "_", -1), task.AllocID)
 	must.Eq(t, containerName, c.Name)
 }
+func TestDockerDriver_CreateContainerConfig_AllowedModes(t *testing.T) {
+	ci.Parallel(t)
+	modifyTaskConfig := func(cfg *TaskConfig, field string, value string) TaskConfig {
+		c := *cfg
+		switch field {
+		case "pid":
+			c.PidMode = value
+		case "ipc":
+			c.IPCMode = value
+		case "userns":
+			c.UsernsMode = value
+		case "uts":
+			c.UTSMode = value
+		}
+		return c
+	}
+
+	cases := []struct {
+		name            string
+		modes           *AllowedModesConfig
+		allowPrivileged bool
+		field           string
+		expect          string
+		expectedErr     string
+	}{
+		{
+			name:        "fail to set pid_host",
+			field:       "pid",
+			expect:      "host",
+			expectedErr: "cannot apply \"pid_mode\"",
+		},
+		{
+			name:        "fail to set ipc_host",
+			field:       "ipc",
+			expect:      "host",
+			expectedErr: "cannot apply \"ipc_mode\"",
+		},
+		{
+			name:        "fail to set userns_host",
+			field:       "userns",
+			expect:      "host",
+			expectedErr: "cannot apply \"userns_mode\"",
+		},
+		{
+			name:        "fail to set uts_host",
+			field:       "uts",
+			expect:      "host",
+			expectedErr: "cannot apply \"uts_mode\"",
+		},
+		{
+			name:            "allow_privileged sets pid_host",
+			field:           "pid",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:            "allow_privileged sets ipc_host",
+			field:           "ipc",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:            "allow_privileged sets userns_host",
+			field:           "userns",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:            "allow_privileged sets uts_host",
+			field:           "uts",
+			expect:          "host",
+			allowPrivileged: true,
+		},
+		{
+			name:   "allowed_modes sets pid_host",
+			field:  "pid",
+			expect: "host",
+			modes:  &AllowedModesConfig{PID: []string{"host"}},
+		},
+		{
+			name:   "allowed_modes sets ipc container*",
+			field:  "ipc",
+			expect: "container:OtherNamedNamespace",
+			modes:  &AllowedModesConfig{IPC: []string{"container:*"}},
+		},
+		{
+			name:   "allowed_modes sets userns_host",
+			field:  "userns",
+			expect: "host",
+			modes:  &AllowedModesConfig{Userns: []string{"host"}},
+		},
+		{
+			name:   "allowed_modes sets uts_host",
+			field:  "uts",
+			expect: "host",
+			modes:  &AllowedModesConfig{UTS: []string{"host"}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			image := "org/repro:0.1"
+			task, config, _ := dockerTask(t)
+
+			dockerClientConfig := make(map[string]interface{})
+			dockerClientConfig["allowed_modes"] = tc.modes
+			if tc.allowPrivileged {
+				dockerClientConfig["allow_privileged"] = tc.allowPrivileged
+			}
+			dh := dockerDriverHarness(t, dockerClientConfig)
+
+			cfg := modifyTaskConfig(config, tc.field, tc.expect)
+			must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+
+			driver := dh.Impl().(*Driver)
+			c, err := driver.createContainerConfig(task, &cfg, image)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+			must.NoError(t, err)
+			switch tc.field {
+			case "pid":
+				must.Eq(t, false, c.Host.PidMode.IsPrivate())
+			case "ipc":
+				must.Eq(t, false, c.Host.IpcMode.IsPrivate())
+			case "userns":
+				must.Eq(t, false, c.Host.UsernsMode.IsPrivate())
+			case "uts":
+				must.Eq(t, false, c.Host.UTSMode.IsPrivate())
+			}
+
+		})
+	}
+}
 
 func TestDockerDriver_CreateContainerConfig_RuntimeConflict(t *testing.T) {
 	ci.Parallel(t)
@@ -1392,6 +1526,7 @@ func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 		"alloc:/alloc:z",
 		"redis-demo/local:/local:z",
 		"redis-demo/secrets:/secrets:z",
+		"alloc/logs:/alloc/logs:ro,z",
 		"/etc/ssl/certs:/etc/ssl/certs:ro,z",
 		"/var/www:/srv/www:z",
 	}, cc.Host.Binds)
@@ -1469,6 +1604,7 @@ func TestDockerDriver_CreateContainerConfig_Mounts_Windows(t *testing.T) {
 		`alloc:c:/alloc`,
 		`redis-demo\local:c:/local`,
 		`redis-demo\secrets:c:/secrets`,
+		`alloc/logs:c:/alloc/logs:ro`,
 		`c:\etc\ssl\certs:c:/etc/ssl/certs`,
 		`c:\var\www:c:/srv/www`,
 	}, cc.Host.Binds)
@@ -3071,59 +3207,108 @@ func TestDockerDriver_memoryLimits(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		name             string
-		driverMemoryMB   int64
-		taskResources    drivers.MemoryResources
-		expectedHard     int64
-		expectedReserved int64
+		name              string
+		driverHardLimitMB int64
+		taskResources     drivers.MemoryResources
+		expectedHard      int64
+		expectedReserved  int64
 	}{
 		{
-			"plain request",
-			0,
-			drivers.MemoryResources{MemoryMB: 10},
-			10 * 1024 * 1024,
-			0,
+			name:              "plain request",
+			driverHardLimitMB: 0,
+			taskResources:     drivers.MemoryResources{MemoryMB: 10},
+			expectedHard:      10 * 1024 * 1024,
+			expectedReserved:  0,
 		},
 		{
-			"with driver max",
-			20,
-			drivers.MemoryResources{MemoryMB: 10},
-			20 * 1024 * 1024,
-			10 * 1024 * 1024,
+			name:              "with driver max",
+			driverHardLimitMB: 20,
+			taskResources:     drivers.MemoryResources{MemoryMB: 10},
+			expectedHard:      20 * 1024 * 1024,
+			expectedReserved:  10 * 1024 * 1024,
 		},
 		{
-			"with resources max",
-			20,
-			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
-			20 * 1024 * 1024,
-			10 * 1024 * 1024,
+			name:              "with resources max",
+			driverHardLimitMB: 20,
+			taskResources:     drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			expectedHard:      20 * 1024 * 1024,
+			expectedReserved:  10 * 1024 * 1024,
 		},
 		{
-			"with driver and resources max: higher driver",
-			30,
-			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
-			30 * 1024 * 1024,
-			10 * 1024 * 1024,
+			name:              "with driver and resources max: higher driver",
+			driverHardLimitMB: 30,
+			taskResources:     drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 20},
+			expectedHard:      30 * 1024 * 1024,
+			expectedReserved:  10 * 1024 * 1024,
 		},
 		{
-			"with driver and resources max: higher resources",
-			20,
-			drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 30},
-			30 * 1024 * 1024,
-			10 * 1024 * 1024,
+			name:              "with driver and resources max: higher resources",
+			driverHardLimitMB: 20,
+			taskResources:     drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: 30},
+			expectedHard:      30 * 1024 * 1024,
+			expectedReserved:  10 * 1024 * 1024,
 		},
 		{
-			"with reserved-only memory oversubscription",
-			20,
-			drivers.MemoryResources{MemoryMB: 20, MemoryMaxMB: -1},
-			0,
-			20 * 1024 * 1024,
+			name:              "with reserved-only memory oversubscription",
+			driverHardLimitMB: 20,
+			taskResources:     drivers.MemoryResources{MemoryMB: 10, MemoryMaxMB: -1},
+			expectedHard:      0,
+			expectedReserved:  10 * 1024 * 1024,
+		},
+		{
+			name:              "all zero",
+			driverHardLimitMB: 0,
+			taskResources:     drivers.MemoryResources{MemoryMB: 0, MemoryMaxMB: 0},
+			expectedHard:      0,
+			expectedReserved:  0,
+		},
+		{
+			name:              "zero task memory with driver hard limit",
+			driverHardLimitMB: 20,
+			taskResources:     drivers.MemoryResources{MemoryMB: 0, MemoryMaxMB: 0},
+			expectedHard:      20 * 1024 * 1024,
+			expectedReserved:  0,
+		},
+		{
+			name:              "zero driver and reserved with max set",
+			driverHardLimitMB: 0,
+			taskResources:     drivers.MemoryResources{MemoryMB: 0, MemoryMaxMB: 30},
+			expectedHard:      30 * 1024 * 1024,
+			expectedReserved:  0,
+		},
+		{
+			name:              "driver and max set with zero reserved",
+			driverHardLimitMB: 20,
+			taskResources:     drivers.MemoryResources{MemoryMB: 0, MemoryMaxMB: 30},
+			expectedHard:      30 * 1024 * 1024,
+			expectedReserved:  0,
+		},
+		{
+			name:              "reserved-only no hard limit with zero reserved",
+			driverHardLimitMB: 0,
+			taskResources:     drivers.MemoryResources{MemoryMB: 0, MemoryMaxMB: -1},
+			expectedHard:      0,
+			expectedReserved:  0,
+		},
+		{
+			name:              "driver ignored when memory max is no limit",
+			driverHardLimitMB: 50,
+			taskResources:     drivers.MemoryResources{MemoryMB: 0, MemoryMaxMB: -1},
+			expectedHard:      0,
+			expectedReserved:  0,
+		},
+		{
+			name:              "driver lower than memory",
+			driverHardLimitMB: 6,
+			taskResources:     drivers.MemoryResources{MemoryMB: 17, MemoryMaxMB: 0},
+			expectedHard:      6 * 1024 * 1024,
+			expectedReserved:  17 * 1024 * 1024,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			hard, reserved := memoryLimits(c.driverMemoryMB, c.taskResources)
+			hard, reserved := memoryLimits(c.driverHardLimitMB, c.taskResources)
 			must.Eq(t, c.expectedHard, hard)
 			must.Eq(t, c.expectedReserved, reserved)
 		})
@@ -3378,4 +3563,62 @@ DONE:
 
 	// CPU stats should be changed with every interval
 	must.Len(t, statsReceived, tickValues.Slice())
+}
+
+func Test_validateNamespace(t *testing.T) {
+	cases := []struct {
+		name             string
+		allowedModes     []string
+		allowPrivileged  bool
+		field            string
+		desiredNamespace string
+		expectedErr      string
+	}{
+		{
+			name:             "none configured",
+			allowedModes:     []string{},
+			field:            "pid_mode",
+			desiredNamespace: "container",
+			expectedErr:      "cannot apply \"pid_mode\" configuration",
+		},
+		{
+			name:             "allowPrivileged allows anything",
+			allowedModes:     []string{},
+			allowPrivileged:  true,
+			field:            "pid_mode",
+			desiredNamespace: "host",
+		},
+		{
+			name:             "wide opencontainer glob",
+			allowedModes:     []string{"container:*"},
+			allowPrivileged:  true,
+			field:            "pid_mode",
+			desiredNamespace: "container:093dede90-wer323339-3d99d",
+		},
+		{
+			name:             "constrained container glob",
+			allowedModes:     []string{"container:*desired"},
+			field:            "ipc_mode",
+			desiredNamespace: "container:093dede90-3d99d",
+			expectedErr:      "cannot apply \"ipc_mode\" configuration",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dockerClientConfig := make(map[string]interface{})
+
+			if tc.allowPrivileged {
+				dockerClientConfig["allow_privileged"] = tc.allowPrivileged
+			}
+			dh := dockerDriverHarness(t, dockerClientConfig)
+			driver := dh.Impl().(*Driver)
+			err := driver.validateNamespace(tc.allowedModes, tc.field, tc.desiredNamespace)
+			if tc.expectedErr != "" {
+				must.ErrorContains(t, err, tc.expectedErr)
+				return
+			}
+			must.NoError(t, err)
+		})
+	}
 }

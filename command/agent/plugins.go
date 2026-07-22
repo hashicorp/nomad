@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -27,6 +27,14 @@ func (a *Agent) setupPlugins() error {
 		InternalPlugins:   internal,
 		SupportedVersions: loader.AgentSupportedApiVersions,
 	}
+
+	// IMPORTANT: This function will mutate the passed in config to update the
+	// plugin configs with any default values from the plugin's config schema.
+	//  They need to be propagated so we need to pass a pointer to the
+	// agent's config here.
+	a.configLock.Lock()
+	defer a.configLock.Unlock()
+
 	l, err := loader.NewPluginLoader(config)
 	if err != nil {
 		return fmt.Errorf("failed to create plugin loader: %v", err)

@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -11,7 +11,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import StorageList from 'nomad-ui/tests/pages/storage/list';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 const assignWriteAlloc = (volume, alloc) => {
@@ -64,8 +63,6 @@ module('Acceptance | storage list', function (hooks) {
     this.server.createList('csi-volume', volumeCount);
 
     await StorageList.visit();
-
-    await percySnapshot(assert);
 
     const sortedVolumes = this.server.db.csiVolumes.sortBy('id');
 
@@ -143,8 +140,6 @@ module('Acceptance | storage list', function (hooks) {
 
   test('when there are no csi volumes, there is an empty message', async function (assert) {
     await StorageList.visit();
-
-    await percySnapshot(assert);
 
     assert.ok(StorageList.csiIsEmpty);
     assert.deepEqual(StorageList.csiEmptyState, 'No CSI Volumes found');

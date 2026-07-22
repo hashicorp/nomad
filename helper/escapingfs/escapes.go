@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package escapingfs
@@ -9,6 +9,44 @@ import (
 	"path/filepath"
 	"strings"
 )
+
+// ChildEscapesParentDir returns an error if the child escapes the parent,
+// or if it cannot say for sure due to some other error.
+//
+// The parent must exist. A missing child is not an error.
+//
+// It checks ../ style relative path traversal and symlinks. If child is a
+// symlink that resolves to an absolute path, it will be rejected regardless
+// of whether the target is in parent. A symlink to a relative path within
+// parent is allowed.
+//
+// Input paths may be absolute or relative, but if the parent is relative,
+// the child must be relative, too.
+//
+// Yes, this is yet-another-path-escape check. This one uses the modern os.Root
+// API, which is both simple and robust. We retain the older checks for
+// backwards compatibility, but new path escape checks and refactors should use
+// this one.
+func ChildEscapesParentDir(parent, child string) error {
+	var err error
+	if filepath.IsAbs(child) {
+		child, err = filepath.Rel(parent, child)
+		if err != nil {
+			return err
+		}
+	}
+	// os.Root accounts for relative paths and symlinks
+	root, err := os.OpenRoot(parent)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	_, err = root.Stat(child)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
 
 // PathEscapesAllocViaRelative returns if the given path escapes the allocation
 // directory using relative paths.

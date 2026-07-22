@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -26,7 +26,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/auth"
@@ -685,7 +684,7 @@ func TestEncrypter_SignVerify(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
 
-	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now())
 	e := srv.encrypter
@@ -721,7 +720,7 @@ func TestEncrypter_SignVerify_Issuer(t *testing.T) {
 
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
-	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now())
 
@@ -750,7 +749,7 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 
 	alloc := mock.Alloc()
 	task := alloc.LookupTask("web")
-	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity).
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, wiHandle, task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now())
 
@@ -938,7 +937,7 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 				TLSCaPath:     "/etc/certs/ca",
 				TLSCertFile:   "/var/certs/vault.crt",
 				TLSKeyFile:    "/var/certs/vault.key",
-				TLSSkipVerify: pointer.Of(true),
+				TLSSkipVerify: new(true),
 				TLSServerName: "foo",
 				Token:         "vault-token",
 			}},

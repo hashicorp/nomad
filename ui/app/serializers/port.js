@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -16,7 +16,7 @@ export default class PortSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     const ip = hash.HostIP;
 
-    if (isIPv6(ip)) {
+    if (ip && isIPv6(ip)) {
       hash.HostIP = `[${ip}]`;
     }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -11,7 +11,6 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
-import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | clients list', function (hooks) {
@@ -41,8 +40,6 @@ module('Acceptance | clients list', function (hooks) {
     this.server.createList('agent', 1);
 
     await ClientsList.visit();
-
-    await percySnapshot(assert);
 
     assert.deepEqual(ClientsList.nodes.length, ClientsList.pageSize);
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
@@ -244,9 +241,6 @@ module('Acceptance | clients list', function (hooks) {
     this.server.createList('agent', 1);
 
     await ClientsList.visit();
-
-    await percySnapshot(assert);
-
     assert.ok(ClientsList.isEmpty);
     assert.deepEqual(ClientsList.empty.headline, 'No Clients');
   });

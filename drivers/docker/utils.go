@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package docker
@@ -285,13 +285,6 @@ func expandPath(base, dir string) string {
 	}
 
 	return filepath.Clean(filepath.Join(base, dir))
-}
-
-// isParentPath returns true if path is a child or a descendant of parent path.
-// Both inputs need to be absolute paths.
-func isParentPath(parent, path string) bool {
-	rel, err := filepath.Rel(parent, path)
-	return err == nil && !strings.HasPrefix(rel, "..")
 }
 
 func parseVolumeSpec(volBind, os string) (hostPath string, containerPath string, mode string, err error) {

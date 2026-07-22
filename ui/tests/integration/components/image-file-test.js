@@ -1,9 +1,9 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { find, render } from '@ember/test-helpers';
+import { find, render, waitFor } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
@@ -83,7 +83,9 @@ module('Integration | Component | image file', function (hooks) {
 
     await render(commonTemplate);
 
+    await waitFor('[data-test-file-stats]');
     const statsEl = find('[data-test-file-stats]');
+
     assert.ok(
       /\d+px\s*\u00d7\s*\d+px/.test(statsEl.textContent),
       'Width and height are formatted correctly',

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package structs
@@ -163,6 +163,7 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
+		UpdatedAt:         now,
 	}
 
 	if p.noSubmit {

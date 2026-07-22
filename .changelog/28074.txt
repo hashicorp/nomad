@@ -1,0 +1,7 @@
+```release-note:bug
+ui: Fixed the namespace list being continually fetched when on the job overview page
+```
+
+```release-note:bug
+ui: Fixed flickering on the log streaming pop out when viewing them from job overview page
+```

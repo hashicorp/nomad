@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright IBM Corp. 2015, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
@@ -8,6 +8,20 @@
 set -xeuo pipefail
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
+
+# Consul and Envoy versions are pinned together and MUST stay compatible per
+# Consul's Envoy compatibility matrix:
+# https://developer.hashicorp.com/consul/docs/reference/proxy/envoy#envoy-and-consul-client-agent
+#
+# The exec2 countdash e2e test runs Envoy manually from /opt/bin/envoy and
+# therefore does not benefit from Nomad's automatic ${NOMAD_envoy_version}
+# negotiation. If Consul drifts ahead of the bundled Envoy, its xDS server
+# rejects the proxy and the sidecar never initializes.
+#
+# Keep CONSUL_VERSION in sync with the Windows client agent in
+# provision-infra/userdata/windows-2022.ps1.
+CONSUL_VERSION="2.0.1+ent-1"
+ENVOY_VERSION="1.38.3"
 
 mkdir_for_root() {
     sudo mkdir -p "$1"
@@ -58,7 +72,7 @@ sudo apt-get update
 
 echo "Install Consul and Nomad"
 sudo apt-get install -y \
-     consul-enterprise \
+     consul-enterprise="${CONSUL_VERSION}" \
      nomad
 
 # Note: neither service will start on boot because we haven't enabled
@@ -139,8 +153,8 @@ sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0 nomad-driver
 sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
 
 # Envoy
-echo "Installing Envoy"
-sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.34.1/envoy-1.34.1-linux-x86_64
+echo "Installing Envoy ${ENVOY_VERSION}"
+sudo curl -s -S -L -o /opt/bin/envoy "https://github.com/envoyproxy/envoy/releases/download/v${ENVOY_VERSION}/envoy-${ENVOY_VERSION}-linux-x86_64"
 sudo chmod +x /opt/bin/envoy
 
 echo "Updating boot parameters"

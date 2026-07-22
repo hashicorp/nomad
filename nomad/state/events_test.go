@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -9,7 +9,6 @@ import (
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -180,7 +179,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -188,7 +187,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
@@ -257,7 +256,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	c1.DeploymentID = d.ID
 	d.TaskGroups[c1.TaskGroup].PlacedCanaries = append(d.TaskGroups[c1.TaskGroup].PlacedCanaries, c1.ID)
 	c1.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 	c2 := mock.Alloc()
 	c2.JobID = j.ID
@@ -265,7 +264,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	d.TaskGroups[c2.TaskGroup].PlacedCanaries = append(d.TaskGroups[c2.TaskGroup].PlacedCanaries, c2.ID)
 	c2.TaskGroup = tg2.Name
 	c2.DeploymentStatus = &structs.AllocDeploymentStatus{
-		Healthy: pointer.Of(true),
+		Healthy: new(true),
 	}
 
 	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
@@ -538,6 +537,54 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	must.Len(t, 1, evals)
 	must.Len(t, 1, jobs)
 	must.Len(t, 1, deploys)
+
+	for _, e := range allocs {
+		allocEvent := e.Payload.(*structs.AllocationEvent)
+		must.False(t, allocEvent.Timeout)
+		must.Eq(t, "", allocEvent.TimeoutReason)
+	}
+}
+
+func TestEventFromChange_AllocationTimeoutFields(t *testing.T) {
+	ci.Parallel(t)
+	s := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer s.StopEventBroker()
+
+	timeoutAlloc := mock.Alloc()
+	timeoutAlloc.ClientStatus = structs.AllocClientStatusComplete
+	timeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+
+	timeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  timeoutAlloc,
+	})
+	must.True(t, ok)
+
+	timeoutPayload, ok := timeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.True(t, timeoutPayload.Timeout)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusComplete, timeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, timeoutPayload.Allocation.ClientDescription)
+
+	nonTimeoutAlloc := mock.Alloc()
+	nonTimeoutAlloc.ClientStatus = structs.AllocClientStatusFailed
+	nonTimeoutAlloc.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
+
+	nonTimeoutEvent, ok := eventFromChange(memdb.Change{
+		Table:  "allocs",
+		Before: nil,
+		After:  nonTimeoutAlloc,
+	})
+	must.True(t, ok)
+
+	nonTimeoutPayload, ok := nonTimeoutEvent.Payload.(*structs.AllocationEvent)
+	must.True(t, ok)
+	must.False(t, nonTimeoutPayload.Timeout)
+	must.Eq(t, "", nonTimeoutPayload.TimeoutReason)
+	must.Eq(t, structs.AllocClientStatusFailed, nonTimeoutPayload.Allocation.ClientStatus)
+	must.Eq(t, structs.AllocTimeoutReasonMaxRunDuration, nonTimeoutPayload.Allocation.ClientDescription)
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
@@ -661,7 +708,7 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 
 	req := &structs.AllocUpdateDesiredTransitionRequest{
 		Allocs: map[string]*structs.DesiredTransition{
-			alloc.ID: {Migrate: pointer.Of(true)},
+			alloc.ID: {Migrate: new(true)},
 		},
 		Evals: evals,
 	}

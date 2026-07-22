@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package drivers
@@ -24,6 +24,19 @@ import (
 type driverPluginServer struct {
 	broker *plugin.GRPCBroker
 	impl   DriverPlugin
+}
+
+func (b *driverPluginServer) Init(ctx context.Context, req *proto.InitRequest) (*proto.InitResponse, error) {
+	i, ok := b.impl.(DriverIniter)
+	if !ok {
+		return &proto.InitResponse{}, nil
+	}
+
+	if err := i.Init(ctx); err != nil {
+		return nil, err
+	}
+
+	return &proto.InitResponse{}, nil
 }
 
 func (b *driverPluginServer) TaskConfigSchema(ctx context.Context, req *proto.TaskConfigSchemaRequest) (*proto.TaskConfigSchemaResponse, error) {
@@ -428,4 +441,19 @@ func (b *driverPluginServer) DestroyNetwork(ctx context.Context, req *proto.Dest
 	}
 
 	return &proto.DestroyNetworkResponse{}, nil
+}
+
+func (b *driverPluginServer) Shutdown(ctx context.Context, req *proto.ShutdownRequest) (*proto.ShutdownResponse, error) {
+	// Shutdown is optional so check if the plugin has implemented
+	// the Shutdowner interface and simply return if it does not.
+	s, ok := b.impl.(DriverShutdowner)
+	if !ok {
+		return &proto.ShutdownResponse{}, nil
+	}
+
+	if err := s.Shutdown(ctx); err != nil {
+		return nil, err
+	}
+
+	return &proto.ShutdownResponse{}, nil
 }

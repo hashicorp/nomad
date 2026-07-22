@@ -4,19 +4,36 @@ packages:
 autoInstallPeers: false
 
 overrides:
+  '@babel/plugin-transform-modules-systemjs@>=7.12.0 <=7.29.3': '>=7.29.4'
   '@babel/runtime@<7.26.10': '>=7.26.10'
+  '@ember/string': 4.0.1
   '@glimmer/component': ^2.1.1
   ansi-html@<0.0.8: '>=0.0.8'
-  basic-ftp@<=5.3.0: '>=5.3.1'
+  brace-expansion@>=5.0.0 <5.0.6: '>=5.0.6'
   diff@>=6.0.0 <8.0.3: '>=8.0.3'
-  flatted@<=3.4.1: '>=3.4.2'
-  follow-redirects@<=1.15.11: '>=1.16.0'
-  ip-address@<=10.1.0: '>=10.1.1'
-  picomatch@<2.3.2: '>=2.3.2'
-  picomatch@>=4.0.0 <4.0.4: '>=4.0.4'
-  socket.io-parser@>=4.0.0 <4.2.6: '>=4.2.6'
+  ember-inflector: 6.0.0
+  linkify-it: 5.0.2
+  qs@>=6.11.1 <=6.15.1: '>=6.15.2'
+  shell-quote@>=1.1.0 <=1.8.3: '>=1.8.4'
+  tmp@<0.2.6: '>=0.2.6'
   tmp@<=0.2.3: '>=0.2.4'
-  uuid@<14.0.0: '>=14.0.0'
+  uuid@<11.1.1: '>=11.1.1'
+  ws@>=8.0.0 <8.20.1: '>=8.20.1'
+
+peerDependencyRules:
+  allowedVersions:
+    # ember-data 4.12.x still declares @ember/string ^3, but our app uses v4
+    '@ember-data/adapter>@ember/string': '^4.0.0'
+    '@ember-data/debug>@ember/string': '^4.0.0'
+    '@ember-data/legacy-compat>@ember/string': '^4.0.0'
+    '@ember-data/model>@ember/string': '^4.0.0'
+    '@ember-data/serializer>@ember/string': '^4.0.0'
+    '@ember-data/store>@ember/string': '^4.0.0'
+    ember-concurrency: '^4.0.0'
+    'ember-data>@ember/string': '^4.0.0'
+    ember-inflector: '>=4.0.0'
+    # Older addons declare narrow peers; we run ember-source 6.x / ember-concurrency 4.x
+    ember-source: '^6.0.0'
 
 publicHoistPattern:
   - ember-source

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskenv
@@ -143,6 +143,19 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 		fmt.Sprintf("%v%v", nodeClass, metaVal),
 		fmt.Sprintf("%v%v", envTwoVal, nodeClass),
 	}
+	env := testEnvBuilder()
+	act := env.Build().ParseAndReplace(input)
+
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
+	}
+}
+
+func TestEnvironment_ParseAndReplace_Secrets(t *testing.T) {
+	ci.Parallel(t)
+
+	input := []string{fmt.Sprintf("${%v}", testSecret)}
+	exp := []string{testSecret}
 	env := testEnvBuilder()
 	act := env.Build().ParseAndReplace(input)
 

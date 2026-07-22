@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -144,6 +144,25 @@ func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields
 	return filter, nil
 }
 
+// TaskGroupHostVolumeClaimByID returns the claim matching the given ID, but
+// only if it belongs to the given namespace. This prevents cross-namespace
+// access to claims by ID.
+func (s *StateStore) TaskGroupHostVolumeClaimByID(ws memdb.WatchSet, ns, id string) (*structs.TaskGroupHostVolumeClaim, error) {
+	txn := s.db.ReadTxn()
+	obj, err := txn.First(TableTaskGroupHostVolumeClaim, indexClaimID, id)
+	if err != nil {
+		return nil, err
+	}
+	if obj == nil {
+		return nil, nil
+	}
+	claim := obj.(*structs.TaskGroupHostVolumeClaim)
+	if claim.ID != id || claim.Namespace != ns {
+		return nil, nil
+	}
+	return claim, nil
+}
+
 // deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes all claims for a
 // given namespace and job ID
 func (s *StateStore) deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index uint64, txn *txn, namespace, jobID string) error {
@@ -165,17 +184,21 @@ func (s *StateStore) deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index uint6
 }
 
 // DeleteTaskGroupHostVolumeClaim deletes a claim by its ID
-func (s *StateStore) DeleteTaskGroupHostVolumeClaim(index uint64, claimID string) error {
+func (s *StateStore) DeleteTaskGroupHostVolumeClaim(index uint64, ns, claimID string) error {
 	txn := s.db.WriteTxnMsgT(structs.TaskGroupHostVolumeClaimDeleteRequestType, index)
 	defer txn.Abort()
 
 	obj, err := txn.First(TableTaskGroupHostVolumeClaim, indexClaimID, claimID)
 	if err != nil {
-		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
+		return fmt.Errorf("task group volume claim lookup failed: %v", err)
 	}
 
 	if obj == nil {
-		return errors.New("Task group volume claim does not exist")
+		return errors.New("task group volume claim does not exist")
+	}
+	claim := obj.(*structs.TaskGroupHostVolumeClaim)
+	if claim.Namespace != ns {
+		return errors.New("task group volume claim does not exist")
 	}
 
 	if err := txn.Delete(TableTaskGroupHostVolumeClaim, obj); err != nil {

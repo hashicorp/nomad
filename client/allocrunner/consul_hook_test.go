@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package allocrunner
@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	consulapi "github.com/hashicorp/consul/api"
+	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/consul"
 	cstate "github.com/hashicorp/nomad/client/state"
@@ -23,7 +24,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func consulHookTestHarness(t *testing.T) *consulHook {
+func consulHookTestHarness(t *testing.T) (*consulHook, *consul.MockConsulClient) {
 	logger := testlog.HCLogger(t)
 
 	alloc := mock.Alloc()
@@ -69,23 +70,27 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 
 	hookResources := cstructs.NewAllocHookResources()
 
+	mockClient := &consul.MockConsulClient{}
+
 	consulHookCfg := consulHookConfig{
-		alloc:                   alloc,
-		allocdir:                nil,
-		widmgr:                  mockWIDMgr,
-		consulConfigs:           consulConfigs,
-		consulClientConstructor: consul.NewMockConsulClient,
-		hookResources:           hookResources,
-		db:                      db,
-		logger:                  logger,
+		alloc:         alloc,
+		allocdir:      nil,
+		widmgr:        mockWIDMgr,
+		consulConfigs: consulConfigs,
+		consulClientConstructor: func(_ *structsc.ConsulConfig, _ hclog.Logger) (consul.Client, error) {
+			return mockClient, nil
+		},
+		hookResources: hookResources,
+		db:            db,
+		logger:        logger,
 	}
-	return newConsulHook(consulHookCfg)
+	return newConsulHook(consulHookCfg), mockClient
 }
 
 func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 	ci.Parallel(t)
 
-	hook := consulHookTestHarness(t)
+	hook, _ := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
 
 	wid := task.GetIdentity("consul_default")
@@ -178,7 +183,7 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	ci.Parallel(t)
 
-	hook := consulHookTestHarness(t)
+	hook, _ := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
 	services := task.Services
 	env := taskenv.NewBuilder(mock.Node(), hook.alloc, task, "global").
@@ -258,7 +263,7 @@ func Test_consulHook_Postrun(t *testing.T) {
 	ci.Parallel(t)
 
 	// no-op must be safe
-	hook := consulHookTestHarness(t)
+	hook, _ := consulHookTestHarness(t)
 	must.NoError(t, hook.Postrun())
 
 	task := hook.alloc.LookupTask("web")
@@ -276,4 +281,36 @@ func Test_consulHook_Postrun(t *testing.T) {
 	must.NoError(t, hook.Postrun())
 	tokens = hook.resourcesBackend.getConsulTokens()
 	must.MapEmpty(t, tokens["default"])
+}
+
+func Test_consulHook_prepareConsulTokensForTask_includeAdditionalMeta(t *testing.T) {
+	ci.Parallel(t)
+
+	hook, mockClient := consulHookTestHarness(t)
+	task := hook.alloc.LookupTask("web")
+
+	tokens := map[string]map[string]*consulapi.ACLToken{}
+	must.NoError(t, hook.prepareConsulTokensForTask(task, nil, tokens))
+
+	must.SliceLen(t, 1, mockClient.Requests)
+	for _, req := range mockClient.Requests {
+		must.Eq(t, hook.alloc.NodeID, req.Meta["node_id"])
+	}
+}
+
+func Test_consulHook_prepareConsulTokensForServices_includeAdditionalMeta(t *testing.T) {
+	ci.Parallel(t)
+
+	hook, mockClient := consulHookTestHarness(t)
+	task := hook.alloc.LookupTask("web")
+	env := taskenv.NewBuilder(mock.Node(), hook.alloc, task, "global").
+		Build().WithTask(hook.alloc, task)
+
+	tokens := map[string]map[string]*consulapi.ACLToken{}
+	must.NoError(t, hook.prepareConsulTokensForServices(task.Services, nil, tokens, env))
+
+	must.SliceLen(t, 1, mockClient.Requests)
+	for _, req := range mockClient.Requests {
+		must.Eq(t, hook.alloc.NodeID, req.Meta["node_id"])
+	}
 }

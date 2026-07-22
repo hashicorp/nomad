@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -103,5 +103,119 @@ module('Unit | Model | allocation', function (hooks) {
       null,
       'taskGroup.name is null when no allocation task group is present',
     );
+  });
+
+  test('batch allocations expose a max run deadline when every task has started', function (assert) {
+    const startedAt = new Date('2025-01-02T03:04:05Z');
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const job = run(() =>
+      this.store.createRecord('job', {
+        name: 'batch-job',
+        type: 'batch',
+        version: 1,
+        taskGroups: [
+          {
+            name: 'web',
+            count: 1,
+            maxRunDuration,
+            tasks: [],
+          },
+        ],
+      }),
+    );
+
+    const allocation = run(() =>
+      this.store.createRecord('allocation', {
+        job,
+        jobVersion: 1,
+        taskGroupName: 'web',
+        states: [
+          { name: 'task-a', state: 'running', startedAt },
+          {
+            name: 'task-b',
+            state: 'complete',
+            startedAt: new Date('2025-01-02T03:05:05Z'),
+          },
+        ],
+      }),
+    );
+
+    assert.strictEqual(
+      allocation.maxRunDeadline.getTime(),
+      new Date('2025-01-02T03:15:05Z').getTime(),
+    );
+  });
+
+  test('service allocations do not expose a max run deadline', function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const job = run(() =>
+      this.store.createRecord('job', {
+        name: 'service-job',
+        type: 'service',
+        version: 1,
+        taskGroups: [
+          {
+            name: 'web',
+            count: 1,
+            maxRunDuration,
+            tasks: [],
+          },
+        ],
+      }),
+    );
+
+    const allocation = run(() =>
+      this.store.createRecord('allocation', {
+        job,
+        jobVersion: 1,
+        taskGroupName: 'web',
+        states: [
+          {
+            name: 'task-a',
+            state: 'running',
+            startedAt: new Date('2025-01-02T03:04:05Z'),
+          },
+        ],
+      }),
+    );
+
+    assert.strictEqual(allocation.maxRunDeadline, null);
+  });
+
+  test('allocations do not expose a max run deadline until every task has started', function (assert) {
+    const maxRunDuration = 10 * 60 * 1000000000;
+    const job = run(() =>
+      this.store.createRecord('job', {
+        name: 'batch-job',
+        type: 'batch',
+        version: 1,
+        taskGroups: [
+          {
+            name: 'web',
+            count: 1,
+            maxRunDuration,
+            tasks: [],
+          },
+        ],
+      }),
+    );
+
+    const allocation = run(() =>
+      this.store.createRecord('allocation', {
+        job,
+        jobVersion: 1,
+        taskGroupName: 'web',
+        states: [
+          {
+            name: 'task-a',
+            state: 'running',
+            startedAt: new Date('2025-01-02T03:04:05Z'),
+          },
+          { name: 'task-b', state: 'pending', startedAt: null },
+        ],
+      }),
+    );
+
+    assert.strictEqual(allocation.maxRunDeadline, null);
   });
 });

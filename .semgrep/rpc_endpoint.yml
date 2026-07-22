@@ -1,4 +1,4 @@
-# Copyright (c) HashiCorp, Inc.
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 rules:
@@ -157,7 +157,7 @@ rules:
             return structs.ErrPermissionDenied
           }
           ...
-          if err := $A.$B.AuthorizeClientAllocation(aclObj, ..., ...); err != nil {
+          if err := $A.$B.AuthorizeClientAllocation(..., aclObj, ..., ...); err != nil {
             return err
           }
           ...

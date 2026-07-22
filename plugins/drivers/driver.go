@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package drivers
@@ -66,6 +66,23 @@ type DriverPlugin interface {
 
 	SignalTask(taskID string, signal string) error
 	ExecTask(taskID string, cmd []string, timeout time.Duration) (*ExecTaskResult, error)
+}
+
+// DriverShutdowner is an optional interface that drivers may implement.
+type DriverShutdowner interface {
+	// Shutdown is called when the plugin is to be shutdown allowing the
+	// driver to prepare to exit. This function enables drivers to gracefully
+	// shutdown before the process is terminated. This function is not
+	// guaranteed to be called but a best effort will be made prior to
+	// shutdown of the plugin.
+	Shutdown(ctx context.Context) error
+}
+
+// DriverIniter is the interface which exposes the optional function for initializing
+// the driver plugin.
+type DriverIniter interface {
+	// Init is when a driver plugin is dispensed, after SetConfig has been called.
+	Init(context.Context) error
 }
 
 // ExecTaskStreamingDriver marks that a driver supports streaming exec task.  This represents a user friendly

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package api
@@ -507,6 +507,7 @@ type TaskGroup struct {
 	Meta             map[string]string         `hcl:"meta,block"`
 	Services         []*Service                `hcl:"service,block"`
 	ShutdownDelay    *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
+	MaxRunDuration   *time.Duration            `mapstructure:"max_run_duration" hcl:"max_run_duration,optional"`
 	// Deprecated: StopAfterClientDisconnect is deprecated in Nomad 1.8 and ignored in Nomad 1.10. Use Disconnect.StopOnClientAfter.
 	StopAfterClientDisconnect *time.Duration `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
 	// Deprecated: MaxClientDisconnect is deprecated in Nomad 1.8.0 and ignored in Nomad 1.10. Use Disconnect.LostAfter.
@@ -916,10 +917,11 @@ func (wc *WaitConfig) Copy() *WaitConfig {
 }
 
 type ChangeScript struct {
-	Command     *string        `mapstructure:"command" hcl:"command"`
-	Args        []string       `mapstructure:"args" hcl:"args,optional"`
-	Timeout     *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
-	FailOnError *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
+	Command          *string        `mapstructure:"command" hcl:"command"`
+	Args             []string       `mapstructure:"args" hcl:"args,optional"`
+	Timeout          *time.Duration `mapstructure:"timeout" hcl:"timeout,optional"`
+	FailOnError      *bool          `mapstructure:"fail_on_error" hcl:"fail_on_error"`
+	RunOnFirstRender *bool          `mapstructure:"run_on_first_render" hcl:"run_on_first_render,optional"`
 }
 
 func (ch *ChangeScript) Canonicalize() {
@@ -934,6 +936,9 @@ func (ch *ChangeScript) Canonicalize() {
 	}
 	if ch.FailOnError == nil {
 		ch.FailOnError = pointerOf(false)
+	}
+	if ch.RunOnFirstRender == nil {
+		ch.RunOnFirstRender = pointerOf(false)
 	}
 }
 
@@ -1259,6 +1264,7 @@ type WorkloadIdentity struct {
 	Filepath     string        `hcl:"filepath,optional"`
 	ServiceName  string        `hcl:"service_name,optional"`
 	TTL          time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
+	ExtraClaims  []string      `mapstructure:"extra_claims" hcl:"extra_claims,optional"`
 }
 
 type Action struct {

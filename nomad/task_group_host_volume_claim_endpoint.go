@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -127,13 +127,23 @@ func (tgvc *TaskGroupHostVolumeClaim) Delete(args *structs.TaskGroupVolumeClaimD
 		return fmt.Errorf("missing claim ID to delete")
 	}
 
-	// Update via Raft
+	snap, err := tgvc.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+	claim, err := snap.TaskGroupHostVolumeClaimByID(nil, args.RequestNamespace(), args.ClaimID)
+	if err != nil {
+		return err
+	}
+	if claim == nil {
+		return fmt.Errorf("task group volume claim does not exist")
+	}
+
 	_, index, err := tgvc.srv.raftApply(structs.TaskGroupHostVolumeClaimDeleteRequestType, args)
 	if err != nil {
 		return err
 	}
 
-	// Update the index
 	reply.Index = index
 	return nil
 }

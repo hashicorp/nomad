@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -76,6 +76,11 @@ func TestAllocExecCommand_Fails(t *testing.T) {
 			"escape char too long",
 			[]string{"-address=" + url, "-e", "es", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
 			`-e requires 'none' or a single character`,
+		},
+		{
+			"-it with stdin disabled is rejected",
+			[]string{"-it", "-i=false", "26470238-5CF2-438F-8772-DC67CFB0705C", "/bin/bash"},
+			`-i must be enabled if running with tty`,
 		},
 	}
 
@@ -163,6 +168,49 @@ func TestAllocExecCommand_AutocompleteArgs(t *testing.T) {
 	res := predictor.Predict(args)
 	must.Len(t, 1, res)
 	must.Eq(t, a.ID, res[0])
+}
+
+func TestExpandITFlags(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{
+			name:     "no combined flags",
+			input:    []string{"-i", "-t", "alloc", "/bin/sh"},
+			expected: []string{"-i", "-t", "alloc", "/bin/sh"},
+		},
+		{
+			name:     "-it expanded",
+			input:    []string{"-it", "alloc", "/bin/sh"},
+			expected: []string{"-i", "-t", "alloc", "/bin/sh"},
+		},
+		{
+			name:     "-ti expanded",
+			input:    []string{"-ti", "alloc", "/bin/sh"},
+			expected: []string{"-i", "-t", "alloc", "/bin/sh"},
+		},
+		{
+			name:     "-it with other flags",
+			input:    []string{"-address=http://localhost", "-it", "alloc", "/bin/sh"},
+			expected: []string{"-address=http://localhost", "-i", "-t", "alloc", "/bin/sh"},
+		},
+		{
+			name:     "empty args",
+			input:    []string{},
+			expected: []string{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result := expandITFlags(c.input)
+			must.Eq(t, c.expected, result)
+		})
+	}
 }
 
 func TestAllocExecCommand_Run(t *testing.T) {

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package command
@@ -256,7 +256,7 @@ func (c *JobRestartCommand) Run(args []string) int {
 	}
 
 	// Use prefix matching to find job.
-	job, err := c.JobByPrefix(c.client, c.jobID, "")
+	job, err := c.JobByPrefix(c.client, c.jobID)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package taskrunner
@@ -12,6 +12,7 @@ import (
 	"github.com/LK4D4/joincontext"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -204,8 +205,8 @@ func (tr *TaskRunner) initHooks() {
 
 func (tr *TaskRunner) emitHookError(err error, hookName string) {
 	var taskEvent *structs.TaskEvent
-	if herr, ok := err.(*hookError); ok {
-		taskEvent = herr.taskEvent
+	if herr, ok := err.(*te.HookError); ok {
+		taskEvent = herr.TaskEvent
 	} else {
 		message := fmt.Sprintf("%s: %v", hookName, err)
 		taskEvent = structs.NewTaskEvent(structs.TaskHookFailed).SetMessage(message)

@@ -1,11 +1,13 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package jobspec2
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -1179,4 +1181,171 @@ func TestIdentity(t *testing.T) {
 	must.Eq(t, "signal", altID.ChangeMode)
 	must.Eq(t, "sighup", altID.ChangeSignal)
 	must.Eq(t, 2*time.Hour, altID.TTL)
+}
+
+func TestParse_VariablesSubmission(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+# will come from -var args, overriding env
+variable "region" {
+  type = string
+}
+
+# will come from env
+variable "pool" {
+  type = string
+}
+
+# will come from var content
+variable "datacenters" {
+  type = list(string)
+}
+
+# will come from var file
+variable "ns" {
+  type = string
+}
+
+job "example" {
+  datacenters = var.datacenters
+  region      = var.region
+  node_pool   = var.pool
+  namespace   = var.ns
+}
+`
+
+	tmpDir := t.TempDir()
+	varFile := filepath.Join(tmpDir, "vars.hcl")
+	must.NoError(t, os.WriteFile(varFile, []byte(`ns = "infra"`), 0666))
+
+	out, err := ParseWithConfigEx(&ParseConfig{
+		Path:       "input.hcl",
+		Body:       []byte(hcl),
+		ArgVars:    []string{"region=philly", "pool=prod"}, // overrides env
+		VarContent: `datacenters = ["dc1", "dc2"]`,
+		VarFiles:   []string{varFile},
+		Envs:       []string{"NOMAD_VAR_region=seattle"},
+		Strict:     false,
+	})
+	must.NoError(t, err)
+
+	must.NotNil(t, out.Job.Namespace)
+	must.Eq(t, "infra", *out.Job.Namespace)
+
+	must.NotNil(t, out.Job.NodePool)
+	must.Eq(t, "prod", *out.Job.NodePool)
+
+	must.Eq(t, []string{"dc1", "dc2"}, out.Job.Datacenters)
+
+	must.NotNil(t, out.Job.Region)
+	must.Eq(t, "philly", *out.Job.Region)
+
+	must.Eq(t, `ns = "infra"
+
+datacenters = ["dc1", "dc2"]`, out.Submission.Variables)
+
+	must.MapEq(t, map[string]string{"region": "philly", "pool": "prod"}, out.Submission.VariableFlags)
+}
+
+func Test_extractVarFiles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("none", func(t *testing.T) {
+		result, err := extractVarFiles(nil)
+		must.NoError(t, err)
+		must.Eq(t, "", result)
+	})
+
+	t.Run("files", func(t *testing.T) {
+		d := t.TempDir()
+		fileOne := filepath.Join(d, "one.hcl")
+		fileTwo := filepath.Join(d, "two.hcl")
+
+		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o644))
+		must.NoError(t, os.WriteFile(fileTwo, []byte(`baz = 42`), 0o644))
+
+		result, err := extractVarFiles([]string{fileOne, fileTwo})
+		must.NoError(t, err)
+		must.Eq(t, "foo = \"bar\"\nbaz = 42\n", result)
+	})
+
+	t.Run("unreadable", func(t *testing.T) {
+		if syscall.Geteuid() == 0 {
+			t.Skip("Test requires non-root")
+		}
+		d := t.TempDir()
+		fileOne := filepath.Join(d, "one.hcl")
+
+		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o200))
+
+		_, err := extractVarFiles([]string{fileOne})
+		must.ErrorContains(t, err, "permission denied")
+	})
+}
+
+func Test_extractVarFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		result := extractVarFlags(nil)
+		must.MapEmpty(t, result)
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		result := extractVarFlags([]string{"one=1", "two=2", "three"})
+		must.Eq(t, map[string]string{
+			"one":   "1",
+			"two":   "2",
+			"three": "",
+		}, result)
+	})
+}
+
+func Test_extractJobSpecEnvVars(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		must.MapEmpty(t, extractJobSpecEnvVars(nil))
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=13",
+			"GOPATH=/Users/jrasell/go",
+			"NOMAD_VAR_image=redis:7",
+		})
+		must.Eq(t, map[string]string{
+			"count": "13",
+			"image": "redis:7",
+		}, result)
+	})
+
+	t.Run("whitespace", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count = 13",
+			"GOPATH = /Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{
+			"count ": " 13",
+		}, result)
+	})
+
+	t.Run("empty key", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_=13",
+			"=/Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{}, result)
+	})
+
+	t.Run("empty value", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=",
+			"GOPATH=",
+		})
+		must.Eq(t, map[string]string{
+			"count": "",
+		}, result)
+	})
 }

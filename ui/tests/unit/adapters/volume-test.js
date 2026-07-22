@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corp. 2015, 2025
+ * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
  */
 
@@ -191,5 +191,40 @@ module('Unit | Adapter | Volume', function (hooks) {
     await settled();
     findAllRequest();
     assert.deepEqual(pretender.handledRequests[2].url, '/v1/volumes?index=1');
+  });
+
+  test('the X-Nomad-Index response header advances the watch index', async function (assert) {
+    await this.initializeUI();
+
+    const adapter = this.subject();
+    const watchList = this.owner.lookup('service:watch-list');
+
+    // The blocking index travels in the request options rather than on
+    // requestData, so the watch index must be sourced from the response
+    // header. Without it, blocking queries always re-request index=1 and
+    // return immediately (see hashicorp/nomad#28051 and #28062). Exercise
+    // handleResponse directly because the test environment pre-advances the
+    // index synchronously when the request is built, which would otherwise
+    // mask the header-derived value.
+    assert.strictEqual(
+      watchList.getIndexFor('/v1/volumes'),
+      1,
+      'the watch index starts at 1',
+    );
+
+    adapter.handleResponse(
+      200,
+      { 'x-nomad-index': '42' },
+      [],
+      // requestData intentionally has no `index`, mirroring the native-fetch
+      // adapter which keeps the blocking index in the request options.
+      { url: '/v1/volumes', method: 'GET' },
+    );
+
+    assert.strictEqual(
+      watchList.getIndexFor('/v1/volumes'),
+      42,
+      'the watch index is sourced from the X-Nomad-Index response header',
+    );
   });
 });

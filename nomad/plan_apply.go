@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -280,7 +280,12 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	// to approximate the scheduling time.
 	updateAllocTimestamps(req.AllocsUpdated, unixNow)
 
-	if err := signAllocIdentities(p.srv.encrypter, job, req.AllocsUpdated, now); err != nil {
+	ns, err := snap.NamespaceByName(nil, job.Namespace)
+	if ns == nil {
+		return nil, fmt.Errorf("namespace %q not found for job %q: %w", job.Namespace, job.ID, err)
+	}
+
+	if err := signAllocIdentities(p.srv.encrypter, job, req.AllocsUpdated, ns, now); err != nil {
 		return nil, err
 	}
 
@@ -374,7 +379,7 @@ func updateAllocTimestamps(allocations []*structs.Allocation, timestamp int64) {
 	}
 }
 
-func signAllocIdentities(signer claimSigner, job *structs.Job, allocations []*structs.Allocation, now time.Time) error {
+func signAllocIdentities(signer claimSigner, job *structs.Job, allocations []*structs.Allocation, ns *structs.Namespace, now time.Time) error {
 	for _, alloc := range allocations {
 		if alloc.SignedIdentities == nil {
 			alloc.SignedIdentities = map[string]string{}
@@ -388,7 +393,7 @@ func signAllocIdentities(signer claimSigner, job *structs.Job, allocations []*st
 			defaultWI := &structs.WorkloadIdentity{Name: "default"}
 
 			claims := structs.NewIdentityClaimsBuilder(
-				job, alloc, task.IdentityHandle(defaultWI), task.Identity).
+				job, alloc, task.IdentityHandle(defaultWI), task.Identity, ns).
 				WithTask(task).
 				Build(now)
 

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -152,14 +151,14 @@ func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *ht
 	if err != nil {
 		return nil, err
 	} else if noShutdownDelay == nil {
-		noShutdownDelay = pointer.Of(false)
+		noShutdownDelay = new(false)
 	}
 
 	reschedule, err := parseBool(req, "reschedule")
 	if err != nil {
 		return nil, err
 	} else if reschedule == nil {
-		reschedule = pointer.Of(false)
+		reschedule = new(false)
 	}
 
 	sr := &structs.AllocStopRequest{
@@ -324,7 +323,7 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -356,7 +355,7 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -395,7 +394,7 @@ func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -440,7 +439,7 @@ func (s *HTTPServer) allocPauseGet(allocID string, resp http.ResponseWriter, req
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -494,7 +493,7 @@ func (s *HTTPServer) allocPauseSet(allocID string, resp http.ResponseWriter, req
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -546,7 +545,7 @@ func (s *HTTPServer) allocStats(allocID string, resp http.ResponseWriter, req *h
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -579,7 +578,7 @@ func (s *HTTPServer) allocChecks(allocID string, resp http.ResponseWriter, req *
 	}
 
 	if rpcErr != nil {
-		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) || structs.IsErrUnknownNode(rpcErr) {
 			rpcErr = CodedError(404, rpcErr.Error())
 		}
 	}
@@ -614,51 +613,12 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 	}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
-	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	conn, err := s.getWebsocketConnection(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
-	}
-
-	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
-		conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
 		return nil, err
 	}
 
 	return s.execStream(conn, &args)
-}
-
-// readWsHandshake reads the websocket handshake message and sets
-// query authentication token, if request requires a handshake
-func readWsHandshake(readFn func(interface{}) error, req *http.Request, q *structs.QueryOptions) error {
-
-	// Avoid handshake if request doesn't require one
-	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
-		return nil
-	} else if h, err := strconv.ParseBool(hv); err != nil {
-		return fmt.Errorf("ws_handshake value is not a boolean: %v", err)
-	} else if !h {
-		return nil
-	}
-
-	var h wsHandshakeMessage
-	err := readFn(&h)
-	if err != nil {
-		return err
-	}
-
-	supportedWSHandshakeVersion := 1
-	if h.Version != supportedWSHandshakeVersion {
-		return fmt.Errorf("unexpected handshake value: %v", h.Version)
-	}
-
-	q.AuthToken = h.AuthToken
-	return nil
-}
-
-type wsHandshakeMessage struct {
-	Version   int    `json:"version"`
-	AuthToken string `json:"auth_token"`
 }
 
 // execStream finds the appropriate RPC handler and then runs the bidirectional

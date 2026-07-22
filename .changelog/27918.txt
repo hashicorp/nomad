@@ -1,0 +1,7 @@
+```release-note:security
+logging: Protect logging FIFO from symlink swap attacks (CVE-2026-6959)
+```
+
+```release-note:breaking-change
+logging: The allocation logs directory is bind-mounted read-only for task drivers that support with filesystem isolation
+```

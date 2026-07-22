@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package rawexec
@@ -34,7 +34,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/require"
 )
 
 // defaultEnv creates the default environment for raw exec tasks
@@ -167,25 +166,24 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 
 	fingerprintTest := func(config *Config, expected *drivers.Fingerprint) func(t *testing.T) {
 		return func(t *testing.T) {
-			require := require.New(t)
 			d := newEnabledRawExecDriver(t)
 			harness := dtestutil.NewDriverHarness(t, d)
 			defer harness.Kill()
 
 			var data []byte
-			require.NoError(basePlug.MsgPackEncode(&data, config))
+			must.NoError(t, basePlug.MsgPackEncode(&data, config))
 			bconfig := &basePlug.Config{
 				PluginConfig: data,
 			}
-			require.NoError(harness.SetConfig(bconfig))
+			must.NoError(t, harness.SetConfig(bconfig))
 
 			fingerCh, err := harness.Fingerprint(context.Background())
-			require.NoError(err)
+			must.NoError(t, err)
 			select {
 			case result := <-fingerCh:
-				require.Equal(expected, result)
+				must.Eq(t, expected, result)
 			case <-time.After(time.Duration(testutil.TestMultiplier()) * time.Second):
-				require.Fail("timeout receiving fingerprint")
+				must.Unreachable(t, must.Sprint("timeout receiving fingerprint"))
 			}
 		}
 	}
@@ -226,7 +224,6 @@ func TestRawExecDriver_Fingerprint(t *testing.T) {
 
 func TestRawExecDriver_StartWait(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -246,7 +243,7 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 		Command: testtask.Path(),
 		Args:    []string{"sleep", "10ms"},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
 	testtask.SetTaskConfigEnv(task)
 
@@ -256,10 +253,10 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 	harness.MakeTaskCgroup(allocID, taskName)
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	var result *drivers.ExitResult
 	select {
@@ -268,16 +265,15 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 		t.Fatal("timed out")
 	}
 
-	require.Zero(result.ExitCode)
-	require.Zero(result.Signal)
-	require.False(result.OOMKilled)
-	require.NoError(result.Err)
-	require.NoError(harness.DestroyTask(task.ID, true))
+	must.Zero(t, result.ExitCode)
+	must.Zero(t, result.Signal)
+	must.False(t, result.OOMKilled)
+	must.NoError(t, result.Err)
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -306,30 +302,30 @@ func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
 		Command: testtask.Path(),
 		Args:    []string{"sleep", "1s", "write", string(exp), outPath},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	_, _, err := harness.StartTask(task)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Task should terminate quickly
 	waitCh, err := harness.WaitTask(context.Background(), task.ID)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	select {
 	case res := <-waitCh:
-		require.NoError(res.Err)
-		require.True(res.Successful())
+		must.NoError(t, res.Err)
+		must.True(t, res.Successful())
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
-		require.Fail("WaitTask timeout")
+		must.Unreachable(t, must.Sprint("WaitTask timeout"))
 	}
 
 	// Check that data was written to the shared alloc directory.
 	outputFile := filepath.Join(task.TaskDir().SharedAllocDir, file)
 	act, err := os.ReadFile(outputFile)
-	require.NoError(err)
-	require.Exactly(exp, act)
-	require.NoError(harness.DestroyTask(task.ID, true))
+	must.NoError(t, err)
+	must.Eq(t, exp, act)
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 // This test creates a process tree such that without cgroups tracking the
@@ -454,31 +450,29 @@ func TestRawExecDriver_ParentCgroup(t *testing.T) {
 		Command: testtask.Path(),
 		Args:    []string{"sleep", "9000s"},
 	}
-	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 	_, _, err := harness.StartTask(task)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// inspect environment variable
 	res, execErr := harness.ExecTask(task.ID, []string{"/usr/bin/env"}, 1*time.Second)
-	require.NoError(t, execErr)
-	require.True(t, res.ExitResult.Successful())
-	require.Contains(t, string(res.Stdout), "custom.slice")
+	must.NoError(t, execErr)
+	must.True(t, res.ExitResult.Successful())
+	must.StrContains(t, string(res.Stdout), "custom.slice")
 
 	// inspect /proc/self/cgroup
 	res2, execErr2 := harness.ExecTask(task.ID, []string{"cat", "/proc/self/cgroup"}, 1*time.Second)
-	require.NoError(t, execErr2)
-	require.True(t, res2.ExitResult.Successful())
-	require.Contains(t, string(res2.Stdout), "custom.slice")
+	must.NoError(t, execErr2)
+	must.True(t, res2.ExitResult.Successful())
+	must.StrContains(t, string(res2.Stdout), "custom.slice")
 
 	// kill the sleep task
-	require.NoError(t, harness.DestroyTask(task.ID, true))
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestRawExecDriver_Exec(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -503,39 +497,55 @@ func TestRawExecDriver_Exec(t *testing.T) {
 		Command: testtask.Path(),
 		Args:    []string{"sleep", "9000s"},
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	_, _, err := harness.StartTask(task)
-	require.NoError(err)
+	must.NoError(t, err)
+
+	// Wait for the task to be running before attempting exec calls.
+	must.NoError(t, harness.WaitUntilStarted(task.ID, 5*time.Second))
 
 	if runtime.GOOS == "windows" {
-		// Exec a command that should work
-		res, err := harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "echo", "hello"}, 1*time.Second)
-		require.NoError(err)
-		require.True(res.ExitResult.Successful())
-		require.Equal(string(res.Stdout), "hello\r\n")
+		// Use a generous timeout: on Windows CI the deadline is an absolute
+		// timestamp serialised across two gRPC hops. Process-creation overhead
+		// (cmd.exe + child) on a loaded runner can easily consume the whole
+		// 1-second window, causing the process to be killed before writing any
+		// output and leaving res.Stdout empty with a non-zero exit code.
+		const windowsExecTimeout = 30 * time.Second
 
-		// Exec a command that should fail
-		res, err = harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "stat", "notarealfile123abc"}, 1*time.Second)
-		require.NoError(err)
-		require.False(res.ExitResult.Successful())
-		require.Contains(string(res.Stdout), "No such file or directory")
+		// Exec a command that should work
+		res, err := harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "echo", "hello"}, windowsExecTimeout)
+		must.NoError(t, err)
+		must.True(t, res.ExitResult.Successful())
+		must.Eq(t, "hello\r\n", string(res.Stdout))
+
+		// Exec a command that should fail.
+		// Use PowerShell rather than "stat" (which requires Git-for-Windows in
+		// PATH and spawns an extra process) so the failure is deterministic on
+		// all Windows CI environments.
+		res, err = harness.ExecTask(task.ID,
+			[]string{"powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+				`if (-not (Test-Path notarealfile123abc)) { Write-Output "No such file or directory"; exit 1 }`},
+			windowsExecTimeout)
+		must.NoError(t, err)
+		must.False(t, res.ExitResult.Successful())
+		must.StrContains(t, string(res.Stdout), "No such file or directory")
 	} else {
 		// Exec a command that should work
 		res, err := harness.ExecTask(task.ID, []string{"/usr/bin/stat", "/tmp"}, 1*time.Second)
-		require.NoError(err)
-		require.True(res.ExitResult.Successful())
-		require.True(len(res.Stdout) > 100)
+		must.NoError(t, err)
+		must.True(t, res.ExitResult.Successful())
+		must.True(t, len(res.Stdout) > 100)
 
 		// Exec a command that should fail
 		res, err = harness.ExecTask(task.ID, []string{"/usr/bin/stat", "notarealfile123abc"}, 1*time.Second)
-		require.NoError(err)
-		require.False(res.ExitResult.Successful())
-		require.Contains(string(res.Stdout), "No such file or directory")
+		must.NoError(t, err)
+		must.False(t, res.ExitResult.Successful())
+		must.StrContains(t, string(res.Stdout), "No such file or directory")
 	}
 
-	require.NoError(harness.DestroyTask(task.ID, true))
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestRawExecDriver_WorkDir(t *testing.T) {
@@ -608,12 +618,11 @@ config {
 	var tc *TaskConfig
 	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, cfgStr, &tc)
 
-	require.EqualValues(t, expected, tc)
+	must.Eq(t, expected, tc)
 }
 
 func TestRawExecDriver_Disabled(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	d.config.Enabled = false
@@ -631,9 +640,9 @@ func TestRawExecDriver_Disabled(t *testing.T) {
 	}
 
 	handle, _, err := harness.StartTask(task)
-	require.Error(err)
-	require.Contains(err.Error(), errDisabledDriver.Error())
-	require.Nil(handle)
+	must.Error(t, err)
+	must.ErrorContains(t, err, errDisabledDriver.Error())
+	must.Nil(t, handle)
 }
 
 func TestRawExecDriver_validate(t *testing.T) {

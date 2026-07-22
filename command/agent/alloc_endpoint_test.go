@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package agent
@@ -25,7 +25,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -618,6 +617,35 @@ func TestHTTP_AllocStats(t *testing.T) {
 	})
 }
 
+// TestHTTP_AllocStats_UnknownNode asserts the client stats endpoint returns a
+// 404 rather than a 500 when the allocation's node cannot be found, matching
+// the unknown-allocation and no-path-to-node cases. See issue 26838.
+func TestHTTP_AllocStats_UnknownNode(t *testing.T) {
+	ci.Parallel(t)
+
+	httpTest(t, nil, func(s *TestAgent) {
+		// Insert an allocation whose node is not registered, so the server RPC
+		// resolves the allocation but fails to find its node.
+		state := s.Agent.server.State()
+		alloc := mock.Alloc()
+		must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
+		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/v1/client/allocation/%s/stats", alloc.ID), nil)
+		must.NoError(t, err)
+		respW := httptest.NewRecorder()
+
+		_, err = s.Server.ClientAllocRequest(respW, req)
+		must.Error(t, err)
+		must.True(t, structs.IsErrUnknownNode(err))
+
+		codedErr, ok := err.(HTTPCodedError)
+		must.True(t, ok)
+		must.Eq(t, 404, codedErr.Code())
+	})
+}
+
 func TestHTTP_AllocStats_ACL(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
@@ -731,7 +759,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, func(c *Config) {
 		// Disable the schedulers
-		c.Server.NumSchedulers = pointer.Of(0)
+		c.Server.NumSchedulers = new(0)
 	}, func(s *TestAgent) {
 		// Create an alloc
 		state := s.server.State()
@@ -1072,68 +1100,12 @@ func TestHTTP_AllocAllGC_ACL(t *testing.T) {
 	})
 }
 
-func TestHTTP_ReadWsHandshake(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name      string
-		token     string
-		handshake bool
-	}{
-		{
-			name:      "plain compatible mode",
-			token:     "",
-			handshake: false,
-		},
-		{
-			name:      "handshake unauthenticated",
-			token:     "",
-			handshake: true,
-		},
-		{
-			name:      "handshake authenticated",
-			token:     "mysupersecret",
-			handshake: true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-
-			called := false
-			readFn := func(h interface{}) error {
-				called = true
-				if !c.handshake {
-					return fmt.Errorf("should not be called")
-				}
-
-				hm := h.(*wsHandshakeMessage)
-				hm.Version = 1
-				hm.AuthToken = c.token
-				return nil
-			}
-
-			req := httptest.NewRequest(http.MethodPut, "/target", nil)
-			if c.handshake {
-				req.URL.RawQuery = "ws_handshake=true"
-			}
-
-			var q structs.QueryOptions
-
-			err := readWsHandshake(readFn, req, &q)
-			require.NoError(t, err)
-			require.Equal(t, c.token, q.AuthToken)
-			require.Equal(t, c.handshake, called)
-		})
-	}
-}
-
-// TestHTTP_AllocsExecStream_SafeClose verifies that we are safely closing the
+// TestHTTP_AllocExecStream_SafeClose verifies that we are safely closing the
 // AllocExec stream when we're done without making concurrent writes to the
 // websocket that can cause a panic
-func TestHTTP_AllocsExecStream_SafeClose(t *testing.T) {
+func TestHTTP_AllocExecStream_SafeClose(t *testing.T) {
 	httpTest(t,
-		func(c *Config) { c.Server.NumSchedulers = pointer.Of(0) },
+		func(c *Config) { c.Server.NumSchedulers = new(0) },
 		func(s *TestAgent) {
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2015, 2025
+// Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
 package reconciler
@@ -12,7 +12,6 @@ import (
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -331,7 +330,7 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 			DesiredTransition: structs.DesiredTransition{
-				Migrate: pointer.Of(true),
+				Migrate: new(true),
 			},
 		},
 		{ // allocs not marked for drain should be ignored
@@ -584,7 +583,7 @@ func TestDiffSystemAllocs(t *testing.T) {
 			Name:   "my-job.web[0]",
 			Job:    oldJob,
 			DesiredTransition: structs.DesiredTransition{
-				Migrate: pointer.Of(true),
+				Migrate: new(true),
 			},
 		},
 		// Mark as lost on a dead node
