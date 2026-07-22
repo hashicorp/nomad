@@ -159,7 +159,7 @@ export default class Tokens extends Controller {
 
       // Set bearer token instead of findSelf etc.
       TokenAdapter.loginJWT(secret, methodName).then(
-        async (token) => {
+        (token) => {
           this.token.setProperties({
             secret: token.secret,
             tokenNotFound: false,
@@ -170,9 +170,9 @@ export default class Tokens extends Controller {
           this.resetStore();
 
           // Refetch the token and associated policies
-          await this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+          this.token.get('fetchSelfTokenAndPolicies').perform().catch();
           // When signing in, we should refetch the license
-          await this.system.get('fetchLicense').perform().catch();
+          this.system.get('fetchLicense').perform().catch();
 
           this.signInStatus = 'success';
           this.optionallyRedirectPathAfterSignIn();
@@ -188,14 +188,14 @@ export default class Tokens extends Controller {
       this.set('secret', null);
 
       TokenAdapter.findSelf().then(
-        async () => {
+        () => {
           // Clear out all data to ensure only data the new token is privileged to see is shown
           this.resetStore();
 
           // Refetch the token and associated policies
-          await this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+          this.token.get('fetchSelfTokenAndPolicies').perform().catch();
           // When signing in, we should refetch the license
-          await this.system.get('fetchLicense').perform().catch();
+          this.system.get('fetchLicense').perform().catch();
 
           if (!this.system.activeRegion) {
             this.system.get('defaultRegion').then((res) => {
