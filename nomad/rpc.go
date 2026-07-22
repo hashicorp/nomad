@@ -584,6 +584,10 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 // forward is used to forward to a remote region or to forward to the local leader
 // Returns a bool of if forwarding was performed, as well as any error
 func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
+	if info.NumHops() > 50 {
+		return true, fmt.Errorf("exceeded hop limit")
+	}
+
 	region := info.RequestRegion()
 	if region == "" {
 		return true, fmt.Errorf("missing region for target RPC")
