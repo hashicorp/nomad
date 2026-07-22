@@ -304,9 +304,13 @@ func (s *SchedulerConfiguration) WithNodePool(pool *NodePool) *SchedulerConfigur
 }
 
 func (s *SchedulerConfiguration) Canonicalize() {
-	if s != nil && s.SchedulerAlgorithm == "" {
+	if s == nil {
+		return
+	}
+	if s.SchedulerAlgorithm == "" {
 		s.SchedulerAlgorithm = SchedulerAlgorithmBinpack
 	}
+	s.BatchQueue.Canonicalize()
 }
 
 func (s *SchedulerConfiguration) Validate() error {
@@ -397,10 +401,30 @@ type DynamicQueueConfig struct {
 	SizeWeight   int           `mapstructure:"size_weight"`
 }
 
+func (d *DynamicQueueConfig) Validate() error {
+	if d.CalcInterval <= 0 {
+		return errors.New("calc_interval must be greater than 0")
+	}
+	if d.HalfLife <= 0 {
+		return errors.New("half_life must be greater than 0")
+	}
+	return nil
+}
+
 func DecodeBatchQueueConf[T any](in map[string]any, out *T) error {
+	rootName := func(v any) string {
+		switch v.(type) {
+		case *DynamicQueueConfig:
+			return "Dynamic Priority Config"
+		}
+		return ""
+	}
+
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		RootName:   rootName(out),
 		Result:     out,
 		DecodeHook: mapstructure.StringToTimeDurationHookFunc(),
+		ErrorUnset: true,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create config decoder, %w", err)
@@ -425,6 +449,13 @@ func (b *BatchQueue) Validate() error {
 
 	switch b.Type {
 	case BatchQueueTypeDynamic:
+		conf := DynamicQueueConfig{}
+		if err := DecodeBatchQueueConf(b.Config, &conf); err != nil {
+			return err
+		}
+		if err := conf.Validate(); err != nil {
+			return err
+		}
 	case BatchQueueTypeFifo:
 		return nil
 	default:
@@ -441,18 +472,15 @@ func (b *BatchQueue) Validate() error {
 		return fmt.Errorf("unsupported tenant type: %q", b.TenantType)
 	}
 
-	conf := DynamicQueueConfig{}
-	if err := DecodeBatchQueueConf(b.Config, &conf); err != nil {
-		return err
-	}
-	if conf.CalcInterval <= 0 {
-		return fmt.Errorf("%s must be greater than zero", DynamicCalcInterval)
-	}
-	if conf.HalfLife <= 0 {
-		return fmt.Errorf("%s must be greater than zero", DynamicHalfLife)
-	}
-
 	return nil
+}
+
+func (b *BatchQueue) Canonicalize() {
+	if b.Type == BatchQueueTypeFifo {
+		b.TenantType = ""
+		b.MetadataKey = ""
+		b.Config = map[string]any{}
+	}
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the
