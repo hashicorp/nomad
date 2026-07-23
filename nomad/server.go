@@ -426,11 +426,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// Create the blocked evals
 	s.blockedEvals = NewBlockedEvals(s.evalBroker, s.logger)
 
-	// Create the dependency Coordinator
-	depCoordinator := dependency.NewCoordinator(s.logger,
-		loop_detection.New(s.logger), s.blockedEvals)
-	s.dependencyCoordinator = depCoordinator
-
 	// Create the RPC handler
 	s.rpcHandler = newRpcHandler(s)
 
@@ -1447,6 +1442,11 @@ func (s *Server) setupRaft() error {
 	if s.config.RaftConfig.ProtocolVersion >= 3 {
 		s.config.RaftConfig.LocalID = raft.ServerID(s.config.NodeID)
 	}
+
+	// Create the dependency Coordinator
+	depCoordinator := dependency.NewCoordinator(s.logger,
+		loop_detection.New(s.logger), s.blockedEvals, s.fsm.encrypter.srv.raftApply)
+	s.dependencyCoordinator = depCoordinator
 
 	// Build an all in-memory setup for dev mode, otherwise prepare a full
 	// disk-based setup.
