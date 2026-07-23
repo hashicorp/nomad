@@ -35,6 +35,9 @@ const (
 	maxPastRescheduleEvents = 5
 )
 
+// function used to limit the initial pool of nodes for the feasibility check.
+type filterNodesFunc func(*structs.Job) ([]*structs.Node, map[string]int, error)
+
 // SetStatusError is used to set the status of the evaluation to the given error
 type SetStatusError struct {
 	Err        error
@@ -70,11 +73,11 @@ type GenericScheduler struct {
 
 	deployment *structs.Deployment
 
-	blocked           *structs.Evaluation
-	failedTGAllocs    map[string]*structs.AllocMetric
-	queuedAllocs      map[string]int
-	planAnnotations   *structs.PlanAnnotations
-	getAvailableNodes func(job *structs.Job) ([]*structs.Node, map[string]int, error)
+	blocked         *structs.Evaluation
+	failedTGAllocs  map[string]*structs.AllocMetric
+	queuedAllocs    map[string]int
+	planAnnotations *structs.PlanAnnotations
+	nodesSetter     filterNodesFunc
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -88,7 +91,7 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{},
 		batch:    false,
 	}
 
-	s.getAvailableNodes = s.setNodes
+	s.nodesSetter = s.setNodes
 
 	return s
 }
@@ -477,14 +480,10 @@ func (s *GenericScheduler) computePlacements(
 ) error {
 
 	// Get the base nodes
-	nodes, byDC, err := s.getAvailableNodes(s.job)
+	nodes, byDC, err := s.nodesSetter(s.job)
 	if err != nil {
 		return err
 	}
-
-	/* 	if len(nodes) == 0 {
-		return fmt.Errorf("no nodes available/pending dependencies to place on")
-	} */
 
 	var deploymentID string
 	if s.deployment != nil && s.deployment.Active() {
@@ -543,7 +542,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(downgradedJob)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.getAvailableNodes(downgradedJob)
+					nodes, byDC, err = s.nodesSetter(downgradedJob)
 					if err != nil {
 						return err
 					}
@@ -585,7 +584,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(s.job)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.getAvailableNodes(s.job)
+					nodes, byDC, err = s.nodesSetter(s.job)
 					if err != nil {
 						return err
 					}
@@ -774,6 +773,7 @@ func (s *GenericScheduler) setJob(job *structs.Job) error {
 // setnodes updates the stack with the nodes that are ready for placement for
 // the given job.
 func (s *GenericScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
+
 	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, job.Datacenters, job.NodePool)
 	if err != nil {
 		return nil, nil, err
