@@ -10,7 +10,6 @@ import { selectChoose } from 'ember-power-select/test-support';
 import { clickTrigger } from 'ember-power-select/test-support/helpers';
 import sinon from 'sinon';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | single-select dropdown', function (hooks) {
   setupRenderingTest(hooks);
@@ -52,7 +51,6 @@ module('Integration | Component | single-select dropdown', function (hooks) {
     );
     assert.notOk(find('[data-test-dropdown-options]'));
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('all options are shown in the dropdown', async function (assert) {

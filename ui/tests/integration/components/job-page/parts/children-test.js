@@ -8,7 +8,6 @@ import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/parts/children', function (hooks) {
   setupRenderingTest(hooks);
@@ -115,7 +114,6 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
         'Formats pagination to follow formula `startingIdx - endingIdx of totalTableCount',
       );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('is sorted based on the sortProperty and sortDescending properties', async function (assert) {

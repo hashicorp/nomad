@@ -4,10 +4,10 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { currentURL } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupAuthenticatedAcceptance from 'nomad-ui/tests/helpers/setup-authenticated-acceptance';
 import pageSizeSelect from './behaviors/page-size-select';
 import PluginAllocations from 'nomad-ui/tests/pages/storage/plugins/plugin/allocations';
@@ -34,7 +34,8 @@ module('Acceptance | plugin allocations', function (hooks) {
     });
 
     await PluginAllocations.visit({ id: plugin.id });
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/storage/plugins/:id/allocations shows all allocations in a single table', async function (assert) {

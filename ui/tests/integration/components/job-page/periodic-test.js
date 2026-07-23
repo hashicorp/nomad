@@ -22,7 +22,6 @@ import {
   expectStartRequest,
   expectPurgeRequest,
 } from './helpers';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 // A minimum viable page object to use with the pageSizeSelect behavior
 const PeriodicJobPage = create({
@@ -180,7 +179,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
     );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {

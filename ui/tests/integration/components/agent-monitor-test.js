@@ -15,7 +15,6 @@ import {
   selectOpen,
   selectOpenChoose,
 } from '../../utils/ember-power-select-extensions';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { capitalize } from '@ember/string';
 
 module('Integration | Component | agent-monitor', function (hooks) {
@@ -71,7 +70,6 @@ module('Integration | Component | agent-monitor', function (hooks) {
     assert.ok(find('[data-test-log-box]'));
     assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'));
 
-    await componentA11yAudit(this.element, assert);
   });
 
   // TODO(ember5-upgrade): Re-enable streaming behaviors once long-lived

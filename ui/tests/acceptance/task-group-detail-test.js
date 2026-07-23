@@ -6,9 +6,9 @@
 import { currentURL, settled } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import {
   formatBytes,
   formatHertz,
@@ -83,7 +83,8 @@ module('Acceptance | task group detail', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('task group allocations show max run deadline when configured', async function (assert) {

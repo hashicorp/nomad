@@ -6,9 +6,9 @@
 import { currentURL } from '@ember/test-helpers';
 import { later, cancelTimers } from '@ember/runloop';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ServerMonitor from 'nomad-ui/tests/pages/servers/monitor';
 import Layout from 'nomad-ui/tests/pages/layout';
 
@@ -33,7 +33,8 @@ module.skip('Acceptance | server monitor', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await ServerMonitor.visit({ name: agent.name });
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/servers/:id/monitor should have a breadcrumb trail linking back to servers', async function (assert) {

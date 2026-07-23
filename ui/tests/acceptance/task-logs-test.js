@@ -12,9 +12,9 @@ import {
 } from '@ember/test-helpers';
 import { later, cancelTimers } from '@ember/runloop';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import TaskLogs from 'nomad-ui/tests/pages/allocations/task/logs';
 import faker from 'nomad-ui/mirage/faker';
 
@@ -44,7 +44,8 @@ module.skip('Acceptance | task logs', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/allocation/:id/:task_name/logs should have a log component', async function (assert) {

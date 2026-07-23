@@ -4,13 +4,13 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { currentURL, triggerKeyEvent, click } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Administration from 'nomad-ui/tests/pages/administration';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import { allScenarios } from '../../mirage/scenarios/default';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import faker from 'nomad-ui/mirage/faker';
 
 // Several related tests within Access Control are contained in the Tokens, Roles,
@@ -25,6 +25,20 @@ module('Acceptance | access control', function (hooks) {
     window.localStorage.clear();
     window.sessionStorage.clear();
     allScenarios.rolesTestCluster(this.server);
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    try {
+      const managementToken = this.server.db.tokens.findBy({
+        type: 'management',
+      });
+      window.localStorage.nomadTokenSecret = managementToken.secretId;
+      await Administration.visit();
+      await a11yAudit();
+      assert.ok(true, 'no a11y errors found');
+    } finally {
+      window.localStorage.removeItem('nomadTokenSecret');
+    }
   });
 
   test('Access Control is only accessible by a management user', async function (assert) {
@@ -63,7 +77,6 @@ module('Acceptance | access control', function (hooks) {
       'management token can access /administration',
     );
 
-    await a11yAudit(assert);
 
     await Administration.visitTokens();
     assert.deepEqual(

@@ -5,9 +5,9 @@
 
 import { currentURL, visit } from '@ember/test-helpers';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
@@ -28,7 +28,8 @@ module('Acceptance | application errors ', function (hooks) {
   test('it passes an accessibility audit', async function (assert) {
     this.server.pretender.get('/v1/nodes', () => [500, {}, null]);
     await ClientsList.visit();
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('transitioning away from an error page resets the global error', async function (assert) {

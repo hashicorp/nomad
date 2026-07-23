@@ -5,6 +5,7 @@
 
 // Tests for non-UI behaviour.
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Jobs from 'nomad-ui/tests/pages/jobs/list';
@@ -55,6 +56,12 @@ module('Acceptance | reverse proxy', function (hooks) {
     XMLHttpRequest.prototype.setRequestHeader =
       this._originalXMLHttpRequestSetRequestHeader;
     XMLHttpRequest.prototype.send = this._originalXMLHttpRequestSend;
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    await Jobs.visit();
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('when token is inserted by a reverse proxy, the UI is adjusted', async function (assert) {

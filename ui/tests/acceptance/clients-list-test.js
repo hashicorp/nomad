@@ -6,9 +6,9 @@
 import { currentURL, settled } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import pageSizeSelect from './behaviors/page-size-select';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import faker from 'nomad-ui/mirage/faker';
@@ -29,7 +29,8 @@ module('Acceptance | clients list', function (hooks) {
     this.server.createList('agent', 1);
 
     await ClientsList.visit();
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('/clients should list one page of clients', async function (assert) {

@@ -4,13 +4,13 @@
  */
 
 import { module, test } from 'qunit';
-import { find, findAll, currentURL, settled } from '@ember/test-helpers';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
+import { find, findAll, currentURL, settled, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { allScenarios } from '../../mirage/scenarios/default';
 import removeRecord from 'nomad-ui/utils/remove-record';
 
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Services from 'nomad-ui/tests/pages/jobs/job/services';
 
 module('Acceptance | job services', function (hooks) {
@@ -21,10 +21,23 @@ module('Acceptance | job services', function (hooks) {
     await Services.visit({ id: 'service-haver@default' });
   });
 
+  test('it passes an accessibility audit', async function (assert) {
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('jobs.job.services.service passes an accessibility audit', async function (assert) {
+    const serviceName = find(
+      '[data-test-service-level="group"][data-test-service-provider="nomad"]',
+    ).getAttribute('data-test-service-name');
+    await visit(`/jobs/service-haver@default/services/${serviceName}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
   test('Visiting job services', async function (assert) {
     assert.dom('.tabs.is-subnav a.is-active').hasText('Services');
     assert.dom('.service-list table').exists();
-    await a11yAudit(assert);
   });
 
   test('it shows both consul and nomad, and both task and group services', async function (assert) {

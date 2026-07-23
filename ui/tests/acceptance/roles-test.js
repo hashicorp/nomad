@@ -4,10 +4,10 @@
  */
 
 import { module, test } from 'qunit';
-import { findAll, fillIn, find, click, currentURL } from '@ember/test-helpers';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
+import { findAll, fillIn, find, click, currentURL, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { allScenarios } from '../../mirage/scenarios/default';
 import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 import Administration from 'nomad-ui/tests/pages/administration';
@@ -36,8 +36,25 @@ module('Acceptance | roles', function (hooks) {
     await Tokens.clear();
   });
 
+  test('it passes an accessibility audit', async function (assert) {
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('administration.roles.new passes an accessibility audit', async function (assert) {
+    await visit('/administration/roles/new');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
+  test('administration.roles.role passes an accessibility audit', async function (assert) {
+    const role = this.server.db.roles.findBy({ name: 'reader' });
+    await visit(`/administration/roles/${role.id}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
+
   test('Roles index, general', async function (assert) {
-    await a11yAudit(assert);
 
     assert.deepEqual(currentURL(), '/administration/roles');
 

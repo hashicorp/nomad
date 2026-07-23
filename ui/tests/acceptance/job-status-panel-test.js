@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 
 import {
@@ -18,7 +19,6 @@ import {
 
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import faker from 'nomad-ui/mirage/faker';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 // TODO: Mirage is not type-friendly / assigns "server" as a global. Try to work around this shortcoming.
 
 module('Acceptance | job status panel', function (hooks) {
@@ -28,6 +28,20 @@ module('Acceptance | job status panel', function (hooks) {
   hooks.beforeEach(async function () {
     this.server.create('node-pool');
     this.server.create('node');
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    faker.seed(1);
+    const job = this.server.create('job', {
+      status: 'running',
+      datacenters: ['*'],
+      type: 'service',
+      createAllocations: true,
+      noDeployments: true,
+    });
+    await visit(`/jobs/${job.id}`);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('Status panel lets you switch between Current and Historical', async function (assert) {
@@ -42,7 +56,6 @@ module('Acceptance | job status panel', function (hooks) {
 
     await visit(`/jobs/${job.id}`);
     assert.dom('.job-status-panel').exists();
-    await a11yAudit(assert);
 
     assert
       .dom('[data-test-status-mode="current"]')

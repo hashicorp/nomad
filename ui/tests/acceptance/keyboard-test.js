@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import {
   click,
@@ -15,12 +16,17 @@ import {
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import Layout from 'nomad-ui/tests/pages/layout';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import faker from 'nomad-ui/mirage/faker';
 
 module('Acceptance | keyboard', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+
+  test('it passes an accessibility audit', async function (assert) {
+    await visit('/');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
 
   module('modal', function () {
     test('Opening and closing shortcuts modal with key commands', async function (assert) {
@@ -29,7 +35,6 @@ module('Acceptance | keyboard', function (hooks) {
       assert.notOk(Layout.keyboard.modalShown);
       await triggerEvent('.page-layout', 'keydown', { key: '?' });
       assert.ok(Layout.keyboard.modalShown);
-      await a11yAudit(assert);
       await triggerEvent('.page-layout', 'keydown', { key: 'Escape' });
       assert.notOk(Layout.keyboard.modalShown);
     });

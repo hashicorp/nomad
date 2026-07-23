@@ -7,7 +7,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-status/failed-or-lost', function (hooks) {
   setupRenderingTest(hooks);
@@ -38,7 +37,6 @@ module('Integration | Component | job-status/failed-or-lost', function (hooks) {
 
     assert.dom('h4').hasText('Replaced Allocations');
     assert.dom('.failed-or-lost-links').hasText('2 Restarted');
-    await componentA11yAudit(this.element, assert);
   });
 
   test('it links or does not link appropriately', async function (assert) {

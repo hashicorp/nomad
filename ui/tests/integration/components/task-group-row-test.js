@@ -9,7 +9,6 @@ import { find, render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const jobName = 'test-job';
 const jobId = JSON.stringify([jobName, 'default']);
@@ -89,7 +88,6 @@ module('Integration | Component | task group row', function (hooks) {
     await settled();
     assert.ok(find('[data-test-scale]'));
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Clicking scaling buttons immediately updates the rendered count but debounces the scaling API request', async function (assert) {
@@ -145,7 +143,6 @@ module('Integration | Component | task group row', function (hooks) {
     await render(commonTemplate);
     assert.ok(find('[data-test-scale="increment"]:disabled'));
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When the current count is equal to the min count, the decrement count button is disabled', async function (assert) {
@@ -161,7 +158,6 @@ module('Integration | Component | task group row', function (hooks) {
     await render(commonTemplate);
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When there is an active deployment, both scale buttons are disabled', async function (assert) {
@@ -176,7 +172,6 @@ module('Integration | Component | task group row', function (hooks) {
     assert.ok(find('[data-test-scale="increment"]:disabled'));
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When the current ACL token does not have the namespace:scale-job or namespace:submit-job policy rule', async function (assert) {

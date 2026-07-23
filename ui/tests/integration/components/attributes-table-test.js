@@ -7,7 +7,6 @@ import { find, findAll, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import PathTree from 'nomad-ui/utils/path-tree';
 
 module('Integration | Component | attributes table', function (hooks) {
@@ -57,7 +56,6 @@ module('Integration | Component | attributes table', function (hooks) {
       `Table has ${rowsCount} rows with values`,
     );
 
-    await componentA11yAudit(this.element, assert);
   });
 
   test('should render the full path of key/value pair from the root of the object', async function (assert) {

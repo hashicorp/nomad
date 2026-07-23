@@ -4,12 +4,12 @@
  */
 
 import { test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { getPageTitle } from 'ember-page-title/test-support';
 import { currentURL, visit } from '@ember/test-helpers';
 
 import { filesForPath } from 'nomad-ui/mirage/config';
 import { formatBytes } from 'nomad-ui/utils/units';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 
 import { Response } from 'miragejs';
 import moment from 'moment';
@@ -43,7 +43,8 @@ export default function browseFilesystem({
     await FS[pageObjectVisitFunctionName](
       visitSegments({ allocation: this.allocation, task: this.task }),
     );
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('visiting filesystem root', async function (assert) {

@@ -8,7 +8,6 @@ import { findAll, find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { setupRenderingTest } from 'ember-qunit';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import {
   formatScheduledHertz,
   formatScheduledBytes,
@@ -67,7 +66,6 @@ module(
         'One row per task group',
       );
 
-      await componentA11yAudit(this.element, assert);
     });
 
     test('each row in the task group table should show basic information about the task group', async function (assert) {

@@ -4,6 +4,7 @@
  */
 
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { currentURL, triggerEvent, visit } from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -15,6 +16,14 @@ import { Response } from 'miragejs';
 module('Acceptance | search', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
+
+  test('it passes an accessibility audit', async function (assert) {
+    this.server.create('node-pool');
+    this.server.create('agent');
+    await visit('/');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
+  });
 
   test('search exposes and navigates to results from the fuzzy search endpoint', async function (assert) {
     this.server.create('node-pool');

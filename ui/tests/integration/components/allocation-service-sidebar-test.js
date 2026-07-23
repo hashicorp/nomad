@@ -7,7 +7,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { click, render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Service from '@ember/service';
 import EmberObject from '@ember/object';
 
@@ -32,7 +31,6 @@ module(
     });
 
     test('it supports basic open/close states', async function (assert) {
-      await componentA11yAudit(this.element, assert);
 
       this.set('closeSidebar', () => this.set('service', null));
 

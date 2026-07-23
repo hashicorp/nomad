@@ -13,10 +13,10 @@ import {
   waitUntil,
 } from '@ember/test-helpers';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { Response } from 'miragejs';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import { selectChoose } from 'ember-power-select/test-support';
 import { clickTrigger } from 'ember-power-select/test-support/helpers';
 import { generateAcceptanceTestEvalMock } from '../../mirage/utils';
@@ -119,8 +119,8 @@ module('Acceptance | evaluations list', function (hooks) {
       'evaluations.index',
       'The default route in evaluations is evaluations index',
     );
-
-    await a11yAudit(assert);
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('it renders an empty message if there are no evaluations rendered', async function (assert) {

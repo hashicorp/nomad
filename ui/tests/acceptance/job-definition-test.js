@@ -7,9 +7,9 @@ import { click, currentURL, waitUntil } from '@ember/test-helpers';
 import { getPageTitle } from 'ember-page-title/test-support';
 import faker from 'nomad-ui/mirage/faker';
 import { module, test } from 'qunit';
+import { a11yAudit } from 'ember-a11y-testing/test-support';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
-import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
 import Definition from 'nomad-ui/tests/pages/jobs/job/definition';
 
@@ -30,7 +30,8 @@ module('Acceptance | job definition', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    await a11yAudit(assert, 'scrollable-region-focusable');
+    await a11yAudit();
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('visiting /jobs/:job_id/definition', async function (assert) {
