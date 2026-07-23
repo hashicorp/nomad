@@ -390,9 +390,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.getOrCreateAutopilotConfig()
 	s.autopilot.Start(s.shutdownCtx)
 
-	// Initialize scheduler configuration.
-	schedulerConfig := s.getOrCreateSchedulerConfig()
-
 	// Initialize the Cluster metadata
 	clusterMetadata, err := s.ClusterMetadata()
 	if err != nil {
@@ -404,6 +401,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Start the plan evaluator
 	go s.planApply()
+
+	// Initialize scheduler configuration.
+	schedulerConfig := s.getOrCreateSchedulerConfig()
 
 	// Start the eval broker and blocked eval broker if these are not paused by
 	// the operator.
@@ -421,7 +421,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.volumeWatcher.SetEnabled(true, s.State(), s.getLeaderAcl())
 
 	// Restore the eval broker state and blocked eval state. If these are
-	// currently paused, we do not need to do this.
+	// currently paused, we do not need to do this. There is also no need
+	// to restore the batch queue evals if the eval broker is paused.
 	if restoreEvals {
 		if err := s.restoreEvals(); err != nil {
 			return err
@@ -812,10 +813,10 @@ func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*struc
 	return
 }
 
-// restoreEvals is used to restore pending evaluations into the eval broker and
-// blocked evaluations into the blocked eval tracker. The broker and blocked
-// eval tracker is maintained only by the leader, so it must be restored anytime
-// a leadership transition takes place.
+// restoreEvals is used to restore pending evaluations into the eval brocker,
+// batchQueues, and blocked evals tracker.  The broker and blocked eval tracker
+// is maintained only by the leader, so it must be restored anytime leadership
+// transitions takes place.
 func (s *Server) restoreEvals() error {
 	// Get an iterator over every evaluation
 	ws := memdb.NewWatchSet()
@@ -831,14 +832,38 @@ func (s *Server) restoreEvals() error {
 		}
 		eval := raw.(*structs.Evaluation)
 
-		if eval.ShouldEnqueue() {
-			if eval.TriggeredBy == structs.EvalTriggerJobRegister && eval.Type == structs.JobTypeBatch {
-				s.batchQueueMgr.Enqueue(eval)
-			} else {
-				s.evalBroker.Restore(eval)
-			}
-		} else if eval.ShouldBlock() {
+		switch {
+		case eval.IsBatchQueue():
+			s.batchQueueMgr.Enqueue(eval)
+		case eval.ShouldEnqueue():
+			s.evalBroker.Enqueue(eval)
+		case eval.ShouldBlock():
 			s.blockedEvals.Block(eval)
+		}
+	}
+	return nil
+}
+
+// restoreBatchQueue is used to only restore pending evals for batch queues.
+// This happens only on scheduler configuration updates that did not change
+// the paused status of EvalBroker, but did update the batch queue config.
+func (s *Server) restoreBatchQueue() error {
+	// Get an iterator over every evaluation
+	ws := memdb.NewWatchSet()
+	iter, err := s.fsm.State().Evals(ws, false)
+	if err != nil {
+		return fmt.Errorf("failed to get evaluations: %v", err)
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		eval := raw.(*structs.Evaluation)
+
+		if eval.IsBatchQueue() {
+			s.batchQueueMgr.Enqueue(eval)
 		}
 	}
 	return nil
@@ -2653,7 +2678,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 		return nil
 	}
 
-	return config
+	return &s.config.DefaultSchedulerConfig
 }
 
 var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
@@ -2784,17 +2809,9 @@ func (s *Server) handleEvalBrokerStateChange(schedConfig *structs.SchedulerConfi
 	// processes should be enabled or not. It allows us to answer this question
 	// whether using a persisted Raft configuration, or the default bootstrap
 	// config.
-	var enableBrokers, restoreEvals bool
+	var restoreEvals bool
 
-	// The scheduler config can only be persisted to Raft once quorum has been
-	// established. If this is a fresh cluster, we need to use the default
-	// scheduler config, otherwise we can use the persisted object.
-	switch schedConfig {
-	case nil:
-		enableBrokers = !s.config.DefaultSchedulerConfig.PauseEvalBroker
-	default:
-		enableBrokers = !schedConfig.PauseEvalBroker
-	}
+	enableBrokers := !schedConfig.PauseEvalBroker
 
 	// If the evalBroker status is changing, set the new state.
 	if enableBrokers != s.evalBroker.Enabled() {

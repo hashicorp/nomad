@@ -467,9 +467,14 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	// restore functions have protections around leadership transitions and
 	// restoring into non-running brokers.
 	if reply.Updated {
+		// Update will restart a queue, restoring state, but not restoring pending evals
+		op.srv.batchQueueMgr.Update(&args.Config.BatchQueue)
+
 		if op.srv.handleEvalBrokerStateChange(&args.Config) {
 			return op.srv.restoreEvals()
 		}
+
+		return op.srv.restoreBatchQueue()
 	}
 
 	return nil
