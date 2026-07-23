@@ -171,6 +171,8 @@ export default class Tokens extends Controller {
 
           // Refetch the token and associated policies
           this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+          // When signing in, we should refetch the license
+          this.system.get('fetchLicense').perform().catch();
 
           this.signInStatus = 'success';
           this.optionallyRedirectPathAfterSignIn();
@@ -192,6 +194,8 @@ export default class Tokens extends Controller {
 
           // Refetch the token and associated policies
           this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+          // When signing in, we should refetch the license
+          this.system.get('fetchLicense').perform().catch();
 
           if (!this.system.activeRegion) {
             this.system.get('defaultRegion').then((res) => {
