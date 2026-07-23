@@ -1,0 +1,3 @@
+```release-note:bug
+secrets: Fixed hooks to allow refetch during prestart
+```
