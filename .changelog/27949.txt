@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where the job status panel would show "Complete" instead of "Scaled Down" for system and sysbatch jobs with zero allocations
+```
