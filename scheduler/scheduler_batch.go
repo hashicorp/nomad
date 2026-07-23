@@ -35,7 +35,7 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sst
 		opt(bs)
 	}
 
-	bs.getAvailableNodes = bs.setNodes
+	bs.nodesSetter = bs.dependencyWrapper(bs.setNodes)
 
 	return bs
 }
@@ -53,4 +53,17 @@ func (bs *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[strin
 	}
 
 	return bs.GenericScheduler.setNodes(job)
+}
+
+// This wrapper is used to limit the initial pool of nodes for the feasibility check
+// depending on if the dependencies for the job being processed are met or not.
+func (bs *BatchScheduler) dependencyWrapper(next filterNodesFunc) filterNodesFunc {
+	return func(job *structs.Job) ([]*structs.Node, map[string]int, error) {
+		ready, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
+		if err != nil || !ready {
+			return []*structs.Node{}, nil, err
+		}
+
+		return next(job)
+	}
 }
