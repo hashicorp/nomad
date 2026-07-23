@@ -392,21 +392,21 @@ type BatchQueue struct {
 }
 
 type DynamicQueueConfig struct {
-	CalcInterval time.Duration `mapstructure:"calc_interval"`
-	MaxAge       time.Duration `mapstructure:"max_age"`
-	HalfLife     time.Duration `mapstructure:"half_life"`
-	MaxSize      int           `mapstructure:"max_size"`
-	AgeWeight    int           `mapstructure:"age_weight"`
-	UsageWeight  int           `mapstructure:"usage_weight"`
-	SizeWeight   int           `mapstructure:"size_weight"`
+	CalcInterval time.Duration `mapstructure:"calc_interval" json:"calc_interval"`
+	MaxAge       time.Duration `mapstructure:"max_age" json:"max_age"`
+	HalfLife     time.Duration `mapstructure:"half_life" json:"half_life"`
+	MaxSize      int           `mapstructure:"max_size" json:"max_size"`
+	AgeWeight    int           `mapstructure:"age_weight" json:"age_weight"`
+	UsageWeight  int           `mapstructure:"usage_weight" json:"usage_weight"`
+	SizeWeight   int           `mapstructure:"size_weight" json:"size_weight"`
 }
 
 func (d *DynamicQueueConfig) Validate() error {
 	if d.CalcInterval <= 0 {
-		return errors.New("calc_interval must be greater than 0")
+		return errors.New("calc_interval must be greater than zero")
 	}
 	if d.HalfLife <= 0 {
-		return errors.New("half_life must be greater than 0")
+		return errors.New("half_life must be greater than zero")
 	}
 	return nil
 }
