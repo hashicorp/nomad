@@ -333,6 +333,43 @@ func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
 	dtestutil.ExecTaskStreamingConformanceTests(t, harness, task.ID)
 
 }
+
+func TestTaskUser(t *testing.T) {
+	testCases := []struct {
+		name           string
+		configuredUser string
+		canSetUser     bool
+		expected       string
+	}{
+		{
+			name:       "privileged default",
+			canSetUser: true,
+			expected:   "nobody",
+		},
+		{
+			name:     "rootless default",
+			expected: "",
+		},
+		{
+			name:           "explicit user when privileged",
+			configuredUser: "nomad",
+			canSetUser:     true,
+			expected:       "nomad",
+		},
+		{
+			name:           "explicit user when rootless",
+			configuredUser: "nomad",
+			expected:       "nomad",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, taskUser(tc.configuredUser, tc.canSetUser))
+		})
+	}
+}
+
 func basicTask(t *testing.T, name string, taskConfig *TaskConfig) *drivers.TaskConfig {
 	t.Helper()
 

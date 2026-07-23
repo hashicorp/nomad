@@ -1,0 +1,3 @@
+```release-note:bug
+drivers/java: Fixed Java tasks failing to start on macOS when Nomad runs without root privileges
+```
