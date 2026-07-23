@@ -192,6 +192,11 @@ type FsLogsRequest struct {
 	// Follow follows logs.
 	Follow bool
 
+	// UseGlobalOffset returns allocation-lifetime offsets in log frames. When
+	// Origin is "start", Offset is also interpreted as an allocation-lifetime
+	// offset instead of a file-relative offset.
+	UseGlobalOffset bool
+
 	structs.QueryOptions
 }
 

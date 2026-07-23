@@ -5,6 +5,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -25,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
+	"github.com/hashicorp/nomad/client/logmon/logging"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -2074,7 +2076,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 
 	if err := c.endpoints.FileSystem.logsImpl(
 		ctx, false, false, 0,
-		OriginStart, task, logType, ad, frames); err != nil {
+		OriginStart, task, logType, false, ad, frames); err != nil {
 		t.Fatalf("logsImpl failed: %v", err)
 	}
 
@@ -2164,7 +2166,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	// Start streaming logs
 	go c.endpoints.FileSystem.logsImpl(
 		context.Background(), true, false, 0,
-		OriginStart, task, logType, ad, frames)
+		OriginStart, task, logType, false, ad, frames)
 
 	select {
 	case <-firstResultCh:
@@ -2185,4 +2187,119 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * streamBatchWindow):
 		t.Fatalf("did not receive data: got %q", string(received))
 	}
+}
+
+func TestFS_logsImpl_GlobalOffset(t *testing.T) {
+	ci.Parallel(t)
+
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	ad := tempAllocDir(t)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
+
+	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+	require.NoError(t, os.MkdirAll(logDir, 0777))
+
+	task := "foo"
+	logType := "stdout"
+	require.NoError(t, os.WriteFile(filepath.Join(logDir, "foo.stdout.0"), []byte("abc"), 0777))
+	require.NoError(t, os.WriteFile(filepath.Join(logDir, "foo.stdout.1"), []byte("def"), 0777))
+
+	manifest := logging.OffsetManifest{
+		Version:      1,
+		BaseFileName: "foo.stdout",
+		Files: map[string]logging.OffsetManifestLog{
+			"0": {Index: 0, Base: 0, Size: 3},
+			"1": {Index: 1, Base: 3, Size: 3},
+		},
+	}
+	manifestBytes, err := json.Marshal(manifest)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(ad.SharedDir, logging.OffsetManifestFile("foo.stdout")), manifestBytes, 0644))
+
+	frames := make(chan *sframer.StreamFrame, 4)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	err = c.endpoints.FileSystem.logsImpl(ctx, false, false, 4, OriginStart, task, logType, true, ad, frames)
+	require.NoError(t, err)
+
+	var got []byte
+	for len(frames) > 0 {
+		frame := <-frames
+		if frame.IsHeartbeat() {
+			continue
+		}
+		got = append(got, frame.Data...)
+	}
+
+	require.Equal(t, []byte("ef"), got)
+}
+
+func TestFS_setGlobalLogOffset(t *testing.T) {
+	ci.Parallel(t)
+
+	ad := tempAllocDir(t)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
+
+	manifest := logging.OffsetManifest{
+		Version:      1,
+		BaseFileName: "foo.stdout",
+		Files: map[string]logging.OffsetManifestLog{
+			"0": {Index: 0, Base: 0, Size: 3},
+			"1": {Index: 1, Base: 3, Size: 3},
+		},
+	}
+	manifestBytes, err := json.Marshal(manifest)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(ad.SharedDir, logging.OffsetManifestFile("foo.stdout")),
+		manifestBytes,
+		0644,
+	))
+
+	frame := &sframer.StreamFrame{
+		File:   filepath.Join(allocdir.SharedAllocName, allocdir.LogDirName, "foo.stdout.1"),
+		Offset: 3,
+		Data:   []byte("def"),
+	}
+
+	require.NoError(t, setGlobalLogOffset(ad, "foo", "stdout", frame))
+	require.Equal(t, int64(1), frame.FileIndex)
+	require.Equal(t, int64(3), frame.ByteOffset)
+	require.Equal(t, int64(6), frame.GlobalOffset)
+}
+
+func TestFS_logsImpl_GlobalOffsetUnavailable(t *testing.T) {
+	ci.Parallel(t)
+
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	ad := tempAllocDir(t)
+	require.NoError(t, ad.Build())
+	defer ad.Destroy()
+
+	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+	require.NoError(t, os.MkdirAll(logDir, 0777))
+	require.NoError(t, os.WriteFile(filepath.Join(logDir, "foo.stdout.2"), []byte("ghi"), 0777))
+
+	manifest := logging.OffsetManifest{
+		Version:      1,
+		BaseFileName: "foo.stdout",
+		Files: map[string]logging.OffsetManifestLog{
+			"2": {Index: 2, Base: 6, Size: 3},
+		},
+	}
+	manifestBytes, err := json.Marshal(manifest)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(ad.SharedDir, logging.OffsetManifestFile("foo.stdout")), manifestBytes, 0644))
+
+	frames := make(chan *sframer.StreamFrame, 4)
+	err = c.endpoints.FileSystem.logsImpl(context.Background(), false, false, 2, OriginStart, "foo", "stdout", true, ad, frames)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no longer available")
 }
