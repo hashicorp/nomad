@@ -1527,6 +1527,26 @@ func (c *Client) getAllocRunners() map[string]interfaces.AllocRunner {
 	return runners
 }
 
+// Allocations returns a snapshot of the allocations known to this client.
+// The returned allocations are copies with the ClientStatus overlaid from the
+// alloc runner's live state, which may be ahead of the last status reported
+// to the servers.
+func (c *Client) Allocations() []*structs.Allocation {
+	runners := c.getAllocRunners()
+	out := make([]*structs.Allocation, 0, len(runners))
+	for _, ar := range runners {
+		if ar.IsDestroyed() {
+			continue
+		}
+		alloc := ar.Alloc().Copy()
+		if state := ar.AllocState(); state.ClientStatus != "" {
+			alloc.ClientStatus = state.ClientStatus
+		}
+		out = append(out, alloc)
+	}
+	return out
+}
+
 // NumAllocs returns the number of un-GC'd allocs this client has. Used to
 // fulfill the AllocCounter interface for the GC.
 func (c *Client) NumAllocs() int {
