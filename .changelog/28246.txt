@@ -1,0 +1,3 @@
+```release-note:improvement
+jobspec: Removed the requirement that a variable validation `error_message` be a full English sentence, allowing messages written in any language
+```
