@@ -84,24 +84,32 @@ module('Integration | Component | job diff', function (hooks) {
 
     await render(commonTemplate);
 
-    const text = find(
+    const container = find(
       '[data-test-diff-section-label="field"][data-test-diff-field="edited"]',
-    ).textContent;
+    );
 
     assert.notOk(
-      text.includes(`"${oldTmpl}" => "${newTmpl}"`),
-      'Embedded template field does not include the flat Old => New format',
+      container.textContent.includes(`"${oldTmpl}" => "${newTmpl}"`),
+      'Embedded template field does not use the flat Old => New format',
     );
+
+    const removedLine = container.querySelector('.diff-line-removed');
+    const addedLine = container.querySelector('.diff-line-added');
+
+    assert.ok(removedLine, 'Rendered diff includes a removed line span');
     assert.ok(
-      text.includes('- line two'),
-      'Rendered diff shows the removed line',
+      removedLine.textContent.includes('line two'),
+      'Removed line shows the old content',
     );
+
+    assert.ok(addedLine, 'Rendered diff includes an added-line span');
     assert.ok(
-      text.includes('+ line TWO'),
-      'Rendered diff shows the added line',
+      addedLine.textContent.includes('line TWO'),
+      'Added line shows the new content',
     );
+
     assert.ok(
-      text.includes('line one'),
+      container.textContent.includes('line one'),
       'Rendered diff includes unchanged context lines',
     );
   });

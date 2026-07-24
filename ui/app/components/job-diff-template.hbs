@@ -5,4 +5,12 @@
 
 <div
   class="diff-section-table-cell diff-section-change diff-section-table-pre-wrap"
->{{this.diff}}</div>
+>
+  {{#each this.diffChunks as |chunk|}}
+    <span
+      class="diff-line
+        {{if chunk.added 'diff-line-added'}}
+        {{if chunk.removed 'diff-line-removed'}}"
+    >{{chunk.value}}</span>
+  {{/each}}
+</div>
