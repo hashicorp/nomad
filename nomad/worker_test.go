@@ -50,11 +50,11 @@ func (n *NoopScheduler) Process(eval *structs.Evaluation) error {
 
 func init() {
 	scheduler.BuiltinSchedulers["noop"] = func(
-		logger log.Logger, eventsCh chan<- any, s sstructs.State, p sstructs.Planner,
-	) sstructs.Scheduler {
+		logger log.Logger, eventsCh chan<- interface{}, state sstructs.State,
+		planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
 		n := &NoopScheduler{
-			state:   s,
-			planner: p,
+			state:   state,
+			planner: planner,
 		}
 		return n
 	}

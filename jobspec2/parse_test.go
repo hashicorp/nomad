@@ -220,7 +220,6 @@ func TestParse_Locals(t *testing.T) {
 variables {
   region_var = "default_region"
 }
-
 locals {
   # literal local
   dc = "local_dc"
@@ -260,6 +259,86 @@ job "example" {
 		require.NotNil(t, out.Region)
 		require.Equal(t, "set_region.example", *out.Region)
 	})
+}
+
+func TestParse_Dependencies(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+job "example" {
+  type = "batch"
+
+	dependency {
+		timeout = "10m"
+		job {
+			name = "upstream"
+		}
+  }
+
+  group "g" {
+    task "t" {
+      driver = "raw_exec"
+      config {
+        command = "echo"
+      }
+    }
+  }
+}
+`
+
+	out, err := ParseWithConfig(&ParseConfig{
+		Path:    "input.hcl",
+		Body:    []byte(hcl),
+		AllowFS: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, out.Dependencies, 1)
+	require.Equal(t, "10m", out.Dependencies[0].Timeout)
+	require.Equal(t, "reject", out.Dependencies[0].ActionOnTimeout)
+	require.Len(t, out.Dependencies[0].Jobs, 1)
+	require.Equal(t, "upstream", out.Dependencies[0].Jobs[0].Name)
+	require.Equal(t, "completed", out.Dependencies[0].Jobs[0].Status)
+}
+
+func TestParse_Dependencies_OnlyOneBlockAllowed(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+job "example" {
+  type = "batch"
+
+	dependency {
+		timeout = "10m"
+		job {
+			name = "upstream-a"
+		}
+	}
+
+	dependency {
+		timeout = "10m"
+		job {
+			name = "upstream-b"
+		}
+	}
+
+  group "g" {
+    task "t" {
+      driver = "raw_exec"
+      config {
+        command = "echo"
+      }
+    }
+  }
+}
+`
+
+	_, err := ParseWithConfig(&ParseConfig{
+		Path:    "input.hcl",
+		Body:    []byte(hcl),
+		AllowFS: true,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Duplicate dependency block")
 }
 
 func TestParse_FileOperators(t *testing.T) {

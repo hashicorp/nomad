@@ -35,6 +35,9 @@ const (
 	maxPastRescheduleEvents = 5
 )
 
+// function used to limit the initial pool of nodes for the feasibility check.
+type filterNodesFunc func(*structs.Job) ([]*structs.Node, map[string]int, error)
+
 // SetStatusError is used to set the status of the evaluation to the given error
 type SetStatusError struct {
 	Err        error
@@ -62,7 +65,7 @@ type GenericScheduler struct {
 	plan       *structs.Plan
 	planResult *structs.PlanResult
 	ctx        *feasible.EvalContext
-	stack      *feasible.GenericStack
+	stack      feasible.Stack
 
 	// followUpEvals are evals with WaitUntil set, which are delayed until that time
 	// before being rescheduled
@@ -74,10 +77,12 @@ type GenericScheduler struct {
 	failedTGAllocs  map[string]*structs.AllocMetric
 	queuedAllocs    map[string]int
 	planAnnotations *structs.PlanAnnotations
+	nodesSetter     filterNodesFunc
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{},
+	state sstructs.State, planner sstructs.Planner, _ ...sstructs.SchedulerOption) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("service_sched"),
 		eventsCh: eventsCh,
@@ -85,18 +90,9 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state s
 		planner:  planner,
 		batch:    false,
 	}
-	return s
-}
 
-// NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
-	s := &GenericScheduler{
-		logger:   logger.Named("batch_sched"),
-		eventsCh: eventsCh,
-		state:    state,
-		planner:  planner,
-		batch:    true,
-	}
+	s.nodesSetter = s.setNodes
+
 	return s
 }
 
@@ -484,7 +480,7 @@ func (s *GenericScheduler) computePlacements(
 ) error {
 
 	// Get the base nodes
-	nodes, byDC, err := s.setNodes(s.job)
+	nodes, byDC, err := s.nodesSetter(s.job)
 	if err != nil {
 		return err
 	}
@@ -546,7 +542,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(downgradedJob)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(downgradedJob)
+					nodes, byDC, err = s.nodesSetter(downgradedJob)
 					if err != nil {
 						return err
 					}
@@ -588,7 +584,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(s.job)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(s.job)
+					nodes, byDC, err = s.nodesSetter(s.job)
 					if err != nil {
 						return err
 					}
@@ -777,6 +773,7 @@ func (s *GenericScheduler) setJob(job *structs.Job) error {
 // setnodes updates the stack with the nodes that are ready for placement for
 // the given job.
 func (s *GenericScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
+
 	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, job.Datacenters, job.NodePool)
 	if err != nil {
 		return nil, nil, err

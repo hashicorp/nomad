@@ -4443,6 +4443,12 @@ type Job struct {
 	// scheduling preferences that apply to all groups and tasks
 	Affinities []*Affinity
 
+	// Dependencies can be specified at a job level, it used to express
+	// inter-job dependencies, such as "job A cannot start until job B is
+	// running". This can be used to express complex workflows with multiple
+	//  jobs.
+	Dependencies *Dependency
+
 	// Spread can be specified at the job level to express spreading
 	// allocations across a desired attribute, such as datacenter
 	Spreads []*Spread
@@ -4673,6 +4679,10 @@ func (j *Job) Canonicalize() {
 		j.Spreads = nil
 	}
 
+	if j.Dependencies != nil {
+		j.Dependencies.Canonicalize()
+	}
+
 	// Ensure the job is in a namespace.
 	if j.Namespace == "" {
 		j.Namespace = DefaultNamespace
@@ -4697,6 +4707,7 @@ func (j *Job) Canonicalize() {
 	if j.Periodic != nil {
 		j.Periodic.Canonicalize()
 	}
+
 }
 
 // Copy returns a deep copy of the Job. It is expected that callers use recover.
@@ -4710,6 +4721,7 @@ func (j *Job) Copy() *Job {
 	nj.Datacenters = slices.Clone(j.Datacenters)
 	nj.Constraints = CopySliceConstraints(j.Constraints)
 	nj.Affinities = CopySliceAffinities(j.Affinities)
+	nj.Dependencies = j.Dependencies.Copy()
 	nj.Multiregion = j.Multiregion.Copy()
 	nj.UI = j.UI.Copy()
 	nj.VersionTag = j.VersionTag.Copy()
@@ -4777,6 +4789,13 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, outer)
 		}
 	}
+
+	if j.Dependencies != nil {
+		if err := j.Dependencies.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Dependency validation failed: %s", err))
+		}
+	}
+
 	if j.Type == JobTypeSystem {
 		if j.Affinities != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("System jobs may not have an affinity block"))
