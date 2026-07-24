@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where the jobs list page could repeat a job across pages, get stuck while paging, or jump to the wrong last page
+```
