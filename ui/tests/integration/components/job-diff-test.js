@@ -71,6 +71,41 @@ module('Integration | Component | job diff', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
+  test('embedded template diffs are rendered line-by-line', async function (assert) {
+    const oldTmpl = 'line one\nline two\nline three\n';
+    const newTmpl = 'line one\nline TWO\nline three\n';
+
+    this.set('diff', {
+      ID: 'test-case-embedded-tmpl',
+      Type: 'Edited',
+      Objects: null,
+      Fields: [field('EmbeddedTmpl', 'edited', newTmpl, oldTmpl)],
+    });
+
+    await render(commonTemplate);
+
+    const text = find(
+      '[data-test-diff-section-label="field"][data-test-diff-field="edited"]',
+    ).textContent;
+
+    assert.notOk(
+      text.includes(`"${oldTmpl}" => "${newTmpl}"`),
+      'Embedded template field does not include the flat Old => New format',
+    );
+    assert.ok(
+      text.includes('- line two'),
+      'Rendered diff shows the removed line',
+    );
+    assert.ok(
+      text.includes('+ line TWO'),
+      'Rendered diff shows the added line',
+    );
+    assert.ok(
+      text.includes('line one'),
+      'Rendered diff includes unchanged context lines',
+    );
+  });
+
   test('job object diffs', async function (assert) {
     this.set('diff', {
       ID: 'test-case-2',

@@ -340,6 +340,9 @@ importers:
       is-ip:
         specifier: ^5.0.1
         version: 5.0.1
+      line-diff:
+        specifier: ^2.1.2
+        version: 2.1.2
       lint-staged:
         specifier: ^16.4.0
         version: 16.4.0
@@ -4951,12 +4954,18 @@ packages:
     resolution: {integrity: sha512-M6T051+5QCGLBQb8id3hdvIW8+zeFV2FyBGFS9IEK5H9Wt4MueD4bW1eWikpHgZp+5xR3l5c8pZUkQsIA0BFZg==}
     engines: {node: '>=8'}
 
+  levdist@1.0.0:
+    resolution: {integrity: sha512-YguwC2spb0pqpJM3a5OsBhih/GG2ZHoaSHnmBqhEI7997a36buhqcRTegEjozHxyxByIwLpZHZTVYMThq+Zd3g==}
+
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
 
   line-column@1.0.2:
     resolution: {integrity: sha512-Ktrjk5noGYlHsVnYWh62FLVs4hTb8A3e+vucNZMgPeAOITdshMSgv4cCZQeRDjm7+goqmo6+liZwTXo+U3sVww==}
+
+  line-diff@2.1.2:
+    resolution: {integrity: sha512-rkfwQJRXQHo14BjphIid+73/a4nf/VVAWDqhIr3WtWXrybGYnV27X8KqngIKH1cxd0z7u2OM/JTV1g6I57z2EQ==}
 
   lines-and-columns@1.2.4:
     resolution: {integrity: sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==}
@@ -13023,6 +13032,8 @@ snapshots:
     dependencies:
       invert-kv: 3.0.1
 
+  levdist@1.0.0: {}
+
   levn@0.4.1:
     dependencies:
       prelude-ls: 1.2.1
@@ -13032,6 +13043,10 @@ snapshots:
     dependencies:
       isarray: 1.0.0
       isobject: 2.1.0
+
+  line-diff@2.1.2:
+    dependencies:
+      levdist: 1.0.0
 
   lines-and-columns@1.2.4: {}
 

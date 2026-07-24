@@ -134,6 +134,7 @@
     "globals": "^17.5.0",
     "http-proxy": "^1.18.1",
     "is-ip": "^5.0.1",
+    "line-diff": "^2.1.2",
     "lint-staged": "^16.4.0",
     "loader.js": "^4.7.0",
     "lodash.intersection": "^4.4.0",
