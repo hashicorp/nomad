@@ -10,6 +10,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1355,4 +1356,93 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 			require.Equal(t, tc.expectedReason, reason)
 		})
 	}
+}
+
+// TestPlanApply_PipelinedPlans tests that multiple plans can be in-flight
+// simultaneously
+func TestPlanApply_PipelinedPlans(t *testing.T) {
+	ci.Parallel(t)
+
+	// Set up sink to capture batching metrics
+	sink := metrics.NewInmemSink(10*time.Second, time.Minute)
+	cfg := metrics.DefaultConfig("nomad")
+	cfg.EnableHostname = false
+	metrics.NewGlobal(cfg, sink)
+
+	// Configure Raft to increase batching window
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.PlanApplyPipeline = 16
+		c.RaftConfig.CommitTimeout = 100 * time.Millisecond
+		c.RaftConfig.MaxAppendEntries = 64
+	})
+	defer cleanup()
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	node := mock.Node()
+	testRegisterNode(t, srv, node)
+
+	job := mock.Job()
+	job.TaskGroups[0].Networks = nil
+	for _, task := range job.TaskGroups[0].Tasks {
+		task.Resources.Networks = nil
+	}
+	store := srv.State()
+	index, _ := store.LatestIndex()
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	index++
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, index, []*structs.Evaluation{eval}))
+
+	// Submit plans and wait for them to complete
+	numPlans := 20
+	futures := make([]PlanFuture, numPlans)
+
+	for i := 0; i < numPlans; i++ {
+		alloc := mock.MinAllocForJob(job)
+		alloc.NodeID = node.ID
+		alloc.EvalID = eval.ID
+
+		plan := &structs.Plan{
+			Job: job,
+			JobInfo: &structs.PlanJobTuple{
+				Namespace: job.Namespace,
+				ID:        job.ID,
+			},
+			EvalID:         eval.ID,
+			NodeAllocation: map[string][]*structs.Allocation{node.ID: {alloc}},
+		}
+
+		future, err := srv.planQueue.Enqueue(plan)
+		must.NoError(t, err)
+		futures[i] = future
+	}
+	for i, future := range futures {
+		result, err := future.Wait()
+		must.NoError(t, err)
+		must.NotNil(t, result, must.Sprintf("plan %d result is nil", i))
+	}
+	allocs, err := store.AllocsByNode(nil, node.ID)
+	must.NoError(t, err)
+	must.Len(t, numPlans, allocs, must.Sprintf("expected %d allocations", numPlans))
+
+	// Verify that pipelining occurred by checking the batching metrics.
+	// Max > 0 means at least one plan observed another plan already in-flight,
+	// proving that pipelining occurred (multiple plans in the Raft pipeline
+	// simultaneously)
+
+	data := sink.Data()
+	must.NotEq(t, 0, len(data), must.Sprint("no metrics data collected"))
+
+	var maxInFlight float64
+	for _, interval := range data {
+		if sample, ok := interval.Samples["nomad.nomad.plan.outstanding_apply"]; ok {
+			if sample.Max > maxInFlight {
+				maxInFlight = sample.Max
+			}
+		}
+	}
+	must.Greater(t, 0.0, maxInFlight, must.Sprint("expected pipelined plans"))
 }
