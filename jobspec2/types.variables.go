@@ -9,7 +9,6 @@ package jobspec2
 import (
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
@@ -370,11 +369,10 @@ type VariableValidation struct {
 	// the block defining the validation rule, not an error in the caller.
 	Condition hcl.Expression
 
-	// ErrorMessage is one or more full sentences, which _should_ be in English
-	// for consistency with the rest of the error message output but can in
-	// practice be in any language as long as it ends with a period. The
-	// message should describe what is required for the condition to return
-	// true in a way that would make sense to a caller of the module.
+	// ErrorMessage is a human-readable message describing what is required for
+	// the condition to return true, in a way that would make sense to a caller
+	// of the module. It may be written in any language; the only requirement is
+	// that it is not empty.
 	ErrorMessage string
 
 	DeclRange hcl.Range
@@ -430,30 +428,14 @@ func decodeVariableValidationBlock(varName string, block *hcl.Block) (*VariableV
 		moreDiags := gohcl.DecodeExpression(attr.Expr, nil, &vv.ErrorMessage)
 		diags = append(diags, moreDiags...)
 		if !moreDiags.HasErrors() {
-			const errSummary = "Invalid validation error message"
-			switch {
-			case vv.ErrorMessage == "":
+			// Any non-empty error message is accepted. We deliberately don't
+			// enforce a writing style (such as full English sentences) so that
+			// authors can write messages in any human language.
+			if strings.TrimSpace(vv.ErrorMessage) == "" {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  errSummary,
-					Detail:   "An empty string is not a valid nor useful error message.",
-					Subject:  attr.Expr.Range().Ptr(),
-				})
-			case !looksLikeSentences(vv.ErrorMessage):
-				// Because we're going to include this string verbatim as part
-				// of a bigger error message written in our usual style, we'll
-				// require the given error message to conform to that. We might
-				// relax this in future if e.g. we start presenting these error
-				// messages in a different way, or if Packer starts supporting
-				// producing error messages in other human languages, etc. For
-				// pragmatism we also allow sentences ending with exclamation
-				// points, but we don't mention it explicitly here because
-				// that's not really consistent with the Packer UI writing
-				// style.
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  errSummary,
-					Detail:   "Validation error message must be at least one full sentence starting with an uppercase letter ( if the alphabet permits it ) and ending with a period or question mark.",
+					Summary:  "Invalid validation error message",
+					Detail:   "An empty or blank string is not a valid nor useful error message.",
 					Subject:  attr.Expr.Range().Ptr(),
 				})
 			}
@@ -461,34 +443,6 @@ func decodeVariableValidationBlock(varName string, block *hcl.Block) (*VariableV
 	}
 
 	return vv, diags
-}
-
-// looksLikeSentence is a simple heuristic that encourages writing error
-// messages that will be presentable when included as part of a larger error
-// diagnostic whose other text is written in the UI writing style.
-//
-// This is intentionally not a very strong validation since we're assuming that
-// authors want to write good messages and might just need a nudge about
-// Packer's specific style, rather than that they are going to try to work
-// around these rules to write a lower-quality message.
-func looksLikeSentences(s string) bool {
-	if len(s) < 1 {
-		return false
-	}
-	runes := []rune(s) // HCL guarantees that all strings are valid UTF-8
-	first := runes[0]
-	last := runes[len(runes)-1]
-
-	// If the first rune is a letter then it must be an uppercase letter. To
-	// sorts of nudge people into writing sentences. For alphabets that don't
-	// have the notion of 'upper', this does nothing.
-	if unicode.IsLetter(first) && !unicode.IsUpper(first) {
-		return false
-	}
-
-	// The string must be at least one full sentence, which implies having
-	// sentence-ending punctuation.
-	return last == '.' || last == '?' || last == '!'
 }
 
 // Prefix your environment variables with VarEnvPrefix so that Packer can see

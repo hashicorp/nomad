@@ -1,4 +1,3 @@
-/* eslint-disable no-unsafe-optional-chaining */
 /**
  * Copyright IBM Corp. 2015, 2026
  * SPDX-License-Identifier: BUSL-1.1
@@ -236,17 +235,34 @@ export default class JobStatusPanelSteadyComponent extends Component {
       };
     }
 
-    if (this.totalAllocs === 0 && !this.job.hasClientStatus) {
-      return {
-        label: 'Scaled Down',
-        state: 'neutral',
-      };
+    if (totalAllocs === 0) {
+      if (!this.job.hasClientStatus) {
+        return {
+          label: 'Scaled Down',
+          state: 'neutral',
+        };
+      }
+
+      const hasFailureSignal =
+        (this.allocBlocks.failed?.healthy?.nonCanary?.length || 0) +
+          (this.allocBlocks.lost?.healthy?.nonCanary?.length || 0) +
+          (this.allocBlocks.unplaced?.healthy?.nonCanary?.length || 0) >
+        0;
+
+      if (!hasFailureSignal) {
+        return {
+          label: 'Scaled Down',
+          state: 'neutral',
+        };
+      }
     }
 
     if (this.job.type === 'batch' || this.job.type === 'sysbatch') {
-      // If all the allocs are complete, the job is Complete
+      // If all the allocs are complete, the job is Complete.
+      // Guard against totalAllocs === 0: 0 === 0 would falsely report Complete
+      // for a zero-allocation sysbatch/batch job that should be Scaled Down.
       const completeAllocs = this.allocBlocks.complete?.healthy?.nonCanary;
-      if (completeAllocs?.length === totalAllocs) {
+      if (totalAllocs > 0 && completeAllocs?.length === totalAllocs) {
         return { label: 'Complete', state: 'success' };
       }
 
@@ -270,15 +286,18 @@ export default class JobStatusPanelSteadyComponent extends Component {
 
     // If any allocations are failed, lost, or unplaced in a steady state, the job is "Degraded"
     const failedOrLostAllocs = [
-      ...this.allocBlocks.failed?.healthy?.nonCanary,
-      ...this.allocBlocks.lost?.healthy?.nonCanary,
-      ...this.allocBlocks.unplaced?.healthy?.nonCanary,
+      ...(this.allocBlocks.failed?.healthy?.nonCanary || []),
+      ...(this.allocBlocks.lost?.healthy?.nonCanary || []),
+      ...(this.allocBlocks.unplaced?.healthy?.nonCanary || []),
     ];
 
-    if (failedOrLostAllocs.length === totalAllocs) {
+    if (totalAllocs > 0 && failedOrLostAllocs.length >= totalAllocs) {
       return { label: 'Failed', state: 'critical' };
-    } else {
+    } else if (failedOrLostAllocs.length > 0) {
       return { label: 'Degraded', state: 'warning' };
     }
+
+    // If no allocations and no failures, show as scaled down
+    return { label: 'Scaled Down', state: 'neutral' };
   }
 }

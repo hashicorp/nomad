@@ -2423,6 +2423,10 @@ func (r *Resources) Validate() error {
 		mErr.Errors = append(mErr.Errors, errors.New("Task can only ask for 'cpu' or 'cores' resource, not both."))
 	}
 
+	if r.Cores < 0 {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("cores value (%d) cannot be negative", r.Cores))
+	}
+
 	if err := r.MeetsMinResources(); err != nil {
 		mErr.Errors = append(mErr.Errors, err)
 	}

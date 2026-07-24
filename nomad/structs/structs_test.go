@@ -2490,6 +2490,14 @@ func TestTask_Validate_Resources(t *testing.T) {
 			err: "minimum CPU value is 1",
 		},
 		{
+			name: "negative cores",
+			res: &Resources{
+				Cores:    -1,
+				MemoryMB: 200,
+			},
+			err: "cores value (-1) cannot be negative",
+		},
+		{
 			name: "too little memory",
 			res: &Resources{
 				CPU:      100,

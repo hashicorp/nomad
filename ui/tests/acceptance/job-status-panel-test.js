@@ -889,6 +889,31 @@ module('Acceptance | job status panel', function (hooks) {
         );
     });
 
+    test('Zero-allocation system and sysbatch jobs are Scaled Down', async function (assert) {
+      const jobTypes = ['system', 'sysbatch'];
+
+      for (const type of jobTypes) {
+        let job = this.server.create('job', {
+          status: 'running',
+          datacenters: ['*'],
+          type,
+          createAllocations: false,
+          noActiveDeployment: true,
+          shallow: true,
+          version: 0,
+        });
+
+        await visit(`/jobs/${job.id}`);
+
+        assert
+          .dom('.job-status-panel h2')
+          .hasTextContaining(
+            'Status: Scaled Down',
+            `${type} jobs with no allocations are shown as scaled down`,
+          );
+      }
+    });
+
     test('System jobs do not have a sense of Desired/Total allocs', async function (assert) {
       this.store = this.owner.lookup('service:store');
 

@@ -917,10 +917,7 @@ func (c *Command) Run(args []string) int {
 	info["bind addrs"] = c.getBindAddrSynopsis()
 	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
 	if config.Server.Enabled {
-		serverConfig, err := c.agent.serverConfig()
-		if err == nil {
-			info["node id"] = serverConfig.NodeID
-		}
+		info["node id"] = c.agent.server.GetConfig().NodeID
 	}
 
 	// Sort the keys for output

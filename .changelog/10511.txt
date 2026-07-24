@@ -1,0 +1,3 @@
+```release-note:bug
+jobspec: Fixed a bug where a negative `cores` value in a task's resource block was accepted during job validation and registration
+```
