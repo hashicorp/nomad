@@ -150,6 +150,9 @@ importers:
       d3-transition:
         specifier: ^3.0.1
         version: 3.0.1(d3-selection@3.0.0)
+      diff:
+        specifier: ^8.0.3
+        version: 8.0.3
       dompurify:
         specifier: ^3.4.9
         version: 3.4.9
