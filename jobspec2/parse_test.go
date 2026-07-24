@@ -1377,7 +1377,7 @@ job "example" {
 			Body:    jobWith("ビルド番号を確認してください"),
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("message without a trailing period is accepted", func(t *testing.T) {
@@ -1386,7 +1386,7 @@ job "example" {
 			Body:    jobWith("build id is required"),
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("empty message is rejected", func(t *testing.T) {
@@ -1395,8 +1395,7 @@ job "example" {
 			Body:    jobWith(""),
 			AllowFS: true,
 		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Invalid validation error message")
+		must.ErrorContains(t, err, "Invalid validation error message")
 	})
 
 	t.Run("blank message is rejected", func(t *testing.T) {
@@ -1405,7 +1404,6 @@ job "example" {
 			Body:    jobWith("   "),
 			AllowFS: true,
 		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Invalid validation error message")
+		must.ErrorContains(t, err, "Invalid validation error message")
 	})
 }
