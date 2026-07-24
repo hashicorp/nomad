@@ -1349,3 +1349,61 @@ func Test_extractJobSpecEnvVars(t *testing.T) {
 		}, result)
 	})
 }
+
+func TestParse_VariableValidationErrorMessage(t *testing.T) {
+	t.Parallel()
+
+	jobWith := func(errMsg string) []byte {
+		return []byte(`
+variable "build_id" {
+  type    = string
+  default = "12345"
+  validation {
+    condition     = var.build_id != ""
+    error_message = "` + errMsg + `"
+  }
+}
+
+job "example" {
+  datacenters = ["dc1"]
+}
+`)
+	}
+
+	t.Run("non-English message is accepted", func(t *testing.T) {
+		// Japanese for "Please check the build number"; see issue #15075.
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith("ビルド番号を確認してください"),
+			AllowFS: true,
+		})
+		must.NoError(t, err)
+	})
+
+	t.Run("message without a trailing period is accepted", func(t *testing.T) {
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith("build id is required"),
+			AllowFS: true,
+		})
+		must.NoError(t, err)
+	})
+
+	t.Run("empty message is rejected", func(t *testing.T) {
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith(""),
+			AllowFS: true,
+		})
+		must.ErrorContains(t, err, "Invalid validation error message")
+	})
+
+	t.Run("blank message is rejected", func(t *testing.T) {
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith("   "),
+			AllowFS: true,
+		})
+		must.ErrorContains(t, err, "Invalid validation error message")
+	})
+}
