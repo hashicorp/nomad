@@ -473,7 +473,18 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 			if err != nil {
 				return false
 			}
-			for _, req := range job.LookupTaskGroup(alloc.TaskGroup).Volumes {
+			// The job may have been purged or garbage collected (JobByID
+			// returns nil, nil), or the alloc's task group may no longer exist.
+			// We cannot prove this allocation is not using the volume, so treat
+			// it as unavailable rather than dereference the nil job.
+			if job == nil {
+				return false
+			}
+			tg := job.LookupTaskGroup(alloc.TaskGroup)
+			if tg == nil {
+				return false
+			}
+			for _, req := range tg.Volumes {
 				if vol.MatchesRequestSource(req, alloc) {
 					if !req.ReadOnly {
 						return false
