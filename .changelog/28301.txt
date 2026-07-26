@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where the scheduler could panic with a nil pointer dereference when checking host volume feasibility for an allocation whose job had been purged
+```
