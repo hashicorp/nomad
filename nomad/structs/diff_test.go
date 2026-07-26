@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -5358,6 +5359,65 @@ func TestTaskGroupDiff(t *testing.T) {
 				must.Eq(t, c.Expected, result)
 			}
 		})
+	}
+}
+
+func TestTaskDiff_ConfigArgsNumericOrder(t *testing.T) {
+	ci.Parallel(t)
+
+	// Slice elements are flattened to "args[<index>]" names. The diff must sort
+	// them numerically, not lexically, so args[2] comes before args[10]
+	args := make([]string, 12)
+	for i := range args {
+		args[i] = fmt.Sprintf("v%d", i)
+	}
+	old := &Task{Name: "web"}
+	updated := &Task{Name: "web", Config: map[string]any{"args": args}}
+
+	diff, err := old.Diff(updated, false)
+	must.NoError(t, err)
+
+	var cfg *ObjectDiff
+	for _, o := range diff.Objects {
+		if o.Name == "Config" {
+			cfg = o
+			break
+		}
+	}
+	must.NotNil(t, cfg)
+
+	got := make([]string, len(cfg.Fields))
+	for i, f := range cfg.Fields {
+		got[i] = f.Name
+	}
+
+	want := make([]string, 12)
+	for i := range want {
+		want[i] = fmt.Sprintf("args[%d]", i)
+	}
+	must.Eq(t, want, got)
+}
+
+func TestSplitIndexedName(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name  string
+		base  string
+		index int
+		ok    bool
+	}{
+		{"args[10]", "args", 10, true},
+		{"args[0]", "args", 0, true},
+		{"args", "", 0, false},    // no index suffix
+		{"[0]", "", 0, false},     // index only, empty base
+		{"args[x]", "", 0, false}, // non-numeric index
+	}
+	for _, tc := range cases {
+		base, index, ok := splitIndexedName(tc.name)
+		must.Eq(t, tc.base, base)
+		must.Eq(t, tc.index, index)
+		must.Eq(t, tc.ok, ok)
 	}
 }
 

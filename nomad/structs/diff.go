@@ -3121,6 +3121,37 @@ func (o *ObjectDiff) GoString() string {
 	return out
 }
 
+// splitIndexedName splits a name of the form "base[<index>]" into its base and
+// integer index. ok is false if name has no such well-formed suffix or an empty
+// base.
+func splitIndexedName(name string) (base string, index int, ok bool) {
+	if !strings.HasSuffix(name, "]") {
+		return "", 0, false
+	}
+	open := strings.LastIndexByte(name, '[')
+	if open <= 0 {
+		return "", 0, false
+	}
+	idx, err := strconv.Atoi(name[open+1 : len(name)-1])
+	if err != nil {
+		return "", 0, false
+	}
+	return name[:open], idx, true
+}
+
+// nameLess orders diff names. Names produced by flatmap for slice elements
+// carry a trailing "[<index>]" suffix; when two names share the same base their
+// indices are compared numerically so that e.g. "args[2]" sorts before
+// "args[10]". Otherwise the names are compared lexically.
+func nameLess(a, b string) bool {
+	aBase, aIdx, aOK := splitIndexedName(a)
+	bBase, bIdx, bOK := splitIndexedName(b)
+	if aOK && bOK && aBase == bBase {
+		return aIdx < bIdx
+	}
+	return a < b
+}
+
 func (o *ObjectDiff) Less(other *ObjectDiff) bool {
 	if reflect.DeepEqual(o, other) {
 		return false
@@ -3131,7 +3162,7 @@ func (o *ObjectDiff) Less(other *ObjectDiff) bool {
 	}
 
 	if o.Name != other.Name {
-		return o.Name < other.Name
+		return nameLess(o.Name, other.Name)
 	}
 
 	if o.Type != other.Type {
@@ -3228,7 +3259,7 @@ func (f *FieldDiff) Less(other *FieldDiff) bool {
 	}
 
 	if f.Name != other.Name {
-		return f.Name < other.Name
+		return nameLess(f.Name, other.Name)
 	} else if f.Old != other.Old {
 		return f.Old < other.Old
 	}
