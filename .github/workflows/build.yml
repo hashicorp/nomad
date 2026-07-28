@@ -195,6 +195,8 @@ jobs:
           build-args: |
             GO_VERSION=${{ needs.get-go-version.outputs.go-version }}
           push: true
+          provenance: mode=max
+          sbom: true
           tags: localhost:5000/nomad-builder:${{ github.sha }}
 
       - name: Build
