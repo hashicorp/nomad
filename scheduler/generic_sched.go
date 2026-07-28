@@ -305,14 +305,13 @@ func (s *GenericScheduler) process() (bool, error) {
 		return false, nil
 	}
 
-	// Try again if the plan was not fully committed, potential conflict
+	// Try again if the plan was not fully committed, potential conflict. The
+	// above conditional means that we are always missing a state refresh after
+	// a partial commit.
 	fullCommit, expected, actual := result.FullCommit(s.plan)
 	if !fullCommit {
 		s.logger.Debug("plan didn't fully commit", "attempted", expected, "placed", actual)
-		if newState == nil {
-			return false, fmt.Errorf("missing state refresh after partial commit")
-		}
-		return false, nil
+		return false, fmt.Errorf("missing state refresh after partial commit")
 	}
 
 	// Success!
