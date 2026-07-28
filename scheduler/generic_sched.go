@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/dependency"
 	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
@@ -54,11 +55,12 @@ func (s *SetStatusError) Error() string {
 // most workloads. It also supports a 'batch' mode to optimize for fast decision
 // making at the cost of quality.
 type GenericScheduler struct {
-	logger   log.Logger
-	eventsCh chan<- any
-	state    sstructs.State
-	planner  sstructs.Planner
-	batch    bool
+	logger        log.Logger
+	eventsCh      chan<- any
+	state         sstructs.State
+	planner       sstructs.Planner
+	batch         bool
+	blockedByDeps bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
@@ -73,11 +75,12 @@ type GenericScheduler struct {
 
 	deployment *structs.Deployment
 
-	blocked         *structs.Evaluation
-	failedTGAllocs  map[string]*structs.AllocMetric
-	queuedAllocs    map[string]int
-	planAnnotations *structs.PlanAnnotations
-	nodesSetter     filterNodesFunc
+	blocked           *structs.Evaluation
+	failedTGAllocs    map[string]*structs.AllocMetric
+	queuedAllocs      map[string]int
+	planAnnotations   *structs.PlanAnnotations
+	nodesSetter       filterNodesFunc
+	dependencyChecker dependencyChecker
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -85,11 +88,12 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.
 	planner sstructs.Planner, _ ...sstructs.SchedulerOption) sstructs.Scheduler {
 
 	s := &GenericScheduler{
-		logger:   logger.Named("service_sched"),
-		eventsCh: eventsCh,
-		state:    state,
-		planner:  planner,
-		batch:    false,
+		logger:            logger.Named("service_sched"),
+		eventsCh:          eventsCh,
+		state:             state,
+		planner:           planner,
+		batch:             false,
+		dependencyChecker: dependencyChecker(&dependency.NoOpCoordinator{}), // default to no-op dependency checker
 	}
 
 	s.nodesSetter = s.setNodes
@@ -145,6 +149,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
+
 			if err := setStatus(s.logger, s.planner, s.eval, s.blocked,
 				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
@@ -186,9 +191,12 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	}
 
 	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs, e.MissingResources())
-	if planFailure {
+	if planFailure && !s.blockedByDeps {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalMaxPlan
+	} else if planFailure && s.blockedByDeps {
+		s.blocked.TriggeredBy = structs.EvalTriggeredDeps
+		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	} else {
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	}
@@ -254,6 +262,7 @@ func (s *GenericScheduler) process() (bool, error) {
 		len(s.failedTGAllocs) != 0 &&
 		s.blocked == nil &&
 		(len(s.followUpEvals) == 0 || time.Now().After(s.eval.WaitUntil)) {
+
 		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Error("failed to make blocked eval", "error", err)
 			return false, err
@@ -536,7 +545,8 @@ func (s *GenericScheduler) computePlacements(
 			}
 
 			// Check if this task group has already failed
-			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
+			metric, ok := s.failedTGAllocs[tg.Name]
+			if ok {
 				metric.CoalescedFailures += 1
 				metric.ExhaustResources(tg)
 				continue
@@ -687,6 +697,10 @@ func (s *GenericScheduler) computePlacements(
 				// Lazy initialize the failed map
 				if s.failedTGAllocs == nil {
 					s.failedTGAllocs = make(map[string]*structs.AllocMetric)
+				}
+
+				if s.blockedByDeps {
+					s.ctx.Metrics().AddBlockedDependency(tg.Name)
 				}
 
 				// Update metrics with the resources requested by the task group.

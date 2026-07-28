@@ -28,10 +28,10 @@ var BuiltinSchedulers = map[string]structs.Factory{
 	"sysbatch": NewSysBatchScheduler,
 }
 
-func WithDependencyChecker(dependecyChecker DependencyChecker) sstructs.SchedulerOption {
+func WithDependencyChecker(dependencyChecker dependencyChecker) sstructs.SchedulerOption {
 	return func(s sstructs.Scheduler) error {
 		if B, ok := s.(*BatchScheduler); ok {
-			B.dependencyChecker = dependecyChecker
+			B.dependencyChecker = dependencyChecker
 		}
 		return nil
 	}
