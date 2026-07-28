@@ -1261,7 +1261,7 @@ func TestCSIVolumeChecker_PerAllocBlocking(t *testing.T) {
 
 		checker.SetVolumes(allocName1, reqs)
 		act = checker.Feasible(node)
-		must.True(t, act) // , must.Sprint("request with missing volume should never be feasible"))
+		must.True(t, act, must.Sprint("request with missing volume should never be feasible"))
 	}
 
 	must.Eq(t, []string{
