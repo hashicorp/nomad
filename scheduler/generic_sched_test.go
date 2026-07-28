@@ -7718,7 +7718,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 		must.Sprint("expected a blocked eval to be spawned"))
 	must.Eq(t, 2, h.Evals[1].QueuedAllocations["web"], must.Sprint("expected 2 queued allocs"))
 	must.Eq(t, 5, h.Evals[1].FailedTGAllocs["web"].
-		ConstraintFiltered["missing CSI Volume volume-unique[3]"])
+		ConstraintFiltered["missing CSI volume(s) volume-unique[3]"])
 
 	// Upsert 2 more per-alloc volumes
 	vol4 := vol0.Copy()
