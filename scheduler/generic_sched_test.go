@@ -4732,6 +4732,53 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusFailed)
 }
 
+// TestServiceSched_RetryLimit_DeploymentIDCleared ensures that when all plan
+// submissions are rejected (e.g. due to quota exhaustion), the final eval does
+// not carry a deployment ID referencing a deployment that was never persisted
+// to state.
+func TestServiceSched_RetryLimit_DeploymentIDCleared(t *testing.T) {
+	ci.Parallel(t)
+
+	// Setup a harness with a planner that rejects all plans, so that the
+	// scheduler will hit the retry limit.
+	h := tests.NewHarness(t)
+	h.Planner = &tests.RejectPlan{Harness: h}
+
+	// Create nodes so that placement is actually attempted.
+	for range 10 {
+		node := mock.Node()
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Use a job with an update strategy so that the reconciler creates a
+	// deployment object in memory during scheduling.
+	job := mock.Job()
+	update := *structs.DefaultUpdateStrategy
+	job.Update = update
+	job.TaskGroups[0].Update = &update
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// The eval should have been marked failed as it would have hit the retry
+	// limit after all plan submissions were rejected.
+	h.AssertEvalStatus(t, structs.EvalStatusFailed)
+
+	// The final eval must not reference a deployment that was never persisted.
+	must.Len(t, 1, h.Evals)
+	must.StrEqFold(t, "", h.Evals[0].DeploymentID)
+}
+
 func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	ci.Parallel(t)
 
