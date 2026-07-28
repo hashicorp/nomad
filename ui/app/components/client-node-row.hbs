@@ -63,9 +63,5 @@
     this.node.hostVolumes.length
   }}</td>
 <td data-test-client-allocations>
-  {{#if this.node.allocations.isPending}}
-    ...
-  {{else}}
-    {{this.node.runningAllocations.length}}
-  {{/if}}
+  {{this.node.runningAllocations.length}}
 </td>
