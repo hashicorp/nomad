@@ -385,10 +385,11 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 		}
 
 		for _, missing := range eval.MissingNonNodeResources {
-			if missing == id && eval.SnapshotIndex < u.index {
-				// The evaluation was processed before the missing resource was
-				// updated, so unblock the evaluation
-				return true
+			if missing == id {
+				// If the evaluation was processed before the missing resource
+				// was updated, unblock it. Otherwise the evaluation processed
+				// having seen all changes to the resource
+				return eval.SnapshotIndex < u.index
 			}
 		}
 
@@ -686,24 +687,28 @@ func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []
 
 	// Every eval that has escaped computed node class has to be unblocked
 	// because any node could potentially be feasible.
-	numEscaped := len(b.escaped)
-	unblocked := make(map[*structs.Evaluation]string, max(uint64(numEscaped), 4))
+	unblocked := make(map[*structs.Evaluation]string, max(uint64(len(b.escaped)), 4))
 
-	if numEscaped != 0 && (computedClass != "" || len(resources) > 0) {
+	// If we're unblocking because nodes in a computed class changed, we have to
+	// unblock every eval that has escaped computed node class, because any node
+	// could potentially be feasible.
+	if computedClass != "" {
 		for id, wrapped := range b.escaped {
-			if len(resources) > 0 {
-				// this is an unblock for a specific set of resources and we
-				// unblock the eval if any of its missing non-node resources
-				// overlap, to account for cases where multiple required
-				// resources are added across separate Raft updates
-				if !foundAnyMissingResources(wrapped.eval.MissingNonNodeResources, resources) {
-					continue // the resources were not present
-				}
-			}
-
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.escaped, id)
 			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+		}
+	}
+
+	// If we're unblocking because of non-node resource changes, we unblock the
+	// evals waiting on any of those resources.
+	if len(resources) > 0 {
+		for id, wrapped := range b.escaped {
+			if foundAnyMissingResources(wrapped.eval.MissingNonNodeResources, resources) {
+				unblocked[wrapped.eval] = wrapped.token
+				delete(b.escaped, id)
+				delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+			}
 		}
 	}
 
@@ -756,9 +761,6 @@ SKIP_TO_NODE:
 }
 
 func foundAnyMissingResources(missing, updated []string) bool {
-	if len(missing) == 0 {
-		return true
-	}
 	for _, m := range missing {
 		if slices.Contains(updated, m) {
 			return true
