@@ -160,8 +160,9 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			continue
 		}
 
+		// Comparable makes a deep copy, so we can merge it with used.
 		cr := alloc.AllocatedResources.Comparable()
-		used.Add(cr)
+		used.Merge(cr)
 
 		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
 		for _, core := range cr.Flattened.Cpu.ReservedCores {

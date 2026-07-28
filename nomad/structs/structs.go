@@ -3781,6 +3781,8 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 
 // Comparable returns a comparable version of the allocations allocated
 // resources. This conversion can be lossy so care must be taken when using it.
+//
+// Comparable returns a deep copy of the values pointed to by AllocatedResources.
 func (a *AllocatedResources) Comparable() *ComparableResources {
 	if a == nil {
 		return nil
@@ -3797,37 +3799,44 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 
 	for taskName, taskResources := range a.Tasks {
 		taskLifecycle := a.TaskLifecycles[taskName]
-		fungibleTaskResources := taskResources.Copy()
+
+		// Make a shallow copy here, only turn this into a deep copy
+		// if we have reserved cores and absolutely have to.
+		trCopy := taskResources
 
 		// Reserved cores (and their respective bandwidth) are not fungible,
 		// hence we should always include it as part of the Flattened resources.
-		if len(fungibleTaskResources.Cpu.ReservedCores) > 0 {
-			c.Flattened.Cpu.Add(&fungibleTaskResources.Cpu)
-			fungibleTaskResources.Cpu = AllocatedCpuResources{}
+		if len(trCopy.Cpu.ReservedCores) > 0 {
+			// Deep copy, so we can mutate it
+			trCopy = taskResources.Copy()
+			c.Flattened.Cpu.Add(&trCopy.Cpu)
+			trCopy.Cpu = AllocatedCpuResources{}
 		}
 
 		if taskLifecycle == nil {
-			mainLifecycle.Add(fungibleTaskResources)
+			mainLifecycle.Merge(trCopy)
 		} else if taskLifecycle.Hook == TaskLifecycleHookPrestart {
 			if taskLifecycle.Sidecar {
 				// These tasks span both the prestart and main lifecycle
-				prestartLifecycle.Add(fungibleTaskResources)
-				mainLifecycle.Add(fungibleTaskResources)
+				prestartLifecycle.Merge(trCopy)
+				mainLifecycle.Merge(trCopy)
 			} else {
-				prestartLifecycle.Add(fungibleTaskResources)
+				prestartLifecycle.Merge(trCopy)
 			}
 		} else if taskLifecycle.Hook == TaskLifecycleHookPoststart {
-			mainLifecycle.Add(fungibleTaskResources)
+			mainLifecycle.Merge(trCopy)
 		} else if taskLifecycle.Hook == TaskLifecycleHookPoststop {
-			stopLifecycle.Add(fungibleTaskResources)
+			stopLifecycle.Merge(trCopy)
 		}
+
 	}
 
 	// Update the main lifecycle to reflect the largest fungible resource set
 	mainLifecycle.Max(prestartLifecycle)
 	mainLifecycle.Max(stopLifecycle)
 
-	// Add the fungible resources
+	// Add the fungible resources. Importantly, this
+	// copies mainLifecycle into Flattened.
 	c.Flattened.Add(mainLifecycle)
 
 	// Add network resources that are at the task group level
@@ -3896,7 +3905,7 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 	if newA.Devices != nil {
 		n := len(a.Devices)
 		newA.Devices = make([]*AllocatedDeviceResource, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			newA.Devices[i] = a.Devices[i].Copy()
 		}
 	}
@@ -3909,6 +3918,8 @@ func (a *AllocatedTaskResources) NetIndex(n *NetworkResource) int {
 	return a.Networks.NetIndex(n)
 }
 
+// Add creates deep copies of pointer values from delta and adds them to
+// the allocatedTaskResource object.
 func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 	if delta == nil {
 		return
@@ -3932,6 +3943,37 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 		idx := AllocatedDevices(a.Devices).Index(d)
 		if idx == -1 {
 			a.Devices = append(a.Devices, d.Copy())
+		} else {
+			a.Devices[idx].Add(d)
+		}
+	}
+}
+
+// Merge takes delta's pointers and merges them with a's parameters. This is useful
+// to avoid the cost of copying when doing intermediate task resource adding.
+func (a *AllocatedTaskResources) Merge(delta *AllocatedTaskResources) {
+	if delta == nil {
+		return
+	}
+
+	a.Cpu.Add(&delta.Cpu)
+	a.Memory.Add(&delta.Memory)
+
+	for _, n := range delta.Networks {
+		// Find the matching interface by IP or CIDR
+		idx := a.NetIndex(n)
+		if idx == -1 {
+			a.Networks = append(a.Networks, n)
+		} else {
+			a.Networks[idx].Add(n)
+		}
+	}
+
+	for _, d := range delta.Devices {
+		// Find the matching device
+		idx := AllocatedDevices(a.Devices).Index(d)
+		if idx == -1 {
+			a.Devices = append(a.Devices, d)
 		} else {
 			a.Devices[idx].Add(d)
 		}
@@ -4018,7 +4060,6 @@ func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	}
 	a.Networks = append(a.Networks, delta.Networks...)
 	a.DiskMB += delta.DiskMB
-
 }
 
 func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
@@ -4071,11 +4112,24 @@ func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
 	// add cpu bandwidth
 	a.CpuShares += delta.CpuShares
 
+	seen := make(map[uint16]struct{}, len(a.ReservedCores)+len(delta.ReservedCores))
+	union := make([]uint16, 0, len(a.ReservedCores)+len(delta.ReservedCores))
+
+	for _, v := range a.ReservedCores {
+		if _, ok := seen[v]; !ok {
+			seen[v] = struct{}{}
+			union = append(union, v)
+		}
+	}
+
+	for _, v := range delta.ReservedCores {
+		if _, ok := seen[v]; !ok {
+			seen[v] = struct{}{}
+			union = append(union, v)
+		}
+	}
 	// add cpu cores
-	cores := idset.From[uint16](a.ReservedCores)
-	deltaCores := idset.From[uint16](delta.ReservedCores)
-	cores.InsertSet(deltaCores)
-	a.ReservedCores = cores.Slice()
+	a.ReservedCores = union
 }
 
 func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
@@ -4083,14 +4137,21 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 		return
 	}
 
+	tmp := map[uint16]struct{}{}
+
+	for _, v := range a.ReservedCores {
+		tmp[v] = struct{}{}
+	}
+
+	// remove cpu cores
+	for _, v := range delta.ReservedCores {
+		delete(tmp, v)
+	}
+
 	// remove cpu bandwidth
 	a.CpuShares -= delta.CpuShares
 
-	// remove cpu cores
-	cores := idset.From[uint16](a.ReservedCores)
-	deltaCores := idset.From[uint16](delta.ReservedCores)
-	cores.RemoveSet(deltaCores)
-	a.ReservedCores = cores.Slice()
+	a.ReservedCores = slices.Collect(maps.Keys(tmp))
 }
 
 func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
@@ -4228,6 +4289,16 @@ func (c *ComparableResources) Add(delta *ComparableResources) {
 	}
 
 	c.Flattened.Add(&delta.Flattened)
+	c.Shared.Add(&delta.Shared)
+}
+
+func (c *ComparableResources) Merge(delta *ComparableResources) {
+	if delta == nil {
+		return
+	}
+
+	c.Flattened.Merge(&delta.Flattened)
+	// Shared does not have pointers, so we can just use Add.
 	c.Shared.Add(&delta.Shared)
 }
 
