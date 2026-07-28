@@ -1087,6 +1087,9 @@ type AllocMetric struct {
 	// This is to prevent creating many failed allocations for a
 	// single task group.
 	CoalescedFailures int
+
+	// Provides the names of dependencies that were blocked by this allocation.
+	BlockedDependencies []string
 }
 
 func (a *AllocMetric) Copy() *AllocMetric {
@@ -1101,6 +1104,7 @@ func (a *AllocMetric) Copy() *AllocMetric {
 	na.ClassExhausted = maps.Clone(na.ClassExhausted)
 	na.DimensionExhausted = maps.Clone(na.DimensionExhausted)
 	na.QuotaExhausted = slices.Clone(na.QuotaExhausted)
+	na.BlockedDependencies = slices.Clone(na.BlockedDependencies)
 	na.Scores = maps.Clone(na.Scores)
 	na.ScoreMetaData = CopySliceNodeScoreMeta(na.ScoreMetaData)
 	return na
@@ -1230,6 +1234,14 @@ func (a *AllocMetric) MaxNormScore() *NodeScoreMeta {
 		return nil
 	}
 	return a.ScoreMetaData[0]
+}
+
+func (a *AllocMetric) AddBlockedDependency(dep string) {
+	if a.BlockedDependencies == nil {
+		a.BlockedDependencies = make([]string, 0)
+	}
+
+	a.BlockedDependencies = append(a.BlockedDependencies, dep)
 }
 
 const (

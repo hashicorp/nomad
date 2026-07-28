@@ -1412,7 +1412,7 @@ func (s *Server) setupRaft() error {
 
 	// Create the dependency Coordinator
 	depCoordinator := dependency.NewCoordinator(s.logger,
-		loop_detection.New(s.logger), s.blockedEvals, s.fsm.encrypter.srv.raftApply)
+		loop_detection.New(s.logger), s.blockedEvals, s.raftApply)
 	s.dependencyCoordinator = depCoordinator
 
 	// Build an all in-memory setup for dev mode, otherwise prepare a full

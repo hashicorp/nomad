@@ -303,10 +303,11 @@ type AllocationMetric struct {
 	QuotaExhausted     []string
 	ResourcesExhausted map[string]*Resources
 	// Deprecated, replaced with ScoreMetaData
-	Scores            map[string]float64
-	AllocationTime    time.Duration
-	CoalescedFailures int
-	ScoreMetaData     []*NodeScoreMeta
+	Scores              map[string]float64
+	AllocationTime      time.Duration
+	CoalescedFailures   int
+	ScoreMetaData       []*NodeScoreMeta
+	BlockedDependencies []string
 }
 
 // NodeScoreMeta is used to serialize node scoring metadata

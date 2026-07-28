@@ -30,6 +30,7 @@ const (
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
 	EvalTriggerReconnect            = "reconnect"
 	EvalTriggerAllocReschedule      = "alloc-reschedule"
+	EvalTriggeredDeps               = "block-by-dependency"
 
 	EvalStatusBlocked   = "blocked"
 	EvalStatusPending   = "pending"
