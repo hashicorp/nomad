@@ -299,10 +299,15 @@ func (s *GenericScheduler) process() (bool, error) {
 	// number of allocations successfully placed
 	adjustQueuedAllocations(s.logger, result, s.queuedAllocs)
 
-	// If we got a state refresh, try again since we have stale data
+	// If we got a state refresh, try again since we have stale data.
+	//
+	// Clear the in-memory deployment because the plan was rejected and nothing
+	// was persisted; the next process() iteration will reload from state or
+	// generate a new deployment if needed.
 	if newState != nil {
 		s.logger.Debug("refresh forced")
 		s.state = newState
+		s.deployment = nil
 		return false, nil
 	}
 
