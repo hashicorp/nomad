@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed the region identifier header showing as empty in single region clusters
+```
