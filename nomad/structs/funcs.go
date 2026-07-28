@@ -139,11 +139,11 @@ func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
 // If the netIdx is provided, it is assumed that the client has already
 // ensured there are no collisions. If checkDevices is set to true, we check if
 // there is a device oversubscription.
-func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
+func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
 	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
 	if node.NodeMaxAllocs != 0 {
-		if node.NodeMaxAllocs < len(allocs) {
+		if node.NodeMaxAllocs < len(allocWithCmp) {
 			return false, "max allocation exceeded", used, fmt.Errorf("plan exceeds max allocation")
 		}
 	}
@@ -153,19 +153,21 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	hostVolumeClaims := map[string]int{}
 	exclusiveHostVolumeClaims := []string{}
 
+	allocs := make([]*Allocation, len(allocWithCmp))
 	// For each alloc, add the resources
-	for _, alloc := range allocs {
+	for _, a := range allocWithCmp {
 		// Do not consider the resource impact of terminal allocations
-		if alloc.ClientTerminalStatus() {
+		if a.Alloc.ClientTerminalStatus() {
 			continue
 		}
 
 		// Comparable makes a deep copy, so we can merge it with used.
-		cr := alloc.AllocatedResources.Comparable()
-		used.Merge(cr)
+		used.Merge(a.Resource)
+
+		allocs = append(allocs, a.Alloc)
 
 		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
-		for _, core := range cr.Flattened.Cpu.ReservedCores {
+		for _, core := range a.Resource.Flattened.Cpu.ReservedCores {
 			if _, ok := reservedCores[core]; ok {
 				coreOverlap = true
 			} else {
@@ -174,8 +176,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		}
 
 		// Job will be nil in the scheduler, where we're not performing this check anyways
-		if checkDevices && alloc.Job != nil {
-			group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		if checkDevices && a.Alloc.Job != nil {
+			group := a.Alloc.Job.LookupTaskGroup(a.Alloc.TaskGroup)
 			for _, volReq := range group.Volumes {
 				hostVolumeClaims[volReq.Source]++
 				if volReq.AccessMode ==

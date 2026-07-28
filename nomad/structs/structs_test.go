@@ -7091,6 +7091,41 @@ func TestComparableResources_Superset(t *testing.T) {
 	}
 }
 
+func TestAllocatedResources_Comparable_Mutate(t *testing.T) {
+	allocationResources := AllocatedResources{
+		Tasks: map[string]*AllocatedTaskResources{
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 2000,
+				},
+				Memory: AllocatedMemoryResources{
+					MemoryMB: 2000,
+				},
+				Networks: Networks{
+					{
+						Mode: "test",
+					},
+				},
+				Devices: []*AllocatedDeviceResource{
+					{
+						Vendor: "test",
+					},
+				},
+			},
+		},
+	}
+
+	res := allocationResources.Comparable()
+
+	// mutate all pointers object that would be mutable if Comparable was shallow.
+	res.Flattened.Networks[0].Mode = "mutated"
+	res.Flattened.Devices[0].Vendor = "mutated"
+
+	// assert that it did not mutate the original allocationResource
+	must.NotEq(t, res.Flattened.Networks, allocationResources.Tasks["main-task"].Networks)
+	must.NotEq(t, res.Flattened.Devices, allocationResources.Tasks["main-task"].Devices)
+}
+
 func TestAllocatedResources_Comparable_Flattened(t *testing.T) {
 	ci.Parallel(t)
 

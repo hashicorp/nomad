@@ -3732,6 +3732,30 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
+// AllocWithCmpResource is an object used to cache an allocation with it's
+// AllocatedResources converted into a ComparableResource.
+//
+// Converting an AllocatedResource into a ComparableResource is an expensive
+// operation so this is a use optimization instead of repeatedly calling
+// alloc.AllocatedResource.Comparable().
+type AllocWithCmpResource struct {
+	Alloc    *Allocation
+	Resource *ComparableResources
+}
+
+type AllocResourceCache map[string]AllocWithCmpResource
+
+// Insert is used to easily insert a slice of allocations into the
+// resource cache.
+func (a AllocResourceCache) Insert(allocs []*Allocation) {
+	for _, alloc := range allocs {
+		a[alloc.ID] = AllocWithCmpResource{
+			Alloc:    alloc,
+			Resource: alloc.AllocatedResources.Comparable(),
+		}
+	}
+}
+
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.

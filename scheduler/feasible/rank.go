@@ -225,6 +225,9 @@ NEXTNODE:
 			continue
 		}
 
+		allocResources := make(structs.AllocResourceCache)
+		allocResources.Insert(proposed)
+
 		// Index the existing network usage.
 		// This should never collide, since it represents the current state of
 		// the node. If it does collide though, it means we found a bug! So
@@ -473,9 +476,8 @@ NEXTNODE:
 
 				// set of already consumed cores on this node
 				consumedCores := idset.Empty[hw.CoreID]()
-				for _, alloc := range proposed {
-					allocCores := alloc.AllocatedResources.Comparable().Flattened.Cpu.ReservedCores
-					idset.InsertSlice(consumedCores, allocCores...)
+				for _, val := range allocResources {
+					idset.InsertSlice(consumedCores, val.Resource.Flattened.Cpu.ReservedCores...)
 				}
 
 				// add cores reserved for other tasks
@@ -694,9 +696,8 @@ NEXTNODE:
 
 				// set of consumed cores on this node
 				consumedCores := idset.Empty[hw.CoreID]()
-				for _, alloc := range proposed { // proposed is existing + proposal
-					allocCores := alloc.AllocatedResources.Comparable().Flattened.Cpu.ReservedCores
-					idset.InsertSlice(consumedCores, allocCores...)
+				for _, val := range allocResources {
+					idset.InsertSlice(consumedCores, val.Resource.Flattened.Cpu.ReservedCores...)
 				}
 
 				// add cores reserved for other tasks
@@ -749,7 +750,7 @@ NEXTNODE:
 		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
 
 		// Check if these allocations fit, if they do not, simply skip this node
-		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx, false)
+		fit, dim, util, _ := structs.AllocsFit(option.Node, allocResources, netIdx, false)
 		netIdx.Release()
 		if !fit {
 			// Skip the node if evictions are not enabled
