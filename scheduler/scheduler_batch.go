@@ -9,12 +9,11 @@ import (
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
-type DependencyChecker interface {
+type dependencyChecker interface {
 	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) (bool, error)
 }
 
 type BatchScheduler struct {
-	dependencyChecker DependencyChecker
 	GenericScheduler
 }
 
@@ -60,7 +59,12 @@ func (bs *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[strin
 func (bs *BatchScheduler) dependencyWrapper(next filterNodesFunc) filterNodesFunc {
 	return func(job *structs.Job) ([]*structs.Node, map[string]int, error) {
 		ready, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
-		if err != nil || !ready {
+		if err != nil {
+			return []*structs.Node{}, nil, err
+		}
+
+		if !ready {
+			bs.blockedByDeps = true
 			return []*structs.Node{}, nil, err
 		}
 
