@@ -482,7 +482,7 @@ func (s *SysBatchScheduler) addBlocked(node *structs.Node) error {
 		classEligibility = e.GetClasses()
 	}
 
-	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
+	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs, e.MissingResources())
 	blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	blocked.NodeID = node.ID
 
