@@ -271,9 +271,14 @@ job "example" {
 	dependency {
 		timeout = "10m"
 		job {
-			name = "upstream"
+			name   = "main"
+			status = "dead"
 		}
-  }
+		job {
+			name   = "main2"
+			status = "dead"
+		}
+	}
 
   group "g" {
     task "t" {
@@ -292,12 +297,15 @@ job "example" {
 		AllowFS: true,
 	})
 	require.NoError(t, err)
-	require.Len(t, out.Dependencies, 1)
-	require.Equal(t, "10m", out.Dependencies[0].Timeout)
-	require.Equal(t, "reject", out.Dependencies[0].ActionOnTimeout)
-	require.Len(t, out.Dependencies[0].Jobs, 1)
-	require.Equal(t, "upstream", out.Dependencies[0].Jobs[0].Name)
-	require.Equal(t, "completed", out.Dependencies[0].Jobs[0].Status)
+	require.NotNil(t, out.Dependencies)
+	require.NotNil(t, out.Dependencies.Timeout)
+	require.Equal(t, 10*time.Minute, *out.Dependencies.Timeout)
+	require.Equal(t, "reject", out.Dependencies.ActionOnTimeout)
+	require.Len(t, out.Dependencies.Jobs, 2)
+	require.Equal(t, "main", out.Dependencies.Jobs[0].Name)
+	require.Equal(t, "dead", out.Dependencies.Jobs[0].Status)
+	require.Equal(t, "main2", out.Dependencies.Jobs[1].Name)
+	require.Equal(t, "dead", out.Dependencies.Jobs[1].Status)
 }
 
 func TestParse_Dependencies_OnlyOneBlockAllowed(t *testing.T) {
@@ -309,16 +317,20 @@ job "example" {
 
 	dependency {
 		timeout = "10m"
-		job {
-			name = "upstream-a"
+		jobs {
+				name = "upstream-a"
 		}
 	}
 
 	dependency {
 		timeout = "10m"
-		job {
-			name = "upstream-b"
-		}
+		job{
+				name = "upstream-b"
+			}
+
+		job{
+				name = "upstream-b"
+			}
 	}
 
   group "g" {

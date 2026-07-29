@@ -24,14 +24,14 @@ func normalizeJob(jc *jobConfig) {
 		j.Periodic.SpecType = &v
 	}
 
-	if len(j.Dependencies) == 0 && len(jc.Dependencies) != 0 {
+	if jc.Dependencies != nil {
 		j.Dependencies = jc.Dependencies
 	}
 
 	normalizeVault(jc.Vault)
 
-	for _, d := range j.Dependencies {
-		normalizeDependency(d)
+	if j.Dependencies != nil {
+		normalizeDependency(j.Dependencies)
 	}
 
 	if len(jc.Tasks) != 0 {
