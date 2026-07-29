@@ -836,7 +836,7 @@ func (s *Server) restoreEvals() error {
 		case eval.IsBatchQueue():
 			s.batchQueueMgr.Enqueue(eval)
 		case eval.ShouldEnqueue():
-			s.evalBroker.Enqueue(eval)
+			s.evalBroker.Restore(eval)
 		case eval.ShouldBlock():
 			s.blockedEvals.Block(eval)
 		}
