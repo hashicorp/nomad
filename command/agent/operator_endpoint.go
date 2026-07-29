@@ -318,6 +318,12 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 			BatchSchedulerEnabled:    conf.PreemptionConfig.BatchSchedulerEnabled,
 			ServiceSchedulerEnabled:  conf.PreemptionConfig.ServiceSchedulerEnabled,
 		},
+		BatchQueue: structs.BatchQueue{
+			Type:        structs.BatchQueueType(conf.BatchQueue.Type),
+			TenantType:  structs.BatchQueueTenant(conf.BatchQueue.TenantType),
+			MetadataKey: conf.BatchQueue.MetadataKey,
+			Config:      conf.BatchQueue.Config,
+		},
 	}
 
 	if err := args.Config.Validate(); err != nil {
