@@ -1113,7 +1113,7 @@ type Job struct {
 	Datacenters      []string                `hcl:"datacenters,optional"`
 	NodePool         *string                 `mapstructure:"node_pool" hcl:"node_pool,optional"`
 	Constraints      []*Constraint           `hcl:"constraint,block"`
-	Dependencies     []*Dependency           `hcl:"dependency,block"`
+	Dependencies     *Dependency             `hcl:"dependency,block"`
 	Affinities       []*Affinity             `hcl:"affinity,block"`
 	TaskGroups       []*TaskGroup            `hcl:"group,block"`
 	Update           *UpdateStrategy         `hcl:"update,block"`
@@ -1235,6 +1235,10 @@ func (j *Job) Canonicalize() {
 		j.Multiregion.Canonicalize()
 	}
 
+	if j.Dependencies != nil {
+		j.Dependencies.Canonicalize()
+	}
+
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
 	}
@@ -1244,10 +1248,6 @@ func (j *Job) Canonicalize() {
 	}
 	for _, a := range j.Affinities {
 		a.Canonicalize()
-	}
-
-	for _, d := range j.Dependencies {
-		d.Canonicalize()
 	}
 
 	if j.UI != nil {
@@ -1399,12 +1399,6 @@ func (j *Job) AddDatacenter(dc string) *Job {
 // Constrain is used to add a constraint to a job.
 func (j *Job) Constrain(c *Constraint) *Job {
 	j.Constraints = append(j.Constraints, c)
-	return j
-}
-
-// Depend is used to add a dependency to a job.
-func (j *Job) Depend(d *Dependency) *Job {
-	j.Dependencies = append(j.Dependencies, d)
 	return j
 }
 

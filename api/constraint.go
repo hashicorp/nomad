@@ -6,6 +6,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 const (
@@ -42,10 +43,6 @@ type JobDependency struct {
 	Status string `hcl:"status,optional"`
 }
 
-// JobDepdendency is kept as an alias for compatibility with callers using the
-// legacy misspelled type name.
-type JobDepdendency = JobDependency
-
 func NewJobDependency(name, status string) *JobDependency {
 	return &JobDependency{
 		Name:   name,
@@ -55,7 +52,7 @@ func NewJobDependency(name, status string) *JobDependency {
 
 func (d *JobDependency) Canonicalize() {
 	if d.Status == "" {
-		d.Status = "completed"
+		d.Status = "dead"
 	}
 }
 
@@ -72,29 +69,25 @@ func (d *JobDependency) Validate() error {
 	if d.Name == "" {
 		return errors.New("dependency job name is required")
 	}
-
-	if d.Status == "" {
-		return errors.New("dependency job status is required")
-	}
-
 	return nil
 }
 
 // Dependency is used to serialize a job placement dependency.
 type Dependency struct {
-	Timeout         string           `hcl:"timeout,optional"`
+	Timeout         *time.Duration   `hcl:"timeout,optional"`
 	ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
 	Jobs            []*JobDependency `hcl:"job,block"`
 }
 
-func NewDependency(timeout, actionOnTimeout string, jobs ...JobDepdendency) *Dependency {
+func NewDependency(timeout, actionOnTimeout string, jobs ...*JobDependency) *Dependency {
 	copyJobs := make([]*JobDependency, 0, len(jobs))
 	for _, job := range jobs {
-		copyJobs = append(copyJobs, (&job).Copy())
+		copyJobs = append(copyJobs, job.Copy())
 	}
 
+	duration, _ := time.ParseDuration(timeout)
 	return &Dependency{
-		Timeout:         timeout,
+		Timeout:         &duration,
 		Jobs:            copyJobs,
 		ActionOnTimeout: actionOnTimeout,
 	}
@@ -132,7 +125,7 @@ func (d *Dependency) Validate() error {
 		return nil
 	}
 
-	if d.Timeout == "" {
+	if d.Timeout == nil || *d.Timeout == 0 {
 		return errors.New("dependency timeout is required")
 	}
 
@@ -140,7 +133,7 @@ func (d *Dependency) Validate() error {
 		return errors.New("dependency action_on_timeout is required")
 	}
 
-	if d.ActionOnTimeout != "reject" {
+	if d.ActionOnTimeout != "reject" && d.ActionOnTimeout != "dispatch" {
 		return fmt.Errorf("invalid dependency action_on_timeout %q", d.ActionOnTimeout)
 	}
 

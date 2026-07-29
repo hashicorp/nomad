@@ -10,6 +10,8 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+var timeout = "10m"
+
 func TestCompose_Constraints(t *testing.T) {
 	testutil.Parallel(t)
 
@@ -25,10 +27,10 @@ func TestCompose_Constraints(t *testing.T) {
 func TestCompose_Dependencies(t *testing.T) {
 	testutil.Parallel(t)
 
-	d := NewDependency("10m", "reject", JobDepdendency{Name: "service-123", Status: "completed"})
+	d := NewDependency("10m", "reject", &JobDependency{Name: "service-123", Status: "completed"})
 	d.Canonicalize()
 
-	must.Eq(t, "10m", d.Timeout)
+	must.Eq(t, &timeout, d.Timeout)
 	must.Eq(t, "reject", d.ActionOnTimeout)
 	must.Len(t, 1, d.Jobs)
 	must.Eq(t, "service-123", d.Jobs[0].Name)
@@ -44,7 +46,7 @@ func TestCompose_Dependencies_DefaultsAndValidation(t *testing.T) {
 	testutil.Parallel(t)
 
 	d := &Dependency{
-		Timeout: "10m",
+		Timeout: &timeout,
 		Jobs: []*JobDependency{{
 			Name: "service-123",
 		}},
@@ -52,11 +54,11 @@ func TestCompose_Dependencies_DefaultsAndValidation(t *testing.T) {
 	d.Canonicalize()
 
 	must.Eq(t, "reject", d.ActionOnTimeout)
-	must.Eq(t, "completed", d.Jobs[0].Status)
+	must.Eq(t, "dead", d.Jobs[0].Status)
 	must.NoError(t, d.Validate())
 
 	bad := &Dependency{
-		Timeout:         "10m",
+		Timeout:         &timeout,
 		ActionOnTimeout: "continue",
 		Jobs:            []*JobDependency{{Name: "service-123", Status: "completed"}},
 	}

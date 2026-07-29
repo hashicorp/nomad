@@ -270,25 +270,35 @@ var dependencySpec = hcldec.ObjectSpec{
 func decodeDependency(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	d := val.(*api.Dependency)
 
-	v, diags := hcldec.Decode(body, dependencySpec, ctx)
-	if len(diags) != 0 {
-		return diags
+	var diags hcl.Diagnostics
+
+	// First decode to get timeout as string
+	type tempDependency struct {
+		Timeout         string               `hcl:"timeout,optional"`
+		ActionOnTimeout string               `hcl:"action_on_timeout,optional"`
+		Jobs            []*api.JobDependency `hcl:"job,block"`
 	}
 
-	attr := func(name string) string {
-		a := v.GetAttr(name)
-		if a.IsNull() {
-			return ""
+	temp := &tempDependency{}
+	moreDiags := gohcl.DecodeBody(body, ctx, temp)
+	diags = append(diags, moreDiags...)
+
+	// Convert timeout string to *time.Duration
+	if temp.Timeout != "" {
+		if duration, err := time.ParseDuration(temp.Timeout); err == nil {
+			d.Timeout = &duration
+		} else {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid timeout duration",
+				Detail:   fmt.Sprintf("Failed to parse timeout: %v", err),
+			})
 		}
-		return a.AsString()
 	}
 
-	d.Job = attr("job")
-	d.Output = attr("output")
-
-	if d.Name == "" {
-		d.Name = attr("name")
-	}
+	// Copy other fields
+	d.ActionOnTimeout = temp.ActionOnTimeout
+	d.Jobs = temp.Jobs
 
 	return diags
 }
