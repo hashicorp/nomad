@@ -4,7 +4,10 @@
 package structs
 
 import (
+	"encoding/json"
+	"maps"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
@@ -181,7 +184,21 @@ func TestSchedulerConfiguration_Validate(t *testing.T) {
 	}
 }
 
-func TestBatchQueue_Validate(t *testing.T) {
+func TestSchedulerConfig_BatchQueue_Validate(t *testing.T) {
+
+	// used to provide a basic valid dpq config, which key/values that
+	// are overridden via the injected map
+	testDpqConf := func(custom map[string]any) map[string]any {
+		res := map[string]any{}
+		b, _ := json.Marshal(&DynamicQueueConfig{
+			HalfLife:     1 * time.Second,
+			CalcInterval: 1 * time.Second,
+		})
+		json.Unmarshal(b, &res)
+
+		maps.Copy(res, custom)
+		return res
+	}
 
 	testCases := []struct {
 		name        string
@@ -200,6 +217,7 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: "foo",
+				Config:     testDpqConf(nil),
 			},
 			err: "unsupported tenant type",
 		},
@@ -216,10 +234,10 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeMetadata,
-				Config: map[string]any{
+				Config: testDpqConf(map[string]any{
 					"calc_interval": "1s",
 					"half_life":     "1s",
-				},
+				}),
 			},
 			err: "metadata key must be specified",
 		},
@@ -228,9 +246,9 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
-				Config: map[string]any{
+				Config: testDpqConf(map[string]any{
 					"calc_interval": "hello",
-				},
+				}),
 			},
 			err: "unable to decode conf",
 		},
@@ -239,10 +257,10 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
-				Config: map[string]any{
+				Config: testDpqConf(map[string]any{
 					"calc_interval": "1h",
 					"half_life":     "1h",
-				},
+				}),
 			},
 			err: "",
 		},
@@ -251,10 +269,10 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
-				Config: map[string]any{
+				Config: testDpqConf(map[string]any{
 					"calc_interval": 1000,
 					"half_life":     "1h",
-				},
+				}),
 			},
 			err: "",
 		},
@@ -263,10 +281,10 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
-				Config: map[string]any{
+				Config: testDpqConf(map[string]any{
 					"calc_interval": 0,
 					"half_life":     "1s",
-				},
+				}),
 			},
 			err: "calc_interval must be greater than zero",
 		},
@@ -275,10 +293,10 @@ func TestBatchQueue_Validate(t *testing.T) {
 			batchConfig: BatchQueue{
 				Type:       BatchQueueTypeDynamic,
 				TenantType: TenantTypeNamespace,
-				Config: map[string]any{
+				Config: testDpqConf(map[string]any{
 					"calc_interval": "1s",
 					"half_life":     0,
-				},
+				}),
 			},
 			err: "half_life must be greater than zero",
 		},

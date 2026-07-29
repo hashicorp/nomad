@@ -4,7 +4,9 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/hashicorp/cli"
@@ -32,6 +34,10 @@ type OperatorSchedulerSetConfig struct {
 	preemptSysBatchScheduler      flagHelper.BoolValue
 	preemptSystemScheduler        flagHelper.BoolValue
 	nodeLimitForFeasibilityChecks flagHelper.UintValue
+	batchQueueType                string
+	batchQueueTenantType          string
+	batchQeueuMetadataKey         string
+	batchQueueConfig              string
 }
 
 func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
@@ -75,6 +81,11 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	flags.Var(&o.preemptSysBatchScheduler, "preempt-sysbatch-scheduler", "")
 	flags.Var(&o.preemptSystemScheduler, "preempt-system-scheduler", "")
 	flags.Var(&o.nodeLimitForFeasibilityChecks, "node-limit-for-feasibility-checks", "")
+
+	flags.StringVar(&o.batchQueueType, "batch-queue-type", "", "")
+	flags.StringVar(&o.batchQueueTenantType, "batch-queue-tenant-type", "", "")
+	flags.StringVar(&o.batchQeueuMetadataKey, "batch-queue-metadata-key", "", "")
+	flags.StringVar(&o.batchQueueConfig, "batch-queue-config", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -138,6 +149,24 @@ func (o *OperatorSchedulerSetConfig) Run(args []string) int {
 	o.preemptSysBatchScheduler.Merge(&schedulerConfig.PreemptionConfig.SysBatchSchedulerEnabled)
 	o.preemptSystemScheduler.Merge(&schedulerConfig.PreemptionConfig.SystemSchedulerEnabled)
 	o.nodeLimitForFeasibilityChecks.Merge(&schedulerConfig.NodeLimitForFeasibilityChecks)
+
+	if o.batchQueueType != "" {
+		schedulerConfig.BatchQueue.Type = api.BatchJobQueueType(o.batchQueueType)
+	}
+	if o.batchQueueTenantType != "" {
+		schedulerConfig.BatchQueue.TenantType = api.BatchJobQueueTenant(o.batchQueueTenantType)
+	}
+	if o.batchQeueuMetadataKey != "" {
+		schedulerConfig.BatchQueue.MetadataKey = o.batchQeueuMetadataKey
+	}
+	if o.batchQueueConfig != "" {
+		mapConf := map[string]any{}
+		if err := json.Unmarshal([]byte(o.batchQueueConfig), &mapConf); err != nil {
+			o.Ui.Output(fmt.Sprintf("Error converting json config to map: %s", err))
+			return 1
+		}
+		maps.Copy(schedulerConfig.BatchQueue.Config, mapConf)
+	}
 
 	// Check-and-set the new configuration.
 	result, _, err := client.Operator().SchedulerCASConfiguration(schedulerConfig, nil)
