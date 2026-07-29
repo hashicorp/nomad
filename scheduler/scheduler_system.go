@@ -411,11 +411,10 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		// submitted jobs should have a non-empty update block as part of
 		// canonicalization)
 		// - canary parameter in the update block has to be positive
-		// - deployment has to be non-nil and it cannot have been promoted
+		// - deployment cannot have been promoted
 		// - this cannot be the initial job version
 		isCanarying := !tg.Update.IsEmpty() &&
 			tg.Update.Canary > 0 &&
-			dstate != nil &&
 			!dstate.Promoted &&
 			s.job.Version != 0 &&
 			s.tgDestructiveUpdateCounts[tg.Name] > 0
