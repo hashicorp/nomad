@@ -45,6 +45,44 @@ func newJavaDriverTest(t *testing.T, ctx context.Context) drivers.DriverPlugin {
 	return d
 }
 
+func TestTaskConfig_decodeHCL(t *testing.T) {
+
+	ci.Parallel(t)
+
+	inputHCL := `
+config {
+  class       = "java.main"
+  class_path  = "/tmp/cp"
+  jar_path    = "/tmp/jar.jar"
+  jvm_options = ["-Xmx600"]
+  args        = ["arg1", "arg2"]
+  pid_mode    = "private"
+  ipc_mode    = "host"
+  work_dir    = "/tmp/workdir"
+  cap_add     = ["chown"]
+  cap_drop    = ["sys_time"]
+}
+`
+
+	expected := &TaskConfig{
+		Class:     "java.main",
+		ClassPath: "/tmp/cp",
+		JarPath:   "/tmp/jar.jar",
+		JvmOpts:   []string{"-Xmx600"},
+		Args:      []string{"arg1", "arg2"},
+		ModePID:   "private",
+		ModeIPC:   "host",
+		WorkDir:   "/tmp/workdir",
+		CapAdd:    []string{"chown"},
+		CapDrop:   []string{"sys_time"},
+	}
+
+	var tc *TaskConfig
+
+	hclutils.NewConfigParser(taskConfigSpec).ParseHCL(t, inputHCL, &tc)
+	must.Eq(t, expected, tc)
+
+}
 func TestJavaDriver_Fingerprint(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)

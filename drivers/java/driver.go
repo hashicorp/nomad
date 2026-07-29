@@ -192,7 +192,7 @@ type TaskConfig struct {
 	CapDrop []string `codec:"cap_drop"`
 
 	// WorkDir is the working directory for the task
-	WorkDir string `coded:"work_dir"`
+	WorkDir string `codec:"work_dir"`
 }
 
 func (tc *TaskConfig) validate() error {

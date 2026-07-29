@@ -1,0 +1,3 @@
+```release-note:bug
+drivers/java: Fixed a bug where the Java driver did not correctly decode the `work_dir` option
+```
