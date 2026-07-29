@@ -665,6 +665,24 @@ module('Acceptance | jobs list', function (hooks) {
 
     this.server.create('job', {
       ...defaultJobParams,
+      id: 'queued-batch-job',
+      type: 'batch',
+      status: 'pending',
+      createAllocations: false,
+      groupAllocCount: 10,
+    });
+
+    this.server.create('job', {
+      ...defaultJobParams,
+      id: 'pending-sysbatch-job',
+      type: 'sysbatch',
+      status: 'pending',
+      createAllocations: false,
+      groupAllocCount: 10,
+    });
+
+    this.server.create('job', {
+      ...defaultJobParams,
       id: 'failed-job',
       allocStatusDistribution: {
         failed: 1,
@@ -736,6 +754,15 @@ module('Acceptance | jobs list', function (hooks) {
     assert
       .dom('[data-test-job-row="running-job"] [data-test-job-status]')
       .hasText('Running', 'Running job is running');
+    assert
+      .dom('[data-test-job-row="queued-batch-job"] [data-test-job-status]')
+      .hasText('Pending', 'Queued batch job is pending');
+    assert
+      .dom('[data-test-job-row="pending-sysbatch-job"] [data-test-job-status]')
+      .doesNotIncludeText(
+        'Pending',
+        'Pending sysbatch job should not use the queued-batch pending label',
+      );
     assert
       .dom('[data-test-job-row="failed-job"] [data-test-job-status]')
       .hasText('Failed', 'Failed job is failed');
