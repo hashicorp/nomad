@@ -3838,37 +3838,34 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 		}
 
 		if taskLifecycle == nil {
-			mainLifecycle.Merge(trCopy)
+			mainLifecycle.Add(trCopy)
 		} else if taskLifecycle.Hook == TaskLifecycleHookPrestart {
 			if taskLifecycle.Sidecar {
 				// These tasks span both the prestart and main lifecycle
-				prestartLifecycle.Merge(trCopy)
-				mainLifecycle.Merge(trCopy)
+				prestartLifecycle.Add(trCopy)
+				mainLifecycle.Add(trCopy)
 			} else {
-				prestartLifecycle.Merge(trCopy)
+				prestartLifecycle.Add(trCopy)
 			}
 		} else if taskLifecycle.Hook == TaskLifecycleHookPoststart {
-			mainLifecycle.Merge(trCopy)
+			mainLifecycle.Add(trCopy)
 		} else if taskLifecycle.Hook == TaskLifecycleHookPoststop {
-			stopLifecycle.Merge(trCopy)
+			stopLifecycle.Add(trCopy)
 		}
-
 	}
 
 	// Update the main lifecycle to reflect the largest fungible resource set
 	mainLifecycle.Max(prestartLifecycle)
 	mainLifecycle.Max(stopLifecycle)
 
-	// Add the fungible resources. Importantly, this
-	// copies mainLifecycle into Flattened.
-	c.Flattened.Add(mainLifecycle)
-
 	// Add network resources that are at the task group level
-	for _, network := range a.Shared.Networks {
-		c.Flattened.Add(&AllocatedTaskResources{
-			Networks: []*NetworkResource{network},
-		})
-	}
+	mainLifecycle.Add(&AllocatedTaskResources{
+		Networks: a.Shared.Networks,
+	})
+
+	// The values in mainLifecycle were copied from the tasks resources,
+	// so we can just merge them into Flattened to avoid the unnecessary copy.
+	c.Flattened.Merge(mainLifecycle)
 
 	return c
 }
@@ -4163,13 +4160,13 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 
 	tmp := map[uint16]struct{}{}
 
-	for _, v := range a.ReservedCores {
-		tmp[v] = struct{}{}
+	for _, core := range a.ReservedCores {
+		tmp[core] = struct{}{}
 	}
 
 	// remove cpu cores
-	for _, v := range delta.ReservedCores {
-		delete(tmp, v)
+	for _, core := range delta.ReservedCores {
+		delete(tmp, core)
 	}
 
 	// remove cpu bandwidth

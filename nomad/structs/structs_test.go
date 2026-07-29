@@ -7092,9 +7092,9 @@ func TestComparableResources_Superset(t *testing.T) {
 }
 
 func TestAllocatedResources_Comparable_Mutate(t *testing.T) {
-	allocationResources := AllocatedResources{
+	testResources := &AllocatedResources{
 		Tasks: map[string]*AllocatedTaskResources{
-			"main-task": {
+			"foo": {
 				Cpu: AllocatedCpuResources{
 					CpuShares: 2000,
 				},
@@ -7104,26 +7104,55 @@ func TestAllocatedResources_Comparable_Mutate(t *testing.T) {
 				Networks: Networks{
 					{
 						Mode: "test",
+						DynamicPorts: []Port{
+							{Label: "port", Value: 2},
+						},
 					},
 				},
 				Devices: []*AllocatedDeviceResource{
 					{
-						Vendor: "test",
+						Vendor:    "test",
+						DeviceIDs: []string{},
+					},
+				},
+			},
+			"bar": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 2000,
+				},
+				Memory: AllocatedMemoryResources{
+					MemoryMB: 2000,
+				},
+				Networks: Networks{
+					{
+						Mode: "test",
+						DynamicPorts: []Port{
+							{Label: "port", Value: 1},
+						},
+					},
+				},
+				Devices: []*AllocatedDeviceResource{
+					{
+						Vendor:    "test",
+						DeviceIDs: []string{},
 					},
 				},
 			},
 		},
 	}
 
-	res := allocationResources.Comparable()
+	// make a copy to compare later to make sure we did not mutate
+	// the original resources.
+	testResourcesCopy := testResources.Copy()
+
+	res := testResources.Comparable()
 
 	// mutate all pointers object that would be mutable if Comparable was shallow.
 	res.Flattened.Networks[0].Mode = "mutated"
 	res.Flattened.Devices[0].Vendor = "mutated"
 
 	// assert that it did not mutate the original allocationResource
-	must.NotEq(t, res.Flattened.Networks, allocationResources.Tasks["main-task"].Networks)
-	must.NotEq(t, res.Flattened.Devices, allocationResources.Tasks["main-task"].Devices)
+	must.Eq(t, testResources, testResourcesCopy)
 }
 
 func TestAllocatedResources_Comparable_Flattened(t *testing.T) {

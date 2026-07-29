@@ -225,7 +225,7 @@ NEXTNODE:
 			continue
 		}
 
-		allocResources := make(structs.AllocResourceCache)
+		allocResources := make(structs.AllocResourceCache, len(proposed))
 		allocResources.Insert(proposed)
 
 		// Index the existing network usage.
