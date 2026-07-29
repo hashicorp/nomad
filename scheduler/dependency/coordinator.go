@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // TODOS:
 // - What happened if the dependee job is cancelled or stopped?
-// - There is a exception happening when the dependency timeout is reached and the job is dispatched. The job is dispatched but the evaluation is not removed from the dependencies map. This causes a memory leak and the evaluation will never be unblocked.
-// - Error when unmarshalling a job with dependencies. The error is "json: cannot unmarshal object into Go struct field Job.Dependencies of type string". This is because the job dependencies are defined as a string in the job struct but the API returns an object. The job struct should be updated to match the API response.
+
 package dependency
 
 import (
@@ -34,9 +33,9 @@ type loopDetector interface {
 	RemoveNode(dependantJob string) error
 }
 
-// This function is a raft apply, this is possible only because the coordinator
-// is supposed to run only on the leader allowing for the log to be applied to the FSM.
-type jobUpdaterFunc func(t structs.MessageType, msg any) (any, uint64, error)
+// This function is a raft apply, to use it here is possible only because the coordinator
+// is supposed to run exclusively on the leader, allowing for the log to be applied to the FSM.
+type evalUpdaterFunc func(t structs.MessageType, msg any) (any, uint64, error)
 
 type dependency struct {
 	cancelFunc context.CancelFunc
@@ -52,7 +51,7 @@ type Coordinator struct {
 	dependencies   map[evalID]*dependency
 	loopDetector   loopDetector
 	blockedEvals   evalUnblocker
-	jobUpdaterFunc jobUpdaterFunc
+	jobUpdaterFunc evalUpdaterFunc
 }
 
 // NewCoordinator creates a new dependency coordinator. The coordinator is
@@ -63,7 +62,7 @@ type Coordinator struct {
 // reached. The coordinator will also update jobs that have unmet dependencies
 // after the timeout is reached.
 func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
-	blockedEvals evalUnblocker, jobUpdater jobUpdaterFunc) *Coordinator {
+	blockedEvals evalUnblocker, jobUpdater evalUpdaterFunc) *Coordinator {
 	return &Coordinator{
 		mainContext:    context.Background(),
 		logger:         logger.Named("dependency-coordinator"),
@@ -74,10 +73,13 @@ func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
 	}
 }
 
-func (c *Coordinator) unblockDependencies(eval *structs.Evaluation, dependeeJobs map[string]*structs.Job) error {
+func (c *Coordinator) removeDeps(eval *structs.Evaluation, dependeeJobs map[string]*structs.Job) error {
 	for _, job := range dependeeJobs {
-
-		c.blockedEvals.Unblock(eval.ID, job.JobModifyIndex)
+		// The dependee job was never present but the dependant will be unblocked
+		// after it timed out.
+		if job == nil {
+			continue
+		}
 
 		c.l.Lock()
 		defer c.l.Unlock()
@@ -148,15 +150,8 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.State,
 	eval *structs.Evaluation, dependeeJobIDs ...string) {
 	dep := c.dependencies[eval.ID]
-
-	defer func() {
-		c.logger.Debug("dependency wait finished", "job", eval.JobID, "eval", eval.ID)
-		dep.cancelFunc()
-		delete(c.dependencies, eval.ID)
-	}()
-
-	ws := memdb.NewWatchSet()
 	dj := map[string]*structs.Job{}
+	ws := memdb.NewWatchSet()
 
 	for _, jID := range dependeeJobIDs {
 		dependeeJob, err := state.JobByID(ws, eval.Namespace, jID)
@@ -167,6 +162,16 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 		dj[jID] = dependeeJob
 	}
 
+	defer func() {
+		delete(c.dependencies, eval.ID)
+		err := c.removeDeps(eval, dj)
+		if err != nil {
+			c.logger.Info("failed to remove dependencies", "error", err)
+		}
+
+		dep.cancelFunc()
+	}()
+
 	for {
 		select {
 		case <-ws.WatchCh(ctx):
@@ -176,8 +181,9 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 			}
 
 			if ready {
+				c.blockedEvals.Unblock(eval.ID, dep.job.JobModifyIndex)
 				c.logger.Debug("dependency ready, unblocking job", "job", eval.JobID, "eval", eval.ID, "ready", ready)
-				err := c.unblockDependencies(eval, dj)
+
 				if err != nil {
 					c.logger.Error("failed to unblock job", "error", err)
 				}
@@ -186,23 +192,10 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 			return
 
 		case <-ctx.Done():
-			c.logger.Debug("dependency timeout reached", "job",
+			c.logger.Error("dependency timeout reached", "job",
 				eval.JobID, "eval", eval.ID, "action", dep.job.Dependencies.ActionOnTimeout)
 
-			if context.Cause(ctx) == errDependencyTimeout &&
-				dep.job.Dependencies.ActionOnTimeout == structs.DependencyActionDispatch {
-				c.logger.Info("dependency timeout reached, dispatching job",
-					"job", eval.JobID, "eval", eval.ID, "action", dep.job.Dependencies.ActionOnTimeout)
-
-				if err := c.unblockDependencies(eval, dj); err != nil {
-					c.logger.Info("failed to unblock eval", "error", err)
-				}
-			}
-
-			c.logger.Error("dependency timeout reached, failing job", "job",
-				eval.JobID, "eval", eval.ID, "action", dep.job.Dependencies.ActionOnTimeout)
-
-			err := c.cancelEval(*eval, *dep.job)
+			err := c.deleteEval(*eval, *dep.job)
 			if err != nil {
 				c.logger.Error("dependency timeout reached, failed to update job", "jobID", dep.job.ID, "error", err)
 			}
@@ -212,24 +205,24 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 	}
 }
 
-func (c *Coordinator) cancelEval(eval structs.Evaluation, job structs.Job) error {
-	job.Status = structs.JobStatusDead
-	_, _, err := c.jobUpdaterFunc(structs.JobDeregisterRequestType, &structs.JobDeregisterRequest{
-		JobID: job.ID,
-		WriteRequest: structs.WriteRequest{
-			Namespace: eval.Namespace,
-		},
-	})
-	if err != nil {
-		c.logger.Error("coordinator: failed to update eval", "eval", eval.ID, "error", err)
-		return err
-	}
+func (c *Coordinator) deleteEval(eval structs.Evaluation, job structs.Job) error {
+	/* 	job.Status = structs.JobStatusDead
+	   	_, _, err := c.jobUpdaterFunc(structs.JobDeregisterRequestType, &structs.JobDeregisterRequest{
+	   		JobID: job.ID,
+	   		WriteRequest: structs.WriteRequest{
+	   			Namespace: eval.Namespace,
+	   		},
+	   	})
+	   	if err != nil {
+	   		c.logger.Error("coordinator: failed to update eval", "eval", eval.ID, "error", err)
+	   		return err
+	   	} */
 
 	eval.Status = structs.EvalStatusCancelled
 	eval.StatusDescription = structs.EvalTriggeredDeps
 
-	_, _, err = c.jobUpdaterFunc(structs.EvalUpdateRequestType, &structs.EvalUpdateRequest{
-		Evals: []*structs.Evaluation{&eval},
+	_, _, err := c.jobUpdaterFunc(structs.EvalDeleteRequestType, &structs.EvalDeleteRequest{
+		EvalIDs: []string{eval.ID},
 		WriteRequest: structs.WriteRequest{
 			Namespace: eval.Namespace,
 		},
