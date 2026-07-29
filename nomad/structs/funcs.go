@@ -154,8 +154,14 @@ func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex
 	exclusiveHostVolumeClaims := []string{}
 
 	allocs := make([]*Allocation, len(allocWithCmp))
+	idx := 0
+
 	// For each alloc, add the resources
 	for _, a := range allocWithCmp {
+
+		allocs[idx] = a.Alloc
+		idx++
+
 		// Do not consider the resource impact of terminal allocations
 		if a.Alloc.ClientTerminalStatus() {
 			continue
@@ -163,8 +169,6 @@ func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex
 
 		// Comparable makes a deep copy, so we can merge it with used.
 		used.Merge(a.Resource)
-
-		allocs = append(allocs, a.Alloc)
 
 		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
 		for _, core := range a.Resource.Flattened.Cpu.ReservedCores {

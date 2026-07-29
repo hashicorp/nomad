@@ -2941,12 +2941,10 @@ func (n *NetworkResource) Copy() *NetworkResource {
 	*newR = *n
 	newR.DNS = n.DNS.Copy()
 	if n.ReservedPorts != nil {
-		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
-		copy(newR.ReservedPorts, n.ReservedPorts)
+		newR.ReservedPorts = slices.Clone(n.ReservedPorts)
 	}
 	if n.DynamicPorts != nil {
-		newR.DynamicPorts = make([]Port, len(n.DynamicPorts))
-		copy(newR.DynamicPorts, n.DynamicPorts)
+		newR.DynamicPorts = slices.Clone(n.DynamicPorts)
 	}
 	return newR
 }
