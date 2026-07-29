@@ -4681,10 +4681,10 @@ func TestConversion_ApiDependencyToStructs(t *testing.T) {
 	t.Run("nil dependency", func(t *testing.T) {
 		must.Nil(t, ApiDependencyToStructs(nil))
 	})
-
+	dur := time.Duration(10 * time.Minute)
 	t.Run("maps timeout, action and nested jobs", func(t *testing.T) {
 		in := &api.Dependency{
-			Timeout:         "10m",
+			Timeout:         &dur,
 			ActionOnTimeout: "reject",
 			Jobs: []*api.JobDependency{
 				{Name: "service-123", Status: "completed"},
