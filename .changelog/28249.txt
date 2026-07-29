@@ -1,0 +1,3 @@
+```release-note:improvement
+planner: Added plan_apply_pipeline configuration that allows the leader to have more outstanding Raft writes when evaluating plans
+```

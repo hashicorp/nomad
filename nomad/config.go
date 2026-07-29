@@ -290,6 +290,10 @@ type Config struct {
 	// rejections for nodes.
 	NodePlanRejectionWindow time.Duration
 
+	// PlanApplyPipeline is the maximum number of outstanding plans there can be
+	// waiting on Raft apply
+	PlanApplyPipeline int
+
 	// MinHeartbeatTTL is the minimum time between heartbeats.
 	// This is used as a floor to prevent excessive updates.
 	MinHeartbeatTTL time.Duration
