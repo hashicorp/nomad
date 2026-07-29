@@ -2996,6 +2996,18 @@ func (ns Networks) Copy() Networks {
 	return out
 }
 
+func (ns Networks) Add(other Networks) {
+	for _, n := range other {
+		// Find the matching interface by IP or CIDR
+		idx := ns.NetIndex(n)
+		if idx == -1 {
+			ns = append(ns, n.Copy())
+		} else {
+			ns[idx].Add(n)
+		}
+	}
+}
+
 // Port assignment and IP for the given label or empty values.
 func (ns Networks) Port(label string) AllocatedPortMapping {
 	for _, n := range ns {
@@ -3801,6 +3813,127 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 	return &out
 }
 
+type adder[T any] interface {
+	Add(a T)
+}
+
+type lifecycleDistributor[T adder[T]] struct {
+	prestart T
+	main     T
+	stop     T
+}
+
+func (d *lifecycleDistributor[T]) distribute(resource T, lifecycle *TaskLifecycleConfig) {
+	if lifecycle == nil {
+		d.main.Add(resource)
+	}
+	switch lifecycle.Hook {
+	case TaskLifecycleHookPrestart:
+		if lifecycle.Sidecar {
+			d.main.Add(resource)
+		}
+		d.prestart.Add(resource)
+	case TaskLifecycleHookPoststart:
+		d.main.Add(resource)
+	case TaskLifecycleHookPoststop:
+		d.stop.Add(resource)
+	}
+}
+
+func (a *AllocatedResources) ComparableCPU() *ComparableCPU {
+	l := &lifecycleDistributor[*AllocatedCpuResources]{
+		prestart: &AllocatedCpuResources{},
+		main:     &AllocatedCpuResources{},
+		stop:     &AllocatedCpuResources{},
+	}
+	c := &ComparableCPU{}
+
+	for taskName, taskResources := range a.Tasks {
+		if len(taskResources.Cpu.ReservedCores) > 0 {
+			c.AllocatedCpuResources.Add(&taskResources.Cpu)
+			continue
+		}
+		l.distribute(&taskResources.Cpu, a.TaskLifecycles[taskName])
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	l.main.Max(l.prestart)
+	l.main.Max(l.stop)
+
+	c.AllocatedCpuResources.Add(l.main)
+	return c
+}
+
+func (a *AllocatedResources) ComparableMem() *ComparableMem {
+	l := &lifecycleDistributor[*AllocatedMemoryResources]{
+		prestart: &AllocatedMemoryResources{},
+		main:     &AllocatedMemoryResources{},
+		stop:     &AllocatedMemoryResources{},
+	}
+	c := &ComparableMem{}
+
+	for taskName, taskResources := range a.Tasks {
+		l.distribute(&taskResources.Memory, a.TaskLifecycles[taskName])
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	l.main.Max(l.prestart)
+	l.main.Max(l.stop)
+
+	c.AllocatedMemoryResources.Add(l.main)
+	return c
+}
+
+func (a *AllocatedResources) ComparableDisk() *ComparableDisk {
+	return &ComparableDisk{
+		DiskMB: a.Shared.DiskMB,
+	}
+}
+
+func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
+	l := &lifecycleDistributor[Networks]{
+		prestart: Networks{},
+		main:     Networks{},
+		stop:     Networks{},
+	}
+	c := &ComparableNetworks{}
+
+	for taskName, taskResources := range a.Tasks {
+		l.distribute(taskResources.Networks, a.TaskLifecycles[taskName])
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	// TODO: do we need to MAX networks? I _think_ so
+	// l.main.Max(l.prestart)
+	// l.main.Max(l.stop)
+
+	c.FlattenedNetworks.Add(l.main)
+	c.SharedNetworks.Add(a.Shared.Networks)
+	// c.SharedPorts = append(c.SharedPorts, a.Shared.Ports...)
+	return c
+}
+
+func (a *AllocatedResources) ComparableDevices() *ComparableDevices {
+	l := &lifecycleDistributor[AllocatedDevices]{
+		prestart: AllocatedDevices{},
+		main:     AllocatedDevices{},
+		stop:     AllocatedDevices{},
+	}
+	c := &ComparableDevices{}
+
+	for taskName, taskResources := range a.Tasks {
+		l.distribute(AllocatedDevices(taskResources.Devices), a.TaskLifecycles[taskName])
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	// TODO: same ad networks, I think we need to max these
+	// l.main.Max(l.prestart)
+	// l.main.Max(l.stop)
+
+	c.Devices = append(c.Devices, l.main...)
+	return c
+}
+
 // Comparable returns a comparable version of the allocations allocated
 // resources. This conversion can be lossy so care must be taken when using it.
 //
@@ -4233,6 +4366,18 @@ func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
 }
 
 type AllocatedDevices []*AllocatedDeviceResource
+
+func (a AllocatedDevices) Add(delta AllocatedDevices) {
+	for _, d := range delta {
+		// Find the matching device
+		idx := AllocatedDevices(a).Index(d)
+		if idx == -1 {
+			a = append(a, d.Copy())
+		} else {
+			a[idx].Add(d)
+		}
+	}
+}
 
 // Index finds the matching index using the passed device. If not found, -1 is
 // returned.
