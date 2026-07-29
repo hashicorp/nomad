@@ -264,20 +264,20 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 
 func decodeDependency(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	d := val.(*api.Dependency)
-	
+
 	var diags hcl.Diagnostics
-	
+
 	// First decode to get timeout as string
 	type tempDependency struct {
-		Timeout         string           `hcl:"timeout,optional"`
-		ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
+		Timeout         string               `hcl:"timeout,optional"`
+		ActionOnTimeout string               `hcl:"action_on_timeout,optional"`
 		Jobs            []*api.JobDependency `hcl:"job,block"`
 	}
-	
+
 	temp := &tempDependency{}
 	moreDiags := gohcl.DecodeBody(body, ctx, temp)
 	diags = append(diags, moreDiags...)
-	
+
 	// Convert timeout string to *time.Duration
 	if temp.Timeout != "" {
 		if duration, err := time.ParseDuration(temp.Timeout); err == nil {
@@ -290,11 +290,11 @@ func decodeDependency(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 			})
 		}
 	}
-	
+
 	// Copy other fields
 	d.ActionOnTimeout = temp.ActionOnTimeout
 	d.Jobs = temp.Jobs
-	
+
 	return diags
 }
 
