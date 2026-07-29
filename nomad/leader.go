@@ -403,7 +403,7 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.planQueue.SetEnabled(true)
 
 	// Start the plan evaluator
-	go s.planApply()
+	go s.planApply(s.GetConfig().PlanApplyPipeline)
 
 	// Start the eval broker and blocked eval broker if these are not paused by
 	// the operator.
