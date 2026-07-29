@@ -717,6 +717,10 @@ type ServerConfig struct {
 	// detects potentially bad nodes.
 	PlanRejectionTracker *PlanRejectionTracker `hcl:"plan_rejection_tracker"`
 
+	// PlanApplyPipeline is the maximum number of outstanding plans there can be
+	// waiting on Raft apply
+	PlanApplyPipeline int `hcl:"plan_apply_pipeline"`
+
 	// EnableEventBroker configures whether this server's state store
 	// will generate events for its event stream.
 	EnableEventBroker *bool `hcl:"enable_event_broker"`
@@ -1884,6 +1888,7 @@ func DefaultConfig() *Config {
 				NodeThreshold: 100,
 				NodeWindow:    5 * time.Minute,
 			},
+			PlanApplyPipeline: 1,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -2756,6 +2761,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.PlanRejectionTracker != nil {
 		result.PlanRejectionTracker = result.PlanRejectionTracker.Merge(b.PlanRejectionTracker)
+	}
+	if b.PlanApplyPipeline != 0 {
+		result.PlanApplyPipeline = b.PlanApplyPipeline
 	}
 
 	if b.DefaultSchedulerConfig != nil {
