@@ -33,10 +33,10 @@ type jobConfig struct {
 
 	ParseConfig *ParseConfig
 
-	Vault        *api.Vault        `hcl:"vault,block"`
-	Secrets      []*api.Secret     `hcl:"secret,block"`
-	Tasks        []*api.Task       `hcl:"task,block"`
-	Dependencies []*api.Dependency `hcl:"dependency,block"`
+	Vault        *api.Vault      `hcl:"vault,block"`
+	Secrets      []*api.Secret   `hcl:"secret,block"`
+	Tasks        []*api.Task     `hcl:"task,block"`
+	Dependencies *api.Dependency `hcl:"dependency,block"`
 
 	InputVariables Variables
 	LocalVariables Variables
@@ -206,7 +206,7 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 
 			d := &api.Dependency{}
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, d)...)
-			c.Dependencies = append(c.Dependencies, d)
+			c.Dependencies = d
 		}
 	}
 
