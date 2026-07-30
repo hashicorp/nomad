@@ -166,7 +166,7 @@ type BinPackIterator struct {
 	jobId                  structs.NamespacedID
 	taskGroup              *structs.TaskGroup
 	memoryOversubscription bool
-	scoreFit               func(*structs.Node, *structs.ComparableResourcesV2) float64
+	scoreFit               func(*structs.Node, *structs.BaseComparableResource) float64
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
@@ -326,7 +326,7 @@ NEXTNODE:
 				}
 
 				// Look for preemptible allocations to satisfy the network resource for this task
-				preemptor.SetCandidates(proposed)
+				preemptor.SetCandidates(allocResources)
 
 				netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 				if netPreemptions == nil {
@@ -414,7 +414,7 @@ NEXTNODE:
 					}
 
 					// Look for preemptible allocations to satisfy the network resource for this task
-					preemptor.SetCandidates(proposed)
+					preemptor.SetCandidates(allocResources)
 
 					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
@@ -615,7 +615,7 @@ NEXTNODE:
 							offerErr = err
 
 							// get the potential preemptions
-							preemptor.SetCandidates(proposed) // allocations
+							preemptor.SetCandidates(allocResources) // allocations
 							devicePreemptions := preemptor.PreemptForDevice(device, devAllocator)
 
 							restoreSnapshots := func() {
@@ -743,7 +743,7 @@ NEXTNODE:
 		}
 
 		// Store current set of running allocs before adding resources for the task group
-		current := proposed
+		current := allocResources
 
 		// Add the resources we are trying to fit
 		allocResources.Insert(&structs.Allocation{AllocatedResources: total})
