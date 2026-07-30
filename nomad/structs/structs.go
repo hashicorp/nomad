@@ -5,6 +5,7 @@ package structs
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -9949,8 +9950,14 @@ func (ta *TaskArtifact) validateChecksum() error {
 	expectedLength := 0
 	switch checksumType {
 	case "md5":
+		if fips140.Enabled() {
+			return fmt.Errorf("md5 checksums are not supported in FIPS-140 mode")
+		}
 		expectedLength = md5.Size
 	case "sha1":
+		if fips140.Enabled() {
+			return fmt.Errorf("sha1 checksums are not supported in FIPS-140 mode")
+		}
 		expectedLength = sha1.Size
 	case "sha256":
 		expectedLength = sha256.Size
