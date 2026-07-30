@@ -5,6 +5,7 @@ package version
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"fmt"
 	"time"
 )
@@ -52,6 +53,14 @@ func GetVersion() *VersionInfo {
 	ver := Version
 	rel := VersionPrerelease
 	md := VersionMetadata
+	if fips140.Enabled() {
+		if md == "" {
+			md = "fips1403"
+		} else {
+			md = md + ".fips1403"
+		}
+	}
+
 	if GitDescribe != "" {
 		ver = GitDescribe
 	}
