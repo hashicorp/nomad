@@ -5,5 +5,10 @@
   "engines": {
     "node": "20.19.4",
     "pnpm": ">= 10"
+  },
+  "pnpm": {
+    "overrides": {
+      "markdown-it": "^14.2.0"
+    }
   }
 }
