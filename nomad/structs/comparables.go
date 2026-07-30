@@ -1,8 +1,6 @@
 package structs
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/nomad/client/lib/idset"
 )
 
@@ -69,10 +67,6 @@ type ComparableCPU struct {
 func (c *ComparableCPU) Add(delta *ComparableCPU) {
 	if delta == nil {
 		return
-	}
-
-	if c == nil {
-		fmt.Println("uh oh!")
 	}
 
 	c.AllocatedCpuResources.Add(&delta.AllocatedCpuResources)

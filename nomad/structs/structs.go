@@ -3811,8 +3811,9 @@ type AllocResourceCache map[string]AllocWithCmpResource
 func (a AllocResourceCache) Insert(allocs ...*Allocation) {
 	for _, alloc := range allocs {
 		a[alloc.ID] = AllocWithCmpResource{
-			Alloc:    alloc,
-			Resource: alloc.AllocatedResources.Comparable2(),
+			Alloc: alloc,
+			// Resource: alloc.AllocatedResources.Comparable2(),
+			Resource: alloc.AllocatedResources.Comparable3(),
 		}
 	}
 }
@@ -3988,6 +3989,69 @@ func (a *AllocatedResources) ComparableDevices() *ComparableDevices {
 	return c
 }
 
+func (a *AllocatedResources) Comparable3() *ComparableResourcesV2 {
+	if a == nil {
+		return nil
+	}
+
+	prestartLifecycle := &AllocatedTaskResources{}
+	mainLifecycle := &AllocatedTaskResources{}
+	stopLifecycle := &AllocatedTaskResources{}
+
+	c := &ComparableResourcesV2{
+		ComparableCPU:  &ComparableCPU{},
+		ComparableMem:  &ComparableMem{},
+		ComparableDisk: &ComparableDisk{},
+	}
+
+	c.ComparableDisk.DiskMB = a.Shared.DiskMB
+
+	for taskName, taskResources := range a.Tasks {
+		taskLifecycle := a.TaskLifecycles[taskName]
+
+		// Make a shallow copy here, only turn this into a deep copy
+		// if we have reserved cores and absolutely have to.
+		trCopy := taskResources
+
+		// Reserved cores (and their respective bandwidth) are not fungible,
+		// hence we should always include it as part of the Flattened resources.
+		if len(trCopy.Cpu.ReservedCores) > 0 {
+			// Deep copy, so we can mutate it
+			trCopy = taskResources.Copy()
+			c.ComparableCPU.AllocatedCpuResources.Add(&trCopy.Cpu)
+			trCopy.Cpu = AllocatedCpuResources{}
+		}
+
+		if taskLifecycle == nil {
+			mainLifecycle.Add(trCopy)
+		} else if taskLifecycle.Hook == TaskLifecycleHookPrestart {
+			if taskLifecycle.Sidecar {
+				// These tasks span both the prestart and main lifecycle
+				prestartLifecycle.Add(trCopy)
+				mainLifecycle.Add(trCopy)
+			} else {
+				prestartLifecycle.Add(trCopy)
+			}
+		} else if taskLifecycle.Hook == TaskLifecycleHookPoststart {
+			mainLifecycle.Add(trCopy)
+		} else if taskLifecycle.Hook == TaskLifecycleHookPoststop {
+			stopLifecycle.Add(trCopy)
+		}
+
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	mainLifecycle.Max(prestartLifecycle)
+	mainLifecycle.Max(stopLifecycle)
+
+	// The values in mainLifecycle were copied from the tasks resources,
+	// so we can just merge them into Flattened to avoid the unnecessary copy.
+	c.AllocatedCpuResources.Add(&mainLifecycle.Cpu)
+	c.AllocatedMemoryResources.Add(&mainLifecycle.Memory)
+
+	return c
+}
+
 func (a *AllocatedResources) Comparable2() *ComparableResourcesV2 {
 	if a == nil {
 		return nil
@@ -4146,25 +4210,25 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 	a.Cpu.Add(&delta.Cpu)
 	a.Memory.Add(&delta.Memory)
 
-	for _, n := range delta.Networks {
-		// Find the matching interface by IP or CIDR
-		idx := a.NetIndex(n)
-		if idx == -1 {
-			a.Networks = append(a.Networks, n.Copy())
-		} else {
-			a.Networks[idx].Add(n)
-		}
-	}
-
-	for _, d := range delta.Devices {
-		// Find the matching device
-		idx := AllocatedDevices(a.Devices).Index(d)
-		if idx == -1 {
-			a.Devices = append(a.Devices, d.Copy())
-		} else {
-			a.Devices[idx].Add(d)
-		}
-	}
+	// for _, n := range delta.Networks {
+	// 	// Find the matching interface by IP or CIDR
+	// 	idx := a.NetIndex(n)
+	// 	if idx == -1 {
+	// 		a.Networks = append(a.Networks, n.Copy())
+	// 	} else {
+	// 		a.Networks[idx].Add(n)
+	// 	}
+	// }
+	//
+	// for _, d := range delta.Devices {
+	// 	// Find the matching device
+	// 	idx := AllocatedDevices(a.Devices).Index(d)
+	// 	if idx == -1 {
+	// 		a.Devices = append(a.Devices, d.Copy())
+	// 	} else {
+	// 		a.Devices[idx].Add(d)
+	// 	}
+	// }
 }
 
 // Merge takes delta's pointers and merges them with a's parameters. This is useful
