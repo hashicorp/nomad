@@ -385,6 +385,17 @@ integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/client_intro
 
+.PHONY: integration-test-device-scheduling
+integration-test-client-intro: dev ## Run Nomad's device scheduling integration tests
+	@echo "==> Running Nomad integration test suite for Device Scheduling:"
+	NOMAD_E2E_CLIENT_INTRO=1 gotestsum --format=testname -- \
+		-v \
+		-race \
+		-timeout=120s \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e/devices
+
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
 clean: ## Remove build artifacts
