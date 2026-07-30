@@ -5,13 +5,11 @@ package drivers
 
 import (
 	"context"
-	"crypto/md5"
 	"fmt"
 	"io"
 	"maps"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -581,22 +579,6 @@ func (d *DriverNetwork) Copy() *DriverNetwork {
 		IP:            d.IP,
 		AutoAdvertise: d.AutoAdvertise,
 	}
-}
-
-// Hash the contents of a DriverNetwork struct to detect changes. If it is nil,
-// an empty slice is returned.
-func (d *DriverNetwork) Hash() []byte {
-	if d == nil {
-		return []byte{}
-	}
-	h := md5.New()
-	io.WriteString(h, d.IP)
-	io.WriteString(h, strconv.FormatBool(d.AutoAdvertise))
-	for k, v := range d.PortMap {
-		io.WriteString(h, k)
-		io.WriteString(h, strconv.Itoa(v))
-	}
-	return h.Sum(nil)
 }
 
 //// helper types for operating on raw exec operation
