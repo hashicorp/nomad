@@ -14,6 +14,7 @@ overrides:
   diff@>=6.0.0 <8.0.3: '>=8.0.3'
   ember-inflector: 6.0.0
   linkify-it: 5.0.2
+  markdown-it: ^14.2.0
   qs@>=6.11.1 <=6.15.1: '>=6.15.2'
   shell-quote@>=1.1.0 <=1.8.3: '>=1.8.4'
   tmp@<0.2.6: '>=0.2.6'
@@ -5094,10 +5095,10 @@ packages:
   markdown-it-terminal@0.4.0:
     resolution: {integrity: sha512-NeXtgpIK6jBciHTm9UhiPnyHDdqyVIdRPJ+KdQtZaf/wR74gvhCNbw5li4TYsxRp5u3ZoHEF4DwpECeZqyCw+w==}
     peerDependencies:
-      markdown-it: '>= 13.0.0'
+      markdown-it: ^14.2.0
 
-  markdown-it@14.1.1:
-    resolution: {integrity: sha512-BuU2qnTti9YKgK5N+IeMubp14ZUKUUw7yeJbkjtosvHiP0AZ5c8IAgEMk79D0eC8F23r4Ac/q8cAIFdm2FtyoA==}
+  markdown-it@14.3.0:
+    resolution: {integrity: sha512-RCEsPjR+sr0x+AuYp601tKTkgFG4YEPLCzHST3cQ/fhlJkqAkz1L2/Qbp1j9qw5SBwQHFBoW8+hoN5xssOF0Tw==}
     hasBin: true
 
   marked@17.0.4:
@@ -11081,8 +11082,8 @@ snapshots:
       is-git-url: 1.0.0
       is-language-code: 5.1.3
       lodash: 4.18.1
-      markdown-it: 14.1.1
-      markdown-it-terminal: 0.4.0(markdown-it@14.1.1)
+      markdown-it: 14.3.0
+      markdown-it-terminal: 0.4.0(markdown-it@14.3.0)
       minimatch: 10.2.5
       morgan: 1.11.0
       nopt: 3.0.6
@@ -13163,15 +13164,15 @@ snapshots:
     dependencies:
       p-defer: 1.0.0
 
-  markdown-it-terminal@0.4.0(markdown-it@14.1.1):
+  markdown-it-terminal@0.4.0(markdown-it@14.3.0):
     dependencies:
       ansi-styles: 3.2.1
       cardinal: 1.0.0
       cli-table: 0.3.11
       lodash.merge: 4.6.2
-      markdown-it: 14.1.1
+      markdown-it: 14.3.0
 
-  markdown-it@14.1.1:
+  markdown-it@14.3.0:
     dependencies:
       argparse: 2.0.1
       entities: 4.5.0
