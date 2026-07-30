@@ -2996,6 +2996,19 @@ func (ns Networks) Copy() Networks {
 	return out
 }
 
+func (ns Networks) Max(other Networks) {
+	for _, n := range other {
+		// Find the matching interface by IP or CIDR
+		idx := ns.NetIndex(n)
+		if idx == -1 {
+			ns = append(ns, n.Copy())
+		} else {
+			ns[idx].Add(n)
+		}
+	}
+
+}
+
 func (ns Networks) Add(other Networks) {
 	for _, n := range other {
 		// Find the matching interface by IP or CIDR
@@ -3225,7 +3238,7 @@ func (n *NodeResources) Copy() *NodeResources {
 	return newN
 }
 
-func (n *NodeResources) Comparable2() *ComparableResourcesV2 {
+func (n *NodeResources) BaseComparable() *BaseComparableResource {
 	if n == nil {
 		return nil
 	}
@@ -3235,19 +3248,19 @@ func (n *NodeResources) Comparable2() *ComparableResourcesV2 {
 		return uint16(id)
 	})
 
-	return &ComparableResourcesV2{
-		&ComparableCPU{
+	return &BaseComparableResource{
+		ComparableCPU{
 			AllocatedCpuResources: AllocatedCpuResources{
 				CpuShares:     int64(n.Processors.TotalCompute()),
 				ReservedCores: reservableCores,
 			},
 		},
-		&ComparableMem{
+		ComparableMem{
 			AllocatedMemoryResources: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
 			},
 		},
-		&ComparableDisk{
+		ComparableDisk{
 			DiskMB: n.Disk.DiskMB,
 		},
 	}
@@ -3721,24 +3734,24 @@ func (n *NodeReservedResources) Copy() *NodeReservedResources {
 	return newN
 }
 
-func (n *NodeReservedResources) Comparable2() *ComparableResourcesV2 {
+func (n *NodeReservedResources) BaseComparable() *BaseComparableResource {
 	if n == nil {
 		return nil
 	}
 
-	return &ComparableResourcesV2{
-		&ComparableCPU{
+	return &BaseComparableResource{
+		ComparableCPU{
 			AllocatedCpuResources: AllocatedCpuResources{
 				CpuShares:     n.Cpu.CpuShares,
 				ReservedCores: n.Cpu.ReservedCpuCores,
 			},
 		},
-		&ComparableMem{
+		ComparableMem{
 			AllocatedMemoryResources: AllocatedMemoryResources{
 				MemoryMB: n.Memory.MemoryMB,
 			},
 		},
-		&ComparableDisk{
+		ComparableDisk{
 			DiskMB: n.Disk.DiskMB,
 		},
 	}
@@ -3801,7 +3814,7 @@ type NodeReservedNetworkResources struct {
 // alloc.AllocatedResource.Comparable().
 type AllocWithCmpResource struct {
 	Alloc    *Allocation
-	Resource *ComparableResourcesV2
+	Resource *BaseComparableResource
 }
 
 type AllocResourceCache map[string]AllocWithCmpResource
@@ -3811,9 +3824,8 @@ type AllocResourceCache map[string]AllocWithCmpResource
 func (a AllocResourceCache) Insert(allocs ...*Allocation) {
 	for _, alloc := range allocs {
 		a[alloc.ID] = AllocWithCmpResource{
-			Alloc: alloc,
-			// Resource: alloc.AllocatedResources.Comparable2(),
-			Resource: alloc.AllocatedResources.Comparable3(),
+			Alloc:    alloc,
+			Resource: alloc.AllocatedResources.BaseComparable(),
 		}
 	}
 }
@@ -3957,57 +3969,41 @@ func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
 	}
 
 	// Update the main lifecycle to reflect the largest fungible resource set
-	// TODO: do we need to MAX networks? I _think_ so
-	// l.main.Max(l.prestart)
-	// l.main.Max(l.stop)
+	l.main.Max(l.prestart)
+	l.main.Max(l.stop)
 
 	c.FlattenedNetworks.Add(l.main)
 	c.SharedNetworks.Add(a.Shared.Networks)
-	// c.SharedPorts = append(c.SharedPorts, a.Shared.Ports...)
+	c.SharedPorts = append(c.SharedPorts, a.Shared.Ports...)
 	return c
 }
 
-// TODO: we don't generate ComparableDevices from allocResources, do we need this?
-func (a *AllocatedResources) ComparableDevices() *ComparableDevices {
-	l := &lifecycleDistributor[AllocatedDevices]{
-		prestart: AllocatedDevices{},
-		main:     AllocatedDevices{},
-		stop:     AllocatedDevices{},
-	}
-	c := &ComparableDevices{}
-
-	for taskName, taskResources := range a.Tasks {
-		l.distribute(AllocatedDevices(taskResources.Devices), a.TaskLifecycles[taskName])
-	}
-
-	// Update the main lifecycle to reflect the largest fungible resource set
-	// TODO: same ad networks, I think we need to max these
-	// l.main.Max(l.prestart)
-	// l.main.Max(l.stop)
-
-	c.Devices = append(c.Devices, l.main...)
-	return c
-}
-
-func (a *AllocatedResources) Comparable3() *ComparableResourcesV2 {
+// BaseComparable flattens and returns the maximum necessary CPU/Mem/Disk
+// needed for a task to run. It returns a ComparableResourse that is
+// can be used to compare with other Allocations or Node resources.
+//
+// This method is called for each allocation on a node, for each node
+// that is iterated, so it can be quite the scheduling bottleneck.
+// Because of this, we inline logic for distributing resources to
+// lifecycles, as it's quite a bit faster and uses less memory.
+//
+// When updating this method, use care if making copies or allocating
+// memory, and benchmark the scheduler before and after :)
+func (a *AllocatedResources) BaseComparable() *BaseComparableResource {
 	if a == nil {
 		return nil
 	}
 
-	prestartLifecycle := &AllocatedTaskResources{}
-	mainLifecycle := &AllocatedTaskResources{}
-	stopLifecycle := &AllocatedTaskResources{}
+	prestart := &AllocatedTaskResources{}
+	main := &AllocatedTaskResources{}
+	stop := &AllocatedTaskResources{}
 
-	c := &ComparableResourcesV2{
-		ComparableCPU:  &ComparableCPU{},
-		ComparableMem:  &ComparableMem{},
-		ComparableDisk: &ComparableDisk{},
-	}
+	c := &BaseComparableResource{}
 
 	c.ComparableDisk.DiskMB = a.Shared.DiskMB
 
 	for taskName, taskResources := range a.Tasks {
-		taskLifecycle := a.TaskLifecycles[taskName]
+		lifecycle := a.TaskLifecycles[taskName]
 
 		// Make a shallow copy here, only turn this into a deep copy
 		// if we have reserved cores and absolutely have to.
@@ -4017,116 +4013,39 @@ func (a *AllocatedResources) Comparable3() *ComparableResourcesV2 {
 		// hence we should always include it as part of the Flattened resources.
 		if len(trCopy.Cpu.ReservedCores) > 0 {
 			// Deep copy, so we can mutate it
-			trCopy = taskResources.Copy()
+			trCopy = &AllocatedTaskResources{
+				Cpu:    trCopy.Cpu,
+				Memory: trCopy.Memory,
+			}
 			c.ComparableCPU.AllocatedCpuResources.Add(&trCopy.Cpu)
 			trCopy.Cpu = AllocatedCpuResources{}
 		}
 
-		if taskLifecycle == nil {
-			mainLifecycle.Add(trCopy)
-		} else if taskLifecycle.Hook == TaskLifecycleHookPrestart {
-			if taskLifecycle.Sidecar {
-				// These tasks span both the prestart and main lifecycle
-				prestartLifecycle.Add(trCopy)
-				mainLifecycle.Add(trCopy)
-			} else {
-				prestartLifecycle.Add(trCopy)
-			}
-		} else if taskLifecycle.Hook == TaskLifecycleHookPoststart {
-			mainLifecycle.Add(trCopy)
-		} else if taskLifecycle.Hook == TaskLifecycleHookPoststop {
-			stopLifecycle.Add(trCopy)
+		if lifecycle == nil {
+			main.Add(trCopy)
+			continue
 		}
-
-	}
-
-	// Update the main lifecycle to reflect the largest fungible resource set
-	mainLifecycle.Max(prestartLifecycle)
-	mainLifecycle.Max(stopLifecycle)
-
-	// The values in mainLifecycle were copied from the tasks resources,
-	// so we can just merge them into Flattened to avoid the unnecessary copy.
-	c.AllocatedCpuResources.Add(&mainLifecycle.Cpu)
-	c.AllocatedMemoryResources.Add(&mainLifecycle.Memory)
-
-	return c
-}
-
-func (a *AllocatedResources) Comparable2() *ComparableResourcesV2 {
-	if a == nil {
-		return nil
-	}
-
-	return &ComparableResourcesV2{
-		ComparableCPU:  a.ComparableCPU(),
-		ComparableMem:  a.ComparableMem(),
-		ComparableDisk: a.ComparableDisk(),
-	}
-}
-
-// Comparable returns a comparable version of the allocations allocated
-// resources. This conversion can be lossy so care must be taken when using it.
-//
-// Comparable returns a deep copy of the values pointed to by AllocatedResources.
-func (a *AllocatedResources) Comparable() *ComparableResources {
-	if a == nil {
-		return nil
-	}
-
-	c := &ComparableResources{
-		Shared: a.Shared,
-	}
-
-	// The lifecycle in which a task could run
-	prestartLifecycle := &AllocatedTaskResources{}
-	mainLifecycle := &AllocatedTaskResources{}
-	stopLifecycle := &AllocatedTaskResources{}
-
-	for taskName, taskResources := range a.Tasks {
-		taskLifecycle := a.TaskLifecycles[taskName]
-
-		// Make a shallow copy here, only turn this into a deep copy
-		// if we have reserved cores and absolutely have to.
-		trCopy := taskResources
-
-		// Reserved cores (and their respective bandwidth) are not fungible,
-		// hence we should always include it as part of the Flattened resources.
-		if len(trCopy.Cpu.ReservedCores) > 0 {
-			// Deep copy, so we can mutate it
-			trCopy = taskResources.Copy()
-			c.Flattened.Cpu.Add(&trCopy.Cpu)
-			trCopy.Cpu = AllocatedCpuResources{}
-		}
-
-		if taskLifecycle == nil {
-			mainLifecycle.Add(trCopy)
-		} else if taskLifecycle.Hook == TaskLifecycleHookPrestart {
-			if taskLifecycle.Sidecar {
-				// These tasks span both the prestart and main lifecycle
-				prestartLifecycle.Add(trCopy)
-				mainLifecycle.Add(trCopy)
-			} else {
-				prestartLifecycle.Add(trCopy)
+		switch lifecycle.Hook {
+		case TaskLifecycleHookPrestart:
+			if lifecycle.Sidecar {
+				main.Add(trCopy)
 			}
-		} else if taskLifecycle.Hook == TaskLifecycleHookPoststart {
-			mainLifecycle.Add(trCopy)
-		} else if taskLifecycle.Hook == TaskLifecycleHookPoststop {
-			stopLifecycle.Add(trCopy)
+			prestart.Add(trCopy)
+		case TaskLifecycleHookPoststart:
+			main.Add(trCopy)
+		case TaskLifecycleHookPoststop:
+			stop.Add(trCopy)
 		}
 	}
 
 	// Update the main lifecycle to reflect the largest fungible resource set
-	mainLifecycle.Max(prestartLifecycle)
-	mainLifecycle.Max(stopLifecycle)
-
-	// Add network resources that are at the task group level
-	mainLifecycle.Add(&AllocatedTaskResources{
-		Networks: a.Shared.Networks,
-	})
+	main.Max(prestart)
+	main.Max(stop)
 
 	// The values in mainLifecycle were copied from the tasks resources,
 	// so we can just merge them into Flattened to avoid the unnecessary copy.
-	c.Flattened.Merge(mainLifecycle)
+	c.AllocatedCpuResources.Add(&main.Cpu)
+	c.AllocatedMemoryResources.Add(&main.Memory)
 
 	return c
 }
@@ -4209,26 +4128,6 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 
 	a.Cpu.Add(&delta.Cpu)
 	a.Memory.Add(&delta.Memory)
-
-	// for _, n := range delta.Networks {
-	// 	// Find the matching interface by IP or CIDR
-	// 	idx := a.NetIndex(n)
-	// 	if idx == -1 {
-	// 		a.Networks = append(a.Networks, n.Copy())
-	// 	} else {
-	// 		a.Networks[idx].Add(n)
-	// 	}
-	// }
-	//
-	// for _, d := range delta.Devices {
-	// 	// Find the matching device
-	// 	idx := AllocatedDevices(a.Devices).Index(d)
-	// 	if idx == -1 {
-	// 		a.Devices = append(a.Devices, d.Copy())
-	// 	} else {
-	// 		a.Devices[idx].Add(d)
-	// 	}
-	// }
 }
 
 // Merge takes delta's pointers and merges them with a's parameters. This is useful
@@ -4509,6 +4408,18 @@ func (a AllocatedDevices) Add(delta AllocatedDevices) {
 	}
 }
 
+func (a AllocatedDevices) Max(delta AllocatedDevices) {
+	for _, d := range delta {
+		// Find the matching device
+		idx := AllocatedDevices(a).Index(d)
+		if idx == -1 {
+			a = append(a, d.Copy())
+		} else {
+			a[idx].Add(d)
+		}
+	}
+}
+
 // Index finds the matching index using the passed device. If not found, -1 is
 // returned.
 func (a AllocatedDevices) Index(d *AllocatedDeviceResource) int {
@@ -4583,16 +4494,6 @@ func (c *ComparableResources) Add(delta *ComparableResources) {
 	}
 
 	c.Flattened.Add(&delta.Flattened)
-	c.Shared.Add(&delta.Shared)
-}
-
-func (c *ComparableResources) Merge(delta *ComparableResources) {
-	if delta == nil {
-		return
-	}
-
-	c.Flattened.Merge(&delta.Flattened)
-	// Shared does not have pointers, so we can just use Add.
 	c.Shared.Add(&delta.Shared)
 }
 

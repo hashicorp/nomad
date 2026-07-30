@@ -139,13 +139,9 @@ func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
 // If the netIdx is provided, it is assumed that the client has already
 // ensured there are no collisions. If checkDevices is set to true, we check if
 // there is a device oversubscription.
-func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResourcesV2, error) {
+func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex, checkDevices bool) (bool, string, *BaseComparableResource, error) {
 	// Compute the allocs' utilization from zero
-	used := &ComparableResourcesV2{
-		ComparableCPU:  &ComparableCPU{},
-		ComparableMem:  &ComparableMem{},
-		ComparableDisk: &ComparableDisk{},
-	}
+	used := &BaseComparableResource{}
 	if node.NodeMaxAllocs != 0 {
 		if node.NodeMaxAllocs < len(allocWithCmp) {
 			return false, "max allocation exceeded", used, fmt.Errorf("plan exceeds max allocation")
@@ -202,8 +198,8 @@ func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex
 
 	// Check that the node resources (after subtracting reserved) are a
 	// super set of those that are being allocated
-	available := node.NodeResources.Comparable2()
-	available.Subtract(node.ReservedResources.Comparable2())
+	available := node.NodeResources.BaseComparable()
+	available.Subtract(node.ReservedResources.BaseComparable())
 	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
@@ -242,9 +238,9 @@ func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex
 	return true, "", used, nil
 }
 
-func computeFreePercentage(node *Node, util *ComparableResourcesV2) (freePctCpu, freePctRam float64) {
-	reserved := node.ReservedResources.Comparable2()
-	res := node.NodeResources.Comparable2()
+func computeFreePercentage(node *Node, util *BaseComparableResource) (freePctCpu, freePctRam float64) {
+	reserved := node.ReservedResources.BaseComparable()
+	res := node.NodeResources.BaseComparable()
 
 	// Determine the node availability
 	nodeCpu := float64(res.CpuShares)
@@ -265,7 +261,7 @@ func computeFreePercentage(node *Node, util *ComparableResourcesV2) (freePctCpu,
 //
 // It's the BestFit v3 on the Google work published here:
 // http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
-func ScoreFitBinPack(node *Node, util *ComparableResourcesV2) float64 {
+func ScoreFitBinPack(node *Node, util *BaseComparableResource) float64 {
 	freePctCpu, freePctRam := computeFreePercentage(node, util)
 
 	// Total will be "maximized" the smaller the value is.
@@ -292,7 +288,7 @@ func ScoreFitBinPack(node *Node, util *ComparableResourcesV2) float64 {
 //
 // This is equivalent to Worst Fit of
 // http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
-func ScoreFitSpread(node *Node, util *ComparableResourcesV2) float64 {
+func ScoreFitSpread(node *Node, util *BaseComparableResource) float64 {
 	freePctCpu, freePctRam := computeFreePercentage(node, util)
 	total := math.Pow(10, freePctCpu) + math.Pow(10, freePctRam)
 	score := total - 2

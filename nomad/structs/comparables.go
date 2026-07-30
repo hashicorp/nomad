@@ -21,40 +21,48 @@ import (
 
 */
 
-// ComparableResourcesV2 are the base set of resources used to compare
-// allocations for node fit and preemption.
+// BaseComparableResource is the base set of resources used to compare
+// allocations for node fitment and preemption.
 //
 // When using this, you should have already determined (or should
 // soon determine) fitment for networking and devices.
-type ComparableResourcesV2 struct {
-	*ComparableCPU
-	*ComparableMem
-	*ComparableDisk
+type BaseComparableResource struct {
+	ComparableCPU
+	ComparableMem
+	ComparableDisk
 }
 
-func (c *ComparableResourcesV2) Add(other *ComparableResourcesV2) {
-	c.ComparableCPU.Add(other.ComparableCPU)
-	c.ComparableMem.Add(other.ComparableMem)
-	c.ComparableDisk.Add(other.ComparableDisk)
+func (c *BaseComparableResource) Add(other *BaseComparableResource) {
+	c.ComparableCPU.Add(&other.ComparableCPU)
+	c.ComparableMem.Add(&other.ComparableMem)
+	c.ComparableDisk.Add(&other.ComparableDisk)
 }
 
-func (c *ComparableResourcesV2) Subtract(other *ComparableResourcesV2) {
-	c.ComparableCPU.Subtract(other.ComparableCPU)
-	c.ComparableMem.Subtract(other.ComparableMem)
-	c.ComparableDisk.Subtract(other.ComparableDisk)
+func (c *BaseComparableResource) Subtract(other *BaseComparableResource) {
+	c.ComparableCPU.Subtract(&other.ComparableCPU)
+	c.ComparableMem.Subtract(&other.ComparableMem)
+	c.ComparableDisk.Subtract(&other.ComparableDisk)
 }
 
-func (c *ComparableResourcesV2) Superset(other *ComparableResourcesV2) (bool, string) {
-	if !c.ComparableCPU.Superset(other.ComparableCPU) {
+func (c *BaseComparableResource) Superset(other *BaseComparableResource) (bool, string) {
+	if !c.ComparableCPU.Superset(&other.ComparableCPU) {
 		return false, "cpu"
 	}
-	if !c.ComparableMem.Superset(other.ComparableMem) {
+	if !c.ComparableMem.Superset(&other.ComparableMem) {
 		return false, "mem"
 	}
-	if !c.ComparableDisk.Superset(other.ComparableDisk) {
+	if !c.ComparableDisk.Superset(&other.ComparableDisk) {
 		return false, "disk"
 	}
 	return true, ""
+}
+
+func (c *BaseComparableResource) Copy() *BaseComparableResource {
+	return &BaseComparableResource{
+		ComparableCPU:  c.ComparableCPU,
+		ComparableMem:  c.ComparableMem,
+		ComparableDisk: c.ComparableDisk,
+	}
 }
 
 // TODO: Remove the indirection from these shallow struct.
@@ -164,22 +172,12 @@ func (c *ComparableNetworks) Add(delta *ComparableNetworks) {
 	}
 }
 
-func (c *ComparableNetworks) Superset(other *ComparableNetworks) bool {
-	// TODO unimplemented
-	return false
-}
+func (c *ComparableNetworks) Copy() *ComparableNetworks {
+	n := new(ComparableNetworks)
 
-type ComparableDevices struct {
-	Devices []*AllocatedDeviceResource
-}
+	n.FlattenedNetworks = c.FlattenedNetworks.Copy()
+	n.SharedNetworks = c.SharedNetworks.Copy()
+	n.SharedPorts = append(n.SharedPorts, c.SharedPorts...)
 
-func (c *ComparableDevices) Add(delta *ComparableDevices) {
-	if delta == nil {
-		return
-	}
-}
-
-func (c *ComparableDevices) Superset(other *ComparableDevices) bool {
-	// TODO unimplemented
-	return false
+	return n
 }
