@@ -3266,6 +3266,16 @@ func (n *NodeResources) BaseComparable() *BaseComparableResource {
 	}
 }
 
+func (n *NodeResources) ComparableNetworks() *ComparableNetworks {
+	if n == nil {
+		return nil
+	}
+
+	return &ComparableNetworks{
+		FlattenedNetworks: n.Networks,
+	}
+}
+
 // Comparable returns a comparable version of the nodes resources. This
 // conversion can be lossy so care must be taken when using it.
 func (n *NodeResources) Comparable() *ComparableResources {
