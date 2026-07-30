@@ -166,7 +166,7 @@ type BinPackIterator struct {
 	jobId                  structs.NamespacedID
 	taskGroup              *structs.TaskGroup
 	memoryOversubscription bool
-	scoreFit               func(*structs.Node, *structs.ComparableResources) float64
+	scoreFit               func(*structs.Node, *structs.ComparableResourcesV2) float64
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
@@ -226,7 +226,7 @@ NEXTNODE:
 		}
 
 		allocResources := make(structs.AllocResourceCache, len(proposed))
-		allocResources.Insert(proposed)
+		allocResources.Insert(proposed...)
 
 		// Index the existing network usage.
 		// This should never collide, since it represents the current state of
@@ -477,7 +477,7 @@ NEXTNODE:
 				// set of already consumed cores on this node
 				consumedCores := idset.Empty[hw.CoreID]()
 				for _, val := range allocResources {
-					idset.InsertSlice(consumedCores, val.Resource.Flattened.Cpu.ReservedCores...)
+					idset.InsertSlice(consumedCores, val.Resource.ReservedCores...)
 				}
 
 				// add cores reserved for other tasks
@@ -697,7 +697,7 @@ NEXTNODE:
 				// set of consumed cores on this node
 				consumedCores := idset.Empty[hw.CoreID]()
 				for _, val := range allocResources {
-					idset.InsertSlice(consumedCores, val.Resource.Flattened.Cpu.ReservedCores...)
+					idset.InsertSlice(consumedCores, val.Resource.ReservedCores...)
 				}
 
 				// add cores reserved for other tasks
@@ -719,7 +719,6 @@ NEXTNODE:
 				cores, bandwidth := (&coreSelector{
 					topology:         option.Node.NodeResources.Processors.Topology,
 					availableCores:   availableCores,
-					shuffle:          randomizeCores,
 					deviceMemoryNode: deviceMemoryNode,
 				}).Select(task.Resources)
 
@@ -747,7 +746,7 @@ NEXTNODE:
 		current := proposed
 
 		// Add the resources we are trying to fit
-		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
+		allocResources.Insert(&structs.Allocation{AllocatedResources: total})
 
 		// Check if these allocations fit, if they do not, simply skip this node
 		fit, dim, util, _ := structs.AllocsFit(option.Node, allocResources, netIdx, false)

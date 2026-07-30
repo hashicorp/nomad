@@ -3225,6 +3225,34 @@ func (n *NodeResources) Copy() *NodeResources {
 	return newN
 }
 
+func (n *NodeResources) Comparable2() *ComparableResourcesV2 {
+	if n == nil {
+		return nil
+	}
+
+	usableCores := n.Processors.Topology.UsableCores().Slice()
+	reservableCores := helper.ConvertSlice(usableCores, func(id hw.CoreID) uint16 {
+		return uint16(id)
+	})
+
+	return &ComparableResourcesV2{
+		&ComparableCPU{
+			AllocatedCpuResources: AllocatedCpuResources{
+				CpuShares:     int64(n.Processors.TotalCompute()),
+				ReservedCores: reservableCores,
+			},
+		},
+		&ComparableMem{
+			AllocatedMemoryResources: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+		},
+		&ComparableDisk{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+}
+
 // Comparable returns a comparable version of the nodes resources. This
 // conversion can be lossy so care must be taken when using it.
 func (n *NodeResources) Comparable() *ComparableResources {
@@ -3693,6 +3721,29 @@ func (n *NodeReservedResources) Copy() *NodeReservedResources {
 	return newN
 }
 
+func (n *NodeReservedResources) Comparable2() *ComparableResourcesV2 {
+	if n == nil {
+		return nil
+	}
+
+	return &ComparableResourcesV2{
+		&ComparableCPU{
+			AllocatedCpuResources: AllocatedCpuResources{
+				CpuShares:     n.Cpu.CpuShares,
+				ReservedCores: n.Cpu.ReservedCpuCores,
+			},
+		},
+		&ComparableMem{
+			AllocatedMemoryResources: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+		},
+		&ComparableDisk{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+}
+
 // Comparable returns a comparable version of the node's reserved resources. The
 // returned resources doesn't contain any network information. This conversion
 // can be lossy so care must be taken when using it.
@@ -3750,18 +3801,18 @@ type NodeReservedNetworkResources struct {
 // alloc.AllocatedResource.Comparable().
 type AllocWithCmpResource struct {
 	Alloc    *Allocation
-	Resource *ComparableResources
+	Resource *ComparableResourcesV2
 }
 
 type AllocResourceCache map[string]AllocWithCmpResource
 
 // Insert is used to easily insert a slice of allocations into the
 // resource cache.
-func (a AllocResourceCache) Insert(allocs []*Allocation) {
+func (a AllocResourceCache) Insert(allocs ...*Allocation) {
 	for _, alloc := range allocs {
 		a[alloc.ID] = AllocWithCmpResource{
 			Alloc:    alloc,
-			Resource: alloc.AllocatedResources.Comparable(),
+			Resource: alloc.AllocatedResources.Comparable2(),
 		}
 	}
 }
@@ -3826,6 +3877,7 @@ type lifecycleDistributor[T adder[T]] struct {
 func (d *lifecycleDistributor[T]) distribute(resource T, lifecycle *TaskLifecycleConfig) {
 	if lifecycle == nil {
 		d.main.Add(resource)
+		return
 	}
 	switch lifecycle.Hook {
 	case TaskLifecycleHookPrestart:
@@ -3890,6 +3942,7 @@ func (a *AllocatedResources) ComparableDisk() *ComparableDisk {
 	}
 }
 
+// TODO: we don't generate ComparableNetworks from allocResources, do we need this?
 func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
 	l := &lifecycleDistributor[Networks]{
 		prestart: Networks{},
@@ -3913,6 +3966,7 @@ func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
 	return c
 }
 
+// TODO: we don't generate ComparableDevices from allocResources, do we need this?
 func (a *AllocatedResources) ComparableDevices() *ComparableDevices {
 	l := &lifecycleDistributor[AllocatedDevices]{
 		prestart: AllocatedDevices{},
@@ -3932,6 +3986,18 @@ func (a *AllocatedResources) ComparableDevices() *ComparableDevices {
 
 	c.Devices = append(c.Devices, l.main...)
 	return c
+}
+
+func (a *AllocatedResources) Comparable2() *ComparableResourcesV2 {
+	if a == nil {
+		return nil
+	}
+
+	return &ComparableResourcesV2{
+		ComparableCPU:  a.ComparableCPU(),
+		ComparableMem:  a.ComparableMem(),
+		ComparableDisk: a.ComparableDisk(),
+	}
 }
 
 // Comparable returns a comparable version of the allocations allocated
