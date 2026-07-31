@@ -155,6 +155,25 @@ func (c *QueueTenantsCommand) printTenants(resp *api.BatchJobQueueTenantsRespons
 			}
 			slices.Sort(resources)
 			tenantInfo = append(tenantInfo, resources...)
+			tenantInfo = append(tenantInfo, fmt.Sprintf("%s|%s|%s|%d",
+				"",
+				"",
+				"",
+				v.PercentagePendingUsed,
+			))
+
+			usageResources := make([]string, 0, len(v.PendingTenantUsage))
+			for resource, usage := range v.PendingTenantUsage {
+				usageResources = append(usageResources, fmt.Sprintf("%s|%s|%.2f / %.2f|%s",
+					"",
+					resource,
+					usage,
+					v.PendingTotalUsage[resource],
+					"",
+				))
+			}
+			slices.Sort(usageResources)
+			tenantInfo = append(tenantInfo, usageResources...)
 		}
 
 		c.Ui.Output(c.Colorize().Color("[bold]Batch Queue Tenants[reset]"))

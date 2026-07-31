@@ -4,6 +4,9 @@
 package queue
 
 import (
+	"cmp"
+	"slices"
+
 	"github.com/hashicorp/go-set/v3"
 )
 
@@ -33,7 +36,11 @@ func (pq *WorkloadQueue) Pop() Workload {
 // all workloads in the queue via this function.
 func (pq *WorkloadQueue) UpdateAll(updateFn func(w Workload)) {
 	newQueue := NewWorkloadQueue(pq.sortFn)
-	for _, w := range pq.Slice() {
+	workloads := pq.Slice()
+	slices.SortFunc(workloads, func(a, b Workload) int {
+		return cmp.Compare(a.GetEval().CreateIndex, b.GetEval().CreateIndex)
+	})
+	for _, w := range workloads {
 		updateFn(w)
 		newQueue.Push(w)
 	}
