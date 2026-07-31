@@ -3854,6 +3854,16 @@ func (a AllocResourceCache) Remove(allocs ...*Allocation) {
 	}
 }
 
+func (a AllocResourceCache) Allocs() []*Allocation {
+	allocs := make([]*Allocation, len(a))
+	i := 0
+	for _, val := range a {
+		allocs[i] = val.Alloc
+		i++
+	}
+	return allocs
+}
+
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.

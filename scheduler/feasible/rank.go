@@ -225,8 +225,10 @@ NEXTNODE:
 			continue
 		}
 
+		// Once we have populated this, we should no longer use proposed.
 		allocResources := make(structs.AllocResourceCache, len(proposed))
 		allocResources.Insert(proposed...)
+		allocs := allocResources.Allocs()
 
 		// Index the existing network usage.
 		// This should never collide, since it represents the current state of
@@ -242,14 +244,14 @@ NEXTNODE:
 			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: invalid node")
 			continue
 		}
-		if collide, reason := netIdx.AddAllocs(proposed); collide {
+		if collide, reason := netIdx.AddAllocs(allocs); collide {
 			event := &sstructs.PortCollisionEvent{
 				Reason:      reason,
 				NetIndex:    netIdx.Copy(),
 				Node:        option.Node,
-				Allocations: make([]*structs.Allocation, len(proposed)),
+				Allocations: make([]*structs.Allocation, len(allocs)),
 			}
-			for i, alloc := range proposed {
+			for i, alloc := range allocs {
 				event.Allocations[i] = alloc.Copy()
 			}
 			iter.ctx.SendEvent(event)
@@ -259,7 +261,7 @@ NEXTNODE:
 
 		// Create a device allocator
 		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
-		devAllocator.AddAllocs(proposed)
+		devAllocator.AddAllocs(allocs)
 
 		// Track the affinities of the devices
 		totalDeviceAffinityWeight := 0.0
@@ -339,14 +341,14 @@ NEXTNODE:
 				allocsToPreempt = append(allocsToPreempt, netPreemptions...)
 
 				// First subtract out preempted allocations
-				proposed = structs.RemoveAllocs(proposed, netPreemptions)
 				allocResources.Remove(netPreemptions...)
+				allocs = allocResources.Allocs()
 
 				// Reset the network index and try the offer again
 				netIdx.Release()
 				netIdx = structs.NewNetworkIndex()
 				netIdx.SetNode(option.Node)
-				netIdx.AddAllocs(proposed)
+				netIdx.AddAllocs(allocs)
 
 				offer, err = netIdx.AssignPorts(ask)
 				if err != nil {
@@ -428,14 +430,14 @@ NEXTNODE:
 					allocsToPreempt = append(allocsToPreempt, netPreemptions...)
 
 					// First subtract out preempted allocations
-					proposed = structs.RemoveAllocs(proposed, netPreemptions)
 					allocResources.Remove(netPreemptions...)
+					allocs = allocResources.Allocs()
 
 					// Reset the network index and try the offer again
 					netIdx.Release()
 					netIdx = structs.NewNetworkIndex()
 					netIdx.SetNode(option.Node)
-					netIdx.AddAllocs(proposed)
+					netIdx.AddAllocs(allocs)
 
 					offer, err = netIdx.AssignTaskNetwork(ask)
 					if offer == nil {
@@ -594,7 +596,7 @@ NEXTNODE:
 				totalDeviceAffinityWeightSnapshot := totalDeviceAffinityWeight
 				preemptorSnapshot := preemptor.Copy()
 				allocsToPreemptSnapshot := helper.CopySlice(allocsToPreempt)
-				proposedSnapshot := helper.CopySlice(proposed)
+				allocSnapshot := helper.CopySlice(allocs)
 
 				var offerErr error = nil
 
@@ -627,7 +629,7 @@ NEXTNODE:
 								totalDeviceAffinityWeight = totalDeviceAffinityWeightSnapshot
 								preemptor = preemptorSnapshot
 								allocsToPreempt = allocsToPreemptSnapshot
-								proposed = proposedSnapshot
+								allocs = allocSnapshot
 							}
 
 							// not able to assign device even with preemption,
@@ -640,12 +642,12 @@ NEXTNODE:
 							allocsToPreempt = append(allocsToPreempt, devicePreemptions...)
 
 							// subtract out preempted allocations
-							proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
 							allocResources.Remove(allocsToPreempt...)
+							allocs = allocResources.Allocs()
 
-							// use a device allocator with new set of proposed allocs
+							// use a device allocator with new set of allocs
 							devAllocatorEvict := newDeviceAllocator(iter.ctx, option.Node)
-							devAllocatorEvict.AddAllocs(proposed)
+							devAllocatorEvict.AddAllocs(allocs)
 
 							// attempt the offer again
 							offerEvict, sumAffinitiesEvict, err := devAllocatorEvict.createOffer(memory, device)
