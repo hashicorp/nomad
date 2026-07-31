@@ -804,9 +804,7 @@ func (p *Preemptor) distanceComparatorForNetwork(allocs []*structs.Allocation, n
 	}
 
 	// Dereference network usage on first alloc if its there
-	// firstAllocResources := p.allocDetails[firstAlloc.ID].resources
-	// firstAllocNetworks := firstAllocResources.Flattened.Networks
-	firstAllocNetworks := allocs[i].AllocatedResources.ComparableNetworks().FlattenedNetworks
+	firstAllocNetworks := p.allocDetails[firstAlloc.ID].networkResource.FlattenedNetworks
 	var firstAllocNetResourceUsed *structs.NetworkResource
 	if len(firstAllocNetworks) > 0 {
 		firstAllocNetResourceUsed = firstAllocNetworks[0]
@@ -822,9 +820,7 @@ func (p *Preemptor) distanceComparatorForNetwork(allocs []*structs.Allocation, n
 	}
 
 	// Dereference network usage on second alloc if its there
-	// secondAllocResources := p.allocDetails[secondAlloc.ID].resources
-	// secondAllocNetworks := secondAllocResources.Flattened.Networks
-	secondAllocNetworks := allocs[j].AllocatedResources.ComparableNetworks().FlattenedNetworks
+	secondAllocNetworks := p.allocDetails[secondAlloc.ID].networkResource.FlattenedNetworks
 	var secondAllocNetResourceUsed *structs.NetworkResource
 	if len(secondAllocNetworks) > 0 {
 		secondAllocNetResourceUsed = secondAllocNetworks[0]
