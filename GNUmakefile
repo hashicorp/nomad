@@ -110,6 +110,15 @@ endif
 pkg/windows_%/nomad: GO_OUT = $@.exe
 pkg/windows_%/nomad: GO_TAGS += timetzdata
 
+# Build the example device plugin for e2e device tests
+pkg/%/nomad-device-example: GO_OUT ?= $@
+pkg/%/nomad-device-example: ## Build the example device plugin for GOOS_GOARCH
+	@echo "==> Building $@..."
+	@CGO_ENABLED=0 \
+		GOOS=$(firstword $(subst _, ,$*)) \
+		GOARCH=$(lastword $(subst _, ,$*)) \
+		go build -trimpath -o $(GO_OUT) ./plugins/device/cmd/example/cmd
+
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
 
@@ -396,6 +405,17 @@ integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
 		-count=1 \
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/client_intro
+
+.PHONY: integration-test-device-scheduling
+integration-test-client-intro: dev ## Run Nomad's device scheduling integration tests
+	@echo "==> Running Nomad integration test suite for Device Scheduling:"
+	NOMAD_E2E_CLIENT_INTRO=1 gotestsum --format=testname -- \
+		-v \
+		-race \
+		-timeout=120s \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e/devices
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)

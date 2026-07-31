@@ -116,3 +116,49 @@ func TestNUMAResource_Canonicalize(t *testing.T) {
 	n3.Canonicalize()
 	must.Eq(t, &NUMAResource{Affinity: "require", Devices: nil}, n3)
 }
+
+func TestDeviceOption_Canonicalize(t *testing.T) {
+	testutil.Parallel(t)
+
+	// Nil option
+	var opt *DeviceOption
+	opt.Canonicalize() // should not panic
+
+	// Count defaults to 1
+	opt2 := &DeviceOption{}
+	opt2.Canonicalize()
+	must.Eq(t, uint64(1), *opt2.Count)
+
+	// Explicit count preserved
+	opt3 := &DeviceOption{Count: pointerOf(uint64(4))}
+	opt3.Canonicalize()
+	must.Eq(t, uint64(4), *opt3.Count)
+}
+
+func TestRequestedDevice_Canonicalize_FirstAvailable(t *testing.T) {
+	testutil.Parallel(t)
+
+	// With FirstAvailable, Count should NOT be set to default
+	rd := &RequestedDevice{
+		Name: "nvidia/gpu",
+		FirstAvailable: []*DeviceOption{
+			{Count: pointerOf(uint64(2))},
+			{}, // no count set
+		},
+	}
+	rd.Canonicalize()
+
+	// Count should remain nil when using FirstAvailable
+	must.Nil(t, rd.Count)
+
+	// FirstAvailable options should be canonicalized
+	must.Eq(t, uint64(2), *rd.FirstAvailable[0].Count)
+	must.Eq(t, uint64(1), *rd.FirstAvailable[1].Count) // defaulted to 1
+
+	// Without FirstAvailable, Count defaults to 1
+	rd2 := &RequestedDevice{
+		Name: "nvidia/gpu",
+	}
+	rd2.Canonicalize()
+	must.Eq(t, uint64(1), *rd2.Count)
+}
