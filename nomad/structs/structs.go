@@ -3901,58 +3901,47 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 	return &out
 }
 
-type adder[T any] interface {
-	Add(a T)
-}
-
-// lifecycleDistributor is a generic way to distribute resources to the
-// appropriate lifecycle when adding resources.
-type lifecycleDistributor[T adder[T]] struct {
-	prestart T
-	main     T
-	stop     T
-}
-
-func (d *lifecycleDistributor[T]) distribute(resource T, lifecycle *TaskLifecycleConfig) {
-	if lifecycle == nil {
-		d.main.Add(resource)
-		return
-	}
-	switch lifecycle.Hook {
-	case TaskLifecycleHookPrestart:
-		if lifecycle.Sidecar {
-			d.main.Add(resource)
-		}
-		d.prestart.Add(resource)
-	case TaskLifecycleHookPoststart:
-		d.main.Add(resource)
-	case TaskLifecycleHookPoststop:
-		d.stop.Add(resource)
-	}
-}
-
 func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
-	l := &lifecycleDistributor[*Networks]{
-		prestart: &Networks{},
-		main:     &Networks{},
-		stop:     &Networks{},
+	if a == nil {
+		return nil
 	}
+	prestart := Networks{}
+	main := Networks{}
+	stop := Networks{}
+
 	c := &ComparableNetworks{}
 
-	for taskName, taskResources := range a.Tasks {
-		l.distribute(&taskResources.Networks, a.TaskLifecycles[taskName])
+	for taskName, resources := range a.Tasks {
+		// l.distribute(&taskResources.Networks, a.TaskLifecycles[taskName])
+		lifecycle := a.TaskLifecycles[taskName]
+		if lifecycle == nil {
+			main.Add(&resources.Networks)
+			continue
+		}
+		switch lifecycle.Hook {
+		case TaskLifecycleHookPrestart:
+			if lifecycle.Sidecar {
+				main.Add(&resources.Networks)
+			}
+			prestart.Add(&resources.Networks)
+		case TaskLifecycleHookPoststart:
+			main.Add(&resources.Networks)
+		case TaskLifecycleHookPoststop:
+			stop.Add(&resources.Networks)
+		}
 	}
 
 	// Update the main lifecycle to reflect the largest fungible resource set
-	l.main.Max(l.prestart)
-	l.main.Max(l.stop)
+	main.Max(&prestart)
+	main.Max(&stop)
 
-	c.FlattenedNetworks.Add(l.main)
-
+	c.FlattenedNetworks.Add(&main)
 	cp := a.Shared.Networks.Copy()
+
 	c.FlattenedNetworks.Add(&cp) // this matches the old comparables... Should we just get rid of shared?
 	c.SharedNetworks.Add(&cp)
 	c.SharedPorts = append(c.SharedPorts, a.Shared.Ports...)
+
 	return c
 }
 
@@ -3980,12 +3969,12 @@ func (a *AllocatedResources) BaseComparable() *BaseComparableResource {
 
 	c.ComparableDisk.DiskMB = a.Shared.DiskMB
 
-	for taskName, taskResources := range a.Tasks {
+	for taskName, resources := range a.Tasks {
 		lifecycle := a.TaskLifecycles[taskName]
 
 		// Make a shallow copy here, only turn this into a deep copy
 		// if we have reserved cores and absolutely have to.
-		trCopy := taskResources
+		trCopy := resources
 
 		// Reserved cores (and their respective bandwidth) are not fungible,
 		// hence we should always include it as part of the Flattened resources.
