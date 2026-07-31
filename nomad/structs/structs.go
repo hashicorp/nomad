@@ -3251,16 +3251,11 @@ func (n *NodeResources) BaseComparable() *BaseComparableResource {
 		return nil
 	}
 
-	usableCores := n.Processors.Topology.UsableCores().Slice()
-	reservableCores := helper.ConvertSlice(usableCores, func(id hw.CoreID) uint16 {
-		return uint16(id)
-	})
-
 	return &BaseComparableResource{
 		ComparableCPU{
 			AllocatedCpuResources: AllocatedCpuResources{
 				CpuShares:     int64(n.Processors.TotalCompute()),
-				ReservedCores: reservableCores,
+				ReservedCores: n.Processors.Topology.UsableCoresUint16(),
 			},
 		},
 		ComparableMem{
@@ -4357,7 +4352,7 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 		return
 	}
 
-	tmp := map[uint16]struct{}{}
+	tmp := make(map[uint16]struct{}, len(a.ReservedCores))
 
 	for _, core := range a.ReservedCores {
 		tmp[core] = struct{}{}

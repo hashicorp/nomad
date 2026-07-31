@@ -3,10 +3,6 @@
 
 package structs
 
-import (
-	"github.com/hashicorp/nomad/client/lib/idset"
-)
-
 /*
 
 	Comparables are flattened resources from allocations
@@ -102,12 +98,19 @@ func (c *ComparableCPU) Superset(other *ComparableCPU) bool {
 		return false
 	}
 
-	// Future work: we should deduplicate idset as it does
-	// a lot of unnecessary copying.
-	cores := idset.From[uint16](c.ReservedCores)
-	otherCores := idset.From[uint16](other.ReservedCores)
-	if len(c.ReservedCores) > 0 && !cores.Superset(otherCores) {
-		return false
+	if len(c.ReservedCores) == 0 {
+		return true
+	}
+
+	tmp := make(map[uint16]struct{}, len(c.ReservedCores))
+
+	for _, v := range c.ReservedCores {
+		tmp[v] = struct{}{}
+	}
+	for _, v := range other.ReservedCores {
+		if _, ok := tmp[v]; !ok {
+			return false
+		}
 	}
 
 	return true
