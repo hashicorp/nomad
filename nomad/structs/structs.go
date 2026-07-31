@@ -3957,7 +3957,7 @@ func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
 }
 
 // BaseComparable flattens and returns the maximum necessary CPU/Mem/Disk
-// needed for a task to run. It returns a ComparableResourse that is
+// needed for an allocation to run. It returns a ComparableResourse that is
 // can be used to compare with other Allocations or Node resources.
 //
 // This method is called for each allocation on a node, for each node
