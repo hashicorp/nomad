@@ -1448,8 +1448,8 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				result := serviceRegResp.Services
 
 				must.Len(t, 2, result)
-				must.Eq(t, "10.0.0.3", result[0].Address)
-				must.Eq(t, "10.0.0.2", result[1].Address)
+				must.Eq(t, "10.0.0.1", result[0].Address)
+				must.Eq(t, "10.0.0.3", result[1].Address)
 			},
 		},
 		{
@@ -1512,8 +1512,8 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				result := serviceRegResp.Services
 
 				must.Len(t, 2, result)
-				must.Eq(t, "10.0.0.2", result[0].Address)
-				must.Eq(t, "10.0.0.1", result[1].Address)
+				must.Eq(t, "10.0.0.1", result[0].Address)
+				must.Eq(t, "10.0.0.2", result[1].Address)
 			},
 		},
 	}
@@ -1554,6 +1554,7 @@ func TestServiceRegistration_choose(t *testing.T) {
 
 	sr := (*ServiceRegistration)(nil)
 	try := func(input, exp []*structs.ServiceRegistration, parameter string) {
+		t.Helper()
 		result, err := sr.choose(input, parameter)
 		must.NoError(t, err)
 		must.Eq(t, exp, result)
@@ -1572,20 +1573,20 @@ func TestServiceRegistration_choose(t *testing.T) {
 
 	// same key, increasing n -> maintains order (n=1)
 	try(regs, []*structs.ServiceRegistration{
-		{ID: "abc002", ServiceName: "s1"},
+		{ID: "abc003", ServiceName: "s1"},
 	}, "1|aaa")
 
 	// same key, increasing n -> maintains order (n=2)
 	try(regs, []*structs.ServiceRegistration{
-		{ID: "abc002", ServiceName: "s1"},
 		{ID: "abc003", ServiceName: "s1"},
+		{ID: "abc001", ServiceName: "s1"},
 	}, "2|aaa")
 
 	// same key, increasing n -> maintains order (n=3)
 	try(regs, []*structs.ServiceRegistration{
-		{ID: "abc002", ServiceName: "s1"},
 		{ID: "abc003", ServiceName: "s1"},
 		{ID: "abc001", ServiceName: "s1"},
+		{ID: "abc002", ServiceName: "s1"},
 	}, "3|aaa")
 
 	// unique key -> different orders
@@ -1593,12 +1594,12 @@ func TestServiceRegistration_choose(t *testing.T) {
 		{ID: "abc001", ServiceName: "s1"},
 		{ID: "abc002", ServiceName: "s1"},
 		{ID: "abc003", ServiceName: "s1"},
-	}, "3|bbb")
+	}, "3|ddd")
 
 	// another key -> another order
 	try(regs, []*structs.ServiceRegistration{
-		{ID: "abc002", ServiceName: "s1"},
 		{ID: "abc003", ServiceName: "s1"},
+		{ID: "abc002", ServiceName: "s1"},
 		{ID: "abc001", ServiceName: "s1"},
 	}, "3|ccc")
 }
