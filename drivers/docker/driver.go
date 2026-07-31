@@ -2083,7 +2083,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 
 		if cert+key+ca != "" {
 			d.logger.Debug("using TLS client connection", "endpoint", dockerEndpoint)
-			newClient, err = mclient.NewClientWithOpts(
+			newClient, err = mclient.New(
 				append(opts,
 					mclient.WithHost(dockerEndpoint),
 					mclient.WithTLSClientConfig(ca, cert, key),
@@ -2094,7 +2094,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 			}
 		} else {
 			d.logger.Debug("using standard client connection", "endpoint", dockerEndpoint)
-			newClient, err = mclient.NewClientWithOpts(
+			newClient, err = mclient.New(
 				append(opts,
 					mclient.WithHost(dockerEndpoint),
 				)...,
@@ -2105,9 +2105,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 		}
 	} else {
 		d.logger.Debug("using client connection initialized from environment")
-		newClient, err = mclient.NewClientWithOpts(
-			append(opts, mclient.FromEnv)...,
-		)
+		newClient, err = mclient.New(append(opts, mclient.FromEnv)...)
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
