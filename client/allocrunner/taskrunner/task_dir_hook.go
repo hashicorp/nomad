@@ -48,7 +48,16 @@ func (h *taskDirHook) Name() string {
 
 func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	fsi := h.runner.driverCapabilities.FSIsolation
+
+	// If the directory was previously created, we should still make a call to
+	// ensure the secrets directories are created and mounted. If they are, this
+	// will be a no-op. If the host was rebooted, this will remount the tmpfs
+	// backed secrets directories.
 	if v, ok := req.PreviousState[TaskDirHookIsDoneDataKey]; ok && v == "true" {
+
+		if err := h.runner.taskDir.MakeSecretsDirs(); err != nil {
+			return err
+		}
 		setEnvvars(h.runner.envBuilder, fsi, h.runner.taskDir, h.runner.clientConfig)
 		resp.State = map[string]string{
 			TaskDirHookIsDoneDataKey: "true",
