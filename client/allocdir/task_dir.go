@@ -163,13 +163,7 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 		}
 	}
 
-	// Create the secret directory
-	if err := allocMakeSecretsDir(t.SecretsDir, t.secretsInMB, fileMode777); err != nil {
-		return err
-	}
-
-	// Create the private directory
-	if err := allocMakeSecretsDir(t.PrivateDir, defaultSecretDirTmpfsSize, fileMode777); err != nil {
+	if err := t.MakeSecretsDirs(); err != nil {
 		return err
 	}
 
@@ -321,6 +315,20 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 		return t.embedDirs(subdirs)
 	}
 
+	return nil
+}
+
+// MakeSecretsDirs ensures the secrets and private directories exist and are
+// backed by a tmpfs mount when the client is running on Linux as root. It is
+// safe to call on first build and on every subsequent restore; the marker-based
+// check in createSecretDir makes it idempotent.
+func (t *TaskDir) MakeSecretsDirs() error {
+	if err := allocMakeSecretsDir(t.SecretsDir, t.secretsInMB, fileMode777); err != nil {
+		return err
+	}
+	if err := allocMakeSecretsDir(t.PrivateDir, defaultSecretDirTmpfsSize, fileMode777); err != nil {
+		return err
+	}
 	return nil
 }
 
