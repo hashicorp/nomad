@@ -4425,7 +4425,7 @@ type AllocatedDevices []*AllocatedDeviceResource
 func (a AllocatedDevices) Add(delta AllocatedDevices) {
 	for _, d := range delta {
 		// Find the matching device
-		idx := AllocatedDevices(a).Index(d)
+		idx := a.Index(d)
 		if idx == -1 {
 			a = append(a, d.Copy())
 		} else {
@@ -4437,7 +4437,7 @@ func (a AllocatedDevices) Add(delta AllocatedDevices) {
 func (a AllocatedDevices) Max(delta AllocatedDevices) {
 	for _, d := range delta {
 		// Find the matching device
-		idx := AllocatedDevices(a).Index(d)
+		idx := a.Index(d)
 		if idx == -1 {
 			a = append(a, d.Copy())
 		} else {
