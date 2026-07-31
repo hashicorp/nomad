@@ -277,7 +277,7 @@ func (e *Encrypter) Encrypt(cleartext []byte) ([]byte, string, error) {
 	keyID := cs.rootKey.Meta.KeyID
 	additional := kms.WithAad([]byte(keyID)) // include the keyID in the seal inputs
 
-	bi, err := cs.wrapper.Encrypt(context.Background(), cleartext, additional)
+	bi, err := cs.wrapper.Encrypt(e.srv.shutdownCtx, cleartext, additional)
 	if err != nil {
 		return nil, "", fmt.Errorf("could not encrypt: %w", err)
 	}
