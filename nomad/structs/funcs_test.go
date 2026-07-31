@@ -161,6 +161,7 @@ func TestAllocsFit(t *testing.T) {
 	n := node2k()
 
 	a1 := &Allocation{
+		ID: uuid.Generate(),
 		AllocatedResources: &AllocatedResources{
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
@@ -193,21 +194,27 @@ func TestAllocsFit(t *testing.T) {
 		},
 	}
 
+	allocs := AllocResourceCache{}
+	allocs.Insert(a1)
 	// Should fit one allocation
-	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	fit, dim, used, err := AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
-	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 1000, used.CpuShares)
+	must.Eq(t, 1024, used.MemoryMB)
 
+	a2 := a1.Copy()
+	a2.ID = uuid.Generate()
+	allocs.Insert(a2)
 	// Should not fit second allocation
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	fit, _, used, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.False(t, fit)
-	must.Eq(t, 2000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 2048, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 2000, used.CpuShares)
+	must.Eq(t, 2048, used.MemoryMB)
 
-	a2 := &Allocation{
+	a3 := &Allocation{
+		ID: uuid.Generate(),
 		AllocatedResources: &AllocatedResources{
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
@@ -232,22 +239,27 @@ func TestAllocsFit(t *testing.T) {
 		},
 	}
 
+	allocs = AllocResourceCache{}
+	allocs.Insert(a3)
 	// Should fit one allocation
-	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
+	fit, dim, used, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
-	must.Eq(t, 500, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, []uint16{0}, used.Flattened.Cpu.ReservedCores)
-	must.Eq(t, 512, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 500, used.CpuShares)
+	must.Eq(t, []uint16{0}, used.ReservedCores)
+	must.Eq(t, 512, used.MemoryMB)
 
+	a4 := a3.Copy()
+	a4.ID = uuid.Generate()
+	allocs.Insert(a4)
 	// Should not fit second allocation
-	fit, dim, used, err = AllocsFit(n, []*Allocation{a2, a2}, nil, false)
+	fit, dim, used, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.False(t, fit)
 	must.Eq(t, "cores", dim)
-	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, []uint16{0}, used.Flattened.Cpu.ReservedCores)
-	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 1000, used.CpuShares)
+	must.Eq(t, []uint16{0}, used.ReservedCores)
+	must.Eq(t, 1024, used.MemoryMB)
 }
 
 func TestAllocsFit_Cores(t *testing.T) {
@@ -256,6 +268,7 @@ func TestAllocsFit_Cores(t *testing.T) {
 	n := node2k()
 
 	a1 := &Allocation{
+		ID: uuid.Generate(),
 		AllocatedResources: &AllocatedResources{
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
@@ -272,6 +285,7 @@ func TestAllocsFit_Cores(t *testing.T) {
 	}
 
 	a2 := &Allocation{
+		ID: uuid.Generate(),
 		AllocatedResources: &AllocatedResources{
 			Tasks: map[string]*AllocatedTaskResources{
 				"web-prestart": {
@@ -302,22 +316,28 @@ func TestAllocsFit_Cores(t *testing.T) {
 		},
 	}
 
+	allocs := AllocResourceCache{}
+	allocs.Insert(a1)
 	// Should fit one allocation
-	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	fit, dim, used, err := AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
-	must.Eq(t, 500, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 500, used.CpuShares)
+	must.Eq(t, 1024, used.MemoryMB)
 
+	allocs = AllocResourceCache{}
+	allocs.Insert(a2)
 	// Should fit one allocation
-	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
+	fit, dim, used, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
-	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 1000, used.CpuShares)
+	must.Eq(t, 1024, used.MemoryMB)
 
+	allocs = AllocResourceCache{}
+	allocs.Insert(a1, a2)
 	// Should not fit both allocations
-	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	fit, dim, used, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.False(t, fit)
 	must.Eq(t, dim, "cores")
@@ -329,6 +349,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	n := node2k()
 
 	a1 := &Allocation{
+		ID: uuid.Generate(),
 		AllocatedResources: &AllocatedResources{
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
@@ -354,22 +375,26 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 		},
 	}
 
+	allocs := AllocResourceCache{}
+	allocs.Insert(a1)
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	fit, _, used, err := AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit)
-	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 1000, used.CpuShares)
+	must.Eq(t, 1024, used.MemoryMB)
 
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
+	a2.ID = uuid.Generate()
 	a2.DesiredStatus = AllocDesiredStatusStop
 	a2.ClientStatus = AllocClientStatusComplete
-	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	allocs.Insert(a2)
+	fit, dim, used, err := AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit, must.Sprintf("bad dimension: %q", dim))
-	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 1000, used.CpuShares)
+	must.Eq(t, 1024, used.MemoryMB)
 }
 
 // TestAllocsFit_ClientTerminalAlloc asserts that allocs which have a terminal
@@ -415,11 +440,13 @@ func TestAllocsFit_ClientTerminalAlloc(t *testing.T) {
 
 	// *Should* fit both allocations since deadAlloc is not running on the
 	// client
-	fit, _, used, err := AllocsFit(n, []*Allocation{liveAlloc, deadAlloc}, nil, false)
+	allocs := AllocResourceCache{}
+	allocs.Insert(liveAlloc, deadAlloc)
+	fit, _, used, err := AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit)
-	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 1000, used.CpuShares)
+	must.Eq(t, 1024, used.MemoryMB)
 }
 
 // TestAllocsFit_ServerTerminalAlloc asserts that allocs which have a terminal
@@ -464,12 +491,14 @@ func TestAllocsFit_ServerTerminalAlloc(t *testing.T) {
 	deadAlloc.ClientStatus = AllocClientStatusRunning
 	deadAlloc.DesiredStatus = AllocDesiredStatusStop
 
+	allocs := AllocResourceCache{}
+	allocs.Insert(liveAlloc, deadAlloc)
 	// Should *not* fit both allocations since deadAlloc is still running
-	fit, _, used, err := AllocsFit(n, []*Allocation{liveAlloc, deadAlloc}, nil, false)
+	fit, _, used, err := AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.False(t, fit)
-	must.Eq(t, 2000, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 2048, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 2000, used.CpuShares)
+	must.Eq(t, 2048, used.MemoryMB)
 }
 
 // Tests that AllocsFit detects device collisions
@@ -480,6 +509,7 @@ func TestAllocsFit_Devices(t *testing.T) {
 
 	n := MockNvidiaNode()
 	a1 := &Allocation{
+		ID: uuid.Generate(),
 		AllocatedResources: &AllocatedResources{
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
@@ -505,6 +535,7 @@ func TestAllocsFit_Devices(t *testing.T) {
 		},
 	}
 	a2 := a1.Copy()
+	a2.ID = uuid.Generate()
 	a2.AllocatedResources.Tasks["web"] = &AllocatedTaskResources{
 		Cpu: AllocatedCpuResources{
 			CpuShares: 1000,
@@ -522,20 +553,23 @@ func TestAllocsFit_Devices(t *testing.T) {
 		},
 	}
 
+	allocs := AllocResourceCache{}
+	allocs.Insert(a1)
 	// Should fit one allocation
-	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil, true)
+	fit, _, _, err := AllocsFit(n, allocs, nil, true)
 	require.NoError(err)
 	require.True(fit)
 
+	allocs.Insert(a2)
 	// Should not fit second allocation
-	fit, msg, _, err := AllocsFit(n, []*Allocation{a1, a2}, nil, true)
+	fit, msg, _, err := AllocsFit(n, allocs, nil, true)
 	require.NoError(err)
 	require.False(fit)
 	require.Equal("device oversubscribed", msg)
 
 	// Should not fit second allocation but won't detect since we disabled
 	// devices
-	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	fit, _, _, err = AllocsFit(n, allocs, nil, false)
 	require.NoError(err)
 	require.True(fit)
 }
@@ -547,6 +581,7 @@ func TestAllocsFit_ExclusiveVolumes(t *testing.T) {
 
 	n := node2k()
 	a1 := &Allocation{
+		ID:        uuid.Generate(),
 		TaskGroup: "group",
 		Job: &Job{TaskGroups: []*TaskGroup{{Name: "group", Volumes: map[string]*VolumeRequest{
 			"foo": {
@@ -564,26 +599,30 @@ func TestAllocsFit_ExclusiveVolumes(t *testing.T) {
 		},
 	}
 	a2 := a1.Copy()
+	a2.ID = uuid.Generate()
 	a2.AllocatedResources.Tasks["web"] = &AllocatedTaskResources{
 		Cpu:    AllocatedCpuResources{CpuShares: 500},
 		Memory: AllocatedMemoryResources{MemoryMB: 500},
 	}
 	a2.Job.TaskGroups[0].Volumes["foo"].AccessMode = HostVolumeAccessModeSingleNodeMultiWriter
 
+	allocs := AllocResourceCache{}
+	allocs.Insert(a1)
 	// Should fit one allocation
-	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil, true)
+	fit, _, _, err := AllocsFit(n, allocs, nil, true)
 	must.NoError(t, err)
 	must.True(t, fit)
 
+	allocs.Insert(a2)
 	// Should not fit second allocation
-	fit, msg, _, err := AllocsFit(n, []*Allocation{a1, a2}, nil, true)
+	fit, msg, _, err := AllocsFit(n, allocs, nil, true)
 	must.NoError(t, err)
 	must.False(t, fit)
 	must.Eq(t, "conflicting claims for host volume with single-writer", msg)
 
 	// Should not fit second allocation but won't detect since we disabled
 	// checking host volumes
-	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	fit, _, _, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit)
 }
@@ -598,6 +637,7 @@ func TestAllocsFit_MemoryOversubscription(t *testing.T) {
 	n.ReservedResources = nil
 
 	a1 := &Allocation{
+		ID: uuid.Generate(),
 		AllocatedResources: &AllocatedResources{
 			Tasks: map[string]*AllocatedTaskResources{
 				"web": {
@@ -613,29 +653,37 @@ func TestAllocsFit_MemoryOversubscription(t *testing.T) {
 		},
 	}
 
+	allocs := AllocResourceCache{}
+	allocs.Insert(a1)
 	// Should fit one allocation
-	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	fit, dim, used, err := AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit, must.Sprintf("bad dimension: %q", dim))
-	must.Eq(t, 100, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 1000, used.Flattened.Memory.MemoryMB)
-	must.Eq(t, 4000, used.Flattened.Memory.MemoryMaxMB)
+	must.Eq(t, 100, used.CpuShares)
+	must.Eq(t, 1000, used.MemoryMB)
+	must.Eq(t, 4000, used.MemoryMaxMB)
 
+	a2 := a1.Copy()
+	a2.ID = uuid.Generate()
+	allocs.Insert(a2)
 	// Should fit second allocation
-	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	fit, dim, used, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.True(t, fit, must.Sprintf("bad dimension: %q", dim))
-	must.Eq(t, 200, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 2000, used.Flattened.Memory.MemoryMB)
-	must.Eq(t, 8000, used.Flattened.Memory.MemoryMaxMB)
+	must.Eq(t, 200, used.CpuShares)
+	must.Eq(t, 2000, used.MemoryMB)
+	must.Eq(t, 8000, used.MemoryMaxMB)
 
+	a3 := a1.Copy()
+	a3.ID = uuid.Generate()
+	allocs.Insert(a3)
 	// Should not fit a third allocation
-	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a1, a1}, nil, false)
+	fit, dim, used, err = AllocsFit(n, allocs, nil, false)
 	must.NoError(t, err)
 	must.False(t, fit, must.Sprintf("bad dimension: %q", dim))
-	must.Eq(t, 300, used.Flattened.Cpu.CpuShares)
-	must.Eq(t, 3000, used.Flattened.Memory.MemoryMB)
-	must.Eq(t, 12000, used.Flattened.Memory.MemoryMaxMB)
+	must.Eq(t, 300, used.CpuShares)
+	must.Eq(t, 3000, used.MemoryMB)
+	must.Eq(t, 12000, used.MemoryMaxMB)
 }
 
 func TestScoreFitBinPack(t *testing.T) {
@@ -669,14 +717,14 @@ func TestScoreFitBinPack(t *testing.T) {
 	}
 
 	cases := []struct {
-		name         string
-		flattened    AllocatedTaskResources
-		binPackScore float64
-		spreadScore  float64
+		name          string
+		taskResources AllocatedTaskResources
+		binPackScore  float64
+		spreadScore   float64
 	}{
 		{
 			name: "almost filled node, but with just enough hole",
-			flattened: AllocatedTaskResources{
+			taskResources: AllocatedTaskResources{
 				Cpu:    AllocatedCpuResources{CpuShares: 2048},
 				Memory: AllocatedMemoryResources{MemoryMB: 4096},
 			},
@@ -685,7 +733,7 @@ func TestScoreFitBinPack(t *testing.T) {
 		},
 		{
 			name: "unutilized node",
-			flattened: AllocatedTaskResources{
+			taskResources: AllocatedTaskResources{
 				Cpu:    AllocatedCpuResources{CpuShares: 0},
 				Memory: AllocatedMemoryResources{MemoryMB: 0},
 			},
@@ -694,7 +742,7 @@ func TestScoreFitBinPack(t *testing.T) {
 		},
 		{
 			name: "mid-case scnario",
-			flattened: AllocatedTaskResources{
+			taskResources: AllocatedTaskResources{
 				Cpu:    AllocatedCpuResources{CpuShares: 1024},
 				Memory: AllocatedMemoryResources{MemoryMB: 2048},
 			},
@@ -705,7 +753,9 @@ func TestScoreFitBinPack(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			util := &ComparableResources{Flattened: c.flattened}
+			util := &BaseComparableResource{}
+			util.AllocatedCpuResources = c.taskResources.Cpu
+			util.AllocatedMemoryResources = c.taskResources.Memory
 
 			binPackScore := ScoreFitBinPack(node, util)
 			require.InDelta(t, c.binPackScore, binPackScore, 0.001, "binpack score")
@@ -720,39 +770,41 @@ func TestScoreFitBinPack(t *testing.T) {
 
 func TestAllocsFit_MaxNodeAllocs(t *testing.T) {
 	ci.Parallel(t)
-	baseAlloc := &Allocation{
-		AllocatedResources: &AllocatedResources{
-			Tasks: map[string]*AllocatedTaskResources{
-				"web": {
-					Cpu: AllocatedCpuResources{
-						CpuShares:     1000,
-						ReservedCores: []uint16{},
+	baseAlloc := func() *Allocation {
+		return &Allocation{
+			ID: uuid.Generate(),
+			AllocatedResources: &AllocatedResources{
+				Tasks: map[string]*AllocatedTaskResources{
+					"web": {
+						Cpu: AllocatedCpuResources{
+							CpuShares:     1000,
+							ReservedCores: []uint16{},
+						},
+						Memory: AllocatedMemoryResources{
+							MemoryMB: 1024,
+						},
 					},
-					Memory: AllocatedMemoryResources{
-						MemoryMB: 1024,
+				},
+				Shared: AllocatedSharedResources{
+					DiskMB: 5000,
+					Networks: Networks{
+						{
+							Mode:          "host",
+							IP:            "10.0.0.1",
+							ReservedPorts: []Port{{Label: "main", Value: 8000}},
+						},
+					},
+					Ports: AllocatedPorts{
+						{
+							Label:  "main",
+							Value:  8000,
+							HostIP: "10.0.0.1",
+						},
 					},
 				},
 			},
-			Shared: AllocatedSharedResources{
-				DiskMB: 5000,
-				Networks: Networks{
-					{
-						Mode:          "host",
-						IP:            "10.0.0.1",
-						ReservedPorts: []Port{{Label: "main", Value: 8000}},
-					},
-				},
-				Ports: AllocatedPorts{
-					{
-						Label:  "main",
-						Value:  8000,
-						HostIP: "10.0.0.1",
-					},
-				},
-			},
-		},
+		}
 	}
-
 	testCases := []struct {
 		name        string
 		allocations []*Allocation
@@ -761,13 +813,13 @@ func TestAllocsFit_MaxNodeAllocs(t *testing.T) {
 	}{
 		{
 			name:        "happy_path",
-			allocations: []*Allocation{baseAlloc},
+			allocations: []*Allocation{baseAlloc()},
 			expectErr:   false,
 			maxAllocs:   2,
 		},
 		{
 			name:        "too many allocs",
-			allocations: []*Allocation{baseAlloc, baseAlloc, baseAlloc},
+			allocations: []*Allocation{baseAlloc(), baseAlloc(), baseAlloc()},
 			expectErr:   true,
 			maxAllocs:   2,
 		},
@@ -777,18 +829,20 @@ func TestAllocsFit_MaxNodeAllocs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			n := node2k()
 			n.NodeMaxAllocs = tc.maxAllocs
-			fit, dim, used, err := AllocsFit(n, tc.allocations, nil, false)
+			allocs := AllocResourceCache{}
+			allocs.Insert(tc.allocations...)
+			fit, dim, used, err := AllocsFit(n, allocs, nil, false)
 			if !tc.expectErr {
 				must.NoError(t, err)
 				must.True(t, fit)
-				must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
-				must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+				must.Eq(t, 1000, used.CpuShares)
+				must.Eq(t, 1024, used.MemoryMB)
 			} else {
 				must.False(t, fit)
 				must.StrContains(t, dim, "max allocation exceeded")
 				must.ErrorContains(t, err, "plan exceeds max allocation")
-				must.Eq(t, 0, used.Flattened.Cpu.CpuShares)
-				must.Eq(t, 0, used.Flattened.Memory.MemoryMB)
+				must.Eq(t, 0, used.CpuShares)
+				must.Eq(t, 0, used.MemoryMB)
 			}
 		})
 	}

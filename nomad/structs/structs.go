@@ -3905,6 +3905,8 @@ type adder[T any] interface {
 	Add(a T)
 }
 
+// lifecycleDistributor is a generic way to distribute resources to the
+// appropriate lifecycle when adding resources.
 type lifecycleDistributor[T adder[T]] struct {
 	prestart T
 	main     T
@@ -3926,56 +3928,6 @@ func (d *lifecycleDistributor[T]) distribute(resource T, lifecycle *TaskLifecycl
 		d.main.Add(resource)
 	case TaskLifecycleHookPoststop:
 		d.stop.Add(resource)
-	}
-}
-
-func (a *AllocatedResources) ComparableCPU() *ComparableCPU {
-	l := &lifecycleDistributor[*AllocatedCpuResources]{
-		prestart: &AllocatedCpuResources{},
-		main:     &AllocatedCpuResources{},
-		stop:     &AllocatedCpuResources{},
-	}
-	c := &ComparableCPU{}
-
-	for taskName, taskResources := range a.Tasks {
-		if len(taskResources.Cpu.ReservedCores) > 0 {
-			c.AllocatedCpuResources.Add(&taskResources.Cpu)
-			continue
-		}
-		l.distribute(&taskResources.Cpu, a.TaskLifecycles[taskName])
-	}
-
-	// Update the main lifecycle to reflect the largest fungible resource set
-	l.main.Max(l.prestart)
-	l.main.Max(l.stop)
-
-	c.AllocatedCpuResources.Add(l.main)
-	return c
-}
-
-func (a *AllocatedResources) ComparableMem() *ComparableMem {
-	l := &lifecycleDistributor[*AllocatedMemoryResources]{
-		prestart: &AllocatedMemoryResources{},
-		main:     &AllocatedMemoryResources{},
-		stop:     &AllocatedMemoryResources{},
-	}
-	c := &ComparableMem{}
-
-	for taskName, taskResources := range a.Tasks {
-		l.distribute(&taskResources.Memory, a.TaskLifecycles[taskName])
-	}
-
-	// Update the main lifecycle to reflect the largest fungible resource set
-	l.main.Max(l.prestart)
-	l.main.Max(l.stop)
-
-	c.AllocatedMemoryResources.Add(l.main)
-	return c
-}
-
-func (a *AllocatedResources) ComparableDisk() *ComparableDisk {
-	return &ComparableDisk{
-		DiskMB: a.Shared.DiskMB,
 	}
 }
 
@@ -4072,6 +4024,67 @@ func (a *AllocatedResources) BaseComparable() *BaseComparableResource {
 	// so we can just merge them into Flattened to avoid the unnecessary copy.
 	c.AllocatedCpuResources.Add(&main.Cpu)
 	c.AllocatedMemoryResources.Add(&main.Memory)
+
+	return c
+}
+
+// Comparable returns a comparable version of the allocations allocated
+// resources. This conversion can be lossy so care must be taken when using it.
+func (a *AllocatedResources) Comparable() *ComparableResources {
+	if a == nil {
+		return nil
+	}
+
+	c := &ComparableResources{
+		Shared: a.Shared,
+	}
+
+	// The lifecycle in which a task could run
+	prestartLifecycle := &AllocatedTaskResources{}
+	mainLifecycle := &AllocatedTaskResources{}
+	stopLifecycle := &AllocatedTaskResources{}
+
+	for taskName, taskResources := range a.Tasks {
+		taskLifecycle := a.TaskLifecycles[taskName]
+		fungibleTaskResources := taskResources.Copy()
+
+		// Reserved cores (and their respective bandwidth) are not fungible,
+		// hence we should always include it as part of the Flattened resources.
+		if len(fungibleTaskResources.Cpu.ReservedCores) > 0 {
+			c.Flattened.Cpu.Add(&fungibleTaskResources.Cpu)
+			fungibleTaskResources.Cpu = AllocatedCpuResources{}
+		}
+
+		if taskLifecycle == nil {
+			mainLifecycle.Add(fungibleTaskResources)
+		} else if taskLifecycle.Hook == TaskLifecycleHookPrestart {
+			if taskLifecycle.Sidecar {
+				// These tasks span both the prestart and main lifecycle
+				prestartLifecycle.Add(fungibleTaskResources)
+				mainLifecycle.Add(fungibleTaskResources)
+			} else {
+				prestartLifecycle.Add(fungibleTaskResources)
+			}
+		} else if taskLifecycle.Hook == TaskLifecycleHookPoststart {
+			mainLifecycle.Add(fungibleTaskResources)
+		} else if taskLifecycle.Hook == TaskLifecycleHookPoststop {
+			stopLifecycle.Add(fungibleTaskResources)
+		}
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	mainLifecycle.Max(prestartLifecycle)
+	mainLifecycle.Max(stopLifecycle)
+
+	// Add the fungible resources
+	c.Flattened.Add(mainLifecycle)
+
+	// Add network resources that are at the task group level
+	for _, network := range a.Shared.Networks {
+		c.Flattened.Add(&AllocatedTaskResources{
+			Networks: []*NetworkResource{network},
+		})
+	}
 
 	return c
 }

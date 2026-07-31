@@ -12,7 +12,7 @@ import (
 	Comparables are flattened resources from allocations
 	and nodes that are able to be compared with eachother
 
-	This is used mainly to check for allocation fitment on
+	This is used mainly to check if allocations fit on
 	nodes, and for preemption.
 
 	Some of the structs and methods in this file are fairly
@@ -102,7 +102,8 @@ func (c *ComparableCPU) Superset(other *ComparableCPU) bool {
 		return false
 	}
 
-	// TODO: remove idset
+	// Future work: we should deduplicate idset as it does
+	// a lot of unnecessary copying.
 	cores := idset.From[uint16](c.ReservedCores)
 	otherCores := idset.From[uint16](other.ReservedCores)
 	if len(c.ReservedCores) > 0 && !cores.Superset(otherCores) {
@@ -112,7 +113,7 @@ func (c *ComparableCPU) Superset(other *ComparableCPU) bool {
 	return true
 }
 
-// TODO: Remove the indirection from this shallow struct.
+// Future work: Remove the indirection from this shallow struct.
 // but it will require moving the code for Add(). We will save that
 // as a followup
 type ComparableMem struct {
