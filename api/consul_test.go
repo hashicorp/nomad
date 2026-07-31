@@ -153,7 +153,7 @@ func TestConsulProxy_Canonicalize(t *testing.T) {
 			LocalServicePort:    80,
 			Expose:              new(ConsulExposeConfig),
 			Upstreams:           make([]*ConsulUpstream, 0),
-			Config:              make(map[string]interface{}),
+			Config:              make(map[string]any),
 		}
 		cp.Canonicalize()
 		must.Eq(t, "127.0.0.1", cp.LocalServiceAddress)
@@ -314,7 +314,7 @@ func TestConsulGateway_Canonicalize(t *testing.T) {
 				EnvoyGatewayBindTaggedAddresses: true,
 				EnvoyGatewayBindAddresses:       make(map[string]*ConsulGatewayBindAddress, 0),
 				EnvoyGatewayNoDefaultBind:       true,
-				Config:                          make(map[string]interface{}, 0),
+				Config:                          make(map[string]any, 0),
 			},
 			Ingress: &ConsulIngressConfigEntry{
 				TLS: &ConsulGatewayTLSConfig{
@@ -352,7 +352,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 			},
 			EnvoyGatewayNoDefaultBind: true,
 			EnvoyDNSDiscoveryType:     "STRICT_DNS",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"foo": "bar",
 				"baz": 3,
 			},

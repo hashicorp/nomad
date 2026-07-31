@@ -21,7 +21,7 @@ func (c *Client) Raw() *Raw {
 // Query is used to do a GET request against an endpoint
 // and deserialize the response into an interface using
 // standard Nomad conventions.
-func (raw *Raw) Query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
+func (raw *Raw) Query(endpoint string, out any, q *QueryOptions) (*QueryMeta, error) {
 	return raw.c.query(endpoint, out, q)
 }
 
@@ -33,13 +33,13 @@ func (raw *Raw) Response(endpoint string, q *QueryOptions) (io.ReadCloser, error
 
 // Write is used to do a PUT request against an endpoint
 // and serialize/deserialized using the standard Nomad conventions.
-func (raw *Raw) Write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+func (raw *Raw) Write(endpoint string, in, out any, q *WriteOptions) (*WriteMeta, error) {
 	return raw.c.put(endpoint, in, out, q)
 }
 
 // Delete is used to do a DELETE request against an endpoint
 // and serialize/deserialized using the standard Nomad conventions.
-func (raw *Raw) Delete(endpoint string, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+func (raw *Raw) Delete(endpoint string, out any, q *WriteOptions) (*WriteMeta, error) {
 	return raw.c.delete(endpoint, nil, out, q)
 }
 
