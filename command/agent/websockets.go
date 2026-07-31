@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"crypto/fips140"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -30,6 +31,10 @@ func isWebsocketUpgrade(req *http.Request) bool {
 // auth token via request context.
 func (s *HTTPServer) wrapWebsocketHandler(handler handlerFn) handlerFn {
 	return func(w http.ResponseWriter, req *http.Request) (any, error) {
+
+		if fips140.Enabled() {
+			return "", fmt.Errorf("websockets are disallowed in FIPS-140 mode")
+		}
 
 		// Upgrade the connection
 		conn, err := s.wsUpgrader.Upgrade(w, req, nil)
