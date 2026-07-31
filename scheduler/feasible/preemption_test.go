@@ -239,219 +239,219 @@ func TestPreemption_Normal(t *testing.T) {
 	}
 
 	testCases := []testCase{
-		// {
-		// 	desc: "No preemption because existing allocs are not low priority",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      3200,
-		// 			MemoryMB: 7256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  50,
-		// 				},
-		// 			},
-		// 		})},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      2000,
-		// 		MemoryMB: 256,
-		// 		DiskMB:   4 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device:        "eth0",
-		// 				IP:            "192.168.0.100",
-		// 				ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
-		// 				MBits:         1,
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc: "Preempting low priority allocs not enough to meet resource ask",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      3200,
-		// 			MemoryMB: 7256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  50,
-		// 				},
-		// 			},
-		// 		})},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      4000,
-		// 		MemoryMB: 8192,
-		// 		DiskMB:   4 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device:        "eth0",
-		// 				IP:            "192.168.0.100",
-		// 				ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
-		// 				MBits:         1,
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc: "preemption impossible - static port needed is used by higher priority alloc",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      1200,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], highPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  600,
-		// 					ReservedPorts: []structs.Port{
-		// 						{
-		// 							Label: "db",
-		// 							Value: 88,
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      600,
-		// 		MemoryMB: 1000,
-		// 		DiskMB:   25 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  700,
-		// 				ReservedPorts: []structs.Port{
-		// 					{
-		// 						Label: "db",
-		// 						Value: 88,
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	desc: "preempt only from device that has allocation with unused reserved port",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      1200,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], highPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth1",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  600,
-		// 					ReservedPorts: []structs.Port{
-		// 						{
-		// 							Label: "db",
-		// 							Value: 88,
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  600,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	// This test sets up a node with two NICs
-		//
-		// 	nodeCapacity: &structs.NodeResources{
-		// 		Processors: processorResources,
-		// 		Cpu:        legacyCpuResources,
-		// 		Memory: structs.NodeMemoryResources{
-		// 			MemoryMB: 8192,
-		// 		},
-		// 		Disk: structs.NodeDiskResources{
-		// 			DiskMB: 100 * 1024,
-		// 		},
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				CIDR:   "192.168.0.100/32",
-		// 				MBits:  1000,
-		// 			},
-		// 			{
-		// 				Device: "eth1",
-		// 				CIDR:   "192.168.1.100/32",
-		// 				MBits:  1000,
-		// 			},
-		// 		},
-		// 	},
-		// 	jobPriority: 100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      600,
-		// 		MemoryMB: 1000,
-		// 		DiskMB:   25 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				IP:    "192.168.0.100",
-		// 				MBits: 700,
-		// 				ReservedPorts: []structs.Port{
-		// 					{
-		// 						Label: "db",
-		// 						Value: 88,
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[2]: {},
-		// 	},
-		// },
+		{
+			desc: "No preemption because existing allocs are not low priority",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      3200,
+					MemoryMB: 7256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  50,
+						},
+					},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      2000,
+				MemoryMB: 256,
+				DiskMB:   4 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
+						MBits:         1,
+					},
+				},
+			},
+		},
+		{
+			desc: "Preempting low priority allocs not enough to meet resource ask",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      3200,
+					MemoryMB: 7256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  50,
+						},
+					},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      4000,
+				MemoryMB: 8192,
+				DiskMB:   4 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						ReservedPorts: []structs.Port{{Label: "ssh", Value: 22}},
+						MBits:         1,
+					},
+				},
+			},
+		},
+		{
+			desc: "preemption impossible - static port needed is used by higher priority alloc",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1200,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], highPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  600,
+							ReservedPorts: []structs.Port{
+								{
+									Label: "db",
+									Value: 88,
+								},
+							},
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      600,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  700,
+						ReservedPorts: []structs.Port{
+							{
+								Label: "db",
+								Value: 88,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			desc: "preempt only from device that has allocation with unused reserved port",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1200,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], highPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth1",
+							IP:     "192.168.0.200",
+							MBits:  600,
+							ReservedPorts: []structs.Port{
+								{
+									Label: "db",
+									Value: 88,
+								},
+							},
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  600,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			// This test sets up a node with two NICs
+
+			nodeCapacity: &structs.NodeResources{
+				Processors: processorResources,
+				Cpu:        legacyCpuResources,
+				Memory: structs.NodeMemoryResources{
+					MemoryMB: 8192,
+				},
+				Disk: structs.NodeDiskResources{
+					DiskMB: 100 * 1024,
+				},
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						CIDR:   "192.168.0.100/32",
+						MBits:  1000,
+					},
+					{
+						Device: "eth1",
+						CIDR:   "192.168.1.100/32",
+						MBits:  1000,
+					},
+				},
+			},
+			jobPriority: 100,
+			resourceAsk: &structs.Resources{
+				CPU:      600,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						IP:    "192.168.0.100",
+						MBits: 700,
+						ReservedPorts: []structs.Port{
+							{
+								Label: "db",
+								Value: 88,
+							},
+						},
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[2]: {},
+			},
+		},
 		{
 			desc: "Combination of high/low priority allocs, without static ports",
 			currentAllocations: []*structs.Allocation{
@@ -522,761 +522,761 @@ func TestPreemption_Normal(t *testing.T) {
 				allocIDs[3]: {},
 			},
 		},
-		// {
-		// 	desc: "preempt allocs with network devices",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      2800,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  800,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1100,
-		// 		MemoryMB: 1000,
-		// 		DiskMB:   25 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  840,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[1]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "ignore allocs with close enough priority for network devices",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      2800,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  800,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          lowPrioJob.Priority + 5,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1100,
-		// 		MemoryMB: 1000,
-		// 		DiskMB:   25 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  840,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: nil,
-		// },
-		// {
-		// 	desc: "Preemption needed for all resources except network",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      2800,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   40 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  50,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   25 * 1024,
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[3], lowPrioJob, &structs.Resources{
-		// 			CPU:      700,
-		// 			MemoryMB: 276,
-		// 			DiskMB:   20 * 1024,
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1000,
-		// 		MemoryMB: 3000,
-		// 		DiskMB:   50 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  50,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[1]: {},
-		// 		allocIDs[2]: {},
-		// 		allocIDs[3]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "Only one low priority alloc needs to be preempted",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      1200,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  500,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  320,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      300,
-		// 		MemoryMB: 500,
-		// 		DiskMB:   5 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  320,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[2]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "one alloc meets static port need, another meets remaining mbits needed",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      1200,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  500,
-		// 					ReservedPorts: []structs.Port{
-		// 						{
-		// 							Label: "db",
-		// 							Value: 88,
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  200,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      2700,
-		// 		MemoryMB: 1000,
-		// 		DiskMB:   25 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  800,
-		// 				ReservedPorts: []structs.Port{
-		// 					{
-		// 						Label: "db",
-		// 						Value: 88,
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[1]: {},
-		// 		allocIDs[2]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "alloc that meets static port need also meets other needs",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      1200,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  600,
-		// 					ReservedPorts: []structs.Port{
-		// 						{
-		// 							Label: "db",
-		// 							Value: 88,
-		// 						},
-		// 					},
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  100,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      600,
-		// 		MemoryMB: 1000,
-		// 		DiskMB:   25 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  700,
-		// 				ReservedPorts: []structs.Port{
-		// 					{
-		// 						Label: "db",
-		// 						Value: 88,
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[1]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "alloc from job that has existing evictions not chosen for preemption",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      1200,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  500,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[2], lowPrioJob2, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  300,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      300,
-		// 		MemoryMB: 500,
-		// 		DiskMB:   5 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  320,
-		// 			},
-		// 		},
-		// 	},
-		// 	currentPreemptions: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[4], lowPrioJob2, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  300,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[1]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "Preemption with one device instance per alloc",
-		// 	// Add allocations that use two device instances
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      500,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[0]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[1]},
-		// 		})},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1000,
-		// 		MemoryMB: 512,
-		// 		DiskMB:   4 * 1024,
-		// 		Devices: []*structs.RequestedDevice{
-		// 			{
-		// 				Name:  "nvidia/gpu/1080ti",
-		// 				Count: 4,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[0]: {},
-		// 		allocIDs[1]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "Preemption multiple devices used",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      500,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "fpga",
-		// 			Vendor:    "intel",
-		// 			Name:      "F100",
-		// 			DeviceIDs: []string{"fpga1"},
-		// 		})},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1000,
-		// 		MemoryMB: 512,
-		// 		DiskMB:   4 * 1024,
-		// 		Devices: []*structs.RequestedDevice{
-		// 			{
-		// 				Name:  "nvidia/gpu/1080ti",
-		// 				Count: 4,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[0]: {},
-		// 	},
-		// },
-		// {
-		// 	// This test cases creates allocations across two GPUs
-		// 	// Both GPUs are eligible for the task, but only allocs sharing the
-		// 	// same device should be chosen for preemption
-		// 	desc: "Preemption with allocs across multiple devices that match",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      500,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[1], highPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 100,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[2]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "2080ti",
-		// 			DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
-		// 			CPU:      100,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "2080ti",
-		// 			DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "fpga",
-		// 			Vendor:    "intel",
-		// 			Name:      "F100",
-		// 			DeviceIDs: []string{"fpga1"},
-		// 		})},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1000,
-		// 		MemoryMB: 512,
-		// 		DiskMB:   4 * 1024,
-		// 		Devices: []*structs.RequestedDevice{
-		// 			{
-		// 				Name:  "gpu",
-		// 				Count: 4,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[2]: {},
-		// 		allocIDs[3]: {},
-		// 	},
-		// },
-		// {
-		// 	// This test cases creates allocations across two GPUs
-		// 	// Both GPUs are eligible for the task, but only allocs with the lower
-		// 	// priority are chosen
-		// 	desc: "Preemption with lower/higher priority combinations",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      500,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob2, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 100,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[2], deviceIDs[3]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "2080ti",
-		// 			DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
-		// 			CPU:      100,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "2080ti",
-		// 			DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
-		// 			CPU:      100,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "2080ti",
-		// 			DeviceIDs: []string{deviceIDs[8]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[5], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "fpga",
-		// 			Vendor:    "intel",
-		// 			Name:      "F100",
-		// 			DeviceIDs: []string{"fpga1"},
-		// 		})},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1000,
-		// 		MemoryMB: 512,
-		// 		DiskMB:   4 * 1024,
-		// 		Devices: []*structs.RequestedDevice{
-		// 			{
-		// 				Name:  "gpu",
-		// 				Count: 4,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[2]: {},
-		// 		allocIDs[3]: {},
-		// 	},
-		// },
-		// {
-		// 	desc: "Device preemption not possible due to more instances needed than available",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
-		// 			CPU:      500,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "gpu",
-		// 			Vendor:    "nvidia",
-		// 			Name:      "1080ti",
-		// 			DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
-		// 		}),
-		// 		tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      200,
-		// 			MemoryMB: 512,
-		// 			DiskMB:   4 * 1024,
-		// 		}, &structs.AllocatedDeviceResource{
-		// 			Type:      "fpga",
-		// 			Vendor:    "intel",
-		// 			Name:      "F100",
-		// 			DeviceIDs: []string{"fpga1"},
-		// 		})},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1000,
-		// 		MemoryMB: 512,
-		// 		DiskMB:   4 * 1024,
-		// 		Devices: []*structs.RequestedDevice{
-		// 			{
-		// 				Name:  "gpu",
-		// 				Count: 6,
-		// 			},
-		// 		},
-		// 	},
-		// },
-		// // This test case exercises the code path for a final filtering step that tries to
-		// // minimize the number of preemptible allocations
-		// {
-		// 	desc: "Filter out allocs whose resource usage superset is also in the preemption list",
-		// 	currentAllocations: []*structs.Allocation{
-		// 		tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
-		// 			CPU:      1800,
-		// 			MemoryMB: 2256,
-		// 			DiskMB:   4 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  150,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
-		// 			CPU:      1500,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   5 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.100",
-		// 					MBits:  100,
-		// 				},
-		// 			},
-		// 		}),
-		// 		tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
-		// 			CPU:      600,
-		// 			MemoryMB: 256,
-		// 			DiskMB:   5 * 1024,
-		// 			Networks: []*structs.NetworkResource{
-		// 				{
-		// 					Device: "eth0",
-		// 					IP:     "192.168.0.200",
-		// 					MBits:  300,
-		// 				},
-		// 			},
-		// 		}),
-		// 	},
-		// 	nodeReservedCapacity: reservedNodeResources,
-		// 	nodeCapacity:         defaultNodeResources,
-		// 	jobPriority:          100,
-		// 	resourceAsk: &structs.Resources{
-		// 		CPU:      1000,
-		// 		MemoryMB: 256,
-		// 		DiskMB:   5 * 1024,
-		// 		Networks: []*structs.NetworkResource{
-		// 			{
-		// 				Device: "eth0",
-		// 				IP:     "192.168.0.100",
-		// 				MBits:  50,
-		// 			},
-		// 		},
-		// 	},
-		// 	preemptedAllocIDs: map[string]struct{}{
-		// 		allocIDs[1]: {},
-		// 	},
-		// },
+		{
+			desc: "preempt allocs with network devices",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      2800,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  800,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1100,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  840,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[1]: {},
+			},
+		},
+		{
+			desc: "ignore allocs with close enough priority for network devices",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      2800,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  800,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          lowPrioJob.Priority + 5,
+			resourceAsk: &structs.Resources{
+				CPU:      1100,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  840,
+					},
+				},
+			},
+			preemptedAllocIDs: nil,
+		},
+		{
+			desc: "Preemption needed for all resources except network",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      2800,
+					MemoryMB: 2256,
+					DiskMB:   40 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  50,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   25 * 1024,
+				}),
+				tests.CreateAlloc(allocIDs[3], lowPrioJob, &structs.Resources{
+					CPU:      700,
+					MemoryMB: 276,
+					DiskMB:   20 * 1024,
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 3000,
+				DiskMB:   50 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  50,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[1]: {},
+				allocIDs[2]: {},
+				allocIDs[3]: {},
+			},
+		},
+		{
+			desc: "Only one low priority alloc needs to be preempted",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1200,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  500,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  320,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      300,
+				MemoryMB: 500,
+				DiskMB:   5 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  320,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[2]: {},
+			},
+		},
+		{
+			desc: "one alloc meets static port need, another meets remaining mbits needed",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1200,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  500,
+							ReservedPorts: []structs.Port{
+								{
+									Label: "db",
+									Value: 88,
+								},
+							},
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  200,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      2700,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  800,
+						ReservedPorts: []structs.Port{
+							{
+								Label: "db",
+								Value: 88,
+							},
+						},
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[1]: {},
+				allocIDs[2]: {},
+			},
+		},
+		{
+			desc: "alloc that meets static port need also meets other needs",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1200,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  600,
+							ReservedPorts: []structs.Port{
+								{
+									Label: "db",
+									Value: 88,
+								},
+							},
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  100,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      600,
+				MemoryMB: 1000,
+				DiskMB:   25 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  700,
+						ReservedPorts: []structs.Port{
+							{
+								Label: "db",
+								Value: 88,
+							},
+						},
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[1]: {},
+			},
+		},
+		{
+			desc: "alloc from job that has existing evictions not chosen for preemption",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1200,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  500,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[2], lowPrioJob2, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  300,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      300,
+				MemoryMB: 500,
+				DiskMB:   5 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  320,
+					},
+				},
+			},
+			currentPreemptions: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[4], lowPrioJob2, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  300,
+						},
+					},
+				}),
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[1]: {},
+			},
+		},
+		{
+			desc: "Preemption with one device instance per alloc",
+			// Add allocations that use two device instances
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[1]},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "nvidia/gpu/1080ti",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[0]: {},
+				allocIDs[1]: {},
+			},
+		},
+		{
+			desc: "Preemption multiple devices used",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "nvidia/gpu/1080ti",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[0]: {},
+			},
+		},
+		{
+			// This test cases creates allocations across two GPUs
+			// Both GPUs are eligible for the task, but only allocs sharing the
+			// same device should be chosen for preemption
+			desc: "Preemption with allocs across multiple devices that match",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[1], highPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 100,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[2]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
+					CPU:      100,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "gpu",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[2]: {},
+				allocIDs[3]: {},
+			},
+		},
+		{
+			// This test cases creates allocations across two GPUs
+			// Both GPUs are eligible for the task, but only allocs with the lower
+			// priority are chosen
+			desc: "Preemption with lower/higher priority combinations",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob2, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 100,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[2], deviceIDs[3]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
+					CPU:      100,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
+					CPU:      100,
+					MemoryMB: 256,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "2080ti",
+					DeviceIDs: []string{deviceIDs[8]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[5], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "gpu",
+						Count: 4,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[2]: {},
+				allocIDs[3]: {},
+			},
+		},
+		{
+			desc: "Device preemption not possible due to more instances needed than available",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+					CPU:      500,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "gpu",
+					Vendor:    "nvidia",
+					Name:      "1080ti",
+					DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
+				}),
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      200,
+					MemoryMB: 512,
+					DiskMB:   4 * 1024,
+				}, &structs.AllocatedDeviceResource{
+					Type:      "fpga",
+					Vendor:    "intel",
+					Name:      "F100",
+					DeviceIDs: []string{"fpga1"},
+				})},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 512,
+				DiskMB:   4 * 1024,
+				Devices: []*structs.RequestedDevice{
+					{
+						Name:  "gpu",
+						Count: 6,
+					},
+				},
+			},
+		},
+		// This test case exercises the code path for a final filtering step that tries to
+		// minimize the number of preemptible allocations
+		{
+			desc: "Filter out allocs whose resource usage superset is also in the preemption list",
+			currentAllocations: []*structs.Allocation{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+					CPU:      1800,
+					MemoryMB: 2256,
+					DiskMB:   4 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  150,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+					CPU:      1500,
+					MemoryMB: 256,
+					DiskMB:   5 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.100",
+							MBits:  100,
+						},
+					},
+				}),
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+					CPU:      600,
+					MemoryMB: 256,
+					DiskMB:   5 * 1024,
+					Networks: []*structs.NetworkResource{
+						{
+							Device: "eth0",
+							IP:     "192.168.0.200",
+							MBits:  300,
+						},
+					},
+				}),
+			},
+			nodeReservedCapacity: reservedNodeResources,
+			nodeCapacity:         defaultNodeResources,
+			jobPriority:          100,
+			resourceAsk: &structs.Resources{
+				CPU:      1000,
+				MemoryMB: 256,
+				DiskMB:   5 * 1024,
+				Networks: []*structs.NetworkResource{
+					{
+						Device: "eth0",
+						IP:     "192.168.0.100",
+						MBits:  50,
+					},
+				},
+			},
+			preemptedAllocIDs: map[string]struct{}{
+				allocIDs[1]: {},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
