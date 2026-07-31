@@ -104,19 +104,19 @@ func (css *ConsulSidecarService) Canonicalize() {
 // SidecarTask represents a subset of Task fields that can be set to override
 // the fields of the Task generated for the sidecar
 type SidecarTask struct {
-	Name          string                 `hcl:"name,optional"`
-	Driver        string                 `hcl:"driver,optional"`
-	User          string                 `hcl:"user,optional"`
-	Config        map[string]interface{} `hcl:"config,block"`
-	Env           map[string]string      `hcl:"env,block"`
-	Resources     *Resources             `hcl:"resources,block"`
-	Meta          map[string]string      `hcl:"meta,block"`
-	KillTimeout   *time.Duration         `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
-	LogConfig     *LogConfig             `mapstructure:"logs" hcl:"logs,block"`
-	ShutdownDelay *time.Duration         `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
-	KillSignal    string                 `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
-	VolumeMounts  []*VolumeMount         `hcl:"volume_mount,block"`
-	Identities    []*WorkloadIdentity    `hcl:"identity,block"`
+	Name          string              `hcl:"name,optional"`
+	Driver        string              `hcl:"driver,optional"`
+	User          string              `hcl:"user,optional"`
+	Config        map[string]any      `hcl:"config,block"`
+	Env           map[string]string   `hcl:"env,block"`
+	Resources     *Resources          `hcl:"resources,block"`
+	Meta          map[string]string   `hcl:"meta,block"`
+	KillTimeout   *time.Duration      `mapstructure:"kill_timeout" hcl:"kill_timeout,optional"`
+	LogConfig     *LogConfig          `mapstructure:"logs" hcl:"logs,block"`
+	ShutdownDelay *time.Duration      `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
+	KillSignal    string              `mapstructure:"kill_signal" hcl:"kill_signal,optional"`
+	VolumeMounts  []*VolumeMount      `hcl:"volume_mount,block"`
+	Identities    []*WorkloadIdentity `hcl:"identity,block"`
 }
 
 func (st *SidecarTask) Canonicalize() {
@@ -173,7 +173,7 @@ type ConsulProxy struct {
 	// proxying", which creates IP tables rules inside the network namespace to
 	// ensure traffic flows thru the Envoy proxy
 	TransparentProxy *ConsulTransparentProxy `mapstructure:"transparent_proxy" hcl:"transparent_proxy,block"`
-	Config           map[string]interface{}  `hcl:"config,block"`
+	Config           map[string]any          `hcl:"config,block"`
 }
 
 func (cp *ConsulProxy) Canonicalize() {
@@ -408,7 +408,7 @@ type ConsulGatewayProxy struct {
 	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress `mapstructure:"envoy_gateway_bind_addresses" hcl:"envoy_gateway_bind_addresses,block"`
 	EnvoyGatewayNoDefaultBind       bool                                 `mapstructure:"envoy_gateway_no_default_bind" hcl:"envoy_gateway_no_default_bind,optional"`
 	EnvoyDNSDiscoveryType           string                               `mapstructure:"envoy_dns_discovery_type" hcl:"envoy_dns_discovery_type,optional"`
-	Config                          map[string]interface{}               `hcl:"config,block"` // escape hatch envoy config
+	Config                          map[string]any                       `hcl:"config,block"` // escape hatch envoy config
 }
 
 func (p *ConsulGatewayProxy) Canonicalize() {
@@ -438,17 +438,13 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	var binds map[string]*ConsulGatewayBindAddress = nil
 	if p.EnvoyGatewayBindAddresses != nil {
 		binds = make(map[string]*ConsulGatewayBindAddress, len(p.EnvoyGatewayBindAddresses))
-		for k, v := range p.EnvoyGatewayBindAddresses {
-			binds[k] = v
-		}
+		maps.Copy(binds, p.EnvoyGatewayBindAddresses)
 	}
 
-	var config map[string]interface{} = nil
+	var config map[string]any = nil
 	if p.Config != nil {
-		config = make(map[string]interface{}, len(p.Config))
-		for k, v := range p.Config {
-			config[k] = v
-		}
+		config = make(map[string]any, len(p.Config))
+		maps.Copy(config, p.Config)
 	}
 
 	return &ConsulGatewayProxy{
@@ -686,7 +682,7 @@ func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
 	var services []*ConsulIngressService = nil
 	if n := len(l.Services); n > 0 {
 		services = make([]*ConsulIngressService, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			services[i] = l.Services[i].Copy()
 		}
 	}
@@ -738,7 +734,7 @@ func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
 	var listeners []*ConsulIngressListener = nil
 	if n := len(e.Listeners); n > 0 {
 		listeners = make([]*ConsulIngressListener, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			listeners[i] = e.Listeners[i].Copy()
 		}
 	}
@@ -808,7 +804,7 @@ func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
 	var services []*ConsulLinkedService = nil
 	if n := len(e.Services); n > 0 {
 		services = make([]*ConsulLinkedService, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			services[i] = e.Services[i].Copy()
 		}
 	}

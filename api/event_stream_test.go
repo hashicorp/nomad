@@ -104,8 +104,7 @@ func TestEvent_Stream(t *testing.T) {
 		TopicEvaluation: {},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	streamCh, err := events.Stream(ctx, topics, 0, q)
 	must.NoError(t, err)
@@ -177,8 +176,7 @@ func TestEvent_Stream_Err_InvalidQueryParam(t *testing.T) {
 		TopicEvaluation: {"::*"},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	_, err = events.Stream(ctx, topics, 0, q)
 	must.ErrorContains(t, err, "Invalid key value pair")
@@ -243,8 +241,7 @@ func TestEventStream_PayloadValue(t *testing.T) {
 		TopicNode: {"*"},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	streamCh, err := events.Stream(ctx, topics, 0, q)
 	must.NoError(t, err)
@@ -263,7 +260,7 @@ func TestEventStream_PayloadValue(t *testing.T) {
 			// perform a raw decoding and look for:
 			// - "ID" to make sure that raw decoding is working correctly
 			// - "SecretID" to make sure it's not present
-			raw := make(map[string]map[string]interface{}, 0)
+			raw := make(map[string]map[string]any, 0)
 			cfg := &mapstructure.DecoderConfig{
 				Result: &raw,
 			}

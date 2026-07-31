@@ -6,6 +6,7 @@ package api
 import (
 	"context"
 	"errors"
+	"maps"
 	"sync"
 	"testing"
 	"time"
@@ -360,8 +361,7 @@ func TestFailedRenewal(t *testing.T) {
 
 	s := mockService{}
 
-	testCtx, testCancel := context.WithCancel(context.Background())
-	defer testCancel()
+	testCtx := t.Context()
 
 	// Set the renewal period to 1.5  * testLease (15 ms) to force and error.
 	hac := LockLeaser{
@@ -461,9 +461,7 @@ func TestStart_ProtectedFunctionError(t *testing.T) {
 
 func copyMap(originalMap map[string]int) map[string]int {
 	newMap := map[string]int{}
-	for k, v := range originalMap {
-		newMap[k] = v
-	}
+	maps.Copy(newMap, originalMap)
 	return newMap
 }
 

@@ -147,7 +147,7 @@ deps:  ## Install build and development dependencies
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
 	go install github.com/hashicorp/go-hclog/hclogvet@bd6194f1f5b126dbad2a3fdf3b9b6556cc3496c3
 
@@ -164,7 +164,9 @@ check: ## Lint the source code
 	@golangci-lint run --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting ./api source code..."
-	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
+	@cd ./api && golangci-lint run \
+	  --enable modernize \
+	  --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
 	@GOFLAGS="-tags=$(GO_TAGS_COMMA)" hclogvet ./...

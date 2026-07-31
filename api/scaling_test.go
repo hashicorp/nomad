@@ -77,7 +77,7 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 		Enabled: pointerOf(true),
 		Min:     pointerOf(int64(1)),
 		Max:     pointerOf(int64(1)),
-		Policy: map[string]interface{}{
+		Policy: map[string]any{
 			"key": "value",
 		},
 	}

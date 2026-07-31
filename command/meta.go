@@ -237,7 +237,7 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 		}
 
 		v := reflect.ValueOf(ui)
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			v = v.Elem()
 		}
 		for i := 0; i < v.NumField(); i++ {

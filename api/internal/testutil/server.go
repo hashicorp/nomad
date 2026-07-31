@@ -322,7 +322,7 @@ func (s *TestServer) waitForServers() {
 		}
 
 		jwks := struct {
-			Keys []interface{} `json:"keys"`
+			Keys []any `json:"keys"`
 		}{}
 		if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
 			return fmt.Errorf("error decoding jwks response: %w", err)

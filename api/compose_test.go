@@ -129,7 +129,7 @@ func TestCompose(t *testing.T) {
 								Operand: "=",
 							},
 						},
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"foo": "bar",
 						},
 						Meta: map[string]string{
