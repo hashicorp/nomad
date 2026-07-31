@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"crypto/fips140"
 	"flag"
 	"fmt"
 	"io"
@@ -918,6 +919,11 @@ func (c *Command) Run(args []string) int {
 	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
 	if config.Server.Enabled {
 		info["node id"] = c.agent.server.GetConfig().NodeID
+	}
+	if fips140.Enforced() {
+		info["fips mode"] = fmt.Sprintf("FIPS-140-3 enforced (version: %s)", fips140.Version())
+	} else if fips140.Enabled() {
+		info["fips mode"] = fmt.Sprintf("FIPS-140-3 enabled (version: %s)", fips140.Version())
 	}
 
 	// Sort the keys for output
