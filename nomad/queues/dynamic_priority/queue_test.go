@@ -360,7 +360,8 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 			placedWorkloadById: map[string]*dynamicPriorityWorkload{
 				eval1.ID: {requestedResources: &UsageList{start: ts, resources: &ResourceUsage{CPU: cpu, Memory: memory}}},
 			},
-			totalUsage: &ResourceUsage{CPU: cpu, Memory: memory},
+			totalUsage:   &ResourceUsage{CPU: cpu, Memory: memory},
+			pendingUsage: &ResourceUsage{},
 		}
 	}
 	ss := state.TestStateStore(t)

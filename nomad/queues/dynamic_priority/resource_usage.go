@@ -21,6 +21,12 @@ func (r *ResourceUsage) Add(addedUsage *ResourceUsage) *ResourceUsage {
 	return r
 }
 
+func (r *ResourceUsage) Subtract(subtractedUsage *ResourceUsage) *ResourceUsage {
+	r.CPU -= subtractedUsage.CPU
+	r.Memory -= subtractedUsage.Memory
+	return r
+}
+
 func (r *ResourceUsage) AddCpu(amount float64) {
 	r.CPU += amount
 }
