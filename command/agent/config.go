@@ -180,6 +180,11 @@ type Config struct {
 	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `hcl:"http_api_response_headers"`
 
+	// HTTPDisableWebSocketOriginCheck is used to disable the origin check when
+	// upgrading HTTP connections to a websocket. This is useful for Nomad
+	// debugging and development.
+	HTTPDisableWebSocketOriginCheck bool `hcl:"http_disable_websocket_origin_check"`
+
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `hcl:"sentinel"`
 

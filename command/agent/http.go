@@ -148,6 +148,14 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 	wsUpgrader := &websocket.Upgrader{
 		ReadBufferSize:  2048,
 		WriteBufferSize: 2048,
+		Subprotocols:    []string{websocketProtocolWatcher},
+	}
+
+	// If running in dev mode, or the check has been explicitly disabled in the config, stub
+	// the origin check when upgrading the connection to a websocket. This is especially useful
+	// when doing ui development and using the ember proxy.
+	if config.DevMode || config.HTTPDisableWebSocketOriginCheck {
+		wsUpgrader.CheckOrigin = func(*http.Request) bool { return true }
 	}
 
 	// Start the listener
