@@ -667,7 +667,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:   "redis",
 								Driver: "docker",
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "redis:7",
 									"port_map": []map[string]int{{
 										"db": 6379,
@@ -796,7 +796,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 							{
 								Name:   "redis",
 								Driver: "docker",
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "redis:7",
 									"port_map": []map[string]int{{
 										"db": 6379,
@@ -2516,7 +2516,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	// Perform scaling action
 	scalingResp, wm, err := jobs.Scale(id, groupName,
 		pointerOf(newCount), "need more instances", false,
-		map[string]interface{}{
+		map[string]any{
 			"meta": "data",
 		}, nil)
 
@@ -2539,7 +2539,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	scalingEvent := status.TaskGroups[groupName].Events[0]
 	must.False(t, scalingEvent.Error)
 	must.Eq(t, "need more instances", scalingEvent.Message)
-	must.MapEq(t, map[string]interface{}{"meta": "data"}, scalingEvent.Meta)
+	must.MapEq(t, map[string]any{"meta": "data"}, scalingEvent.Meta)
 	must.Positive(t, scalingEvent.Time)
 	must.UUIDv4(t, *scalingEvent.EvalID)
 	must.Eq(t, scalingResp.EvalID, *scalingEvent.EvalID)
@@ -2566,7 +2566,7 @@ func TestJobs_ScaleAction_Error(t *testing.T) {
 
 	// Perform scaling action
 	scaleResp, wm, err := jobs.Scale(id, groupName, nil, "something bad happened", true,
-		map[string]interface{}{
+		map[string]any{
 			"meta": "data",
 		}, nil)
 
@@ -2590,7 +2590,7 @@ func TestJobs_ScaleAction_Error(t *testing.T) {
 	errEvent := status.TaskGroups[groupName].Events[0]
 	must.True(t, errEvent.Error)
 	must.Eq(t, "something bad happened", errEvent.Message)
-	must.Eq(t, map[string]interface{}{"meta": "data"}, errEvent.Meta)
+	must.Eq(t, map[string]any{"meta": "data"}, errEvent.Meta)
 	must.Positive(t, errEvent.Time)
 	must.Nil(t, errEvent.EvalID)
 }
@@ -2615,7 +2615,7 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 
 	// Perform scaling action
 	scaleResp, wm, err := jobs.Scale(id, groupName, nil, "no count, just informative",
-		false, map[string]interface{}{
+		false, map[string]any{
 			"meta": "data",
 		}, nil)
 
@@ -2639,7 +2639,7 @@ func TestJobs_ScaleAction_Noop(t *testing.T) {
 	noopEvent := status.TaskGroups[groupName].Events[0]
 	must.False(t, noopEvent.Error)
 	must.Eq(t, "no count, just informative", noopEvent.Message)
-	must.MapEq(t, map[string]interface{}{"meta": "data"}, noopEvent.Meta)
+	must.MapEq(t, map[string]any{"meta": "data"}, noopEvent.Meta)
 	must.Positive(t, noopEvent.Time)
 	must.Nil(t, noopEvent.EvalID)
 }

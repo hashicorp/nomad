@@ -765,7 +765,7 @@ type Task struct {
 	Driver          string                 `hcl:"driver,optional"`
 	User            string                 `hcl:"user,optional"`
 	Lifecycle       *TaskLifecycle         `hcl:"lifecycle,block"`
-	Config          map[string]interface{} `hcl:"config,block"`
+	Config          map[string]any         `hcl:"config,block"`
 	Constraints     []*Constraint          `hcl:"constraint,block"`
 	Affinities      []*Affinity            `hcl:"affinity,block"`
 	Env             map[string]string      `hcl:"env,block"`
@@ -1079,9 +1079,9 @@ func NewTask(name, driver string) *Task {
 
 // SetConfig is used to configure a single k/v pair on
 // the task.
-func (t *Task) SetConfig(key string, val interface{}) *Task {
+func (t *Task) SetConfig(key string, val any) *Task {
 	if t.Config == nil {
-		t.Config = make(map[string]interface{})
+		t.Config = make(map[string]any)
 	}
 	t.Config[key] = val
 	return t

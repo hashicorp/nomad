@@ -59,7 +59,7 @@ func testServiceJob() *Job {
 func testJobWithScalingPolicy() *Job {
 	job := testJob()
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
-		Policy:  map[string]interface{}{},
+		Policy:  map[string]any{},
 		Min:     pointerOf(int64(1)),
 		Max:     pointerOf(int64(5)),
 		Enabled: pointerOf(true),
@@ -86,7 +86,7 @@ func testRecommendation(job *Job) *Recommendation {
 		Task:      job.TaskGroups[0].Tasks[0].Name,
 		Resource:  "CPU",
 		Value:     *job.TaskGroups[0].Tasks[0].Resources.CPU * 2,
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"testing": true,
 			"mocked":  "also true",
 		},

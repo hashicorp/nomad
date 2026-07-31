@@ -55,7 +55,7 @@ type ScalingRequest struct {
 	Target  map[string]string
 	Message string
 	Error   bool
-	Meta    map[string]interface{}
+	Meta    map[string]any
 	WriteRequest
 
 	// this is effectively a job update, so we need the ability to override policy.
@@ -70,11 +70,11 @@ type ScalingRequest struct {
 type ScalingPolicy struct {
 	/* fields set by user in HCL config */
 
-	Min     *int64                 `hcl:"min,optional"`
-	Max     *int64                 `hcl:"max,optional"`
-	Policy  map[string]interface{} `hcl:"policy,block"`
-	Enabled *bool                  `hcl:"enabled,optional"`
-	Type    string                 `hcl:"type,optional"`
+	Min     *int64         `hcl:"min,optional"`
+	Max     *int64         `hcl:"max,optional"`
+	Policy  map[string]any `hcl:"policy,block"`
+	Enabled *bool          `hcl:"enabled,optional"`
+	Type    string         `hcl:"type,optional"`
 
 	/* fields set by server */
 
@@ -120,7 +120,7 @@ type ScalingEvent struct {
 	PreviousCount int64
 	Error         bool
 	Message       string
-	Meta          map[string]interface{}
+	Meta          map[string]any
 	EvalID        *string
 	Time          uint64
 	CreateIndex   uint64

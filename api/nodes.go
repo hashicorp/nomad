@@ -164,7 +164,7 @@ type MonitorMessage struct {
 }
 
 // Messagef formats a new MonitorMessage.
-func Messagef(lvl MonitorMsgLevel, msg string, args ...interface{}) *MonitorMessage {
+func Messagef(lvl MonitorMsgLevel, msg string, args ...any) *MonitorMessage {
 	return &MonitorMessage{
 		Level:   lvl,
 		Message: fmt.Sprintf(msg, args...),

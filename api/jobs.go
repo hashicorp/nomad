@@ -215,7 +215,7 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 }
 
 // Scale is used to scale a job.
-func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool, meta map[string]interface{},
+func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool, meta map[string]any,
 	q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var count64 *int64
@@ -872,9 +872,7 @@ func (m *Multiregion) Copy() *Multiregion {
 		copyRegion.Count = pointerOf(*region.Count)
 		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
 		copyRegion.NodePool = region.NodePool
-		for k, v := range region.Meta {
-			copyRegion.Meta[k] = v
-		}
+		maps.Copy(copyRegion.Meta, region.Meta)
 
 		copy.Regions = append(copy.Regions, copyRegion)
 	}

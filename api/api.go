@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -679,7 +680,7 @@ type request struct {
 	params url.Values
 	token  string
 	body   io.Reader
-	obj    interface{}
+	obj    any
 	ctx    context.Context
 	header http.Header
 }
@@ -860,9 +861,7 @@ func (c *Client) newRequest(method, path string) (*request, error) {
 		}
 	}
 
-	for key, values := range c.config.Headers {
-		r.header[key] = values
-	}
+	maps.Copy(r.header, c.config.Headers)
 
 	return r, nil
 }
@@ -1224,7 +1223,7 @@ func parseWriteMeta(resp *http.Response, q *WriteMeta) error {
 }
 
 // decodeBody is used to JSON decode a body
-func decodeBody(resp *http.Response, out interface{}) error {
+func decodeBody(resp *http.Response, out any) error {
 	switch resp.ContentLength {
 	case 0:
 		if out == nil {
@@ -1241,7 +1240,7 @@ func decodeBody(resp *http.Response, out interface{}) error {
 //
 // Returns the `obj` input if it is a raw io.Reader object; otherwise
 // returns a reader of the json format of the passed argument.
-func encodeBody(obj interface{}) (io.Reader, error) {
+func encodeBody(obj any) (io.Reader, error) {
 	if reader, ok := obj.(io.Reader); ok {
 		return reader, nil
 	}

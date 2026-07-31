@@ -189,7 +189,7 @@ func TestNodes_NoSecretID(t *testing.T) {
 	// perform a raw http call and make sure that:
 	// - "ID" to make sure that raw decoding is working correctly
 	// - "SecretID" to make sure it's not present
-	resp := make(map[string]interface{})
+	resp := make(map[string]any)
 	_, err := c.query("/v1/node/"+nodeID, &resp, nil)
 	must.NoError(t, err)
 	must.Eq(t, nodeID, resp["ID"].(string))
@@ -231,8 +231,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	assertWriteMeta(t, &drainOut.WriteMeta)
 
 	// Drain may have completed before we can check, use event stream
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	streamCh, err := c.EventStream().Stream(ctx, map[Topic][]string{
 		TopicNode: {nodeID},
