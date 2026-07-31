@@ -2996,27 +2996,35 @@ func (ns Networks) Copy() Networks {
 	return out
 }
 
-func (ns Networks) Max(other Networks) {
-	for _, n := range other {
+func (ns *Networks) Max(other *Networks) {
+	if other == nil {
+		return
+	}
+
+	for _, n := range *other {
 		// Find the matching interface by IP or CIDR
 		idx := ns.NetIndex(n)
 		if idx == -1 {
-			ns = append(ns, n.Copy())
+			*ns = append(*ns, n.Copy())
 		} else {
-			ns[idx].Add(n)
+			(*ns)[idx].Add(n)
 		}
 	}
 
 }
 
-func (ns Networks) Add(other Networks) {
-	for _, n := range other {
+func (ns *Networks) Add(other *Networks) {
+	if other == nil {
+		return
+	}
+
+	for _, n := range *other {
 		// Find the matching interface by IP or CIDR
 		idx := ns.NetIndex(n)
 		if idx == -1 {
-			ns = append(ns, n.Copy())
+			*ns = append(*ns, n.Copy())
 		} else {
-			ns[idx].Add(n)
+			(*ns)[idx].Add(n)
 		}
 	}
 }
@@ -3840,6 +3848,12 @@ func (a AllocResourceCache) Insert(allocs ...*Allocation) {
 	}
 }
 
+func (a AllocResourceCache) Remove(allocs ...*Allocation) {
+	for _, alloc := range allocs {
+		delete(a, alloc.ID)
+	}
+}
+
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.
@@ -3965,17 +3979,16 @@ func (a *AllocatedResources) ComparableDisk() *ComparableDisk {
 	}
 }
 
-// TODO: we don't generate ComparableNetworks from allocResources, do we need this?
 func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
-	l := &lifecycleDistributor[Networks]{
-		prestart: Networks{},
-		main:     Networks{},
-		stop:     Networks{},
+	l := &lifecycleDistributor[*Networks]{
+		prestart: &Networks{},
+		main:     &Networks{},
+		stop:     &Networks{},
 	}
 	c := &ComparableNetworks{}
 
 	for taskName, taskResources := range a.Tasks {
-		l.distribute(taskResources.Networks, a.TaskLifecycles[taskName])
+		l.distribute(&taskResources.Networks, a.TaskLifecycles[taskName])
 	}
 
 	// Update the main lifecycle to reflect the largest fungible resource set
@@ -3983,7 +3996,10 @@ func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
 	l.main.Max(l.stop)
 
 	c.FlattenedNetworks.Add(l.main)
-	c.SharedNetworks.Add(a.Shared.Networks)
+
+	cp := a.Shared.Networks.Copy()
+	c.FlattenedNetworks.Add(&cp) // this matches the old comparables... Should we just get rid of shared?
+	c.SharedNetworks.Add(&cp)
 	c.SharedPorts = append(c.SharedPorts, a.Shared.Ports...)
 	return c
 }

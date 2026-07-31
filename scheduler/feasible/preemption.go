@@ -177,7 +177,14 @@ func (p *Preemptor) SetNode(node *structs.Node) {
 func (p *Preemptor) SetCandidates(allocs structs.AllocResourceCache) {
 	// Reset candidate set
 	p.currentAllocs = []*structs.Allocation{}
+	p.allocDetails = make(map[string]*allocInfo)
 	for _, a := range allocs {
+
+		// Ignore the current allocation being place, which has not been assigned
+		// an ID yet.
+		if a.Alloc.ID == "" {
+			continue
+		}
 		// Ignore any allocations of the job being placed
 		// This filters out any previous allocs of the job, and any new allocs in the plan
 		if a.Alloc.JobID == p.jobID.ID && a.Alloc.Namespace == p.jobID.Namespace {
@@ -748,7 +755,6 @@ type supersetter[T any] interface {
 // any allocations that meet a superset of requirements from
 // the set of allocations to preempt
 func filterSuperset[T supersetter[T]](
-	// p *Preemptor,
 	bestAllocs []*structs.Allocation,
 	nodeRemainingResources T,
 	resourceAsk T,

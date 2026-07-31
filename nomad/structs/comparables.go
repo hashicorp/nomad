@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -33,12 +36,18 @@ type BaseComparableResource struct {
 }
 
 func (c *BaseComparableResource) Add(other *BaseComparableResource) {
+	if other == nil {
+		return
+	}
 	c.ComparableCPU.Add(&other.ComparableCPU)
 	c.ComparableMem.Add(&other.ComparableMem)
 	c.ComparableDisk.Add(&other.ComparableDisk)
 }
 
 func (c *BaseComparableResource) Subtract(other *BaseComparableResource) {
+	if other == nil {
+		return
+	}
 	c.ComparableCPU.Subtract(&other.ComparableCPU)
 	c.ComparableMem.Subtract(&other.ComparableMem)
 	c.ComparableDisk.Subtract(&other.ComparableDisk)
@@ -163,13 +172,14 @@ func (c *ComparableDisk) Superset(other *ComparableDisk) bool {
 type ComparableNetworks struct {
 	FlattenedNetworks Networks
 	SharedNetworks    Networks
-	SharedPorts       AllocatedPorts // TODO?
+	SharedPorts       AllocatedPorts
 }
 
 func (c *ComparableNetworks) Add(delta *ComparableNetworks) {
 	if delta == nil {
 		return
 	}
+	// TODO
 }
 
 func (c *ComparableNetworks) Copy() *ComparableNetworks {

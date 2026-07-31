@@ -340,6 +340,7 @@ NEXTNODE:
 
 				// First subtract out preempted allocations
 				proposed = structs.RemoveAllocs(proposed, netPreemptions)
+				allocResources.Remove(netPreemptions...)
 
 				// Reset the network index and try the offer again
 				netIdx.Release()
@@ -428,6 +429,7 @@ NEXTNODE:
 
 					// First subtract out preempted allocations
 					proposed = structs.RemoveAllocs(proposed, netPreemptions)
+					allocResources.Remove(netPreemptions...)
 
 					// Reset the network index and try the offer again
 					netIdx.Release()
@@ -639,6 +641,7 @@ NEXTNODE:
 
 							// subtract out preempted allocations
 							proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
+							allocResources.Remove(allocsToPreempt...)
 
 							// use a device allocator with new set of proposed allocs
 							devAllocatorEvict := newDeviceAllocator(iter.ctx, option.Node)
@@ -742,9 +745,6 @@ NEXTNODE:
 			total.TaskLifecycles[task.Name] = task.Lifecycle
 		}
 
-		// Store current set of running allocs before adding resources for the task group
-		current := allocResources
-
 		// Add the resources we are trying to fit
 		allocResources.Insert(&structs.Allocation{AllocatedResources: total})
 
@@ -762,7 +762,7 @@ NEXTNODE:
 			// any allocs can be preempted
 
 			// Initialize preemptor with candidate set
-			preemptor.SetCandidates(current)
+			preemptor.SetCandidates(allocResources)
 
 			preemptedAllocs := preemptor.PreemptForTaskGroup(total)
 			allocsToPreempt = append(allocsToPreempt, preemptedAllocs...)

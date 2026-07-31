@@ -1256,6 +1256,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	plan := ctx.Plan()
 	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
 		{
+			ID: "123",
 			AllocatedResources: &structs.AllocatedResources{
 				Tasks: map[string]*structs.AllocatedTaskResources{
 					"web": {
@@ -1274,6 +1275,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 	// Add a planned alloc to node2 that half fills it
 	plan.NodeAllocation[nodes[1].Node.ID] = []*structs.Allocation{
 		{
+			ID: "456",
 			AllocatedResources: &structs.AllocatedResources{
 				Tasks: map[string]*structs.AllocatedTaskResources{
 					"web": {
@@ -2649,12 +2651,12 @@ func TestNodeAffinityIterator(t *testing.T) {
 
 		binp := NewBinPackIterator(ctx, static, false, 0)
 		binp.SetTaskGroup(tg)
-		fit := structs.ScoreFitBinPack(nodes[0].Node, &structs.ComparableResources{
-			Flattened: structs.AllocatedTaskResources{
-				Cpu:    structs.AllocatedCpuResources{CpuShares: 500},
-				Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
-			},
-		})
+
+		resources := &structs.BaseComparableResource{}
+		resources.AllocatedCpuResources.CpuShares = 500
+		resources.AllocatedMemoryResources.MemoryMB = 256
+
+		fit := structs.ScoreFitBinPack(nodes[0].Node, resources)
 		bp := fit / binPackingMaxFitScore
 
 		nodeAffinity := NewNodeAffinityIterator(ctx, binp)
