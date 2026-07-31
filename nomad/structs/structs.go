@@ -3988,26 +3988,38 @@ func (a *AllocatedResources) BaseComparable() *BaseComparableResource {
 			trCopy.Cpu = AllocatedCpuResources{}
 		}
 
+		// Avoid copying networks and devices that is normally done
+		// in AllocatedTaskResources.Add()
+		add := func(tr *AllocatedTaskResources) {
+			tr.Cpu.Add(&trCopy.Cpu)
+			tr.Memory.Add(&trCopy.Memory)
+		}
+
 		if lifecycle == nil {
-			main.Add(trCopy)
+			add(main)
 			continue
 		}
 		switch lifecycle.Hook {
 		case TaskLifecycleHookPrestart:
 			if lifecycle.Sidecar {
-				main.Add(trCopy)
+				add(main)
 			}
-			prestart.Add(trCopy)
+			add(prestart)
 		case TaskLifecycleHookPoststart:
-			main.Add(trCopy)
+			add(main)
 		case TaskLifecycleHookPoststop:
-			stop.Add(trCopy)
+			add(stop)
 		}
 	}
 
+	doMax := func(tr *AllocatedTaskResources) {
+		main.Cpu.Max(&tr.Cpu)
+		main.Memory.Max(&tr.Memory)
+	}
+
 	// Update the main lifecycle to reflect the largest fungible resource set
-	main.Max(prestart)
-	main.Max(stop)
+	doMax(prestart)
+	doMax(stop)
 
 	// The values in mainLifecycle were copied from the tasks resources,
 	// so we can just merge them into Flattened to avoid the unnecessary copy.
@@ -4156,23 +4168,12 @@ func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 
 	a.Cpu.Add(&delta.Cpu)
 	a.Memory.Add(&delta.Memory)
-}
-
-// Merge takes delta's pointers and merges them with a's parameters. This is useful
-// to avoid the cost of copying when doing intermediate task resource adding.
-func (a *AllocatedTaskResources) Merge(delta *AllocatedTaskResources) {
-	if delta == nil {
-		return
-	}
-
-	a.Cpu.Add(&delta.Cpu)
-	a.Memory.Add(&delta.Memory)
 
 	for _, n := range delta.Networks {
 		// Find the matching interface by IP or CIDR
 		idx := a.NetIndex(n)
 		if idx == -1 {
-			a.Networks = append(a.Networks, n)
+			a.Networks = append(a.Networks, n.Copy())
 		} else {
 			a.Networks[idx].Add(n)
 		}
@@ -4182,7 +4183,7 @@ func (a *AllocatedTaskResources) Merge(delta *AllocatedTaskResources) {
 		// Find the matching device
 		idx := AllocatedDevices(a.Devices).Index(d)
 		if idx == -1 {
-			a.Devices = append(a.Devices, d)
+			a.Devices = append(a.Devices, d.Copy())
 		} else {
 			a.Devices[idx].Add(d)
 		}
