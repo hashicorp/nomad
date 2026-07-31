@@ -21,10 +21,7 @@ func formatFloat(f float64, maxPrec int) string {
 		return v
 	}
 
-	sublen := idx + maxPrec + 1
-	if sublen > len(v) {
-		sublen = len(v)
-	}
+	sublen := min(idx+maxPrec+1, len(v))
 
 	return v[:sublen]
 }

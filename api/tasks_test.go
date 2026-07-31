@@ -199,7 +199,7 @@ func TestTask_SetConfig(t *testing.T) {
 
 	// Set another config value
 	task.SetConfig("baz", "zip")
-	expect := map[string]interface{}{"foo": "bar", "baz": "zip"}
+	expect := map[string]any{"foo": "bar", "baz": "zip"}
 	must.Eq(t, expect, task.Config)
 }
 

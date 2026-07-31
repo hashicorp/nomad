@@ -163,10 +163,8 @@ func requireStatusIn(statuses ...int) doRequestWrapper {
 			return d, nil, e
 		}
 
-		for _, status := range statuses {
-			if resp.StatusCode == status {
-				return d, resp, nil
-			}
+		if slices.Contains(statuses, resp.StatusCode) {
+			return d, resp, nil
 		}
 
 		// The response technically succeeded, so we need to close the body
