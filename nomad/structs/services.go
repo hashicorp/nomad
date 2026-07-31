@@ -4,7 +4,9 @@
 package structs
 
 import (
+	"crypto/fips140"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -483,7 +485,8 @@ func (sc *ServiceCheck) TriggersRestarts() bool {
 // the PortLabel is blank, the Service's PortLabel will be used after Hash is
 // called.
 func (sc *ServiceCheck) Hash(serviceID string) string {
-	h := sha1.New()
+	h := sha256.New()
+
 	hashString(h, serviceID)
 	hashString(h, sc.Name)
 	hashString(h, sc.Type)
@@ -953,11 +956,34 @@ func (s *Service) ValidateName(name string) error {
 	return nil
 }
 
+// LegacyAgentID is used only for generating the ID for services registered by a
+// pre-FIPS-compatible Nomad agent, so that if the agent was not shutdown
+// gracefully before upgrading, it can still deregister its old services.
+//
+// COMPAT: remove once upgrades from pre-FIPS-compatible agents are no longer
+// supported. Upgrading agents in-place to FIPS-enabled is unsupported.
+func (s *Service) LegacyAgentID(role string) string {
+	if fips140.Enabled() {
+		return ""
+	}
+	h := sha1.New()
+	x := s.hashImpl(h, role, "", false)
+	return fmt.Sprintf("_nomad-%s-%s", role, x)
+}
+
 // Hash returns a base32 encoded hash of a Service's contents excluding checks
 // as they're hashed independently and the provider in order to not cause churn
 // during cluster upgrades.
+//
+// This hash is used for internal in-memory comparisons and for generating the
+// Nomad agent's own service IDs that it registers with Consul, but is not used
+// for registering workload services.
 func (s *Service) Hash(allocID, taskName string, canary bool) string {
-	h := sha1.New()
+	h := sha256.New()
+	return s.hashImpl(h, allocID, taskName, canary)[:52]
+}
+
+func (s *Service) hashImpl(h hash.Hash, allocID, taskName string, canary bool) string {
 	hashString(h, allocID)
 	hashString(h, taskName)
 	hashString(h, s.Name)
