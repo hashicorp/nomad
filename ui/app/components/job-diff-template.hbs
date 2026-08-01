@@ -3,14 +3,11 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div
-  class="diff-section-table-cell diff-section-change diff-section-table-pre-wrap"
->
-  {{#each this.diffChunks as |chunk|}}
-    <span
+<pre class="diff-section-table-cell diff-section-change">{{#each
+    this.diffChunks
+    as |chunk|
+  }}<span
       class="diff-line
         {{if chunk.added 'diff-line-added'}}
         {{if chunk.removed 'diff-line-removed'}}"
-    >{{chunk.value}}</span>
-  {{/each}}
-</div>
+    >{{chunk.value}}</span>{{/each}}</pre>
