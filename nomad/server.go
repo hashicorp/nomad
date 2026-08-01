@@ -40,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/pool"
+	"github.com/hashicorp/nomad/helper/raftwalmetadata"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/auth"
@@ -1610,6 +1611,7 @@ func (s *Server) openRaftWAL(dir string) (*raftwal.WAL, error) {
 		raftwal.WithLogger(s.logger.Named("wal")),
 		raftwal.WithSegmentSize(s.config.RaftLogStoreConfig.WALSegmentSize),
 		raftwal.WithMetricsCollector(mc),
+		raftwal.WithMetaStore(&raftwalmetadata.FileMetaDB{}),
 	)
 	if err != nil {
 		return nil, err
