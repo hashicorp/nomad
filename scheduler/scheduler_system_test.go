@@ -79,7 +79,7 @@ func TestSystemSched_JobRegister(t *testing.T) {
 	allocNames := helper.ConvertSlice(out,
 		func(alloc *structs.Allocation) string { return alloc.Name })
 	expectAllocNames := []string{}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.web[0]", job.Name))
 	}
 	must.SliceContainsAll(t, expectAllocNames, allocNames)
@@ -548,7 +548,7 @@ func TestSystemSched_JobModify(t *testing.T) {
 
 	// Add a few terminal status allocations, these should be ignored
 	var terminal []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1831,7 +1831,7 @@ func TestSystemSched_ChainedAlloc(t *testing.T) {
 	must.NoError(t, h1.State.UpsertJob(structs.MsgTypeTestSetup, h1.NextIndex(), nil, job1))
 
 	// Insert two more nodes
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -2026,7 +2026,7 @@ func TestSystemSched_Preemption(t *testing.T) {
 
 	// Create nodes
 	nodes := make([]*structs.Node, 0)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		node := mock.Node()
 		node.NodeResources = &structs.NodeResources{
 			Processors: processorResources,
@@ -3181,7 +3181,7 @@ func TestSystemSched_CSITopology(t *testing.T) {
 
 	// Create some nodes, each running a CSI plugin with topology for
 	// a different "zone"
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		node := mock.Node()
 		node.Datacenter = zones[i%4]
 		node.CSINodePlugins = map[string]*structs.CSIInfo{

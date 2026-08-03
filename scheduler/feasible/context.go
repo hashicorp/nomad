@@ -55,7 +55,7 @@ type Context interface {
 
 	// SendEvent provides best-effort delivery of scheduling and placement
 	// events.
-	SendEvent(event interface{})
+	SendEvent(event any)
 }
 
 type ConstraintContext interface {
@@ -96,7 +96,7 @@ func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
 // EvalContext is a Context used during an Evaluation
 type EvalContext struct {
 	EvalCache
-	eventsCh    chan<- interface{}
+	eventsCh    chan<- any
 	state       sstructs.State
 	plan        *structs.Plan
 	logger      log.Logger
@@ -105,7 +105,7 @@ type EvalContext struct {
 }
 
 // NewEvalContext constructs a new EvalContext
-func NewEvalContext(eventsCh chan<- interface{}, s sstructs.State, p *structs.Plan, log log.Logger) *EvalContext {
+func NewEvalContext(eventsCh chan<- any, s sstructs.State, p *structs.Plan, log log.Logger) *EvalContext {
 	ctx := &EvalContext{
 		eventsCh: eventsCh,
 		state:    s,
@@ -191,7 +191,7 @@ func (e *EvalContext) Eligibility() *EvalEligibility {
 	return e.eligibility
 }
 
-func (e *EvalContext) SendEvent(event interface{}) {
+func (e *EvalContext) SendEvent(event any) {
 	if e == nil || e.eventsCh == nil {
 		return
 	}

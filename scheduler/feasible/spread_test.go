@@ -482,7 +482,7 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 	var nodes []*RankedNode
 
 	// Add nodes in dc3 to the state store
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		node := mock.Node()
 		node.Datacenter = "dc3"
 		if err := state.UpsertNode(structs.MsgTypeTestSetup, uint64(100+i), node); err != nil {

@@ -28,7 +28,7 @@ const (
 // considers the task complete on success.
 type SysBatchScheduler struct {
 	logger   log.Logger
-	eventsCh chan<- interface{}
+	eventsCh chan<- any
 	state    sstructs.State
 	planner  sstructs.Planner
 
@@ -50,7 +50,7 @@ type SysBatchScheduler struct {
 	planAnnotations *structs.PlanAnnotations
 }
 
-func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	return &SysBatchScheduler{
 		logger:   logger.Named("sysbatch_sched"),
 		eventsCh: eventsCh,

@@ -52,7 +52,7 @@ func (s *SetStatusError) Error() string {
 // making at the cost of quality.
 type GenericScheduler struct {
 	logger   log.Logger
-	eventsCh chan<- interface{}
+	eventsCh chan<- any
 	state    sstructs.State
 	planner  sstructs.Planner
 	batch    bool
@@ -77,7 +77,7 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("service_sched"),
 		eventsCh: eventsCh,
@@ -89,7 +89,7 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state s
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("batch_sched"),
 		eventsCh: eventsCh,
