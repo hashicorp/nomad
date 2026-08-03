@@ -4,11 +4,11 @@
 package config
 
 import (
-	"crypto/md5"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 	"os"
 	"sync"
@@ -267,30 +267,28 @@ func (t *TLSConfig) SetChecksum() error {
 	return nil
 }
 
-func getFileChecksum(filepath string) (string, error) {
+func getFileChecksum(h hash.Hash, filepath string) error {
 	f, err := os.Open(filepath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer f.Close()
 
-	h := md5.New()
 	if _, err := io.Copy(h, f); err != nil {
-		return "", err
+		return err
 	}
 
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return nil
 }
 
 func createChecksumOfFiles(inputs ...string) (string, error) {
 	h := sha256.New()
 
 	for _, input := range inputs {
-		checksum, err := getFileChecksum(input)
+		err := getFileChecksum(h, input)
 		if err != nil {
 			return "", err
 		}
-		io.WriteString(h, checksum)
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
