@@ -18,6 +18,7 @@ var validEnvFingerprinters = []string{
 	"env_azure",
 	"env_gce",
 	"env_digitalocean",
+	"env_vsphere",
 }
 
 // Fingerprint is an optional configuration block for environment fingerprinters

@@ -261,6 +261,15 @@ func TestFingerprint_Validate(t *testing.T) {
 		must.NoError(t, f.Validate())
 	})
 
+	t.Run("valid env_vsphere fingerprint", func(t *testing.T) {
+		f := &Fingerprint{
+			Name:          "env_vsphere",
+			RetryInterval: 5 * time.Second,
+			RetryAttempts: 3,
+		}
+		must.NoError(t, f.Validate())
+	})
+
 	t.Run("valid fingerprint with zero values", func(t *testing.T) {
 		f := &Fingerprint{
 			Name:          "env_aws",
@@ -287,6 +296,7 @@ func Test_validEnvFingerprinters(t *testing.T) {
 		"env_azure",
 		"env_gce",
 		"env_digitalocean",
+		"env_vsphere",
 	}
 	must.Eq(t, expectedFingerprinters, validEnvFingerprinters)
 }
