@@ -59,7 +59,9 @@ type SystemScheduler struct {
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{},
+	state sstructs.State, planner sstructs.Planner,
+	_ ...sstructs.SchedulerOption) sstructs.Scheduler {
 	return &SystemScheduler{
 		logger:   logger.Named("system_sched"),
 		eventsCh: eventsCh,

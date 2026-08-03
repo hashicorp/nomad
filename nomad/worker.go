@@ -623,9 +623,10 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 	// Create the scheduler, or use the special core scheduler
 	var sched sstructs.Scheduler
 	if eval.Type == structs.JobTypeCore {
-		sched = NewCoreScheduler(w.srv, snap, w)
+		sched = NewCoreScheduler(w.srv, snap, w, withCoreDependencyChecker(w.srv.dependencyCoordinator))
 	} else {
-		sched, err = scheduler.NewScheduler(eval.Type, w.logger, w.srv.workersEventCh, snap, w)
+		sched, err = scheduler.NewScheduler(eval.Type, w.logger, w.srv.workersEventCh,
+			snap, w, scheduler.WithDependencyChecker(w.srv.dependencyCoordinator))
 		if err != nil {
 			return fmt.Errorf("failed to instantiate scheduler: %v", err)
 		}
