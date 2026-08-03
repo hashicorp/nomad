@@ -24,8 +24,8 @@ export default class ClientNodeRow extends Component {
     lazyClick([this.onClick, event]);
   }
 
-  didReceiveAttrs() {
-    super.didReceiveAttrs();
+  didInsertElement() {
+    super.didInsertElement(...arguments);
     // One-time reload to fetch node detail data (httpAddr, drivers, etc.).
     // Allocation counts are kept live by the route-level watchAll('allocation').
     const node = this.node;
