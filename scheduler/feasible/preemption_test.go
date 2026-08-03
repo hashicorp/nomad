@@ -183,7 +183,7 @@ func TestPreemption_Normal(t *testing.T) {
 	allocIDs := []string{uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate(), uuid.Generate()}
 
 	var deviceIDs []string
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		deviceIDs = append(deviceIDs, "dev"+strconv.Itoa(i))
 	}
 

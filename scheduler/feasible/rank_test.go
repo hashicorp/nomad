@@ -27,7 +27,7 @@ var testSchedulerConfig = &structs.SchedulerConfiguration{
 func TestFeasibleRankIterator(t *testing.T) {
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		nodes = append(nodes, mock.Node())
 	}
 	static := NewStaticIterator(ctx, nodes)
@@ -571,7 +571,7 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 
 func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 	_, ctx := MockContext(t)
-	eventsCh := make(chan interface{})
+	eventsCh := make(chan any)
 	ctx.eventsCh = eventsCh
 
 	// Host networks can have overlapping addresses in which case their
@@ -658,7 +658,7 @@ func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 // caught by validation or caused by bugs in serverside Node handling.
 func TestBinPackIterator_Network_NodeError(t *testing.T) {
 	_, ctx := MockContext(t)
-	eventsCh := make(chan interface{})
+	eventsCh := make(chan any)
 	ctx.eventsCh = eventsCh
 
 	nodes := []*RankedNode{
@@ -745,7 +745,7 @@ func TestBinPackIterator_Network_NodeError(t *testing.T) {
 
 func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 	state, ctx := MockContext(t)
-	eventsCh := make(chan interface{})
+	eventsCh := make(chan any)
 	ctx.eventsCh = eventsCh
 
 	nodes := []*RankedNode{
