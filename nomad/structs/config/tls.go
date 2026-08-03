@@ -5,6 +5,7 @@ package config
 
 import (
 	"crypto/md5"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
 	"fmt"
@@ -55,8 +56,8 @@ type TLSConfig struct {
 	// Verify connections to the HTTPS API
 	VerifyHTTPSClient bool `hcl:"verify_https_client"`
 
-	// Checksum is a MD5 hash of the certificate CA File, Certificate file, and
-	// key file.
+	// Checksum is a SHA256 hash of the certificate CA File, Certificate file, and
+	// key file. Used internally for comparing certificate info.
 	Checksum string
 
 	// TLSCipherSuites are operator-defined ciphers to be used in Nomad TLS
@@ -282,7 +283,7 @@ func getFileChecksum(filepath string) (string, error) {
 }
 
 func createChecksumOfFiles(inputs ...string) (string, error) {
-	h := md5.New()
+	h := sha256.New()
 
 	for _, input := range inputs {
 		checksum, err := getFileChecksum(input)
