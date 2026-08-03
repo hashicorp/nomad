@@ -26,12 +26,12 @@ func TestStaticIterator_Reset(t *testing.T) {
 
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		nodes = append(nodes, mock.Node())
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		static.Reset()
 		for j := 0; j < i; j++ {
 			static.Next()
@@ -58,7 +58,7 @@ func TestStaticIterator_SetNodes(t *testing.T) {
 
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		nodes = append(nodes, mock.Node())
 	}
 	static := NewStaticIterator(ctx, nodes)
@@ -76,7 +76,7 @@ func TestRandomIterator(t *testing.T) {
 
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		nodes = append(nodes, mock.Node())
 	}
 
@@ -1768,7 +1768,7 @@ func TestCheckConstraint(t *testing.T) {
 
 	type tcase struct {
 		op         string
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{
@@ -1968,7 +1968,7 @@ func TestCheckVersionConstraint(t *testing.T) {
 	ci.Parallel(t)
 
 	type tcase struct {
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{
@@ -2022,7 +2022,7 @@ func TestCheckSemverConstraint(t *testing.T) {
 
 	type tcase struct {
 		name       string
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{
@@ -2089,7 +2089,6 @@ func TestCheckSemverConstraint(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			_, ctx := MockContext(t)
 			p := newSemverConstraintParser(ctx)
@@ -2103,7 +2102,7 @@ func TestCheckRegexpConstraint(t *testing.T) {
 	ci.Parallel(t)
 
 	type tcase struct {
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{

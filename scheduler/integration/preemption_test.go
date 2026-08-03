@@ -100,7 +100,7 @@ func TestPreemptionMultiple(t *testing.T) {
 
 	allocs := []*structs.Allocation{}
 	allocIDs := map[string]struct{}{}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		alloc := tests.CreateAllocWithDevice(uuid.Generate(), lowPrioJob, lowPrioJob.TaskGroups[0].Tasks[0].Resources, &structs.AllocatedDeviceResource{
 			Type:      "gpu",
 			Vendor:    "nvidia",
