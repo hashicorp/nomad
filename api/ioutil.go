@@ -4,7 +4,6 @@
 package api
 
 import (
-	"crypto/md5"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
@@ -51,8 +50,8 @@ func newChecksumValidatingReader(r io.ReadCloser, digest string) (io.ReadCloser,
 		hash = sha256.New()
 	case "sha-512":
 		hash = sha512.New()
-	case "md5":
-		hash = md5.New()
+	default:
+		return nil, errors.New("unsupported checksum format")
 	}
 
 	return &checksumValidatingReader{
