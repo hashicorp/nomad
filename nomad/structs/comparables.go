@@ -179,13 +179,6 @@ type ComparableNetworks struct {
 	SharedPorts       AllocatedPorts
 }
 
-func (c *ComparableNetworks) Add(delta *ComparableNetworks) {
-	if delta == nil {
-		return
-	}
-	// TODO
-}
-
 func (c *ComparableNetworks) Copy() *ComparableNetworks {
 	n := new(ComparableNetworks)
 
