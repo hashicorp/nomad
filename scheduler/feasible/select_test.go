@@ -72,7 +72,7 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 	}
 
 	var nodes []*structs.Node
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		nodes = append(nodes, mock.Node())
 	}
 
