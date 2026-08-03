@@ -32,6 +32,7 @@ linters:
     - govet
     - ineffassign
     - misspell
+    - modernize
     - staticcheck
     - unconvert
     - usestdlibvars
@@ -58,6 +59,8 @@ linters:
         - ST1016
         - ST1020
   exclusions:
+    paths-except:
+      - scheduler/*
     rules:
       - path: (.+)\.go$
         text: ifElseChain
