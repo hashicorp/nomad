@@ -179,6 +179,15 @@ type ComparableNetworks struct {
 	SharedPorts       AllocatedPorts
 }
 
+func (c *ComparableNetworks) Add(delta *ComparableNetworks) {
+	if delta == nil {
+		return
+	}
+	c.FlattenedNetworks.Add(&delta.FlattenedNetworks)
+	c.SharedNetworks.Add(&delta.SharedNetworks)
+	// Skip adding ports to have maintain previous Comparable behavior
+}
+
 func (c *ComparableNetworks) Copy() *ComparableNetworks {
 	n := new(ComparableNetworks)
 
