@@ -60,6 +60,10 @@ const (
 	// UUID from context
 	MissingRequestID = "<missing request id>"
 
+	// ProtoHttp2 is the name used within the TLS configuration to
+	// enable HTTP/2.
+	ProtoHttp2 = "h2"
+
 	contentTypeHeader = "Content-Type"
 	plainContentType  = "text/plain; charset=utf-8"
 )
@@ -177,6 +181,9 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			if err != nil {
 				serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
 				continue
+			}
+			if !config.TLSConfig.DisableHTTP2 {
+				tlsConfig.NextProtos = []string{ProtoHttp2}
 			}
 			ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
 		}
@@ -764,6 +771,10 @@ func (s *HTTPServer) wrap(handler handlerFn) func(resp http.ResponseWriter, req 
 			obj, err = s.wrapWebsocketHandler(s.auditHandler(handler))(resp, req)
 		} else {
 			obj, err = s.auditHandler(handler)(resp, req)
+			// Add a header which informs of the protocol being used. This allows
+			// the UI to detect when HTTP2 is being used allowing it to disable
+			// websocket usage for blocking requests.
+			resp.Header().Add("X-Nomad-Protocol", req.Proto)
 		}
 
 		// Check for an error

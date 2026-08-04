@@ -35,11 +35,12 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 
 	// ostensibly GETs should not accept structured body, but the HTTP spec
 	// on this is more what you'd call "guidelines" than actual rules.
-	if req.Body != nil && req.Body != http.NoBody {
+	if !httpNoBody(req) {
 		var in api.JobStatusesRequest
 		if err := decodeBody(req, &in); err != nil {
 			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("error decoding request: %v", err))
 		}
+
 		if len(in.Jobs) == 0 {
 			return nil, CodedError(http.StatusBadRequest, "no jobs in request")
 		}
