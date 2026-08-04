@@ -77,7 +77,6 @@ module('Acceptance | access control', function (hooks) {
       'management token can access /administration',
     );
 
-
     await Administration.visitTokens();
     assert.deepEqual(
       currentURL(),

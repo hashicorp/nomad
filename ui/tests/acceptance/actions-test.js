@@ -129,7 +129,6 @@ module('Acceptance | actions', function (hooks) {
     );
     assert.ok(Actions.taskRowActions.length, 'Task row has actions dropdowns');
 
-
     // Sign out and sign back in as a token without alloc exec
     await Tokens.visit();
     await Tokens.clear();

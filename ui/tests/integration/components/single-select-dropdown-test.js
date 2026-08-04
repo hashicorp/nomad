@@ -50,7 +50,6 @@ module('Integration | Component | single-select dropdown', function (hooks) {
       ),
     );
     assert.notOk(find('[data-test-dropdown-options]'));
-
   });
 
   test('all options are shown in the dropdown', async function (assert) {

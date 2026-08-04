@@ -75,6 +75,5 @@ module('Integration | Component | task-sub-row', function (hooks) {
       hbs`<TaskSubRow @taskState={{this.task}} @active={{true}} @namespan={{9}} />`,
     );
     assert.dom('.task-sub-row td:nth-child(1)').hasAttribute('colspan', '9');
-
   });
 });

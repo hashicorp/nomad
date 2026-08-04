@@ -31,7 +31,6 @@ module(
     });
 
     test('it supports basic open/close states', async function (assert) {
-
       this.set('closeSidebar', () => this.set('service', null));
 
       this.set('service', { name: 'Funky Service' });

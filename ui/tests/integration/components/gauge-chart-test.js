@@ -35,7 +35,6 @@ module('Integration | Component | gauge chart', function (hooks) {
     assert.deepEqual(GaugeChart.label, props.label);
     assert.deepEqual(GaugeChart.percentage, '50%');
     assert.ok(GaugeChart.svgIsPresent);
-
   });
 
   test('the width of the chart is determined based on the container and the height is a function of the width', async function (assert) {

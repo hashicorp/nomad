@@ -35,7 +35,6 @@ module('Integration | Component | image file', function (hooks) {
       commonProperties.src,
       `src is ${commonProperties.src}`,
     );
-
   });
 
   test('the image is wrapped in an anchor that links directly to the image', async function (assert) {

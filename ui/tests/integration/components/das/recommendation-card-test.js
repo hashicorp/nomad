@@ -235,7 +235,6 @@ module('Integration | Component | das/recommendation-card', function (hooks) {
       RecommendationCard.activeTask.totalsTable.current.cpu.text,
       '125 MHz',
     );
-
   });
 
   test('it doesn’t have header toggles when there’s only one task', async function (assert) {

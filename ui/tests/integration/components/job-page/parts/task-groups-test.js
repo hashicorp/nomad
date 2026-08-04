@@ -65,7 +65,6 @@ module(
         job.get('taskGroups.length'),
         'One row per task group',
       );
-
     });
 
     test('each row in the task group table should show basic information about the task group', async function (assert) {

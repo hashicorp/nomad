@@ -75,7 +75,6 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       allocation.get('clientStatus'),
       'Allocation shows the status',
     );
-
   });
 
   test('when the allocation has failed and there is a follow up evaluation, a note with a time is shown', async function (assert) {
@@ -103,7 +102,6 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       find('[data-test-attempt-notice]'),
       'Reschdule attempt notice is not shown',
     );
-
   });
 
   test('when the allocation has failed and there is no follow up evaluation, a warning is shown', async function (assert) {
@@ -137,7 +135,6 @@ module('Integration | Component | reschedule event timeline', function (hooks) {
       'Reschedule notice is shown since the follow up eval says so',
     );
     assert.notOk(find('[data-test-stop-warning]'), 'Stop warning is not shown');
-
   });
 
   test('when the allocation has a next allocation already, it is shown in the timeline', async function (assert) {

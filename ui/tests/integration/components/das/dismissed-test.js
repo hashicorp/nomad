@@ -22,7 +22,6 @@ module('Integration | Component | das/dismissed', function (hooks) {
 
     await render(hbs`<Das::Dismissed @proceed={{this.proceedSpy}} />`);
 
-
     await click('input[type=checkbox]');
     await click('[data-test-understood]');
 
@@ -42,7 +41,6 @@ module('Integration | Component | das/dismissed', function (hooks) {
     await render(hbs`<Das::Dismissed @proceed={{this.proceedSpy}} />`);
 
     assert.dom('[data-test-understood]').doesNotExist();
-
 
     assert.ok(proceedSpy.calledWith({ manuallyDismissed: false }));
   });

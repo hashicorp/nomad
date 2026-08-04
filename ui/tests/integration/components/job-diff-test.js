@@ -66,7 +66,6 @@ module('Integration | Component | job diff', function (hooks) {
       '- Removed Field: "12"',
       'Removed field is rendered correctly',
     );
-
   });
 
   test('job object diffs', async function (assert) {
@@ -180,7 +179,6 @@ module('Integration | Component | job diff', function (hooks) {
       this.diff.Objects[1].Objects[0].Fields.length,
       'Objects within objects are rendered',
     );
-
   });
 
   function field(name, type, newVal, oldVal) {

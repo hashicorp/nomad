@@ -54,7 +54,6 @@ module('Integration | Component | stepper input', function (hooks) {
     assert.ok(
       StepperInput.increment.classNames.split(' ').includes(this.classVariant),
     );
-
   });
 
   test('clicking the increment and decrement buttons immediately changes the shown value in the input but debounces the onUpdate call', async function (assert) {

@@ -87,7 +87,6 @@ module('Integration | Component | task group row', function (hooks) {
 
     await settled();
     assert.ok(find('[data-test-scale]'));
-
   });
 
   test('Clicking scaling buttons immediately updates the rendered count but debounces the scaling API request', async function (assert) {
@@ -142,7 +141,6 @@ module('Integration | Component | task group row', function (hooks) {
 
     await render(commonTemplate);
     assert.ok(find('[data-test-scale="increment"]:disabled'));
-
   });
 
   test('When the current count is equal to the min count, the decrement count button is disabled', async function (assert) {
@@ -157,7 +155,6 @@ module('Integration | Component | task group row', function (hooks) {
 
     await render(commonTemplate);
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
-
   });
 
   test('When there is an active deployment, both scale buttons are disabled', async function (assert) {
@@ -171,7 +168,6 @@ module('Integration | Component | task group row', function (hooks) {
     await render(commonTemplate);
     assert.ok(find('[data-test-scale="increment"]:disabled'));
     assert.ok(find('[data-test-scale="decrement"]:disabled'));
-
   });
 
   test('When the current ACL token does not have the namespace:scale-job or namespace:submit-job policy rule', async function (assert) {

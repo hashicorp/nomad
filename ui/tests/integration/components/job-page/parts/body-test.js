@@ -65,7 +65,6 @@ module('Integration | Component | job-page/parts/body', function (hooks) {
       subnavLabels.some((label) => label === 'Deployments'),
       'Deployments link',
     );
-
   });
 
   test('the subnav does not include the deployments link when the job is not a service', async function (assert) {

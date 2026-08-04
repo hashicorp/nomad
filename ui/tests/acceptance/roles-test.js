@@ -5,7 +5,14 @@
 
 import { module, test } from 'qunit';
 import { a11yAudit } from 'ember-a11y-testing/test-support';
-import { findAll, fillIn, find, click, currentURL, visit } from '@ember/test-helpers';
+import {
+  findAll,
+  fillIn,
+  find,
+  click,
+  currentURL,
+  visit,
+} from '@ember/test-helpers';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { allScenarios } from '../../mirage/scenarios/default';
@@ -55,7 +62,6 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('Roles index, general', async function (assert) {
-
     assert.deepEqual(currentURL(), '/administration/roles');
 
     assert

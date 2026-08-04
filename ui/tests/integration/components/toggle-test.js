@@ -55,7 +55,6 @@ module('Integration | Component | toggle', function (hooks) {
       'checkbox',
       'The input type is checkbox',
     );
-
   });
 
   test('the isActive property dictates the active state and class', async function (assert) {
@@ -71,7 +70,6 @@ module('Integration | Component | toggle', function (hooks) {
 
     assert.ok(Toggle.isActive);
     assert.ok(Toggle.hasActiveClass);
-
   });
 
   test('the isDisabled property dictates the disabled state and class', async function (assert) {
@@ -87,7 +85,6 @@ module('Integration | Component | toggle', function (hooks) {
 
     assert.ok(Toggle.isDisabled);
     assert.ok(Toggle.hasDisabledClass);
-
   });
 
   test('toggling the input calls the onToggle action', async function (assert) {

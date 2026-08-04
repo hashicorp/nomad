@@ -87,7 +87,6 @@ module('Integration | Component | scale-events-chart', function (hooks) {
       this.getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
       JSON.stringify(annotation.meta, null, 2),
     );
-
   });
 
   test('clicking an active annotation closes event details', async function (assert) {

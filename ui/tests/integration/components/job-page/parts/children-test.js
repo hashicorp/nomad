@@ -113,7 +113,6 @@ module('Integration | Component | job-page/parts/children', function (hooks) {
         '1 – 10 of 11',
         'Formats pagination to follow formula `startingIdx - endingIdx of totalTableCount',
       );
-
   });
 
   test('is sorted based on the sortProperty and sortDescending properties', async function (assert) {

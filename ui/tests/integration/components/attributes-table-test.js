@@ -55,7 +55,6 @@ module('Integration | Component | attributes table', function (hooks) {
       rowsCount,
       `Table has ${rowsCount} rows with values`,
     );
-
   });
 
   test('should render the full path of key/value pair from the root of the object', async function (assert) {

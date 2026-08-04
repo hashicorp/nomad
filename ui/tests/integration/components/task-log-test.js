@@ -118,7 +118,6 @@ module.skip('Integration | Component | task log', function (hooks) {
       find('pre.cli-window'),
       'Cli is preformatted and using the cli-window component class',
     );
-
   });
 
   test('Streaming starts on creation', async function (assert) {
@@ -144,7 +143,6 @@ module.skip('Integration | Component | task log', function (hooks) {
       streamFrames[0],
       'First chunk of streaming log is shown',
     );
-
   });
 
   test('Clicking Head loads the log head', async function (assert) {
@@ -363,7 +361,6 @@ module.skip('Integration | Component | task log', function (hooks) {
       find('[data-test-connection-error]'),
       'The error message is dismissable',
     );
-
   });
 
   test('When the client is inaccessible, the server is accessible, and stderr is pressed before the client timeout occurs, the no connection error is not shown', async function (assert) {

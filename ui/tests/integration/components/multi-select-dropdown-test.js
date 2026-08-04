@@ -62,7 +62,6 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       find('[data-test-dropdown-options]'),
       'Options are not rendered',
     );
-
   });
 
   test('component opens the options dropdown when clicked', async function (assert) {
@@ -147,7 +146,6 @@ module('Integration | Component | multi-select dropdown', function (hooks) {
       props.selection.length,
       'The count is accurate',
     );
-
 
     await this.set('selection', []);
 

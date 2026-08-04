@@ -75,7 +75,6 @@ module(
           'The number of unplaced allocs = CoalescedFailures + 1',
         );
       });
-
     });
 
     test('when the job has no placement failures, the placement failures section is gone', async function (assert) {

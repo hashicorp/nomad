@@ -42,14 +42,12 @@ module('Integration | Component | variable-paths', function (hooks) {
     this.set('emptyRoot', { children: {}, files: [] });
     await render(hbs`<VariablePaths @branch={{this.emptyRoot}} />`);
     assert.dom('tbody tr').exists({ count: 0 });
-
   });
 
   test('it renders with data', async function (assert) {
     this.set('tree', tree);
     await render(hbs`<VariablePaths @branch={{this.tree.paths.root}} />`);
     assert.dom('tbody tr').exists({ count: 2 }, 'There are two rows');
-
   });
 
   test('it allows for traversal: Folders', async function (assert) {
@@ -69,7 +67,6 @@ module('Integration | Component | variable-paths', function (hooks) {
         'folder',
         'Correctly renders the folder icon',
       );
-
   });
 
   test('it allows for traversal: Files', async function (assert) {

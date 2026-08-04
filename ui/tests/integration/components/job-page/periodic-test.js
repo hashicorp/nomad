@@ -178,7 +178,6 @@ module('Integration | Component | job-page/periodic', function (hooks) {
     assert.ok(
       find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
     );
-
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {

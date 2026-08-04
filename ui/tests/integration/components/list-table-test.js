@@ -99,7 +99,6 @@ module('Integration | Component | list table', function (hooks) {
         'Index',
       );
     });
-
   });
 
   // Ember doesn't support query params (or controllers or routes) in integration tests,

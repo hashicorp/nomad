@@ -69,7 +69,6 @@ module('Integration | Component | agent-monitor', function (hooks) {
     assert.ok(find('[data-test-toggle]'));
     assert.ok(find('[data-test-log-box]'));
     assert.ok(find('[data-test-log-box].is-full-bleed.is-dark'));
-
   });
 
   // TODO(ember5-upgrade): Re-enable streaming behaviors once long-lived

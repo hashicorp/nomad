@@ -48,7 +48,6 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       find('[data-test-allocation-status-bar]'),
       'Allocation status bar not found',
     );
-
   });
 
   test('jobs without children use the allocations diagram', async function (assert) {
@@ -72,7 +71,6 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       find('[data-test-children-status-bar]'),
       'Children status bar not found',
     );
-
   });
 
   test('the allocations diagram lists all allocation status figures', async function (assert) {
@@ -199,7 +197,6 @@ module('Integration | Component | job-page/parts/summary', function (hooks) {
       find('.inline-chart [data-test-allocation-status-bar]'),
       'Allocation bar is rendered in an inline-chart container',
     );
-
   });
 
   test('the collapsed/expanded state is persisted to localStorage', async function (assert) {

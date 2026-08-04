@@ -76,7 +76,6 @@ module('Integration | Component | TopoViz::Datacenter', function (hooks) {
       TopoVizDatacenter.nodes.length,
       this.datacenter.nodes.length,
     );
-
   });
 
   test('datacenter stats are an aggregate of node stats', async function (assert) {

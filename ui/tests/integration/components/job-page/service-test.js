@@ -106,7 +106,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     assert.ok(
       find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
     );
-
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
@@ -198,7 +197,6 @@ module('Integration | Component | job-page/service', function (hooks) {
       allocation.taskGroup,
       'Task Group name',
     );
-
   });
 
   test('Recent allocations caps out at five', async function (assert) {
@@ -235,7 +233,6 @@ module('Integration | Component | job-page/service', function (hooks) {
       Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
       'No allocations empty message',
     );
-
   });
 
   test('Active deployment can be promoted', async function (assert) {

@@ -109,7 +109,6 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-file-box] [data-test-image-file]'),
       'The image file component was not rendered',
     );
-
   });
 
   test('When a file is an image, the file mode is image', async function (assert) {
@@ -126,7 +125,6 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-file-box] [data-test-log-cli]'),
       'The streaming file component was not rendered',
     );
-
   });
 
   test('When the file is neither text-based or an image, the unsupported file type empty state is shown', async function (assert) {
@@ -257,7 +255,6 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-header] [data-test-yield-spy]'),
       'Yielded content shows up in the header',
     );
-
   });
 
   test('The body is full-bleed and dark when the file is streaming', async function (assert) {

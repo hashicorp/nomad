@@ -91,7 +91,6 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
       this.node.allocations.filterBy('allocation.isScheduled').length,
     );
     assert.ok(TopoVizNode.cpuRects.length);
-
   });
 
   test('the label contains aggregate information about the node', async function (assert) {

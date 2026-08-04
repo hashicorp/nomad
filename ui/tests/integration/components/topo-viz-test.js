@@ -68,7 +68,6 @@ module('Integration | Component | TopoViz', function (hooks) {
     assert.deepEqual(TopoViz.datacenters[1].nodes.length, 1);
     assert.deepEqual(TopoViz.datacenters[0].nodes[0].memoryRects.length, 2);
     assert.deepEqual(TopoViz.datacenters[1].nodes[0].memoryRects.length, 1);
-
   });
 
   test('clicking on a node in a deeply nested TopoViz::Node will toggle node selection and call @onNodeSelect', async function (assert) {

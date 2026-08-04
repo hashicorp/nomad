@@ -57,7 +57,6 @@ module('Integration | Component | two step button', function (hooks) {
       find('[data-test-confirmation-message]'),
       'No confirmation message yet',
     );
-
   });
 
   test('clicking the idle state button transitions into the promptForConfirmation state', async function (assert) {
@@ -135,7 +134,6 @@ module('Integration | Component | two step button', function (hooks) {
       'Loading...',
       'The confirm button is in a loading state',
     );
-
   });
 
   test('when in the prompt state, clicking outside will reset state back to idle', async function (assert) {
@@ -188,6 +186,5 @@ module('Integration | Component | two step button', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TwoStepButton.isDisabled, 'The idle button is disabled');
-
   });
 });

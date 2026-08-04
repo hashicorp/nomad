@@ -90,7 +90,6 @@ module('Integration | Component | placement failures', function (hooks) {
       1,
       'Scores message shown',
     );
-
   });
 
   test('should render correctly when a node is not evaluated', async function (assert) {
@@ -114,7 +113,6 @@ module('Integration | Component | placement failures', function (hooks) {
       0,
       'Nodes exhausted message NOT shown when there are no nodes exhausted',
     );
-
   });
 
   function createFixture(obj = {}, name = 'Placement Failure') {

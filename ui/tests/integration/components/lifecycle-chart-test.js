@@ -90,7 +90,6 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       assert.notOk(task.isActive);
       assert.notOk(task.isFinished);
     });
-
   });
 
   test('it doesn’t render when there’s only one phase', async function (assert) {
@@ -132,7 +131,6 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     // Change poststart-ephemeral to be running
     this.set('taskStates.4.state', 'running');
     await settled();
-
 
     assert.ok(Chart.tasks[5].isActive);
 

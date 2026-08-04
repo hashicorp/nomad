@@ -54,7 +54,6 @@ module('Integration | Component | line-chart', function (hooks) {
         `${datum.type} event at ${datum.x}`,
       );
     });
-
   });
 
   test('when a chart has annotations and is timeseries, annotations are sorted reverse-chronologically', async function (assert) {
@@ -160,7 +159,6 @@ module('Integration | Component | line-chart', function (hooks) {
     assert.notOk(annotationEls[0].classList.contains('is-staggered'));
     assert.ok(annotationEls[1].classList.contains('is-staggered'));
     assert.notOk(annotationEls[2].classList.contains('is-staggered'));
-
   });
 
   test('horizontal annotations render in order', async function (assert) {

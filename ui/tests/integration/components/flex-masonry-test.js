@@ -31,7 +31,6 @@ module('Integration | Component | FlexMasonry', function (hooks) {
     assert.ok(div);
     assert.deepEqual(div.tagName.toLowerCase(), 'div');
     assert.deepEqual(div.children.length, 0);
-
   });
 
   test('each item in @items gets wrapped in a flex-masonry-item wrapper', async function (assert) {

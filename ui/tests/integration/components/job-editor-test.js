@@ -111,7 +111,6 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     assert.ok('[data-test-job-editor]', 'Editor is present');
-
   });
 
   test('submitting a json job skips the parse endpoint', async function (assert) {
@@ -174,7 +173,6 @@ module('Integration | Component | job-editor', function (hooks) {
     assert
       .dom('[data-test-plan-help-title]')
       .exists('The plan explanation popup is shown');
-
   });
 
   test('from the plan screen, the cancel button goes back to the editor with the job still in tact', async function (assert) {
@@ -217,7 +215,6 @@ module('Integration | Component | job-editor', function (hooks) {
       errorMessage,
       'The error message from the server is shown in the error in the UI',
     );
-
   });
 
   test('when plan fails, the plan error message is shown', async function (assert) {
@@ -248,7 +245,6 @@ module('Integration | Component | job-editor', function (hooks) {
       errorMessage,
       'The error message from the server is shown in the error in the UI',
     );
-
   });
 
   test('when run fails, the run error message is shown', async function (assert) {
@@ -278,7 +274,6 @@ module('Integration | Component | job-editor', function (hooks) {
       errorMessage,
       'The error message from the server is shown in the error in the UI',
     );
-
   });
 
   test('when the scheduler dry-run has errors, the errors are shown to the user', async function (assert) {
@@ -306,7 +301,6 @@ module('Integration | Component | job-editor', function (hooks) {
       Editor.warningMessage.isPresent,
       'The scheduler dry-run warning block is not present when there is an error but no warnings',
     );
-
   });
 
   test('When the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {
@@ -337,7 +331,6 @@ module('Integration | Component | job-editor', function (hooks) {
       Editor.dryRunMessage.errored,
       'The warning message is not shown in addition to the success message',
     );
-
   });
 
   test('when a job is submitted in the edit context, a POST request is made to the update job endpoint', async function (assert) {
@@ -446,7 +439,6 @@ module('Integration | Component | job-editor', function (hooks) {
     `);
 
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
-
   });
 
   test('constructor sets definition and variables correctly', async function (assert) {
