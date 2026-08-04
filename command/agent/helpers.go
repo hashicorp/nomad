@@ -3,6 +3,10 @@
 
 package agent
 
+import (
+	"net/http"
+)
+
 // rpcHandlerForAlloc is a helper that given an allocation ID returns whether to
 // use the local clients RPC, the local clients remote RPC or the server on the
 // agent.
@@ -52,4 +56,15 @@ func (s *HTTPServer) rpcHandlerForNode(nodeID string) (localClient, remoteClient
 	useServerRPC := !localClient && !useClientRPC && srv != nil && nodeID != ""
 
 	return localClient, useClientRPC, useServerRPC
+}
+
+// httpNoBody checks if the request has no body or is empty. For http1
+// requests, the body will be set to NoBody if there is no body, but
+// for http2 the body will just be an empty reader.
+//
+// ref: https://github.com/golang/go/issues/53894
+func httpNoBody(req *http.Request) bool {
+	return req.Body == nil ||
+		req.Body == http.NoBody ||
+		req.ContentLength == 0
 }

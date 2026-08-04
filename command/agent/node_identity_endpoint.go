@@ -61,7 +61,7 @@ func (s *HTTPServer) NodeIdentityRenewRequest(resp http.ResponseWriter, req *htt
 
 	// If the request body is not empty, it is likely the caller is using this
 	// to indicate the node ID. Decode it.
-	if req.Body != nil && req.Body != http.NoBody {
+	if !httpNoBody(req) {
 		if err := decodeBody(req, &args); err != nil {
 			return nil, CodedError(http.StatusBadRequest, err.Error())
 		}
