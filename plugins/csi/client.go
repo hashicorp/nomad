@@ -609,12 +609,10 @@ NEXT_CAP:
 		}
 
 		for _, expectedFlag := range expectedMount.MountFlags {
-			var ok bool
-			if slices.Contains(capMount.MountFlags, expectedFlag) {
-				ok = true
-			}
-			if !ok {
-				// mount flags can contain sensitive data, so we can't log details
+
+			// The mount flags can contain sensitive data, so we can't log exact
+			// details.
+			if !slices.Contains(capMount.MountFlags, expectedFlag) {
 				multierror.Append(&err, fmt.Errorf(
 					"requested mount flags did not match available capabilities"))
 				continue NEXT_CAP
