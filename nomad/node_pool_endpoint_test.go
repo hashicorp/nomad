@@ -889,7 +889,7 @@ func TestNodePoolEndpoint_DeleteNodePools(t *testing.T) {
 
 	// Insert a few node pools that we can delete.
 	var pools []*structs.NodePool
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		pools = append(pools, mock.NodePool())
 	}
 	err := store.UpsertNodePools(structs.MsgTypeTestSetup, 100, pools)
@@ -1017,7 +1017,7 @@ func TestNodePoolEndpoint_DeleteNodePools_ACL(t *testing.T) {
 
 	// Insert a few node pools that we can delete.
 	var pools []*structs.NodePool
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		devPool := mock.NodePool()
 		devPool.Name = fmt.Sprintf("dev-%d", i)
 		pools = append(pools, devPool)
@@ -1657,7 +1657,7 @@ func TestNodePoolEndpoint_ListNodes(t *testing.T) {
 	must.NoError(t, err)
 
 	// Split test nodes between default, pool1, and pool2.
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		node := mock.Node()
 		switch i % 3 {
 		case 0:

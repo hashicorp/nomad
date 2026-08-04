@@ -313,12 +313,12 @@ func (s *StateStore) StopEventBroker() {
 
 // QueryFn is the definition of a function that can be used to implement a basic
 // blocking query against the state store.
-type QueryFn func(memdb.WatchSet, *StateStore) (resp interface{}, index uint64, err error)
+type QueryFn func(memdb.WatchSet, *StateStore) (resp any, index uint64, err error)
 
 // BlockingQuery takes a query function and runs the function until the minimum
 // query index is met or until the passed context is cancelled.
 func (s *StateStore) BlockingQuery(query QueryFn, minIndex uint64, ctx context.Context) (
-	resp interface{}, index uint64, err error) {
+	resp any, index uint64, err error) {
 
 RUN_QUERY:
 	// We capture the state store and its abandon channel but pass a snapshot to
@@ -703,8 +703,8 @@ func (s *StateStore) DeploymentsByIDPrefix(ws memdb.WatchSet, namespace, deploym
 
 // deploymentNamespaceFilter returns a filter function that filters all
 // deployment not in the given namespace.
-func deploymentNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func deploymentNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		d, ok := raw.(*structs.Deployment)
 		if !ok {
 			return true
@@ -2133,7 +2133,7 @@ func (s *StateStore) deleteJobScalingPolicies(index uint64, job *structs.Job, tx
 
 	// Put them into a slice so there are no safety concerns while actually
 	// performing the deletes
-	policies := []interface{}{}
+	policies := []any{}
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -2375,7 +2375,7 @@ func (s *StateStore) jobsByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix strin
 	ws.Add(iter.WatchCh())
 
 	// Filter the iterator by ID prefix
-	f := func(raw interface{}) bool {
+	f := func(raw any) bool {
 		job, ok := raw.(*structs.Job)
 		if !ok {
 			return true
@@ -2745,7 +2745,7 @@ func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, 
 	}
 
 	// Filter the iterator by namespace
-	f := func(raw interface{}) bool {
+	f := func(raw any) bool {
 		v, ok := raw.(*structs.CSIVolume)
 		if !ok {
 			return false
@@ -2790,7 +2790,7 @@ func (s *StateStore) csiVolumeByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix 
 	ws.Add(iter.WatchCh())
 
 	// Filter the iterator by ID prefix
-	f := func(raw interface{}) bool {
+	f := func(raw any) bool {
 		v, ok := raw.(*structs.CSIVolume)
 		if !ok {
 			return false
@@ -3915,8 +3915,8 @@ func (s *StateStore) EvalsByIDPrefix(ws memdb.WatchSet, namespace, id string, so
 
 // evalNamespaceFilter returns a filter function that filters all evaluations
 // not in the given namespace.
-func evalNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func evalNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		eval, ok := raw.(*structs.Evaluation)
 		if !ok {
 			return true
@@ -4531,8 +4531,8 @@ func (s *StateStore) AllocsByIDPrefix(ws memdb.WatchSet, namespace, id string, s
 
 // allocNamespaceFilter returns a filter function that filters all allocations
 // not in the given namespace.
-func allocNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func allocNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		alloc, ok := raw.(*structs.Allocation)
 		if !ok {
 			return true
@@ -6013,13 +6013,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 
 	// Ensure PlacedCanaries accurately reflects the alloc canary status
 	if alloc.DeploymentStatus != nil && alloc.DeploymentStatus.Canary {
-		found := false
-		for _, canary := range dstate.PlacedCanaries {
-			if alloc.ID == canary {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(dstate.PlacedCanaries, alloc.ID)
 		if !found {
 			dstate.PlacedCanaries = append(dstate.PlacedCanaries, alloc.ID)
 		}
@@ -6733,8 +6727,8 @@ func (s *StateStore) OneTimeTokenBySecret(ws memdb.WatchSet, secret string) (*st
 
 // expiredOneTimeTokenFilter returns a filter function that returns only
 // expired one-time tokens
-func expiredOneTimeTokenFilter(now time.Time) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func expiredOneTimeTokenFilter(now time.Time) func(any) bool {
+	return func(raw any) bool {
 		ott, ok := raw.(*structs.OneTimeToken)
 		if !ok {
 			return true
@@ -7270,7 +7264,7 @@ func (s *StateStore) ScalingPoliciesByNamespace(ws memdb.WatchSet, namespace, ty
 
 	// If policy type is specified as well, wrap again
 	if typ != "" {
-		iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+		iter = memdb.NewFilterIterator(iter, func(raw any) bool {
 			p, ok := raw.(*structs.ScalingPolicy)
 			if !ok {
 				return true
@@ -7294,7 +7288,7 @@ func (s *StateStore) ScalingPoliciesByJob(ws memdb.WatchSet, namespace, jobID, p
 		return iter, nil
 	}
 
-	filter := func(raw interface{}) bool {
+	filter := func(raw any) bool {
 		p, ok := raw.(*structs.ScalingPolicy)
 		if !ok {
 			return true
@@ -7315,7 +7309,7 @@ func (s *StateStore) ScalingPoliciesByJobTxn(ws memdb.WatchSet, namespace, jobID
 
 	ws.Add(iter.WatchCh())
 
-	filter := func(raw interface{}) bool {
+	filter := func(raw any) bool {
 		d, ok := raw.(*structs.ScalingPolicy)
 		if !ok {
 			return true
@@ -7397,8 +7391,8 @@ func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace stri
 
 // scalingPolicyNamespaceFilter returns a filter function that filters all
 // scaling policies not targeting the given namespace.
-func scalingPolicyNamespaceFilter(namespace string) func(interface{}) bool {
-	return func(raw interface{}) bool {
+func scalingPolicyNamespaceFilter(namespace string) func(any) bool {
+	return func(raw any) bool {
 		p, ok := raw.(*structs.ScalingPolicy)
 		if !ok {
 			return true

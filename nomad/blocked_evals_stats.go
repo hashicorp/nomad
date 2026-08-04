@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"maps"
 	"sync"
 	"time"
 
@@ -229,13 +230,11 @@ func NewBlockedResourcesStats() *BlockedResourcesStats {
 func (b *BlockedResourcesStats) Copy() *BlockedResourcesStats {
 	result := NewBlockedResourcesStats()
 
-	for k, v := range b.ByJob {
-		result.ByJob[k] = v // value copy
-	}
+	// value copy
+	maps.Copy(result.ByJob, b.ByJob)
 
-	for k, v := range b.ByClassInDC {
-		result.ByClassInDC[k] = v // value copy
-	}
+	// value copy
+	maps.Copy(result.ByClassInDC, b.ByClassInDC)
 
 	return result
 }

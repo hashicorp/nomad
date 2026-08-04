@@ -894,7 +894,7 @@ func (a *ACLToken) MarshalJSON() ([]byte, error) {
 func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
 	type Alias ACLToken
 	aux := &struct {
-		ExpirationTTL interface{}
+		ExpirationTTL any
 		Hash          string
 		*Alias
 	}{
@@ -1329,7 +1329,7 @@ func (a *ACLAuthMethod) MarshalJSON() ([]byte, error) {
 func (a *ACLAuthMethod) UnmarshalJSON(data []byte) (err error) {
 	type Alias ACLAuthMethod
 	aux := &struct {
-		MaxTokenTTL interface{}
+		MaxTokenTTL any
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -2508,7 +2508,7 @@ func (a *ACLCreateClientIntroductionTokenRequest) MarshalJSON() ([]byte, error) 
 func (a *ACLCreateClientIntroductionTokenRequest) UnmarshalJSON(data []byte) (err error) {
 	type Alias ACLCreateClientIntroductionTokenRequest
 	aux := &struct {
-		TTL interface{}
+		TTL any
 		*Alias
 	}{
 		Alias: (*Alias)(a),

@@ -271,7 +271,7 @@ type Server struct {
 	workers          []*Worker
 	workerLock       sync.RWMutex
 	workerConfigLock sync.RWMutex
-	workersEventCh   chan interface{}
+	workersEventCh   chan any
 
 	// workerShutdownGroup tracks the running worker goroutines so that Shutdown()
 	// can wait on their completion
@@ -375,7 +375,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		eventCh:                 make(chan serf.Event, 256),
 		reapCancelableEvalsCh:   make(chan struct{}),
 		rpcTLS:                  incomingTLS,
-		workersEventCh:          make(chan interface{}, 1),
+		workersEventCh:          make(chan any, 1),
 		lockTTLTimer:            lock.NewTTLTimer(),
 		lockDelayTimer:          lock.NewDelayTimer(),
 	}
@@ -2153,7 +2153,7 @@ func (s *Server) Regions() []string {
 }
 
 // RPC is used to make a local RPC call
-func (s *Server) RPC(method string, args interface{}, reply interface{}) error {
+func (s *Server) RPC(method string, args any, reply any) error {
 	codec := &codec.InmemCodec{
 		Method: method,
 		Args:   args,

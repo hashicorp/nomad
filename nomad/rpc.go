@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"net"
 	"net/rpc"
+	"slices"
 	"strings"
 	"time"
 
@@ -155,10 +156,8 @@ func (ctx *RPCContext) ValidateCertificateForName(name string) error {
 
 	validNames := []string{cert.Subject.CommonName}
 	validNames = append(validNames, cert.DNSNames...)
-	for _, valid := range validNames {
-		if name == valid {
-			return nil
-		}
+	if slices.Contains(validNames, name) {
+		return nil
 	}
 
 	return fmt.Errorf("invalid certificate, %s not in %s", name, strings.Join(validNames, ","))
@@ -583,7 +582,7 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 
 // forward is used to forward to a remote region or to forward to the local leader
 // Returns a bool of if forwarding was performed, as well as any error
-func (r *rpcHandler) forward(method string, info structs.RPCInfo, args interface{}, reply interface{}) (bool, error) {
+func (r *rpcHandler) forward(method string, info structs.RPCInfo, args any, reply any) (bool, error) {
 	region := info.RequestRegion()
 	if region == "" {
 		return true, fmt.Errorf("missing region for target RPC")
@@ -682,7 +681,7 @@ func (s *Server) getLeader() (bool, *peers.Parts) {
 }
 
 // forwardLeader is used to forward an RPC call to the leader, or fail if no leader
-func (r *rpcHandler) forwardLeader(server *peers.Parts, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardLeader(server *peers.Parts, method string, args any, reply any) error {
 	// Handle a missing server
 	if server == nil {
 		return structs.ErrNoLeader
@@ -691,7 +690,7 @@ func (r *rpcHandler) forwardLeader(server *peers.Parts, method string, args inte
 }
 
 // forwardServer is used to forward an RPC call to a particular server
-func (r *rpcHandler) forwardServer(server *peers.Parts, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardServer(server *peers.Parts, method string, args any, reply any) error {
 	// Handle a missing server
 	if server == nil {
 		return errors.New("must be given a valid server address")
@@ -713,7 +712,7 @@ func (r *rpcHandler) findRegionServer(region string) (*peers.Parts, error) {
 }
 
 // forwardRegion is used to forward an RPC call to a remote region, or fail if no servers
-func (r *rpcHandler) forwardRegion(region, method string, args interface{}, reply interface{}) error {
+func (r *rpcHandler) forwardRegion(region, method string, args any, reply any) error {
 	server, err := r.findRegionServer(region)
 	if err != nil {
 		return err
@@ -787,7 +786,7 @@ func (r *rpcHandler) streamingRpcImpl(conn net.Conn, method string) (net.Conn, e
 }
 
 // raftApplyFuture is used to encode a message, run it through raft, and return the Raft future.
-func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.ApplyFuture, error) {
+func (s *Server) raftApplyFuture(t structs.MessageType, msg any) (raft.ApplyFuture, error) {
 	buf, err := structs.Encode(t, msg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to encode request: %v", err)
@@ -803,7 +802,7 @@ func (s *Server) raftApplyFuture(t structs.MessageType, msg interface{}) (raft.A
 }
 
 // raftApplyFn is the function signature for applying a msg to Raft
-type raftApplyFn func(t structs.MessageType, msg interface{}) (interface{}, uint64, error)
+type raftApplyFn func(t structs.MessageType, msg any) (any, uint64, error)
 
 // raftApply is used to encode a message, run it through raft, and return the
 // FSM response along with any errors. If the FSM.Apply response is an error it

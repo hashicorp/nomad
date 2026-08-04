@@ -1324,7 +1324,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 
 					// We have two service registrations, therefore loop twice in
 					// order to check the return array and pagination details.
-					for i := 0; i < 2; i++ {
+					for i := range 2 {
 
 						// The message makes debugging test failures easier as we
 						// are inside a loop.

@@ -127,10 +127,10 @@ func TestPaginator(t *testing.T) {
 
 // implements Iterator interface
 type testResultIterator struct {
-	results chan interface{}
+	results chan any
 }
 
-func (i testResultIterator) Next() interface{} {
+func (i testResultIterator) Next() any {
 	select {
 	case raw := <-i.results:
 		if raw == nil {
@@ -163,7 +163,7 @@ func (m *mockObject) GetID() string {
 }
 
 func newTestIterator(ids []string) testResultIterator {
-	iter := testResultIterator{results: make(chan interface{}, 20)}
+	iter := testResultIterator{results: make(chan any, 20)}
 	for x, id := range ids {
 		iter.results <- &mockObject{
 			index: uint64(x),
@@ -174,7 +174,7 @@ func newTestIterator(ids []string) testResultIterator {
 }
 
 func newTestIteratorWithMocks(mocks []*mockObject) testResultIterator {
-	iter := testResultIterator{results: make(chan interface{}, 20)}
+	iter := testResultIterator{results: make(chan any, 20)}
 	for _, m := range mocks {
 		iter.results <- m
 	}

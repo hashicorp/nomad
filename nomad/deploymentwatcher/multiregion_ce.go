@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
-// +build !ent
 
 package deploymentwatcher
 
@@ -10,8 +9,8 @@ import "github.com/hashicorp/nomad/nomad/structs"
 
 // DeploymentRPC and JobRPC hold methods for interacting with peer regions
 // in enterprise edition.
-type DeploymentRPC interface{}
-type JobRPC interface{}
+type DeploymentRPC any
+type JobRPC any
 
 func (w *deploymentWatcher) nextRegion(status string) error {
 	return nil

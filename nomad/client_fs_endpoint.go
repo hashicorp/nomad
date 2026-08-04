@@ -55,7 +55,7 @@ func handleStreamResultError(err error, code *int64, encoder *codec.Encoder) {
 // region. It looks up the allocation in the remote region to determine what
 // remote server can route the request.
 func forwardRegionStreamingRpc(fsrv *Server, conn io.ReadWriteCloser,
-	encoder *codec.Encoder, args interface{}, method, allocID string, qo *structs.QueryOptions) {
+	encoder *codec.Encoder, args any, method, allocID string, qo *structs.QueryOptions) {
 	// Request the allocation from the target region
 	allocReq := &structs.AllocSpecificRequest{
 		AllocID:      allocID,
