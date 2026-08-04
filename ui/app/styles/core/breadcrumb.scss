@@ -8,11 +8,11 @@
 
   a {
     text-decoration: none;
-    opacity: 0.7;
+    color: rgba($white, 0.75);
 
     &:hover {
       text-decoration: none;
-      opacity: 1;
+      color: $white;
     }
   }
 
