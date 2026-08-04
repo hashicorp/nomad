@@ -29,7 +29,7 @@ func (p *PluginDevice) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) err
 	return nil
 }
 
-func (p *PluginDevice) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p *PluginDevice) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (any, error) {
 	return &devicePluginClient{
 		doneCtx: ctx,
 		client:  proto.NewDevicePluginClient(c),

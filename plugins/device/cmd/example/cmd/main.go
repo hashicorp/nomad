@@ -16,6 +16,6 @@ func main() {
 }
 
 // factory returns a new instance of our example device plugin
-func factory(log log.Logger) interface{} {
+func factory(log log.Logger) any {
 	return example.NewExampleDevice(log)
 }

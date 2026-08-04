@@ -10,6 +10,7 @@ import (
 	"math"
 	"net"
 	"os"
+	"slices"
 	"time"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
@@ -609,11 +610,8 @@ NEXT_CAP:
 
 		for _, expectedFlag := range expectedMount.MountFlags {
 			var ok bool
-			for _, flag := range capMount.MountFlags {
-				if expectedFlag == flag {
-					ok = true
-					break
-				}
+			if slices.Contains(capMount.MountFlags, expectedFlag) {
+				ok = true
 			}
 			if !ok {
 				// mount flags can contain sensitive data, so we can't log details
