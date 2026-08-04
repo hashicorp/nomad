@@ -4,8 +4,10 @@
 package fingerprint
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -20,6 +22,22 @@ const (
 	// into the VM's SMBIOS tables. It is the probe value that confirms we are
 	// running inside a VMware guest.
 	vsphereDMIVendor = "VMware, Inc."
+
+	vsphereAPITimeout = 30 * time.Second
+
+	// vsphereOptURL is the client options key for the vCenter URL.
+	// Example: https://vcenter.example.com/sdk
+	vsphereOptURL = "vsphere.url"
+
+	// vsphereOptUser is the client options key for the vCenter username.
+	vsphereOptUser = "vsphere.user"
+
+	// vsphereOptPassword is the client options key for the vCenter password.
+	vsphereOptPassword = "vsphere.password"
+
+	// vsphereOptInsecure is the client options key that disables TLS certificate
+	// verification when connecting to vCenter. Defaults to false.
+	vsphereOptInsecure = "vsphere.insecure"
 )
 
 // dmiBase is the sysfs directory where the Linux kernel exposes DMI/SMBIOS
@@ -119,8 +137,62 @@ func (f *EnvVSphereFingerprint) Fingerprint(req *FingerprintRequest, resp *Finge
 	}
 	resp.Detected = true
 
-	// Todo: implement Tier 2.
+	// Tier 2: enrich with vCenter inventory metadata when vsphere.url is set.
+	if req.Config.Read(vsphereOptURL) != "" {
+		if err := f.collectVCenterAttributes(req, resp, vmUUID); err != nil {
+			f.logger.Warn("Tier 2 vSphere enrichment failed, continuing with Tier 1 attributes only",
+				"error", err)
+		}
+	}
 
+	return nil
+}
+
+// collectVCenterAttributes connects to vCenter and enriches the fingerprint
+// response with inventory metadata (datacenter, cluster, resource pool, host,
+// datastore, VM name, vCenter UUID).
+func (f *EnvVSphereFingerprint) collectVCenterAttributes(req *FingerprintRequest, resp *FingerprintResponse, vmUUID string) error {
+	vcURL := req.Config.Read(vsphereOptURL)
+	user := req.Config.Read(vsphereOptUser)
+	password := req.Config.Read(vsphereOptPassword)
+	insecure := req.Config.ReadBoolDefault(vsphereOptInsecure, false)
+
+	ctx, cancel := context.WithTimeout(context.Background(), vsphereAPITimeout)
+	defer cancel()
+
+	c, err := newVSphereClient(ctx, vcURL, user, password, insecure, f.logger)
+	if err != nil {
+		return err
+	}
+
+	inv, err := c.fetchInventory(ctx, vmUUID)
+	if err != nil {
+		return err
+	}
+
+	if inv.VMName != "" {
+		resp.AddAttribute(structs.UniqueNamespace("platform.vsphere.vm-name"), inv.VMName)
+	}
+	if inv.VCenterUUID != "" {
+		resp.AddAttribute(structs.UniqueNamespace("platform.vsphere.vcenter-uuid"), inv.VCenterUUID)
+	}
+	if inv.Datacenter != "" {
+		resp.AddAttribute("platform.vsphere.datacenter", inv.Datacenter)
+	}
+	if inv.Cluster != "" {
+		resp.AddAttribute("platform.vsphere.cluster", inv.Cluster)
+	}
+	if inv.ResourcePool != "" {
+		resp.AddAttribute("platform.vsphere.resource-pool", inv.ResourcePool)
+	}
+	if inv.Host != "" {
+		resp.AddAttribute("platform.vsphere.host", inv.Host)
+	}
+	if inv.Datastore != "" {
+		resp.AddAttribute("platform.vsphere.datastore", inv.Datastore)
+	}
+
+	resp.AddLink("vsphere", vmUUID)
 	return nil
 }
 
