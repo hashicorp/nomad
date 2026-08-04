@@ -18,7 +18,9 @@ const SHOULD_PRE_ADVANCE_WATCH_INDEX = macroCondition(isTesting())
   ? true
   : false;
 
-const watcherWebSocketsEnabled = config.APP.watcherWebSockets;
+// Initialize from the configuration, but this might be dynamically
+// disabled within handleResponse if http2 is detected.
+let watcherWebSocketsEnabled = config.APP.watcherWebSockets;
 
 @classic
 export default class Watchable extends ApplicationAdapter {
@@ -329,6 +331,17 @@ export default class Watchable extends ApplicationAdapter {
         watchKeysForRequest(requestData).forEach((key) => {
           watchList.setIndexFor(key, newIndex);
         });
+      }
+    }
+
+    // If watcher websockets are enabled, check if we are running
+    // over http2. If so, disable watcher websockets since they
+    // are essentially redundant for handling blocking requests
+    // when using http2.
+    if (watcherWebSocketsEnabled) {
+      let proto = getHeaderValue(headers, 'x-nomad-protocol');
+      if (proto && proto.toLowerCase().startsWith('http/2')) {
+        watcherWebSocketsEnabled = false;
       }
     }
 

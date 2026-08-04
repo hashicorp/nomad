@@ -73,6 +73,9 @@ module.exports = function (environment) {
 
     ENV.APP.rootElement = '#ember-testing';
     ENV.APP.autoboot = false;
+
+    // disable watcher sockets while testing
+    ENV.APP.watcherWebSockets = false;
   }
 
   if (environment === 'production') {
