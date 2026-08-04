@@ -188,7 +188,7 @@ func (c *Device) getSpec() (hcldec.Spec, error) {
 
 func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, nmdCfg *base.AgentConfig) error {
 	// Parse the config into hcl
-	configVal, err := hclConfigToInterface(config)
+	configVal, err := hclConfigToAny(config)
 	if err != nil {
 		return err
 	}
@@ -216,9 +216,9 @@ func (c *Device) setConfig(spec hcldec.Spec, apiVersion string, config []byte, n
 	return nil
 }
 
-func hclConfigToInterface(config []byte) (interface{}, error) {
+func hclConfigToAny(config []byte) (any, error) {
 	if len(config) == 0 {
-		return map[string]interface{}{}, nil
+		return map[string]any{}, nil
 	}
 
 	// Parse as we do in the jobspec parser
@@ -233,7 +233,7 @@ func hclConfigToInterface(config []byte) (interface{}, error) {
 		return nil, fmt.Errorf("root should be an object")
 	}
 
-	var m map[string]interface{}
+	var m map[string]any
 	if err := hcl.DecodeObject(&m, list.Items[0]); err != nil {
 		return nil, fmt.Errorf("failed to decode object: %v", err)
 	}
