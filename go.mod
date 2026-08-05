@@ -5,6 +5,8 @@ go 1.26.5
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
+	github.com/hashicorp/go-kms-wrapping/v2 => github.com/tgross/go-kms-wrapping/v2 v2.0.0-20260804111501-651ec6543396
+	github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 => github.com/tgross/go-kms-wrapping/wrappers/aead/v2 v2.0.0-20260804111501-651ec6543396
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-nomad-1
 )
 
