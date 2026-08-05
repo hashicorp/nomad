@@ -147,6 +147,3 @@ enos/modules/*/*.tfvars
 
 # local license files
 *.hclic
-
-# local regression test environment
-regression-env/
