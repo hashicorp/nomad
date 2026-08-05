@@ -116,7 +116,7 @@ func TestVSphereClient_fetchInventory_full(t *testing.T) {
 	// Inventory placement — all resolved from the VPX default topology.
 	must.Eq(t, "DC0", inv.Datacenter)
 	must.Eq(t, "DC0_C0", inv.Cluster)
-	must.NotEq(t, "Resources", inv.ResourcePool)
+	must.Eq(t, "Resources", inv.ResourcePool)
 	must.NotEq(t, "", inv.Host)
 	must.Eq(t, "LocalDS_0", inv.Datastore)
 }
