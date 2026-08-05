@@ -35,7 +35,7 @@ module('Integration | Component | job-status/failed-or-lost', function (hooks) {
       @restartedAllocs={{this.allocs}}
     />`);
 
-    assert.dom('h4').hasText('Replaced Allocations');
+    assert.dom('h3').hasText('Replaced Allocations');
     assert.dom('.failed-or-lost-links').hasText('2 Restarted');
   });
 
