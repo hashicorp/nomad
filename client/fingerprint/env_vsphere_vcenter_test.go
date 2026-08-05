@@ -4,7 +4,6 @@
 package fingerprint
 
 import (
-	"context"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -49,15 +48,15 @@ func newTestVSphereClient(c *govmomi.Client) *vSphereClient {
 //
 // vm.Config.Uuid is the BIOS UUID — the same value the fingerprinter reads from
 // /sys/class/dmi/id/product_uuid on a real VMware guest.
-func simulatorVMWithHostParent(t *testing.T, ctx context.Context, c *govmomi.Client, hostParentType string) (biosUUID, vmName string) {
+func simulatorVMWithHostParent(t *testing.T, c *govmomi.Client, hostParentType string) (biosUUID, vmName string) {
 	t.Helper()
 
 	finder := find.NewFinder(c.Client, false)
-	dc, err := finder.DefaultDatacenter(ctx)
+	dc, err := finder.DefaultDatacenter(t.Context())
 	must.NoError(t, err)
 	finder.SetDatacenter(dc)
 
-	vms, err := finder.VirtualMachineList(ctx, "*")
+	vms, err := finder.VirtualMachineList(t.Context(), "*")
 	must.NoError(t, err)
 	must.Positive(t, len(vms))
 
@@ -65,14 +64,14 @@ func simulatorVMWithHostParent(t *testing.T, ctx context.Context, c *govmomi.Cli
 
 	for _, vm := range vms {
 		var v mo.VirtualMachine
-		must.NoError(t, pc.RetrieveOne(ctx, vm.Reference(), []string{"config", "runtime"}, &v))
+		must.NoError(t, pc.RetrieveOne(t.Context(), vm.Reference(), []string{"config", "runtime"}, &v))
 		must.NotNil(t, v.Config)
 
 		if v.Runtime.Host == nil {
 			continue
 		}
 		var h mo.HostSystem
-		must.NoError(t, pc.RetrieveOne(ctx, *v.Runtime.Host, []string{"parent"}, &h))
+		must.NoError(t, pc.RetrieveOne(t.Context(), *v.Runtime.Host, []string{"parent"}, &h))
 		if h.Parent != nil && h.Parent.Type == hostParentType {
 			return v.Config.Uuid, v.Config.Name
 		}
@@ -94,15 +93,14 @@ func TestVSphereClient_fetchInventory_full(t *testing.T) {
 	s := model.Service.NewServer()
 	defer s.Close()
 
-	ctx := context.Background()
-	govmomiClient, err := govmomi.NewClient(ctx, s.URL, true)
+	govmomiClient, err := govmomi.NewClient(t.Context(), s.URL, true)
 	must.NoError(t, err)
-	defer govmomiClient.Logout(ctx) //nolint:errcheck
+	defer govmomiClient.Logout(t.Context()) //nolint:errcheck
 
-	biosUUID, wantVMName := simulatorVMWithHostParent(t, ctx, govmomiClient, "ClusterComputeResource")
+	biosUUID, wantVMName := simulatorVMWithHostParent(t, govmomiClient, "ClusterComputeResource")
 
 	c := newTestVSphereClient(govmomiClient)
-	inv, err := c.fetchInventory(ctx, biosUUID)
+	inv, err := c.fetchInventory(t.Context(), biosUUID)
 
 	must.NoError(t, err)
 	must.NotNil(t, inv)
@@ -131,13 +129,12 @@ func TestVSphereClient_fetchInventory_vmNotFound(t *testing.T) {
 	s := model.Service.NewServer()
 	defer s.Close()
 
-	ctx := context.Background()
-	govmomiClient, err := govmomi.NewClient(ctx, s.URL, true)
+	govmomiClient, err := govmomi.NewClient(t.Context(), s.URL, true)
 	must.NoError(t, err)
-	defer govmomiClient.Logout(ctx) //nolint:errcheck
+	defer govmomiClient.Logout(t.Context()) //nolint:errcheck
 
 	c := newTestVSphereClient(govmomiClient)
-	inv, err := c.fetchInventory(ctx, "00000000-0000-0000-0000-000000000000")
+	inv, err := c.fetchInventory(t.Context(), "00000000-0000-0000-0000-000000000000")
 
 	must.Error(t, err)
 	must.Nil(t, inv)
@@ -158,15 +155,14 @@ func TestVSphereClient_fetchInventory_standaloneHost(t *testing.T) {
 	s := model.Service.NewServer()
 	defer s.Close()
 
-	ctx := context.Background()
-	govmomiClient, err := govmomi.NewClient(ctx, s.URL, true)
+	govmomiClient, err := govmomi.NewClient(t.Context(), s.URL, true)
 	must.NoError(t, err)
-	defer govmomiClient.Logout(ctx) //nolint:errcheck
+	defer govmomiClient.Logout(t.Context()) //nolint:errcheck
 
-	biosUUID, wantVMName := simulatorVMWithHostParent(t, ctx, govmomiClient, "ComputeResource")
+	biosUUID, wantVMName := simulatorVMWithHostParent(t, govmomiClient, "ComputeResource")
 
 	c := newTestVSphereClient(govmomiClient)
-	inv, err := c.fetchInventory(ctx, biosUUID)
+	inv, err := c.fetchInventory(t.Context(), biosUUID)
 
 	must.NoError(t, err)
 	must.NotNil(t, inv)
