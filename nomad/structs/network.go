@@ -449,7 +449,7 @@ func (idx *NetworkIndex) yieldIP(cb func(net *NetworkResource, offerIP net.IP) b
 
 func incIP(ip net.IP) {
 	// Iterate over IP octects from right to left
-	for j := len(ip) - 1; j >= 0; j-- {
+	for j := range slices.Backward(ip) {
 
 		// Increment octect
 		ip[j]++
@@ -688,7 +688,7 @@ func getDynamicPortsPrecise(nodeUsed Bitmap, portsInOffer []int, minDynamicPort,
 	}
 
 	numAvailable := len(availablePorts)
-	for i := 0; i < numDyn; i++ {
+	for i := range numDyn {
 		j := rand.Intn(numAvailable)
 		availablePorts[i], availablePorts[j] = availablePorts[j], availablePorts[i]
 	}
@@ -708,7 +708,7 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, portsInOffer []int, minDynamicPo
 		reserved = append(reserved, port.Value)
 	}
 
-	for i := 0; i < count; i++ {
+	for range count {
 		attempts := 0
 	PICK:
 		attempts++
@@ -744,12 +744,7 @@ func getDynamicPortsStochastic(nodeUsed Bitmap, portsInOffer []int, minDynamicPo
 
 // IntContains scans an integer slice for a value
 func isPortReserved(haystack []int, needle int) bool {
-	for _, item := range haystack {
-		if item == needle {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 // AllocatedPortsToNetworkResouce is a COMPAT(1.0) remove when NetworkResource

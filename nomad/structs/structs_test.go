@@ -885,7 +885,7 @@ func testJob() *Job {
 					{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"command": "/bin/date",
 						},
 						Env: map[string]string{
@@ -2588,7 +2588,7 @@ func TestTask_Canonicalize(t *testing.T) {
 		},
 		{
 			task: &Task{
-				Config:          map[string]interface{}{},
+				Config:          map[string]any{},
 				Env:             map[string]string{},
 				Services:        []*Service{},
 				Templates:       []*Template{},
@@ -3188,7 +3188,6 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		task, tg := getTask(tc.Service)
 		t.Run(tc.Service.Name, func(t *testing.T) {
 			err := validateServices(task, tg.Networks)
@@ -3343,7 +3342,6 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		task := getTask(tc.Kind, tc.Leader)
 		if tc.Service != nil {
 			task.Services = []*Service{tc.Service}
@@ -5535,10 +5533,10 @@ func TestMsgPackTags(t *testing.T) {
 		name   string
 		typeOf reflect.Type
 	}{
-		{"Allocation", reflect.TypeOf(Allocation{})},
-		{"Evaluation", reflect.TypeOf(Evaluation{})},
-		{"NetworkResource", reflect.TypeOf(NetworkResource{})},
-		{"Plan", reflect.TypeOf(Plan{})},
+		{"Allocation", reflect.TypeFor[Allocation]()},
+		{"Evaluation", reflect.TypeFor[Evaluation]()},
+		{"NetworkResource", reflect.TypeFor[NetworkResource]()},
+		{"Plan", reflect.TypeFor[Plan]()},
 	}
 
 	for _, tc := range cases {
@@ -5920,7 +5918,7 @@ func TestScalingPolicy_Validate(t *testing.T) {
 		{
 			name: "full horizontal policy",
 			input: &ScalingPolicy{
-				Policy: map[string]interface{}{
+				Policy: map[string]any{
 					"key": "value",
 				},
 				Type:    ScalingPolicyTypeHorizontal,

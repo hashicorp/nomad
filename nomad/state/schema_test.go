@@ -99,7 +99,7 @@ func Test_jobIsGCable(t *testing.T) {
 
 	testCases := []struct {
 		name                string
-		inputObj            interface{}
+		inputObj            any
 		expectedOutput      bool
 		expectedOutputError error
 	}{

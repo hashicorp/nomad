@@ -201,7 +201,7 @@ func (s *StateStore) GetDefaultACLAuthMethod(ws memdb.WatchSet) (*structs.ACLAut
 	ws.Add(iter.WatchCh())
 
 	// Filter out non-default methods
-	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+	filter := memdb.NewFilterIterator(iter, func(raw any) bool {
 		method, ok := raw.(*structs.ACLAuthMethod)
 		if !ok {
 			return true

@@ -182,7 +182,7 @@ func (s *Server) leadershipTransferToServer(to structs.RaftIDAddress) error {
 	}
 	retryCount := 3
 	var lastError error
-	for i := 0; i < retryCount; i++ {
+	for i := range retryCount {
 		err := s.raft.LeadershipTransferToServer(to.ID, to.Address).Error()
 		if err == nil {
 			s.logger.Info("successfully transferred leadership")
@@ -221,7 +221,7 @@ func (s *Server) leadershipTransferToServer(to structs.RaftIDAddress) error {
 
 func (s *Server) leadershipTransfer() error {
 	retryCount := 3
-	for i := 0; i < retryCount; i++ {
+	for i := range retryCount {
 		err := s.raft.LeadershipTransfer().Error()
 		if err == nil {
 			s.logger.Info("successfully transferred leadership")

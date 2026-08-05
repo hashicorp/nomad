@@ -581,8 +581,7 @@ func TestClientEndpoint_Register_NodePool_Multiregion(t *testing.T) {
 	ci.Parallel(t)
 
 	// Helper function to setup client heartbeat.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	heartbeat := func(ctx context.Context, codec rpc.ClientCodec, req *structs.NodeUpdateStatusRequest) {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
@@ -1057,7 +1056,7 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			job.TaskGroups[0].Count = 1
 			job.TaskGroups[0].Constraints = []*structs.Constraint{}
 			job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-			job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+			job.TaskGroups[0].Tasks[0].Config = map[string]any{
 				"run_for": "10m",
 			}
 

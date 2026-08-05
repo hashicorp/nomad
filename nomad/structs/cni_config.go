@@ -16,9 +16,7 @@ func (d *CNIConfig) Copy() *CNIConfig {
 		return nil
 	}
 	newMap := make(map[string]string)
-	for k, v := range d.Args {
-		newMap[k] = v
-	}
+	maps.Copy(newMap, d.Args)
 	return &CNIConfig{
 		Args: newMap,
 	}

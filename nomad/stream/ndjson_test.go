@@ -19,8 +19,7 @@ type testObj struct {
 func TestJsonStream(t *testing.T) {
 	ci.Parallel(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	s := NewJsonStream(ctx, 1*time.Second)
 	out := s.OutCh()
@@ -63,8 +62,7 @@ func TestJson_Send_After_Stop(t *testing.T) {
 func TestJson_HeartBeat(t *testing.T) {
 	ci.Parallel(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	s := NewJsonStream(ctx, 10*time.Millisecond)
 

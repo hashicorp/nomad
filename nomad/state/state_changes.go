@@ -11,9 +11,9 @@ import (
 
 // ReadTxn is implemented by memdb.Txn to perform read operations.
 type ReadTxn interface {
-	Get(table, index string, args ...interface{}) (memdb.ResultIterator, error)
-	First(table, index string, args ...interface{}) (interface{}, error)
-	FirstWatch(table, index string, args ...interface{}) (<-chan struct{}, interface{}, error)
+	Get(table, index string, args ...any) (memdb.ResultIterator, error)
+	First(table, index string, args ...any) (any, error)
+	FirstWatch(table, index string, args ...any) (<-chan struct{}, any, error)
 	Abort()
 }
 

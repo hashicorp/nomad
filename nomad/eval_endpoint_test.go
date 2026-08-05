@@ -883,7 +883,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 		// Create a large set of pending evaluations
 
 		evals := []*structs.Evaluation{}
-		for i := 0; i < evalCount; i++ {
+		for range evalCount {
 			mockEval := mock.Eval()
 			evals = append(evals, mockEval)
 		}
@@ -893,7 +893,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 		// Create some evaluations we don't want to delete
 
 		evalsToKeep := []*structs.Evaluation{}
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			mockEval := mock.Eval()
 			mockEval.JobID = "keepme"
 			evalsToKeep = append(evalsToKeep, mockEval)
@@ -911,7 +911,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
 
 		evalsNotSafeToDelete := []*structs.Evaluation{}
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			mockEval := mock.Eval()
 			mockEval.JobID = job.ID
 			evalsNotSafeToDelete = append(evalsNotSafeToDelete, mockEval)
@@ -921,7 +921,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 			structs.MsgTypeTestSetup, index, evalsNotSafeToDelete))
 
 		allocs := []*structs.Allocation{}
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			alloc := mock.Alloc()
 			alloc.ClientStatus = structs.AllocClientStatusRunning
 			alloc.EvalID = evalsNotSafeToDelete[i].ID

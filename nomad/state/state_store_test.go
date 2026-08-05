@@ -6,6 +6,7 @@ package state
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,7 +41,7 @@ func TestStateStore_Blocking_Error(t *testing.T) {
 	ci.Parallel(t)
 
 	expected := fmt.Errorf("test error")
-	errFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
+	errFn := func(memdb.WatchSet, *StateStore) (any, uint64, error) {
 		return nil, 0, expected
 	}
 
@@ -53,7 +54,7 @@ func TestStateStore_Blocking_Error(t *testing.T) {
 func TestStateStore_Blocking_Timeout(t *testing.T) {
 	ci.Parallel(t)
 
-	noopFn := func(memdb.WatchSet, *StateStore) (interface{}, uint64, error) {
+	noopFn := func(memdb.WatchSet, *StateStore) (any, uint64, error) {
 		return nil, 5, nil
 	}
 
@@ -73,7 +74,7 @@ func TestStateStore_Blocking_MinQuery(t *testing.T) {
 
 	node := mock.Node()
 	count := 0
-	queryFn := func(ws memdb.WatchSet, s *StateStore) (interface{}, uint64, error) {
+	queryFn := func(ws memdb.WatchSet, s *StateStore) (any, uint64, error) {
 		_, err := s.NodeByID(ws, node.ID)
 		if err != nil {
 			return nil, 0, err
@@ -4112,7 +4113,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 				},
 			},
 		}
-		for n := 0; n < 2; n++ {
+		for n := range 2 {
 			updateNodeFn(nodes[n].ID, func(node *structs.Node) {
 				node.CSIControllerPlugins = controllerFingerprint
 			})
@@ -8647,7 +8648,7 @@ func TestStateStore_ACLPolicyByJob(t *testing.T) {
 	// Expect two matching policies with exact matching JobIDs
 	iter, err := state.ACLPolicyByJob(nil, "default", "test-acl-job-name")
 	must.NoError(t, err)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		out := iter.Next()
 		must.NotNil(t, out)
 		p := out.(*structs.ACLPolicy)
@@ -9234,9 +9235,7 @@ func TestStateStore_UpsertScalingPolicy(t *testing.T) {
 
 	// Check that we can add policy with same target but different type
 	policy3 := mock.ScalingPolicy()
-	for k, v := range policy2.Target {
-		policy3.Target[k] = v
-	}
+	maps.Copy(policy3.Target, policy2.Target)
 
 	err = state.UpsertScalingPolicies(1000, []*structs.ScalingPolicy{policy3})
 	must.NoError(t, err)
@@ -9906,9 +9905,7 @@ func TestStateStore_ScalingPolicyByTargetAndType(t *testing.T) {
 	// Same target, different type
 	policyB := mock.ScalingPolicy()
 	policyC := mock.ScalingPolicy()
-	for k, v := range policyB.Target {
-		policyC.Target[k] = v
-	}
+	maps.Copy(policyC.Target, policyB.Target)
 	policyC.Type = "other-type"
 
 	// Create the policies
@@ -9944,7 +9941,7 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 	groupName := job.TaskGroups[0].Name
 
 	newEvent := structs.NewScalingEvent("message 1")
-	newEvent.Meta = map[string]interface{}{
+	newEvent.Meta = map[string]any{
 		"a": 1,
 	}
 
@@ -10017,7 +10014,7 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 	index := uint64(1000)
 	for i := 1; i <= structs.JobTrackedScalingEvents+10; i++ {
 		newEvent := structs.NewScalingEvent("")
-		newEvent.Meta = map[string]interface{}{
+		newEvent.Meta = map[string]any{
 			"i":     i,
 			"group": group1,
 		}
@@ -10031,7 +10028,7 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		must.NoError(t, err)
 
 		newEvent = structs.NewScalingEvent("")
-		newEvent.Meta = map[string]interface{}{
+		newEvent.Meta = map[string]any{
 			"i":     i,
 			"group": group2,
 		}

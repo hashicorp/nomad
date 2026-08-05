@@ -5,7 +5,6 @@ package stream
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -149,7 +148,7 @@ func TestEventBroker_EmptyReqToken_DistinctSubscriptions(t *testing.T) {
 
 	sub1.Unsubscribe()
 
-	must.Eq(t, subscriptionStateOpen, atomic.LoadUint32(&sub2.state))
+	must.Eq(t, subscriptionStateOpen, sub2.state.Load())
 }
 
 func TestEventBroker_handleACLUpdates(t *testing.T) {

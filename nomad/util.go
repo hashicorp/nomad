@@ -50,10 +50,7 @@ func partitionAll(size int, xs []string) [][]string {
 	out := [][]string{}
 
 	for i := 0; i < len(xs); i += size {
-		j := i + size
-		if j > len(xs) {
-			j = len(xs)
-		}
+		j := min(i+size, len(xs))
 		out = append(out, xs[i:j])
 	}
 

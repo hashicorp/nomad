@@ -249,7 +249,6 @@ func TestPlanEndpoint_Submit_FullJobAndJobInfo(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			eval := mock.Eval()
 			s1.evalBroker.Enqueue(eval)

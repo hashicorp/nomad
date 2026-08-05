@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -94,12 +95,7 @@ func serviceExposeConfig(s *structs.Service) *structs.ConsulExposeConfig {
 
 // containsExposePath returns true if path is contained in paths.
 func containsExposePath(paths []structs.ConsulExposePath, path structs.ConsulExposePath) bool {
-	for _, p := range paths {
-		if p == path {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(paths, path)
 }
 
 // tgValidateUseOfCheckExpose ensures that any service check in tg making use
