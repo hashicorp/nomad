@@ -40,8 +40,8 @@ var ExecTaskStreamingBasicCases = []struct {
 	Command  string
 	Tty      bool
 	Stdin    string
-	Stdout   interface{}
-	Stderr   interface{}
+	Stdout   any
+	Stderr   any
 	ExitCode int
 }{
 	{

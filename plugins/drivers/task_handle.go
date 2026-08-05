@@ -25,12 +25,12 @@ func NewTaskHandle(version int) *TaskHandle {
 	return &TaskHandle{Version: version}
 }
 
-func (h *TaskHandle) SetDriverState(v interface{}) error {
+func (h *TaskHandle) SetDriverState(v any) error {
 	h.DriverState = []byte{}
 	return base.MsgPackEncode(&h.DriverState, v)
 }
 
-func (h *TaskHandle) GetDriverState(v interface{}) error {
+func (h *TaskHandle) GetDriverState(v any) error {
 	return base.MsgPackDecode(h.DriverState, v)
 
 }

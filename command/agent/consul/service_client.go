@@ -1133,8 +1133,10 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
-		// Ignore unknown services during probation
-		if inProbation && !c.explicitlyDeregisteredChecks.Contains(id) {
+		// Ignore unknown checks during probation unless they are the legacy
+		if inProbation &&
+			!c.explicitlyDeregisteredChecks.Contains(id) &&
+			nonLegacyCheckRe.MatchString(id) {
 			continue
 		}
 
@@ -1183,6 +1185,10 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	}
 	return mErr.ErrorOrNil()
 }
+
+// nonLegacyCheckRe gets used to check for current check ID formats, so we can
+// clean up old check IDs sync
+var nonLegacyCheckRe = regexp.MustCompile("_nomad-check-[0-9a-f]{64}")
 
 // syncRemoveService removes an unwanted service from Consul. If the service has
 // a sidecar, we need to remove the sidecar first, otherwise Consul will produce
@@ -1243,6 +1249,20 @@ func (c *ServiceClient) RegisterAgent(role string, services []*structs.Service) 
 			},
 		}
 		ops.regServices = append(ops.regServices, serviceReg)
+
+		// older agents use SHA-1 hashes as part of the service name instead of
+		// SHA-256, but we can't guarantee they've shutdown gracefully and
+		// deregistered themselves on upgrade. Remove any legacy service IDs
+		// that might be lingering
+		//
+		// COMPAT: remove once upgrades from pre-FIPS-compatible agents are no longer
+		// supported. Upgrading agents in-place to FIPS-enabled is unsupported.
+		legacyID := service.LegacyAgentID(role)
+		if legacyID != "" {
+			// we intentionally swallow this error because these services likely
+			// no longer exist
+			_ = c.agentAPI.ServiceDeregisterOpts(legacyID, nil)
+		}
 
 		for _, check := range service.Checks {
 			checkID := MakeCheckID(id, check)
