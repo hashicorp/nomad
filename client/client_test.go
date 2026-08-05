@@ -250,7 +250,7 @@ func TestClient_Fingerprint_Periodic(t *testing.T) {
 		confs := []*nconfig.PluginConfig{
 			{
 				Name: "mock_driver",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"shutdown_periodic_after":    true,
 					"shutdown_periodic_duration": time.Second,
 				},
@@ -587,7 +587,7 @@ func TestClient_UpdateAllocStatus(t *testing.T) {
 	job.TaskGroups[0].Count = 1
 	task := job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 	task.Services = nil
@@ -615,7 +615,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
 	}
 	alloc1 := mock.Alloc()
@@ -1008,7 +1008,7 @@ func TestClient_AddAllocError(t *testing.T) {
 	alloc1.Job = job
 	alloc1.JobID = job.ID
 	alloc1.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	alloc1.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
 	}
 	alloc1.ClientStatus = structs.AllocClientStatusPending
@@ -1118,7 +1118,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = c1.Node().ID
 	alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"kill_after":  "1s",
 		"run_for":     "100s",
 		"exit_code":   0,
@@ -1899,7 +1899,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocStops := mock.BatchAlloc()
 	allocStops.Job.TaskGroups[0].Count = 1
 	allocStops.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	allocStops.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	allocStops.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":   "1ms",
 		"exit_code": "0",
 	}
@@ -1912,7 +1912,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocFails := mock.BatchAlloc()
 	allocFails.Job.TaskGroups[0].Count = 1
 	allocFails.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	allocFails.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	allocFails.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":   "1ms",
 		"exit_code": "1",
 	}
@@ -1925,7 +1925,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocRuns := mock.Alloc()
 	allocRuns.Job.TaskGroups[0].Count = 1
 	allocRuns.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	allocRuns.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	allocRuns.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "3s",
 	}
 	allocRuns.AllocatedResources.Shared.DiskMB = 256
@@ -1936,7 +1936,7 @@ func TestClient_getAllocatedResources(t *testing.T) {
 	allocPends := mock.Alloc()
 	allocPends.Job.TaskGroups[0].Count = 1
 	allocPends.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	allocPends.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	allocPends.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":         "5s",
 		"start_block_for": "10s",
 	}
@@ -2231,7 +2231,7 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	runningAlloc.Job = job
 	runningAlloc.JobID = job.ID
 	runningAlloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-	runningAlloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	runningAlloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
 	}
 	runningAlloc.ClientStatus = structs.AllocClientStatusPending

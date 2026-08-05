@@ -48,7 +48,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	}
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "1h",
 	}
 
@@ -160,7 +160,7 @@ func TestAllocRunner_Restore_CompletedBatch(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeBatch
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "2ms",
 	}
 
@@ -243,7 +243,7 @@ func TestAllocRunner_PreStartFailuresLeadToFailed(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeBatch
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "2ms",
 	}
 	rp := &structs.RestartPolicy{Attempts: 0}
