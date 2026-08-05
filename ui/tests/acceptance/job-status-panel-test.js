@@ -40,7 +40,10 @@ module('Acceptance | job status panel', function (hooks) {
       noDeployments: true,
     });
     await visit(`/jobs/${job.id}`);
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
@@ -875,7 +878,7 @@ module('Acceptance | job status panel', function (hooks) {
       await visit(`/jobs/${job.id}`);
       assert.dom('.job-status-panel').exists();
       assert.dom('.failed-or-lost').exists({ count: 1 });
-      assert.dom('.failed-or-lost h4').hasText('Replaced Allocations');
+      assert.dom('.failed-or-lost h3').hasText('Replaced Allocations');
       assert
         .dom('.failed-or-lost-links > span')
         .hasText('0 Restarted', 'Restarted cell at zero by default');

@@ -40,7 +40,7 @@ $dark-bright: lighten($dark, 15%);
   }
 
   .CodeMirror-linenumber {
-    color: $dark-bright;
+    color: lighten($dark-bright, 30%);
   }
 
   &.CodeMirror-focused div.CodeMirror-selected {
@@ -54,7 +54,7 @@ $dark-bright: lighten($dark, 15%);
   }
 
   span.cm-comment {
-    color: $grey;
+    color: $grey-light;
   }
 
   span.cm-string,
@@ -63,7 +63,7 @@ $dark-bright: lighten($dark, 15%);
   }
 
   span.cm-number {
-    color: $serf-red;
+    color: lighten($serf-red, 20%);
   }
 
   span.cm-variable {

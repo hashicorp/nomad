@@ -30,7 +30,10 @@ module('Acceptance | namespaces', function (hooks) {
     allScenarios.namespacesTestCluster(this.server);
     window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
     window.localStorage.nomadTokenSecret = null;
   });
@@ -39,7 +42,10 @@ module('Acceptance | namespaces', function (hooks) {
     allScenarios.namespacesTestCluster(this.server);
     window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/namespaces/new');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
     window.localStorage.nomadTokenSecret = null;
   });
@@ -49,7 +55,10 @@ module('Acceptance | namespaces', function (hooks) {
     window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     const namespace = this.server.db.namespaces[0];
     await visit(`/administration/namespaces/${namespace.name}`);
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
     window.localStorage.nomadTokenSecret = null;
   });

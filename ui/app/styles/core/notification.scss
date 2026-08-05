@@ -27,7 +27,7 @@
 
   &.is-cancelled {
     background: lighten($orange, 40%);
-    color: $orange;
+    color: darken($orange, 25%);
     border-color: $orange;
   }
 
@@ -41,9 +41,13 @@
     }
   }
 
+  &.is-warning {
+    color: darken($warning, 25%);
+  }
+
   &.is-light {
     background: lighten($white-ter, 5%);
-    color: darken($grey-blue, 20%);
+    color: darken($grey-blue, 35%);
     border-color: $grey-blue;
   }
 }

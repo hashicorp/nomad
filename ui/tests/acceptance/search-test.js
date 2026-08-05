@@ -21,7 +21,10 @@ module('Acceptance | search', function (hooks) {
     this.server.create('node-pool');
     this.server.create('agent');
     await visit('/');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

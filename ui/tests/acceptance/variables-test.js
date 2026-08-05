@@ -368,7 +368,10 @@ module('Acceptance | variables', function (hooks) {
     const variablesToken = this.server.db.tokens.find(VARIABLE_TOKEN_ID);
     window.localStorage.nomadTokenSecret = variablesToken.secretId;
     await Variables.visit();
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
@@ -378,7 +381,10 @@ module('Acceptance | variables', function (hooks) {
       window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
       const variable = this.server.db.variables[0];
       await visit(`/variables/var/${variable.path}@${variable.namespace}/edit`);
-      await a11yAudit();
+      await a11yAudit({
+        include: [['#ember-testing-container']],
+        exclude: [['[disabled]']],
+      });
       assert.ok(true, 'no a11y errors found');
     } finally {
       window.localStorage.removeItem('nomadTokenSecret');

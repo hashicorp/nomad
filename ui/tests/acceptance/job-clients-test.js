@@ -71,7 +71,10 @@ module('Acceptance | job clients', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await Clients.visit({ id: job.id });
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

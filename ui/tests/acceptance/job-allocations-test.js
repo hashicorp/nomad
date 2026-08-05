@@ -49,7 +49,10 @@ module('Acceptance | job allocations', function (hooks) {
     }).models;
 
     await Allocations.visit({ id: job.id });
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

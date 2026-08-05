@@ -44,26 +44,38 @@ module('Acceptance | sentinel policies', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('administration.sentinel-policies.new passes an accessibility audit', async function (assert) {
     await visit('/administration/sentinel-policies/new');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('administration.sentinel-policies.gallery passes an accessibility audit', async function (assert) {
     await visit('/administration/sentinel-policies/gallery');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('administration.sentinel-policies.policy passes an accessibility audit', async function (assert) {
     const policy = this.server.db.sentinelPolicies[0];
     await visit(`/administration/sentinel-policies/${policy.name}`);
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

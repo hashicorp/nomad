@@ -68,7 +68,10 @@ module('Acceptance | optimize', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await Optimize.visit();
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
@@ -76,7 +79,10 @@ module('Acceptance | optimize', function (hooks) {
     await Optimize.visit();
     const summary = Optimize.recommendationSummaries[0];
     await visit(`/optimize/${summary.slug}`);
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

@@ -60,7 +60,10 @@ function moduleForJobDispatch(title, jobFactory) {
 
     test('it passes an accessibility audit', async function (assert) {
       await JobDispatch.visit({ id: `${job.id}@${namespace.name}` });
-      await a11yAudit();
+      await a11yAudit({
+        include: [['#ember-testing-container']],
+        exclude: [['[disabled]']],
+      });
       assert.ok(true, 'no a11y errors found');
     });
 

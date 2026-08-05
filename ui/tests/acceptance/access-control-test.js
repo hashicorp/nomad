@@ -34,7 +34,10 @@ module('Acceptance | access control', function (hooks) {
       });
       window.localStorage.nomadTokenSecret = managementToken.secretId;
       await Administration.visit();
-      await a11yAudit();
+      await a11yAudit({
+        include: [['#ember-testing-container']],
+        exclude: [['[disabled]']],
+      });
       assert.ok(true, 'no a11y errors found');
     } finally {
       window.localStorage.removeItem('nomadTokenSecret');

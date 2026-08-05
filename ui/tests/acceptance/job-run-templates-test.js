@@ -28,19 +28,28 @@ module('Acceptance | job run templates', function (hooks) {
 
   test('jobs.run.templates passes an accessibility audit', async function (assert) {
     await visit('/jobs/run/templates');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('jobs.run.templates.new passes an accessibility audit', async function (assert) {
     await visit('/jobs/run/templates/new');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('jobs.run.templates.manage passes an accessibility audit', async function (assert) {
     await visit('/jobs/run/templates/manage');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 });

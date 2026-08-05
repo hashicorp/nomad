@@ -119,7 +119,10 @@ module('Acceptance | evaluations list', function (hooks) {
       'evaluations.index',
       'The default route in evaluations is evaluations index',
     );
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

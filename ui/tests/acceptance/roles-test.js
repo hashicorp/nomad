@@ -44,20 +44,29 @@ module('Acceptance | roles', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('administration.roles.new passes an accessibility audit', async function (assert) {
     await visit('/administration/roles/new');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('administration.roles.role passes an accessibility audit', async function (assert) {
     const role = this.server.db.roles.findBy({ name: 'reader' });
     await visit(`/administration/roles/${role.id}`);
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

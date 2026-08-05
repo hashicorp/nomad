@@ -114,6 +114,8 @@
     &.server-status-badges {
       .hds-badge__text {
         white-space: nowrap;
+        color: #0b0f14;
+        font-weight: $weight-semibold;
       }
     }
 
@@ -180,7 +182,7 @@
 
     td,
     th {
-      color: $grey-light;
+      color: $grey-dark;
       font-weight: $weight-normal;
       vertical-align: bottom;
       border-bottom: 1px solid $grey-blue;
@@ -203,7 +205,7 @@
           &::after {
             position: absolute;
             pointer-events: none;
-            color: $grey-light;
+            color: $grey-dark;
           }
 
           &::after {
@@ -241,7 +243,8 @@
       }
 
       a {
-        color: $grey;
+        color: $grey-darker;
+        font-weight: $weight-semibold;
       }
     }
   }
@@ -291,7 +294,7 @@
   }
 
   .is-faded {
-    color: darken($grey-light, 10%);
+    color: $grey-dark;
   }
 }
 
@@ -332,7 +335,7 @@
 
     .label,
     .field-label {
-      color: $grey;
+      color: $grey-dark;
       flex: 1 0 0;
       text-align: right;
 

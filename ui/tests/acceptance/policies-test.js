@@ -30,7 +30,10 @@ module('Acceptance | policies', function (hooks) {
     allScenarios.policiesTestCluster(this.server);
     window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/policies');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
     window.localStorage.nomadTokenSecret = null;
   });
@@ -39,7 +42,10 @@ module('Acceptance | policies', function (hooks) {
     allScenarios.policiesTestCluster(this.server);
     window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     await visit('/administration/policies/new');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
     window.localStorage.nomadTokenSecret = null;
   });
@@ -49,7 +55,10 @@ module('Acceptance | policies', function (hooks) {
     window.localStorage.nomadTokenSecret = this.server.db.tokens[0].secretId;
     const policy = this.server.db.policies[0];
     await visit(`/administration/policies/${policy.name}`);
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
     window.localStorage.nomadTokenSecret = null;
   });

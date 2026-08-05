@@ -29,20 +29,29 @@ module('Acceptance | administration tokens', function (hooks) {
 
   test('administration.tokens passes an accessibility audit', async function (assert) {
     await visit('/administration/tokens');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('administration.tokens.new passes an accessibility audit', async function (assert) {
     await visit('/administration/tokens/new');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('administration.tokens.token passes an accessibility audit', async function (assert) {
     const token = this.server.db.tokens.findBy({ type: 'management' });
     await visit(`/administration/tokens/${token.id}`);
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 });

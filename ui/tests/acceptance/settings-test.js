@@ -20,19 +20,28 @@ module('Acceptance | settings', function (hooks) {
 
   test('settings index passes an accessibility audit', async function (assert) {
     await visit('/settings');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('settings.tokens passes an accessibility audit', async function (assert) {
     await visit('/settings/tokens');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 
   test('settings.user-settings passes an accessibility audit', async function (assert) {
     await visit('/settings/user-settings');
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 });

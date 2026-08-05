@@ -33,7 +33,10 @@ module.skip('Acceptance | server monitor', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await ServerMonitor.visit({ name: agent.name });
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

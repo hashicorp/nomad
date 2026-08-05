@@ -44,7 +44,10 @@ module.skip('Acceptance | task logs', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

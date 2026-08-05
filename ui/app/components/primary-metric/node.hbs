@@ -10,13 +10,13 @@
   {{did-insert this.start}}
   {{did-update this.start}}
 >
-  <h3 data-test-primary-metric-title class="title is-5">
+  <h2 data-test-primary-metric-title class="title is-5">
     {{#if (eq this.metric "cpu")}}
       CPU
     {{else if (eq this.metric "memory")}}
       Memory
     {{else}} {{this.metric}} {{/if}}
-  </h3>
+  </h2>
   <div class="primary-graphic">
     <StatsTimeSeries @data={{this.data}} @chartClass={{this.chartClass}}>
       <:after as |c|>

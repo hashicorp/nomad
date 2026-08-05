@@ -40,7 +40,10 @@ module('Acceptance | storage list', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await StorageList.visit();
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

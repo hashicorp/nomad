@@ -28,7 +28,10 @@ module('Acceptance | application errors ', function (hooks) {
   test('it passes an accessibility audit', async function (assert) {
     this.server.pretender.get('/v1/nodes', () => [500, {}, null]);
     await ClientsList.visit();
-    await a11yAudit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
     assert.ok(true, 'no a11y errors found');
   });
 

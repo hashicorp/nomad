@@ -13,6 +13,13 @@ a {
   }
 }
 
+.hds-badge,
+.hds-badge .hds-badge__text {
+  color: #0b0f14 !important;
+  background-color: #ffffff !important;
+  border-color: #d0d7de !important;
+}
+
 code {
   color: currentcolor;
   background: transparent;
@@ -30,5 +37,5 @@ code {
 }
 
 .is-faded {
-  color: darken($grey-blue, 35%);
+  color: $grey-dark;
 }

@@ -36,6 +36,10 @@
     }
   }
 
+  &.is-warning {
+    color: $black;
+  }
+
   &.is-faded {
     color: rgba($text, 0.8);
   }
