@@ -167,3 +167,47 @@ func TestEnvVSphereFingerprint_tier1Only(t *testing.T) {
 	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.cluster")
 	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.resource-pool")
 }
+
+// TestEnvVSphereFingerprint_vcenterUnreachable verifies that a vCenter
+// connection failure is non-fatal: the fingerprinter returns no error, all DMI
+// attributes are preserved, and no vCenter-sourced attributes are published.
+// This is the critical safety property — a misconfigured or unreachable vCenter
+// must never prevent the Nomad agent from starting.
+func TestEnvVSphereFingerprint_vcenterUnreachable(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("DMI sysfs is Linux-only")
+	}
+	ci.Parallel(t)
+
+	orig := dmiBase
+	dmiBase = dmiFixturePath(t, "vmware")
+	t.Cleanup(func() { dmiBase = orig })
+
+	f := NewEnvVSphereFingerprint(testlog.HCLogger(t))
+	node := &structs.Node{Attributes: make(map[string]string)}
+
+	// Point vsphere.url at a port with nothing listening so the TCP connection
+	// fails immediately. Port 1 is reserved and always refused.
+	cfg := &config.Config{Options: map[string]string{
+		vsphereOptURL: "https://127.0.0.1:1/sdk",
+	}}
+	request := &FingerprintRequest{Config: cfg, Node: node}
+	var response FingerprintResponse
+
+	err := f.Fingerprint(request, &response)
+
+	// Must not return an error — agent must always start.
+	must.NoError(t, err)
+	must.True(t, response.Detected)
+
+	// All DMI attributes must still be present.
+	assertNodeAttributeEquals(t, response.Attributes,
+		"unique.platform.vsphere.vm-uuid", "4218a4dd-a9f3-8c2b-1e40-d3a5c2b9f7e1")
+	assertNodeAttributeEquals(t, response.Attributes,
+		"platform.vsphere.sys-vendor", "VMware, Inc.")
+
+	// No vCenter-sourced attributes should be present.
+	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.datacenter")
+	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.cluster")
+	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.vm-name")
+}
