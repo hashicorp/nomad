@@ -5,6 +5,7 @@ package template
 
 import (
 	"context"
+	"crypto/fips140"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -788,6 +789,9 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		ct.RightDelim = &tmpl.RightDelim
 		ct.ErrMissingKey = &tmpl.ErrMissingKey
 		ct.FunctionDenylist = config.ClientConfig.TemplateConfig.FunctionDenylist
+		if fips140.Enabled() {
+			ct.FunctionDenylist = append(ct.FunctionDenylist, "md5sum")
+		}
 		if sandboxEnabled {
 			ct.SandboxPath = &config.TaskDir
 		}
