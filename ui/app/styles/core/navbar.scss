@@ -68,7 +68,7 @@ $secondaryNavbarHeight: 4.5rem;
     .hds-button:focus .hds-button__text,
     .hds-button:active .hds-button__text {
       color: $primary-invert !important;
-      fill: currentColor;
+      fill: currentcolor;
     }
 
     .hds-button {
@@ -97,7 +97,7 @@ $secondaryNavbarHeight: 4.5rem;
 
     .hds-badge__text {
       color: $white;
-      fill: currentColor;
+      fill: currentcolor;
     }
 
     .navbar-end {
