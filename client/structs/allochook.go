@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"maps"
 	"sync"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -67,9 +68,7 @@ func (a *AllocHookResources) SetConsulTokens(m map[string]map[string]*consulapi.
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	for k, v := range m {
-		a.consulTokens[k] = v
-	}
+	maps.Copy(a.consulTokens, m)
 }
 
 // GetConsulCheckIDs returns a set of Consul check IDs interpolated in the group

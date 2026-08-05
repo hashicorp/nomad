@@ -33,7 +33,7 @@ const (
 // RPCer is the interface needed by a prevAllocWatcher to make RPC calls.
 type RPCer interface {
 	// RPC allows retrieving remote allocs.
-	RPC(method string, args interface{}, reply interface{}) error
+	RPC(method string, args any, reply any) error
 }
 
 // terminated is the interface needed by a prevAllocWatcher to check if an

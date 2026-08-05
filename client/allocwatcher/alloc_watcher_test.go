@@ -127,7 +127,7 @@ func TestPrevAlloc_LocalPrevAlloc_Block(t *testing.T) {
 
 	defer cleanup()
 
-	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "500ms",
 	}
 

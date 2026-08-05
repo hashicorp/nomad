@@ -30,7 +30,7 @@ type Registry interface {
 
 	WaitForPlugin(ctx context.Context, ptype, pname string) (*PluginInfo, error)
 	ListPlugins(ptype string) []*PluginInfo
-	DispensePlugin(ptype, name string) (interface{}, error)
+	DispensePlugin(ptype, name string) (any, error)
 	PluginForAlloc(ptype, name, allocID string) (*PluginInfo, error)
 
 	PluginsUpdatedCh(ctx context.Context, ptype string) <-chan *PluginUpdateEvent
@@ -47,7 +47,7 @@ type RegistryState struct {
 	Plugins map[string]map[string]*list.List
 }
 
-type PluginDispenser func(info *PluginInfo) (interface{}, error)
+type PluginDispenser func(info *PluginInfo) (any, error)
 
 // NewRegistry takes a map of `plugintype` to PluginDispenser functions
 // that should be used to vend clients for plugins to be used.
@@ -364,7 +364,7 @@ func (d *dynamicRegistry) WaitForPlugin(ctx context.Context, ptype, name string)
 	}
 }
 
-func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (interface{}, error) {
+func (d *dynamicRegistry) DispensePlugin(ptype string, name string) (any, error) {
 	d.pluginsLock.Lock()
 	defer d.pluginsLock.Unlock()
 
