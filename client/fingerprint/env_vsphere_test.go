@@ -129,8 +129,8 @@ func TestEnvVSphereFingerprint_productUUIDPermissionDenied(t *testing.T) {
 }
 
 // TestEnvVSphereFingerprint_tier1Only verifies that a VMware VM with all DMI
-// files readable publishes the correct Tier 1 attributes and sets Detected.
-// No vCenter config is present so Tier 2 is not attempted.
+// files readable publishes the correct attributes and sets Detected.
+// No vsphere.url is configured, so no vCenter connection is made.
 func TestEnvVSphereFingerprint_tier1Only(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("DMI sysfs is Linux-only")
@@ -144,7 +144,7 @@ func TestEnvVSphereFingerprint_tier1Only(t *testing.T) {
 	f := NewEnvVSphereFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{Attributes: make(map[string]string)}
 
-	// No vsphere.url in options — Tier 2 must not be attempted.
+	// No vsphere.url in options — no vCenter connection must be attempted.
 	cfg := &config.Config{Options: map[string]string{}}
 	request := &FingerprintRequest{Config: cfg, Node: node}
 	var response FingerprintResponse
@@ -162,7 +162,7 @@ func TestEnvVSphereFingerprint_tier1Only(t *testing.T) {
 	assertNodeAttributeEquals(t, response.Attributes,
 		"platform.vsphere.bios-version", "6.00")
 
-	// No Tier 2 attributes should be present.
+	// No vCenter-sourced attributes should be present.
 	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.datacenter")
 	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.cluster")
 	must.MapNotContainsKey(t, response.Attributes, "platform.vsphere.resource-pool")
