@@ -189,21 +189,22 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 }
 
 func (j *JobDiff) GoString() string {
-	out := fmt.Sprintf("Job %q (%s):\n", j.ID, j.Type)
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("Job %q (%s):\n", j.ID, j.Type))
 
 	for _, f := range j.Fields {
-		out += fmt.Sprintf("%#v\n", f)
+		out.WriteString(fmt.Sprintf("%#v\n", f))
 	}
 
 	for _, o := range j.Objects {
-		out += fmt.Sprintf("%#v\n", o)
+		out.WriteString(fmt.Sprintf("%#v\n", o))
 	}
 
 	for _, tg := range j.TaskGroups {
-		out += fmt.Sprintf("%#v\n", tg)
+		out.WriteString(fmt.Sprintf("%#v\n", tg))
 	}
 
-	return out
+	return out.String()
 }
 
 // TaskGroupDiff contains the diff of two task groups.
@@ -358,29 +359,30 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 }
 
 func (tg *TaskGroupDiff) GoString() string {
-	out := fmt.Sprintf("Group %q (%s):\n", tg.Name, tg.Type)
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("Group %q (%s):\n", tg.Name, tg.Type))
 
 	if len(tg.Updates) != 0 {
-		out += "Updates {\n"
+		out.WriteString("Updates {\n")
 		for update, count := range tg.Updates {
-			out += fmt.Sprintf("%d %s\n", count, update)
+			out.WriteString(fmt.Sprintf("%d %s\n", count, update))
 		}
-		out += "}\n"
+		out.WriteString("}\n")
 	}
 
 	for _, f := range tg.Fields {
-		out += fmt.Sprintf("%#v\n", f)
+		out.WriteString(fmt.Sprintf("%#v\n", f))
 	}
 
 	for _, o := range tg.Objects {
-		out += fmt.Sprintf("%#v\n", o)
+		out.WriteString(fmt.Sprintf("%#v\n", o))
 	}
 
 	for _, t := range tg.Tasks {
-		out += fmt.Sprintf("%#v\n", t)
+		out.WriteString(fmt.Sprintf("%#v\n", t))
 	}
 
-	return out
+	return out.String()
 }
 
 // TaskGroupDiffs diffs two sets of task groups. If contextual diff is enabled,
@@ -816,7 +818,7 @@ func scalingDiff(old, new *ScalingPolicy, contextual bool) *ObjectDiff {
 
 // policyDiff returns the diff of two Scaling Policy objects. If contextual diff is enabled, unchanged
 // fields within objects nested in the tasks will be returned.
-func policyDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
+func policyDiff(old, new map[string]any, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Policy"}
 	if reflect.DeepEqual(old, new) {
 		return nil
@@ -2979,7 +2981,7 @@ func requestedDevicesDiffs(old, new []*RequestedDevice, contextual bool) []*Obje
 
 // configDiff returns the diff of two Task Config objects. If contextual diff is
 // enabled, all fields will be returned, even if no diff occurred.
-func configDiff(old, new map[string]interface{}, contextual bool) *ObjectDiff {
+func configDiff(old, new map[string]any, contextual bool) *ObjectDiff {
 	diff := &ObjectDiff{Type: DiffTypeNone, Name: "Config"}
 	if reflect.DeepEqual(old, new) {
 		return nil
@@ -3110,15 +3112,16 @@ type ObjectDiff struct {
 }
 
 func (o *ObjectDiff) GoString() string {
-	out := fmt.Sprintf("\n%q (%s) {\n", o.Name, o.Type)
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("\n%q (%s) {\n", o.Name, o.Type))
 	for _, f := range o.Fields {
-		out += fmt.Sprintf("%#v\n", f)
+		out.WriteString(fmt.Sprintf("%#v\n", f))
 	}
 	for _, o := range o.Objects {
-		out += fmt.Sprintf("%#v\n", o)
+		out.WriteString(fmt.Sprintf("%#v\n", o))
 	}
-	out += "}"
-	return out
+	out.WriteString("}")
+	return out.String()
 }
 
 func (o *ObjectDiff) Less(other *ObjectDiff) bool {
@@ -3357,7 +3360,7 @@ func periodicDiff(old, new *PeriodicConfig, contextual bool) *ObjectDiff {
 // The filter field can be used to exclude fields from the diff. The name is the
 // name of the objects. If contextual is set, non-changed fields will also be
 // stored in the object diff.
-func primitiveObjectDiff(old, new interface{}, filter []string, name string, contextual bool) *ObjectDiff {
+func primitiveObjectDiff(old, new any, filter []string, name string, contextual bool) *ObjectDiff {
 	oldPrimitiveFlat := flatmap.Flatten(old, filter, true)
 	newPrimitiveFlat := flatmap.Flatten(new, filter, true)
 	delete(oldPrimitiveFlat, "")
@@ -3398,9 +3401,9 @@ Loop:
 // passed structs. The name corresponds to the name of the passed objects. If
 // contextual diff is enabled, objects' primitive fields will be returned even if
 // no diff exists.
-func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string, contextual bool) []*ObjectDiff {
-	makeSet := func(objects []interface{}) map[string]interface{} {
-		objMap := make(map[string]interface{}, len(objects))
+func primitiveObjectSetDiff(old, new []any, filter []string, name string, contextual bool) []*ObjectDiff {
+	makeSet := func(objects []any) map[string]any {
+		objMap := make(map[string]any, len(objects))
 		for _, obj := range objects {
 			var key string
 
@@ -3446,13 +3449,13 @@ func primitiveObjectSetDiff(old, new []interface{}, filter []string, name string
 // interfaceSlice is a helper method that takes a slice of typed elements and
 // returns a slice of interface. This method will panic if given a non-slice
 // input.
-func interfaceSlice(slice interface{}) []interface{} {
+func interfaceSlice(slice any) []any {
 	s := reflect.ValueOf(slice)
 	if s.Kind() != reflect.Slice {
 		panic("InterfaceSlice() given a non-slice type")
 	}
 
-	ret := make([]interface{}, s.Len())
+	ret := make([]any, s.Len())
 
 	for i := 0; i < s.Len(); i++ {
 		ret[i] = s.Index(i).Interface()

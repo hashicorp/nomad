@@ -277,7 +277,7 @@ func TestStateStore_DeleteServiceRegistrationByNodeID(t *testing.T) {
 	delete2NodeID := services[1].NodeID
 	var delete2NodeServices []*structs.ServiceRegistration
 
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		iString := strconv.Itoa(i)
 		delete2NodeServices = append(delete2NodeServices, &structs.ServiceRegistration{
 			ID:          "_nomad-task-ca60e901-675a-0ab2-2e57-2f3b05fdc540-group-api-countdash-api-http-" + iString,
@@ -455,7 +455,7 @@ func TestStateStore_GetServiceRegistrationByName(t *testing.T) {
 	// that of expectedReg.
 	var newServices []*structs.ServiceRegistration
 
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		iString := strconv.Itoa(i)
 		newServices = append(newServices, &structs.ServiceRegistration{
 			ID:          "_nomad-task-ca60e901-675a-0ab2-2e57-2f3b05fdc540-group-api-countdash-api-http-" + iString,

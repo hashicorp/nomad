@@ -22,7 +22,7 @@ func TestCachedtBadNodeTracker(t *testing.T) {
 	tracker, err := NewCachedBadNodeTracker(hclog.NewNullLogger(), config)
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tracker.Add(fmt.Sprintf("node-%d", i+1))
 	}
 

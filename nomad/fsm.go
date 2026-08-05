@@ -114,7 +114,7 @@ var snapshotTypeStrings = map[SnapshotType]string{
 }
 
 // LogApplier is the definition of a function that can apply a Raft log
-type LogApplier func(buf []byte, index uint64) interface{}
+type LogApplier func(buf []byte, index uint64) any
 
 // LogAppliers is a mapping of the Raft MessageType to the appropriate log
 // applier
@@ -247,7 +247,7 @@ func (n *nomadFSM) State() *state.StateStore {
 	return n.state
 }
 
-func (n *nomadFSM) Apply(log *raft.Log) interface{} {
+func (n *nomadFSM) Apply(log *raft.Log) any {
 	buf := log.Data
 	msgType := structs.MessageType(buf[0])
 
@@ -413,7 +413,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	panic(fmt.Errorf("failed to apply request: %#v", buf))
 }
 
-func (n *nomadFSM) applyClusterMetadata(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyClusterMetadata(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "cluster_meta"}, time.Now())
 
 	var req structs.ClusterMetadata
@@ -431,7 +431,7 @@ func (n *nomadFSM) applyClusterMetadata(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertNode(reqType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertNode(reqType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_node"}, time.Now())
 	var req structs.NodeRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -461,7 +461,7 @@ func (n *nomadFSM) applyUpsertNode(reqType structs.MessageType, buf []byte, inde
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_node"}, time.Now())
 	var req structs.NodeDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -476,7 +476,7 @@ func (n *nomadFSM) applyDeregisterNode(reqType structs.MessageType, buf []byte, 
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterNodeBatch(reqType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterNodeBatch(reqType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_node"}, time.Now())
 	var req structs.NodeBatchDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -491,7 +491,7 @@ func (n *nomadFSM) applyDeregisterNodeBatch(reqType structs.MessageType, buf []b
 	return nil
 }
 
-func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_status_update"}, time.Now())
 	var req structs.NodeUpdateStatusRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -520,7 +520,7 @@ func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, in
 	return nil
 }
 
-func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_drain_update"}, time.Now())
 	var req structs.NodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -551,7 +551,7 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 	return nil
 }
 
-func (n *nomadFSM) applyBatchDrainUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyBatchDrainUpdate(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_node_drain_update"}, time.Now())
 	var req structs.BatchNodeUpdateDrainRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -594,7 +594,7 @@ func (n *nomadFSM) applyBatchDrainUpdate(msgType structs.MessageType, buf []byte
 	return nil
 }
 
-func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "node_eligibility_update"}, time.Now())
 	var req structs.NodeUpdateEligibilityRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -624,7 +624,7 @@ func (n *nomadFSM) applyNodeEligibilityUpdate(msgType structs.MessageType, buf [
 	return nil
 }
 
-func (n *nomadFSM) applyNodePoolUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyNodePoolUpsert(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_node_pool_upsert"}, time.Now())
 	var req structs.NodePoolUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -648,7 +648,7 @@ func (n *nomadFSM) applyNodePoolUpsert(msgType structs.MessageType, buf []byte, 
 	return nil
 }
 
-func (n *nomadFSM) applyNodePoolDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyNodePoolDelete(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_node_pool_delete"}, time.Now())
 	var req structs.NodePoolDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -663,7 +663,7 @@ func (n *nomadFSM) applyNodePoolDelete(msgType structs.MessageType, buf []byte, 
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "register_job"}, time.Now())
 
 	var req structs.JobRegisterRequest
@@ -810,7 +810,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 	return nil
 }
 
-func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_job"}, time.Now())
 	var req structs.JobDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -846,7 +846,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	return nil
 }
 
-func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "batch_deregister_job"}, time.Now())
 	var req structs.JobBatchDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -936,7 +936,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 	return nil
 }
 
-func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpdateEval(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "update_eval"}, time.Now())
 
 	var req structs.EvalUpdateRequest
@@ -983,7 +983,7 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 	}
 }
 
-func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "delete_eval"}, time.Now())
 	var req structs.EvalReapRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1008,11 +1008,11 @@ func (n *nomadFSM) applyDeleteEval(buf []byte, index uint64) interface{} {
 // DEPRECATED: AllocUpdateRequestType was removed in Nomad 0.6.0 when we built
 // Deployments. This handler remains so that older raft logs can be read without
 // panicking.
-func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) interface{} {
+func (n *nomadFSM) applyAllocUpdate(_ structs.MessageType, _ []byte, _ uint64) any {
 	return nil
 }
 
-func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_client_update"}, time.Now())
 
 	var req structs.AllocUpdateRequest
@@ -1098,7 +1098,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 
 // applyAllocUpdateDesiredTransition is used to update the desired transitions
 // of a set of allocations.
-func (n *nomadFSM) applyAllocUpdateDesiredTransition(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAllocUpdateDesiredTransition(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "alloc_update_desired_transition"}, time.Now())
 	var req structs.AllocUpdateDesiredTransitionRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1115,7 +1115,7 @@ func (n *nomadFSM) applyAllocUpdateDesiredTransition(msgType structs.MessageType
 }
 
 // applyReconcileSummaries reconciles summaries for all the jobs
-func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) any {
 	if err := n.state.ReconcileJobSummaries(index); err != nil {
 		return err
 	}
@@ -1123,7 +1123,7 @@ func (n *nomadFSM) applyReconcileSummaries(buf []byte, index uint64) interface{}
 }
 
 // applyUpsertNodeEvent tracks the given node events.
-func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_node_events"}, time.Now())
 	var req structs.EmitNodeEventsRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1139,7 +1139,7 @@ func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte,
 }
 
 // applyPlanApply applies the results of a plan application
-func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_plan_results"}, time.Now())
 	var req structs.ApplyPlanResultsRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1158,7 +1158,7 @@ func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, ind
 
 // applyDeploymentStatusUpdate is used to update the status of an existing
 // deployment
-func (n *nomadFSM) applyDeploymentStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentStatusUpdate(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_status_update"}, time.Now())
 	var req structs.DeploymentStatusUpdateRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1175,7 +1175,7 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(msgType structs.MessageType, buf 
 }
 
 // applyDeploymentPromotion is used to promote canaries in a deployment
-func (n *nomadFSM) applyDeploymentPromotion(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentPromotion(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_promotion"}, time.Now())
 	var req structs.ApplyDeploymentPromoteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1193,7 +1193,7 @@ func (n *nomadFSM) applyDeploymentPromotion(msgType structs.MessageType, buf []b
 
 // applyDeploymentAllocHealth is used to set the health of allocations as part
 // of a deployment
-func (n *nomadFSM) applyDeploymentAllocHealth(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentAllocHealth(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_alloc_health"}, time.Now())
 	var req structs.ApplyDeploymentAllocHealthRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1210,7 +1210,7 @@ func (n *nomadFSM) applyDeploymentAllocHealth(msgType structs.MessageType, buf [
 }
 
 // applyDeploymentDelete is used to delete a set of deployments
-func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_deployment_delete"}, time.Now())
 	var req structs.DeploymentDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1226,7 +1226,7 @@ func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyJobVersionTag is used to tag a job version for diffing and GC-prevention
-func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_version_tag"}, time.Now())
 	var req structs.JobApplyTagRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1242,7 +1242,7 @@ func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) interface{} {
 }
 
 // applyJobStability is used to set the stability of a job
-func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyJobStability(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_stability"}, time.Now())
 	var req structs.JobStabilityRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1258,7 +1258,7 @@ func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 }
 
 // applyACLPolicyUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_upsert"}, time.Now())
 	var req structs.ACLPolicyUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1273,7 +1273,7 @@ func (n *nomadFSM) applyACLPolicyUpsert(msgType structs.MessageType, buf []byte,
 }
 
 // applyACLPolicyDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLPolicyDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLPolicyDelete(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_policy_delete"}, time.Now())
 	var req structs.ACLPolicyDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1288,7 +1288,7 @@ func (n *nomadFSM) applyACLPolicyDelete(msgType structs.MessageType, buf []byte,
 }
 
 // applyACLTokenUpsert is used to upsert a set of policies
-func (n *nomadFSM) applyACLTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_upsert"}, time.Now())
 	var req structs.ACLTokenUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1303,7 +1303,7 @@ func (n *nomadFSM) applyACLTokenUpsert(msgType structs.MessageType, buf []byte, 
 }
 
 // applyACLTokenDelete is used to delete a set of policies
-func (n *nomadFSM) applyACLTokenDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenDelete(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_delete"}, time.Now())
 	var req structs.ACLTokenDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1318,7 +1318,7 @@ func (n *nomadFSM) applyACLTokenDelete(msgType structs.MessageType, buf []byte, 
 }
 
 // applyACLTokenBootstrap is used to bootstrap an ACL token
-func (n *nomadFSM) applyACLTokenBootstrap(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLTokenBootstrap(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_token_bootstrap"}, time.Now())
 	var req structs.ACLTokenBootstrapRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1333,7 +1333,7 @@ func (n *nomadFSM) applyACLTokenBootstrap(msgType structs.MessageType, buf []byt
 }
 
 // applyOneTimeTokenUpsert is used to upsert a one-time token
-func (n *nomadFSM) applyOneTimeTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyOneTimeTokenUpsert(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_upsert"}, time.Now())
 	var req structs.OneTimeToken
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1348,7 +1348,7 @@ func (n *nomadFSM) applyOneTimeTokenUpsert(msgType structs.MessageType, buf []by
 }
 
 // applyOneTimeTokenDelete is used to delete a set of one-time tokens
-func (n *nomadFSM) applyOneTimeTokenDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyOneTimeTokenDelete(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_delete"}, time.Now())
 	var req structs.OneTimeTokenDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1363,7 +1363,7 @@ func (n *nomadFSM) applyOneTimeTokenDelete(msgType structs.MessageType, buf []by
 }
 
 // applyOneTimeTokenExpire is used to delete a set of one-time tokens
-func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_one_time_token_expire"}, time.Now())
 	var req structs.OneTimeTokenExpireRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1377,7 +1377,7 @@ func (n *nomadFSM) applyOneTimeTokenExpire(msgType structs.MessageType, buf []by
 	return nil
 }
 
-func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) any {
 	var req structs.AutopilotSetConfigRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1394,7 +1394,7 @@ func (n *nomadFSM) applyAutopilotUpdate(buf []byte, index uint64) interface{} {
 	return n.state.AutopilotSetConfig(index, &req.Config)
 }
 
-func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) any {
 	var req structs.SchedulerSetConfigRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1413,7 +1413,7 @@ func (n *nomadFSM) applySchedulerConfigUpdate(buf []byte, index uint64) interfac
 	return n.state.SchedulerSetConfig(index, &req.Config)
 }
 
-func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) any {
 	var req structs.CSIVolumeRegisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1433,7 +1433,7 @@ func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} 
 	return nil
 }
 
-func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) any {
 	var req structs.CSIVolumeDeregisterRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1448,7 +1448,7 @@ func (n *nomadFSM) applyCSIVolumeDeregister(buf []byte, index uint64) interface{
 	return nil
 }
 
-func (n *nomadFSM) applyCSIVolumeBatchClaim(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyCSIVolumeBatchClaim(buf []byte, index uint64) any {
 	var batch *structs.CSIVolumeClaimBatchRequest
 	if err := structs.Decode(buf, &batch); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1466,7 +1466,7 @@ func (n *nomadFSM) applyCSIVolumeBatchClaim(buf []byte, index uint64) interface{
 	return nil
 }
 
-func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) any {
 	var req structs.CSIVolumeClaimRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1480,7 +1480,7 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 	return nil
 }
 
-func (n *nomadFSM) applyCSIPluginDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyCSIPluginDelete(buf []byte, index uint64) any {
 	var req structs.CSIPluginDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -1499,7 +1499,7 @@ func (n *nomadFSM) applyCSIPluginDelete(buf []byte, index uint64) interface{} {
 }
 
 // applyNamespaceUpsert is used to upsert a set of namespaces
-func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_upsert"}, time.Now())
 	var req structs.NamespaceUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -1535,7 +1535,7 @@ func (n *nomadFSM) applyNamespaceUpsert(buf []byte, index uint64) interface{} {
 }
 
 // applyNamespaceDelete is used to delete a set of namespaces
-func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_namespace_delete"}, time.Now())
 	var req structs.NamespaceDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2203,7 +2203,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_scaling_event"}, time.Now())
 	var req structs.ScalingEventRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2218,7 +2218,7 @@ func (n *nomadFSM) applyUpsertScalingEvent(buf []byte, index uint64) interface{}
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertServiceRegistrations(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyUpsertServiceRegistrations(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_upsert"}, time.Now())
 	var req structs.ServiceRegistrationUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2233,7 +2233,7 @@ func (n *nomadFSM) applyUpsertServiceRegistrations(msgType structs.MessageType, 
 	return nil
 }
 
-func (n *nomadFSM) applyDeleteServiceRegistrationByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeleteServiceRegistrationByID(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_id"}, time.Now())
 	var req structs.ServiceRegistrationDeleteByIDRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2248,7 +2248,7 @@ func (n *nomadFSM) applyDeleteServiceRegistrationByID(msgType structs.MessageTyp
 	return nil
 }
 
-func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_service_registration_delete_node_id"}, time.Now())
 	var req structs.ServiceRegistrationDeleteByNodeIDRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2263,7 +2263,7 @@ func (n *nomadFSM) applyDeleteServiceRegistrationByNodeID(msgType structs.Messag
 	return nil
 }
 
-func (n *nomadFSM) applyACLRolesUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLRolesUpsert(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_upsert"}, time.Now())
 	var req structs.ACLRolesUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2278,7 +2278,7 @@ func (n *nomadFSM) applyACLRolesUpsert(msgType structs.MessageType, buf []byte, 
 	return nil
 }
 
-func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_role_delete_by_id"}, time.Now())
 	var req structs.ACLRolesDeleteByIDRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2293,7 +2293,7 @@ func (n *nomadFSM) applyACLRolesDeleteByID(msgType structs.MessageType, buf []by
 	return nil
 }
 
-func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_upsert"}, time.Now())
 	var req structs.ACLAuthMethodUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2308,7 +2308,7 @@ func (n *nomadFSM) applyACLAuthMethodsUpsert(buf []byte, index uint64) interface
 	return nil
 }
 
-func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_auth_method_delete"}, time.Now())
 	var req structs.ACLAuthMethodDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2323,7 +2323,7 @@ func (n *nomadFSM) applyACLAuthMethodsDelete(buf []byte, index uint64) interface
 	return nil
 }
 
-func (n *nomadFSM) applyACLBindingRulesUpsert(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLBindingRulesUpsert(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_binding_rule_upsert"}, time.Now())
 	var req structs.ACLBindingRulesUpsertRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2338,7 +2338,7 @@ func (n *nomadFSM) applyACLBindingRulesUpsert(buf []byte, index uint64) interfac
 	return nil
 }
 
-func (n *nomadFSM) applyACLBindingRulesDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyACLBindingRulesDelete(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_acl_binding_rule_delete"}, time.Now())
 	var req structs.ACLBindingRulesDeleteRequest
 	if err := structs.Decode(buf, &req); err != nil {
@@ -2368,7 +2368,7 @@ func NewFSMFilter(expr string) (*FSMFilter, error) {
 	return &FSMFilter{evaluator: evaluator}, nil
 }
 
-func (f *FSMFilter) Include(item interface{}) bool {
+func (f *FSMFilter) Include(item any) bool {
 	if f == nil {
 		return true
 	}
@@ -2407,7 +2407,7 @@ func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byt
 	}
 }
 
-func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_root_key_meta_upsert"}, time.Now())
 
 	var req structs.KeyringUpdateRootKeyMetaRequest
@@ -2431,7 +2431,7 @@ func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byt
 	return nil
 }
 
-func (n *nomadFSM) applyWrappedRootKeysUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyWrappedRootKeysUpsert(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_wrapped_root_key_upsert"}, time.Now())
 
 	var req structs.KeyringUpsertWrappedRootKeyRequest
@@ -2453,7 +2453,7 @@ func (n *nomadFSM) applyWrappedRootKeysUpsert(msgType structs.MessageType, buf [
 	return nil
 }
 
-func (n *nomadFSM) applyWrappedRootKeysDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyWrappedRootKeysDelete(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_wrapped_root_key_delete"}, time.Now())
 
 	var req structs.KeyringDeleteRootKeyRequest
@@ -2472,7 +2472,7 @@ func (n *nomadFSM) applyWrappedRootKeysDelete(msgType structs.MessageType, buf [
 	return nil
 }
 
-func (n *nomadFSM) applyHostVolumeRegister(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyHostVolumeRegister(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_host_volume_register"}, time.Now())
 
 	var req structs.HostVolumeRegisterRequest
@@ -2487,7 +2487,7 @@ func (n *nomadFSM) applyHostVolumeRegister(msgType structs.MessageType, buf []by
 	return nil
 }
 
-func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_host_volume_delete"}, time.Now())
 
 	var req structs.HostVolumeDeleteRequest
@@ -2502,7 +2502,7 @@ func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte
 	return nil
 }
 
-func (n *nomadFSM) applyTaskGroupHostVolumeClaimDelete(buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyTaskGroupHostVolumeClaimDelete(buf []byte, index uint64) any {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_task_group_host_volume_claim_delete"}, time.Now())
 
 	var req structs.TaskGroupVolumeClaimDeleteRequest

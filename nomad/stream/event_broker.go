@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 
@@ -215,7 +214,7 @@ func (e *EventBroker) checkSubscriptionsAgainstACLChange() {
 }
 
 func (s *Subscription) forceClose() {
-	if atomic.CompareAndSwapUint32(&s.state, subscriptionStateOpen, subscriptionStateClosed) {
+	if s.state.CompareAndSwap(subscriptionStateOpen, subscriptionStateClosed) {
 		close(s.forceClosed)
 	}
 }

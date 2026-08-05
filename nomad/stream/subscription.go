@@ -29,7 +29,7 @@ var ErrSubscriptionClosed = errors.New("subscription closed by server, client sh
 
 type Subscription struct {
 	// state must be accessed atomically 0 means open, 1 means closed with reload
-	state uint32
+	state atomic.Uint32
 
 	req *SubscribeRequest
 
@@ -82,14 +82,14 @@ func newSubscription(req *SubscribeRequest, item *bufferItem, unsub func()) *Sub
 }
 
 func (s *Subscription) Next(ctx context.Context) (structs.Events, error) {
-	if atomic.LoadUint32(&s.state) == subscriptionStateClosed {
+	if s.state.Load() == subscriptionStateClosed {
 		return structs.Events{}, ErrSubscriptionClosed
 	}
 
 	for {
 		next, err := s.currentItem.Next(ctx, s.forceClosed)
 		switch {
-		case err != nil && atomic.LoadUint32(&s.state) == subscriptionStateClosed:
+		case err != nil && s.state.Load() == subscriptionStateClosed:
 			return structs.Events{}, ErrSubscriptionClosed
 		case err != nil:
 			return structs.Events{}, err
@@ -105,7 +105,7 @@ func (s *Subscription) Next(ctx context.Context) (structs.Events, error) {
 }
 
 func (s *Subscription) NextNoBlock() ([]structs.Event, error) {
-	if atomic.LoadUint32(&s.state) == subscriptionStateClosed {
+	if s.state.Load() == subscriptionStateClosed {
 		return nil, ErrSubscriptionClosed
 	}
 
@@ -182,11 +182,5 @@ func eventMatchesKey(event structs.Event, key string) bool {
 		return true
 	}
 
-	for _, fk := range event.FilterKeys {
-		if fk == key {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(event.FilterKeys, key)
 }

@@ -591,14 +591,14 @@ func (h periodicHeapImp) Swap(i, j int) {
 	h[j].index = j
 }
 
-func (h *periodicHeapImp) Push(x interface{}) {
+func (h *periodicHeapImp) Push(x any) {
 	n := len(*h)
 	job := x.(*periodicJob)
 	job.index = n
 	*h = append(*h, job)
 }
 
-func (h *periodicHeapImp) Pop() interface{} {
+func (h *periodicHeapImp) Pop() any {
 	old := *h
 	n := len(old)
 	job := old[n-1]

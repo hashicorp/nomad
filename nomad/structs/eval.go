@@ -5,6 +5,7 @@ package structs
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -353,9 +354,7 @@ func (e *Evaluation) Copy() *Evaluation {
 	// Copy ClassEligibility
 	if e.ClassEligibility != nil {
 		classes := make(map[string]bool, len(e.ClassEligibility))
-		for class, elig := range e.ClassEligibility {
-			classes[class] = elig
-		}
+		maps.Copy(classes, e.ClassEligibility)
 		ne.ClassEligibility = classes
 	}
 
@@ -371,9 +370,7 @@ func (e *Evaluation) Copy() *Evaluation {
 	// Copy queued allocations
 	if e.QueuedAllocations != nil {
 		queuedAllocations := make(map[string]int, len(e.QueuedAllocations))
-		for tg, num := range e.QueuedAllocations {
-			queuedAllocations[tg] = num
-		}
+		maps.Copy(queuedAllocations, e.QueuedAllocations)
 		ne.QueuedAllocations = queuedAllocations
 	}
 

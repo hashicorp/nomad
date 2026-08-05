@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
-// +build !ent
 
 package nomad
 
@@ -19,7 +18,7 @@ func (s *Server) autopilotPromoter() autopilot.Promoter {
 
 // autopilotServerExt returns the autopilot-enterprise.Server extensions needed
 // for ENT feature support, but this is the empty OSS implementation.
-func (s *Server) autopilotServerExt(_ *peers.Parts) interface{} {
+func (s *Server) autopilotServerExt(_ *peers.Parts) any {
 	return nil
 }
 
@@ -29,6 +28,6 @@ func (s *Server) autopilotStateExt(_ *autopilot.State, _ *structs.OperatorHealth
 
 // autopilotConfigExt returns the autopilot-enterprise.Config extensions needed
 // for ENT feature support, but this is the empty OSS implementation.
-func autopilotConfigExt(_ *structs.AutopilotConfig) interface{} {
+func autopilotConfigExt(_ *structs.AutopilotConfig) any {
 	return nil
 }

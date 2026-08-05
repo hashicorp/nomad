@@ -18,7 +18,7 @@ func TestPluginConfig_Merge(t *testing.T) {
 	a := &PluginConfig{
 		Name: "foo",
 		Args: []string{"bar"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"baz": true,
 		},
 	}
@@ -26,7 +26,7 @@ func TestPluginConfig_Merge(t *testing.T) {
 	e1 := &PluginConfig{
 		Name: "replaced",
 		Args: []string{"bar"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"baz": true,
 		},
 	}
@@ -36,7 +36,7 @@ func TestPluginConfig_Merge(t *testing.T) {
 	e2 := &PluginConfig{
 		Name: "foo",
 		Args: []string{"replaced", "another"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"baz": true,
 		},
 	}
@@ -48,12 +48,12 @@ func TestPluginConfig_Merge(t *testing.T) {
 	e3 := &PluginConfig{
 		Name: "foo",
 		Args: []string{"bar"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"replaced": 1,
 		},
 	}
 	o3 := a.Merge(&PluginConfig{
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"replaced": 1,
 		},
 	})
@@ -66,28 +66,28 @@ func TestPluginConfigSet_Merge(t *testing.T) {
 	a := &PluginConfig{
 		Name: "a",
 		Args: []string{"a1"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"a1": true,
 		},
 	}
 	b1 := &PluginConfig{
 		Name: "b",
 		Args: []string{"b1"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"b1": true,
 		},
 	}
 	b2 := &PluginConfig{
 		Name: "b",
 		Args: []string{"b2"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"b2": true,
 		},
 	}
 	c := &PluginConfig{
 		Name: "c",
 		Args: []string{"c"},
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"c1": true,
 		},
 	}

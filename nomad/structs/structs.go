@@ -861,7 +861,7 @@ type JobScaleRequest struct {
 	Count   *int64
 	Message string
 	Error   bool
-	Meta    map[string]interface{}
+	Meta    map[string]any
 
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
@@ -2894,14 +2894,14 @@ type NetworkResource struct {
 
 func (n *NetworkResource) Hash() uint32 {
 	var data []byte
-	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", n.Mode, n.Device, n.CIDR, n.IP, n.Hostname, n.MBits))...)
+	data = fmt.Appendf(data, "%s%s%s%s%s%d", n.Mode, n.Device, n.CIDR, n.IP, n.Hostname, n.MBits)
 
 	for i, port := range n.ReservedPorts {
-		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
+		data = fmt.Appendf(data, "r%d%s%d%d", i, port.Label, port.Value, port.To)
 	}
 
 	for i, port := range n.DynamicPorts {
-		data = append(data, []byte(fmt.Sprintf("d%d%s%d%d", i, port.Label, port.Value, port.To))...)
+		data = fmt.Appendf(data, "d%d%s%d%d", i, port.Label, port.Value, port.To)
 	}
 
 	return crc32.ChecksumIEEE(data)
@@ -3204,7 +3204,7 @@ func (n *NodeResources) Copy() *NodeResources {
 	if n.Devices != nil {
 		devices := len(n.Devices)
 		newN.Devices = make([]*NodeDeviceResource, devices)
-		for i := 0; i < devices; i++ {
+		for i := range devices {
 			newN.Devices[i] = n.Devices[i].Copy()
 		}
 	}
@@ -3897,7 +3897,7 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 	if newA.Devices != nil {
 		n := len(a.Devices)
 		newA.Devices = make([]*AllocatedDeviceResource, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			newA.Devices[i] = a.Devices[i].Copy()
 		}
 	}
@@ -5338,9 +5338,7 @@ func (js *JobSummary) Copy() *JobSummary {
 	newJobSummary := new(JobSummary)
 	*newJobSummary = *js
 	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
-	for k, v := range js.Summary {
-		newTGSummary[k] = v
-	}
+	maps.Copy(newTGSummary, js.Summary)
 	newJobSummary.Summary = newTGSummary
 	newJobSummary.Children = newJobSummary.Children.Copy()
 	return newJobSummary
@@ -5565,9 +5563,7 @@ func (m *Multiregion) Copy() *Multiregion {
 			Meta:        map[string]string{},
 		}
 		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
-		for k, v := range region.Meta {
-			copyRegion.Meta[k] = v
-		}
+		maps.Copy(copyRegion.Meta, region.Meta)
 		copy.Regions = append(copy.Regions, copyRegion)
 	}
 	return copy
@@ -5811,9 +5807,7 @@ func (n *Namespace) Copy() *Namespace {
 
 	if n.Meta != nil {
 		nc.Meta = make(map[string]string, len(n.Meta))
-		for k, v := range n.Meta {
-			nc.Meta[k] = v
-		}
+		maps.Copy(nc.Meta, n.Meta)
 	}
 	copy(nc.Hash, n.Hash)
 	return nc
@@ -6308,7 +6302,7 @@ type ScalingEvent struct {
 	Error bool
 
 	// Meta is a map of metadata returned during a scaling event
-	Meta map[string]interface{}
+	Meta map[string]any
 
 	// EvalID is the ID for an evaluation if one was created as part of a scaling event
 	EvalID *string
@@ -6352,7 +6346,7 @@ type ScalingPolicy struct {
 	Target map[string]string
 
 	// Policy is an opaque description of the scaling policy, passed to the autoscaler
-	Policy map[string]interface{}
+	Policy map[string]any
 
 	// Min is the minimum allowable scaling count for this target
 	Min int64
@@ -6417,7 +6411,7 @@ func (p *ScalingPolicy) Copy() *ScalingPolicy {
 
 	c := ScalingPolicy{
 		ID:          p.ID,
-		Policy:      opaquePolicyConfig.(map[string]interface{}),
+		Policy:      opaquePolicyConfig.(map[string]any),
 		Enabled:     p.Enabled,
 		Type:        p.Type,
 		Min:         p.Min,
@@ -6426,9 +6420,7 @@ func (p *ScalingPolicy) Copy() *ScalingPolicy {
 		ModifyIndex: p.ModifyIndex,
 	}
 	c.Target = make(map[string]string, len(p.Target))
-	for k, v := range p.Target {
-		c.Target[k] = v
-	}
+	maps.Copy(c.Target, p.Target)
 	return &c
 }
 
@@ -6500,9 +6492,7 @@ func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
 		CreateIndex: p.CreateIndex,
 		ModifyIndex: p.ModifyIndex,
 	}
-	for k, v := range p.Target {
-		stub.Target[k] = v
-	}
+	maps.Copy(stub.Target, p.Target)
 	return stub
 }
 
@@ -6989,7 +6979,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	if tg.Networks != nil {
 		n := len(tg.Networks)
 		ntg.Networks = make([]*NetworkResource, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			ntg.Networks[i] = tg.Networks[i].Copy()
 		}
 	}
@@ -7894,7 +7884,7 @@ type Task struct {
 	User string
 
 	// Config is provided to the driver to initialize
-	Config map[string]interface{}
+	Config map[string]any
 
 	// Map of environment variables to be used by the driver
 	Env map[string]string
@@ -8096,7 +8086,7 @@ func (t *Task) Copy() *Task {
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		panic(err.Error())
 	} else {
-		nt.Config = i.(map[string]interface{})
+		nt.Config = i.(map[string]any)
 	}
 
 	if t.Templates != nil {
@@ -10691,8 +10681,8 @@ func (rt *RescheduleTracker) rescheduleInfo(reschedulePolicy *ReschedulePolicy, 
 
 	attempted := 0
 	if rt != nil && attempts > 0 {
-		for j := len(rt.Events) - 1; j >= 0; j-- {
-			lastAttempt := rt.Events[j].RescheduleTime
+		for _, v := range slices.Backward(rt.Events) {
+			lastAttempt := v.RescheduleTime
 			timeDiff := failTime.UTC().UnixNano() - lastAttempt
 			if timeDiff < interval.Nanoseconds() {
 				attempted += 1
@@ -10758,7 +10748,7 @@ func (s *NodeScoreMeta) Score() float64 {
 	return s.NormScore
 }
 
-func (s *NodeScoreMeta) Data() interface{} {
+func (s *NodeScoreMeta) Data() any {
 	return s
 }
 
@@ -10795,7 +10785,7 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a
 	// nil interface{}.
-	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	h.MapType = reflect.TypeFor[map[string]any]()
 
 	// only review struct codec tags
 	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
@@ -10804,12 +10794,12 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 }()
 
 // Decode is used to decode a MsgPack encoded object
-func Decode(buf []byte, out interface{}) error {
+func Decode(buf []byte, out any) error {
 	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
 }
 
 // Encode is used to encode a MsgPack object with type prefix
-func Encode(t MessageType, msg interface{}) ([]byte, error) {
+func Encode(t MessageType, msg any) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte(uint8(t))
 	err := codec.NewEncoder(&buf, MsgpackHandle).Encode(msg)

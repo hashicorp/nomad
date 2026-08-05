@@ -384,13 +384,11 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 			return false
 		}
 
-		for _, missing := range eval.MissingNonNodeResources {
-			if missing == id {
-				// If the evaluation was processed before the missing resource
-				// was updated, unblock it. Otherwise the evaluation processed
-				// having seen all changes to the resource
-				return eval.SnapshotIndex < u.index
-			}
+		if slices.Contains(eval.MissingNonNodeResources, id) {
+			// If the evaluation was processed before the missing resource
+			// was updated, unblock it. Otherwise the evaluation processed
+			// having seen all changes to the resource
+			return eval.SnapshotIndex < u.index
 		}
 
 		elig, ok := eval.ClassEligibility[id]

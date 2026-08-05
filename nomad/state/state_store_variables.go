@@ -445,10 +445,10 @@ func (s *StateStore) svDeleteTxn(tx WriteTxn, idx uint64, req *structs.VarApplyS
 type WriteTxn interface {
 	ReadTxn
 	Defer(func())
-	Delete(table string, obj interface{}) error
-	DeleteAll(table, index string, args ...interface{}) (int, error)
+	Delete(table string, obj any) error
+	DeleteAll(table, index string, args ...any) (int, error)
 	DeletePrefix(table string, index string, prefix string) (bool, error)
-	Insert(table string, obj interface{}) error
+	Insert(table string, obj any) error
 }
 
 // VariablesQuotas queries all the quotas and is used only for

@@ -64,7 +64,7 @@ func TestBitmap(t *testing.T) {
 	b.Clear()
 
 	// All bits should be unset
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		must.False(t, b.Check(uint(i)))
 	}
 

@@ -213,7 +213,7 @@ func NewErrRPCCoded(code int, msg string) error {
 
 // NewErrRPCCodedf wraps an RPC error with a code to be converted to HTTP
 // status code.
-func NewErrRPCCodedf(code int, format string, args ...interface{}) error {
+func NewErrRPCCodedf(code int, format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
 	return fmt.Errorf("%s%d,%s", errRPCCodedErrorPrefix, code, msg)
 }

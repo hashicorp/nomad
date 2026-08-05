@@ -376,7 +376,7 @@ func TestEncrypter_Restore(t *testing.T) {
 		},
 	}
 	var rotateResp structs.KeyringRotateRootKeyResponse
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		err := msgpackrpc.CallWithCodec(codec, "Keyring.Rotate", rotateReq, &rotateResp)
 		must.NoError(t, err)
 	}
@@ -592,8 +592,7 @@ func TestEncrypter_KeyringBootstrapping(t *testing.T) {
 			t.Logf("new leader is %s", srv.config.NodeName)
 		}
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 		t.Logf("replicating on %s", srv.config.NodeName)
 		go srv.keyringReplicator.run(ctx)
 	}
@@ -1208,7 +1207,7 @@ func TestEncrypter_AddWrappedKey_sameKeyConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(concurrentNum)
 
-	for i := 0; i < concurrentNum; i++ {
+	for range concurrentNum {
 		go func() {
 			<-startCh
 			respCh <- encrypter.AddWrappedKey(timeoutCtx, wrappedKey)

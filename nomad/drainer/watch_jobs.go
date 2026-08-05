@@ -443,7 +443,7 @@ func (w *drainingJobWatcher) getJobAllocs(ctx context.Context, minIndex uint64) 
 }
 
 // getJobAllocsImpl returns a map of draining jobs to their allocations.
-func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
+func (w *drainingJobWatcher) getJobAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (any, uint64, error) {
 	index, err := state.Index("allocs")
 	if err != nil {
 		return nil, 0, err

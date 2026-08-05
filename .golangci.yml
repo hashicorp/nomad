@@ -60,6 +60,7 @@ linters:
         - ST1020
   exclusions:
     paths-except:
+      - "^nomad/"
       - "^plugins/"
       - scheduler/*
     rules:
