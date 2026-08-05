@@ -460,10 +460,6 @@ github.com/hashicorp/go-immutable-radix v1.3.1 h1:DKHmCUm2hRBK510BaiZlwvpD40f8bJ
 github.com/hashicorp/go-immutable-radix v1.3.1/go.mod h1:0y9vanUI8NX6FsYoO3zeMjhV/C5i9g4Q3DwcSNZ4P60=
 github.com/hashicorp/go-immutable-radix/v2 v2.1.0 h1:CUW5RYIcysz+D3B+l1mDeXrQ7fUvGGCwJfdASSzbrfo=
 github.com/hashicorp/go-immutable-radix/v2 v2.1.0/go.mod h1:hgdqLXA4f6NIjRVisM1TJ9aOJVNRqKZj+xDGF6m7PBw=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.23 h1:HZOdsAP0hZMIF/61v4B31DBbKx7NbtWmgBS6WEUOZvU=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.23/go.mod h1:NeK2Ul15t1zutp/dZzt28XQrGZHosbxE/QLNNfaWObM=
-github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 v2.0.10 h1:am7ai27sEGpfOefHhUShbWAOa6EvkBaiMpB7zZ/PUyo=
-github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 v2.0.10/go.mod h1:sYX07HI7wMCFe9+FmxMOCwJ7q5CD4aq3VI+KoB8FYZY=
 github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11 h1:J9zGa9SlcOHT3SQTj0Vv3shHo0anWbs58weURGCgChI=
 github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11/go.mod h1:iAOCu7/lG5eugg8+k7NVvQt0IpWT8s2Q9wnMtC/guM4=
 github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.15 h1:Y73Tv263K936w0jdmHUPLHsf7fQdDpIyvz9z98JsvCE=
@@ -872,6 +868,10 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tencentcloud/tencentcloud-sdk-go v1.0.162 h1:8fDzz4GuVg4skjY2B0nMN7h6uN61EDVkuLyI2+qGHhI=
 github.com/tencentcloud/tencentcloud-sdk-go v1.0.162/go.mod h1:asUz5BPXxgoPGaRgZaVm1iGcUAuHyYUo1nXqKa83cvI=
+github.com/tgross/go-kms-wrapping/v2 v2.0.0-20260804111501-651ec6543396 h1:VACxGUHyDpVoGgEOjZON1RGuSbk5LyppMt486YjleB4=
+github.com/tgross/go-kms-wrapping/v2 v2.0.0-20260804111501-651ec6543396/go.mod h1:NeK2Ul15t1zutp/dZzt28XQrGZHosbxE/QLNNfaWObM=
+github.com/tgross/go-kms-wrapping/wrappers/aead/v2 v2.0.0-20260804111501-651ec6543396 h1:dHWpd/VCOfOys63+CpiQ4+PyoZgpl0KrPKuTJBZeltg=
+github.com/tgross/go-kms-wrapping/wrappers/aead/v2 v2.0.0-20260804111501-651ec6543396/go.mod h1:LNUXc3vWpmlwLQw6X0DsZiNb44AJ3ApQ90+Dz1txAbM=
 github.com/tj/go-spin v1.1.0 h1:lhdWZsvImxvZ3q1C5OIB7d72DuOwP4O2NdBg9PyzNds=
 github.com/tj/go-spin v1.1.0/go.mod h1:Mg1mzmePZm4dva8Qz60H2lHwmJ2loum4VIrLgVnKwh4=
 github.com/tklauser/go-sysconf v0.3.12 h1:0QaGUFOdQaIVdPgfITYzaTegZvdCjmYO52cSFAEVmqU=
