@@ -4,6 +4,7 @@
 package dynamic
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 
 	t.Run("returns if eval complete", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		watcher := queue.NewWorkloadWatcher(ss, nil)
 
 		testEval := mock.Eval()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
@@ -33,7 +34,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 		doneCh := make(chan error)
 		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
 		go func() {
-			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
+			err := watcher.WaitForPlacement(t.Context(), workload, ws)
 			doneCh <- err
 		}()
 
@@ -47,7 +48,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 
 	t.Run("continues watching blocked evals", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		watcher := queue.NewWorkloadWatcher(ss, nil)
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -61,7 +62,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 		doneCh := make(chan error)
 		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
 		go func() {
-			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
+			err := watcher.WaitForPlacement(t.Context(), workload, ws)
 			doneCh <- err
 		}()
 
@@ -93,7 +94,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 
 	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		watcher := queue.NewWorkloadWatcher(ss, nil)
 
 		testEval := mock.Eval()
 		next := mock.Eval()
@@ -107,7 +108,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 		doneCh := make(chan error)
 		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
 		go func() {
-			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
+			err := watcher.WaitForPlacement(t.Context(), workload, ws)
 			doneCh <- err
 		}()
 
@@ -135,6 +136,28 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 
 		done := <-doneCh
 		must.NoError(t, done)
+	})
+
+	t.Run("returns deadline exceeded", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := queue.NewWorkloadWatcher(ss, &structs.BatchQueue{
+			WorkloadTimeout: 1 * time.Second,
+		})
+
+		testEval := mock.Eval()
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		ws := memdb.NewWatchSet()
+		doneCh := make(chan error)
+		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
+		go func() {
+			err := watcher.WaitForPlacement(t.Context(), workload, ws)
+			doneCh <- err
+		}()
+
+		done := <-doneCh
+
+		must.EqError(t, done, context.DeadlineExceeded.Error())
 	})
 }
 
@@ -886,8 +909,8 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 	t.Run("pending eval results in false", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
 
+		watcher := queue.NewWorkloadWatcher(ss, nil)
 		testEval := mock.Eval()
 		testEval.Status = structs.EvalStatusPending
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
@@ -898,15 +921,15 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 			eval: testEval.Copy(),
 		}
 
-		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
+		complete, err := watcher.IsSchedulingComplete(workload)
 		must.NoError(t, err)
 		must.False(t, complete)
 	})
 
 	t.Run("eval with pending blockedEval results in false", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
 
+		watcher := queue.NewWorkloadWatcher(ss, nil)
 		testEval := mock.Eval()
 		blocked := mock.Eval()
 
@@ -922,14 +945,14 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 			eval: testEval.Copy(),
 		}
 
-		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
+		complete, err := watcher.IsSchedulingComplete(workload)
 		must.NoError(t, err)
 		must.False(t, complete)
 	})
 
 	t.Run("eval with complete blockedEval results in true", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		watcher := queue.NewWorkloadWatcher(ss, nil)
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -946,7 +969,7 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 			eval: testEval.Copy(),
 		}
 
-		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
+		complete, err := watcher.IsSchedulingComplete(workload)
 		must.NoError(t, err)
 		must.True(t, complete)
 	})
