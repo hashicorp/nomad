@@ -84,6 +84,47 @@ func simulatorVMInCluster(t *testing.T, ctx context.Context, c *govmomi.Client) 
 	return "", ""
 }
 
+// simulatorVMOnStandaloneHost returns the BIOS UUID and display name of the
+// first VM whose ESXi host is a standalone host (ComputeResource parent, not
+// part of any DRS/HA cluster) in the VPX simulator inventory.
+//
+// This is the mirror of simulatorVMInCluster. On a standalone host,
+// resolveHostAndCluster skips the cluster lookup because the host's parent is
+// a ComputeResource, not a ClusterComputeResource. The returned VM is used to
+// verify that inv.Cluster is correctly left empty in that case.
+func simulatorVMOnStandaloneHost(t *testing.T, ctx context.Context, c *govmomi.Client) (biosUUID, vmName string) {
+	t.Helper()
+
+	finder := find.NewFinder(c.Client, false)
+	dc, err := finder.DefaultDatacenter(ctx)
+	must.NoError(t, err)
+	finder.SetDatacenter(dc)
+
+	vms, err := finder.VirtualMachineList(ctx, "*")
+	must.NoError(t, err)
+	must.Positive(t, len(vms))
+
+	pc := property.DefaultCollector(c.Client)
+
+	for _, vm := range vms {
+		var v mo.VirtualMachine
+		must.NoError(t, pc.RetrieveOne(ctx, vm.Reference(), []string{"config", "runtime"}, &v))
+		must.NotNil(t, v.Config)
+
+		if v.Runtime.Host == nil {
+			continue
+		}
+		var h mo.HostSystem
+		must.NoError(t, pc.RetrieveOne(ctx, *v.Runtime.Host, []string{"parent"}, &h))
+		if h.Parent != nil && h.Parent.Type == "ComputeResource" {
+			return v.Config.Uuid, v.Config.Name
+		}
+	}
+
+	t.Fatal("simulatorVMOnStandaloneHost: no VM with a ComputeResource host found in simulator inventory")
+	return "", ""
+}
+
 // TestVSphereClient_fetchInventory_full verifies that fetchInventory correctly
 // resolves all seven inventory fields against the in-process VPX simulator.
 func TestVSphereClient_fetchInventory_full(t *testing.T) {
@@ -144,4 +185,43 @@ func TestVSphereClient_fetchInventory_vmNotFound(t *testing.T) {
 	must.Error(t, err)
 	must.Nil(t, inv)
 	must.StrContains(t, err.Error(), "not found in vCenter")
+}
+
+// TestVSphereClient_fetchInventory_standaloneHost verifies that fetchInventory
+// correctly handles a VM on a standalone ESXi host that is not part of any
+// cluster. The Host field must be populated and the Cluster field must be
+// empty — the cluster attribute is simply not published in this topology.
+func TestVSphereClient_fetchInventory_standaloneHost(t *testing.T) {
+	ci.Parallel(t)
+
+	model := simulator.VPX()
+	must.NoError(t, model.Create())
+	defer model.Remove()
+
+	s := model.Service.NewServer()
+	defer s.Close()
+
+	ctx := context.Background()
+	govmomiClient, err := govmomi.NewClient(ctx, s.URL, true)
+	must.NoError(t, err)
+	defer govmomiClient.Logout(ctx) //nolint:errcheck
+
+	biosUUID, wantVMName := simulatorVMOnStandaloneHost(t, ctx, govmomiClient)
+
+	c := newTestVSphereClient(govmomiClient)
+	inv, err := c.fetchInventory(ctx, biosUUID)
+
+	must.NoError(t, err)
+	must.NotNil(t, inv)
+
+	// VM identity.
+	must.Eq(t, wantVMName, inv.VMName)
+
+	// Host is populated; Cluster is empty because the host has no cluster parent.
+	must.NotEq(t, "", inv.Host)
+	must.Eq(t, "", inv.Cluster)
+
+	// Other inventory fields are still resolved.
+	must.Eq(t, "DC0", inv.Datacenter)
+	must.Eq(t, "LocalDS_0", inv.Datastore)
 }
