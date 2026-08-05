@@ -43,15 +43,13 @@ func newTestVSphereClient(c *govmomi.Client) *vSphereClient {
 	}
 }
 
-// simulatorVMInCluster returns the BIOS UUID and display name of the first VM
-// whose ESXi host belongs to a DRS/HA cluster (ClusterComputeResource) in the
-// VPX simulator inventory. VMs on standalone hosts are skipped because their
-// host has no cluster parent, which would leave inv.Cluster empty and fail the
-// cluster-name assertion.
+// simulatorVMWithHostParent scans the VPX simulator inventory and returns the
+// BIOS UUID and display name of the first VM whose ESXi host has a parent
+// object of the given type (e.g. "ClusterComputeResource" or "ComputeResource").
 //
 // vm.Config.Uuid is the BIOS UUID — the same value the fingerprinter reads from
 // /sys/class/dmi/id/product_uuid on a real VMware guest.
-func simulatorVMInCluster(t *testing.T, ctx context.Context, c *govmomi.Client) (biosUUID, vmName string) {
+func simulatorVMWithHostParent(t *testing.T, ctx context.Context, c *govmomi.Client, hostParentType string) (biosUUID, vmName string) {
 	t.Helper()
 
 	finder := find.NewFinder(c.Client, false)
@@ -75,53 +73,12 @@ func simulatorVMInCluster(t *testing.T, ctx context.Context, c *govmomi.Client) 
 		}
 		var h mo.HostSystem
 		must.NoError(t, pc.RetrieveOne(ctx, *v.Runtime.Host, []string{"parent"}, &h))
-		if h.Parent != nil && h.Parent.Type == "ClusterComputeResource" {
+		if h.Parent != nil && h.Parent.Type == hostParentType {
 			return v.Config.Uuid, v.Config.Name
 		}
 	}
 
-	t.Fatal("simulatorVMInCluster: no VM with a ClusterComputeResource host found in simulator inventory")
-	return "", ""
-}
-
-// simulatorVMOnStandaloneHost returns the BIOS UUID and display name of the
-// first VM whose ESXi host is a standalone host (ComputeResource parent, not
-// part of any DRS/HA cluster) in the VPX simulator inventory.
-//
-// This is the mirror of simulatorVMInCluster. On a standalone host,
-// resolveHostAndCluster skips the cluster lookup because the host's parent is
-// a ComputeResource, not a ClusterComputeResource. The returned VM is used to
-// verify that inv.Cluster is correctly left empty in that case.
-func simulatorVMOnStandaloneHost(t *testing.T, ctx context.Context, c *govmomi.Client) (biosUUID, vmName string) {
-	t.Helper()
-
-	finder := find.NewFinder(c.Client, false)
-	dc, err := finder.DefaultDatacenter(ctx)
-	must.NoError(t, err)
-	finder.SetDatacenter(dc)
-
-	vms, err := finder.VirtualMachineList(ctx, "*")
-	must.NoError(t, err)
-	must.Positive(t, len(vms))
-
-	pc := property.DefaultCollector(c.Client)
-
-	for _, vm := range vms {
-		var v mo.VirtualMachine
-		must.NoError(t, pc.RetrieveOne(ctx, vm.Reference(), []string{"config", "runtime"}, &v))
-		must.NotNil(t, v.Config)
-
-		if v.Runtime.Host == nil {
-			continue
-		}
-		var h mo.HostSystem
-		must.NoError(t, pc.RetrieveOne(ctx, *v.Runtime.Host, []string{"parent"}, &h))
-		if h.Parent != nil && h.Parent.Type == "ComputeResource" {
-			return v.Config.Uuid, v.Config.Name
-		}
-	}
-
-	t.Fatal("simulatorVMOnStandaloneHost: no VM with a ComputeResource host found in simulator inventory")
+	t.Fatalf("simulatorVMWithHostParent: no VM with host parent type %q found in simulator inventory", hostParentType)
 	return "", ""
 }
 
@@ -142,7 +99,7 @@ func TestVSphereClient_fetchInventory_full(t *testing.T) {
 	must.NoError(t, err)
 	defer govmomiClient.Logout(ctx) //nolint:errcheck
 
-	biosUUID, wantVMName := simulatorVMInCluster(t, ctx, govmomiClient)
+	biosUUID, wantVMName := simulatorVMWithHostParent(t, ctx, govmomiClient, "ClusterComputeResource")
 
 	c := newTestVSphereClient(govmomiClient)
 	inv, err := c.fetchInventory(ctx, biosUUID)
@@ -206,7 +163,7 @@ func TestVSphereClient_fetchInventory_standaloneHost(t *testing.T) {
 	must.NoError(t, err)
 	defer govmomiClient.Logout(ctx) //nolint:errcheck
 
-	biosUUID, wantVMName := simulatorVMOnStandaloneHost(t, ctx, govmomiClient)
+	biosUUID, wantVMName := simulatorVMWithHostParent(t, ctx, govmomiClient, "ComputeResource")
 
 	c := newTestVSphereClient(govmomiClient)
 	inv, err := c.fetchInventory(ctx, biosUUID)
