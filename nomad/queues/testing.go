@@ -15,6 +15,14 @@ type MockQueue struct {
 	mock.Mock
 }
 
+type MockBroker struct {
+	mock.Mock
+}
+
+func (m *MockBroker) Enqueue(e *structs.Evaluation) {
+	m.Called(e)
+}
+
 func (m *MockQueue) Type() structs.BatchQueueType {
 	return "test"
 }

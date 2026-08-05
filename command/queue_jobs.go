@@ -30,7 +30,7 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Eval Options:
+Jobs Options:
 
   -per-page
     The maximum number of workloads to return per page. If not specified, or set to 0, all results are returned.
@@ -57,6 +57,7 @@ func (c *QueueJobsCommand) Synopsis() string {
 func (c *QueueJobsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
+			"-node-pool":  complete.PredictNothing,
 			"-verbose":    complete.PredictNothing,
 			"-json":       complete.PredictNothing,
 			"-p":          complete.PredictNothing,
@@ -73,7 +74,7 @@ func (c *QueueJobsCommand) Name() string { return "queue status" }
 
 func (c *QueueJobsCommand) Run(args []string) int {
 	var verbose, jsonOut, prioritySort bool
-	var pageToken string
+	var pageToken, nodePool string
 	var perPage int
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -81,6 +82,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	flags.BoolVar(&jsonOut, "json", false, "")
 	flags.BoolVar(&prioritySort, "p", false, "")
 	flags.StringVar(&pageToken, "page-token", "", "")
+	flags.StringVar(&nodePool, "node-pool", "default", "")
 	flags.IntVar(&perPage, "per-page", 0, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -99,7 +101,8 @@ func (c *QueueJobsCommand) Run(args []string) int {
 		PerPage:   int32(perPage),
 		NextToken: pageToken,
 		Params: map[string]string{
-			"sort": "default",
+			"sort":      "default",
+			"node_pool": nodePool,
 		},
 	}
 

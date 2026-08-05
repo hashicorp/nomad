@@ -182,18 +182,18 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 
 		// When checking for workload placements, we never want to actually block
 		// in SetEnabled, but it's also entirely possible a queue eval is blocked and
-		// waiting to be placed from a previous DPQ placement. If that happens
+		// waiting to be completed from a previous DPQ placement. If that happens
 		// we should enqueue it and push it to the front of the queue.
-		placed, err := queue.IsSchedulingComplete(w, d.state)
+		complete, err := queue.IsSchedulingComplete(w, d.state)
 		if err != nil {
 			d.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		}
 
-		if placed && evalHasPlacement(w.GetEval()) {
+		if complete && evalHasPlacement(w.GetEval()) {
 			d.updateUsage(w)
 		}
 
-		if !placed {
+		if !complete {
 			w.waitOnRestore = true
 			d.enqueueCh <- w
 		}

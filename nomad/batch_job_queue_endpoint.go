@@ -53,7 +53,7 @@ func (q *BatchJobQueue) Jobs(args *structs.QueueJobsRequest, reply *structs.Queu
 		return err
 	}
 
-	batchJobQueue := q.srv.batchQueueMgr.Queue()
+	batchJobQueue := q.srv.batchQueueMgr.Queue(args.NodePool)
 	iter := batchJobQueue.Jobs(args.Sort)
 
 	selector := func(workload structs.QueueWorkload) bool {
@@ -103,7 +103,7 @@ func (q *BatchJobQueue) Tenants(args *structs.QueueTenantsRequest, reply *struct
 		return structs.ErrPermissionDenied
 	}
 
-	status := q.srv.batchQueueMgr.Queue().Tenants()
+	status := q.srv.batchQueueMgr.Queue(args.NodePool).Tenants()
 	reply.Tenants = status.Tenants
 	reply.Type = status.Type
 
