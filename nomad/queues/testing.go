@@ -34,8 +34,8 @@ func (m *MockQueue) Stop() {
 	m.Called()
 }
 
-func (m *MockQueue) Enqueue(e *structs.Evaluation) {
-	m.Called(e)
+func (m *MockQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
+	m.Called(e, j)
 }
 
 func (m *MockQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {

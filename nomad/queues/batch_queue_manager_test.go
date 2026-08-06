@@ -37,7 +37,7 @@ func TestBatchQueueManager_Enqueue(t *testing.T) {
 
 		mockDefaultQueue := &MockQueue{}
 		mockTestQueue := &MockQueue{}
-		mockTestQueue.On("Enqueue", tmock.Anything).Return()
+		mockTestQueue.On("Enqueue", tmock.Anything, tmock.Anything).Return()
 		mgr.queues = map[string]*QueueData{
 			"default":         {mockDefaultQueue, true},
 			testNodePool.Name: {mockTestQueue, false},

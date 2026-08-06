@@ -88,7 +88,7 @@ func (b *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 		b.broker.Enqueue(e)
 		return
 	}
-	q.Enqueue(e)
+	q.Enqueue(e, job)
 }
 
 // SetEnabled is called during leadership transfers and is responsible for starting
@@ -254,7 +254,7 @@ func (b *BatchQueueManager) enqueuePending(filterFn filter) error {
 			continue
 		}
 
-		q.Enqueue(eval)
+		q.Enqueue(eval, job)
 	}
 	return nil
 }
