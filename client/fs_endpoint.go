@@ -6,6 +6,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -25,6 +26,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
+	"github.com/hashicorp/nomad/client/logmon/logging"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -460,7 +462,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	// Start streaming
 	go func() {
 		if err := f.logsImpl(ctx, req.Follow, req.PlainText,
-			req.Offset, req.Origin, req.Task, req.LogType, fs, frames); err != nil {
+			req.Offset, req.Origin, req.Task, req.LogType, req.UseGlobalOffset, fs, frames); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -508,6 +510,13 @@ OUTER:
 				break OUTER
 			}
 
+			if req.UseGlobalOffset && len(frame.Data) > 0 {
+				if err := setGlobalLogOffset(fs, req.Task, req.LogType, frame); err != nil {
+					streamErr = err
+					break OUTER
+				}
+			}
+
 			var resp cstructs.StreamErrWrapper
 			if req.PlainText {
 				resp.Payload = frame.Data
@@ -545,7 +554,7 @@ OUTER:
 // the passed frames channel and the method will return on EOF if follow is not
 // true otherwise when the context is cancelled or on an error.
 func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset int64,
-	origin, task, logType string,
+	origin, task, logType string, useGlobalOffset bool,
 	fs allocdir.AllocDirFS, frames chan<- *sframer.StreamFrame) error {
 
 	// Create the framer
@@ -558,14 +567,20 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 	// nextIdx is the next index to read logs from
 	var nextIdx int64
-	switch origin {
-	case "start":
-		nextIdx = 0
-	case "end":
-		nextIdx = math.MaxInt64
-		offset *= -1
-	default:
-		return invalidOrigin
+	var fileOffset int64 = offset
+
+	resolveGlobalOffset := useGlobalOffset && origin == "start"
+	if !resolveGlobalOffset {
+		// Existing behavior
+		switch origin {
+		case "start":
+			nextIdx = 0
+		case "end":
+			nextIdx = math.MaxInt64
+			fileOffset *= -1
+		default:
+			return invalidOrigin
+		}
 	}
 
 	for {
@@ -579,6 +594,14 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 		if err != nil {
 			return fmt.Errorf("failed to list entries: %v", err)
 		}
+		if resolveGlobalOffset {
+			fileIdx, fileOff, err := mapGlobalLogOffset(fs, entries, task, logType, offset)
+			if err != nil {
+				return err
+			}
+			nextIdx = fileIdx
+			fileOffset = fileOff
+		}
 
 		// If we are not following logs, determine the max index for the logs we are
 		// interested in so we can stop there.
@@ -591,7 +614,7 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 			maxIndex = idx
 		}
 
-		logEntry, idx, openOffset, err := findClosest(entries, nextIdx, offset, task, logType)
+		logEntry, idx, openOffset, err := findClosest(entries, nextIdx, fileOffset, task, logType)
 		if err != nil {
 			return err
 		}
@@ -650,6 +673,8 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 		// Since we successfully streamed, update the overall offset/idx.
 		offset = int64(0)
+		fileOffset = int64(0)
+		resolveGlobalOffset = false
 		nextIdx = idx + 1
 	}
 }
@@ -866,6 +891,25 @@ type indexTuple struct {
 	entry *cstructs.AllocFileInfo
 }
 
+type logOffsetSegment struct {
+	idx  int64
+	base int64
+	size int64
+}
+
+type globalOffsetUnavailableErr struct {
+	offset int64
+	oldest int64
+}
+
+func (e globalOffsetUnavailableErr) Error() string {
+	return fmt.Sprintf("global log offset %d is no longer available; oldest available offset is %d", e.offset, e.oldest)
+}
+
+func (e globalOffsetUnavailableErr) Code() int {
+	return http.StatusRequestedRangeNotSatisfiable
+}
+
 type indexTupleArray []indexTuple
 
 func (a indexTupleArray) Len() int           { return len(a) }
@@ -899,6 +943,146 @@ func logIndexes(entries []*cstructs.AllocFileInfo, task, logType string) (indexT
 	}
 
 	return indexTupleArray(indexes), nil
+}
+
+func mapGlobalLogOffset(fs allocdir.AllocDirFS, entries []*cstructs.AllocFileInfo,
+	task, logType string, offset int64) (int64, int64, error) {
+
+	segments, err := logOffsetSegmentsFromEntries(fs, entries, task, logType)
+	if err != nil {
+		return 0, 0, err
+	}
+	if len(segments) == 0 {
+		return 0, 0, notFoundErr{taskName: task, logType: logType}
+	}
+
+	oldest := segments[0].base
+	if offset < oldest {
+		return 0, 0, globalOffsetUnavailableErr{offset: offset, oldest: oldest}
+	}
+
+	for i, segment := range segments {
+		end := segment.base + segment.size
+		if offset == segment.base || offset < end || (offset == end && i == len(segments)-1) {
+			return segment.idx, offset - segment.base, nil
+		}
+		if offset == end && i+1 < len(segments) && segments[i+1].base == end {
+			continue
+		}
+		if i+1 < len(segments) && offset < segments[i+1].base {
+			return 0, 0, globalOffsetUnavailableErr{offset: offset, oldest: segments[i+1].base}
+		}
+	}
+
+	last := segments[len(segments)-1]
+	return last.idx, last.size, nil
+}
+
+func setGlobalLogOffset(fs allocdir.AllocDirFS, task, logType string, frame *sframer.StreamFrame) error {
+	idx, err := logIndexFromPath(frame.File, task, logType)
+	if err != nil {
+		return err
+	}
+	base, err := globalLogBase(fs, task, logType, idx)
+	if err != nil {
+		return err
+	}
+
+	frame.FileIndex = idx
+	frame.ByteOffset = frame.Offset
+	frame.GlobalOffset = base + frame.Offset
+	return nil
+}
+
+func globalLogBase(fs allocdir.AllocDirFS, task, logType string, idx int64) (int64, error) {
+	manifest, err := readLogOffsetManifest(fs, task, logType)
+	if err != nil && !os.IsNotExist(err) {
+		return 0, err
+	}
+	if manifest != nil {
+		if file, ok := manifest.Files[strconv.FormatInt(idx, 10)]; ok {
+			return file.Base, nil
+		}
+	}
+
+	segments, err := logOffsetSegments(fs, task, logType)
+	if err != nil {
+		return 0, err
+	}
+	for _, segment := range segments {
+		if segment.idx == idx {
+			return segment.base, nil
+		}
+	}
+	return 0, notFoundErr{taskName: task, logType: logType}
+}
+
+func logOffsetSegments(fs allocdir.AllocDirFS, task, logType string) ([]logOffsetSegment, error) {
+	logPath := filepath.Join(allocdir.SharedAllocName, allocdir.LogDirName)
+	entries, err := fs.List(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list entries: %v", err)
+	}
+	return logOffsetSegmentsFromEntries(fs, entries, task, logType)
+}
+
+func logOffsetSegmentsFromEntries(fs allocdir.AllocDirFS, entries []*cstructs.AllocFileInfo,
+	task, logType string) ([]logOffsetSegment, error) {
+
+	indexes, err := logIndexes(entries, task, logType)
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(indexes)
+
+	manifest, err := readLogOffsetManifest(fs, task, logType)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	segments := make([]logOffsetSegment, 0, len(indexes))
+	var reconstructedBase int64
+	for _, item := range indexes {
+		segment := logOffsetSegment{idx: item.idx, base: reconstructedBase, size: item.entry.Size}
+		if manifest != nil {
+			if file, ok := manifest.Files[strconv.FormatInt(item.idx, 10)]; ok {
+				segment.base = file.Base
+			}
+		}
+		segments = append(segments, segment)
+		reconstructedBase += item.entry.Size
+	}
+	sort.Slice(segments, func(i, j int) bool { return segments[i].idx < segments[j].idx })
+	return segments, nil
+}
+
+func readLogOffsetManifest(fs allocdir.AllocDirFS, task, logType string) (*logging.OffsetManifest, error) {
+	baseFileName := fmt.Sprintf("%s.%s", task, logType)
+	path := filepath.Join(allocdir.SharedAllocName, logging.OffsetManifestFile(baseFileName))
+	r, err := fs.ReadAt(path, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	var manifest logging.OffsetManifest
+	if err := json.NewDecoder(r).Decode(&manifest); err != nil {
+		return nil, err
+	}
+	return &manifest, nil
+}
+
+func logIndexFromPath(path, task, logType string) (int64, error) {
+	name := filepath.Base(path)
+	prefix := fmt.Sprintf("%s.%s.", task, logType)
+	idxStr := strings.TrimPrefix(name, prefix)
+	if idxStr == name {
+		return 0, fmt.Errorf("failed to extract log index from %q", path)
+	}
+	idx, err := strconv.ParseInt(idxStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert %q to a log index: %v", idxStr, err)
+	}
+	return idx, nil
 }
 
 // notFoundErr is returned when a log is requested but cannot be found.

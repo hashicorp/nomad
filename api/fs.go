@@ -43,10 +43,22 @@ type AllocFileInfo struct {
 
 // StreamFrame is used to frame data of a file when streaming
 type StreamFrame struct {
+	// Offset is the next file offset after Data.
 	Offset    int64  `json:",omitempty"`
 	Data      []byte `json:",omitempty"`
 	File      string `json:",omitempty"`
 	FileEvent string `json:",omitempty"`
+
+	// GlobalOffset is the next allocation-lifetime stable offset after this frame.
+	// It can be supplied as the offset to LogsWithGlobalOffset to resume after
+	// this frame, even if task logs have rotated.
+	GlobalOffset int64 `json:",omitempty"`
+
+	// FileIndex indicates which rotation file this data came from (0, 1, 2...)
+	FileIndex int64 `json:",omitempty"`
+
+	// ByteOffset is the next offset within the specific file after this frame.
+	ByteOffset int64 `json:",omitempty"`
 }
 
 // IsHeartbeat returns if the frame is a heartbeat frame
@@ -321,6 +333,58 @@ func (a *AllocFS) Logs(alloc *Allocation, follow bool, task, logType, origin str
 	}()
 
 	return frames, errCh
+}
+
+// LogsWithGlobalOffset streams the content of a tasks logs with global offset support.
+// This method enables stable offset tracking across log file rotations, allowing reliable
+// resumption after disconnections.
+//
+// The parameters are:
+//   - allocation: the allocation to stream from.
+//   - follow: Whether the logs should be followed.
+//   - task: the tasks name to stream logs for.
+//   - logType: Either "stdout" or "stderr"
+//   - origin: Either "start" or "end" and defines from where the offset is applied.
+//   - offset: The global offset to start streaming data at when origin is "start".
+//     With origin "end", offset keeps the existing end-relative byte semantics
+//     while returned frames still include global offsets for future resumes.
+//   - cancel: A channel that when closed, streaming will end.
+//
+// The return value is a channel that will emit StreamFrames as they are read.
+// Each StreamFrame will include GlobalOffset, FileIndex, and ByteOffset fields
+// for stable resumption capabilities.
+//
+// Example usage:
+//
+//	frames, errors := client.AllocFS().LogsWithGlobalOffset(
+//	    alloc, true, "web", "stdout", "start", 0, cancel, nil)
+//
+//	var lastGlobalOffset int64
+//	for frame := range frames {
+//	    // Process log data
+//	    fmt.Print(string(frame.Data))
+//
+//	    // Track global offset for resumption
+//	    if frame.GlobalOffset > lastGlobalOffset {
+//	        lastGlobalOffset = frame.GlobalOffset
+//	    }
+//	}
+//
+//	// To resume later, use lastGlobalOffset as the offset parameter
+//
+// Note: for cluster topologies where API consumers don't have network access to
+// Nomad clients, set api.ClientConnTimeout to a small value (ex 1ms) to avoid
+// long pauses on this API call.
+func (a *AllocFS) LogsWithGlobalOffset(alloc *Allocation, follow bool, task, logType, origin string,
+	offset int64, cancel <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+	if q == nil {
+		q = &QueryOptions{}
+	}
+	if q.Params == nil {
+		q.Params = make(map[string]string)
+	}
+	q.Params["useGlobalOffset"] = "true"
+	return a.Logs(alloc, follow, task, logType, origin, offset, cancel, q)
 }
 
 // FrameReader is used to convert a stream of frames into a read closer.
