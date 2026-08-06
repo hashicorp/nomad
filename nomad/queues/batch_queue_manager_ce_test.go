@@ -14,18 +14,13 @@ import (
 
 func TestBatchQueueManager_configForPool(t *testing.T) {
 	t.Run("returns default config when state config is nil", func(t *testing.T) {
-		// Setup manager with default config
 		defaultConf := structs.BatchQueue{Type: "default-type"}
 		mgr := NewBatchQueueMgr(t.Context(), defaultConf, nil, hclog.Default())
 
 		ss := state.TestStateStore(t)
 		mgr.state = ss
 
-		// Create a test node pool
-		testPool := &structs.NodePool{Name: "test-pool"}
-
-		// Call configForPool
-		conf, isDefault, err := mgr.configForPool(testPool)
+		conf, isDefault, err := mgr.configForPool(&structs.NodePool{Name: "test-pool"})
 
 		must.NoError(t, err)
 		must.True(t, isDefault)
@@ -33,23 +28,18 @@ func TestBatchQueueManager_configForPool(t *testing.T) {
 	})
 
 	t.Run("returns state config when available", func(t *testing.T) {
-		// Setup manager
 		defaultConf := structs.BatchQueue{Type: "default-type"}
 		mgr := NewBatchQueueMgr(t.Context(), defaultConf, nil, hclog.Default())
 
 		ss := state.TestStateStore(t)
-		// Insert scheduler config with batch queue settings
+		mgr.state = ss
+
 		schedConf := &structs.SchedulerConfiguration{
 			BatchQueue: structs.BatchQueue{Type: "state-type"},
 		}
 		must.NoError(t, ss.SchedulerSetConfig(1, schedConf))
-		mgr.state = ss
 
-		// Create a test node pool
-		testPool := &structs.NodePool{Name: "test-pool"}
-
-		// Call configForPool
-		conf, isDefault, err := mgr.configForPool(testPool)
+		conf, isDefault, err := mgr.configForPool(&structs.NodePool{Name: "test-pool"})
 
 		must.NoError(t, err)
 		must.True(t, isDefault)

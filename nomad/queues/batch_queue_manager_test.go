@@ -127,13 +127,11 @@ func TestBatchQueueManager_UpdateDefaultQueues(t *testing.T) {
 		testPool := mock.NodePool()
 		must.NoError(t, ss.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{testPool}))
 
-		// Create a batch job
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
 		job.NodePool = testPool.Name
 		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 2, nil, job))
 
-		// Create pending eval for job register
 		batchEval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			JobID:       job.ID,
@@ -142,7 +140,6 @@ func TestBatchQueueManager_UpdateDefaultQueues(t *testing.T) {
 			TriggeredBy: structs.EvalTriggerJobRegister,
 			Status:      structs.EvalStatusPending,
 		}
-		// Create eval that is not a batch queue eval
 		nonBatchEval := &structs.Evaluation{
 			ID:          uuid.Generate(),
 			JobID:       job.ID,
