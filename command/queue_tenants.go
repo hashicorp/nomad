@@ -20,7 +20,7 @@ type QueueTenantsCommand struct {
 
 func (c *QueueTenantsCommand) Help() string {
 	helpText := `
-Usage: nomad queue status [options]
+Usage: nomad queue tenants [options]
 
   View the current status of tenants in a batch job queue.
 
@@ -30,7 +30,10 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Eval Options:
+Tenants Options:
+
+  -node-pool
+    The node pool queue to query
 
   -limit
     The maximum number of tenants to return
@@ -52,9 +55,10 @@ func (c *QueueTenantsCommand) Synopsis() string {
 func (c *QueueTenantsCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-verbose": complete.PredictNothing,
-			"-limit":   complete.PredictNothing,
-			"-json":    complete.PredictNothing,
+			"-node-pool": complete.PredictNothing,
+			"-verbose":   complete.PredictNothing,
+			"-limit":     complete.PredictNothing,
+			"-json":      complete.PredictNothing,
 		})
 }
 
@@ -67,11 +71,13 @@ func (c *QueueTenantsCommand) Name() string { return "queue status" }
 func (c *QueueTenantsCommand) Run(args []string) int {
 	var verbose, jsonOut bool
 	var limit int
+	var nodePool string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&jsonOut, "json", false, "")
 	flags.IntVar(&limit, "limit", 0, "")
+	flags.StringVar(&nodePool, "node-pool", "default", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -85,7 +91,11 @@ func (c *QueueTenantsCommand) Run(args []string) int {
 	}
 
 	// Setup the options
-	qo := &api.QueryOptions{}
+	qo := &api.QueryOptions{
+		Params: map[string]string{
+			"node_pool": nodePool,
+		},
+	}
 
 	if limit > 0 {
 		qo.PerPage = int32(limit)

@@ -12,7 +12,7 @@ import (
 type Queue interface {
 	Start(context.Context) error
 	Stop()
-	Enqueue(*structs.Evaluation)
+	Enqueue(*structs.Evaluation, *structs.Job)
 	Jobs(structs.SortOrder) *WorkloadIter
 	Tenants() structs.QueueTenantsResponse
 	Type() structs.BatchQueueType

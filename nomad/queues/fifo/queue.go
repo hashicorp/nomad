@@ -67,7 +67,7 @@ func workloadSortFn() func(i, j queue.Workload) int {
 	}
 }
 
-func (f *FifoQueue) Enqueue(e *structs.Evaluation) {
+func (f *FifoQueue) Enqueue(e *structs.Evaluation, _ *structs.Job) {
 	f.enqueueCh <- newFifoWorkload(e)
 }
 
