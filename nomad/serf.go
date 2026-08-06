@@ -157,7 +157,7 @@ func (s *Server) maybeBootstrap() {
 		var peers []string
 
 		// Retry with exponential backoff to get peer status from this server
-		for attempt := uint(0); attempt < maxPeerRetries; attempt++ {
+		for attempt := range uint(maxPeerRetries) {
 			if err := s.connPool.RPC(s.config.Region, server.Addr,
 				"Status.Peers", req, &peers); err != nil {
 				nextRetry := (1 << attempt) * peerRetryBase

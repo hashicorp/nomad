@@ -61,7 +61,7 @@ func NewSearchEndpoint(srv *Server, ctx *RPCContext) *Search {
 func (s *Search) getPrefixMatches(iter memdb.ResultIterator, prefix string) ([]string, bool) {
 	var matches []string
 
-	for i := 0; i < truncateLimit; i++ {
+	for range truncateLimit {
 		raw := iter.Next()
 		if raw == nil {
 			break
@@ -163,7 +163,7 @@ func (s *Search) getFuzzyMatches(iter memdb.ResultIterator, text string) (map[st
 		return false
 	}
 
-	for i := 0; i < limitQuery; i++ {
+	for i := range limitQuery {
 		raw := iter.Next()
 		if raw == nil {
 			break
@@ -210,7 +210,7 @@ func fuzzyIndex(name, text string) int {
 
 // fuzzySingleMatch determines if the ID of raw is a fuzzy match with text.
 // Returns the context and score or nil if there is no match.
-func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context, *fuzzyMatch) {
+func (s *Search) fuzzyMatchSingle(raw any, text string) (structs.Context, *fuzzyMatch) {
 	var (
 		name  string // fuzzy searchable name
 		scope []string
@@ -323,7 +323,7 @@ func (*Search) fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context]
 	return sm
 }
 
-func getConfigParam(config map[string]interface{}, param string) string {
+func getConfigParam(config map[string]any, param string) string {
 	if config == nil || config[param] == nil {
 		return ""
 	}
@@ -504,7 +504,7 @@ func nsCapIterFilter(iter memdb.ResultIterator, err error, aclObj *acl.ACL) (mem
 // nsCapFilter produces a memdb.FilterFunc for removing objects not accessible
 // by aclObj during a table scan.
 func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
-	return func(v interface{}) bool {
+	return func(v any) bool {
 		switch t := v.(type) {
 		case *structs.Job:
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
@@ -533,7 +533,7 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 // nodePoolCapFilter produces a memdb.FilterFunc for removing node pools not
 // accessible by aclObj during a table scan.
 func nodePoolCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
-	return func(v interface{}) bool {
+	return func(v any) bool {
 		pool := v.(*structs.NodePool)
 		return !aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead)
 	}

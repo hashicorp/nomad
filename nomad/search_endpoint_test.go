@@ -356,7 +356,7 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	for counter := 0; counter < 25; counter++ {
+	for counter := range 25 {
 		registerMockJob(s, t, prefix, counter)
 	}
 
@@ -1534,7 +1534,7 @@ func TestSearch_FuzzySearch_TruncateLimitQuery(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global", Namespace: "default"},
 	}
 
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		job := mock.Job()
 		job.Name = fmt.Sprintf("my-job-%d", i)
 		registerJob(s, t, job)
@@ -1569,7 +1569,7 @@ func TestSearch_FuzzySearch_TruncateLimitResults(t *testing.T) {
 		QueryOptions: structs.QueryOptions{Region: "global", Namespace: "default"},
 	}
 
-	for i := 0; i < 25; i++ {
+	for i := range 25 {
 		job := mock.Job()
 		job.Name = fmt.Sprintf("my-job-%d", i)
 		registerJob(s, t, job)
@@ -2559,7 +2559,7 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 				Name: "some-sleepy-task-svc-one",
 			}},
 			Driver: "docker",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"image": "sleeper:latest",
 			},
 		}},
@@ -2568,13 +2568,13 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 		Tasks: []*structs.Task{{
 			Name:   "prod-sleep-task-one",
 			Driver: "exec",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"command": "/bin/sleep",
 			},
 		}, {
 			Name:   "prod-task-two",
 			Driver: "raw_exec",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"command": "/usr/sbin/sleep",
 			},
 			Services: []*structs.Service{{
@@ -2586,7 +2586,7 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 		Tasks: []*structs.Task{{
 			Name:   "prod-java-sleep",
 			Driver: "java",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"class": "sleep.class",
 			},
 		}},

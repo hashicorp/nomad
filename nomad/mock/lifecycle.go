@@ -15,7 +15,7 @@ func LifecycleSideTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
 		Name:   fmt.Sprintf("side-%d", i),
 		Driver: "exec",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"command": "/bin/date",
 		},
 		Lifecycle: &structs.TaskLifecycleConfig{
@@ -31,7 +31,7 @@ func LifecycleInitTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
 		Name:   fmt.Sprintf("init-%d", i),
 		Driver: "exec",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"command": "/bin/date",
 		},
 		Lifecycle: &structs.TaskLifecycleConfig{
@@ -47,7 +47,7 @@ func LifecycleMainTask(resources structs.Resources, i int) *structs.Task {
 	return &structs.Task{
 		Name:   fmt.Sprintf("main-%d", i),
 		Driver: "exec",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"command": "/bin/date",
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -82,7 +82,7 @@ func LifecycleAllocFromTasks(tasks []LifecycleTaskDef) *structs.Allocation {
 			&structs.Task{
 				Name:   task.Name,
 				Driver: "mock_driver",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"run_for":   task.RunFor,
 					"exit_code": task.ExitCode},
 				Lifecycle: lc,
@@ -207,7 +207,7 @@ func LifecycleJobWithPoststopDeploy() *structs.Job {
 					{
 						Name:   "web",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						LogConfig: structs.DefaultLogConfig(),
@@ -219,7 +219,7 @@ func LifecycleJobWithPoststopDeploy() *structs.Job {
 					{
 						Name:   "side",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -235,7 +235,7 @@ func LifecycleJobWithPoststopDeploy() *structs.Job {
 					{
 						Name:   "post",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -250,7 +250,7 @@ func LifecycleJobWithPoststopDeploy() *structs.Job {
 					{
 						Name:   "init",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -311,7 +311,7 @@ func LifecycleJobWithPoststartDeploy() *structs.Job {
 					{
 						Name:   "web",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						LogConfig: structs.DefaultLogConfig(),
@@ -323,7 +323,7 @@ func LifecycleJobWithPoststartDeploy() *structs.Job {
 					{
 						Name:   "side",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -339,7 +339,7 @@ func LifecycleJobWithPoststartDeploy() *structs.Job {
 					{
 						Name:   "post",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -354,7 +354,7 @@ func LifecycleJobWithPoststartDeploy() *structs.Job {
 					{
 						Name:   "init",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -537,13 +537,13 @@ func LifecycleAllocWithPoststartDeploy() *structs.Allocation {
 
 func VariableLifecycleJob(resources structs.Resources, main int, init int, side int) *structs.Job {
 	var tasks []*structs.Task
-	for i := 0; i < main; i++ {
+	for i := range main {
 		tasks = append(tasks, LifecycleMainTask(resources, i))
 	}
-	for i := 0; i < init; i++ {
+	for i := range init {
 		tasks = append(tasks, LifecycleInitTask(resources, i))
 	}
-	for i := 0; i < side; i++ {
+	for i := range side {
 		tasks = append(tasks, LifecycleSideTask(resources, i))
 	}
 	job := &structs.Job{
@@ -613,7 +613,7 @@ func LifecycleJob() *structs.Job {
 					{
 						Name:   "web",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						LogConfig: structs.DefaultLogConfig(),
@@ -625,7 +625,7 @@ func LifecycleJob() *structs.Job {
 					{
 						Name:   "side",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -641,7 +641,7 @@ func LifecycleJob() *structs.Job {
 					{
 						Name:   "init",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{
@@ -657,7 +657,7 @@ func LifecycleJob() *structs.Job {
 					{
 						Name:   "poststart",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "1s",
 						},
 						Lifecycle: &structs.TaskLifecycleConfig{

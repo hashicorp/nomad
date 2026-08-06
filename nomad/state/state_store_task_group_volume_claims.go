@@ -117,7 +117,7 @@ func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields
 	}
 	ws.Add(iter.WatchCh())
 
-	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+	filter := memdb.NewFilterIterator(iter, func(raw any) bool {
 		claim, ok := raw.(*structs.TaskGroupHostVolumeClaim)
 		if !ok {
 			return true

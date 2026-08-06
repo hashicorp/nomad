@@ -15,11 +15,11 @@ var (
 	// extendedTypes is a mapping of extended types to their extension function
 	// TODO: the duplicates could be simplified by looking up the base type in the case of a pointer type in ConvertExt
 	extendedTypes = map[reflect.Type]extendFunc{
-		reflect.TypeOf(Node{}):              nodeExt,
-		reflect.TypeOf(&Node{}):             nodeExt,
-		reflect.TypeOf(CSIVolume{}):         csiVolumeExt,
-		reflect.TypeOf(&CSIVolume{}):        csiVolumeExt,
-		reflect.TypeOf(&numalib.Topology{}): numaTopoExt,
+		reflect.TypeFor[Node]():              nodeExt,
+		reflect.TypeFor[*Node]():             nodeExt,
+		reflect.TypeFor[CSIVolume]():         csiVolumeExt,
+		reflect.TypeFor[*CSIVolume]():        csiVolumeExt,
+		reflect.TypeFor[*numalib.Topology](): numaTopoExt,
 	}
 )
 
@@ -27,7 +27,7 @@ var (
 // idset.Set fields and so that NUMA NodeIDs are encoded as []int because
 // go-msgpack will further JSON encode []uint8 into a base64-encoded bytestring,
 // rather than an array
-func numaTopoExt(v interface{}) interface{} {
+func numaTopoExt(v any) any {
 	topo := v.(*numalib.Topology)
 
 	var nodes []int
@@ -52,7 +52,7 @@ func numaTopoExt(v interface{}) interface{} {
 }
 
 // nodeExt ensures the node is sanitized and adds the legacy field .Drain back to encoded Node objects
-func nodeExt(v interface{}) interface{} {
+func nodeExt(v any) any {
 	node := v.(*Node).Sanitize()
 	// transform to a struct with inlined Node fields plus the Drain field
 	// - using defined type (not an alias!) EmbeddedNode gives us free conversion to a distinct type
@@ -68,7 +68,7 @@ func nodeExt(v interface{}) interface{} {
 	}
 }
 
-func csiVolumeExt(v interface{}) interface{} {
+func csiVolumeExt(v any) any {
 	vol := v.(*CSIVolume).Sanitize()
 	type EmbeddedCSIVolume CSIVolume
 

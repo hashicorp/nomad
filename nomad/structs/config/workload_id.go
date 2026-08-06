@@ -136,9 +136,7 @@ func (wi *WorkloadIdentityConfig) Merge(other *WorkloadIdentityConfig) *Workload
 	if wi.ExtraClaims == nil {
 		result.ExtraClaims = map[string]string{}
 	}
-	for k, v := range other.ExtraClaims {
-		result.ExtraClaims[k] = v
-	}
+	maps.Copy(result.ExtraClaims, other.ExtraClaims)
 
 	return result
 }

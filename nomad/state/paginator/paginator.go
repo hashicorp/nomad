@@ -16,7 +16,7 @@ import (
 type Iterator interface {
 	// Next returns the next element to be considered for pagination.
 	// The page will end if nil is returned.
-	Next() interface{}
+	Next() any
 }
 
 // Paginator wraps an iterator and returns only the expected number of pages.

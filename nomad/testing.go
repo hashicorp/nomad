@@ -198,13 +198,13 @@ func TestServerErr(t testing.TB, cb func(*Config)) (*Server, func(), error) {
 
 func TestJoin(t testing.TB, servers ...*Server) {
 	addrs := make([]string, len(servers))
-	for i := 0; i < len(servers); i++ {
+	for i := range servers {
 		addr := fmt.Sprintf("127.0.0.1:%d",
 			servers[i].config.SerfConfig.MemberlistConfig.BindPort)
 		addrs[i] = addr
 	}
 
-	for i := 0; i < len(servers); i++ {
+	for i := range servers {
 		num, err := servers[i].Join(addrs)
 		must.NoError(t, err)
 		must.Eq(t, len(addrs), num)

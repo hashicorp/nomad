@@ -3381,7 +3381,7 @@ func TestTaskGroupDiff(t *testing.T) {
 								Env: map[string]string{
 									"FOO": "BAR",
 								},
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"foo": "baz",
 								},
 								VolumeMounts: []*VolumeMount{
@@ -3406,7 +3406,7 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									EnvoyDNSDiscoveryType:     "STRICT_DNS",
 									EnvoyGatewayNoDefaultBind: false,
-									Config: map[string]interface{}{
+									Config: map[string]any{
 										"foo": 1,
 									},
 								},
@@ -3493,7 +3493,7 @@ func TestTaskGroupDiff(t *testing.T) {
 											ListenerPort:  "api_expose_healthcheck",
 										}},
 									},
-									Config: map[string]interface{}{
+									Config: map[string]any{
 										"foo": "qux",
 									},
 									TransparentProxy: &ConsulTransparentProxy{
@@ -3519,7 +3519,7 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									EnvoyDNSDiscoveryType:     "LOGICAL_DNS",
 									EnvoyGatewayNoDefaultBind: true,
-									Config: map[string]interface{}{
+									Config: map[string]any{
 										"foo": 2,
 									},
 								},
@@ -4855,7 +4855,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     10,
 					Min:     1,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "1m",
 						"evaluation_interval": "5s",
 					},
@@ -4918,7 +4918,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     10,
 					Min:     1,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "1m",
 						"evaluation_interval": "5s",
 					},
@@ -4982,7 +4982,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     10,
 					Min:     1,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "1m",
 						"evaluation_interval": "5s",
 					},
@@ -4993,7 +4993,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     15,
 					Min:     5,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "2m",
 						"evaluation_interval": "10s",
 					},
@@ -6736,7 +6736,7 @@ func TestTaskDiff(t *testing.T) {
 		{
 			Name: "Config same",
 			Old: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "bar",
 					"bam": []string{"a", "b"},
@@ -6748,7 +6748,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "bar",
 					"bam": []string{"a", "b"},
@@ -6766,7 +6766,7 @@ func TestTaskDiff(t *testing.T) {
 		{
 			Name: "Config edited",
 			Old: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "baz",
 					"bam": []string{"a", "b"},
@@ -6778,7 +6778,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 2,
 					"bar": "baz",
 					"bam": []string{"a", "c", "d"},
@@ -6847,7 +6847,7 @@ func TestTaskDiff(t *testing.T) {
 			Name:       "Config edited with context",
 			Contextual: true,
 			Old: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "baz",
 					"bam": []string{"a", "b"},
@@ -6859,7 +6859,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 2,
 					"bar": "baz",
 					"bam": []string{"a", "c", "d"},

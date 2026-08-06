@@ -537,7 +537,7 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 		WriteRequest: args.WriteRequest,
 	}
 
-	return n.deregister(repack, reply, func() (interface{}, uint64, error) {
+	return n.deregister(repack, reply, func() (any, uint64, error) {
 		return n.srv.raftApply(structs.NodeDeregisterRequestType, args)
 	})
 }
@@ -564,7 +564,7 @@ func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *
 		return fmt.Errorf("missing node IDs for client deregistration")
 	}
 
-	return n.deregister(args, reply, func() (interface{}, uint64, error) {
+	return n.deregister(args, reply, func() (any, uint64, error) {
 		return n.srv.raftApply(structs.NodeBatchDeregisterRequestType, args)
 	})
 }
@@ -573,7 +573,7 @@ func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *
 // BatchDeregister. The caller should have already authorized the request.
 func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 	reply *structs.NodeUpdateResponse,
-	raftApplyFn func() (interface{}, uint64, error),
+	raftApplyFn func() (any, uint64, error),
 ) error {
 	// Look for the node
 	snap, err := n.srv.fsm.State().Snapshot()

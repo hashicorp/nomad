@@ -2806,7 +2806,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 	must.NotNil(t, key0, must.Sprint("expected keyring to be bootstapped"))
 	must.NoError(t, err)
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		req := &structs.VariablesApplyRequest{
 			Op:           structs.VarOpSet,
 			Var:          mock.Variable(),
@@ -2824,7 +2824,7 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 	var rotateResp structs.KeyringRotateRootKeyResponse
 	must.NoError(t, srv.RPC("Keyring.Rotate", rotateReq, &rotateResp))
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		req := &structs.VariablesApplyRequest{
 			Op:           structs.VarOpSet,
 			Var:          mock.Variable(),
@@ -2875,7 +2875,7 @@ func TestCoreScheduler_variablesRekey_timeout(t *testing.T) {
 	must.NoError(t, err)
 
 	// Create some variables to be rekeyed.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		req := &structs.VariablesApplyRequest{
 			Op:           structs.VarOpSet,
 			Var:          mock.Variable(),
@@ -3091,7 +3091,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 
 	// Generate and upsert a number of mixed expired, non-expired global
 	// tokens.
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = true
 		mockedToken.CreateTime = time.Now().Add(-10 * time.Hour)
@@ -3106,7 +3106,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 
 	// Generate and upsert a number of mixed expired, non-expired local
 	// tokens.
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = false
 		mockedToken.CreateTime = time.Now().Add(-10 * time.Hour)

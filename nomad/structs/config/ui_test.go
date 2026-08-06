@@ -81,7 +81,6 @@ func TestUIConfig_Merge(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 			result := tc.left.Merge(tc.right)

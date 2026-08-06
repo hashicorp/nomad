@@ -3,7 +3,10 @@
 
 package structs
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Plan is used to submit a commit plan for task allocations. These
 // are submitted to the leader which verifies that resources have
@@ -81,69 +84,70 @@ type PlanJobTuple struct {
 }
 
 func (p *Plan) GoString() string {
-	out := fmt.Sprintf("(eval %s", p.EvalID[:8])
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("(eval %s", p.EvalID[:8]))
 	if p.Job != nil {
-		out += fmt.Sprintf(", job %s", p.Job.ID)
+		out.WriteString(fmt.Sprintf(", job %s", p.Job.ID))
 	}
 	if p.JobInfo != nil {
-		out += fmt.Sprintf(", job %s", p.JobInfo.ID)
+		out.WriteString(fmt.Sprintf(", job %s", p.JobInfo.ID))
 	}
 	if p.Deployment != nil {
-		out += fmt.Sprintf(", deploy %s", p.Deployment.ID[:8])
+		out.WriteString(fmt.Sprintf(", deploy %s", p.Deployment.ID[:8]))
 	}
 	if len(p.NodeUpdate) > 0 {
-		out += ", NodeUpdates: "
+		out.WriteString(", NodeUpdates: ")
 		for node, allocs := range p.NodeUpdate {
-			out += fmt.Sprintf("(node[%s]", node[:8])
+			out.WriteString(fmt.Sprintf("(node[%s]", node[:8]))
 			for _, alloc := range allocs {
-				out += fmt.Sprintf(" (%s stop/evict)", alloc.ID[:8])
+				out.WriteString(fmt.Sprintf(" (%s stop/evict)", alloc.ID[:8]))
 			}
-			out += ")"
+			out.WriteString(")")
 		}
 	}
 	if len(p.NodeAllocation) > 0 {
-		out += ", NodeAllocations: "
+		out.WriteString(", NodeAllocations: ")
 		for node, allocs := range p.NodeAllocation {
-			out += fmt.Sprintf("(node[%s]", node[:8])
+			out.WriteString(fmt.Sprintf("(node[%s]", node[:8]))
 			for _, alloc := range allocs {
-				out += fmt.Sprintf(" (%s %s %s)",
+				out.WriteString(fmt.Sprintf(" (%s %s %s)",
 					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
-				)
+				))
 			}
-			out += ")"
+			out.WriteString(")")
 		}
 	}
 	if len(p.NodePreemptions) > 0 {
-		out += ", NodePreemptions: "
+		out.WriteString(", NodePreemptions: ")
 		for node, allocs := range p.NodePreemptions {
-			out += fmt.Sprintf("(node[%s]", node[:8])
+			out.WriteString(fmt.Sprintf("(node[%s]", node[:8]))
 			for _, alloc := range allocs {
-				out += fmt.Sprintf(" (%s %s %s)",
+				out.WriteString(fmt.Sprintf(" (%s %s %s)",
 					alloc.ID[:8], alloc.Name, alloc.DesiredStatus,
-				)
+				))
 			}
-			out += ")"
+			out.WriteString(")")
 		}
 	}
 	if len(p.DeploymentUpdates) > 0 {
-		out += ", DeploymentUpdates: "
+		out.WriteString(", DeploymentUpdates: ")
 		for _, dupdate := range p.DeploymentUpdates {
-			out += fmt.Sprintf("(%s %s)",
-				dupdate.DeploymentID[:8], dupdate.Status)
+			out.WriteString(fmt.Sprintf("(%s %s)",
+				dupdate.DeploymentID[:8], dupdate.Status))
 		}
 	}
 	if p.Annotations != nil {
-		out += ", Annotations: "
+		out.WriteString(", Annotations: ")
 		for tg, updates := range p.Annotations.DesiredTGUpdates {
-			out += fmt.Sprintf("(update[%s] %v)", tg, updates)
+			out.WriteString(fmt.Sprintf("(update[%s] %v)", tg, updates))
 		}
 		for _, preempted := range p.Annotations.PreemptedAllocs {
-			out += fmt.Sprintf("(preempt %s)", preempted.ID[:8])
+			out.WriteString(fmt.Sprintf("(preempt %s)", preempted.ID[:8]))
 		}
 	}
 
-	out += ")"
-	return out
+	out.WriteString(")")
+	return out.String()
 }
 
 // AppendStoppedAlloc marks an allocation to be stopped. The clientStatus of the

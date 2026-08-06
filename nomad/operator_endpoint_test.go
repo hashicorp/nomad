@@ -260,7 +260,7 @@ func newTestCluster(t *testing.T, args tcArgs) (tc testcluster) {
 		cleanup: make([]func(), cSize),
 	}
 
-	for i := 0; i < cSize; i += 1 {
+	for i := range cSize {
 		out.server[i], out.cleanup[i] = TestServer(t, func(c *Config) {
 			c.NodeName = fmt.Sprintf("node-%v", i+1)
 			c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(3)
@@ -299,14 +299,12 @@ func (tc testcluster) WaitForLeader() {
 	var wg sync.WaitGroup
 	for i := 0; i < len(tc.server); i++ {
 		idx := i
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			// The WaitForLeader func uses WaitForResultRetries
 			// so this should timeout at 5 seconds * test multiplier
 			testutil.WaitForLeader(tc.t, tc.server[idx].RPC)
-		}()
+		})
 	}
 	wg.Wait()
 }

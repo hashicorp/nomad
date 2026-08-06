@@ -170,7 +170,7 @@ func (a *ClientCSI) ControllerListSnapshots(args *cstructs.ClientCSIControllerLi
 	return nil
 }
 
-func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod, op string, args cstructs.CSIControllerRequest, reply interface{}) error {
+func (a *ClientCSI) sendCSIControllerRPC(pluginID, method, fwdMethod, op string, args cstructs.CSIControllerRequest, reply any) error {
 
 	// client requests aren't RequestWithIdentity, so we use a placeholder here
 	// to populate the identity data for metrics

@@ -1400,7 +1400,7 @@ func TestPlanApply_PipelinedPlans(t *testing.T) {
 	numPlans := 20
 	futures := make([]PlanFuture, numPlans)
 
-	for i := 0; i < numPlans; i++ {
+	for i := range numPlans {
 		alloc := mock.MinAllocForJob(job)
 		alloc.NodeID = node.ID
 		alloc.EvalID = eval.ID

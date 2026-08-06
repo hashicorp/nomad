@@ -524,7 +524,7 @@ func TestService_Hash(t *testing.T) {
 	})
 
 	t.Run("mod connect sidecar proxy config", func(t *testing.T) {
-		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Config = map[string]interface{}{"foo": "baz"} })
+		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Config = map[string]any{"foo": "baz"} })
 	})
 
 	t.Run("mod connect sidecar proxy upstream destination name", func(t *testing.T) {
@@ -633,7 +633,7 @@ func TestConsulConnect_CopyEqual(t *testing.T) {
 						LocalBindPort:        9003,
 					},
 				},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 				},
 			},
@@ -678,7 +678,7 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 		Name:   "sidecar",
 		Driver: "sidecar",
 		User:   "test",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"foo": "bar",
 		},
 		Resources: &Resources{
@@ -703,7 +703,7 @@ func TestSidecarTask_MergeIntoTask(t *testing.T) {
 	expected.Name = "sidecar"
 	expected.Driver = "sidecar"
 	expected.User = "test"
-	expected.Config = map[string]interface{}{
+	expected.Config = map[string]any{
 		"foo": "bar",
 	}
 	expected.Resources.CPU = 10000
@@ -733,7 +733,7 @@ func TestSidecarTask_Equal(t *testing.T) {
 		Name:      "sidecar-task-1",
 		Driver:    "docker",
 		User:      "nobody",
-		Config:    map[string]interface{}{"foo": 1},
+		Config:    map[string]any{"foo": 1},
 		Env:       map[string]string{"color": "blue"},
 		Resources: &Resources{MemoryMB: 300},
 		Identities: []*WorkloadIdentity{{
@@ -784,7 +784,7 @@ func TestSidecarTask_Equal(t *testing.T) {
 	})
 
 	t.Run("mod config", func(t *testing.T) {
-		try(t, func(s *st) { s.Config = map[string]interface{}{"foo": 2} })
+		try(t, func(s *st) { s.Config = map[string]any{"foo": 2} })
 	})
 
 	t.Run("mod env", func(t *testing.T) {
@@ -1044,7 +1044,7 @@ var (
 				"listener2": {Address: "10.0.0.1", Port: 2002},
 			},
 			EnvoyGatewayNoDefaultBind: true,
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"foo": 1,
 			},
 		},
@@ -1219,7 +1219,7 @@ func TestConsulGateway_Equal_ingress(t *testing.T) {
 
 	t.Run("mod gateway config", func(t *testing.T) {
 		try(t, func(g *cg) {
-			g.Proxy.Config = map[string]interface{}{
+			g.Proxy.Config = map[string]any{
 				"foo": 2,
 			}
 		})

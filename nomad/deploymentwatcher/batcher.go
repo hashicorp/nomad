@@ -5,6 +5,7 @@ package deploymentwatcher
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -77,9 +78,7 @@ func (b *AllocUpdateBatcher) batcher() {
 
 			// Store the eval and alloc updates, and attach the future
 			evals[w.e.DeploymentID] = w.e
-			for id, upd := range w.allocs {
-				allocs[id] = upd
-			}
+			maps.Copy(allocs, w.allocs)
 
 			w.f <- future
 		case <-timerCh:
