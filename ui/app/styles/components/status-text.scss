@@ -19,7 +19,7 @@
   }
 
   &.node-initializing {
-    color: $grey-dark;
+    color: var(--token-color-foreground-primary);
   }
 
   @each $name, $pair in $colors {

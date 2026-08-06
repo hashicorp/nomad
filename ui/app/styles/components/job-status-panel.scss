@@ -135,7 +135,6 @@
     }
 
     .version-count {
-      color: $blue;
       position: relative;
       z-index: 1;
       left: -1rem;
@@ -187,7 +186,7 @@
   // #endregion layout
 
   .select-mode {
-    border: 1px solid $grey-blue;
+    border: 1px solid var(--token-color-border-primary);
     background: rgb(0 0 0 / 5%);
     border-radius: 2px;
     display: grid;
