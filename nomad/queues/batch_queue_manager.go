@@ -137,7 +137,7 @@ func (b *BatchQueueManager) Queue(pool string) queue.Queue {
 	return b.queues[pool]
 }
 
-// UpdateDefault updates all queues to use the new default_scheduler_config.batch_queue config.
+// UpdateDefaultQueues updates all queues to use the new default_scheduler_config.batch_queue config.
 func (b *BatchQueueManager) UpdateDefaultQueues() error {
 	b.mux.Lock()
 	defer b.mux.Unlock()
@@ -183,7 +183,7 @@ func (b *BatchQueueManager) UpdateDefaultQueues() error {
 	return b.enqueuePending(withDefaultQueueFilter())
 }
 
-// UpdatePool updates an individual queues to use the provided config
+// UpdateQueue updates an individual queue to use the provided config
 func (b *BatchQueueManager) UpdateQueue(conf *structs.NodePool) error {
 	b.mux.Lock()
 	defer b.mux.Unlock()
