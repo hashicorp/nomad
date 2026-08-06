@@ -1,0 +1,13 @@
+{{!
+  Copyright IBM Corp. 2015, 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<pre class="diff-section-table-cell diff-section-change">{{#each
+    this.diffChunks
+    as |chunk|
+  }}<span
+      class="diff-line
+        {{if chunk.added 'diff-line-added'}}
+        {{if chunk.removed 'diff-line-removed'}}"
+    >{{chunk.value}}</span>{{/each}}</pre>
