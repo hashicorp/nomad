@@ -4,7 +4,9 @@
 package structs
 
 import (
+	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -5359,6 +5361,43 @@ func TestTaskGroupDiff(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTaskDiff_ConfigArgsNumericOrder(t *testing.T) {
+	ci.Parallel(t)
+
+	// Slice elements are flattened to "args[<index>]" names. The diff must sort
+	// them numerically, not lexically, so args[2] comes before args[10] (#4421).
+	args := make([]string, 12)
+	for i := range args {
+		args[i] = fmt.Sprintf("v%d", i)
+	}
+	old := &Task{Name: "web"}
+	updated := &Task{Name: "web", Config: map[string]interface{}{"args": args}}
+
+	diff, err := old.Diff(updated, false)
+	must.NoError(t, err)
+
+	var cfg *ObjectDiff
+	for _, o := range diff.Objects {
+		if o.Name == "Config" {
+			cfg = o
+			break
+		}
+	}
+	must.NotNil(t, cfg)
+
+	sort.Sort(FieldDiffs(cfg.Fields))
+	got := make([]string, len(cfg.Fields))
+	for i, f := range cfg.Fields {
+		got[i] = f.Name
+	}
+
+	want := make([]string, 12)
+	for i := range want {
+		want[i] = fmt.Sprintf("args[%d]", i)
+	}
+	must.Eq(t, want, got)
 }
 
 func TestTaskDiff(t *testing.T) {
