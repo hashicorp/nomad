@@ -37,6 +37,16 @@
       fill: lighten($grey-lighter, 5%);
     }
 
+    .reserved-segment {
+      rect.layer-0 {
+        fill: #fcc187;
+      }
+
+      rect.layer-1 {
+        fill: url(#diagonal-stripe-orange);
+      }
+    }
+
     .dimensions.is-active {
       .bar {
         opacity: 0.2;
