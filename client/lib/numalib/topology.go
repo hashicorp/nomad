@@ -282,7 +282,17 @@ func (st *Topology) NumECores() int {
 	return total
 }
 
-// UsableCores returns the number of logical cores usable by the Nomad client
+// AllCores returns the set of logical cores detected. The UsableCores will
+// be equal to or less than this value.
+func (st *Topology) AllCores() *idset.Set[hw.CoreID] {
+	result := idset.Empty[hw.CoreID]()
+	for _, cpu := range st.Cores {
+		result.Insert(cpu.ID)
+	}
+	return result
+}
+
+// UsableCores returns the set of logical cores usable by the Nomad client
 // for running tasks. Nomad must subtract off any reserved cores (reserved.cores)
 // and/or must mask the cpuset to the one set in config (config.reservable_cores).
 func (st *Topology) UsableCores() *idset.Set[hw.CoreID] {
