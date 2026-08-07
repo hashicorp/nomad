@@ -20,9 +20,6 @@ type TLSConfig struct {
 	// EnableHTTP enabled TLS for http traffic to the Nomad server and clients
 	EnableHTTP bool `hcl:"http"`
 
-	// DisableHTTP2 disables the usage of the HTTP/2 protocol for http traffic
-	DisableHTTP2 bool `hcl:"disable_http2"`
-
 	// EnableRPC enables TLS for RPC and Raft traffic to the Nomad servers
 	EnableRPC bool `hcl:"rpc"`
 
@@ -148,7 +145,6 @@ func (t *TLSConfig) Copy() *TLSConfig {
 
 	new := &TLSConfig{}
 	new.EnableHTTP = t.EnableHTTP
-	new.DisableHTTP2 = t.DisableHTTP2
 	new.EnableRPC = t.EnableRPC
 	new.VerifyServerHostname = t.VerifyServerHostname
 	new.CAFile = t.CAFile
@@ -180,7 +176,6 @@ func (t *TLSConfig) IsEmpty() bool {
 	}
 
 	return !t.EnableHTTP &&
-		!t.DisableHTTP2 &&
 		!t.EnableRPC &&
 		!t.VerifyServerHostname &&
 		t.CAFile == "" &&
@@ -195,9 +190,6 @@ func (t *TLSConfig) Merge(b *TLSConfig) *TLSConfig {
 
 	if b.EnableHTTP {
 		result.EnableHTTP = true
-	}
-	if b.DisableHTTP2 {
-		result.DisableHTTP2 = true
 	}
 	if b.EnableRPC {
 		result.EnableRPC = true

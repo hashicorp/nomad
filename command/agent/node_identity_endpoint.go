@@ -4,6 +4,8 @@
 package agent
 
 import (
+	"errors"
+	"io"
 	"net/http"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -61,8 +63,10 @@ func (s *HTTPServer) NodeIdentityRenewRequest(resp http.ResponseWriter, req *htt
 
 	// If the request body is not empty, it is likely the caller is using this
 	// to indicate the node ID. Decode it.
-	if !httpNoBody(req) {
-		if err := decodeBody(req, &args); err != nil {
+	if req.Body != nil && req.Body != http.NoBody {
+		// HTTP2 requests without a body do not assign NoBody, so check for an
+		// EOF error if an error is returned.
+		if err := decodeBody(req, &args); err != nil && !errors.Is(err, io.EOF) {
 			return nil, CodedError(http.StatusBadRequest, err.Error())
 		}
 	}

@@ -185,6 +185,9 @@ type Config struct {
 	// debugging and development.
 	HTTPDisableWebSocketOriginCheck bool `hcl:"http_disable_websocket_origin_check"`
 
+	// HTTPDisableHTTP2 is used to disable support for the HTTP2 protocol.
+	HTTPDisableHTTP2 bool `hcl:"http_disable_http2"`
+
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `hcl:"sentinel"`
 
@@ -2174,6 +2177,10 @@ func (c *Config) Merge(b *Config) *Config {
 		result.HTTPAPIResponseHeaders = make(map[string]string)
 	}
 	maps.Copy(result.HTTPAPIResponseHeaders, b.HTTPAPIResponseHeaders)
+
+	if b.HTTPDisableHTTP2 {
+		result.HTTPDisableHTTP2 = true
+	}
 
 	result.Limits = c.Limits.Merge(b.Limits)
 
