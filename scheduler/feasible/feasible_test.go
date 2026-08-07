@@ -903,6 +903,36 @@ func TestDynamicHostVolumeIsAvailable(t *testing.T) {
 
 }
 
+func TestDynamicHostVolumeIsAvailable_PurgedJob(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	checker := NewHostVolumeChecker(ctx)
+
+	vol := &structs.HostVolume{
+		Name:  "example",
+		State: structs.HostVolumeStateReady,
+		RequestedCapabilities: []*structs.HostVolumeCapability{{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
+		}},
+	}
+
+	// A proposed alloc whose job has been purged or garbage collected: JobByID
+	// returns nil, nil. The checker cannot prove the alloc is not using the
+	// volume, so it must report the volume unavailable rather than dereference
+	// the nil job (#28301).
+	orphan := mock.Alloc()
+
+	must.False(t, checker.hostVolumeIsAvailable(
+		vol,
+		structs.HostVolumeAccessModeSingleNodeSingleWriter,
+		structs.HostVolumeAttachmentModeFilesystem,
+		false,
+		[]*structs.Allocation{orphan},
+	))
+}
+
 func TestCSIVolumeChecker(t *testing.T) {
 	ci.Parallel(t)
 	state, ctx := MockContext(t)
