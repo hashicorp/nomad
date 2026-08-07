@@ -60,6 +60,10 @@ const (
 	// UUID from context
 	MissingRequestID = "<missing request id>"
 
+	// ProtoHttp2 is the name used within the TLS configuration to
+	// enable HTTP/2.
+	ProtoHttp2 = "h2"
+
 	contentTypeHeader = "Content-Type"
 	plainContentType  = "text/plain; charset=utf-8"
 )
@@ -148,6 +152,28 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 	wsUpgrader := &websocket.Upgrader{
 		ReadBufferSize:  2048,
 		WriteBufferSize: 2048,
+		Subprotocols:    []string{websocketProtocolWatcher},
+	}
+
+	// If running in dev mode, or the check has been explicitly disabled in the config, stub
+	// the origin check when upgrading the connection to a websocket. This is especially useful
+	// when doing ui development and using the ember proxy.
+	if config.DevMode || config.HTTPDisableWebSocketOriginCheck {
+		wsUpgrader.CheckOrigin = func(*http.Request) bool { return true }
+	}
+
+	protocols := new(http.Protocols)
+
+	// Specify which protocols are enabled for the HTTP
+	// server. HTTP1 is always enabled.
+	protocols.SetHTTP1(true)
+	// Enable HTTP2 unless it has been disabled in the configuration.
+	if !config.HTTPDisableHTTP2 {
+		protocols.SetHTTP2(true)
+		// If TLS is not enabled for HTTP, make HTTP2 available over cleartext.
+		if !config.TLSConfig.EnableHTTP {
+			protocols.SetUnencryptedHTTP2(true)
+		}
 	}
 
 	// Start the listener
@@ -169,6 +195,9 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			if err != nil {
 				serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
 				continue
+			}
+			if !config.HTTPDisableHTTP2 {
+				tlsConfig.NextProtos = []string{ProtoHttp2}
 			}
 			ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
 		}
@@ -192,6 +221,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			Handler:   handlers.CompressHandler(srv.mux),
 			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, &connCount, srv.logger),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
+			Protocols: protocols,
 		}
 
 		go func() {
@@ -242,9 +272,10 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 		// builtinServer adds a wrapper to always authenticate requests
 		httpServer := http.Server{
-			Addr:     srv.Addr,
-			Handler:  newAuthMiddleware(srv, srv.mux),
-			ErrorLog: newHTTPServerLogger(srv.logger),
+			Addr:      srv.Addr,
+			Handler:   newAuthMiddleware(srv, srv.mux),
+			ErrorLog:  newHTTPServerLogger(srv.logger),
+			Protocols: protocols,
 		}
 
 		agent.taskAPIServer.SetServer(&httpServer)
@@ -756,6 +787,10 @@ func (s *HTTPServer) wrap(handler handlerFn) func(resp http.ResponseWriter, req 
 			obj, err = s.wrapWebsocketHandler(s.auditHandler(handler))(resp, req)
 		} else {
 			obj, err = s.auditHandler(handler)(resp, req)
+			// Add a header which informs of the protocol being used. This allows
+			// the UI to detect when HTTP2 is being used allowing it to disable
+			// websocket usage for blocking requests.
+			resp.Header().Add("X-Nomad-Protocol", req.Proto)
 		}
 
 		// Check for an error
