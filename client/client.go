@@ -1871,9 +1871,9 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 // and then start heartbeating to the server.
 func (c *Client) registerAndHeartbeat() {
 	// Register the node
-	c.retryRegisterNode()
+	c.initNodeRegister()
 
-	// Start watching changes for node changes
+	// Start watching for node updates
 	go c.watchNodeUpdates()
 
 	// Start watching for emitting node events
@@ -2720,6 +2720,23 @@ OUTER:
 			return
 		}
 	}
+}
+
+// initNodeRegister performs an initial node registration. It is likely
+// but not guaranteed that node updates have been triggered prior to an
+// initial registration, so we empty the triggerNodeUpdate chan to reduce
+// the likelihood of duplicate registrations later on.
+func (c *Client) initNodeRegister() {
+L:
+	for {
+		select {
+		case <-c.triggerNodeUpdate:
+		default:
+			break L
+		}
+	}
+
+	c.retryRegisterNode()
 }
 
 // updateNode signals the client to send the updated
