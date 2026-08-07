@@ -162,6 +162,20 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		wsUpgrader.CheckOrigin = func(*http.Request) bool { return true }
 	}
 
+	protocols := new(http.Protocols)
+
+	// Specify which protocols are enabled for the HTTP
+	// server. HTTP1 is always enabled.
+	protocols.SetHTTP1(true)
+	// Enable HTTP2 unless it has been disabled in the configuration.
+	if !config.HTTPDisableHTTP2 {
+		protocols.SetHTTP2(true)
+		// If TLS is not enabled for HTTP, make HTTP2 available over cleartext.
+		if !config.TLSConfig.EnableHTTP {
+			protocols.SetUnencryptedHTTP2(true)
+		}
+	}
+
 	// Start the listener
 	for _, addr := range config.normalizedAddrs.HTTP {
 		lnAddr, err := net.ResolveTCPAddr("tcp", addr)
@@ -182,7 +196,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 				serverInitializationErrors = multierror.Append(serverInitializationErrors, err)
 				continue
 			}
-			if !config.TLSConfig.DisableHTTP2 {
+			if !config.HTTPDisableHTTP2 {
 				tlsConfig.NextProtos = []string{ProtoHttp2}
 			}
 			ln = tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, tlsConfig)
@@ -207,6 +221,7 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 			Handler:   handlers.CompressHandler(srv.mux),
 			ConnState: makeConnState(config.TLSConfig.EnableHTTP, handshakeTimeout, maxConns, &connCount, srv.logger),
 			ErrorLog:  newHTTPServerLogger(srv.logger),
+			Protocols: protocols,
 		}
 
 		go func() {
@@ -257,9 +272,10 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 
 		// builtinServer adds a wrapper to always authenticate requests
 		httpServer := http.Server{
-			Addr:     srv.Addr,
-			Handler:  newAuthMiddleware(srv, srv.mux),
-			ErrorLog: newHTTPServerLogger(srv.logger),
+			Addr:      srv.Addr,
+			Handler:   newAuthMiddleware(srv, srv.mux),
+			ErrorLog:  newHTTPServerLogger(srv.logger),
+			Protocols: protocols,
 		}
 
 		agent.taskAPIServer.SetServer(&httpServer)
