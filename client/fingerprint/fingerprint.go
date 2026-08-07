@@ -57,6 +57,7 @@ var (
 		"env_gce":          NewEnvGCEFingerprint,
 		"env_azure":        NewEnvAzureFingerprint,
 		"env_digitalocean": NewEnvDigitalOceanFingerprint,
+		"env_vsphere":      NewEnvVSphereFingerprint,
 	}
 )
 
