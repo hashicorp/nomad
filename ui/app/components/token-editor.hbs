@@ -204,23 +204,21 @@
           class="acl-table"
           @model={{@policies}}
           @columns={{array
-            (hash key="selected" label="Select" width="80px")
             (hash key="name" label="Name" isSortable=true)
             (hash key="description" label="Description")
             (hash key="definition" label="View Policy Definition")
           }}
           @sortBy="name"
+          @isSelectable={{true}}
+          @selectableColumnKey="name"
+          @selectionAriaLabelSuffix="policy"
+          @onSelectionChange={{this.onPoliciesSelectionChange}}
         >
           <:body as |B|>
-            <B.Tr>
-              <B.Td class="selection-checkbox">
-                <input
-                  type="checkbox"
-                  aria-label="Select policy {{B.data.name}}"
-                  checked={{find-by "name" B.data.name @token.policies}}
-                  {{on "change" (fn this.updateTokenPolicies B.data)}}
-                />
-              </B.Td>
+            <B.Tr
+              @selectionKey={{B.data.name}}
+              @isSelected={{if (find-by "name" B.data.name @token.policies) true false}}
+            >
               <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>
@@ -257,24 +255,22 @@
           class="acl-table"
           @model={{@roles}}
           @columns={{array
-            (hash key="selected" label="Select" width="80px")
             (hash key="name" label="Name" isSortable=true)
             (hash key="description" label="Description")
             (hash key="policies" label="Policies")
             (hash key="definition" label="View Role Info")
           }}
           @sortBy="name"
+          @isSelectable={{true}}
+          @selectableColumnKey="name"
+          @selectionAriaLabelSuffix="role"
+          @onSelectionChange={{this.onRolesSelectionChange}}
         >
           <:body as |B|>
-            <B.Tr>
-              <B.Td class="selection-checkbox">
-                <input
-                  type="checkbox"
-                  aria-label="Select role {{B.data.name}}"
-                  checked={{find-by "name" B.data.name @token.roles}}
-                  {{on "change" (fn this.updateTokenRoles B.data)}}
-                />
-              </B.Td>
+            <B.Tr
+              @selectionKey={{B.data.name}}
+              @isSelected={{if (find-by "name" B.data.name @token.roles) true false}}
+            >
               <B.Td data-test-role-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>

@@ -29,13 +29,10 @@ export default class RoleEditorComponent extends Component {
     this.role.set('name', value);
   }
 
-  @action updateRolePolicies(policy, event) {
-    let { checked } = event.target;
-    if (checked) {
-      this.rolePolicies.push(policy);
-    } else {
-      this.rolePolicies = this.rolePolicies.filter((p) => p !== policy);
-    }
+  @action onPoliciesSelectionChange({ selectedRowsKeys }) {
+    this.rolePolicies = selectedRowsKeys
+      .map((name) => this.args.policies.find((p) => p.name === name))
+      .filter(Boolean);
   }
 
   @action async save(e) {
