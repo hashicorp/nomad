@@ -216,7 +216,11 @@
           <:body as |B|>
             <B.Tr
               @selectionKey={{B.data.name}}
-              @isSelected={{if (find-by "name" B.data.name @token.policies) true false}}
+              @isSelected={{if
+                (find-by "name" B.data.name @token.policies)
+                true
+                false
+              }}
             >
               <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
@@ -267,7 +271,11 @@
           <:body as |B|>
             <B.Tr
               @selectionKey={{B.data.name}}
-              @isSelected={{if (find-by "name" B.data.name @token.roles) true false}}
+              @isSelected={{if
+                (find-by "name" B.data.name @token.roles)
+                true
+                false
+              }}
             >
               <B.Td data-test-role-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>

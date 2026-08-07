@@ -50,7 +50,11 @@
       <:body as |B|>
         <B.Tr
           @selectionKey={{B.data.name}}
-          @isSelected={{if (find-by "name" B.data.name @role.policies) true false}}
+          @isSelected={{if
+            (find-by "name" B.data.name @role.policies)
+            true
+            false
+          }}
         >
           <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
           <B.Td>{{B.data.description}}</B.Td>
