@@ -96,7 +96,7 @@ func TestAllocChecksCommand_Run(t *testing.T) {
 	waitForNodes(t, client)
 
 	jobID := "job1_checks"
-	job1 := testNomadServiceJob(jobID)
+	job1 := testServiceJob(jobID)
 
 	resp, _, err := client.Jobs().Register(job1, nil)
 	must.NoError(t, err)
