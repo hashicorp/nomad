@@ -5,12 +5,12 @@
 
 .notification {
   padding: 0.5rem 1rem;
-  border: 1px solid $grey-blue;
+  border: 1px solid var(--token-color-border-primary);
 
   &.is-pending {
-    background: $grey-blue;
-    color: findcolorinvert(darken($grey-blue, 10%));
-    border-color: $grey-blue;
+    background: var(--token-color-surface-strong);
+    color: var(--token-color-foreground-primary);
+    border-color: var(--token-color-border-primary);
   }
 
   &.is-running {
@@ -27,7 +27,7 @@
 
   &.is-cancelled {
     background: lighten($orange, 40%);
-    color: $orange;
+    color: var(--token-color-foreground-warning-on-surface);
     border-color: $orange;
   }
 
@@ -41,9 +41,13 @@
     }
   }
 
+  &.is-warning {
+    color: var(--token-color-foreground-warning-on-surface);
+  }
+
   &.is-light {
     background: lighten($white-ter, 5%);
-    color: darken($grey-blue, 20%);
-    border-color: $grey-blue;
+    color: var(--token-color-foreground-faint);
+    border-color: var(--token-color-border-primary);
   }
 }

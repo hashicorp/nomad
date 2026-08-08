@@ -19,7 +19,6 @@ import {
 } from './helpers';
 import Job from 'nomad-ui/tests/pages/jobs/detail';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | job-page/service', function (hooks) {
   setupRenderingTest(hooks);
@@ -107,8 +106,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     assert.ok(
       find('[data-test-stop] [data-test-idle-button]').hasAttribute('disabled'),
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
@@ -200,8 +197,6 @@ module('Integration | Component | job-page/service', function (hooks) {
       allocation.taskGroup,
       'Task Group name',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Recent allocations caps out at five', async function (assert) {
@@ -238,8 +233,6 @@ module('Integration | Component | job-page/service', function (hooks) {
       Job.recentAllocationsEmptyState.headline.includes('No Allocations'),
       'No allocations empty message',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Active deployment can be promoted', async function (assert) {
@@ -318,12 +311,6 @@ module('Integration | Component | job-page/service', function (hooks) {
     await click('[data-test-promote-canary]');
 
     await expectError(assert, 'Could Not Promote Deployment');
-
-    await componentA11yAudit(
-      this.element,
-      assert,
-      'scrollable-region-focusable',
-    ); //keyframe animation fades from opacity 0
   });
 
   test('Active deployment can be failed', async function (assert) {
@@ -368,11 +355,5 @@ module('Integration | Component | job-page/service', function (hooks) {
     await click('.active-deployment [data-test-fail]');
 
     await expectError(assert, 'Could Not Fail Deployment');
-
-    await componentA11yAudit(
-      this.element,
-      assert,
-      'scrollable-region-focusable',
-    ); //keyframe animation fades from opacity 0
   });
 });

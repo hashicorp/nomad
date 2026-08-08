@@ -5,10 +5,10 @@
 
 <section class="latest-deployment">
   <LinkTo @route="jobs.job.deployments" @model={{@job}}>
-    <h4>
+    <h3>
       Latest Deployment
       <Hds::Icon @name="arrow-right" @isInline={{true}} />
-    </h4>
+    </h3>
   </LinkTo>
   <Hds::Badge
     @text={{capitalize this.status}}

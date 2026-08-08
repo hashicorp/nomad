@@ -112,7 +112,7 @@
       display: grid;
       gap: 1rem;
       grid-template-rows: auto 1fr auto;
-      border-bottom: 1px solid $grey-blue;
+      border-bottom: 1px solid var(--token-color-border-primary);
       padding: 1rem 0 2rem;
 
       &:last-of-type {
@@ -126,7 +126,7 @@
           .job-name {
             opacity: 0.5;
             font-size: 1rem;
-            color: black;
+            color: #0b0f14;
           }
         }
       }

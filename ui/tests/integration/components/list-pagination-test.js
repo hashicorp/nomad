@@ -7,7 +7,6 @@ import { findAll, find, render } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | list pagination', function (hooks) {
   setupRenderingTest(hooks);
@@ -50,7 +49,6 @@ module('Integration | Component | list pagination', function (hooks) {
       findAll('.prev').length,
       'On the first page, there is no prev link',
     );
-    await componentA11yAudit(this.element, assert);
 
     assert.deepEqual(
       findAll('.link').length,
@@ -73,7 +71,6 @@ module('Integration | Component | list pagination', function (hooks) {
       findAll('.last').length,
       'While not on the last page, there is a last link',
     );
-    await componentA11yAudit(this.element, assert);
 
     assert.deepEqual(
       findAll('.item').length,

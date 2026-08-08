@@ -68,6 +68,14 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     font-size: $size-7;
   }
 
+  &.is-primary {
+    color: var(--token-color-foreground-strong);
+  }
+
+  &.is-warning {
+    color: var(--token-color-foreground-strong);
+  }
+
   @each $name, $pair in $colors {
     $color: nth($pair, 1);
     $color-invert: nth($pair, 2);

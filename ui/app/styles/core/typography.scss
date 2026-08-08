@@ -30,5 +30,5 @@ code {
 }
 
 .is-faded {
-  color: darken($grey-blue, 20%);
+  color: var(--token-color-foreground-primary);
 }

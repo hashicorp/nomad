@@ -112,10 +112,10 @@
         }
 
         &.is-empty {
-          color: darken($grey-blue, 20%);
+          color: var(--token-color-foreground-faint);
 
           .label {
-            color: darken($grey-blue, 20%);
+            color: var(--token-color-foreground-faint);
           }
         }
 
