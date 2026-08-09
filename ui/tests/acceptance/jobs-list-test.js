@@ -850,6 +850,39 @@ module('Acceptance | jobs list', function (hooks) {
         assert.dom('[data-test-pager="last"]').isDisabled();
         localStorage.removeItem('nomadPageSize');
       });
+      test('paging back onto the first page disables first and previous', async function (assert) {
+        // Paging prev lands on a server-minted cursor rather than an empty one,
+        // so the first page reached by paging back must still recognize it is
+        // the first page and disable first/previous, not leave them enabled for
+        // a dead click that just re-renders the same page.
+        const pageSize = 5;
+        const total = 15; // three pages: [15..11], [10..6], [5..1]
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        await JobsList.visit();
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        await click('[data-test-pager="next"]');
+        await click('[data-test-pager="previous"]');
+
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 14, 13, 12, 11],
+          'previous returns to the first page',
+        );
+        assert
+          .dom('[data-test-pager="previous"]')
+          .isDisabled('previous is disabled back on the first page');
+        assert
+          .dom('[data-test-pager="first"]')
+          .isDisabled('first is disabled back on the first page');
+
+        localStorage.removeItem('nomadPageSize');
+      });
     });
     module('Jobs are appropriately sorted by modify index', function () {
       test('on a single long page', async function (assert) {
@@ -1109,11 +1142,19 @@ module('Acceptance | jobs list', function (hooks) {
           'cursorAt is a string after paging forward',
         );
 
+        // Paging back onto the first page lands on the server-minted token for
+        // that page rather than undefined; either is fine, but it must not be
+        // null, which (unlike undefined) is not omitted from the query string.
         await click('[data-test-pager="previous"]');
-        assert.strictEqual(
+        assert.notStrictEqual(
           controller.cursorAt,
-          undefined,
-          'cursorAt is undefined (not null) back on the first page',
+          null,
+          'cursorAt is never null back on the first page',
+        );
+        assert.ok(
+          controller.cursorAt === undefined ||
+            typeof controller.cursorAt === 'string',
+          'cursorAt is a string or undefined back on the first page',
         );
 
         localStorage.removeItem('nomadPageSize');
@@ -1321,7 +1362,7 @@ module('Acceptance | jobs list', function (hooks) {
       });
 
       test('changing the page size resets to the first page', async function (assert) {
-        // Page boundaries depend on page size, so the stacked tokens are stale
+        // Page boundaries depend on page size, so the current cursor is stale
         // once it changes; the controller must reset to the first page instead
         // of paging from a cursor that no longer lines up.
         const pageSize = 5;
@@ -1342,10 +1383,6 @@ module('Acceptance | jobs list', function (hooks) {
           'string',
           'on a later page the cursor is set',
         );
-        assert.ok(
-          controller.previousTokens.length > 0,
-          'and the token history is populated',
-        );
 
         controller.handlePageSizeChange(10);
         await settled();
@@ -1355,17 +1392,73 @@ module('Acceptance | jobs list', function (hooks) {
           undefined,
           'changing page size drops the cursor',
         );
-        assert.strictEqual(
-          controller.previousTokens.length,
-          0,
-          'and clears the token history',
-        );
         assert.deepEqual(
           modifyIndexes(),
           [15, 14, 13, 12, 11, 10, 9, 8, 7, 6],
           'the first page is shown at the new page size',
         );
 
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('cold-loading a shared or refreshed URL past the first page renders it and pages correctly', async function (assert) {
+        // A deep-linked/shared URL or a refresh lands on a page with only a
+        // server-minted cursor and no in-memory history. The page must render,
+        // its first/previous buttons must reflect that it is not the first page,
+        // and previous must page back using a server-minted token (never a
+        // constructed one), exactly as gulducat's older-server case requires.
+        const pageSize = 5;
+        const total = 15; // three pages: [15..11], [10..6], [5..1]
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        // Build the second page's start token the way the server mints it,
+        // "<modifyIndex>.<namespace>.<id>", then open it cold.
+        const boundary = this.server.db.jobs.findBy({ modifyIndex: 10 });
+        const cursorAt = `10.default.${boundary.id}`;
+        await JobsList.visit({ cursorAt });
+
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        assert.deepEqual(
+          modifyIndexes(),
+          [10, 9, 8, 7, 6],
+          'the shared cursor renders its page on cold load',
+        );
+        assert
+          .dom('[data-test-pager="previous"]')
+          .isNotDisabled('previous is enabled: this is not the first page');
+        assert
+          .dom('[data-test-pager="first"]')
+          .isNotDisabled('first is enabled: this is not the first page');
+
+        const controller = this.owner.lookup('controller:jobs.index');
+        let constructed = 0;
+        const originalCursorFor = controller.cursorFor;
+        controller.cursorFor = function (...args) {
+          constructed++;
+          return originalCursorFor.apply(this, args);
+        };
+
+        await click('[data-test-pager="previous"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 14, 13, 12, 11],
+          'previous from a cold cursor pages back to the first page',
+        );
+        assert.strictEqual(
+          constructed,
+          0,
+          'previous from a cold cursor never constructs a token',
+        );
+        assert
+          .dom('[data-test-pager="previous"]')
+          .isDisabled('previous is disabled once back on the first page');
+
+        controller.cursorFor = originalCursorFor;
         localStorage.removeItem('nomadPageSize');
       });
     });
