@@ -5493,7 +5493,7 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			&TaskArtifact{
 				GetterSource: "foo.com",
 				GetterOptions: map[string]string{
-					"checksum": "md5:toosmall",
+					"checksum": "sha256:toosmall",
 				},
 			},
 			true,
@@ -5511,7 +5511,7 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			&TaskArtifact{
 				GetterSource: "foo.com",
 				GetterOptions: map[string]string{
-					"checksum": "md5:${ARTIFACT_CHECKSUM}",
+					"checksum": "sha256:${ARTIFACT_CHECKSUM}",
 				},
 			},
 			false,
