@@ -1394,8 +1394,10 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	// numOldAllocs is used to detect if there is a garbage collection event
 	// that effects the node. When an allocation is garbage collected, that does
 	// not change the modify index changes and thus the query won't unblock,
-	// even though the set of allocations on the node has changed.
-	var numOldAllocs int
+	// even though the set of allocations on the node has changed. This value
+	// is defaulted to -1 so it can be determined if the previous allocation
+	// count is known. If it's not known, we always prefer the allocs table index.
+	var numOldAllocs int = -1
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -1428,7 +1430,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 			preferTableIndex := true
 
 			// Setup the output
-			if numAllocs := len(allocs); numAllocs != 0 {
+			numAllocs := len(allocs)
+
+			if numAllocs > 0 {
 				preferTableIndex = false
 
 				for _, alloc := range allocs {
@@ -1464,18 +1468,20 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 					reply.Index = maxUint64(reply.Index, alloc.ModifyIndex)
 				}
 
-				// Determine if we have less allocations than before. This
-				// indicates there was a garbage collection
-				if numAllocs < numOldAllocs {
+				// If the previous allocations count is less than zero, this is
+				// the first run through and the previous count is unknown. Otherwise,
+				// determine if we have less allocations than before. If so, it indicates
+				// there was a garbage collection.
+				if numOldAllocs < 0 || numAllocs < numOldAllocs {
 					preferTableIndex = true
 				}
-
-				// Store the new number of allocations
-				numOldAllocs = numAllocs
 			}
 
+			// Store the new number of allocations
+			numOldAllocs = numAllocs
+
 			if preferTableIndex {
-				// Use the last index that affected the nodes table
+				// Use the last index that affected the allocs table
 				index, err := state.Index("allocs")
 				if err != nil {
 					return err
@@ -1489,6 +1495,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 					reply.Index = index
 				}
 			}
+
 			return nil
 		}}
 	return n.srv.blockingRPC(&opts)
