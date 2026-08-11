@@ -109,10 +109,6 @@ func normalizeDependency(d *api.Dependency) {
 		return
 	}
 
-	if d.ActionOnTimeout == "" {
-		d.ActionOnTimeout = "reject"
-	}
-
 	for _, depJob := range d.Jobs {
 		if depJob == nil {
 			continue

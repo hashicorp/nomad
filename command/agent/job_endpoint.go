@@ -2287,9 +2287,8 @@ func ApiDependencyToStructs(in *api.Dependency) *structs.Dependency {
 	}
 
 	return &structs.Dependency{
-		Timeout:         timeout,
-		ActionOnTimeout: in.ActionOnTimeout,
-		Jobs:            jobs,
+		Timeout: timeout,
+		Jobs:    jobs,
 	}
 }
 
