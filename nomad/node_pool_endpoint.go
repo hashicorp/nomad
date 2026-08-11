@@ -218,6 +218,13 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		return err
 	}
 	reply.Index = index
+
+	for _, pool := range args.NodePools {
+		if err := n.srv.batchQueueMgr.UpdateQueue(pool); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

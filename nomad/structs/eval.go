@@ -402,7 +402,9 @@ func (e *Evaluation) ShouldBlock() bool {
 }
 
 func (e *Evaluation) IsBatchQueue() bool {
-	return e.Type == JobTypeBatch && e.Status == EvalStatusPending
+	return e.Type == JobTypeBatch &&
+		e.Status == EvalStatusPending &&
+		e.TriggeredBy == EvalTriggerJobRegister
 }
 
 // MakePlan is used to make a plan from the given evaluation

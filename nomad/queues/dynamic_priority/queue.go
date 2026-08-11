@@ -175,25 +175,30 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 			continue
 		}
 
-		w := d.generateWorkload(eval)
+		job, err := d.state.JobByID(nil, eval.Namespace, eval.JobID)
+		if err != nil {
+			return err
+		}
+
+		w := d.generateWorkload(eval, job)
 
 		// generate the tenant if it doesn't exist
 		d.ensureTenant(w.tid)
 
 		// When checking for workload placements, we never want to actually block
 		// in SetEnabled, but it's also entirely possible a queue eval is blocked and
-		// waiting to be placed from a previous DPQ placement. If that happens
+		// waiting to be completed from a previous DPQ placement. If that happens
 		// we should enqueue it and push it to the front of the queue.
-		placed, err := queue.IsSchedulingComplete(w, d.state)
+		complete, err := queue.IsSchedulingComplete(w, d.state)
 		if err != nil {
 			d.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		}
 
-		if placed && evalHasPlacement(w.GetEval()) {
+		if complete && evalHasPlacement(w.GetEval()) {
 			d.updateUsage(w)
 		}
 
-		if !placed {
+		if !complete {
 			w.waitOnRestore = true
 			d.enqueueCh <- w
 		}
@@ -208,8 +213,8 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 // It generates a workload with an empty priority, appends it
 // to an internal channel to be processed and added to the actual
 // heap container.
-func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation) {
-	w := d.generateWorkload(e)
+func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
+	w := d.generateWorkload(e, j)
 
 	// in the event of an empty workload, just pass eval to eval broker
 	if w == nil {
@@ -295,12 +300,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 }
 
 // generateWorkload is used to create an initial workload from a given evaluation
-func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation) *dynamicPriorityWorkload {
-	job, err := d.state.JobByID(nil, e.Namespace, e.JobID)
-	if err != nil {
-		return nil
-	}
-
+func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *structs.Job) *dynamicPriorityWorkload {
 	var tid TenantID
 	switch d.tenantType {
 	case "namespace":

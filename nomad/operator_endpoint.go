@@ -468,7 +468,10 @@ func (op *Operator) SchedulerSetConfiguration(args *structs.SchedulerSetConfigRe
 	// restoring into non-running brokers.
 	if reply.Updated {
 		// Update will restart a queue, restoring state, but not restoring pending evals
-		op.srv.batchQueueMgr.Update(&args.Config.BatchQueue)
+		if err := op.srv.batchQueueMgr.UpdateDefaultQueues(); err != nil {
+			op.logger.Error("failed updating batch queues with new scheduler config", "error", err)
+			return err
+		}
 
 		if op.srv.handleEvalBrokerStateChange(&args.Config) {
 			return op.srv.restoreEvals()
