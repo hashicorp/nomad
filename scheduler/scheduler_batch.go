@@ -10,7 +10,8 @@ import (
 )
 
 type dependencyChecker interface {
-	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) (bool, error)
+	CheckDependency(state sstructs.State, job *structs.Job,
+		eval *structs.Evaluation) ([]string, error)
 }
 
 type BatchScheduler struct {
@@ -41,12 +42,13 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sst
 
 func (bs *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
 
-	ready, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
+	blockers, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
 	if err != nil {
 		return []*structs.Node{}, nil, err
 	}
 
-	if !ready {
+	if len(blockers) > 0 {
+		bs.GenericScheduler.ctx.Metrics().AddBlockedDependencies(blockers...)
 		_, _, byDC, err := readyNodesInDCsAndPool(bs.state, job.Datacenters, job.NodePool)
 		return []*structs.Node{}, byDC, err
 	}
@@ -58,13 +60,13 @@ func (bs *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[strin
 // depending on if the dependencies for the job being processed are met or not.
 func (bs *BatchScheduler) dependencyWrapper(next filterNodesFunc) filterNodesFunc {
 	return func(job *structs.Job) ([]*structs.Node, map[string]int, error) {
-		ready, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
+		blockers, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
 		if err != nil {
 			return []*structs.Node{}, nil, err
 		}
 
-		if !ready {
-			bs.blockedByDeps = true
+		if len(blockers) > 0 {
+			bs.blockers = blockers
 			return []*structs.Node{}, nil, err
 		}
 

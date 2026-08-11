@@ -92,11 +92,16 @@ func (c *Coordinator) removeDeps(eval *structs.Evaluation, dependeeJobs map[stri
 	return nil
 }
 
+// CheckDependency checks if the dependencies for a job are met. If they are not,
+// it will trigger a block routine until the any of the blockers is updated or a timeout is reached.
+// It will also return a list of the jobs blocking the evaluation.
+//
+// If the dependencies are met, it will return an empty slice and no error.
 func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
-	eval *structs.Evaluation) (bool, error) {
+	eval *structs.Evaluation) ([]string, error) {
 
 	if job.Dependencies == nil {
-		return true, nil
+		return []string{}, nil
 	}
 
 	djSet := map[string]struct{}{}
@@ -123,13 +128,13 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 		djs[jID] = j
 	}
 
-	ready, err := c.verifyDependencies(job, djs)
+	blockers, err := c.verifyDependencies(job, djs)
 	if err != nil {
 		c.logger.Error("failed to verify dependencies", "error", err)
 	}
 
-	if ready {
-		return true, nil
+	if len(blockers) == 0 {
+		return []string{}, nil
 	}
 
 	c.loopDetector.AddNodes(eval.JobID, djIDs...)
@@ -144,7 +149,7 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 
 	go c.waitForDependency(ctx, state, eval, djIDs...)
 
-	return false, nil
+	return blockers, nil
 }
 
 func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.State,
@@ -175,14 +180,15 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 	for {
 		select {
 		case <-ws.WatchCh(ctx):
-			ready, err := c.verifyDependencies(dep.job, dj)
+			blockers, err := c.verifyDependencies(dep.job, dj)
 			if err != nil {
 				c.logger.Error("failed to verify dependency", "error", err)
 			}
 
-			if ready {
+			if len(blockers) > 0 {
 				c.blockedEvals.Unblock(eval.ID, dep.job.JobModifyIndex)
-				c.logger.Debug("dependency ready, unblocking job", "job", eval.JobID, "eval", eval.ID, "ready", ready)
+				c.logger.Debug("dependency ready, unblocking job", "job", eval.JobID,
+					"eval", eval.ID, "ready", len(blockers) > 0)
 
 				if err != nil {
 					c.logger.Error("failed to unblock job", "error", err)
@@ -236,9 +242,9 @@ func (c *Coordinator) deleteEval(eval structs.Evaluation, job structs.Job) error
 	return nil
 }
 
-func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[string]*structs.Job) (bool, error) {
+func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[string]*structs.Job) ([]string, error) {
 	var mErr multierror.Error
-	ready := true
+	blockers := []string{}
 
 	for _, depJob := range dependantJob.Dependencies.Jobs {
 		if depJob == nil {
@@ -248,17 +254,16 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 		job, ok := jobs[depJob.Name]
 		if !ok {
 			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+depJob.Name))
-			ready = false
-			break
+
+			return []string{}, &mErr
 		}
 
 		if job == nil || !statusMatches(job.Status, depJob.Status) {
-			ready = false
-			break
+			blockers = append(blockers, depJob.Name)
 		}
 	}
 
-	return ready, mErr.ErrorOrNil()
+	return blockers, mErr.ErrorOrNil()
 }
 
 func statusMatches(actual, expected string) bool {
@@ -342,6 +347,6 @@ func (c *NoOpCoordinator) HasDependencies(j *structs.Job) (bool, error) {
 }
 
 func (c *NoOpCoordinator) CheckDependency(state sstructs.State, job *structs.Job,
-	eval *structs.Evaluation) (bool, error) {
-	return true, nil
+	eval *structs.Evaluation) ([]string, error) {
+	return []string{}, nil
 }
