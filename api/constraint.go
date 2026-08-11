@@ -5,7 +5,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -74,12 +73,12 @@ func (d *JobDependency) Validate() error {
 
 // Dependency is used to serialize a job placement dependency.
 type Dependency struct {
-	Timeout         *time.Duration   `hcl:"timeout,optional"`
-	ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
-	Jobs            []*JobDependency `hcl:"job,block"`
+	Timeout *time.Duration `hcl:"timeout,optional"`
+	//ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
+	Jobs []*JobDependency `hcl:"job,block"`
 }
 
-func NewDependency(timeout, actionOnTimeout string, jobs ...*JobDependency) *Dependency {
+func NewDependency(timeout string, jobs ...*JobDependency) *Dependency {
 	copyJobs := make([]*JobDependency, 0, len(jobs))
 	for _, job := range jobs {
 		copyJobs = append(copyJobs, job.Copy())
@@ -87,17 +86,13 @@ func NewDependency(timeout, actionOnTimeout string, jobs ...*JobDependency) *Dep
 
 	duration, _ := time.ParseDuration(timeout)
 	return &Dependency{
-		Timeout:         &duration,
-		Jobs:            copyJobs,
-		ActionOnTimeout: actionOnTimeout,
+		Timeout: &duration,
+		Jobs:    copyJobs,
+		//ActionOnTimeout: actionOnTimeout,
 	}
 }
 
 func (d *Dependency) Canonicalize() {
-	if d.ActionOnTimeout == "" {
-		d.ActionOnTimeout = "reject"
-	}
-
 	for _, job := range d.Jobs {
 		job.Canonicalize()
 	}
@@ -114,9 +109,9 @@ func (d *Dependency) Copy() *Dependency {
 	}
 
 	return &Dependency{
-		Timeout:         d.Timeout,
-		ActionOnTimeout: d.ActionOnTimeout,
-		Jobs:            jobs,
+		Timeout: d.Timeout,
+		//ActionOnTimeout: d.ActionOnTimeout,
+		Jobs: jobs,
 	}
 }
 
@@ -129,18 +124,11 @@ func (d *Dependency) Validate() error {
 		return errors.New("dependency timeout is required")
 	}
 
-	if d.ActionOnTimeout == "" {
-		return errors.New("dependency action_on_timeout is required")
-	}
-
-	if d.ActionOnTimeout != "reject" && d.ActionOnTimeout != "dispatch" {
-		return fmt.Errorf("invalid dependency action_on_timeout %q", d.ActionOnTimeout)
-	}
-
 	if len(d.Jobs) == 0 {
 		return errors.New("dependency requires at least one job block")
 	}
 
+	// Should we check that each dependency is unique??
 	for _, job := range d.Jobs {
 		if err := job.Validate(); err != nil {
 			return err

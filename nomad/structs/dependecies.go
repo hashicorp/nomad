@@ -68,9 +68,8 @@ func (d *JobDependency) String() string {
 
 // A Dependency is used to restrict placement options.
 type Dependency struct {
-	Timeout         time.Duration
-	ActionOnTimeout string
-	Jobs            []*JobDependency
+	Timeout time.Duration
+	Jobs    []*JobDependency
 }
 
 // Equal checks if two dependencies are equal.
@@ -90,7 +89,6 @@ func (d *Dependency) Equal(o *Dependency) bool {
 
 	return d == o ||
 		d.Timeout == o.Timeout &&
-			d.ActionOnTimeout == o.ActionOnTimeout &&
 			jEqual
 }
 
@@ -111,9 +109,8 @@ func (d *Dependency) Copy() *Dependency {
 	}
 
 	return &Dependency{
-		Timeout:         d.Timeout,
-		ActionOnTimeout: d.ActionOnTimeout,
-		Jobs:            jobs,
+		Timeout: d.Timeout,
+		Jobs:    jobs,
 	}
 }
 
@@ -123,17 +120,13 @@ func (d *Dependency) String() string {
 		jobs = append(jobs, j.String())
 	}
 
-	return fmt.Sprintf("%s %s: %s", d.Timeout, d.ActionOnTimeout, strings.Join(jobs, ", "))
+	return fmt.Sprintf("%s: %s", d.Timeout, strings.Join(jobs, ", "))
 }
 
 func (d *Dependency) Validate() error {
 	var mErr multierror.Error
 	if d == nil {
 		return nil
-	}
-
-	if d.ActionOnTimeout != DependencyActionReject && d.ActionOnTimeout != DependencyActionDispatch {
-		mErr.Errors = append(mErr.Errors, errors.New("Invalid action on timeout in dependency, must be 'reject' or 'dispatch'"))
 	}
 
 	if len(d.Jobs) == 0 {
@@ -152,10 +145,6 @@ func (d *Dependency) Validate() error {
 func (d *Dependency) Canonicalize() {
 	if d == nil {
 		return
-	}
-
-	if d.ActionOnTimeout == "" {
-		d.ActionOnTimeout = "reject"
 	}
 
 	for _, job := range d.Jobs {

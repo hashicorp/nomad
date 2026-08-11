@@ -117,7 +117,7 @@ type raftBackend interface {
 type DependencyCoordinator interface {
 	Reload(state sstructs.State, evals memdb.ResultIterator)
 	HasDependencies(j *structs.Job) (bool, error)
-	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) (bool, error)
+	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) ([]string, error)
 }
 
 // Server is Nomad server which manages the job queues,

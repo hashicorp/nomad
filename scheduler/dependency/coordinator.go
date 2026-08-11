@@ -198,8 +198,8 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 			return
 
 		case <-ctx.Done():
-			c.logger.Error("dependency timeout reached", "job",
-				eval.JobID, "eval", eval.ID, "action", dep.job.Dependencies.ActionOnTimeout)
+			c.logger.Error("dependency timeout reached", "job", eval.JobID,
+				"eval", eval.ID)
 
 			err := c.deleteEval(*eval, *dep.job)
 			if err != nil {
