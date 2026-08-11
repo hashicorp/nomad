@@ -209,6 +209,12 @@ func ParseConfigFile(path string) (*Config, error) {
 			&c.Server.ClientIntroduction.MaxIdentityTTLHCL,
 			nil,
 		},
+		{
+			"server.default_scheduler_config.batch_queue.workload_timeout",
+			&c.Server.DefaultSchedulerConfig.BatchQueue.WorkloadTimeout,
+			&c.Server.DefaultSchedulerConfig.BatchQueue.WorkloadTimeoutHCL,
+			nil,
+		},
 	}
 
 	// Parse durations and env tokens for Consul config blocks if provided

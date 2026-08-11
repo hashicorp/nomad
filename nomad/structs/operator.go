@@ -389,8 +389,9 @@ type BatchQueue struct {
 	TenantType           BatchQueueTenant `hcl:"tenant_type"`
 	MetadataKey          string           `hcl:"metadata_key"`
 	ConcurrentPlacements int              `hcl:"concurrent_placements"`
-	WorkloadTimeout      time.Duration    `hcl:"workload_timeout"`
-	Config               map[string]any   `hcl:"config"`
+	WorkloadTimeout      time.Duration
+	WorkloadTimeoutHCL   string         `hcl:"workload_timeout"`
+	Config               map[string]any `hcl:"config"`
 }
 
 type DynamicQueueConfig struct {

@@ -80,7 +80,7 @@ func NewDynamicPriorityQueue(ss *state.StateStore, broker queue.Broker, qconf *s
 		wg:          sync.WaitGroup{},
 		state:       ss,
 		logger:      logger.Named("Dynamic Priority Queue"),
-		watcher:     queue.NewWorkloadWatcher(ss, qconf),
+		watcher:     queue.NewWorkloadWatcher(ss, logger, qconf),
 	}
 }
 
@@ -260,11 +260,41 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 // at a time, enqueues them onto the Eval Broker, and waits for them
 // to be placed before continuing.
 func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
+	resultsCh := d.watcher.Results()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case result := <-resultsCh:
+			if result.Err != nil {
+				d.logger.Error("failure waiting for workload placement", "evalID", result.Workload.GetEval().ID, "err", result.Err)
+			}
+
+			if result.TimedOut {
+				d.logger.Warn("workload placement timed out, will attempt to continue with next workload concurrently", "evalID", result.Workload.GetEval().ID)
+			}
+
+			d.qMux.Lock()
+			l := d.queue.Len()
+
+			if evalHasPlacement(result.Workload.GetEval()) {
+				d.updateUsage(result.Workload)
+			}
+			d.qMux.Unlock()
+
+			if l > 0 {
+				select {
+				case d.qNotify <- struct{}{}:
+				default:
+				}
+			}
 		case <-d.qNotify:
+			// Check if we can attempt another placement
+			if !d.watcher.CanAttemptPlacement() {
+				// Queue has work but we're at capacity
+				continue
+			}
 
 			// Pop a workload off the queue if available
 			d.qMux.Lock()
@@ -274,34 +304,12 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			// We don't need to pass the waitOnRestore workload
 			// to the eval broker, that already happened.
 			if !w.WaitOnRestore() {
+				//check constraints, and  only enqueue if the constraints don't match
 				d.evalBroker.Enqueue(w.GetEval())
 			}
 
-			// Wait for the eval to be placed
-			err := d.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
-			if err != nil {
-				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID, "err", err)
-				if err == context.DeadlineExceeded {
-					// something
-				}
-			}
-
-			d.qMux.Lock()
-			if evalHasPlacement(w.GetEval()) {
-				d.updateUsage(w)
-			}
-
-			l := d.queue.Len()
-			d.qMux.Unlock()
-
-			// If the queue still has work, notify self
-			// to continue.
-			if l > 0 {
-				select {
-				case d.qNotify <- struct{}{}:
-				default:
-				}
-			}
+			// Start watching for placement
+			d.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 		}
 	}
 }

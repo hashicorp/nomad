@@ -4,162 +4,18 @@
 package dynamic
 
 import (
-	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 )
-
-func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
-
-	t.Run("returns if eval complete", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := queue.NewWorkloadWatcher(ss, nil)
-
-		testEval := mock.Eval()
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		ws := memdb.NewWatchSet()
-		doneCh := make(chan error)
-		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
-		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
-		}()
-
-		testEval.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
-
-		done := <-doneCh
-
-		must.NoError(t, done)
-	})
-
-	t.Run("continues watching blocked evals", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := queue.NewWorkloadWatcher(ss, nil)
-
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		ws := memdb.NewWatchSet()
-		doneCh := make(chan error)
-		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
-		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
-		}()
-
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
-
-		select {
-		case <-doneCh:
-			t.Fatal("should not have exited")
-		default:
-		}
-
-		blocked.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{blocked})
-
-		done := <-doneCh
-		must.NoError(t, done)
-	})
-
-	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := queue.NewWorkloadWatcher(ss, nil)
-
-		testEval := mock.Eval()
-		next := mock.Eval()
-
-		testEval.Status = structs.EvalStatusFailed
-		testEval.NextEval = next.ID
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, next})
-
-		ws := memdb.NewWatchSet()
-		doneCh := make(chan error)
-		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
-		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
-		}()
-
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
-
-		select {
-		case <-doneCh:
-			t.Fatal("should not have exited")
-		default:
-		}
-
-		next.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{next})
-
-		done := <-doneCh
-		must.NoError(t, done)
-	})
-
-	t.Run("returns deadline exceeded", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := queue.NewWorkloadWatcher(ss, &structs.BatchQueue{
-			WorkloadTimeout: 1 * time.Second,
-		})
-
-		testEval := mock.Eval()
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		ws := memdb.NewWatchSet()
-		doneCh := make(chan error)
-		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
-		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
-		}()
-
-		done := <-doneCh
-
-		must.EqError(t, done, context.DeadlineExceeded.Error())
-	})
-}
 
 func TestDynamicPriorityQueue_decayUsage(t *testing.T) {
 	t.Run("decays usage by half after half-life", func(t *testing.T) {
@@ -904,75 +760,6 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 		}
 		must.Eq(t, tc.exp, testQueue.Tenants())
 	}
-}
-
-func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
-	t.Run("pending eval results in false", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-
-		watcher := queue.NewWorkloadWatcher(ss, nil)
-		testEval := mock.Eval()
-		testEval.Status = structs.EvalStatusPending
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-		}
-
-		complete, err := watcher.IsSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.False(t, complete)
-	})
-
-	t.Run("eval with pending blockedEval results in false", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-
-		watcher := queue.NewWorkloadWatcher(ss, nil)
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-		blocked.Status = structs.EvalStatusPending
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-		}
-
-		complete, err := watcher.IsSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.False(t, complete)
-	})
-
-	t.Run("eval with complete blockedEval results in true", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := queue.NewWorkloadWatcher(ss, nil)
-
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-		blocked.Status = structs.EvalStatusComplete
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-		}
-
-		complete, err := watcher.IsSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.True(t, complete)
-	})
 }
 
 func TestDynamicPriorityQueue_restore(t *testing.T) {

@@ -55,7 +55,7 @@ func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger
 		state:      ss,
 		qMux:       sync.Mutex{},
 		logger:     logger.Named("Fifo Queue"),
-		watcher:    queue.NewWorkloadWatcher(ss, nil),
+		watcher:    queue.NewWorkloadWatcher(ss, logger, nil),
 	}
 }
 
@@ -121,20 +121,19 @@ func (f *FifoQueue) runProducer(ctx context.Context) {
 }
 
 func (f *FifoQueue) runConsumer(ctx context.Context) {
+	resultsCh := f.watcher.Results()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-f.qNotify:
-			f.qMux.Lock()
-			w := f.queue.Pop()
-			f.qMux.Unlock()
+		case result := <-resultsCh:
+			if result.Err != nil {
+				f.logger.Error("failure waiting for workload placement", "evalID", result.Workload.GetEval().ID, "err", result.Err)
+			}
 
-			f.evalBroker.Enqueue(w.GetEval())
-
-			err := f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
-			if err != nil {
-				f.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
+			if result.TimedOut {
+				f.logger.Warn("workload placement timed out, will continue with next workload concurrently", "evalID", result.Workload.GetEval().ID)
 			}
 
 			f.qMux.Lock()
@@ -147,6 +146,20 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 				default:
 				}
 			}
+		case <-f.qNotify:
+			// Check if we can attempt another placement
+			if !f.watcher.CanAttemptPlacement() {
+				// Queue has work but we're at capacity
+				continue
+			}
+
+			f.qMux.Lock()
+			w := f.queue.Pop()
+			f.qMux.Unlock()
+
+			f.evalBroker.Enqueue(w.GetEval())
+
+			f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 		}
 	}
 }
