@@ -84,15 +84,18 @@ func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workloa
 	w.mu.Unlock()
 
 	go func() {
-		// Apply timeout if configured
-		if w.config.WorkloadTimeout != 0 {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, w.workloadTimeout)
-			defer cancel()
-		}
+		err := w.waitWithTimeout(ctx, workload, ws)
 
-		// Wait for placement to complete or timeout
-		err := w.wait(ctx, workload, ws)
+		if err == context.DeadlineExceeded {
+			// Send result of the timeout
+			w.results <- PlacementResult{
+				Workload: workload,
+				TimedOut: true,
+			}
+
+			// Continue waiting for placement to complete
+			err = w.wait(ctx, workload, ws)
+		}
 
 		// Release this placement slot
 		w.mu.Lock()
@@ -103,9 +106,21 @@ func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workloa
 		w.results <- PlacementResult{
 			Workload: workload,
 			Err:      err,
-			TimedOut: err == context.DeadlineExceeded,
 		}
 	}()
+}
+
+func (w *WorkloadWatcher) waitWithTimeout(ctx context.Context, workload Workload, ws memdb.WatchSet) error {
+	// Apply timeout if configured
+	if w.config.WorkloadTimeout != 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, w.workloadTimeout)
+		defer cancel()
+	}
+
+	// Wait for placement to complete or timeout
+	return w.wait(ctx, workload, ws)
+
 }
 
 // wait blocks until the workload's evaluation reaches a terminal state.

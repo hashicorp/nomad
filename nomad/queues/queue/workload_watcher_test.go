@@ -4,7 +4,6 @@
 package queue
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -140,10 +139,10 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		must.NoError(t, result.Err)
 	})
 
-	t.Run("returns deadline exceeded", func(t *testing.T) {
+	t.Run("returns deadline exceeded, still waits for completion", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
-			WorkloadTimeout:      1 * time.Second,
+			WorkloadTimeout:      10,
 			ConcurrentPlacements: 1,
 		})
 		resultsCh := watcher.Results()
@@ -154,17 +153,27 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		workload := &testWorkload{eval: testEval.Copy()}
 		watcher.WaitForPlacement(t.Context(), workload, ws)
+		must.False(t, watcher.CanAttemptPlacement())
 
 		result := <-resultsCh
 
 		must.True(t, result.TimedOut)
-		must.EqError(t, result.Err, context.DeadlineExceeded.Error())
+		must.False(t, watcher.CanAttemptPlacement())
+
+		testEval.Status = structs.EvalStatusComplete
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+
+		result = <-resultsCh
+
+		must.False(t, result.TimedOut)
+		must.True(t, watcher.CanAttemptPlacement())
+
 	})
 
 	t.Run("tracks concurrent placements", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
-			WorkloadTimeout:      5 * time.Second,
+			WorkloadTimeout:      10,
 			ConcurrentPlacements: 2,
 		})
 		resultsCh := watcher.Results()
