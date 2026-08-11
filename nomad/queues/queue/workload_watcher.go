@@ -6,6 +6,7 @@ package queue
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
@@ -22,16 +23,27 @@ type WorkloadWatcher struct {
 	results chan PlacementResult
 
 	// Concurrency control
-	mu                sync.Mutex
-	currentPlacements int
+	mu                      sync.Mutex
+	workloadTimeout         time.Duration
+	currentPlacements       int
+	maxConcurrentPlacements int
 }
 
 func NewWorkloadWatcher(s *state.StateStore, logger hclog.Logger, config *structs.BatchQueue) *WorkloadWatcher {
 	w := &WorkloadWatcher{
 		stateStore: s,
 		config:     config,
-		logger:     logger,
-		results:    make(chan PlacementResult, config.ConcurrentPlacements),
+		logger:     logger.Named("workload_watcher"),
+	}
+
+	if config.WorkloadTimeout != 0 {
+		w.workloadTimeout = config.WorkloadTimeout
+		w.results = make(chan PlacementResult, config.ConcurrentPlacements)
+		w.maxConcurrentPlacements = config.ConcurrentPlacements
+
+	} else {
+		w.results = make(chan PlacementResult, 1)
+		w.maxConcurrentPlacements = 1
 	}
 
 	return w
@@ -45,11 +57,15 @@ type PlacementResult struct {
 
 // CanAttemptPlacement returns true if there is capacity for another concurrent placement.
 func (w *WorkloadWatcher) CanAttemptPlacement() bool {
+	if w.workloadTimeout == 0 {
+		return true
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	full := w.currentPlacements < w.config.ConcurrentPlacements
+	full := w.currentPlacements < w.maxConcurrentPlacements
 	if full {
-		w.logger.Error("queue concurrency is at max")
+		w.logger.Error("queue is at max concurrent placements")
 	}
 	return full
 }
@@ -71,7 +87,7 @@ func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workloa
 		// Apply timeout if configured
 		if w.config.WorkloadTimeout != 0 {
 			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(ctx, w.config.WorkloadTimeout)
+			ctx, cancel = context.WithTimeout(ctx, w.workloadTimeout)
 			defer cancel()
 		}
 

@@ -304,7 +304,6 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			// We don't need to pass the waitOnRestore workload
 			// to the eval broker, that already happened.
 			if !w.WaitOnRestore() {
-				//check constraints, and  only enqueue if the constraints don't match
 				d.evalBroker.Enqueue(w.GetEval())
 			}
 

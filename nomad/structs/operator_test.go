@@ -306,6 +306,30 @@ func TestSchedulerConfig_BatchQueue_Validate(t *testing.T) {
 				Type: BatchQueueTypeFifo,
 			},
 		},
+		{
+			name: "workload_timeout without concurrent_placements",
+			batchConfig: BatchQueue{
+				Type:            BatchQueueTypeFifo,
+				WorkloadTimeout: 5 * time.Minute,
+			},
+			err: "workload timeout will have no effect without concurrent placements set",
+		},
+		{
+			name: "concurrent_placements without workload_timeout",
+			batchConfig: BatchQueue{
+				Type:                 BatchQueueTypeFifo,
+				ConcurrentPlacements: 5,
+			},
+			err: "concurrent placements can not be set without a workload timeout",
+		},
+		{
+			name: "ok - concurrent placements",
+			batchConfig: BatchQueue{
+				Type:                 BatchQueueTypeFifo,
+				ConcurrentPlacements: 5,
+				WorkloadTimeout:      5 * time.Minute,
+			},
+		},
 	}
 
 	for _, tc := range testCases {

@@ -46,7 +46,7 @@ type FifoQueue struct {
 	watcher *queue.WorkloadWatcher
 }
 
-func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger) *FifoQueue {
+func NewFifoQueue(ss *state.StateStore, broker queue.Broker, conf *structs.BatchQueue, logger hclog.Logger) *FifoQueue {
 	return &FifoQueue{
 		queue:      queue.NewWorkloadQueue(workloadSortFn()),
 		enqueueCh:  make(chan *fifoWorkload, 8192),
@@ -55,7 +55,7 @@ func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger
 		state:      ss,
 		qMux:       sync.Mutex{},
 		logger:     logger.Named("Fifo Queue"),
-		watcher:    queue.NewWorkloadWatcher(ss, logger, nil),
+		watcher:    queue.NewWorkloadWatcher(ss, logger, conf),
 	}
 }
 
@@ -157,7 +157,9 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 			w := f.queue.Pop()
 			f.qMux.Unlock()
 
-			f.evalBroker.Enqueue(w.GetEval())
+			if !w.WaitOnRestore() {
+				f.evalBroker.Enqueue(w.GetEval())
+			}
 
 			f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 		}

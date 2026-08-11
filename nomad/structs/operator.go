@@ -450,6 +450,14 @@ func (b *BatchQueue) Validate() error {
 		return nil
 	}
 
+	if b.WorkloadTimeout == 0 && b.ConcurrentPlacements > 1 {
+		return fmt.Errorf("concurrent placements can not be set without a workload timeout")
+	}
+
+	if b.WorkloadTimeout != 0 && b.ConcurrentPlacements <= 1 {
+		return fmt.Errorf("workload timeout will have no effect without concurrent placements set")
+	}
+
 	switch b.Type {
 	case BatchQueueTypeDynamic:
 		conf := DynamicQueueConfig{}
