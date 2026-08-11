@@ -1236,12 +1236,12 @@ func (a *AllocMetric) MaxNormScore() *NodeScoreMeta {
 	return a.ScoreMetaData[0]
 }
 
-func (a *AllocMetric) AddBlockedDependency(dep string) {
+func (a *AllocMetric) AddBlockedDependencies(dep ...string) {
 	if a.BlockedDependencies == nil {
 		a.BlockedDependencies = make([]string, 0)
 	}
 
-	a.BlockedDependencies = append(a.BlockedDependencies, dep)
+	a.BlockedDependencies = append(a.BlockedDependencies, dep...)
 }
 
 const (

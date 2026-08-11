@@ -55,13 +55,12 @@ func (s *SetStatusError) Error() string {
 // most workloads. It also supports a 'batch' mode to optimize for fast decision
 // making at the cost of quality.
 type GenericScheduler struct {
-	logger        log.Logger
-	eventsCh      chan<- any
-	state         sstructs.State
-	planner       sstructs.Planner
-	batch         bool
-	blockedByDeps bool
-
+	logger     log.Logger
+	eventsCh   chan<- any
+	state      sstructs.State
+	planner    sstructs.Planner
+	batch      bool
+	blockers   []string
 	eval       *structs.Evaluation
 	job        *structs.Job
 	plan       *structs.Plan
@@ -191,10 +190,10 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	}
 
 	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs, e.MissingResources())
-	if planFailure && !s.blockedByDeps {
+	if planFailure && !s.blockedByDependencies() {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalMaxPlan
-	} else if planFailure && s.blockedByDeps {
+	} else if planFailure && s.blockedByDependencies() {
 		s.blocked.TriggeredBy = structs.EvalTriggeredDeps
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	} else {
@@ -699,13 +698,9 @@ func (s *GenericScheduler) computePlacements(
 					s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 				}
 
-				if s.blockedByDeps {
-					s.ctx.Metrics().AddBlockedDependency(tg.Name)
-				}
-
 				// Update metrics with the resources requested by the task group.
 				s.ctx.Metrics().ExhaustResources(tg)
-
+				s.ctx.Metrics().AddBlockedDependencies(s.blockers...)
 				// Track the fact that we didn't find a placement
 				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
 
@@ -968,4 +963,8 @@ func (s *GenericScheduler) handlePreemptions(option *feasible.RankedNode, alloc 
 	}
 
 	alloc.PreemptedAllocations = preemptedAllocIDs
+}
+
+func (s *GenericScheduler) blockedByDependencies() bool {
+	return len(s.blockers) > 0
 }
