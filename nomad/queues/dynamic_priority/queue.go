@@ -42,6 +42,9 @@ type DynamicPriorityQueue struct {
 	// totalUsage is the sum of all tenant usages
 	totalUsage *ResourceUsage
 
+	// totalPendingUsage is the sum of all tenant pending usages
+	totalPendingUsage *ResourceUsage
+
 	tenantType structs.BatchQueueTenant
 
 	metadataKey string
@@ -65,19 +68,20 @@ type DynamicPriorityQueue struct {
 
 func NewDynamicPriorityQueue(ss *state.StateStore, broker queue.Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
-		queue:       queue.NewWorkloadQueue(workloadSortFn()),
-		evalBroker:  broker,
-		qMux:        sync.Mutex{},
-		tenants:     make(map[TenantID]*Tenant),
-		enqueueCh:   make(chan *dynamicPriorityWorkload, 8192),
-		qNotify:     make(chan struct{}, 1),
-		tenantType:  qconf.TenantType,
-		metadataKey: qconf.MetadataKey,
-		conf:        conf,
-		totalUsage:  &ResourceUsage{},
-		wg:          sync.WaitGroup{},
-		state:       ss,
-		logger:      logger.Named("Dynamic Priority Queue"),
+		queue:             queue.NewWorkloadQueue(workloadSortFn()),
+		evalBroker:        broker,
+		qMux:              sync.Mutex{},
+		tenants:           make(map[TenantID]*Tenant),
+		enqueueCh:         make(chan *dynamicPriorityWorkload, 8192),
+		qNotify:           make(chan struct{}, 1),
+		tenantType:        qconf.TenantType,
+		metadataKey:       qconf.MetadataKey,
+		conf:              conf,
+		totalUsage:        &ResourceUsage{},
+		totalPendingUsage: &ResourceUsage{},
+		wg:                sync.WaitGroup{},
+		state:             ss,
+		logger:            logger.Named("Dynamic Priority Queue"),
 	}
 }
 
@@ -237,6 +241,11 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			// use createTime so that workloads have consistent age
 			// priority calculations after restoring from state.
 			d.setWorkloadPriority(time.Unix(0, w.eval.CreateTime), w)
+
+			d.ensureTenant(w.tid)
+			d.tenants[w.tid].pendingUsage.Add(w.requestedResources.resources)
+			d.totalPendingUsage.Add(w.requestedResources.resources)
+
 			d.queue.Push(w)
 			d.qMux.Unlock()
 
@@ -346,12 +355,14 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 		tid:                tid,
 		placedWorkloadById: make(map[string]*dynamicPriorityWorkload),
 		totalUsage:         &ResourceUsage{},
+		pendingUsage:       &ResourceUsage{},
 	}
 }
 
 // calculatePriorities iterates over all workloads in the queue and updates
 // their priorities based on tenant usage, which is decayed according to the
-// configured half-life, and usage weight.
+// configured half-life, and usage weight. This must be done while the queue is
+// locked.
 func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
 	state, err := d.state.Snapshot()
 	if err != nil {
@@ -362,11 +373,23 @@ func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
 	// priority relies on its tenant's usage.
 	d.decayUsage(now, state)
 
-	// Now that we have accurate tenant usage, calculate
-	// each workloads new priority and update the queue
+	pending := make(map[TenantID]*ResourceUsage)
+
 	d.queue.UpdateAll(func(w queue.Workload) {
 		workload := w.(*dynamicPriorityWorkload)
+		tenant := d.tenants[workload.tid]
+
+		if _, ok := pending[workload.tid]; !ok {
+			pending[workload.tid] = &ResourceUsage{}
+		}
+
+		originalPending := *tenant.pendingUsage
+		tenant.pendingUsage = pending[workload.tid]
+
 		d.setWorkloadPriority(now, workload)
+		tenant.pendingUsage = &originalPending
+
+		pending[workload.tid].Add(workload.requestedResources.resources)
 	})
 }
 
@@ -379,22 +402,25 @@ func (d *DynamicPriorityQueue) setWorkloadPriority(now time.Time, w *dynamicPrio
 }
 
 // usageAdjustment calculates the adjustment to a workload's priority based on
-// it's tenant's usage relative to the total usage, and configured weight.
+// tenant usage relative to total usage. Includes both placed (totalUsage) and
+// queued (pendingUsage) workloads.
 func (d *DynamicPriorityQueue) usageAdjustment(w *dynamicPriorityWorkload) int {
 	if d.conf.UsageWeight == 0 {
 		return 0
 	}
 
 	d.ensureTenant(w.tid)
-	total := d.totalUsage.Total()
-	tenantUsage := d.tenants[w.tid].totalUsage.Total()
+	tenant := d.tenants[w.tid]
+
+	effectiveTenantUsage := tenant.totalUsage.Total() + tenant.pendingUsage.Total()
+	totalEffectiveUsage := d.totalUsage.Total() + d.totalPendingUsage.Total()
 
 	usageRatio := 0.0
-	if total > 0 {
-		usageRatio = tenantUsage / total
+	if totalEffectiveUsage > 0 {
+		usageRatio += effectiveTenantUsage / totalEffectiveUsage
 	}
-	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
-	w.usageAdjustment = int(usageAdjustment)
+
+	w.usageAdjustment = int((1 - usageRatio) * float64(d.conf.UsageWeight))
 	return w.usageAdjustment
 }
 
@@ -522,10 +548,13 @@ func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
 	tenants := []structs.DynamicPriorityTenant{}
 	for _, t := range d.tenants {
 		tenants = append(tenants, structs.DynamicPriorityTenant{
-			TenantID:       string(t.tid),
-			PercentageUsed: t.totalPercentageUsed(d.totalUsage),
-			TenantUsage:    t.totalUsage.UsageByResource(),
-			TotalUsage:     d.totalUsage.UsageByResource(),
+			TenantID:              string(t.tid),
+			PercentageUsed:        t.totalPercentageUsed(d.totalUsage),
+			TenantUsage:           t.totalUsage.UsageByResource(),
+			TotalUsage:            d.totalUsage.UsageByResource(),
+			PercentagePendingUsed: t.totalPendingPercentageUsed(d.totalPendingUsage),
+			PendingTenantUsage:    t.pendingUsage.UsageByResource(),
+			PendingTotalUsage:     d.totalPendingUsage.UsageByResource(),
 		})
 	}
 	return structs.QueueTenantsResponse{
@@ -541,17 +570,18 @@ func (d *DynamicPriorityQueue) updateUsage(w queue.Workload) {
 	tenant := d.tenants[workload.tid]
 
 	_, ok := tenant.placedWorkloadById[workload.id]
-	// If the workload has already been placed, don't count the usage again.
 	if ok {
 		return
 	}
 
 	workloadResources := workload.requestedResources
-	// this method should only be called when a workload was successfully placed,
-	// so we can use the ModifyTime as the for when decay will start.
 	workloadResources.start = time.Unix(0, workload.eval.ModifyTime)
+
+	tenant.pendingUsage = tenant.pendingUsage.Subtract(workloadResources.resources)
 	tenant.totalUsage = tenant.totalUsage.Add(workloadResources.resources)
+
 	d.totalUsage = d.totalUsage.Add(workloadResources.resources)
+	d.totalPendingUsage = d.totalPendingUsage.Subtract(workloadResources.resources)
 
 	tenant.placedWorkloadById[workload.id] = workload
 }

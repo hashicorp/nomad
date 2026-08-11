@@ -7,6 +7,7 @@ type Tenant struct {
 	tid                TenantID
 	placedWorkloadById map[string]*dynamicPriorityWorkload
 	totalUsage         *ResourceUsage
+	pendingUsage       *ResourceUsage
 }
 
 func (t *Tenant) totalPercentageUsed(totalUsage *ResourceUsage) int {
@@ -15,4 +16,11 @@ func (t *Tenant) totalPercentageUsed(totalUsage *ResourceUsage) int {
 	}
 
 	return int((t.totalUsage.Total() / totalUsage.Total()) * 100)
+}
+func (t *Tenant) totalPendingPercentageUsed(totalUsage *ResourceUsage) int {
+	if totalUsage.Total() == 0 {
+		return 0
+	}
+
+	return int((t.pendingUsage.Total() / totalUsage.Total()) * 100)
 }

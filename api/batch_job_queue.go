@@ -48,10 +48,13 @@ type DynamicPriorityWorkload struct {
 }
 
 type DynamicPriorityTenant struct {
-	TenantID       string
-	PercentageUsed int
-	TenantUsage    map[string]float64
-	TotalUsage     map[string]float64
+	TenantID              string
+	PercentageUsed        int
+	PercentagePendingUsed int
+	TenantUsage           map[string]float64
+	TotalUsage            map[string]float64
+	PendingTenantUsage    map[string]float64
+	PendingTotalUsage     map[string]float64
 }
 
 type Workload struct {
