@@ -89,7 +89,7 @@ export default class Job extends Model {
 
   /**
    * @typedef {Object} CurrentStatus
-   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"|"Stopped"|"Scaled Down"} label - The current status of the job
+   * @property {"Healthy"|"Failed"|"Deploying"|"Degraded"|"Recovering"|"Complete"|"Running"|"Removed"|"Stopped"|"Scaled Down"|"Pending"} label - The current status of the job
    * @property {"highlight"|"success"|"warning"|"critical"|"neutral"} state -
    */
 
@@ -226,6 +226,7 @@ export default class Job extends Model {
    * - Removed: The job appeared in our initial query, but has since been garbage collected
    * - Stopped: The job has been manually stopped (and not purged or yet garbage collected) by a user
    * - Scaled Down: The job is intentionally scaled down to 0 desired allocations (all task groups have count=0)
+   * - Pending: The job is pending and has not yet started running
    * @returns {CurrentStatus}
    */
   /**
@@ -277,6 +278,10 @@ export default class Job extends Model {
       const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
       if (healthyAllocs?.length + completeAllocs?.length === totalAllocs) {
         return { label: 'Running', state: 'success' };
+      }
+
+      if (this.type === 'batch' && this.status === 'pending') {
+        return { label: 'Pending', state: 'neutral' };
       }
     }
 

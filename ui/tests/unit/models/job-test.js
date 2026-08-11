@@ -254,6 +254,77 @@ module('Unit | Model | job', function (hooks) {
     );
   });
 
+  module('#aggregateAllocStatus', function () {
+    test('pending batch jobs are labeled pending', function (assert) {
+      const store = this.owner.lookup('service:store');
+      const job = run(() =>
+        store.createRecord('job', {
+          name: 'queued-batch',
+          type: 'batch',
+          status: 'pending',
+          groupCountSum: 1,
+        }),
+      );
+
+      assert.deepEqual(job.aggregateAllocStatus, {
+        label: 'Pending',
+        state: 'neutral',
+      });
+    });
+
+    test('complete batch jobs are not relabeled pending', function (assert) {
+      const store = this.owner.lookup('service:store');
+      const job = run(() => {
+        const job = store.createRecord('job', {
+          name: 'complete-batch',
+          type: 'batch',
+          status: 'pending',
+          groupCountSum: 1,
+        });
+
+        store.createRecord('allocation', {
+          id: 'complete-batch-allocation',
+          job,
+          clientStatus: 'complete',
+          jobVersion: 1,
+        });
+
+        return job;
+      });
+
+      assert.deepEqual(job.aggregateAllocStatus, {
+        label: 'Complete',
+        state: 'success',
+      });
+    });
+
+    test('pending sysbatch jobs are not labeled pending', function (assert) {
+      const store = this.owner.lookup('service:store');
+      const job = run(() => {
+        const job = store.createRecord('job', {
+          name: 'pending-sysbatch',
+          type: 'sysbatch',
+          status: 'pending',
+        });
+
+        store.createRecord('allocation', {
+          id: 'pending-sysbatch-allocation',
+          job,
+          clientStatus: 'pending',
+          jobVersion: 1,
+          nodeID: 'node-1',
+        });
+
+        return job;
+      });
+
+      assert.deepEqual(job.aggregateAllocStatus, {
+        label: 'Recovering',
+        state: 'highlight',
+      });
+    });
+  });
+
   module('#parse', function () {
     test('it parses JSON', async function (assert) {
       const store = this.owner.lookup('service:store');
