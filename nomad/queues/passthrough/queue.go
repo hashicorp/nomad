@@ -31,7 +31,7 @@ func (p *PassthroughQueue) Start(context.Context) error { return nil }
 
 func (p *PassthroughQueue) Stop() {}
 
-func (p *PassthroughQueue) Enqueue(e *structs.Evaluation) { p.evalBroker.Enqueue(e) }
+func (p *PassthroughQueue) Enqueue(e *structs.Evaluation, _ *structs.Job) { p.evalBroker.Enqueue(e) }
 
 func (p *PassthroughQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
 	return &queue.WorkloadIter{}

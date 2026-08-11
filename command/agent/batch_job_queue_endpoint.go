@@ -23,8 +23,10 @@ func (s *HTTPServer) BatchJobQueueJobsRequest(resp http.ResponseWriter, req *htt
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+
 	query := req.URL.Query()
 	args.Sort = structs.SortOrder(query.Get("sort"))
+	args.NodePool = query.Get("node_pool")
 
 	if err := s.agent.RPC("BatchJobQueue.Jobs", &args, &out); err != nil {
 		return nil, err
@@ -48,6 +50,8 @@ func (s *HTTPServer) BatchJobQueueTenantsRequest(resp http.ResponseWriter, req *
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
+
+	args.NodePool = req.URL.Query().Get("node_pool")
 
 	if err := s.agent.RPC("BatchJobQueue.Tenants", &args, &out); err != nil {
 		return nil, err

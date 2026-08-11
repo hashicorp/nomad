@@ -70,6 +70,7 @@ func (w *Workload) GetNamespace() string {
 }
 
 type QueueTenantsRequest struct {
+	NodePool string `json:"node_pool,omitempty"`
 	QueryOptions
 }
 
@@ -84,7 +85,8 @@ type QueueTenantsResponse struct {
 }
 
 type QueueJobsRequest struct {
-	Sort SortOrder `json:"sort,omitempty"`
+	Sort     SortOrder `json:"sort,omitempty"`
+	NodePool string    `json:"node_pool,omitempty"`
 	QueryOptions
 }
 
