@@ -36,7 +36,7 @@ func TestHostFingerprint(t *testing.T) {
 		t.Fatalf("should generate a diff of node attributes")
 	}
 
-	commonAttributes := []string{"os.name", "os.version", "unique.hostname", "kernel.name"}
+	commonAttributes := []string{"os.name", "os.version", "unique.host_id", "unique.hostname", "kernel.name"}
 	nonWindowsAttributes := append(commonAttributes, "kernel.version")
 	windowsAttributes := append(commonAttributes, "os.build")
 

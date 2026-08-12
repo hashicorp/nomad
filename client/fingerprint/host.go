@@ -46,6 +46,7 @@ func (f *HostFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprint
 	resp.AddAttribute("kernel.name", runtime.GOOS)
 	resp.AddAttribute("kernel.arch", hostInfo.KernelArch)
 
+	resp.AddAttribute("unique.host_id", hostInfo.HostID)
 	resp.AddAttribute("unique.hostname", hostInfo.Hostname)
 	resp.Detected = true
 
