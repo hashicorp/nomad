@@ -164,6 +164,11 @@ var basicConfig = &Config{
 				BatchSchedulerEnabled:   true,
 				ServiceSchedulerEnabled: true,
 			},
+			BatchQueue: structs.BatchQueue{
+				Type:                 "fifo",
+				WorkloadTimeoutHCL:   "5m",
+				ConcurrentPlacements: 100,
+			},
 		},
 		LicensePath:        "/tmp/nomad.hclic",
 		JobDefaultPriority: new(100),
