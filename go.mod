@@ -58,7 +58,7 @@ require (
 	github.com/hashicorp/go-cty-funcs v0.1.0
 	github.com/hashicorp/go-discover v1.3.0
 	github.com/hashicorp/go-envparse v0.1.0
-	github.com/hashicorp/go-getter v1.8.7
+	github.com/hashicorp/go-getter v1.8.8
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.23
