@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/go-memdb"
@@ -107,10 +108,8 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		return fmt.Errorf("must specify at least one namespace to delete")
 	}
 
-	for _, ns := range args.Namespaces {
-		if ns == structs.DefaultNamespace {
-			return fmt.Errorf("can not delete default namespace")
-		}
+	if slices.Contains(args.Namespaces, structs.DefaultNamespace) {
+		return fmt.Errorf("can not delete default namespace")
 	}
 
 	// snapshot the state once, because we'll be doing many checks and want

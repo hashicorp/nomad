@@ -18,6 +18,7 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -60,6 +61,18 @@ func (f *fakeAllocRunner) Listener() *cstructs.AllocListener {
 
 func (f *fakeAllocRunner) Alloc() *structs.Allocation {
 	return f.alloc
+}
+
+// countingRPCer implements RPCer, recording the number of calls and returning
+// a fixed error.
+type countingRPCer struct {
+	err   error
+	calls int
+}
+
+func (c *countingRPCer) RPC(method string, args interface{}, reply interface{}) error {
+	c.calls++
+	return c.err
 }
 
 // newConfig returns a new Config and cleanup func
@@ -311,4 +324,39 @@ func TestPrevAlloc_StreamAllocDir_FileEscape(t *testing.T) {
 	dest := t.TempDir()
 	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(tarBuf), dest)
 	must.EqError(t, err, "archive contains object that escapes alloc dir")
+}
+
+// TestPrevAlloc_Remote_Wait_TerminalError asserts that Wait stops watching
+// rather than retrying forever when the server returns a terminal error.
+func TestPrevAlloc_Remote_Wait_TerminalError(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name string
+		err  error
+	}{
+		{name: "permission denied", err: structs.ErrPermissionDenied},
+		{name: "unknown allocation", err: structs.NewErrUnknownAllocation("abc")},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			rpc := &countingRPCer{err: tc.err}
+			prevAlloc := &remotePrevAlloc{
+				logger:      testlog.HCLogger(t),
+				allocID:     "123",
+				prevAllocID: "abc",
+				migrate:     true,
+				rpc:         rpc,
+				config:      &config.Config{Region: "global", Node: &structs.Node{}},
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			// Wait must return nil promptly without looping on the RPC.
+			must.NoError(t, prevAlloc.Wait(ctx))
+			must.Eq(t, 1, rpc.calls)
+		})
+	}
 }

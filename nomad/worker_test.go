@@ -586,7 +586,6 @@ func TestWorker_SubmitPlan_JobVsJobInfo(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.Name, func(t *testing.T) {
 			ci.Parallel(t)
 

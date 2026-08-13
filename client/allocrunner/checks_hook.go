@@ -140,7 +140,9 @@ func (h *checksHook) initialize(alloc *structs.Allocation) {
 	h.alloc = alloc
 }
 
-// observe will create the observer for each service in services.
+// observe will create the observer for each service in services and remove any
+// services for this alloc that should no longer exist.
+//
 // services must use only nomad service provider.
 //
 // Caller must hold h.lock.
@@ -152,6 +154,8 @@ func (h *checksHook) observe(alloc *structs.Allocation, services []*structs.Serv
 		networks = alloc.AllocatedResources.Shared.Networks
 	}
 
+	ids := []structs.CheckID{}
+
 	for _, service := range services {
 		for _, check := range service.Checks {
 
@@ -160,6 +164,7 @@ func (h *checksHook) observe(alloc *structs.Allocation, services []*structs.Serv
 
 			// create the deterministic check id for this check
 			id := structs.NomadCheckID(alloc.ID, alloc.TaskGroup, check)
+			ids = append(ids, id)
 
 			// an observer for this check already exists
 			if _, exists := h.observers[id]; exists {
@@ -196,10 +201,24 @@ func (h *checksHook) observe(alloc *structs.Allocation, services []*structs.Serv
 				h.logger.Error("failed to set initial check status", "id", h.allocID, "error", err)
 				continue
 			}
-
-			// start the observer
-			go h.observers[id].start()
 		}
+	}
+
+	// remove the IDs of any checks in state that don't exist in the job, to
+	// support in-place allocation updates or client upgrades where we update
+	// check IDs with new fields/hashes
+	remove := h.shim.Difference(h.allocID, ids)
+	for _, id := range remove {
+		if ob, ok := h.observers[id]; ok {
+			ob.stop()
+			delete(h.observers, id)
+		}
+	}
+	h.shim.Remove(h.allocID, remove)
+
+	// start the observers
+	for _, id := range ids {
+		go h.observers[id].start()
 	}
 }
 
@@ -216,12 +235,12 @@ func (h *checksHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 		return nil
 	}
 
+	// get all group and task level services using nomad provider
 	interpolatedServices := taskenv.InterpolateServices(
 		allocEnv, group.NomadServices())
 
 	// create and start observers of nomad service checks in alloc
 	h.observe(h.alloc, interpolatedServices)
-
 	return nil
 }
 
@@ -238,36 +257,12 @@ func (h *checksHook) Update(request *interfaces.RunnerUpdateRequest) error {
 	interpolatedServices := taskenv.InterpolateServices(
 		request.AllocEnv, group.NomadServices())
 
-	// create a set of the updated set of checks
-	next := make([]structs.CheckID, 0, len(h.observers))
-	for _, service := range interpolatedServices {
-		for _, check := range service.Checks {
-			next = append(next, structs.NomadCheckID(
-				request.Alloc.ID,
-				request.Alloc.TaskGroup,
-				check,
-			))
-		}
-	}
-
-	// stop the observers of the checks we are removing
-	remove := h.shim.Difference(request.Alloc.ID, next)
-	for _, id := range remove {
-		h.observers[id].stop()
-		delete(h.observers, id)
-	}
-
-	// remove checks that are no longer part of the allocation
-	if err := h.shim.Remove(request.Alloc.ID, remove); err != nil {
-		return err
-	}
-
 	// remember this new alloc
 	h.alloc = request.Alloc
 
-	// ensure we are observing new checks (idempotent)
+	// ensure we are observing new checks and stopping any stale ones
+	// (idempotent)
 	h.observe(request.Alloc, interpolatedServices)
-
 	return nil
 }
 

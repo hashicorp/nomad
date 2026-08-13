@@ -4,7 +4,9 @@
 package structs
 
 import (
+	"crypto/fips140"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -483,7 +485,8 @@ func (sc *ServiceCheck) TriggersRestarts() bool {
 // the PortLabel is blank, the Service's PortLabel will be used after Hash is
 // called.
 func (sc *ServiceCheck) Hash(serviceID string) string {
-	h := sha1.New()
+	h := sha256.New()
+
 	hashString(h, serviceID)
 	hashString(h, sc.Name)
 	hashString(h, sc.Type)
@@ -953,11 +956,34 @@ func (s *Service) ValidateName(name string) error {
 	return nil
 }
 
+// LegacyAgentID is used only for generating the ID for services registered by a
+// pre-FIPS-compatible Nomad agent, so that if the agent was not shutdown
+// gracefully before upgrading, it can still deregister its old services.
+//
+// COMPAT: remove once upgrades from pre-FIPS-compatible agents are no longer
+// supported. Upgrading agents in-place to FIPS-enabled is unsupported.
+func (s *Service) LegacyAgentID(role string) string {
+	if fips140.Enabled() {
+		return ""
+	}
+	h := sha1.New()
+	x := s.hashImpl(h, role, "", false)
+	return fmt.Sprintf("_nomad-%s-%s", role, x)
+}
+
 // Hash returns a base32 encoded hash of a Service's contents excluding checks
 // as they're hashed independently and the provider in order to not cause churn
 // during cluster upgrades.
+//
+// This hash is used for internal in-memory comparisons and for generating the
+// Nomad agent's own service IDs that it registers with Consul, but is not used
+// for registering workload services.
 func (s *Service) Hash(allocID, taskName string, canary bool) string {
-	h := sha1.New()
+	h := sha256.New()
+	return s.hashImpl(h, allocID, taskName, canary)[:52]
+}
+
+func (s *Service) hashImpl(h hash.Hash, allocID, taskName string, canary bool) string {
 	hashString(h, allocID)
 	hashString(h, taskName)
 	hashString(h, s.Name)
@@ -1059,7 +1085,7 @@ func hashMeta(h hash.Hash, m map[string]string) {
 	_, _ = fmt.Fprintf(h, "%v", m)
 }
 
-func hashConfig(h hash.Hash, c map[string]interface{}) {
+func hashConfig(h hash.Hash, c map[string]any) {
 	_, _ = fmt.Fprintf(h, "%v", c)
 }
 
@@ -1427,7 +1453,7 @@ type SidecarTask struct {
 	User string
 
 	// Config is provided to the driver to initialize
-	Config map[string]interface{}
+	Config map[string]any
 
 	// Map of environment variables to be used by the driver
 	Env map[string]string
@@ -1540,7 +1566,7 @@ func (t *SidecarTask) Copy() *SidecarTask {
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		panic(err.Error())
 	} else {
-		nt.Config = i.(map[string]interface{})
+		nt.Config = i.(map[string]any)
 	}
 
 	if t.KillTimeout != nil {
@@ -1570,9 +1596,7 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 		task.Driver = t.Driver
 		task.Config = t.Config
 	} else {
-		for k, v := range t.Config {
-			task.Config[k] = v
-		}
+		maps.Copy(task.Config, t.Config)
 	}
 
 	if t.User != "" {
@@ -1583,9 +1607,7 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 		if task.Env == nil {
 			task.Env = t.Env
 		} else {
-			for k, v := range t.Env {
-				task.Env[k] = v
-			}
+			maps.Copy(task.Env, t.Env)
 		}
 	}
 
@@ -1597,9 +1619,7 @@ func (t *SidecarTask) MergeIntoTask(task *Task) {
 		if task.Meta == nil {
 			task.Meta = t.Meta
 		} else {
-			for k, v := range t.Meta {
-				task.Meta[k] = v
-			}
+			maps.Copy(task.Meta, t.Meta)
 		}
 	}
 
@@ -1665,7 +1685,7 @@ type ConsulProxy struct {
 
 	// Config is a proxy configuration. It is opaque to Nomad and passed
 	// directly to Consul.
-	Config map[string]interface{}
+	Config map[string]any
 }
 
 // Copy the block recursively. Returns nil if nil.
@@ -2050,7 +2070,7 @@ type ConsulGatewayProxy struct {
 	EnvoyGatewayBindAddresses       map[string]*ConsulGatewayBindAddress
 	EnvoyGatewayNoDefaultBind       bool
 	EnvoyDNSDiscoveryType           string
-	Config                          map[string]interface{}
+	Config                          map[string]any
 }
 
 func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
@@ -2435,7 +2455,7 @@ func (l *ConsulIngressListener) Copy() *ConsulIngressListener {
 	var services []*ConsulIngressService = nil
 	if n := len(l.Services); n > 0 {
 		services = make([]*ConsulIngressService, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			services[i] = l.Services[i].Copy()
 		}
 	}
@@ -2516,7 +2536,7 @@ func (e *ConsulIngressConfigEntry) Copy() *ConsulIngressConfigEntry {
 	var listeners []*ConsulIngressListener = nil
 	if n := len(e.Listeners); n > 0 {
 		listeners = make([]*ConsulIngressListener, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			listeners[i] = e.Listeners[i].Copy()
 		}
 	}
@@ -2649,7 +2669,7 @@ func (e *ConsulTerminatingConfigEntry) Copy() *ConsulTerminatingConfigEntry {
 	var services []*ConsulLinkedService = nil
 	if n := len(e.Services); n > 0 {
 		services = make([]*ConsulLinkedService, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			services[i] = e.Services[i].Copy()
 		}
 	}

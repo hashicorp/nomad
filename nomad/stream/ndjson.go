@@ -73,7 +73,7 @@ func (n *JsonStream) heartbeat() {
 
 // Send encodes an object into Newline delimited json. An error is returned
 // if json encoding fails or if the stream is no longer running.
-func (n *JsonStream) Send(v interface{}) error {
+func (n *JsonStream) Send(v any) error {
 	if n.ctx.Err() != nil {
 		return n.ctx.Err()
 	}

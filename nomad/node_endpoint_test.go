@@ -581,8 +581,7 @@ func TestClientEndpoint_Register_NodePool_Multiregion(t *testing.T) {
 	ci.Parallel(t)
 
 	// Helper function to setup client heartbeat.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	heartbeat := func(ctx context.Context, codec rpc.ClientCodec, req *structs.NodeUpdateStatusRequest) {
 		ticker := time.NewTicker(100 * time.Millisecond)
 		defer ticker.Stop()
@@ -1057,7 +1056,7 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			job.TaskGroups[0].Count = 1
 			job.TaskGroups[0].Constraints = []*structs.Constraint{}
 			job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-			job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+			job.TaskGroups[0].Tasks[0].Config = map[string]any{
 				"run_for": "10m",
 			}
 
@@ -3075,6 +3074,72 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("should have no clients")
 	})
+}
+
+func TestClientEndpoint_GetClientAllocs_PreferTableIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	node := mock.Node()
+	state := s1.fsm.State()
+	must.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, 98, node))
+
+	// Inject fake evaluations
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+
+	must.NoError(t, state.UpsertJobSummary(98, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 99, nil, alloc.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
+
+	// Add a second node with an alloc
+	node2 := mock.Node()
+	must.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, 101, node2))
+
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = node2.ID
+
+	must.NoError(t, state.UpsertJobSummary(101, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 102, nil, alloc2.Job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 103, []*structs.Allocation{alloc2}))
+
+	// Lookup the allocs specifying a minimum index matching the node's alloc index. Since
+	// the query won't have an initial value for the old allocs count, we expect this to
+	// not block and return an index equal to the allocs table index.
+	get := &structs.NodeSpecificRequest{
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		QueryOptions: structs.QueryOptions{
+			Region:        "global",
+			AuthToken:     node.SecretID,
+			MinQueryIndex: 100,
+		},
+	}
+	var resp structs.NodeClientAllocsResponse
+
+	ch := make(chan struct{})
+	go func() {
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp))
+		close(ch)
+	}()
+
+	select {
+	case <-ch:
+	case <-time.After(100 * time.Millisecond):
+		t.Fatalf("Node.GetClientAllocs should not block")
+	}
+
+	// The index should be the allocs table index, not the max alloc index
+	must.Eq(t, 103, resp.Index)
+
+	if len(resp.Allocs) != 1 || resp.Allocs[alloc.ID] != 100 {
+		t.Fatalf("bad: %#v", resp.Allocs)
+	}
 }
 
 func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {

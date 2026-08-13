@@ -98,7 +98,7 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 
 		// Generate and upsert a number of mixed expired, non-expired tokens.
 		mixedTokens := make([]*structs.ACLToken, 20)
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			mockedToken := mock.ACLToken()
 			mockedToken.Global = global
 			if i%2 == 0 {

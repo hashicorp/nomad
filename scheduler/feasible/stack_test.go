@@ -34,7 +34,7 @@ func benchmarkServiceStack_MetaKeyConstraint(b *testing.B, key string, numNodes,
 
 	// Create 4 classes of nodes.
 	nodes := make([]*structs.Node, numNodes)
-	for i := 0; i < numNodes; i++ {
+	for i := range numNodes {
 		n := mock.Node()
 		n.Meta[key] = fmt.Sprintf("%d", i%nodePartitions)
 		nodes[i] = n

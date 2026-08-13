@@ -70,7 +70,7 @@ func Job() *structs.Job {
 					{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"command": "/bin/date",
 						},
 						Env: map[string]string{
@@ -186,7 +186,7 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 		Min:     int64(job.TaskGroups[0].Count),
 		Max:     int64(job.TaskGroups[0].Count),
 		Type:    structs.ScalingPolicyTypeHorizontal,
-		Policy:  map[string]interface{}{},
+		Policy:  map[string]any{},
 		Enabled: true,
 	}
 	policy.Canonicalize(job, job.TaskGroups[0], nil)
@@ -228,7 +228,7 @@ func MultiTaskGroupJob() *structs.Job {
 			{
 				Name:   "api",
 				Driver: "exec",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"command": "/bin/date",
 				},
 				Env: map[string]string{
@@ -301,7 +301,7 @@ func SystemBatchJob() *structs.Job {
 			Tasks: []*structs.Task{{
 				Name:   "ping-example",
 				Driver: "exec",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"command": "/usr/bin/ping",
 					"args":    []string{"-c", "5", "example.com"},
 				},
@@ -401,7 +401,7 @@ func BatchJob() *structs.Job {
 					{
 						Name:   "web",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "500ms",
 						},
 						Env: map[string]string{
@@ -467,7 +467,7 @@ func SystemJob() *structs.Job {
 					{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"command": "/bin/date",
 						},
 						Env: map[string]string{},
@@ -556,7 +556,7 @@ func MaxParallelJob() *structs.Job {
 					{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"command": "/bin/date",
 						},
 						Env: map[string]string{
@@ -718,13 +718,13 @@ func BigBenchmarkJob() *structs.Job {
 func ActionsJob() *structs.Job {
 	job := MinJob()
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		tg := job.TaskGroups[0].Copy()
 		tg.Name = fmt.Sprintf("g%d", i+1)
 		job.TaskGroups = append(job.TaskGroups, tg)
 	}
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		task := job.TaskGroups[0].Tasks[0].Copy()
 		task.Name = fmt.Sprintf("t%d", i+1)
 		job.TaskGroups[0].Tasks = append(job.TaskGroups[0].Tasks, task)

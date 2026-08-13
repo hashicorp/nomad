@@ -311,7 +311,7 @@ func TestClientAllocations_GarbageCollect_Local(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: nstructs.DefaultLogConfig(),
@@ -474,7 +474,7 @@ func TestClientAllocations_GarbageCollect_Remote(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: nstructs.DefaultLogConfig(),
@@ -608,7 +608,7 @@ func TestClientAllocations_Stats_Local(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: nstructs.DefaultLogConfig(),
@@ -764,7 +764,7 @@ func TestClientAllocations_Stats_Remote(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: nstructs.DefaultLogConfig(),
@@ -848,7 +848,7 @@ func TestClientAllocations_Restart_Local(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "10s",
 		},
 		LogConfig: nstructs.DefaultLogConfig(),
@@ -961,7 +961,7 @@ func TestClientAllocations_Restart_Remote(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "10s",
 		},
 		LogConfig: nstructs.DefaultLogConfig(),
@@ -1113,7 +1113,7 @@ func TestClientAllocations_SetPauseState(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &nstructs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "10s",
 		},
 		LogConfig: nstructs.DefaultLogConfig(),
@@ -1294,9 +1294,9 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	a.NodeID = c.NodeID()
 	a.Job.Type = nstructs.JobTypeBatch
 	a.Job.TaskGroups[0].Count = 1
-	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	a.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
-		"exec_command": map[string]interface{}{
+		"exec_command": map[string]any{
 			"run_for":       "1ms",
 			"stdout_string": "expected output",
 			"exit_code":     3,
@@ -1413,9 +1413,9 @@ func TestAlloc_ExecStreaming_TerminalAlloc(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	alloc.ClientStatus = nstructs.AllocClientStatusComplete
 	alloc.Job.TaskGroups[0].Count = 1
-	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
-		"exec_command": map[string]interface{}{
+		"exec_command": map[string]any{
 			"run_for":       "1ms",
 			"stdout_string": "expected output",
 			"exit_code":     3,

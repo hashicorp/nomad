@@ -869,7 +869,7 @@ type evalWrapper struct {
 	eval *structs.Evaluation
 }
 
-func (d *evalWrapper) Data() interface{} {
+func (d *evalWrapper) Data() any {
 	return d.eval
 }
 
@@ -1053,12 +1053,12 @@ func (r ReadyEvaluations) Swap(i, j int) {
 }
 
 // Push is used to add a new evaluation to the slice
-func (r *ReadyEvaluations) Push(e interface{}) {
+func (r *ReadyEvaluations) Push(e any) {
 	*r = append(*r, e.(*structs.Evaluation))
 }
 
 // Pop is used to remove an evaluation from the slice
-func (r *ReadyEvaluations) Pop() interface{} {
+func (r *ReadyEvaluations) Pop() any {
 	n := len(*r)
 	e := (*r)[n-1]
 	(*r)[n-1] = nil
@@ -1096,12 +1096,12 @@ func (p PendingEvaluations) Swap(i, j int) {
 }
 
 // Push implements the heap interface and is used to add a new evaluation to the slice
-func (p *PendingEvaluations) Push(e interface{}) {
+func (p *PendingEvaluations) Push(e any) {
 	*p = append(*p, e.(*structs.Evaluation))
 }
 
 // Pop implements the heap interface and is used to remove an evaluation from the slice
-func (p *PendingEvaluations) Pop() interface{} {
+func (p *PendingEvaluations) Pop() any {
 	n := len(*p)
 	e := (*p)[n-1]
 	(*p)[n-1] = nil

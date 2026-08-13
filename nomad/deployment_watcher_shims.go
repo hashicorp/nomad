@@ -19,7 +19,7 @@ type deploymentWatcherRaftShim struct {
 // which it was applied and any error that occurred. Raft Apply returns two
 // separate errors, Raft library errors and user returned errors from the FSM.
 // This helper, joins the errors by inspecting the applyResponse for an error.
-func (d *deploymentWatcherRaftShim) convertApplyErrors(applyResp interface{}, index uint64, err error) (uint64, error) {
+func (d *deploymentWatcherRaftShim) convertApplyErrors(applyResp any, index uint64, err error) (uint64, error) {
 	if applyResp != nil {
 		if fsmErr, ok := applyResp.(error); ok && fsmErr != nil {
 			return index, fsmErr

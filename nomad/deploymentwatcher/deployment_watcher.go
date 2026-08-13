@@ -941,7 +941,7 @@ func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, u
 }
 
 // getDeploysImpl retrieves all deployments from the passed state store.
-func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
+func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (any, uint64, error) {
 	if err := w.queryLimiter.Wait(w.ctx); err != nil {
 		return nil, 0, err
 	}

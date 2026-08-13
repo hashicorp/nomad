@@ -13,10 +13,10 @@ import (
 )
 
 // PluginFactory returns a new plugin instance
-type PluginFactory func(log log.Logger) interface{}
+type PluginFactory func(log log.Logger) any
 
 // PluginCtxFactory returns a new plugin instance, that takes in a context
-type PluginCtxFactory func(ctx context.Context, log log.Logger) interface{}
+type PluginCtxFactory func(ctx context.Context, log log.Logger) any
 
 // Serve is used to serve a new Nomad plugin
 func Serve(f PluginFactory) {
@@ -42,7 +42,8 @@ func ServeCtx(f PluginCtxFactory) {
 	plugin := f(ctx, logger)
 	serve(plugin, logger)
 }
-func serve(plugin interface{}, logger log.Logger) {
+
+func serve(plugin any, logger log.Logger) {
 	switch p := plugin.(type) {
 	case device.DevicePlugin:
 		device.Serve(p, logger)

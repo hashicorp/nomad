@@ -5,6 +5,7 @@ package oidc
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"crypto/rsa"
 
 	// sha1 is used to derive an "x5t" jwt header from an x509 certificate,
@@ -192,6 +193,10 @@ func hashKeyID(cert *x509.Certificate, header structs.OIDCClientAssertionKeyIDHe
 	var hasher hash.Hash
 	switch header {
 	case structs.OIDCClientAssertionHeaderX5t:
+		if fips140.Enabled() {
+			return "", errors.New("x5t assertion headers use SHA-1, which is forbidden in FIPS-140 mode")
+		}
+
 		hasher = sha1.New()
 	case structs.OIDCClientAssertionHeaderX5tS256:
 		hasher = sha256.New()

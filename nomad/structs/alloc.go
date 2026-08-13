@@ -845,8 +845,8 @@ func (a *Allocation) LastUnknown() time.Time {
 	foundUnknown := false
 
 	// Traverse backwards
-	for i := len(a.AllocStates) - 1; i >= 0; i-- {
-		s := a.AllocStates[i]
+	for _, s := range slices.Backward(a.AllocStates) {
+
 		if s.Field == AllocStateFieldClientStatus {
 			if s.Value == AllocClientStatusUnknown {
 				lastUnknown = s.Time
@@ -868,8 +868,8 @@ func (a *Allocation) NeedsToReconnect() bool {
 
 	// AllocStates are appended to the list and we only need the latest
 	// ClientStatus transition, so traverse from the end until we find one.
-	for i := len(a.AllocStates) - 1; i >= 0; i-- {
-		s := a.AllocStates[i]
+	for _, s := range slices.Backward(a.AllocStates) {
+
 		if s.Field != AllocStateFieldClientStatus {
 			continue
 		}

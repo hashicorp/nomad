@@ -474,7 +474,18 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 			if err != nil {
 				return false
 			}
-			for _, req := range job.LookupTaskGroup(alloc.TaskGroup).Volumes {
+			// The job may have been purged or garbage collected (JobByID
+			// returns nil, nil), or the alloc's task group may no longer exist.
+			// We cannot prove this allocation is not using the volume, so treat
+			// it as unavailable rather than dereference the nil job.
+			if job == nil {
+				return false
+			}
+			tg := job.LookupTaskGroup(alloc.TaskGroup)
+			if tg == nil {
+				return false
+			}
+			for _, req := range tg.Volumes {
 				if vol.MatchesRequestSource(req, alloc) {
 					if !req.ReadOnly {
 						return false
@@ -1122,7 +1133,7 @@ func resolveTarget(target string, node *structs.Node) (string, bool) {
 
 // checkConstraint checks if a constraint is satisfied. The lVal and rVal
 // interfaces may be nil.
-func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
+func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal any, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -1160,7 +1171,7 @@ func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal interface
 }
 
 // checkAffinity checks if a specific affinity is satisfied
-func checkAffinity(ctx Context, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
+func checkAffinity(ctx Context, operand string, lVal, rVal any, lFound, rFound bool) bool {
 	return checkConstraint(ctx, operand, lVal, rVal, lFound, rFound)
 }
 
@@ -1235,7 +1246,7 @@ func compareOrder[T cmp.Ordered](op string, left, right T) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(parse verConstraintParser, lVal, rVal interface{}) bool {
+func checkVersionMatch(parse verConstraintParser, lVal, rVal any) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -1306,7 +1317,7 @@ func checkAttributeVersionMatch(parse verConstraintParser, lVal, rVal *psstructs
 
 // checkRegexpMatch is used to compare a value on the
 // left hand side with a regexp on the right hand side
-func checkRegexpMatch(ctx ConstraintContext, lVal, rVal interface{}) bool {
+func checkRegexpMatch(ctx ConstraintContext, lVal, rVal any) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1339,7 +1350,7 @@ func checkRegexpMatch(ctx ConstraintContext, lVal, rVal interface{}) bool {
 
 // checkSetContainsAll is used to see if the left hand side contains the
 // string on the right hand side
-func checkSetContainsAll(lVal, rVal interface{}) bool {
+func checkSetContainsAll(lVal, rVal any) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1359,7 +1370,7 @@ func checkSetContainsAll(lVal, rVal interface{}) bool {
 		lookup[cleaned] = struct{}{}
 	}
 
-	for _, r := range strings.Split(rStr, ",") {
+	for r := range strings.SplitSeq(rStr, ",") {
 		cleaned := strings.TrimSpace(r)
 		if _, ok := lookup[cleaned]; !ok {
 			return false
@@ -1371,7 +1382,7 @@ func checkSetContainsAll(lVal, rVal interface{}) bool {
 
 // checkSetContainsAny is used to see if the left hand side contains any
 // values on the right hand side
-func checkSetContainsAny(lVal, rVal interface{}) bool {
+func checkSetContainsAny(lVal, rVal any) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1391,7 +1402,7 @@ func checkSetContainsAny(lVal, rVal interface{}) bool {
 		lookup[cleaned] = struct{}{}
 	}
 
-	for _, r := range strings.Split(rStr, ",") {
+	for r := range strings.SplitSeq(rStr, ",") {
 		cleaned := strings.TrimSpace(r)
 		if _, ok := lookup[cleaned]; ok {
 			return true

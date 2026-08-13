@@ -44,10 +44,10 @@ func connectSidecarResources() *structs.Resources {
 // Note: must be compatible with both docker and podman. One could imagine passing
 // in the driver name in the future and switching on that if we need specific
 // configs.
-func connectSidecarDriverConfig() map[string]interface{} {
-	return map[string]interface{}{
+func connectSidecarDriverConfig() map[string]any {
+	return map[string]any{
 		"image": envoy.SidecarConfigVar,
-		"args": []interface{}{
+		"args": []any{
 			"-c", structs.EnvoyBootstrapPath,
 			"-l", "${meta.connect.log_level}",
 			"--concurrency", "${meta.connect.proxy_concurrency}",
@@ -61,10 +61,10 @@ func connectSidecarDriverConfig() map[string]interface{} {
 //
 // A gateway may run in a group with bridge or host networking, and if host
 // networking is being used the network_mode driver configuration is set here.
-func connectGatewayDriverConfig(hostNetwork bool) map[string]interface{} {
-	m := map[string]interface{}{
+func connectGatewayDriverConfig(hostNetwork bool) map[string]any {
+	m := map[string]any{
 		"image": envoy.GatewayConfigVar,
-		"args": []interface{}{
+		"args": []any{
 			"-c", structs.EnvoyBootstrapPath,
 			"-l", "${meta.connect.log_level}",
 			"--concurrency", "${meta.connect.proxy_concurrency}",

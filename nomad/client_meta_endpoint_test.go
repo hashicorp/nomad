@@ -44,7 +44,7 @@ func TestNodeMeta_Forward(t *testing.T) {
 	ci.Parallel(t)
 
 	servers := []*Server{}
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		s, cleanup := TestServer(t, func(c *Config) {
 			c.BootstrapExpect = 3
 			c.NumSchedulers = 0
@@ -65,7 +65,7 @@ func TestNodeMeta_Forward(t *testing.T) {
 	t.Logf("leader=%s followers=%q", leader, followers)
 
 	clients := []*client.Client{}
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		c, cleanup := client.TestClient(t, func(c *config.Config) {
 			// Clients will rebalance across all servers, but try to get them to use
 			// followers to ensure we don't hit the loop in #16517
