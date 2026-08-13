@@ -1,3 +1,39 @@
+## 1.10.15 Enterprise (August 13, 2026)
+
+BREAKING CHANGES:
+
+* plugin: The  method has been removed from the  package. [[GH-28342](https://github.com/hashicorp/nomad/issues/28342)]
+
+IMPROVEMENTS:
+
+* build: Update Go to v1.26.5 [[GH-28260](https://github.com/hashicorp/nomad/issues/28260)]
+* checks: Nomad native service check IDs are now SHA256 [[GH-28361](https://github.com/hashicorp/nomad/issues/28361)]
+* consul: Check IDs are now derived from SHA256 instead of SHA1 [[GH-28362](https://github.com/hashicorp/nomad/issues/28362)]
+* services: rendezvous hashes are now SHA256 [[GH-28363](https://github.com/hashicorp/nomad/issues/28363)]
+
+BUG FIXES:
+
+* agent: Fixed a bug where the startup banner would display the wrong node ID for servers after restart [[GH-28276](https://github.com/hashicorp/nomad/issues/28276)]
+* api: Fixed a bug where the client allocation endpoints returned a 500 error instead of a 404 when the allocation's node could not be found [[GH-28261](https://github.com/hashicorp/nomad/issues/28261)]
+* cli: Fixed a bug where  would not accept an abbreviated key ID [[GH-24148](https://github.com/hashicorp/nomad/issues/24148)]
+* client: Fix issue where deleted allocations may remain running [[GH-28394](https://github.com/hashicorp/nomad/issues/28394)]
+* client: Fixed a bug where the client would not remount the secret and private tmpfs after a restart [[GH-28345](https://github.com/hashicorp/nomad/issues/28345)]
+* client: Fixed a bug where the previous allocation watcher would retry forever when the server returned a permanent error during data migration [[GH-28191](https://github.com/hashicorp/nomad/issues/28191)]
+* csi: Fixed a bug where evals blocked on missing CSI volumes would not unblock [[GH-28275](https://github.com/hashicorp/nomad/issues/28275)]
+* deployments: Fix garbage collection to respect threshold [[GH-28225](https://github.com/hashicorp/nomad/issues/28225)]
+* docker: Fixed a bug where tasks could execute outside of their assigned cpuset range [[GH-28272](https://github.com/hashicorp/nomad/issues/28272)]
+* drivers/java: Fixed a bug where the Java driver did not correctly decode the  option [[GH-28330](https://github.com/hashicorp/nomad/issues/28330)]
+* jobspec: Fixed a bug where a negative  value in a task's resource block was accepted during job validation and registration [[GH-10511](https://github.com/hashicorp/nomad/issues/10511)]
+* quota (Enterprise): Fixed a bug where disabling the use of cores in a quota would block the ability to use either cores or CPU in a job
+* scheduler: Ensure deployment IDs are not written to an evaluation when the generated deployment is not persisted to state due to plan apply retries [[GH-28307](https://github.com/hashicorp/nomad/issues/28307)]
+* scheduler: Fixed a bug where the scheduler could panic with a nil pointer dereference when checking host volume feasibility for an allocation whose job had been purged [[GH-28301](https://github.com/hashicorp/nomad/issues/28301)]
+* ui: Fixed SSO sign in display not displaying when SSO enabled [[GH-28262](https://github.com/hashicorp/nomad/issues/28262)]
+* ui: Fixed a bug where the job status panel would show Complete instead of Scaled Down for system and sysbatch jobs with zero allocations [[GH-27949](https://github.com/hashicorp/nomad/issues/27949)]
+* ui: Fixed the region identifier header showing as empty in single region clusters [[GH-28310](https://github.com/hashicorp/nomad/issues/28310)]
+* ui: Fixed version diff display and missing deployment version numbers [[GH-28294](https://github.com/hashicorp/nomad/issues/28294)]
+* ui: check websocket upgrade headers with multiple values [[GH-28234](https://github.com/hashicorp/nomad/issues/28234)]
+* ui: refetch nomad license when logging in with new token [[GH-28284](https://github.com/hashicorp/nomad/issues/28284)]
+
 ## 1.10.14 Enterprise (July 08, 2026)
 
 SECURITY:
