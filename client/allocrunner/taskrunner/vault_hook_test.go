@@ -499,7 +499,7 @@ func TestVaultHook_handleRenewalFailure(t *testing.T) {
 			hook.secretsDirTokenPath = filepath.Join(t.TempDir(), vaultTokenFile)
 			hook.privateDirTokenPath = filepath.Join(t.TempDir(), vaultTokenFile)
 
-			tok, lease, err := hook.handleRenewalFailure(ctx, "secret")
+			tok, lease, err := hook.handleRenewalFailure(ctx)
 
 			if tc.expectErrMsg == "" {
 				must.NoError(t, err)
