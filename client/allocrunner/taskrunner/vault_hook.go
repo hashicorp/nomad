@@ -230,7 +230,7 @@ func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) 
 		case <-time.After(withJitter(lease)):
 			lease, err = h.renewWithBackoff(ctx, token)
 			if err != nil {
-				token, lease, err = h.handleRenewalFailure(ctx, "")
+				token, lease, err = h.handleRenewalFailure(ctx)
 				if err != nil {
 					h.logger.Error(err.Error())
 					h.lifecycle.Kill(ctx,
@@ -246,7 +246,7 @@ func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) 
 }
 
 // handleRenewalFailure attempts to get a new Vault token and triggers any change_mode
-func (h *vaultHook) handleRenewalFailure(ctx context.Context, token string) (string, time.Duration, error) {
+func (h *vaultHook) handleRenewalFailure(ctx context.Context) (string, time.Duration, error) {
 	token, duration, err := h.deriveVaultToken(ctx)
 	if err != nil {
 		return "", 0, err
