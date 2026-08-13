@@ -1,9 +1,3 @@
-## UNRELEASED
-
-IMPROVEMENTS:
-
-* client: Added the `unique.host_id` node attribute to the host fingerprint. When available, It can be used in job constraints and other node attribute-based workflows.
-
 ## 2.0.4 (July 07, 2026)
 
 SECURITY:
