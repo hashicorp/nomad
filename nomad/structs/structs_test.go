@@ -1962,6 +1962,32 @@ func TestTaskGroup_Validate(t *testing.T) {
 			},
 			jobType: JobTypeService,
 		},
+		{
+			name: "task group with only a poststart lifecycle task and no main task",
+			tg: &TaskGroup{
+				Name:             "group-a",
+				RestartPolicy:    NewRestartPolicy(JobTypeService),
+				ReschedulePolicy: NewReschedulePolicy(JobTypeService),
+				Migrate:          DefaultMigrateStrategy(),
+				EphemeralDisk:    DefaultEphemeralDisk(),
+				Tasks: []*Task{
+					{
+						Name:      "poststart-task",
+						Driver:    "mock_driver",
+						Resources: DefaultResources(),
+						LogConfig: DefaultLogConfig(),
+						Lifecycle: &TaskLifecycleConfig{
+							Hook:    TaskLifecycleHookPoststart,
+							Sidecar: false,
+						},
+					},
+				},
+			},
+			expErr: []string{
+				"Task group group-a must have at least one main task",
+			},
+			jobType: JobTypeService,
+		},
 	}
 
 	for _, tc := range tests {
