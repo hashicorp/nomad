@@ -33,8 +33,8 @@ func (mc *MockConsulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.
 
 	hash := fnv.New128().Sum([]byte(req.JWT))
 	token := &consulapi.ACLToken{
-		AccessorID: hex.EncodeToString(hash[:]),
-		SecretID:   hex.EncodeToString(hash[:]),
+		AccessorID: hex.EncodeToString(hash),
+		SecretID:   hex.EncodeToString(hash),
 	}
 
 	if mc.tokens == nil {

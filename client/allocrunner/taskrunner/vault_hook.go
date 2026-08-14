@@ -279,7 +279,7 @@ func (h *vaultHook) handleRenewalFailure(ctx context.Context) (string, time.Dura
 	}
 
 	h.updater.updatedVaultToken(token)
-	return token, time.Duration(time.Second * time.Duration(duration)), nil
+	return token, time.Second * time.Duration(duration), nil
 }
 
 func (h *vaultHook) renewWithBackoff(ctx context.Context, token string) (time.Duration, error) {
