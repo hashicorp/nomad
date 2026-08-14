@@ -84,7 +84,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 	job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "migrate_tls",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "1m",
 		},
 		LogConfig: structs.DefaultLogConfig(),

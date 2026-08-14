@@ -19,30 +19,30 @@ func TestAddNestedKey_Ok(t *testing.T) {
 
 	cases := []struct {
 		// M will be initialized if unset
-		M map[string]interface{}
+		M map[string]any
 		K string
 		// Value is always "x"
-		Result map[string]interface{}
+		Result map[string]any
 	}{
 		{
 			K: "foo",
-			Result: map[string]interface{}{
+			Result: map[string]any{
 				"foo": "x",
 			},
 		},
 		{
 			K: "foo.bar",
-			Result: map[string]interface{}{
-				"foo": map[string]interface{}{
+			Result: map[string]any{
+				"foo": map[string]any{
 					"bar": "x",
 				},
 			},
 		},
 		{
 			K: "foo.bar.quux",
-			Result: map[string]interface{}{
-				"foo": map[string]interface{}{
-					"bar": map[string]interface{}{
+			Result: map[string]any{
+				"foo": map[string]any{
+					"bar": map[string]any{
 						"quux": "x",
 					},
 				},
@@ -50,9 +50,9 @@ func TestAddNestedKey_Ok(t *testing.T) {
 		},
 		{
 			K: "a.b.c",
-			Result: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
+			Result: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
 						"c": "x",
 					},
 				},
@@ -60,33 +60,33 @@ func TestAddNestedKey_Ok(t *testing.T) {
 		},
 		{
 			// Nested object b should take precedence over values
-			M: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
+			M: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
 						"c": "c",
 					},
 				},
 			},
 			K: "a.b",
-			Result: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
+			Result: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
 						"c": "c",
 					},
 				},
 			},
 		},
 		{
-			M: map[string]interface{}{
-				"a": map[string]interface{}{
+			M: map[string]any{
+				"a": map[string]any{
 					"x": "x",
 				},
 				"z": "z",
 			},
 			K: "a.b.c",
-			Result: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
+			Result: map[string]any{
+				"a": map[string]any{
+					"b": map[string]any{
 						"c": "x",
 					},
 					"x": "x",
@@ -95,18 +95,18 @@ func TestAddNestedKey_Ok(t *testing.T) {
 			},
 		},
 		{
-			M: map[string]interface{}{
-				"foo": map[string]interface{}{
-					"bar": map[string]interface{}{
+			M: map[string]any{
+				"foo": map[string]any{
+					"bar": map[string]any{
 						"a":    "z",
 						"quux": "z",
 					},
 				},
 			},
 			K: "foo.bar.quux",
-			Result: map[string]interface{}{
-				"foo": map[string]interface{}{
-					"bar": map[string]interface{}{
+			Result: map[string]any{
+				"foo": map[string]any{
+					"bar": map[string]any{
 						"a":    "z",
 						"quux": "x",
 					},
@@ -114,18 +114,18 @@ func TestAddNestedKey_Ok(t *testing.T) {
 			},
 		},
 		{
-			M: map[string]interface{}{
+			M: map[string]any{
 				"foo":  "1",
 				"bar":  "2",
 				"quux": "3",
 			},
 			K: "a.bbbbbb.c",
-			Result: map[string]interface{}{
+			Result: map[string]any{
 				"foo":  "1",
 				"bar":  "2",
 				"quux": "3",
-				"a": map[string]interface{}{
-					"bbbbbb": map[string]interface{}{
+				"a": map[string]any{
+					"bbbbbb": map[string]any{
 						"c": "x",
 					},
 				},
@@ -135,18 +135,18 @@ func TestAddNestedKey_Ok(t *testing.T) {
 		// or second, attr.driver.qemu.version = "..." should take
 		// precedence (nested maps take precedence over values)
 		{
-			M: map[string]interface{}{
-				"attr": map[string]interface{}{
-					"driver": map[string]interface{}{
+			M: map[string]any{
+				"attr": map[string]any{
+					"driver": map[string]any{
 						"qemu": "1",
 					},
 				},
 			},
 			K: "attr.driver.qemu.version",
-			Result: map[string]interface{}{
-				"attr": map[string]interface{}{
-					"driver": map[string]interface{}{
-						"qemu": map[string]interface{}{
+			Result: map[string]any{
+				"attr": map[string]any{
+					"driver": map[string]any{
+						"qemu": map[string]any{
 							"version": "x",
 						},
 					},
@@ -154,20 +154,20 @@ func TestAddNestedKey_Ok(t *testing.T) {
 			},
 		},
 		{
-			M: map[string]interface{}{
-				"attr": map[string]interface{}{
-					"driver": map[string]interface{}{
-						"qemu": map[string]interface{}{
+			M: map[string]any{
+				"attr": map[string]any{
+					"driver": map[string]any{
+						"qemu": map[string]any{
 							"version": "1.2.3",
 						},
 					},
 				},
 			},
 			K: "attr.driver.qemu",
-			Result: map[string]interface{}{
-				"attr": map[string]interface{}{
-					"driver": map[string]interface{}{
-						"qemu": map[string]interface{}{
+			Result: map[string]any{
+				"attr": map[string]any{
+					"driver": map[string]any{
+						"qemu": map[string]any{
 							"version": "1.2.3",
 						},
 					},
@@ -175,35 +175,35 @@ func TestAddNestedKey_Ok(t *testing.T) {
 			},
 		},
 		{
-			M: map[string]interface{}{
+			M: map[string]any{
 				"a": "a",
 			},
 			K: "a.b",
-			Result: map[string]interface{}{
-				"a": map[string]interface{}{
+			Result: map[string]any{
+				"a": map[string]any{
 					"b": "x",
 				},
 			},
 		},
 		{
-			M: map[string]interface{}{
+			M: map[string]any{
 				"a": "a",
-				"foo": map[string]interface{}{
+				"foo": map[string]any{
 					"b":   "b",
 					"bar": "quux",
 				},
-				"c": map[string]interface{}{},
+				"c": map[string]any{},
 			},
 			K: "foo.bar.quux",
-			Result: map[string]interface{}{
+			Result: map[string]any{
 				"a": "a",
-				"foo": map[string]interface{}{
+				"foo": map[string]any{
 					"b": "b",
-					"bar": map[string]interface{}{
+					"bar": map[string]any{
 						"quux": "x",
 					},
 				},
-				"c": map[string]interface{}{},
+				"c": map[string]any{},
 			},
 		},
 	}
@@ -217,7 +217,7 @@ func TestAddNestedKey_Ok(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ci.Parallel(t)
 			if tc.M == nil {
-				tc.M = map[string]interface{}{}
+				tc.M = map[string]any{}
 			}
 			require.NoError(t, addNestedKey(tc.M, tc.K, "x"))
 			require.Equal(t, tc.Result, tc.M)
@@ -232,7 +232,7 @@ func TestAddNestedKey_Bad(t *testing.T) {
 
 	cases := []struct {
 		// M will be initialized if unset
-		M func() map[string]interface{}
+		M func() map[string]any
 		K string
 		// Value is always "x"
 		// Result is compared by Error() string equality
@@ -275,12 +275,12 @@ func TestAddNestedKey_Bad(t *testing.T) {
 			Result: ErrInvalidObjectPath,
 		},
 		{
-			M: func() map[string]interface{} {
-				return map[string]interface{}{
+			M: func() map[string]any {
+				return map[string]any{
 					"a": "a",
-					"foo": map[string]interface{}{
+					"foo": map[string]any{
 						"b": "b",
-						"bar": map[string]interface{}{
+						"bar": map[string]any{
 							"c": "c",
 						},
 					},
@@ -290,12 +290,12 @@ func TestAddNestedKey_Bad(t *testing.T) {
 			Result: ErrInvalidObjectPath,
 		},
 		{
-			M: func() map[string]interface{} {
-				return map[string]interface{}{
+			M: func() map[string]any {
+				return map[string]any{
 					"a": "a",
-					"foo": map[string]interface{}{
+					"foo": map[string]any{
 						"b": "b",
-						"bar": map[string]interface{}{
+						"bar": map[string]any{
 							"c": "c",
 						},
 					},
@@ -305,12 +305,12 @@ func TestAddNestedKey_Bad(t *testing.T) {
 			Result: ErrInvalidObjectPath,
 		},
 		{
-			M: func() map[string]interface{} {
-				return map[string]interface{}{
+			M: func() map[string]any {
+				return map[string]any{
 					"a": "a",
-					"foo": map[string]interface{}{
+					"foo": map[string]any{
 						"b": "b",
-						"bar": map[string]interface{}{
+						"bar": map[string]any{
 							"c": "c",
 						},
 					},
@@ -332,8 +332,8 @@ func TestAddNestedKey_Bad(t *testing.T) {
 
 			// Copy original M value to ensure it doesn't get altered
 			if tc.M == nil {
-				tc.M = func() map[string]interface{} {
-					return map[string]interface{}{}
+				tc.M = func() map[string]any {
+					return map[string]any{}
 				}
 			}
 
@@ -353,12 +353,12 @@ func TestCtyify_Ok(t *testing.T) {
 
 	cases := []struct {
 		Name string
-		In   map[string]interface{}
+		In   map[string]any
 		Out  map[string]cty.Value
 	}{
 		{
 			Name: "OneVal",
-			In: map[string]interface{}{
+			In: map[string]any{
 				"a": "b",
 			},
 			Out: map[string]cty.Value{
@@ -367,7 +367,7 @@ func TestCtyify_Ok(t *testing.T) {
 		},
 		{
 			Name: "MultiVal",
-			In: map[string]interface{}{
+			In: map[string]any{
 				"a":   "b",
 				"foo": "bar",
 			},
@@ -378,16 +378,16 @@ func TestCtyify_Ok(t *testing.T) {
 		},
 		{
 			Name: "NestedVals",
-			In: map[string]interface{}{
+			In: map[string]any{
 				"a": "b",
-				"foo": map[string]interface{}{
+				"foo": map[string]any{
 					"c": "d",
-					"bar": map[string]interface{}{
+					"bar": map[string]any{
 						"quux": "z",
 					},
 				},
-				"123": map[string]interface{}{
-					"bar": map[string]interface{}{
+				"123": map[string]any{
+					"bar": map[string]any{
 						"456": "789",
 					},
 				},
@@ -431,19 +431,19 @@ func TestCtyify_Bad(t *testing.T) {
 
 	cases := []struct {
 		Name string
-		In   map[string]interface{}
+		In   map[string]any
 		Out  map[string]cty.Value
 	}{
 		{
 			Name: "NonStringVal",
-			In: map[string]interface{}{
+			In: map[string]any{
 				"a": 1,
 			},
 		},
 		{
 			Name: "NestedNonString",
-			In: map[string]interface{}{
-				"foo": map[string]interface{}{
+			In: map[string]any{
+				"foo": map[string]any{
 					"c": 1,
 				},
 			},

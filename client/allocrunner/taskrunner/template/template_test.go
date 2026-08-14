@@ -689,7 +689,7 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 
 	// Write the secret to Vault
 	logical := harness.vault.Client.Logical()
-	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	_, err := logical.Write(vaultPath, map[string]any{"data": map[string]any{key: content}})
 	must.NoError(t, err)
 
 	// Wait for the unblock
@@ -810,7 +810,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 
 	// Write the secret to Vault
 	logical := harness.vault.Client.Logical()
-	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	_, err := logical.Write(vaultPath, map[string]any{"data": map[string]any{key: content}})
 	must.NoError(t, err)
 
 	// Wait for the unblock
@@ -852,7 +852,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	// simulate a client restart and TTL expiry
 	harness.manager.Stop()
 	content = "bazbar"
-	_, err = logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	_, err = logical.Write(vaultPath, map[string]any{"data": map[string]any{key: content}})
 	must.NoError(t, err)
 	harness.mockHooks.UnblockCh = make(chan struct{}, 1)
 	harness.start(t)
@@ -915,9 +915,9 @@ func TestTaskTemplateManager_FirstRender_MultiSecret(t *testing.T) {
 
 	// Write the secret to Vault
 	logical := harness.vault.Client.Logical()
-	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	_, err := logical.Write(vaultPath, map[string]any{"data": map[string]any{key: content}})
 	must.NoError(t, err)
-	_, err = logical.Write(vaultPath2, map[string]interface{}{"data": map[string]interface{}{key2: content2}})
+	_, err = logical.Write(vaultPath2, map[string]any{"data": map[string]any{key2: content2}})
 	must.NoError(t, err)
 
 	// simulate task is running already
@@ -2311,7 +2311,7 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 
 	// Make a template that will render based on a key in Consul
 	var embedded string
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		embedded += fmt.Sprintf(`{{key "%d"}}`, i)
 	}
 
@@ -2366,7 +2366,7 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	must.StrContains(t, harness.mockHooks.Events()[0].DisplayMessage, "and 2 more")
 
 	// Write 0-2 keys to Consul
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		harness.consul.SetKV(t, fmt.Sprintf("%d", i), []byte{0xa})
 	}
 

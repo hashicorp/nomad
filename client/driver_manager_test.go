@@ -70,7 +70,7 @@ func TestDriverManager_Fingerprint_Periodic(t *testing.T) {
 		pluginConfig := []*nconfig.PluginConfig{
 			{
 				Name: "mock_driver",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"shutdown_periodic_after":    true,
 					"shutdown_periodic_duration": 2 * time.Second,
 				},

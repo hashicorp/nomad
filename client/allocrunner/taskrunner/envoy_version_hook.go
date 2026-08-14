@@ -137,7 +137,7 @@ func (h *envoyVersionHook) skip(request *ifs.TaskPrestartRequest) bool {
 // If the image is empty or not a string, Nomad will fallback to the normal
 // official Envoy image as if the setting was not configured. This is also what
 // Nomad would do if the sidecar_task was not set in the first place.
-func (h *envoyVersionHook) taskImage(config map[string]interface{}) string {
+func (h *envoyVersionHook) taskImage(config map[string]any) string {
 	value, exists := config["image"]
 	if !exists {
 		return envoy.ImageFormat
@@ -154,7 +154,7 @@ func (h *envoyVersionHook) taskImage(config map[string]interface{}) string {
 // needsVersion returns true if the docker.config.image is making use of the
 // ${NOMAD_envoy_version} faux environment variable, or
 // Nomad does not need to query Consul to get the preferred Envoy version, etc.)
-func (h *envoyVersionHook) needsVersion(config map[string]interface{}) bool {
+func (h *envoyVersionHook) needsVersion(config map[string]any) bool {
 	if len(config) == 0 {
 		return false
 	}

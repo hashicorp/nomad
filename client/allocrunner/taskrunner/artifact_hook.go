@@ -106,7 +106,7 @@ func (h *artifactHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	go func() {
 		defer close(errorChannel)
 		var wg sync.WaitGroup
-		for i := 0; i < maxConcurrency; i++ {
+		for range maxConcurrency {
 			wg.Add(1)
 			go h.doWork(req, resp, jobsChannel, errorChannel, &wg, responseStateMutex)
 		}

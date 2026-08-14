@@ -165,18 +165,14 @@ func (i *instanceManager) run() {
 	var wg sync.WaitGroup
 
 	// Start the fingerprinter
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		i.fingerprint()
-		wg.Done()
-	}()
+	})
 
 	// Start event handler
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		i.handleEvents()
-		wg.Done()
-	}()
+	})
 
 	// Do a final cleanup
 	wg.Wait()

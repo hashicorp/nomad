@@ -26,11 +26,11 @@ var (
 // If the key has dots but cannot be converted to a valid nested data structure
 // (eg "foo...bar", "foo.", or non-object value exists for key), an error is
 // returned.
-func addNestedKey(dst map[string]interface{}, k, v string) error {
+func addNestedKey(dst map[string]any, k, v string) error {
 	// createdParent and Key capture the parent object of the first created
 	// object and the first created object's key respectively. The cleanup
 	// func deletes them to prevent side-effects when returning errors.
-	var createdParent map[string]interface{}
+	var createdParent map[string]any
 	var createdKey string
 	cleanup := func() {
 		if createdParent != nil {
@@ -48,9 +48,9 @@ func addNestedKey(dst map[string]interface{}, k, v string) error {
 			return ErrInvalidObjectPath
 		}
 
-		var target map[string]interface{}
+		var target map[string]any
 		if existingI, ok := dst[newKey]; ok {
-			if existing, ok := existingI.(map[string]interface{}); ok {
+			if existing, ok := existingI.(map[string]any); ok {
 				// Target already exists
 				target = existing
 			} else {
@@ -58,12 +58,12 @@ func addNestedKey(dst map[string]interface{}, k, v string) error {
 				// take precedence over primitive values (eg
 				// overwrite attr.driver.qemu = "1" with
 				// attr.driver.qemu.version = "...")
-				target = make(map[string]interface{})
+				target = make(map[string]any)
 				dst[newKey] = target
 			}
 		} else {
 			// Does not exist, create
-			target = make(map[string]interface{})
+			target = make(map[string]any)
 			dst[newKey] = target
 
 			// If this is the first created key, capture it for
@@ -87,7 +87,7 @@ func addNestedKey(dst map[string]interface{}, k, v string) error {
 	}
 
 	if existingI, ok := dst[newKey]; ok {
-		if _, ok := existingI.(map[string]interface{}); ok {
+		if _, ok := existingI.(map[string]any); ok {
 			// Existing value is a map which takes precedence over
 			// a primitive value. Drop primitive.
 			return nil
@@ -101,7 +101,7 @@ func addNestedKey(dst map[string]interface{}, k, v string) error {
 // error is returned if an unsupported type is encountered.
 //
 // Currently only strings, cty.Values, and nested maps are supported.
-func ctyify(src map[string]interface{}) (map[string]cty.Value, error) {
+func ctyify(src map[string]any) (map[string]cty.Value, error) {
 	dst := make(map[string]cty.Value, len(src))
 
 	for k, vI := range src {
@@ -112,7 +112,7 @@ func ctyify(src map[string]interface{}) (map[string]cty.Value, error) {
 		case cty.Value:
 			dst[k] = v
 
-		case map[string]interface{}:
+		case map[string]any:
 			o, err := ctyify(v)
 			if err != nil {
 				return nil, err

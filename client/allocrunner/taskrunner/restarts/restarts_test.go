@@ -51,7 +51,7 @@ func TestClient_RestartTracker_ModeDelay(t *testing.T) {
 	}
 
 	// Follow up restarts should cause delay.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		state, when := rt.SetExitResult(testExitResult(127)).GetState()
 		if state != structs.TaskRestarting {
 			t.Fail()

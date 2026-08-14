@@ -186,11 +186,9 @@ func TestConsulGRPCSocketHook_proxy_Unix(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		proxy(ctx, testlog.HCLogger(t), "unix://"+destFn, src)
-	}()
+	})
 
 	// Fake Envoy
 	// Connect and write to the src (netns) side of the proxy; then read
@@ -233,9 +231,7 @@ func TestConsulGRPCSocketHook_proxy_Unix(t *testing.T) {
 
 	// Fake Consul on a unix socket
 	// Listen, receive 1 byte, write a response, and exit
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		conn, err := dest.Accept()
 		if err != nil {
@@ -266,7 +262,7 @@ func TestConsulGRPCSocketHook_proxy_Unix(t *testing.T) {
 			errCh <- err
 			return
 		}
-	}()
+	})
 
 	// Wait for goroutines to complete
 	wg.Wait()
