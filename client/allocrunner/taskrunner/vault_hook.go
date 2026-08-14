@@ -135,7 +135,6 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		allowTokenExpiration: config.vaultBlock.AllowTokenExpiration,
 	}
 	h.logger = config.logger.Named(h.Name())
-
 	return h
 }
 
@@ -231,42 +230,47 @@ func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) 
 		case <-time.After(withJitter(lease)):
 			lease, err = h.renewWithBackoff(ctx, token)
 			if err != nil {
-				// failing to renew results in a triggering the change_mode
-				h.handleRenewal(ctx, "")
-				return
-			}
+				token, lease, err = h.handleRenewalFailure(ctx)
+				if err != nil {
+					h.logger.Error(err.Error())
+					h.lifecycle.Kill(ctx,
+						structs.NewTaskEvent(structs.TaskKilling).
+							SetFailsTask().
+							SetDisplayMessage(fmt.Sprintf("Vault: %v", err)))
 
-			h.handleRenewal(ctx, token)
+					return
+				}
+			}
 		}
 	}
 }
 
-func (h *vaultHook) handleRenewal(ctx context.Context, token string) {
+// handleRenewalFailure attempts to get a new Vault token and triggers any change_mode
+func (h *vaultHook) handleRenewalFailure(ctx context.Context) (string, time.Duration, error) {
+	token, duration, err := h.deriveVaultToken(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	if err := h.writeToken(token); err != nil {
+		return "", 0, fmt.Errorf("failed to write Vault token to disk: %w", err)
+	}
+
 	var event *structs.TaskEvent
 	switch h.vaultBlock.ChangeMode {
 	case structs.VaultChangeModeSignal:
 		s, err := signals.Parse(h.vaultBlock.ChangeSignal)
 		if err != nil {
-			h.logger.Error("failed to parse signal", "error", err)
-			event = structs.NewTaskEvent(structs.TaskKilling).
-				SetFailsTask().
-				SetDisplayMessage(fmt.Sprintf("Vault: failed to parse signal: %v", err))
-			h.lifecycle.Kill(ctx, event)
-			return
+			return "", 0, fmt.Errorf("failed to parse signal: %w", err)
 		}
 
-		event := structs.NewTaskEvent(structs.TaskSignaling).SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
+		event := structs.NewTaskEvent(structs.TaskSignaling).
+			SetTaskSignal(s).SetDisplayMessage("Vault: new Vault token acquired")
 		if err := h.lifecycle.Signal(event, h.vaultBlock.ChangeSignal); err != nil {
-			h.logger.Error("failed to send signal", "error", err)
-			event = structs.NewTaskEvent(structs.TaskKilling).
-				SetFailsTask().
-				SetDisplayMessage(fmt.Sprintf("Vault: failed to send signal: %v", err))
-
-			h.lifecycle.Kill(ctx, event)
-			return
+			return "", 0, fmt.Errorf("failed to send signal: %w", err)
 		}
 	case structs.VaultChangeModeRestart:
-		event = structs.NewTaskEvent(structs.TaskRestartSignal).SetDisplayMessage("Vault: new Vault token acquired")
+		event = structs.NewTaskEvent(structs.TaskRestartSignal).
+			SetDisplayMessage("Vault: new Vault token acquired")
 		h.lifecycle.Restart(ctx, event, false)
 	case structs.VaultChangeModeNoop:
 		// True to its name, this is a noop!
@@ -274,8 +278,8 @@ func (h *vaultHook) handleRenewal(ctx context.Context, token string) {
 		h.logger.Error("invalid Vault change mode", "mode", h.vaultBlock.ChangeMode)
 	}
 
-	// Call the handler
 	h.updater.updatedVaultToken(token)
+	return token, time.Duration(time.Second * time.Duration(duration)), nil
 }
 
 func (h *vaultHook) renewWithBackoff(ctx context.Context, token string) (time.Duration, error) {
