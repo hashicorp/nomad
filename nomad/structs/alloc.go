@@ -677,14 +677,6 @@ func (a *Allocation) Terminated() bool {
 	return false
 }
 
-// SetStop updates the allocation in place to a DesiredStatus stop, with the ClientStatus
-func (a *Allocation) SetStop(clientStatus, clientDesc string) {
-	a.DesiredStatus = AllocDesiredStatusStop
-	a.ClientStatus = clientStatus
-	a.ClientDescription = clientDesc
-	a.AppendState(AllocStateFieldClientStatus, clientStatus)
-}
-
 // AppendState creates and appends an AllocState entry recording the time of the state
 // transition. Used to mark the transition to lost
 func (a *Allocation) AppendState(field AllocStateField, value string) {
@@ -869,8 +861,7 @@ func (a *Allocation) NeedsToReconnect() bool {
 	// AllocStates are appended to the list and we only need the latest
 	// ClientStatus transition, so traverse from the end until we find one.
 	for _, s := range slices.Backward(a.AllocStates) {
-
-		if s.Field != AllocStateFieldClientStatus {
+		if s.Field != AllocStateFieldClientStatus || s.Value == "" {
 			continue
 		}
 
