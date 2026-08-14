@@ -59,10 +59,6 @@ linters:
         - ST1016
         - ST1020
   exclusions:
-    paths-except:
-      - "^nomad/"
-      - "^plugins/"
-      - scheduler/*
     rules:
       - path: (.+)\.go$
         text: ifElseChain
@@ -72,6 +68,9 @@ linters:
         text: assignOp
       - path: (.+)\.go$
         text: unlambda
+      - path-except: (^plugins/|^nomad/|^scheduler/)
+        linters:
+          - modernize
     paths:
       - ".*\\.generated\\.go$"
       - ".*bindata_assetfs\\.go$"
