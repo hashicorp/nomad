@@ -71,6 +71,49 @@ module('Integration | Component | job diff', function (hooks) {
     await componentA11yAudit(this.element, assert);
   });
 
+  test('embedded template diffs are rendered line-by-line', async function (assert) {
+    const oldTmpl = 'line one\nline two\nline three\n';
+    const newTmpl = 'line one\nline TWO\nline three\n';
+
+    this.set('diff', {
+      ID: 'test-case-embedded-tmpl',
+      Type: 'Edited',
+      Objects: null,
+      Fields: [field('EmbeddedTmpl', 'edited', newTmpl, oldTmpl)],
+    });
+
+    await render(commonTemplate);
+
+    const container = find(
+      '[data-test-diff-section-label="field"][data-test-diff-field="edited"]',
+    );
+
+    assert.notOk(
+      container.textContent.includes(`"${oldTmpl}" => "${newTmpl}"`),
+      'Embedded template field does not use the flat Old => New format',
+    );
+
+    const removedLine = container.querySelector('.diff-line-removed');
+    const addedLine = container.querySelector('.diff-line-added');
+
+    assert.ok(removedLine, 'Rendered diff includes a removed line span');
+    assert.ok(
+      removedLine.textContent.includes('line two'),
+      'Removed line shows the old content',
+    );
+
+    assert.ok(addedLine, 'Rendered diff includes an added-line span');
+    assert.ok(
+      addedLine.textContent.includes('line TWO'),
+      'Added line shows the new content',
+    );
+
+    assert.ok(
+      container.textContent.includes('line one'),
+      'Rendered diff includes unchanged context lines',
+    );
+  });
+
   test('job object diffs', async function (assert) {
     this.set('diff', {
       ID: 'test-case-2',
