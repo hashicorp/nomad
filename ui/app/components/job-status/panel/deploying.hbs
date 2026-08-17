@@ -178,9 +178,9 @@
 
       {{/if}}
 
-      <h3 class="title is-5" data-test-new-allocation-tally>New allocations:
-        {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}}
-        running and healthy
+      <h3 class="title is-5" data-test-new-allocation-tally><span>New allocations:
+          {{this.newRunningHealthyAllocBlocks.length}}/{{this.totalAllocs}}
+          running and healthy</span>
         <span class="versions">
           <LinkTo
             data-version={{@job.version}}
