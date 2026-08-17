@@ -8,14 +8,20 @@
 
   a {
     text-decoration: none;
-    color: #1f2a37;
+    color: var(--token-color-foreground-primary);
     font-weight: $weight-semibold;
 
     &:hover,
     &:focus,
     &:active {
       text-decoration: none;
-      color: #0b0f14;
+      color: var(--token-color-foreground-strong);
+    }
+
+    &:focus-visible {
+      outline: 3px solid var(--token-color-foreground-action);
+      outline-offset: 2px;
+      border-radius: 2px;
     }
   }
 
@@ -30,7 +36,7 @@
   a.active,
   li.is-active a,
   li:last-child a.active {
-    color: #0b0f14;
+    color: var(--token-color-foreground-strong);
     font-weight: $weight-semibold;
   }
 }
@@ -40,7 +46,7 @@
   a:visited,
   .breadcrumb-link,
   .breadcrumb-link:visited {
-    color: #0b0f14;
+    color: var(--token-color-foreground-strong);
   }
 
   a:hover,
@@ -55,13 +61,13 @@
   .breadcrumb-link.is-active,
   li.is-active a,
   li:last-child a.active {
-    color: #0b0f14;
+    color: var(--token-color-foreground-strong);
     font-weight: $weight-semibold;
   }
 
   .breadcrumb-link dt,
   .breadcrumb-link dd {
-    color: #0b0f14;
+    color: var(--token-color-foreground-strong);
   }
 
   dl dd {

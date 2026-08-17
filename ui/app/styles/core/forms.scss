@@ -6,7 +6,7 @@
 @mixin input {
   @include control;
 
-  background-color: #fff;
+  background-color: var(--token-color-palette-neutral-0);
   border-color: var(--token-color-border-primary);
   color: $text;
 
@@ -177,8 +177,8 @@
     gap: 0.5rem;
 
     button {
-      background-color: #444;
-      color: white;
+      background-color: var(--token-color-palette-neutral-600);
+      color: var(--token-color-foreground-high-contrast);
 
       &.error {
         background-color: darkred;
