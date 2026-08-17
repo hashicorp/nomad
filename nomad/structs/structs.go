@@ -9934,9 +9934,20 @@ func (ta *TaskArtifact) validateChecksum() error {
 		return fmt.Errorf("checksum value cannot be empty")
 	}
 
-	parts := strings.Split(check, ":")
+	// Split on the first colon only: a "file:<url>" checksum carries a URL
+	// value that may itself contain colons (e.g. a port).
+	parts := strings.SplitN(check, ":", 2)
 	if l := len(parts); l != 2 {
 		return fmt.Errorf(`checksum must be given as "type:value"; got %q`, check)
+	}
+
+	checksumType := parts[0]
+
+	// A "file:<url>" checksum tells go-getter to read the checksum from a
+	// remote file rather than supplying a hex digest inline, so there is no
+	// digest to validate here; the getter resolves it at fetch time.
+	if checksumType == "file" {
+		return nil
 	}
 
 	checksumVal := parts[1]
@@ -9945,7 +9956,6 @@ func (ta *TaskArtifact) validateChecksum() error {
 		return fmt.Errorf("invalid checksum: %v", err)
 	}
 
-	checksumType := parts[0]
 	expectedLength := 0
 	switch checksumType {
 	case "md5":

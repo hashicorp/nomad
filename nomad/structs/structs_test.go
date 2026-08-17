@@ -5518,6 +5518,28 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			},
 			false,
 		},
+		{
+			// A file:<url> checksum tells go-getter to read the checksum
+			// from a remote file; the value is a URL, not a hex digest.
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "file:http://example.com/checksums.sha256",
+				},
+			},
+			false,
+		},
+		{
+			// The checksum URL may contain a port (multiple colons); it must
+			// not be split into extra "type:value" segments.
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "file:http://example.com:9086/path.md5",
+				},
+			},
+			false,
+		},
 	}
 
 	for i, tc := range cases {
