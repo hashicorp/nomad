@@ -4,16 +4,23 @@
 package devices
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/execagent"
+	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 // TestDeviceScheduling runs end-to-end tests for traditional device scheduling
