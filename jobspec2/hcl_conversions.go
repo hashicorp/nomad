@@ -128,7 +128,7 @@ func decodeAffinity(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Di
 	weight := v.GetAttr("weight")
 	if !weight.IsNull() {
 		w, _ := weight.AsBigFloat().Int64()
-		a.Weight = pointerOf(int8(w))
+		a.Weight = new(int8(w))
 	}
 
 	// If "version" is provided, set the operand
