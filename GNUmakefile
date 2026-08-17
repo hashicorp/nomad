@@ -270,6 +270,7 @@ tidy: ## Tidy up the go mod files
 	@echo "==> Tidy up submodules"
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
+	@cd jobspec2 && go mod tidy
 	@echo "==> Tidy nomad module"
 	@go-modtool -config=ci/modtool.toml fmt go.mod
 	@go mod tidy
