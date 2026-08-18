@@ -626,9 +626,9 @@ job "job-webserver" {
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from prod"},
+									"args":  []any{"-text", "Hello from prod"},
 								},
 							},
 						},
@@ -652,9 +652,9 @@ job "job-webserver" {
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from staging"},
+									"args":  []any{"-text", "Hello from staging"},
 								},
 							},
 						},
@@ -678,9 +678,9 @@ job "job-webserver" {
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from unknown"},
+									"args":  []any{"-text", "Hello from unknown"},
 								},
 							},
 						},
