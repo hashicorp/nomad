@@ -2,14 +2,8 @@ module github.com/hashicorp/nomad/jobspec2
 
 go 1.26.5
 
-replace (
-	// HCL is pinned due to to way in which the jobspec is architected which
-	// requires some customization.
-	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-nomad-1
-
-	// jobspec2 is built using the current source of the API module.
-	github.com/hashicorp/nomad/api => ../api
-)
+// jobspec2 is built using the current source of the API module.
+replace github.com/hashicorp/nomad/api => ../api
 
 require (
 	github.com/hashicorp/go-cty-funcs v0.1.0
