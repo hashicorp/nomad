@@ -73,9 +73,8 @@ func (d *JobDependency) Validate() error {
 
 // Dependency is used to serialize a job placement dependency.
 type Dependency struct {
-	Timeout *time.Duration `hcl:"timeout,optional"`
-	//ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
-	Jobs []*JobDependency `hcl:"job,block"`
+	Timeout *time.Duration   `hcl:"timeout,optional"`
+	Jobs    []*JobDependency `hcl:"job,block"`
 }
 
 func NewDependency(timeout string, jobs ...*JobDependency) *Dependency {
@@ -88,7 +87,6 @@ func NewDependency(timeout string, jobs ...*JobDependency) *Dependency {
 	return &Dependency{
 		Timeout: &duration,
 		Jobs:    copyJobs,
-		//ActionOnTimeout: actionOnTimeout,
 	}
 }
 
@@ -110,8 +108,7 @@ func (d *Dependency) Copy() *Dependency {
 
 	return &Dependency{
 		Timeout: d.Timeout,
-		//ActionOnTimeout: d.ActionOnTimeout,
-		Jobs: jobs,
+		Jobs:    jobs,
 	}
 }
 
