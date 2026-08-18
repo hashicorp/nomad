@@ -254,7 +254,6 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 		job, ok := jobs[depJob.Name]
 		if !ok {
 			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+depJob.Name))
-
 			return []string{}, &mErr
 		}
 
@@ -266,6 +265,8 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 	return blockers, mErr.ErrorOrNil()
 }
 
+// This function needs work to allow more descriptive statues, like what is done
+// on the front end.
 func statusMatches(actual, expected string) bool {
 	if expected == "" {
 		return actual == ""
