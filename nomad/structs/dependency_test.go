@@ -22,7 +22,6 @@ func TestDependency_CanonicalizeAndValidate(t *testing.T) {
 	}
 	d.Canonicalize()
 
-	must.Eq(t, "reject", d.ActionOnTimeout)
 	must.Eq(t, "completed", d.Jobs[0].Status)
 	must.NoError(t, d.Validate())
 }
@@ -31,8 +30,8 @@ func TestDependency_CopyDeep(t *testing.T) {
 	ci.Parallel(t)
 
 	d := &Dependency{
-		Timeout:         10 * time.Minute,
-		ActionOnTimeout: "reject",
+		Timeout: 10 * time.Minute,
+
 		Jobs: []*JobDependency{{
 			Name:   "service-123",
 			Status: "completed",
@@ -60,8 +59,8 @@ func TestJob_CopyIncludesDependencies(t *testing.T) {
 			Tasks: []*Task{{Name: "task", Driver: "raw_exec", Config: map[string]interface{}{"command": "/bin/date"}}},
 		}},
 		Dependencies: &Dependency{
-			Timeout:         10 * time.Minute,
-			ActionOnTimeout: "reject",
+			Timeout: 10 * time.Minute,
+
 			Jobs: []*JobDependency{{
 				Name:   "service-123",
 				Status: "completed",
