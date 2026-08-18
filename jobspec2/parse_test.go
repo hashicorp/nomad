@@ -155,6 +155,154 @@ job "example" {
 	})
 }
 
+// TestParse_OptionalObjectAttributes asserts that optional(...) type constraints
+// work for object attributes, including default values nested in lists/objects.
+func TestParse_OptionalObjectAttributes(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+variable "service" {
+  type = object({
+    name     = string
+    port     = optional(number, 8080)
+    tags     = optional(list(string), [])
+    meta     = optional(map(string))
+    upstream = optional(object({
+      address = string
+      port    = optional(number, 80)
+    }))
+  })
+  default = {
+    name = "api"
+  }
+}
+
+variable "backends" {
+  type = list(object({
+    host = string
+    port = optional(number, 443)
+  }))
+  default = [
+    { host = "a.example.com" },
+    { host = "b.example.com", port = 8443 },
+  ]
+}
+
+job "example" {
+  datacenters = ["dc1"]
+
+  meta {
+    service_name = var.service.name
+    service_port = format("%d", var.service.port)
+    service_tags = join(",", var.service.tags)
+    # meta is optional without a default; omitted values are null
+    service_meta_null = var.service.meta == null ? "yes" : "no"
+    # nested optional object omitted entirely
+    upstream_null = var.service.upstream == null ? "yes" : "no"
+    backend0_host = var.backends[0].host
+    backend0_port = format("%d", var.backends[0].port)
+    backend1_host = var.backends[1].host
+    backend1_port = format("%d", var.backends[1].port)
+  }
+}
+`
+
+	t.Run("defaults fill optional attributes", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, out.Meta)
+		require.Equal(t, "api", out.Meta["service_name"])
+		require.Equal(t, "8080", out.Meta["service_port"])
+		require.Equal(t, "", out.Meta["service_tags"])
+		require.Equal(t, "yes", out.Meta["service_meta_null"])
+		require.Equal(t, "yes", out.Meta["upstream_null"])
+		require.Equal(t, "a.example.com", out.Meta["backend0_host"])
+		require.Equal(t, "443", out.Meta["backend0_port"])
+		require.Equal(t, "b.example.com", out.Meta["backend1_host"])
+		require.Equal(t, "8443", out.Meta["backend1_port"])
+	})
+
+	t.Run("explicit values override optional defaults", func(t *testing.T) {
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{`service={name="web", port=9090, tags=["a","b"], meta={env="prod"}, upstream={address="127.0.0.1"}}`},
+			AllowFS: true,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, out.Meta)
+		require.Equal(t, "web", out.Meta["service_name"])
+		require.Equal(t, "9090", out.Meta["service_port"])
+		require.Equal(t, "a,b", out.Meta["service_tags"])
+		require.Equal(t, "no", out.Meta["service_meta_null"])
+		require.Equal(t, "no", out.Meta["upstream_null"])
+	})
+
+	t.Run("nested optional defaults applied via var-file", func(t *testing.T) {
+		varFile, err := os.CreateTemp("", "*.vars")
+		require.NoError(t, err)
+		defer os.Remove(varFile.Name())
+
+		_, err = varFile.WriteString(`
+service = {
+  name = "from-file"
+  upstream = {
+    address = "10.0.0.1"
+  }
+}
+`)
+		require.NoError(t, err)
+		require.NoError(t, varFile.Close())
+
+		// Use a job that reads nested upstream.port default
+		nestedHCL := `
+variable "service" {
+  type = object({
+    name     = string
+    upstream = optional(object({
+      address = string
+      port    = optional(number, 80)
+    }))
+  })
+}
+
+job "example" {
+  datacenters = ["dc1"]
+  meta {
+    name = var.service.name
+    addr = var.service.upstream.address
+    port = format("%d", var.service.upstream.port)
+  }
+}
+`
+		out, err := ParseWithConfig(&ParseConfig{
+			Path:     "input.hcl",
+			Body:     []byte(nestedHCL),
+			VarFiles: []string{varFile.Name()},
+			AllowFS:  true,
+		})
+		require.NoError(t, err)
+		require.Equal(t, "from-file", out.Meta["name"])
+		require.Equal(t, "10.0.0.1", out.Meta["addr"])
+		require.Equal(t, "80", out.Meta["port"])
+	})
+
+	t.Run("missing required attribute still errors", func(t *testing.T) {
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    []byte(hcl),
+			ArgVars: []string{`service={port=1}`},
+			AllowFS: true,
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not compatible with the variable's type constraint")
+	})
+}
+
 // TestParse_UnknownVariables asserts that unknown variables are left intact for further processing
 func TestParse_UnknownVariables(t *testing.T) {
 	t.Parallel()
