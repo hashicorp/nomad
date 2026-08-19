@@ -114,7 +114,7 @@ jobs:
       - name: Device Scheduling
         run: |
           make deps
-          make integration-test-client-intro
+          make integration-test-device-scheduling
 
   #handle-failure:
   #  needs:

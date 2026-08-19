@@ -192,9 +192,93 @@ func NewMixedAgent(bin string) (*NomadAgent, error) {
 		DataDir:  dir,
 		ConfFile: conf,
 		Vars:     vars,
-		Cmd:      exec.Command(bin, "agent", "-config", conf, "-data-dir", dir),
+		Cmd:      exec.Command(bin, "agent", "-dev", "-config", conf, "-data-dir", dir),
 	}
 	return na, nil
+}
+
+// NewConfigurableMixedAgent creates a configurable Nomad agent in mixed
+// server+client mode
+func NewConfigurableMixedAgent(
+	bin, baseDir, additionalConfig string,
+	mode AgentMode,
+	writer io.Writer,
+	varCallbackFn TemplateVariableCallbackFunc) (*NomadAgent, error) {
+
+	templateVars, err := newAgentTemplateVars()
+	if err != nil {
+		return nil, err
+	}
+	// Allow the caller to modify the template variables before we write out the
+	// config file.
+	if varCallbackFn != nil {
+		varCallbackFn(templateVars)
+	}
+
+	// Set the mode (client, server, or both)
+	templateVars.SetMode(mode)
+	templateVars.RetryJoinAddrs = []string{"127.0.0.1" + ":" + strconv.Itoa(templateVars.RPC)}
+	baseDataDir := BaseDir
+
+	if baseDir != "" {
+		baseDataDir = baseDir
+	}
+
+	if err := os.MkdirAll(baseDataDir, 0755); err != nil {
+		return nil, err
+	}
+
+	agentDir, err := os.MkdirTemp(baseDataDir, "agent")
+	if err != nil {
+		return nil, err
+	}
+
+	agentConfig := filepath.Join(agentDir, "agent.hcl")
+	if err := writeConfig(agentConfig, templateVars); err != nil {
+		return nil, err
+	}
+	fmt.Printf("\n\n THIS IS THE CONFIG \n\n\n ________________\n %s\n\n------\n", pretty.Formatter(agentConfig))
+	commandArgs := []string{
+		"agent",
+		"-config=" + agentConfig,
+		"-data-dir=" + agentDir,
+	}
+
+	// If the caller specifieed additional config, write it out to a file and
+	// add it to the command args.
+	//
+	// This allows for arbitrary config to be added that isn't supported by the
+	// template.
+	//
+	// The caller is responsible for ensuring the additional config is valid.
+	if additionalConfig != "" {
+
+		extraFilePath := filepath.Join(agentDir, "extra.hcl")
+
+		if err := os.WriteFile(extraFilePath, []byte(additionalConfig), 0755); err != nil {
+			return nil, err
+		}
+
+		commandArgs = append(commandArgs, "-config="+extraFilePath)
+	}
+
+	nomadAgent := &NomadAgent{
+		BinPath:  bin,
+		DataDir:  agentDir,
+		ConfFile: agentConfig,
+		Vars:     templateVars,
+		Cmd:      exec.Command(bin, commandArgs...),
+	}
+
+	nomadAgent.Cmd.Stdout = writer
+	nomadAgent.Cmd.Stderr = writer
+
+	return nomadAgent, nil
+	//agent, err := NewSingleModeAgent(bin, baseDir, additionalConfig, mode, writer, varCallbackFn)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//agent.Cmd.Args = append(agent.Cmd.Args, "-bind", "192.168.0.234")
 }
 
 // NewClientServerPair creates a pair of Nomad agents: 1 server, 1 client.

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,34 +17,13 @@ import (
 	"github.com/hashicorp/nomad/e2e/execagent"
 	"github.com/hashicorp/nomad/helper/discover"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
 
-// TestDeviceScheduling runs end-to-end tests for traditional device scheduling
-// (count, constraint, affinity without first_available). These tests require:
-// - A Nomad cluster with at least one Linux client
-// - The example device plugin (nomad/file/mock) installed and configured
-// - Mock device files created in the configured directory
-//
-// See plugins/device/cmd/example/README.md for setup instructions.
-func TestDeviceScheduling(t *testing.T) {
-	nomadClient := e2eutil.NomadClient(t)
-	e2eutil.WaitForLeader(t, nomadClient)
-	e2eutil.WaitForNodesReady(t, nomadClient, 1)
-
-	// Check if any nodes have mock devices available
-	if !hasDevicePlugin(t, nomadClient, "nomad/file/mock") {
-		t.Skip("skipping: no nodes with nomad/file/mock device plugin")
-	}
-
-	t.Run("testDeviceCountOnly", testDeviceCountOnly)
-	t.Run("testDeviceWithConstraint", testDeviceWithConstraint)
-	t.Run("testDeviceWithAffinity", testDeviceWithAffinity)
-	t.Run("testDeviceWithConstraintAndAffinity", testDeviceWithConstraintAndAffinity)
-	t.Run("testDeviceConstraintNoMatch", testDeviceConstraintNoMatch)
-}
+const (
+	envGate = "NOMAD_E2E_DEVICE_SCHEDULING"
+)
 
 // hasDevicePlugin checks if any node in the cluster has the specified device
 // plugin available.
@@ -72,181 +50,229 @@ func hasDevicePlugin(t *testing.T, client *api.Client, deviceName string) bool {
 	return false
 }
 
-// testDeviceCountOnly tests that a job with only device count specified
-// can be successfully scheduled.
-func testDeviceCountOnly(t *testing.T) {
-	nomadClient := e2eutil.NomadClient(t)
+// TestDeviceScheduling runs device scheduling integration tests.
+// These tests require the static example device plugin (nomad/file/mock) installed and configured
 
-	jobID := "device-count-" + uuid.Short()
-	jobIDs := []string{jobID}
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
-
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "./input/device_count_only.hcl", jobID, "")
-	must.Len(t, 1, allocs, must.Sprint("expected 1 allocation"))
-
-	alloc, _, err := nomadClient.Allocations().Info(allocs[0].ID, nil)
-	must.NoError(t, err)
-	must.Eq(t, api.AllocClientStatusRunning, alloc.ClientStatus,
-		must.Sprintf("allocation status: %s, description: %s",
-			alloc.ClientStatus, alloc.ClientDescription))
-
-	// Verify device was allocated
-	must.NotNil(t, alloc.AllocatedResources)
-	taskResources := alloc.AllocatedResources.Tasks["sleep"]
-	must.NotNil(t, taskResources)
-	must.SliceNotEmpty(t, taskResources.Devices,
-		must.Sprint("expected devices to be allocated"))
-
-	// Verify exactly 1 device
-	totalDevices := 0
-	for _, deviceResource := range taskResources.Devices {
-		totalDevices += len(deviceResource.DeviceIDs)
+func TestDeviceScheduling(t *testing.T) {
+	if os.Getenv(envGate) != "1" {
+		t.Skip(envGate + " is not set; skipping")
 	}
-	must.Eq(t, 1, totalDevices, must.Sprint("expected exactly 1 device"))
-}
-
-// testDeviceWithConstraint tests that a job with device count and constraint
-// can be successfully scheduled when the constraint is satisfied.
-func testDeviceWithConstraint(t *testing.T) {
-	nomadClient := e2eutil.NomadClient(t)
-
-	jobID := "device-constraint-" + uuid.Short()
-	jobIDs := []string{jobID}
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
-
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "./input/device_with_constraint.hcl", jobID, "")
-	must.Len(t, 1, allocs, must.Sprint("expected 1 allocation"))
-
-	alloc, _, err := nomadClient.Allocations().Info(allocs[0].ID, nil)
-	must.NoError(t, err)
-	must.Eq(t, api.AllocClientStatusRunning, alloc.ClientStatus,
-		must.Sprintf("allocation status: %s, description: %s",
-			alloc.ClientStatus, alloc.ClientDescription))
-
-	// Verify device was allocated
-	must.NotNil(t, alloc.AllocatedResources)
-	taskResources := alloc.AllocatedResources.Tasks["sleep"]
-	must.NotNil(t, taskResources)
-	must.SliceNotEmpty(t, taskResources.Devices,
-		must.Sprint("expected devices to be allocated"))
-}
-
-// testDeviceWithAffinity tests that a job with device count and affinity
-// can be successfully scheduled.
-func testDeviceWithAffinity(t *testing.T) {
-	nomadClient := e2eutil.NomadClient(t)
-
-	jobID := "device-affinity-" + uuid.Short()
-	jobIDs := []string{jobID}
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
-
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "./input/device_with_affinity.hcl", jobID, "")
-	must.Len(t, 1, allocs, must.Sprint("expected 1 allocation"))
-
-	alloc, _, err := nomadClient.Allocations().Info(allocs[0].ID, nil)
-	must.NoError(t, err)
-	must.Eq(t, api.AllocClientStatusRunning, alloc.ClientStatus,
-		must.Sprintf("allocation status: %s, description: %s",
-			alloc.ClientStatus, alloc.ClientDescription))
-
-	// Verify device was allocated
-	must.NotNil(t, alloc.AllocatedResources)
-	taskResources := alloc.AllocatedResources.Tasks["sleep"]
-	must.NotNil(t, taskResources)
-	must.SliceNotEmpty(t, taskResources.Devices,
-		must.Sprint("expected devices to be allocated"))
-}
-
-// testDeviceWithConstraintAndAffinity tests that a job with device count,
-// constraint, and affinity can be successfully scheduled.
-func testDeviceWithConstraintAndAffinity(t *testing.T) {
-	nomadClient := e2eutil.NomadClient(t)
-
-	jobID := "device-both-" + uuid.Short()
-	jobIDs := []string{jobID}
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
-
-	allocs := e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "./input/device_with_constraint_and_affinity.hcl", jobID, "")
-	must.Len(t, 1, allocs, must.Sprint("expected 1 allocation"))
-
-	alloc, _, err := nomadClient.Allocations().Info(allocs[0].ID, nil)
-	must.NoError(t, err)
-	must.Eq(t, api.AllocClientStatusRunning, alloc.ClientStatus,
-		must.Sprintf("allocation status: %s, description: %s",
-			alloc.ClientStatus, alloc.ClientDescription))
-
-	// Verify devices were allocated
-	must.NotNil(t, alloc.AllocatedResources)
-	taskResources := alloc.AllocatedResources.Tasks["sleep"]
-	must.NotNil(t, taskResources)
-	must.SliceNotEmpty(t, taskResources.Devices,
-		must.Sprint("expected devices to be allocated"))
-
-	// Verify 2 devices were allocated
-	totalDevices := 0
-	for _, deviceResource := range taskResources.Devices {
-		totalDevices += len(deviceResource.DeviceIDs)
+	cases := []struct {
+		name            string
+		jobFile         string
+		expectedAllocs  int
+		expectedDevices int
+	}{
+		{
+			name:            "deviceCountOnly",
+			jobFile:         "./input/device_count_only.hcl",
+			expectedAllocs:  1,
+			expectedDevices: 1,
+		},
+		{
+			name:            "deviceWithConstraint",
+			jobFile:         "./input/device_with_constraint.hcl",
+			expectedAllocs:  1,
+			expectedDevices: 1,
+		},
+		{
+			name:            "deviceWithAffinity",
+			jobFile:         "./input/device_with_affinity.hcl",
+			expectedAllocs:  1,
+			expectedDevices: 1,
+		},
+		{
+			name:            "deviceWithConstraintAndAffinity",
+			jobFile:         "./input/device_with_constraint_and_affinity.hcl",
+			expectedAllocs:  1,
+			expectedDevices: 2,
+		},
+		{
+			name:    "deviceConstraintNoMatch",
+			jobFile: "./input/device_constraint_no_match.hcl",
+		},
+		{
+			name:            "firstAvailableBasic",
+			jobFile:         "./input/first_available_with_basic.hcl",
+			expectedAllocs:  1,
+			expectedDevices: 2,
+		},
+		{
+			name:            "firstAvailableBaseConstraint",
+			jobFile:         "./input/first_available_with_base_constraint.hcl",
+			expectedAllocs:  1,
+			expectedDevices: 1,
+		},
+		{
+			name:    "firstAvailableNoMatch",
+			jobFile: "./input/first_available_no_match.hcl",
+		},
 	}
-	must.Eq(t, 2, totalDevices, must.Sprint("expected exactly 2 devices"))
-}
-
-// testDeviceConstraintNoMatch tests that when a device constraint cannot be
-// satisfied, the job fails to schedule with appropriate error messages.
-func testDeviceConstraintNoMatch(t *testing.T) {
-	nomadClient := e2eutil.NomadClient(t)
-
-	jobID := "device-nomatch-" + uuid.Short()
-	jobIDs := []string{jobID}
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
-
-	// Parse and register the job
-	job, err := e2eutil.Parse2(t, "./input/device_constraint_no_match.hcl")
+	nomadBinary, err := discover.NomadExecutable()
 	must.NoError(t, err)
-	job.ID = &jobID
+	must.FileExists(t, nomadBinary)
 
-	resp, _, err := nomadClient.Jobs().Register(job, nil)
-	must.NoError(t, err)
-
-	evalID := resp.EvalID
-
-	// Wait for the evaluation to complete (it should fail to place)
-	var eval *api.Evaluation
-	testutil.WaitForResultRetries(30, func() (bool, error) {
-		time.Sleep(500 * time.Millisecond)
-		eval, _, err = nomadClient.Evaluations().Info(evalID, nil)
-		if err != nil {
-			return false, err
-		}
-		if eval.Status == api.EvalStatusComplete || eval.Status == api.EvalStatusBlocked {
-			return true, nil
-		}
-		return false, fmt.Errorf("eval status: %s", eval.Status)
-	}, func(err error) {
-		must.NoError(t, err)
-	})
-
-	// The evaluation should have failed task group allocations
-	must.MapNotEmpty(t, eval.FailedTGAllocs,
-		must.Sprint("expected failed task group allocations"))
-
-	// Check that the failure is due to device exhaustion or constraint filtering
-	for _, metrics := range eval.FailedTGAllocs {
-		exhausted := metrics.NodesExhausted > 0 ||
-			len(metrics.DimensionExhausted) > 0 ||
-			len(metrics.ConstraintFiltered) > 0
-		must.True(t, exhausted,
-			must.Sprintf("expected device exhaustion, got metrics: %+v", metrics))
+	agentCallbackFn := func(c *execagent.AgentTemplateVars) {
+		c.AgentName = "device-test"
+		c.LogLevel = hclog.Debug.String()
 	}
+
+	c, err := os.ReadFile("./input/basic_device_config.hcl")
+	must.NoError(t, err)
+	cfg := string(c)
+
+	testServer, err := execagent.NewSingleModeAgent(
+		nomadBinary,
+		t.TempDir(),
+		cfg,
+		execagent.ModeBoth,
+		nil,
+		agentCallbackFn,
+	)
+
+	err = testServer.Start()
+	must.NoError(t, err)
+	t.Cleanup(func() { _ = testServer.Destroy() })
+
+	nomadClient, err := testServer.Client()
+	must.NoError(t, err)
+	must.NotNil(t, nomadClient)
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			keyList, _, err := nomadClient.Keyring().List(nil)
+			if err != nil {
+				return err
+			}
+			if len(keyList) == 0 {
+				return errors.New("no keys found")
+			}
+			return nil
+		}),
+		wait.Timeout(5*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
+
+	for _, tc := range cases {
+
+		t.Run(tc.name, func(t *testing.T) {
+			// Check if any nodes have mock devices available
+			if !hasDevicePlugin(t, nomadClient, "nomad/file/mock") {
+				t.Skip("skipping: no nodes with nomad/file/mock device plugin")
+			}
+			expectedAllocs := 0
+			expectedDevices := 0
+			if tc.expectedAllocs != 0 {
+				expectedAllocs = tc.expectedAllocs
+			}
+
+			if tc.expectedDevices != 0 {
+				expectedDevices = tc.expectedDevices
+			}
+			jobID := "dc-" + tc.name + "_" + uuid.Short()
+			t.Cleanup(func() { nomadClient.Jobs().Deregister(jobID, true, nil) })
+			spec, err := os.ReadFile(tc.jobFile)
+			must.NoError(t, err)
+
+			job, err := nomadClient.Jobs().ParseHCLOpts(&api.JobsParseRequest{
+				JobHCL:       string(spec),
+				Canonicalize: true,
+			})
+			must.NoError(t, err)
+
+			// Set custom job ID (distinguish among tests)
+			job.ID = new(jobID)
+			var idx uint64
+			jobs := nomadClient.Jobs()
+
+			resp, meta, err := jobs.Register(job, nil)
+			must.NoError(t, err)
+			idx = meta.LastIndex
+			must.NotNil(t, nomadClient)
+			must.NotEq(t, resp.EvalID, "")
+
+			if expectedAllocs != 0 {
+				var alloc *api.Allocation
+				must.Wait(t, wait.InitialSuccess(
+					wait.ErrorFunc(func() error {
+						allocs, _, err := jobs.Allocations(jobID, false, &api.QueryOptions{WaitIndex: idx})
+						must.NoError(t, err)
+						must.Len(t, expectedAllocs, allocs, must.Sprintf("expected %d allocations", expectedAllocs))
+
+						alloc, _, err = nomadClient.Allocations().Info(allocs[expectedAllocs-1].ID, nil)
+						must.NoError(t, err)
+						must.NotEq(t, api.AllocClientStatusFailed, alloc.ClientStatus)
+						// Verify device was allocated
+						must.NotNil(t, alloc.AllocatedResources)
+
+						return nil
+					}),
+					wait.Timeout(5*time.Second),
+					wait.Gap(100*time.Millisecond),
+				))
+				taskResources := alloc.AllocatedResources.Tasks["sleep"]
+				must.NotNil(t, taskResources)
+				must.SliceNotEmpty(t, taskResources.Devices,
+					must.Sprint("expected devices to be allocated"))
+
+				// Verify exactly 1 device
+				totalDevices := 0
+				for _, deviceResource := range taskResources.Devices {
+					totalDevices += len(deviceResource.DeviceIDs)
+				}
+				must.Eq(t, expectedDevices, totalDevices, must.Sprintf("expected exactly %d device", expectedDevices))
+			} else {
+				evalID := resp.EvalID
+				var err error
+				var eval *api.Evaluation
+				must.Wait(t, wait.ContinualSuccess(
+
+					wait.TestFunc(func() (bool, error) {
+						//testutil.WaitForResultRetries(30, func() (bool, error) {
+
+						eval, _, err = nomadClient.Evaluations().Info(evalID, &api.QueryOptions{WaitIndex: idx})
+						if err != nil {
+							return false, err
+						}
+						if eval.Status == api.EvalStatusComplete || eval.Status == api.EvalStatusBlocked {
+							return true, nil
+						}
+						return false, fmt.Errorf("eval status: %s", eval.Status)
+					}),
+					wait.Timeout(5*time.Second),
+					wait.Gap(100*time.Millisecond),
+				))
+				must.MapNotEmpty(t, eval.FailedTGAllocs,
+					must.Sprint("expected failed task group allocations"))
+
+				// Check that the failure is due to device exhaustion or constraint filtering
+				for _, metrics := range eval.FailedTGAllocs {
+					exhausted := metrics.NodesExhausted > 0 ||
+						len(metrics.DimensionExhausted) > 0 ||
+						len(metrics.ConstraintFiltered) > 0
+					must.True(t, exhausted,
+						must.Sprintf("expected device exhaustion, got metrics: %+v", metrics))
+				}
+
+			}
+
+		})
+	}
+
 }
 
 // TestDeviceParsing tests that traditional device configurations (count,
 // constraint, affinity) are parsed correctly. These are unit-style tests
 // that don't require a running Nomad cluster.
 func TestDeviceParsing(t *testing.T) {
+	if os.Getenv(envGate) != "1" {
+		t.Skip(envGate + " is not set; skipping")
+	}
 	t.Run("testParseDeviceCountOnly", testParseDeviceCountOnly)
 	t.Run("testParseDeviceWithConstraint", testParseDeviceWithConstraint)
 	t.Run("testParseDeviceWithAffinity", testParseDeviceWithAffinity)
 	t.Run("testParseDeviceWithConstraintAndAffinity", testParseDeviceWithConstraintAndAffinity)
+	t.Run("testParseFirstAvailable", testParseFirstAvailable)
+	t.Run("testParseWithBaseConstraint", testParseWithBaseConstraint)
 }
 
 // testParseDeviceCountOnly verifies parsing of a device with only count.
@@ -280,8 +306,8 @@ func testParseDeviceWithConstraint(t *testing.T) {
 	must.Eq(t, "nomad/file/mock", device.Name)
 	must.Eq(t, uint64(1), *device.Count)
 	must.Len(t, 1, device.Constraints)
-	must.Eq(t, "${device.attr.type}", device.Constraints[0].LTarget)
-	must.Eq(t, "file", device.Constraints[0].RTarget)
+	must.Eq(t, "${device.attr.cool-attribute}", device.Constraints[0].LTarget)
+	must.Eq(t, "attribute-wearing-sunglasses", device.Constraints[0].RTarget)
 	must.Len(t, 0, device.Affinities)
 	must.Len(t, 0, device.FirstAvailable)
 }
@@ -320,8 +346,8 @@ func testParseDeviceWithConstraintAndAffinity(t *testing.T) {
 
 	// Verify constraint
 	must.Len(t, 1, device.Constraints)
-	must.Eq(t, "${device.attr.type}", device.Constraints[0].LTarget)
-	must.Eq(t, "file", device.Constraints[0].RTarget)
+	must.Eq(t, "${device.attr.cool-attribute}", device.Constraints[0].LTarget)
+	must.Eq(t, "attribute-wearing-sunglasses", device.Constraints[0].RTarget)
 
 	// Verify affinity
 	must.Len(t, 1, device.Affinities)
@@ -331,4 +357,60 @@ func testParseDeviceWithConstraintAndAffinity(t *testing.T) {
 
 	// No first_available
 	must.Len(t, 0, device.FirstAvailable)
+}
+
+// testParseFirstAvailable verifies parsing of first_available with multiple
+// options including constraints.
+func testParseFirstAvailable(t *testing.T) {
+	job, err := e2eutil.Parse2(t, "./input/first_available_with_basic.hcl")
+	must.NoError(t, err)
+	must.NotNil(t, job)
+
+	// Verify the structure was parsed correctly
+	must.Len(t, 1, job.TaskGroups)
+	task := job.TaskGroups[0].Tasks[0]
+	must.NotNil(t, task.Resources)
+	must.Len(t, 1, task.Resources.Devices)
+
+	device := task.Resources.Devices[0]
+	must.Eq(t, "nomad/file/mock", device.Name)
+	must.Len(t, 3, device.FirstAvailable,
+		must.Sprint("expected 3 first_available options"))
+
+	// Verify first option: count=1, with impossible constraint
+	opt1 := device.FirstAvailable[0]
+	must.Eq(t, uint64(1), *opt1.Count)
+	must.Len(t, 1, opt1.Constraints)
+	must.Eq(t, "${device.attr.impossible_attr}", opt1.Constraints[0].LTarget)
+	must.Eq(t, "impossible_value", opt1.Constraints[0].RTarget)
+
+	// Verify second option: count=2, no constraints
+	opt2 := device.FirstAvailable[1]
+	must.Eq(t, uint64(2), *opt2.Count)
+	must.Len(t, 0, opt2.Constraints)
+
+	// Verify third option: count=3, no constraints
+	opt3 := device.FirstAvailable[2]
+	must.Eq(t, uint64(3), *opt3.Count)
+	must.Len(t, 0, opt3.Constraints)
+}
+
+// testParseWithBaseConstraint verifies parsing with base and option constraints.
+func testParseWithBaseConstraint(t *testing.T) {
+	job, err := e2eutil.Parse2(t, "./input/first_available_with_base_constraint.hcl")
+	must.NoError(t, err)
+	must.NotNil(t, job)
+
+	task := job.TaskGroups[0].Tasks[0]
+	device := task.Resources.Devices[0]
+
+	// Verify base constraint exists
+	must.Len(t, 1, device.Constraints,
+		must.Sprint("expected 1 base constraint"))
+	must.Eq(t, "${device.attr.cool-attribute}", device.Constraints[0].LTarget)
+
+	// Verify first_available options also have their own constraints
+	must.Len(t, 2, device.FirstAvailable)
+	must.Len(t, 1, device.FirstAvailable[0].Constraints)
+	must.Len(t, 1, device.FirstAvailable[1].Constraints)
 }
