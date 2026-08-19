@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/kr/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -154,7 +153,6 @@ func (d *FsDevice) configToAttribute(configAttr *AttributeConfig) (*structs.Attr
 			return nil, fmt.Errorf("failed to parse attribute: %v", configAttr)
 		}
 		attr = structs.NewStringAttribute(configAttr.DefaultValue)
-		d.logger.Warn("show attr", "string", fmt.Sprintf("%#v", configAttr.DefaultValue))
 	case "float":
 		fVal, err := strconv.ParseFloat(configAttr.DefaultValue, 64)
 		if err != nil {
@@ -208,7 +206,6 @@ func (d *FsDevice) SetConfig(c *base.Config) error {
 			}
 
 			d.DefaultAttributes[(strings.ToLower(a.AttributeName))] = attr
-			d.logger.Error("name & value", fmt.Sprintf("val: %+v", a), log.Fmt("attr: %#v", pretty.Formatter(d.DefaultAttributes)))
 		}
 	}
 	if len(config.StaticConfig) != 0 {
