@@ -5,18 +5,17 @@
 # The device block has a base constraint that all options must satisfy,
 # plus each first_available option can have additional constraints.
 
-job "device-first-available-base" {
+job "first-available-base" {
   type = "batch"
 
   group "test" {
     count = 1
 
     task "sleep" {
-      driver = "raw_exec"
+      driver = "mock_driver"
 
       config {
-        command = "sleep"
-        args    = ["30"]
+        run_for = "30s"
       }
 
       resources {
@@ -33,14 +32,14 @@ job "device-first-available-base" {
           first_available {
             count = 2
             constraint {
-              attribute = "${device.attr.type}"
+              attribute = "${device.attr.package}"
               value     = "premium"
             }
           }
           first_available {
             count = 1
             constraint {
-              attribute = "${device.attr.type}"
+              attribute = "${device.attr.package}"
               value     = "standard"
             }
           }

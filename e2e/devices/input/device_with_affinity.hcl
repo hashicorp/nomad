@@ -10,11 +10,10 @@ job "device-with-affinity" {
     count = 1
 
     task "sleep" {
-      driver = "raw_exec"
+      driver = "mock_driver"
 
       config {
-        command = "sleep"
-        args    = ["30"]
+        run_for = "30s"
       }
 
       resources {
@@ -25,7 +24,7 @@ job "device-with-affinity" {
           count = 1
 
           affinity {
-            attribute = "${device.attr.cool-attribute}"
+            attribute = "${device.attr.priority}"
             value     = "high"
             weight    = 100
           }

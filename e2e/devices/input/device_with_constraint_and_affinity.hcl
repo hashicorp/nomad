@@ -10,11 +10,10 @@ job "device-constraint-affinity" {
     count = 1
 
     task "sleep" {
-      driver = "raw_exec"
+      driver = "mock_driver"
 
       config {
-        command = "sleep"
-        args    = ["30"]
+        run_for = "30s"
       }
 
       resources {
