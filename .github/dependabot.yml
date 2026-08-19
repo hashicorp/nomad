@@ -28,6 +28,21 @@ updates:
         patterns:
           - "*"
 
+  - package-ecosystem: gomod
+    directory: "/jobspec2"
+    labels:
+      - "theme/dependencies"
+      - "theme/jobspec"
+    schedule:
+      interval: "cron"
+      cronjob: "0 9 15 * *" # once a month, mid-month
+    ignore:
+      - dependency-name: "github.com/hashicorp/hcl/v2"
+    groups:
+      go-jobspec:
+        patterns:
+          - "*"
+
   - package-ecosystem: npm
     directory: "/ui"
     labels:

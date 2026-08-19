@@ -1,0 +1,3 @@
+```release-note:improvement
+jobspec2: Decouple from Nomad core with isolated Go module named `github.com/hashicorp/nomad/jobspec2`
+```

@@ -613,22 +613,22 @@ job "job-webserver" {
 		{
 			"prod",
 			&api.Job{
-				ID:          pointerOf("job-webserver"),
-				Name:        pointerOf("job-webserver"),
+				ID:          new("job-webserver"),
+				Name:        new("job-webserver"),
 				Datacenters: []string{"prod-dc1", "prod-dc2"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  pointerOf("group-webserver"),
-						Count: pointerOf(20),
+						Name:  new("group-webserver"),
+						Count: new(20),
 
 						Tasks: []*api.Task{
 							{
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from prod"},
+									"args":  []any{"-text", "Hello from prod"},
 								},
 							},
 						},
@@ -639,22 +639,22 @@ job "job-webserver" {
 		{
 			"staging",
 			&api.Job{
-				ID:          pointerOf("job-webserver"),
-				Name:        pointerOf("job-webserver"),
+				ID:          new("job-webserver"),
+				Name:        new("job-webserver"),
 				Datacenters: []string{"dc1"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  pointerOf("group-webserver"),
-						Count: pointerOf(3),
+						Name:  new("group-webserver"),
+						Count: new(3),
 
 						Tasks: []*api.Task{
 							{
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from staging"},
+									"args":  []any{"-text", "Hello from staging"},
 								},
 							},
 						},
@@ -665,22 +665,22 @@ job "job-webserver" {
 		{
 			"unknown",
 			&api.Job{
-				ID:          pointerOf("job-webserver"),
-				Name:        pointerOf("job-webserver"),
+				ID:          new("job-webserver"),
+				Name:        new("job-webserver"),
 				Datacenters: []string{},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  pointerOf("group-webserver"),
-						Count: pointerOf(0),
+						Name:  new("group-webserver"),
+						Count: new(0),
 
 						Tasks: []*api.Task{
 							{
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from unknown"},
+									"args":  []any{"-text", "Hello from unknown"},
 								},
 							},
 						},
@@ -1074,11 +1074,11 @@ func TestParseServiceCheck(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedJob := &api.Job{
-		ID:   pointerOf("group_service_check_script"),
-		Name: pointerOf("group_service_check_script"),
+		ID:   new("group_service_check_script"),
+		Name: new("group_service_check_script"),
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name: pointerOf("group"),
+				Name: new("group"),
 				Services: []*api.Service{
 					{
 						Name:      "foo-service",

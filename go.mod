@@ -10,8 +10,11 @@ replace (
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-nomad-1
 )
 
-// Nomad is built using the current source of the API module.
-replace github.com/hashicorp/nomad/api => ./api
+// Nomad is built using the current source of the API and jobspec2 modules.
+replace (
+	github.com/hashicorp/nomad/api => ./api
+	github.com/hashicorp/nomad/jobspec2 => ./jobspec2
+)
 
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
@@ -55,7 +58,6 @@ require (
 	github.com/hashicorp/go-checkpoint v0.5.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-connlimit v0.3.1
-	github.com/hashicorp/go-cty-funcs v0.1.0
 	github.com/hashicorp/go-discover v1.3.0
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/go-getter v1.8.8
@@ -85,7 +87,8 @@ require (
 	github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40
 	github.com/hashicorp/memberlist v0.6.0
 	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.1
-	github.com/hashicorp/nomad/api v0.0.0-20260410071528-9e6d492b59a8
+	github.com/hashicorp/nomad/api v0.0.0-20260814142628-f3fe893c53d2
+	github.com/hashicorp/nomad/jobspec2 v0.0.0-00010101000000-000000000000
 	github.com/hashicorp/raft v1.7.3
 	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1
@@ -106,7 +109,6 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/pointerstructure v1.2.1
-	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.0
 	github.com/moby/moby/v2 v2.0.0-beta.18
@@ -134,13 +136,12 @@ require (
 	github.com/shoenig/test v1.13.2
 	github.com/stretchr/testify v1.11.1
 	github.com/zclconf/go-cty v1.19.0
-	github.com/zclconf/go-cty-yaml v1.2.0
 	go.etcd.io/bbolt v1.5.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
-	golang.org/x/text v0.40.0
+	golang.org/x/text v0.41.0
 	golang.org/x/time v0.15.0
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
@@ -262,6 +263,7 @@ require (
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.74 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-cty-funcs v0.1.0 // indirect
 	github.com/hashicorp/go-discover/provider/gce v0.0.0-20241120163552-5eb1507d16b4 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f // indirect
@@ -290,6 +292,7 @@ require (
 	github.com/mitchellh/go-testing-interface v1.14.2-0.20210821155943-2d9075ca8770 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
 	github.com/moby/sys/user v0.4.0 // indirect
@@ -335,6 +338,7 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/vmware/govmomi v0.18.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
+	github.com/zclconf/go-cty-yaml v1.2.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.44.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0 // indirect
@@ -345,11 +349,11 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
-	golang.org/x/mod v0.37.0 // indirect
+	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/tools v0.47.0 // indirect
+	golang.org/x/tools v0.48.0 // indirect
 	google.golang.org/api v0.292.0 // indirect
 	google.golang.org/genproto v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
