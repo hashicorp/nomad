@@ -36,6 +36,8 @@ updates:
     schedule:
       interval: "cron"
       cronjob: "0 9 15 * *" # once a month, mid-month
+    ignore:
+      - dependency-name: "github.com/hashicorp/hcl/v2"
     groups:
       go-jobspec:
         patterns:
