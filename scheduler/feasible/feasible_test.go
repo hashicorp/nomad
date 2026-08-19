@@ -33,7 +33,7 @@ func TestStaticIterator_Reset(t *testing.T) {
 
 	for i := range 6 {
 		static.Reset()
-		for j := 0; j < i; j++ {
+		for range i {
 			static.Next()
 		}
 		static.Reset()

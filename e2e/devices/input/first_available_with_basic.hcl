@@ -1,4 +1,4 @@
-# Copyright IBM Corp. 2015, 2025
+# Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
 # Test that the SECOND option is selected when the first cannot be satisfied.

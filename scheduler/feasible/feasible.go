@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"math/rand"
 	"reflect"
 	"regexp"
@@ -1698,9 +1699,7 @@ func (c *DeviceChecker) canSatisfyDeviceOption(req *structs.RequestedDevice, opt
 	}
 	// Create a snapshot of available counts to restore if this option fails
 	snapshot := make(map[*structs.NodeDeviceResource]uint64, len(available))
-	for k, v := range available {
-		snapshot[k] = v
-	}
+	maps.Copy(snapshot, available)
 
 	for d, unused := range available {
 		sharable := false
@@ -1745,9 +1744,7 @@ func (c *DeviceChecker) canSatisfyDeviceOption(req *structs.RequestedDevice, opt
 	}
 
 	// Failed to satisfy this option - restore available counts
-	for k, v := range snapshot {
-		available[k] = v
-	}
+	maps.Copy(available, snapshot)
 	return false
 }
 
