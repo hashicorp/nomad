@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
 	fake "github.com/hashicorp/nomad/plugins/csi/testing"
@@ -38,6 +39,7 @@ func newTestClient(t *testing.T) (*fake.IdentityClient, *fake.ControllerClient, 
 	}
 
 	client := &client{
+		logger:           hclog.NewNullLogger(),
 		conn:             conn,
 		identityClient:   ic,
 		controllerClient: cc,
@@ -905,10 +907,11 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		Name        string
-		Request     *ControllerListVolumesRequest
-		ResponseErr error
-		ExpectedErr error
+		Name              string
+		Request           *ControllerListVolumesRequest
+		HealthResponseErr error
+		ResponseErr       error
+		ExpectedErr       error
 	}{
 		{
 			Name:        "handles underlying grpc errors",
@@ -916,16 +919,30 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
 			ExpectedErr: fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
-
 		{
 			Name:        "handles error invalid max entries",
 			Request:     &ControllerListVolumesRequest{MaxEntries: -1},
 			ExpectedErr: errors.New("MaxEntries cannot be negative"),
 		},
-
 		{
 			Name:    "handles success",
 			Request: &ControllerListVolumesRequest{},
+		},
+		{
+			Name:              "handles unimplemented volume health",
+			Request:           &ControllerListVolumesRequest{},
+			HealthResponseErr: status.Error(codes.Unimplemented, "not implemented"),
+		},
+		{
+			Name:              "handles volume not found",
+			Request:           &ControllerListVolumesRequest{},
+			HealthResponseErr: status.Error(codes.NotFound, "volume not found"),
+		},
+		{
+			Name:              "handles underlying volume health grpc errors",
+			Request:           &ControllerListVolumesRequest{},
+			HealthResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr:       fmt.Errorf("controller plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
 		},
 	}
 
@@ -935,7 +952,7 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 			defer client.Close()
 
 			cc.NextErr = tc.ResponseErr
-			if tc.ResponseErr != nil {
+			if tc.ResponseErr == nil {
 				// note: there's nothing interesting to assert here other than
 				// that we don't throw a NPE during transformation from
 				// protobuf to our struct
@@ -984,6 +1001,15 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 				}
 			}
 
+			cc.NextVolumeHealthErr = tc.HealthResponseErr
+			if tc.HealthResponseErr == nil {
+				cc.NextVolumeHealthResponse = &csipbv1.ControllerGetVolumeHealthResponse{
+					VolumeHealth: &csipbv1.VolumeHealth{
+						VolumeId: "vol-id",
+					},
+				}
+			}
+
 			resp, err := client.ControllerListVolumes(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
 				must.EqError(t, err, tc.ExpectedErr.Error())
@@ -991,7 +1017,250 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 			}
 			must.NoError(t, err, must.Sprint("name", tc.Name))
 			must.NotNil(t, resp)
+		})
+	}
+}
 
+func TestClient_RPC_ControllerListVolume_Health(t *testing.T) {
+	ci.Parallel(t)
+
+	// For these tests we just want to validate that the volume health
+	// and volume condition are being set appropriately in the returned
+	// based on the volume health status response.
+	cases := []struct {
+		Name                   string
+		HealthStatusesResponse []*csipbv1.VolumeHealth_VolumeHealthEntry
+		ExpectedCondition      *VolumeCondition
+		ExpectedHealth         *VolumeHealth
+	}{
+		{
+			Name:              "ok",
+			ExpectedCondition: &VolumeCondition{Abnormal: false},
+			ExpectedHealth:    &VolumeHealth{Healthy: true},
+		},
+		{
+			Name: "single status",
+			HealthStatusesResponse: []*csipbv1.VolumeHealth_VolumeHealthEntry{
+				{
+					Status:  csipbv1.VolumeHealthErrorType_DATA_LOSS,
+					Reason:  "solar flares",
+					Message: "send foil",
+				},
+			},
+			ExpectedCondition: &VolumeCondition{
+				Abnormal: true,
+				Message:  "solar flares",
+			},
+			ExpectedHealth: &VolumeHealth{
+				Healthy: false,
+				Statuses: []*VolumeHealthStatus{
+					{
+						Status:  "DATA_LOSS",
+						Reason:  "solar flares",
+						Message: "send foil",
+					},
+				},
+			},
+		},
+		{
+			Name: "multiple statuses",
+			HealthStatusesResponse: []*csipbv1.VolumeHealth_VolumeHealthEntry{
+				{
+					Status:  csipbv1.VolumeHealthErrorType_DATA_LOSS,
+					Reason:  "solar flares",
+					Message: "send foil",
+				},
+				{
+					Status:  csipbv1.VolumeHealthErrorType_DEGRADED,
+					Reason:  "clogged pipes",
+					Message: "full of koopa troopas",
+				},
+			},
+			ExpectedCondition: &VolumeCondition{
+				Abnormal: true,
+				Message:  "solar flares, clogged pipes",
+			},
+			ExpectedHealth: &VolumeHealth{
+				Healthy: false,
+				Statuses: []*VolumeHealthStatus{
+					{
+						Status:  "DATA_LOSS",
+						Reason:  "solar flares",
+						Message: "send foil",
+					},
+					{
+						Status:  "DEGRADED",
+						Reason:  "clogged pipes",
+						Message: "full of koopa troopas",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, cc, _, client := newTestClient(t)
+			defer client.Close()
+
+			cc.NextListVolumesResponse = &csipbv1.ListVolumesResponse{
+				Entries: []*csipbv1.ListVolumesResponse_Entry{
+					{
+						Volume: &csipbv1.Volume{
+							CapacityBytes: 1000000,
+							VolumeId:      "vol-0",
+							VolumeContext: map[string]string{"foo": "bar"},
+
+							ContentSource: &csipbv1.VolumeContentSource{},
+							AccessibleTopology: []*csipbv1.Topology{
+								{
+									Segments: map[string]string{"rack": "A"},
+								},
+							},
+						},
+					},
+				},
+				NextToken: "abcdef",
+			}
+
+			cc.NextVolumeHealthResponse = &csipbv1.ControllerGetVolumeHealthResponse{
+				VolumeHealth: &csipbv1.VolumeHealth{
+					VolumeId:       "vol-0",
+					HealthStatuses: tc.HealthStatusesResponse,
+				},
+			}
+
+			resp, err := client.ControllerListVolumes(context.TODO(), &ControllerListVolumesRequest{})
+			must.NoError(t, err)
+			must.Len(t, 1, resp.Entries, must.Sprint("expected only one entry in response"))
+			entry := resp.Entries[0]
+			must.NotNil(t, entry.Status, must.Sprint("expected entry to include status"))
+			must.Eq(t, tc.ExpectedCondition, entry.Status.VolumeCondition)
+			must.Eq(t, tc.ExpectedHealth, entry.Health)
+		})
+	}
+}
+
+func TestClient_RPC_ControllerGetVolumeHealth(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name             string
+		response         *csipbv1.ControllerGetVolumeHealthResponse
+		responseErr      error
+		expectedResponse *ControllerGetVolumeHealthResponse
+		expectedErr      error
+	}{
+		{
+			name:             "ok - empty",
+			response:         &csipbv1.ControllerGetVolumeHealthResponse{},
+			expectedResponse: &ControllerGetVolumeHealthResponse{},
+		},
+		{
+			name: "ok - no statuses",
+			response: &csipbv1.ControllerGetVolumeHealthResponse{
+				VolumeHealth: &csipbv1.VolumeHealth{
+					VolumeId: "vol-0",
+				},
+			},
+			expectedResponse: &ControllerGetVolumeHealthResponse{
+				VolumeID: "vol-0",
+				Statuses: []*VolumeHealthStatus{},
+			},
+		},
+		{
+			name: "ok - with status",
+			response: &csipbv1.ControllerGetVolumeHealthResponse{
+				VolumeHealth: &csipbv1.VolumeHealth{
+					VolumeId: "vol-0",
+					HealthStatuses: []*csipbv1.VolumeHealth_VolumeHealthEntry{
+						{
+							Status:  csipbv1.VolumeHealthErrorType_DEGRADED,
+							Reason:  "clogged pipes",
+							Message: "full of koopa troopas",
+						},
+					},
+				},
+			},
+			expectedResponse: &ControllerGetVolumeHealthResponse{
+				VolumeID: "vol-0",
+				Statuses: []*VolumeHealthStatus{
+					{
+						Status:  "DEGRADED",
+						Reason:  "clogged pipes",
+						Message: "full of koopa troopas",
+					},
+				},
+			},
+		},
+		{
+			name: "ok - multiple statuses",
+			response: &csipbv1.ControllerGetVolumeHealthResponse{
+				VolumeHealth: &csipbv1.VolumeHealth{
+					VolumeId: "vol-0",
+					HealthStatuses: []*csipbv1.VolumeHealth_VolumeHealthEntry{
+						{
+							Status:  csipbv1.VolumeHealthErrorType_DATA_LOSS,
+							Reason:  "solar flares",
+							Message: "send foil",
+						},
+						{
+							Status:  csipbv1.VolumeHealthErrorType_DEGRADED,
+							Reason:  "clogged pipes",
+							Message: "full of koopa troopas",
+						},
+					},
+				},
+			},
+			expectedResponse: &ControllerGetVolumeHealthResponse{
+				VolumeID: "vol-0",
+				Statuses: []*VolumeHealthStatus{
+					{
+						Status:  "DATA_LOSS",
+						Reason:  "solar flares",
+						Message: "send foil",
+					},
+					{
+						Status:  "DEGRADED",
+						Reason:  "clogged pipes",
+						Message: "full of koopa troopas",
+					},
+				},
+			},
+		},
+		{
+			name:        "error - unimplemented",
+			responseErr: status.Error(codes.Unimplemented, "not implemented"),
+			expectedErr: errors.New("controller plugin does not implement ControllerGetVolumeHealth: rpc error: code = Unimplemented desc = not implemented"),
+		},
+		{
+			name:        "error - not found",
+			responseErr: status.Error(codes.NotFound, "volume not found"),
+			expectedErr: errors.New(`volume "vol-0" health status does not exist: rpc error: code = NotFound desc = volume not found`),
+		},
+		{
+			name:        "error",
+			responseErr: status.Error(codes.Internal, "test error"),
+			expectedErr: errors.New("rpc error: code = Internal desc = test error"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, cc, _, client := newTestClient(t)
+			defer client.Close()
+
+			cc.NextVolumeHealthResponse = tc.response
+			cc.NextVolumeHealthErr = tc.responseErr
+
+			resp, err := client.ControllerGetVolumeHealth(t.Context(), &ControllerGetVolumeHealthRequest{VolumeID: "vol-0"})
+			if tc.expectedErr != nil {
+				must.EqError(t, err, tc.expectedErr.Error())
+				return
+			}
+
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedResponse, resp)
 		})
 	}
 }

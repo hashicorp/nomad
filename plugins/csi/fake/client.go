@@ -46,6 +46,10 @@ type Client struct {
 	NextControllerGetCapabilitiesErr      error
 	ControllerGetCapabilitiesCallCount    int64
 
+	NextControllerGetVolumeHealthResponse *csi.ControllerGetVolumeHealthResponse
+	NextControllerGetVolumeHealthErr      error
+	ControllerGetVolumeHealthCallCount    int64
+
 	NextControllerPublishVolumeResponse *csi.ControllerPublishVolumeResponse
 	NextControllerPublishVolumeErr      error
 	ControllerPublishVolumeCallCount    int64
@@ -171,6 +175,15 @@ func (c *Client) ControllerGetCapabilities(ctx context.Context) (*csi.Controller
 	c.ControllerGetCapabilitiesCallCount++
 
 	return c.NextControllerGetCapabilitiesResponse, c.NextControllerGetCapabilitiesErr
+}
+
+func (c *Client) ControllerGetVolumeHealth(ctx context.Context, in *csi.ControllerGetVolumeHealthRequest, opts ...grpc.CallOption) (*csi.ControllerGetVolumeHealthResponse, error) {
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+
+	c.ControllerGetVolumeHealthCallCount++
+
+	return c.NextControllerGetVolumeHealthResponse, c.NextControllerGetVolumeHealthErr
 }
 
 // ControllerPublishVolume is used to attach a remote volume to a node

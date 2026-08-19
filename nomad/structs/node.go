@@ -257,10 +257,18 @@ type CSIControllerInfo struct {
 	SupportsListVolumesAttachedNodes bool
 
 	// SupportsCondition indicates plugin support for VOLUME_CONDITION
+	//
+	// Deprecated: Volume condition feature was removed from the CSI
+	// specification and replaced with the volume health feature. This
+	// remains only for compatibility and will never be true.
+	// ref: https://github.com/container-storage-interface/spec/pull/604
 	SupportsCondition bool
 
 	// SupportsGet indicates plugin support for GET_VOLUME
 	SupportsGet bool
+
+	// SupportsGetHealth indicates plugin support for GET_VOLUME_HEALTH
+	SupportsGetHealth bool
 }
 
 func (c *CSIControllerInfo) Copy() *CSIControllerInfo {
