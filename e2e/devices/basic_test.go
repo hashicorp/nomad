@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +21,7 @@ import (
 )
 
 const (
-	envGate = "NOMAD_E2E_DEVICE_SCHEDULING"
+	envGate = "NOMAD_E2E_PLUGIN_PATH"
 )
 
 // hasDevicePlugin validates the device plugin is available or skips the test
@@ -55,8 +53,8 @@ func hasDevicePlugin(t *testing.T, client *api.Client, deviceName string) bool {
 // plugin (nomad/file/mock) to be installed
 
 func TestDeviceScheduling(t *testing.T) {
-	if os.Getenv(envGate) != "1" {
-		t.Skip(envGate + " is not set; skipping")
+	if os.Getenv(envGate) == "" {
+		t.Fatal(envGate + " is not set; skipping")
 	}
 	cases := []struct {
 		name            string
@@ -93,6 +91,8 @@ func TestDeviceScheduling(t *testing.T) {
 			jobFile: "./input/device_constraint_no_match.hcl",
 		},
 	}
+
+	// Set up binaries & nomad agent
 	nomadBinary, err := discover.NomadExecutable()
 	must.NoError(t, err)
 	must.FileExists(t, nomadBinary)
@@ -101,14 +101,15 @@ func TestDeviceScheduling(t *testing.T) {
 		c.AgentName = "device-test"
 		c.LogLevel = hclog.Warn.String()
 	}
-	// Look for the plugin to exist where the makefile should have placed it
-	pluginPath := filepath.Join(os.Getenv("GOPATH"),
-		fmt.Sprintf("src/github.com/hashicorp/nomad/pkg/%s_%s", runtime.GOOS, runtime.GOARCH))
+	pluginPath := os.Getenv(envGate)
+	must.FileExists(t, pluginPath)
 
 	c, err := os.ReadFile("./input/basic_device_config.hcl")
 	must.NoError(t, err)
+
 	cfg := string(c)
-	cfg = cfg + fmt.Sprintf("\nplugin_dir=\"%s\"", pluginPath)
+	cfg = cfg + fmt.Sprintf("\nplugin_dir=\"%s\"", strings.TrimSuffix(pluginPath, "/nomad-device-example"))
+
 	testServer, err := execagent.NewSingleModeAgent(
 		nomadBinary,
 		t.TempDir(),
@@ -142,7 +143,7 @@ func TestDeviceScheduling(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Check if any nodes have mock devices available
+			// Confirm nodes have mock devices available
 			if !hasDevicePlugin(t, nomadClient, "nomad/file/mock") {
 				t.Skip("skipping: no nodes with nomad/file/mock device plugin")
 			}
@@ -151,12 +152,12 @@ func TestDeviceScheduling(t *testing.T) {
 			if tc.expectedAllocs != 0 {
 				expectedAllocs = tc.expectedAllocs
 			}
-
 			if tc.expectedDevices != 0 {
 				expectedDevices = tc.expectedDevices
 			}
+
+			// Build and register job
 			jobID := "dc-" + tc.name + "_" + uuid.Short()
-			t.Cleanup(func() { nomadClient.Jobs().Deregister(jobID, true, nil) })
 			spec, err := os.ReadFile(tc.jobFile)
 			must.NoError(t, err)
 
@@ -166,16 +167,17 @@ func TestDeviceScheduling(t *testing.T) {
 			})
 			must.NoError(t, err)
 
-			// Set custom job ID (distinguish among tests)
 			job.ID = new(jobID)
 			var idx uint64
 			jobs := nomadClient.Jobs()
 
 			resp, meta, err := jobs.Register(job, nil)
 			must.NoError(t, err)
+
 			idx = meta.LastIndex
-			must.NotNil(t, nomadClient)
 			must.NotEq(t, resp.EvalID, "")
+
+			t.Cleanup(func() { nomadClient.Jobs().Deregister(jobID, true, nil) })
 
 			if expectedAllocs != 0 {
 				var alloc *api.Allocation
@@ -187,8 +189,9 @@ func TestDeviceScheduling(t *testing.T) {
 
 						alloc, _, err = nomadClient.Allocations().Info(allocs[expectedAllocs-1].ID, nil)
 						must.NoError(t, err)
+
+						// Verify allocation didn't fail and device was allocated
 						must.NotEq(t, api.AllocClientStatusFailed, alloc.ClientStatus)
-						// Verify device was allocated
 						must.NotNil(t, alloc.AllocatedResources)
 
 						return nil
@@ -196,12 +199,13 @@ func TestDeviceScheduling(t *testing.T) {
 					wait.Timeout(5*time.Second),
 					wait.Gap(100*time.Millisecond),
 				))
+
+				// Verify expected devices
 				taskResources := alloc.AllocatedResources.Tasks["sleep"]
 				must.NotNil(t, taskResources)
 				must.SliceNotEmpty(t, taskResources.Devices,
 					must.Sprint("expected devices to be allocated"))
 
-				// Verify exactly 1 device
 				totalDevices := 0
 				for _, deviceResource := range taskResources.Devices {
 					totalDevices += len(deviceResource.DeviceIDs)
@@ -209,10 +213,11 @@ func TestDeviceScheduling(t *testing.T) {
 				must.Eq(t, expectedDevices, totalDevices, must.Sprintf("expected exactly %d device", expectedDevices))
 			} else {
 				evalID := resp.EvalID
+
 				var err error
 				var eval *api.Evaluation
-				must.Wait(t, wait.ContinualSuccess(
 
+				must.Wait(t, wait.ContinualSuccess(
 					wait.TestFunc(func() (bool, error) {
 						eval, _, err = nomadClient.Evaluations().Info(evalID, &api.QueryOptions{WaitIndex: idx})
 						if err != nil {
@@ -234,8 +239,8 @@ func TestDeviceScheduling(t *testing.T) {
 					exhausted := metrics.NodesExhausted > 0 ||
 						len(metrics.DimensionExhausted) > 0 ||
 						len(metrics.ConstraintFiltered) > 0
-					must.True(t, exhausted,
-						must.Sprintf("expected device exhaustion, got metrics: %+v", metrics))
+
+					must.True(t, exhausted, must.Sprintf("expected device exhaustion, got metrics: %+v", metrics))
 				}
 
 			}

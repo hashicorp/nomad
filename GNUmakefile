@@ -398,10 +398,24 @@ integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/client_intro
 
-.PHONY: integration-test-device-scheduling
+
+.PHONY: device-plugin
+device-plugin: GO_OUT ?= $(PROJECT_ROOT)/plugins/nomad-device-example
+device-plugin: # Build the example device plugin for e2e device tests
+	@echo "==> Removing old plugin development build..."
+	@rm -f $(GO_OUT)
+	@echo "==> Building $@..."
+	@mkdir -p $(PROJECT_ROOT)/plugins
+	@CGO_ENABLED=0 \
+		GOOS=$(shell go env GOOS) \
+		GOARCH=$(shell go env GOARCH) \
+		go build  -o $(GO_OUT)  ./plugins/device/cmd/example/cmd
+	@echo "binary at $(GO_OUT)"
+.PHONY: integration-test-devices
+integration-test-devices: device-plugin
 integration-test-devices: dev ## Run Nomad's device scheduling integration tests
 	@echo "==> Running Nomad integration test suite for Device Scheduling:"
-	NOMAD_E2E_DEVICE_SCHEDULING=1 gotestsum --format=testname -- \
+	NOMAD_E2E_PLUGIN_PATH="$(PROJECT_ROOT)/plugins/nomad-device-example" gotestsum --format=testname -- \
 		-v \
 		-race \
 		-timeout=120s \

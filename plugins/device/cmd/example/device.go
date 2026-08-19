@@ -61,7 +61,7 @@ var (
 		"attribute_config": hclspec.NewBlockList("attribute_config", hclspec.NewObject(map[string]*hclspec.Spec{
 			"attribute_name":  hclspec.NewAttr("attribute_name", "string", true),
 			"attribute_type":  hclspec.NewAttr("attribute_type", "string", true),
-			"attribute_unit":  hclspec.NewAttr("unit", "string", true),
+			"attribute_unit":  hclspec.NewAttr("unit", "string", false),
 			"attribute_value": hclspec.NewAttr("attribute_value", "string", true),
 		}),
 		),
