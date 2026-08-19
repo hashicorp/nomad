@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"text/template"
 
 	"github.com/hashicorp/go-hclog"
@@ -237,7 +238,6 @@ func NewConfigurableMixedAgent(
 	if err := writeConfig(agentConfig, templateVars); err != nil {
 		return nil, err
 	}
-	fmt.Printf("\n\n THIS IS THE CONFIG \n\n\n ________________\n %s\n\n------\n", pretty.Formatter(agentConfig))
 	commandArgs := []string{
 		"agent",
 		"-config=" + agentConfig,
@@ -340,7 +340,6 @@ func NewClientServerPair(bin string, serverOut, clientOut io.Writer) (
 		Cmd: exec.Command(bin, "agent",
 			"-config", cconf,
 			"-data-dir", cdir,
-			"-servers", fmt.Sprintf("127.0.0.1:%d", svars.RPC),
 		),
 	}
 	client.Cmd.Stdout = clientOut
@@ -363,7 +362,6 @@ func NewSingleModeAgent(
 	if err != nil {
 		return nil, err
 	}
-
 	// Allow the caller to modify the template variables before we write out the
 	// config file.
 	if varCallbackFn != nil {
