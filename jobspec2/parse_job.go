@@ -24,7 +24,15 @@ func normalizeJob(jc *jobConfig) {
 		j.Periodic.SpecType = &v
 	}
 
+	if jc.Dependencies != nil {
+		j.Dependencies = jc.Dependencies
+	}
+
 	normalizeVault(jc.Vault)
+
+	if j.Dependencies != nil {
+		normalizeDependency(j.Dependencies)
+	}
 
 	if len(jc.Tasks) != 0 {
 		alone := make([]*api.TaskGroup, 0, len(jc.Tasks))
@@ -93,6 +101,22 @@ func normalizeVault(v *api.Vault) {
 	}
 	if v.ChangeMode == nil {
 		v.ChangeMode = new("restart")
+	}
+}
+
+func normalizeDependency(d *api.Dependency) {
+	if d == nil {
+		return
+	}
+
+	for _, depJob := range d.Jobs {
+		if depJob == nil {
+			continue
+		}
+
+		if depJob.Status == "" {
+			depJob.Status = "completed"
+		}
 	}
 }
 

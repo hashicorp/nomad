@@ -17,9 +17,26 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/dependency"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"golang.org/x/time/rate"
 )
+
+type dependencyChecker interface {
+	HasDependencies(j *structs.Job) (bool, error)
+}
+
+// withCoreDependencyChecker returns a SchedulerOption that injects the given
+// dependencyChecker into a CoreScheduler. It must live in the nomad package to
+// avoid an import cycle between nomad and scheduler.
+func withCoreDependencyChecker(checker dependencyChecker) sstructs.SchedulerOption {
+	return func(s sstructs.Scheduler) error {
+		if c, ok := s.(*CoreScheduler); ok {
+			c.dependecyChecker = checker
+		}
+		return nil
+	}
+}
 
 // CoreScheduler is a special "scheduler" that is registered
 // as "_core". It is used to run various administrative work
@@ -39,17 +56,24 @@ type CoreScheduler struct {
 	// (e.g., structs.CoreJobEvalGC) and time.Duration that will be used as GC
 	// threshold value.
 	customThresholdForObject map[string]*time.Duration
+	dependecyChecker         dependencyChecker
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
-func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.Planner) sstructs.Scheduler {
+func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
 	s := &CoreScheduler{
 		srv:                      srv,
 		snap:                     snap,
 		logger:                   srv.logger.ResetNamed("core.sched"),
 		planner:                  planner,
 		customThresholdForObject: make(map[string]*time.Duration),
+		dependecyChecker:         dependencyChecker(&dependency.NoOpCoordinator{}), // default to no-op dependency checker
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
 	return s
 }
 
@@ -158,6 +182,16 @@ OUTER:
 		// Ignore new jobs.
 		st := time.Unix(0, job.SubmitTime)
 		if st.After(cutoffTime) {
+			continue
+		}
+
+		free, err := c.dependecyChecker.HasDependencies(job)
+		if err != nil {
+			c.logger.Error("job GC failed to get dependencies for job", "job", job.ID, "error", err)
+			continue
+		}
+
+		if free {
 			continue
 		}
 

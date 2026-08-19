@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
@@ -1145,6 +1146,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Version:        *job.Version,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
+		Dependencies:   ApiDependencyToStructs(job.Dependencies),
 		UI:             ApiJobUIConfigToStructs(job.UI),
 		VersionTag:     ApiJobVersionTagToStructs(job.VersionTag),
 	}
@@ -2260,6 +2262,34 @@ func ApiAffinitiesToStructs(in []*api.Affinity) []*structs.Affinity {
 	}
 
 	return out
+}
+
+func ApiDependencyToStructs(in *api.Dependency) *structs.Dependency {
+	if in == nil {
+		return nil
+	}
+
+	jobs := make([]*structs.JobDependency, 0, len(in.Jobs))
+	for _, j := range in.Jobs {
+		if j == nil {
+			continue
+		}
+
+		jobs = append(jobs, &structs.JobDependency{
+			Name:   j.Name,
+			Status: j.Status,
+		})
+	}
+
+	var timeout time.Duration
+	if in.Timeout != nil {
+		timeout = *in.Timeout
+	}
+
+	return &structs.Dependency{
+		Timeout: timeout,
+		Jobs:    jobs,
+	}
 }
 
 func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
