@@ -60,12 +60,14 @@ type Variable struct {
 	// declaration, the type of the default variable will be used. This will
 	// allow to ensure that users set this variable correctly.
 	Type cty.Type
+
 	// TypeDefaults holds the default values declared through optional()
 	// attribute modifiers within the variable's type constraint, if any. It is
 	// nil when the type constraint declares no such defaults. These defaults
 	// must be applied to a value before it is converted to Type so that any
 	// omitted optional attributes are populated with their declared defaults.
 	TypeDefaults *typeexpr.Defaults
+	
 	// Common name of the variable
 	Name string
 	// Description of the variable
