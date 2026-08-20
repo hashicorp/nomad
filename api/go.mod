@@ -9,14 +9,12 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/cronexpr v1.1.3
 	github.com/hashicorp/go-cleanhttp v0.5.2
-	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/shoenig/test v1.13.2
 )
 
 require (
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
 )
