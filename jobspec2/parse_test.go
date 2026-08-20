@@ -13,7 +13,6 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParse_ConnectJob(t *testing.T) {
@@ -50,11 +49,11 @@ job "example" {
 		ArgVars: []string{"region_var=aug"},
 		AllowFS: true,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.Equal(t, []string{"DC1", "DC2"}, out.Datacenters)
-	require.NotNil(t, out.Region)
-	require.Equal(t, "aug", *out.Region)
+	must.Eq(t, []string{"DC1", "DC2"}, out.Datacenters)
+	must.NotNil(t, out.Region)
+	must.Eq(t, "aug", *out.Region)
 }
 
 func TestParse_VariablesDefaultsAndSet(t *testing.T) {
@@ -81,11 +80,11 @@ job "example" {
 			Body:    []byte(hcl),
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"default_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "default_region", *out.Region)
+		must.Eq(t, []string{"default_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "default_region", *out.Region)
 	})
 
 	t.Run("set via -var args", func(t *testing.T) {
@@ -95,11 +94,11 @@ job "example" {
 			ArgVars: []string{"dc_var=set_dc", "region_var=set_region"},
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"set_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region", *out.Region)
+		must.Eq(t, []string{"set_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region", *out.Region)
 	})
 
 	t.Run("set via envvars", func(t *testing.T) {
@@ -112,22 +111,22 @@ job "example" {
 			},
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"set_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region", *out.Region)
+		must.Eq(t, []string{"set_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region", *out.Region)
 	})
 
 	t.Run("set via var-files", func(t *testing.T) {
 		varFile, err := os.CreateTemp("", "")
-		require.NoError(t, err)
+		must.NoError(t, err)
 		defer os.Remove(varFile.Name())
 
 		content := `dc_var = "set_dc"
 	region_var = "set_region"`
 		_, err = varFile.WriteString(content)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		out, err := ParseWithConfig(&ParseConfig{
 			Path:     "input.hcl",
@@ -135,11 +134,11 @@ job "example" {
 			VarFiles: []string{varFile.Name()},
 			AllowFS:  true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"set_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region", *out.Region)
+		must.Eq(t, []string{"set_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region", *out.Region)
 	})
 
 	t.Run("var-file does not exist", func(t *testing.T) {
@@ -150,8 +149,8 @@ job "example" {
 			VarFiles: []string{"does-not-exist.hcl"},
 			AllowFS:  true,
 		})
-		require.Error(t, err)
-		require.Nil(t, out)
+		must.Error(t, err)
+		must.Nil(t, out)
 	})
 }
 
@@ -179,14 +178,14 @@ job "example" {
 		ArgVars: []string{"region_var=aug"},
 		AllowFS: true,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	meta := map[string]string{
 		"known_var":   "aug",
 		"unknown_var": "${UNKNOWN}",
 	}
 
-	require.Equal(t, meta, out.Meta)
+	must.Eq(t, meta, out.Meta)
 }
 
 // TestParse_UnsetVariables asserts that variables that have neither types nor
@@ -209,8 +208,8 @@ job "example" {
 		AllowFS: true,
 	})
 
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Unset variable")
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Unset variable")
 }
 
 func TestParse_Locals(t *testing.T) {
@@ -240,11 +239,11 @@ job "example" {
 			Body:    []byte(hcl),
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"local_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "default_region.example", *out.Region)
+		must.Eq(t, []string{"local_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "default_region.example", *out.Region)
 	})
 
 	t.Run("set via -var argments", func(t *testing.T) {
@@ -254,11 +253,11 @@ job "example" {
 			ArgVars: []string{"region_var=set_region"},
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"local_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region.example", *out.Region)
+		must.Eq(t, []string{"local_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region.example", *out.Region)
 	})
 }
 
@@ -278,13 +277,13 @@ job "example" {
 			ArgVars: nil,
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		expected, err := os.ReadFile("parse_test.go")
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.NotNil(t, out.Region)
-		require.Equal(t, string(expected), *out.Region)
+		must.NotNil(t, out.Region)
+		must.Eq(t, string(expected), *out.Region)
 	})
 
 	t.Run("disabled", func(t *testing.T) {
@@ -294,8 +293,8 @@ job "example" {
 			ArgVars: nil,
 			AllowFS: false,
 		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "filesystem function disabled")
+		must.Error(t, err)
+		must.ErrorContains(t, err, "filesystem function disabled")
 	})
 }
 
@@ -345,21 +344,21 @@ job "example" {
 		ArgVars: nil,
 		AllowFS: false,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.Len(t, out.TaskGroups, 3)
-	require.Equal(t, "groupA", *out.TaskGroups[0].Name)
-	require.Equal(t, "groupB", *out.TaskGroups[1].Name)
-	require.Equal(t, "groupC", *out.TaskGroups[2].Name)
-	require.Equal(t, 1, *out.TaskGroups[0].Tasks[0].Resources.CPU)
-	require.Equal(t, "groupA", out.TaskGroups[0].Services[0].PortLabel)
+	must.Len(t, 3, out.TaskGroups)
+	must.Eq(t, "groupA", *out.TaskGroups[0].Name)
+	must.Eq(t, "groupB", *out.TaskGroups[1].Name)
+	must.Eq(t, "groupC", *out.TaskGroups[2].Name)
+	must.Eq(t, 1, *out.TaskGroups[0].Tasks[0].Resources.CPU)
+	must.Eq(t, "groupA", out.TaskGroups[0].Services[0].PortLabel)
 
 	// interpolation inside maps
-	require.Equal(t, "groupA", out.TaskGroups[0].Tasks[0].Config["command"])
-	require.Equal(t, "1", out.TaskGroups[0].Tasks[0].Meta["VERSION"])
-	require.Equal(t, "id:1", out.TaskGroups[0].Tasks[0].Env["ID"])
-	require.Equal(t, "id:2", out.TaskGroups[1].Tasks[0].Env["ID"])
-	require.Equal(t, "3", out.TaskGroups[2].Tasks[0].Meta["VERSION"])
+	must.Eq(t, "groupA", out.TaskGroups[0].Tasks[0].Config["command"])
+	must.Eq(t, "1", out.TaskGroups[0].Tasks[0].Meta["VERSION"])
+	must.Eq(t, "id:1", out.TaskGroups[0].Tasks[0].Env["ID"])
+	must.Eq(t, "id:2", out.TaskGroups[1].Tasks[0].Env["ID"])
+	must.Eq(t, "3", out.TaskGroups[2].Tasks[0].Meta["VERSION"])
 }
 
 func TestParse_InvalidHCL(t *testing.T) {
@@ -374,17 +373,17 @@ func TestParse_InvalidHCL(t *testing.T) {
 			ArgVars: []string{},
 			AllowFS: true,
 		})
-		require.Error(t, err)
+		must.Error(t, err)
 	})
 
 	t.Run("invalid vars file", func(t *testing.T) {
 		tmp, err := os.CreateTemp("", "nomad-jobspec2-")
-		require.NoError(t, err)
+		must.NoError(t, err)
 		defer os.Remove(tmp.Name())
 
 		vars := `invalid{hcl`
 		_, err = tmp.Write([]byte(vars))
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		hcl := `
 variables {
@@ -403,7 +402,7 @@ job "example" {
 			ArgVars:  []string{},
 			AllowFS:  true,
 		})
-		require.Error(t, err)
+		must.Error(t, err)
 	})
 }
 
@@ -564,10 +563,10 @@ job "example" {
 				AllowFS: false,
 			})
 			if c.expectedErr == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), c.expectedErr)
+				must.Error(t, err)
+				must.ErrorContains(t, err, c.expectedErr)
 			}
 		})
 	}
@@ -698,8 +697,8 @@ job "job-webserver" {
 				AllowFS: false,
 				ArgVars: []string{"env=" + c.env},
 			})
-			require.NoError(t, err)
-			require.Equal(t, c.expectedJob, found)
+			must.NoError(t, err)
+			must.Eq(t, c.expectedJob, found)
 		})
 	}
 }
@@ -772,9 +771,9 @@ job "example" {
 				Path: "input.hcl",
 				Body: []byte(hcl),
 			})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			require.Equal(t, c.expected, out.TaskGroups[0].Tasks[0].Env)
+			must.Eq(t, c.expected, out.TaskGroups[0].Tasks[0].Env)
 		})
 	}
 }
@@ -801,8 +800,8 @@ job "example" {
 		Path: "input.hcl",
 		Body: []byte(hcl),
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Duplicate env block")
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Duplicate env block")
 }
 
 func Test_TaskEnvs_Invalid(t *testing.T) {
@@ -849,8 +848,8 @@ job "example" {
 				Path: "input.hcl",
 				Body: []byte(hcl),
 			})
-			require.Error(t, err)
-			require.Contains(t, err.Error(), c.expectedErr)
+			must.Error(t, err)
+			must.ErrorContains(t, err, c.expectedErr)
 		})
 	}
 }
@@ -885,21 +884,21 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 		Path: "input.hcl",
 		Body: []byte(hcl),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	hclAsAttr := strings.ReplaceAll(hcl, "meta {", "meta = {")
-	require.Equal(t, 3, strings.Count(hclAsAttr, "meta = {"))
+	must.Eq(t, 3, strings.Count(hclAsAttr, "meta = {"))
 
 	asAttr, err := ParseWithConfig(&ParseConfig{
 		Path: "input.hcl",
 		Body: []byte(hclAsAttr),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.Equal(t, asBlock, asAttr)
-	require.Equal(t, map[string]string{"source": "job"}, asBlock.Meta)
-	require.Equal(t, map[string]string{"source": "group"}, asBlock.TaskGroups[0].Meta)
-	require.Equal(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
+	must.Eq(t, asBlock, asAttr)
+	must.Eq(t, map[string]string{"source": "job"}, asBlock.Meta)
+	must.Eq(t, map[string]string{"source": "group"}, asBlock.TaskGroups[0].Meta)
+	must.Eq(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
 
 }
 
@@ -1027,9 +1026,9 @@ func TestParse_UndefinedVariables(t *testing.T) {
 				Path: "input.hcl",
 				Body: []byte(hcl),
 			})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			require.Equal(t, c, *job.Region)
+			must.Eq(t, c, *job.Region)
 		})
 	}
 
@@ -1042,9 +1041,9 @@ func TestParse_UndefinedVariables(t *testing.T) {
 			Path: "input.hcl",
 			Body: []byte(hcl),
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, "${meta.mytest}", *job.Region)
+		must.Eq(t, "${meta.mytest}", *job.Region)
 
 	})
 }
@@ -1071,7 +1070,7 @@ func TestParseServiceCheck(t *testing.T) {
 		Path: "input.hcl",
 		Body: []byte(hcl),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	expectedJob := &api.Job{
 		ID:   new("group_service_check_script"),
@@ -1097,14 +1096,14 @@ func TestParseServiceCheck(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, expectedJob, parsedJob)
+	must.Eq(t, expectedJob, parsedJob)
 }
 
 func TestWaitConfig(t *testing.T) {
 	t.Parallel()
 
 	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	job, err := ParseWithConfig(&ParseConfig{
 		Path:    "test-fixtures/template-wait-config.hcl",
@@ -1112,47 +1111,47 @@ func TestWaitConfig(t *testing.T) {
 		AllowFS: false,
 	})
 
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
-	require.NotNil(t, tmpl)
-	require.NotNil(t, tmpl.Wait)
-	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
-	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
+	must.NotNil(t, tmpl)
+	must.NotNil(t, tmpl.Wait)
+	must.Eq(t, 5*time.Second, *tmpl.Wait.Min)
+	must.Eq(t, 60*time.Second, *tmpl.Wait.Max)
 }
 
 func TestErrMissingKey(t *testing.T) {
 	t.Parallel()
 	hclBytes, err := os.ReadFile("test-fixtures/template-err-missing-key.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	job, err := ParseWithConfig(&ParseConfig{
 		Path:    "test-fixtures/template-err-missing-key.hcl",
 		Body:    hclBytes,
 		AllowFS: false,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
-	require.NotNil(t, tmpl)
-	require.NotNil(t, tmpl.ErrMissingKey)
-	require.True(t, *tmpl.ErrMissingKey)
+	must.NotNil(t, tmpl)
+	must.NotNil(t, tmpl.ErrMissingKey)
+	must.True(t, *tmpl.ErrMissingKey)
 }
 
 func TestRestartRenderTemplates(t *testing.T) {
 	t.Parallel()
 	hclBytes, err := os.ReadFile("test-fixtures/restart-render-templates.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	job, err := ParseWithConfig(&ParseConfig{
 		Path:    "test-fixtures/restart-render-templates.hcl",
 		Body:    hclBytes,
 		AllowFS: false,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	tg := job.TaskGroups[0]
-	require.NotNil(t, tg.RestartPolicy)
-	require.True(t, *tg.RestartPolicy.RenderTemplates)
+	must.NotNil(t, tg.RestartPolicy)
+	must.True(t, *tg.RestartPolicy.RenderTemplates)
 
-	require.Nil(t, tg.Tasks[0].RestartPolicy)
-	require.False(t, *tg.Tasks[1].RestartPolicy.RenderTemplates)
+	must.Nil(t, tg.Tasks[0].RestartPolicy)
+	must.False(t, *tg.Tasks[1].RestartPolicy.RenderTemplates)
 }
 
 // TestIdentity asserts that the default identity will be moved from the
