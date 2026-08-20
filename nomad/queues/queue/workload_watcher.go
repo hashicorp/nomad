@@ -86,13 +86,27 @@ func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workloa
 		err := w.waitWithTimeout(ctx, workload, ws)
 
 		if err == context.DeadlineExceeded {
+			// Check if timeout was due to non-resource constraints
+			if w.isConstraintFailure(workload) {
+				// Send result and stop waiting - constraint failures won't resolve
+				w.mu.Lock()
+				w.currentPlacements--
+				w.mu.Unlock()
+
+				w.results <- PlacementResult{
+					Workload: workload,
+					TimedOut: true,
+				}
+				return
+			}
+
 			// Send result of the timeout
 			w.results <- PlacementResult{
 				Workload: workload,
 				TimedOut: true,
 			}
 
-			// Continue waiting for placement to complete
+			// Continue waiting for placement to complete (resource exhaustion may resolve)
 			err = w.wait(ctx, workload, ws)
 		}
 
@@ -172,6 +186,39 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload, ws memdb.
 	}
 
 	return nil
+}
+
+// isConstraintFailure checks if the evaluation failed due to non-resource constraints
+// (e.g., constraint filters) rather than resource exhaustion (CPU, memory, etc).
+// Returns true if the failure is constraint-related and unlikely to resolve with time.
+func (w *WorkloadWatcher) isConstraintFailure(workload Workload) bool {
+	eval := workload.GetEval()
+	if eval == nil || eval.FailedTGAllocs == nil {
+		return false
+	}
+
+	// Check each task group's allocation metrics
+	for _, metric := range eval.FailedTGAllocs {
+		if metric == nil {
+			continue
+		}
+
+		// If there are constraint filters but no resource exhaustion, it's a constraint failure
+		hasConstraintFilters := len(metric.ConstraintFiltered) > 0
+		hasResourceExhaustion := metric.NodesExhausted > 0 ||
+			len(metric.ClassExhausted) > 0 ||
+			len(metric.DimensionExhausted) > 0 ||
+			len(metric.QuotaExhausted) > 0
+
+		if hasConstraintFilters && !hasResourceExhaustion {
+			w.logger.Debug("detected constraint failure",
+				"eval_id", eval.ID,
+				"constraint_filtered", metric.ConstraintFiltered)
+			return true
+		}
+	}
+
+	return false
 }
 
 // IsSchedulingComplete detects whether a workload was actually placed by following the

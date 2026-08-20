@@ -277,3 +277,178 @@ func TestWorkloadWatcher_isSchedulingComplete(t *testing.T) {
 		must.True(t, complete)
 	})
 }
+
+
+func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
+	t.Run("detects constraint failure without resource exhaustion", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{
+					"${attr.kernel.name} == linux": 5,
+				},
+				NodesExhausted:     0,
+				ClassExhausted:     map[string]int{},
+				DimensionExhausted: map[string]int{},
+				QuotaExhausted:     []string{},
+			},
+		}
+
+		workload := &testWorkload{eval: testEval}
+		must.True(t, watcher.isConstraintFailure(workload))
+	})
+
+	t.Run("does not detect constraint failure with resource exhaustion", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{
+					"${attr.kernel.name} == linux": 5,
+				},
+				NodesExhausted: 10,
+				ClassExhausted: map[string]int{"compute": 5},
+			},
+		}
+
+		workload := &testWorkload{eval: testEval}
+		must.False(t, watcher.isConstraintFailure(workload))
+	})
+
+	t.Run("detects pure resource exhaustion as not constraint failure", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{},
+				NodesExhausted:     15,
+				DimensionExhausted: map[string]int{"cpu": 10, "memory": 5},
+			},
+		}
+
+		workload := &testWorkload{eval: testEval}
+		must.False(t, watcher.isConstraintFailure(workload))
+	})
+
+	t.Run("handles nil FailedTGAllocs", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = nil
+
+		workload := &testWorkload{eval: testEval}
+		must.False(t, watcher.isConstraintFailure(workload))
+	})
+
+	t.Run("handles quota exhaustion as resource issue", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{
+					"${attr.kernel.name} == linux": 5,
+				},
+				QuotaExhausted: []string{"default"},
+			},
+		}
+
+		workload := &testWorkload{eval: testEval}
+		must.False(t, watcher.isConstraintFailure(workload))
+	})
+}
+
+func TestWorkloadWatcher_WaitForPlacement_ConstraintTimeout(t *testing.T) {
+	t.Run("stops waiting on constraint failure timeout", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
+			WorkloadTimeout:      50 * time.Millisecond,
+			ConcurrentPlacements: 1,
+		})
+		resultsCh := watcher.Results()
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{
+					"${attr.kernel.name} == linux": 5,
+				},
+				NodesExhausted: 0,
+			},
+		}
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		ws := memdb.NewWatchSet()
+		workload := &testWorkload{eval: testEval.Copy()}
+		watcher.WaitForPlacement(t.Context(), workload, ws)
+
+		// Should receive timeout result
+		result := <-resultsCh
+		must.True(t, result.TimedOut)
+
+		// Should have released the placement slot immediately
+		time.Sleep(20 * time.Millisecond)
+		must.True(t, watcher.CanAttemptPlacement())
+
+		// Should NOT receive another result (watcher stopped)
+		select {
+		case <-resultsCh:
+			t.Fatal("should not have received second result for constraint failure")
+		case <-time.After(100 * time.Millisecond):
+			// Expected - no second result
+		}
+	})
+
+	t.Run("continues waiting on resource exhaustion timeout", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
+			WorkloadTimeout:      50 * time.Millisecond,
+			ConcurrentPlacements: 1,
+		})
+		resultsCh := watcher.Results()
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				NodesExhausted:     10,
+				DimensionExhausted: map[string]int{"cpu": 5},
+			},
+		}
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		ws := memdb.NewWatchSet()
+		workload := &testWorkload{eval: testEval.Copy()}
+		watcher.WaitForPlacement(t.Context(), workload, ws)
+
+		// Should receive timeout result
+		result := <-resultsCh
+		must.True(t, result.TimedOut)
+
+		// Should still be waiting (placement slot not released yet)
+		time.Sleep(20 * time.Millisecond)
+		must.False(t, watcher.CanAttemptPlacement())
+
+		// Complete the eval
+		testEval.Status = structs.EvalStatusComplete
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+
+		// Should receive completion result
+		result = <-resultsCh
+		must.False(t, result.TimedOut)
+		must.NoError(t, result.Err)
+
+		// Now placement slot should be released
+		time.Sleep(20 * time.Millisecond)
+		must.True(t, watcher.CanAttemptPlacement())
+	})
+}
+
