@@ -10,8 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
-
-	"github.com/hashicorp/go-multierror"
 )
 
 const (
@@ -258,21 +256,21 @@ func (c *Client) NewLockLeaser(l Locker, opts ...LockLeaserOption) *LockLeaser {
 // function and maintain the lease but is in charge of releasing the
 // lock before exiting. It is a blocking function.
 func (ll *LockLeaser) Start(ctx context.Context, protectedFuncs ...func(ctx context.Context) error) error {
-	var mErr multierror.Error
+	var mErr []error
 
 	err := ll.start(ctx, protectedFuncs...)
 	if err != nil {
-		mErr.Errors = append(mErr.Errors, err)
+		mErr = append(mErr, err)
 	}
 
 	if ll.locked {
 		err = ll.locker.Release(ctx)
 		if err != nil {
-			mErr.Errors = append(mErr.Errors, fmt.Errorf("lock release: %w", err))
+			mErr = append(mErr, fmt.Errorf("lock release: %w", err))
 		}
 	}
 
-	return mErr.ErrorOrNil()
+	return errors.Join(mErr...)
 }
 
 // start starts the process of maintaining the lease and executes the protected
