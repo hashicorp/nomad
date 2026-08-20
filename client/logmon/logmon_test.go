@@ -277,6 +277,45 @@ func TestLogmon_Start_restart(t *testing.T) {
 	})
 }
 
+func TestLogmon_Close(t *testing.T) {
+	ci.Parallel(t)
+
+	var stdoutFifoPath, stderrFifoPath string
+
+	dir := t.TempDir()
+
+	if runtime.GOOS == "windows" {
+		stdoutFifoPath = "//./pipe/test-rotate.stdout"
+		stderrFifoPath = "//./pipe/test-rotate.stderr"
+	} else {
+		stdoutFifoPath = filepath.Join(dir, "stdout.fifo")
+		stderrFifoPath = filepath.Join(dir, "stderr.fifo")
+	}
+
+	cfg := &LogConfig{
+		LogDir:        dir,
+		StdoutLogFile: "stdout",
+		StdoutFifo:    stdoutFifoPath,
+		StderrLogFile: "stderr",
+		StderrFifo:    stderrFifoPath,
+		MaxFiles:      2,
+		MaxFileSizeMB: 1,
+	}
+
+	// Create the instance directly so we can inspect the internals.
+	lm := &logmonImpl{logger: testlog.HCLogger(t)}
+	must.NoError(t, lm.Start(cfg))
+
+	// Now we'll immediately stop the instance. We are testing that
+	// once the instance is stopped both task loggers are fully
+	// closed and no longer running.
+	lm.Stop()
+
+	// The task logger should not remain running.
+	must.False(t, lm.tl.IsRunning(),
+		must.Sprint("task logger should not be running after Stop"))
+}
+
 // panicWriter panics on use
 type panicWriter struct{}
 
