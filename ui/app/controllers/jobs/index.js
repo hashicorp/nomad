@@ -86,12 +86,31 @@ export default class JobsIndexController extends Controller {
   }
 
   // #region pagination
+  // cursorAt is the opaque page-start token for the current page; it is always
+  // a string or undefined (never null, which unlike undefined is not omitted
+  // from the query string). undefined means the first page, which has no cursor.
   @tracked cursorAt;
   @tracked nextToken; // route sets this when new data is fetched
 
+  // onFirstPage drives the disabled state of the first/previous buttons. "prev"
+  // lands on a server-minted cursor rather than an empty one, so being on the
+  // first page can't be read from cursorAt alone; reachedStart probes for it.
+  @tracked onFirstPage = true;
+
+  // cursorFor builds a page-start cursor from a job, matching the server's
+  // "<modifyIndex>.<namespace>.<id>" jobs/statuses token. Only "last" needs it:
+  // that page has no forward token to seed from, since nothing points back into
+  // the final page. Every other move reuses a token the server minted.
+  cursorFor(job) {
+    if (!job) {
+      return undefined;
+    }
+    const namespace = job.belongsTo('namespace').id() || 'default';
+    return `${job.modifyIndex}.${namespace}.${job.plainId}`;
+  }
+
   /**
-   *
-   * @param {"prev"|"next"} page
+   * @param {"prev"|"next"|"first"|"last"} page
    */
   @action async handlePageChange(page) {
     // reset indexes
@@ -102,41 +121,53 @@ export default class JobsIndexController extends Controller {
       if (!this.cursorAt) {
         return;
       }
-      // Note (and TODO:) this isn't particularly efficient!
-      // We're making an extra full request to get the nextToken we need,
-      // but actually the results of that request are the reverse order, plus one job,
-      // of what we actually want to show on the page!
-      // I should investigate whether I can use the results of this query to
-      // overwrite this controller's jobIDs, leverage its index, and
-      // restart a blocking watchJobIDs here.
-      let prevPageToken = await this.loadPreviousPageToken();
-      // If there's no nextToken, we're at the "start" of our list and can drop the cursorAt
-      if (!prevPageToken.meta.nextToken) {
-        this.cursorAt = undefined;
-      } else {
-        // cursorAt should be the highest modifyIndex from the previous query.
-        // This will immediately fire the route model hook with the new cursorAt
-        const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
-        this.cursorAt = prevPageToken
-          ? sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex
-          : undefined;
-      }
+      // A reverse query seeded at the current page's first job returns the
+      // previous page's start token as meta.nextToken. Keep only that token and
+      // render forward, discarding the returned jobs. This never constructs a
+      // cursor and works from a cold cursorAt (refresh / shared URL), since it
+      // reads the query param rather than in-memory history. An empty token
+      // means the previous page is the first page, which has no cursor.
+      const prevPage = await this.loadReverse({ next_token: this.cursorAt });
+      this.cursorAt = prevPage.meta.nextToken || undefined;
+      this.onFirstPage = await this.reachedStart(this.cursorAt);
     } else if (page === 'next') {
       if (!this.nextToken) {
         return;
       }
-      this.cursorAt = this.nextToken;
+      this.cursorAt = this.nextToken; // server-minted
+      this.onFirstPage = false;
     } else if (page === 'first') {
       this.cursorAt = undefined;
+      this.onFirstPage = true;
     } else if (page === 'last') {
-      let prevPageToken = await this.loadPreviousPageToken({ last: true });
-      const sortedPrevPage = prevPageToken.sortBy('modifyIndex');
-      this.cursorAt = sortedPrevPage[sortedPrevPage.length - 1]?.modifyIndex;
+      // The one page the server can't mint a forward cursor for: nothing points
+      // back into the final page. Fetch it in reverse and build the cursor from
+      // its newest job (its first in display order).
+      const lastPage = await this.loadReverse();
+      const sorted = lastPage.sortBy('modifyIndex');
+      this.cursorAt = this.cursorFor(sorted[sorted.length - 1]);
+      this.onFirstPage = false;
     }
+  }
+
+  // reachedStart reports whether cursorAt points at the first page. A per_page=1
+  // reverse probe from the cursor returns an empty nextToken only when nothing
+  // is newer than it, which is true exactly on the first page.
+  async reachedStart(cursorAt) {
+    if (!cursorAt) {
+      return true;
+    }
+    const probe = await this.loadReverse({ next_token: cursorAt, per_page: 1 });
+    return !probe.meta.nextToken;
   }
 
   @action handlePageSizeChange(size) {
     this.pageSize = size;
+    // Page boundaries depend on page size, so the current cursor no longer lines
+    // up once it changes. Reset to the first page rather than page from a stale
+    // cursor.
+    this.cursorAt = undefined;
+    this.onFirstPage = true;
   }
 
   get pendingJobIDDiff() {
@@ -278,28 +309,17 @@ export default class JobsIndexController extends Controller {
       });
   }
 
-  // Ask for the previous #page_size jobs, starting at the first job that's currently shown
-  // on our page, and the last one in our list should be the one we use for our
-  // subsequent nextToken.
-  async loadPreviousPageToken({ last = false } = {}) {
-    let next_token = +this.cursorAt + 1;
-    if (last) {
-      next_token = undefined;
-    }
-    let prevPageToken = await this.store.query(
+  // Reverse query used by prev (to read the previous page's start token from
+  // meta.nextToken) and by last (to fetch the final page). per_page is exactly
+  // pageSize: prev reads the minted token rather than picking a job out of the
+  // result, so it needs no overlap job. next_token defaults to undefined, which
+  // "last" uses to walk back from the end of the list.
+  async loadReverse({ next_token = undefined, per_page = this.pageSize } = {}) {
+    return this.store.query(
       'job',
-      {
-        next_token,
-        per_page: this.pageSize,
-        reverse: true,
-      },
-      {
-        adapterOptions: {
-          method: 'GET',
-        },
-      },
+      { next_token, per_page, reverse: true },
+      { adapterOptions: { method: 'GET' } },
     );
-    return prevPageToken;
   }
 
   @restartableTask *watchJobIDs(
@@ -600,7 +620,8 @@ export default class JobsIndexController extends Controller {
 
   @action
   updateFilter() {
-    this.cursorAt = null;
+    this.cursorAt = undefined;
+    this.onFirstPage = true;
     this.filter = this.computedFilter;
   }
 
