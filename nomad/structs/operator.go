@@ -385,10 +385,13 @@ const (
 )
 
 type BatchQueue struct {
-	Type        BatchQueueType   `hcl:"type"`
-	TenantType  BatchQueueTenant `hcl:"tenant_type"`
-	MetadataKey string           `hcl:"metadata_key"`
-	Config      map[string]any   `hcl:"config"`
+	Type                 BatchQueueType   `hcl:"type"`
+	TenantType           BatchQueueTenant `hcl:"tenant_type"`
+	MetadataKey          string           `hcl:"metadata_key"`
+	ConcurrentPlacements int              `hcl:"concurrent_placements"`
+	WorkloadTimeout      time.Duration
+	WorkloadTimeoutHCL   string         `hcl:"workload_timeout" json:"-"`
+	Config               map[string]any `hcl:"config"`
 }
 
 type DynamicQueueConfig struct {
@@ -447,6 +450,21 @@ func (b *BatchQueue) Validate() error {
 		return nil
 	}
 
+	if b.WorkloadTimeoutHCL != "" {
+		_, err := time.ParseDuration(b.WorkloadTimeoutHCL)
+		if err != nil {
+			return fmt.Errorf("batch_queue.workload_timeout can't parse time duration %s", b.WorkloadTimeoutHCL)
+		}
+	}
+
+	if b.WorkloadTimeoutHCL == "" && b.ConcurrentPlacements > 1 {
+		return fmt.Errorf("concurrent_placements can not be set without a workload_timeout")
+	}
+
+	if b.WorkloadTimeoutHCL != "" && b.ConcurrentPlacements <= 1 {
+		return fmt.Errorf("workload_timeout will have no effect without concurrent_placements set")
+	}
+
 	switch b.Type {
 	case BatchQueueTypeDynamic:
 		conf := DynamicQueueConfig{}
@@ -480,6 +498,12 @@ func (b *BatchQueue) Canonicalize() {
 		b.TenantType = ""
 		b.MetadataKey = ""
 		b.Config = map[string]any{}
+	}
+
+	if b.WorkloadTimeoutHCL != "" {
+		// ignore the error because it was checked in Validate()
+		d, _ := time.ParseDuration(b.WorkloadTimeoutHCL)
+		b.WorkloadTimeout = d
 	}
 }
 

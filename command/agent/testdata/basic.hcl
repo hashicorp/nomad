@@ -174,6 +174,12 @@ server {
       system_scheduler_enabled  = true
       service_scheduler_enabled = true
     }
+
+    batch_queue {
+      type                  = "fifo"
+      workload_timeout      = "5m"
+      concurrent_placements = 100
+    }
   }
 
   client_introduction {

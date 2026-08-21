@@ -6,6 +6,7 @@ package queue
 import (
 	"context"
 
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -27,4 +28,8 @@ type Workload interface {
 	GetEval() *structs.Evaluation
 	SetEval(*structs.Evaluation)
 	WaitOnRestore() bool
+}
+
+type Snapshotter interface {
+	Snapshot() (*state.StateSnapshot, error)
 }
