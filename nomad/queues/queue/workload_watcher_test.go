@@ -20,6 +20,7 @@ import (
 type testWorkload struct {
 	eval *structs.Evaluation
 	wait bool
+	s    string
 }
 
 func (w *testWorkload) GetEval() *structs.Evaluation {
@@ -27,6 +28,13 @@ func (w *testWorkload) GetEval() *structs.Evaluation {
 }
 func (w *testWorkload) SetEval(e *structs.Evaluation) {
 	w.eval = e
+}
+func (w *testWorkload) GetStatus() string {
+	return w.s
+}
+func (w *testWorkload) SetStatus(s, d string) {
+	w.s = fmt.Sprintf("%s %s", s, d)
+
 }
 func (w *testWorkload) WaitOnRestore() bool {
 	return w.wait
@@ -45,10 +53,17 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		workload := &testWorkload{eval: testEval.Copy()}
 		watcher.WaitForPlacement(t.Context(), workload, ws)
 
+		inProgress := watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval.ID])
+
 		testEval.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
 		result := <-resultsCh
+
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 0, len(inProgress))
 
 		must.NoError(t, result.Err)
 	})
@@ -94,6 +109,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 
 		result := <-resultsCh
 		must.NoError(t, result.Err)
+
 	})
 
 	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
@@ -155,10 +171,18 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		watcher.WaitForPlacement(t.Context(), workload, ws)
 		must.False(t, watcher.CanAttemptPlacement())
 
+		inProgress := watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval.ID])
+
 		result := <-resultsCh
 
 		must.True(t, result.TimedOut)
 		must.False(t, watcher.CanAttemptPlacement())
+
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval.ID])
 
 		testEval.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
@@ -168,6 +192,8 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		must.False(t, result.TimedOut)
 		must.True(t, watcher.CanAttemptPlacement())
 
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 0, len(inProgress))
 	})
 
 	t.Run("tracks concurrent placements", func(t *testing.T) {
@@ -212,6 +238,190 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 
 		result2 := <-resultsCh
 		must.NoError(t, result2.Err)
+	})
+	t.Run("stops waiting on constraint failure timeout", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
+			WorkloadTimeout:      50 * time.Millisecond,
+			ConcurrentPlacements: 1,
+		})
+		resultsCh := watcher.Results()
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{
+					"${attr.kernel.name} == linux": 5,
+				},
+				NodesExhausted: 0,
+			},
+		}
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		ws := memdb.NewWatchSet()
+		workload := &testWorkload{eval: testEval.Copy()}
+		watcher.WaitForPlacement(t.Context(), workload, ws)
+
+		inProgress := watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval.ID])
+
+		// Should receive timeout result
+		result := <-resultsCh
+		must.True(t, result.TimedOut)
+
+		// Should have released the placement slot immediately
+		time.Sleep(20 * time.Millisecond)
+		must.True(t, watcher.CanAttemptPlacement())
+
+		// Should NOT receive another result (watcher stopped)
+		select {
+		case <-resultsCh:
+			t.Fatal("should not have received second result for constraint failure")
+		case <-time.After(100 * time.Millisecond):
+			// Expected - no second result
+		}
+	})
+
+	t.Run("continues waiting on resource exhaustion timeout", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
+			WorkloadTimeout:      50 * time.Millisecond,
+			ConcurrentPlacements: 1,
+		})
+		resultsCh := watcher.Results()
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				NodesExhausted:     10,
+				DimensionExhausted: map[string]int{"cpu": 5},
+			},
+		}
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		ws := memdb.NewWatchSet()
+		workload := &testWorkload{eval: testEval.Copy()}
+		watcher.WaitForPlacement(t.Context(), workload, ws)
+
+		// Should receive timeout result
+		result := <-resultsCh
+		must.True(t, result.TimedOut)
+
+		// Should still be waiting (placement slot not released yet)
+		time.Sleep(20 * time.Millisecond)
+		must.False(t, watcher.CanAttemptPlacement())
+
+		inProgress := watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval.ID])
+
+		// Complete the eval
+		testEval.Status = structs.EvalStatusComplete
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+
+		// Should receive completion result
+		result = <-resultsCh
+		must.False(t, result.TimedOut)
+		must.NoError(t, result.Err)
+
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 0, len(inProgress))
+
+		// Now placement slot should be released
+		time.Sleep(20 * time.Millisecond)
+		must.True(t, watcher.CanAttemptPlacement())
+	})
+
+	t.Run("strict_constraint does not release placement when blocked on a constraint", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
+			WorkloadTimeout:      50 * time.Millisecond,
+			ConcurrentPlacements: 1,
+			StrictConstraints:    true,
+		})
+		resultsCh := watcher.Results()
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{
+					"${attr.kernel.name} == linux": 5,
+				},
+				NodesExhausted: 0,
+			},
+		}
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		ws := memdb.NewWatchSet()
+		workload := &testWorkload{eval: testEval.Copy()}
+		watcher.WaitForPlacement(t.Context(), workload, ws)
+
+		inProgress := watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval.ID])
+
+		// Should receive timeout result
+		result := <-resultsCh
+		must.True(t, result.TimedOut)
+		must.Eq(t, result.Workload.GetStatus(), "constrained ${attr.kernel.name} == linux")
+
+		// Should not release the placement slot
+		time.Sleep(20 * time.Millisecond)
+		must.False(t, watcher.CanAttemptPlacement())
+
+		// Complete the eval
+		testEval.Status = structs.EvalStatusComplete
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+
+		// Should receive completion result
+		result = <-resultsCh
+		must.False(t, result.TimedOut)
+		must.NoError(t, result.Err)
+		time.Sleep(20 * time.Millisecond)
+		must.True(t, watcher.CanAttemptPlacement())
+	})
+
+	t.Run("drop_workloads does not continue to track workloads", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
+			WorkloadTimeout:      50 * time.Millisecond,
+			ConcurrentPlacements: 1,
+			DropWorkloads:        true,
+		})
+		resultsCh := watcher.Results()
+
+		testEval := mock.Eval()
+		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			"web": {
+				ConstraintFiltered: map[string]int{
+					"${attr.kernel.name} == linux": 5,
+				},
+				NodesExhausted: 0,
+			},
+		}
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+
+		ws := memdb.NewWatchSet()
+		workload := &testWorkload{eval: testEval.Copy()}
+		watcher.WaitForPlacement(t.Context(), workload, ws)
+
+		inProgress := watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval.ID])
+
+		// Should receive timeout result
+		result := <-resultsCh
+		must.True(t, result.TimedOut)
+		must.Eq(t, result.Workload.GetStatus(), "constrained ${attr.kernel.name} == linux")
+		must.EqError(t, result.Err, "workload dropped due to constraints")
+
+		// Should release the placement slot
+		time.Sleep(20 * time.Millisecond)
+		must.True(t, watcher.CanAttemptPlacement())
+
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 0, len(inProgress))
 	})
 }
 
@@ -277,7 +487,6 @@ func TestWorkloadWatcher_isSchedulingComplete(t *testing.T) {
 		must.True(t, complete)
 	})
 }
-
 
 func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 	t.Run("detects constraint failure without resource exhaustion", func(t *testing.T) {
@@ -367,88 +576,35 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 	})
 }
 
-func TestWorkloadWatcher_WaitForPlacement_ConstraintTimeout(t *testing.T) {
-	t.Run("stops waiting on constraint failure timeout", func(t *testing.T) {
+func TestWorkloadWatcher_TrackPlacement(t *testing.T) {
+	t.Run("tracks and untracks workloads", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
-			WorkloadTimeout:      50 * time.Millisecond,
-			ConcurrentPlacements: 1,
-		})
-		resultsCh := watcher.Results()
+		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
 
-		testEval := mock.Eval()
-		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
-			"web": {
-				ConstraintFiltered: map[string]int{
-					"${attr.kernel.name} == linux": 5,
-				},
-				NodesExhausted: 0,
-			},
-		}
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
+		testEval1 := mock.Eval()
+		testEval2 := mock.Eval()
+		workload1 := &testWorkload{eval: testEval1}
+		workload2 := &testWorkload{eval: testEval2}
 
-		ws := memdb.NewWatchSet()
-		workload := &testWorkload{eval: testEval.Copy()}
-		watcher.WaitForPlacement(t.Context(), workload, ws)
+		inProgress := watcher.GetInProgressWorkloads()
+		must.Eq(t, 0, len(inProgress))
 
-		// Should receive timeout result
-		result := <-resultsCh
-		must.True(t, result.TimedOut)
+		watcher.TrackPlacement(workload1)
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval1.ID])
 
-		// Should have released the placement slot immediately
-		time.Sleep(20 * time.Millisecond)
-		must.True(t, watcher.CanAttemptPlacement())
+		watcher.TrackPlacement(workload2)
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 2, len(inProgress))
 
-		// Should NOT receive another result (watcher stopped)
-		select {
-		case <-resultsCh:
-			t.Fatal("should not have received second result for constraint failure")
-		case <-time.After(100 * time.Millisecond):
-			// Expected - no second result
-		}
-	})
+		watcher.UntrackPlacement(workload1)
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 1, len(inProgress))
+		must.NotNil(t, inProgress[testEval2.ID])
 
-	t.Run("continues waiting on resource exhaustion timeout", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{
-			WorkloadTimeout:      50 * time.Millisecond,
-			ConcurrentPlacements: 1,
-		})
-		resultsCh := watcher.Results()
-
-		testEval := mock.Eval()
-		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
-			"web": {
-				NodesExhausted:     10,
-				DimensionExhausted: map[string]int{"cpu": 5},
-			},
-		}
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		ws := memdb.NewWatchSet()
-		workload := &testWorkload{eval: testEval.Copy()}
-		watcher.WaitForPlacement(t.Context(), workload, ws)
-
-		// Should receive timeout result
-		result := <-resultsCh
-		must.True(t, result.TimedOut)
-
-		// Should still be waiting (placement slot not released yet)
-		time.Sleep(20 * time.Millisecond)
-		must.False(t, watcher.CanAttemptPlacement())
-
-		// Complete the eval
-		testEval.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
-
-		// Should receive completion result
-		result = <-resultsCh
-		must.False(t, result.TimedOut)
-		must.NoError(t, result.Err)
-
-		// Now placement slot should be released
-		time.Sleep(20 * time.Millisecond)
-		must.True(t, watcher.CanAttemptPlacement())
+		watcher.UntrackPlacement(workload2)
+		inProgress = watcher.GetInProgressWorkloads()
+		must.Eq(t, 0, len(inProgress))
 	})
 }
-

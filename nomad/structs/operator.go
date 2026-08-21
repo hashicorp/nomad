@@ -391,6 +391,8 @@ type BatchQueue struct {
 	ConcurrentPlacements int              `hcl:"concurrent_placements"`
 	WorkloadTimeout      time.Duration
 	WorkloadTimeoutHCL   string         `hcl:"workload_timeout" json:"-"`
+	StrictConstraints    bool           `hcl:"strict"`
+	DropWorkloads        bool           `hcl:"drop_workloads"`
 	Config               map[string]any `hcl:"config"`
 }
 

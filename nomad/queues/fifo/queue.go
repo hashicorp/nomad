@@ -220,9 +220,11 @@ func (f *FifoQueue) Type() structs.BatchQueueType {
 func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	f.qMux.Lock()
 	sortedWorkloads := f.queue.Slice()
-	defer f.qMux.Unlock()
+	f.qMux.Unlock()
 
 	workloads := []structs.QueueWorkload{}
+
+	// Add queued workloads
 	for pos, workload := range sortedWorkloads {
 		eval := workload.GetEval()
 		workloads = append(workloads, &structs.Workload{
