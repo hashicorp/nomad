@@ -125,10 +125,10 @@ func TestConsul_Connect(t *testing.T) {
 		require.Equal(t, connectService.Proxy.DestinationServiceID, serviceID)
 		require.Equal(t, connectService.Proxy.LocalServiceAddress, "127.0.0.1")
 		require.Equal(t, connectService.Proxy.LocalServicePort, 9000)
-		require.Equal(t, connectService.Proxy.Config, map[string]interface{}{
+		require.Equal(t, connectService.Proxy.Config, map[string]any{
 			"bind_address":     "0.0.0.0",
 			"bind_port":        float64(9998),
-			"envoy_stats_tags": []interface{}{"nomad.alloc_id=" + alloc.ID, "nomad.group=" + alloc.TaskGroup},
+			"envoy_stats_tags": []any{"nomad.alloc_id=" + alloc.ID, "nomad.group=" + alloc.TaskGroup},
 		})
 		require.Equal(t, alloc.ID, agentService.Meta["alloc_id"])
 

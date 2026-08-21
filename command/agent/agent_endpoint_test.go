@@ -1684,7 +1684,7 @@ type schedulerWorkerAPITest_testRequest struct {
 
 type schedulerWorkerAPITest_testExpect struct {
 	statusCode int
-	response   interface{}
+	response   any
 	err        error
 	isError    bool
 }
@@ -1868,7 +1868,7 @@ type schedulerWorkerConfigTest_testRequest struct {
 }
 type schedulerWorkerConfigTest_testExpect struct {
 	expectedResponseCode int
-	expectedResponse     interface{}
+	expectedResponse     any
 }
 
 // These test cases are run for both the ACL and Non-ACL enabled servers. When
@@ -2173,7 +2173,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_ACL(t *testing.T) {
 	httpACLTest(t, configFn, tests)
 }
 
-func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI interface{}, err error) {
+func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI any, err error) {
 	require.NoError(t, err)
 	require.NotNil(t, workersI)
 
@@ -2197,7 +2197,7 @@ func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc schedu
 // schedulerWorkerTest_parseError parses the error response given
 // from the API call to make sure that it's a coded error and is the
 // expected value from the test case
-func schedulerWorkerTest_parseError(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI interface{}, err error) {
+func schedulerWorkerTest_parseError(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI any, err error) {
 	require.Error(t, err)
 	require.Nil(t, workersI)
 

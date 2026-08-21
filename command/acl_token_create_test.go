@@ -51,7 +51,7 @@ func TestACLTokenCreateCommand(t *testing.T) {
 
 	// Test with a no-expiry token and -json/-t flag
 	testCasesNoTTL := []string{"-json", "-t='{{ .Policies }}'"}
-	var jsonMap map[string]interface{}
+	var jsonMap map[string]any
 	for _, outputFormatFlag := range testCasesNoTTL {
 		code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-policy=foo", "-type=client", outputFormatFlag})
 		must.Zero(t, code)

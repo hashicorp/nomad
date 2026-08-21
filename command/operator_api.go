@@ -138,15 +138,15 @@ func (c *OperatorAPICommand) Run(args []string) int {
 	}
 
 	// By default verbose func is a noop
-	verbose := func(string, ...interface{}) {}
-	verboseSocket := func(*api.Config, string, ...interface{}) {}
+	verbose := func(string, ...any) {}
+	verboseSocket := func(*api.Config, string, ...any) {}
 
 	if c.verboseFlag {
-		verbose = func(format string, a ...interface{}) {
+		verbose = func(format string, a ...any) {
 			// Use Warn instead of Info because Info goes to stdout
 			c.Ui.Warn(fmt.Sprintf(format, a...))
 		}
-		verboseSocket = func(cfg *api.Config, format string, a ...interface{}) {
+		verboseSocket = func(cfg *api.Config, format string, a ...any) {
 			if cfg.URL() != nil && cfg.URL().Scheme == "unix" {
 				c.Ui.Warn(fmt.Sprintf(format, a...))
 			}

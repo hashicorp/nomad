@@ -56,7 +56,7 @@ func checkConsulTLSSkipVerify(ctx context.Context, logger log.Logger, client Age
 var consulTLSSkipVerifyMinVersion = version.Must(version.NewVersion("0.7.2"))
 
 // supportsTLSSkipVerify returns true if Consul supports TLSSkipVerify.
-func supportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
+func supportsTLSSkipVerify(self map[string]map[string]any) bool {
 	member, ok := self["Member"]
 	if !ok {
 		return false
@@ -65,7 +65,7 @@ func supportsTLSSkipVerify(self map[string]map[string]interface{}) bool {
 	if !ok {
 		return false
 	}
-	tags, ok := tagsI.(map[string]interface{})
+	tags, ok := tagsI.(map[string]any)
 	if !ok {
 		return false
 	}

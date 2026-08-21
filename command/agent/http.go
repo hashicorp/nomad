@@ -84,7 +84,7 @@ var (
 	}
 )
 
-type handlerFn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
+type handlerFn func(resp http.ResponseWriter, req *http.Request) (any, error)
 type handlerByteFn func(resp http.ResponseWriter, req *http.Request) ([]byte, error)
 
 type RPCer interface {
@@ -867,7 +867,7 @@ func isAPIClientError(code int) bool {
 }
 
 // decodeBody is used to decode a JSON request body
-func decodeBody(req *http.Request, out interface{}) error {
+func decodeBody(req *http.Request, out any) error {
 
 	if req.Body == http.NoBody {
 		return errors.New("Request body is empty")
@@ -1166,7 +1166,7 @@ func (s *HTTPServer) parseWriteRequest(req *http.Request, w *structs.WriteReques
 // setting Content-Types that a browser may render (eg text/html). Any API that
 // returns service-generated content (eg /v1/client/fs/cat) must be wrapped.
 func (s *HTTPServer) wrapUntrustedContent(handler handlerFn) handlerFn {
-	return func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	return func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		resp, closeWriter := noxssrw.NewResponseWriter(resp)
 		defer func() {
 			if _, err := closeWriter(); err != nil {
