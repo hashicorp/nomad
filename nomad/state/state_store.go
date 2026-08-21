@@ -362,12 +362,12 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 		return err
 	}
 
-	allocsStopped, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsStopped)
+	allocsStopped, err := snapshot.denormalizeAllocationDiffSlice(results.AllocsStopped)
 	if err != nil {
 		return err
 	}
 
-	allocsPreempted, err := snapshot.DenormalizeAllocationDiffSlice(results.AllocsPreempted)
+	allocsPreempted, err := snapshot.denormalizeAllocationDiffSlice(results.AllocsPreempted)
 	if err != nil {
 		return err
 	}
@@ -441,9 +441,10 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	allocsToUpsert = append(allocsToUpsert, allocsPreempted...)
 
 	// handle upgrade path
-	for _, alloc := range allocsToUpsert {
+	for i, alloc := range allocsToUpsert {
 		alloc = alloc.Copy()
 		alloc.Canonicalize()
+		allocsToUpsert[i] = alloc
 	}
 
 	if err := s.upsertAllocsImpl(index, allocsToUpsert, txn); err != nil {
@@ -7410,6 +7411,8 @@ type StateSnapshot struct {
 // DenormalizeAllocationsMap takes in a map of nodes to allocations, and queries the
 // Allocation for each of the Allocation diffs and merges the updated attributes with
 // the existing Allocation, and attaches the Job provided
+//
+// This should only be called on terminal allocs, particularly stopped or preempted allocs
 func (s *StateSnapshot) DenormalizeAllocationsMap(nodeAllocations map[string][]*structs.Allocation) error {
 	for nodeID, allocs := range nodeAllocations {
 		denormalizedAllocs, err := s.DenormalizeAllocationSlice(allocs)
@@ -7433,14 +7436,14 @@ func (s *StateSnapshot) DenormalizeAllocationSlice(allocs []*structs.Allocation)
 		allocDiffs[i] = alloc.AllocationDiff()
 	}
 
-	return s.DenormalizeAllocationDiffSlice(allocDiffs)
+	return s.denormalizeAllocationDiffSlice(allocDiffs)
 }
 
-// DenormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
+// denormalizeAllocationDiffSlice queries the Allocation for each AllocationDiff and merges
 // the updated attributes with the existing Allocation, and attaches the Job provided.
 //
 // This should only be called on terminal alloc, particularly stopped or preempted allocs
-func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff) ([]*structs.Allocation, error) {
+func (s *StateSnapshot) denormalizeAllocationDiffSlice(allocDiffs []*structs.AllocationDiff) ([]*structs.Allocation, error) {
 	// Output index for denormalized Allocations
 	j := 0
 
@@ -7454,13 +7457,15 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 			return nil, fmt.Errorf("alloc %v doesn't exist", allocDiff.ID)
 		}
 
-		// Merge the updates to the Allocation.  Don't update alloc.Job for terminal allocs
-		// so alloc refers to the latest Job view before destruction and to ease handler implementations
+		// Merge the updates to the Allocation. Don't update alloc.Job for
+		// terminal allocs so alloc refers to the latest Job view before
+		// destruction and to ease handler implementations
 		allocCopy := alloc.Copy()
 
 		if allocDiff.PreemptedByAllocation != "" {
 			allocCopy.PreemptedByAllocation = allocDiff.PreemptedByAllocation
-			allocCopy.DesiredDescription = getPreemptedAllocDesiredDescription(allocDiff.PreemptedByAllocation)
+			allocCopy.DesiredDescription = fmt.Sprintf(
+				"Preempted by alloc ID %s", allocDiff.PreemptedByAllocation)
 			allocCopy.DesiredStatus = structs.AllocDesiredStatusEvict
 		} else {
 			// If alloc is a stopped alloc
@@ -7485,8 +7490,4 @@ func (s *StateSnapshot) DenormalizeAllocationDiffSlice(allocDiffs []*structs.All
 	// Retain only the denormalized Allocations in the slice
 	denormalizedAllocs = denormalizedAllocs[:j]
 	return denormalizedAllocs, nil
-}
-
-func getPreemptedAllocDesiredDescription(preemptedByAllocID string) string {
-	return fmt.Sprintf("Preempted by alloc ID %v", preemptedByAllocID)
 }
