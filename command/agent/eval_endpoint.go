@@ -15,7 +15,7 @@ import (
 // handling both the listing of evaluations, and the bulk deletion of
 // evaluations. The latter is a dangerous operation and should use the
 // eval delete command to perform this.
-func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		return s.evalsListRequest(resp, req)
@@ -26,7 +26,7 @@ func (s *HTTPServer) EvalsRequest(resp http.ResponseWriter, req *http.Request) (
 	}
 }
 
-func (s *HTTPServer) evalsListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) evalsListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	args := structs.EvalListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -49,7 +49,7 @@ func (s *HTTPServer) evalsListRequest(resp http.ResponseWriter, req *http.Reques
 	return out.Evaluations, nil
 }
 
-func (s *HTTPServer) evalsDeleteRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) evalsDeleteRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	var args structs.EvalDeleteRequest
 
@@ -87,7 +87,7 @@ func (s *HTTPServer) evalsDeleteRequest(resp http.ResponseWriter, req *http.Requ
 	return reply, nil
 }
 
-func (s *HTTPServer) EvalSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) EvalSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/evaluation/")
 	switch {
 	case strings.HasSuffix(path, "/allocations"):
@@ -98,7 +98,7 @@ func (s *HTTPServer) EvalSpecificRequest(resp http.ResponseWriter, req *http.Req
 	}
 }
 
-func (s *HTTPServer) evalAllocations(resp http.ResponseWriter, req *http.Request, evalID string) (interface{}, error) {
+func (s *HTTPServer) evalAllocations(resp http.ResponseWriter, req *http.Request, evalID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -122,7 +122,7 @@ func (s *HTTPServer) evalAllocations(resp http.ResponseWriter, req *http.Request
 	return out.Allocations, nil
 }
 
-func (s *HTTPServer) evalQuery(resp http.ResponseWriter, req *http.Request, evalID string) (interface{}, error) {
+func (s *HTTPServer) evalQuery(resp http.ResponseWriter, req *http.Request, evalID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -149,7 +149,7 @@ func (s *HTTPServer) evalQuery(resp http.ResponseWriter, req *http.Request, eval
 	return out.Eval, nil
 }
 
-func (s *HTTPServer) EvalsCountRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) EvalsCountRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}

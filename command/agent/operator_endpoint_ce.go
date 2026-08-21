@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
-// +build !ent
 
 package agent
 
@@ -13,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) LicenseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) LicenseRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		resp.WriteHeader(http.StatusNoContent)
@@ -33,6 +32,6 @@ func (s *HTTPServer) OperatorUtilizationRequest(resp http.ResponseWriter, req *h
 	return nil, CodedError(501, ErrEntOnly)
 }
 
-func autopilotToAPIEntState(_ structs.OperatorHealthReply, _ *api.OperatorHealthReply) interface{} {
+func autopilotToAPIEntState(_ structs.OperatorHealthReply, _ *api.OperatorHealthReply) any {
 	return nil
 }

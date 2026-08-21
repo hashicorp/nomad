@@ -48,7 +48,7 @@ func TestOutputLicenseReply(t *testing.T) {
 			TerminationTime: now,
 			NonProduction:   true,
 			Product:         "nomad",
-			Flags: map[string]interface{}{
+			Flags: map[string]any{
 				"": nil,
 			},
 		},

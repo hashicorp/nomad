@@ -123,7 +123,7 @@ func (l *logFile) pruneFiles() error {
 
 	// Prune if there are more files stored than the configured max
 	stale := len(matches) - l.MaxFiles
-	for i := 0; i < stale; i++ {
+	for i := range stale {
 		if err := os.Remove(matches[i]); err != nil {
 			return err
 		}

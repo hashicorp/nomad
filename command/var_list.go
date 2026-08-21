@@ -161,7 +161,7 @@ func (c *VarListCommand) Run(args []string) int {
 	case "json":
 		// obj and items enable us to rework the output before sending it
 		// to the Format method for transformation into JSON.
-		var obj, items interface{}
+		var obj, items any
 		obj = vars
 		items = vars
 
@@ -171,7 +171,7 @@ func (c *VarListCommand) Run(args []string) int {
 		// adding unnecessary structure in the non-paginated case.
 		if perPage > 0 {
 			obj = struct {
-				Data      interface{}
+				Data      any
 				QueryMeta *api.QueryMeta
 			}{
 				items,

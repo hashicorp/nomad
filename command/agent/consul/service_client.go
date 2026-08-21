@@ -127,7 +127,7 @@ type AgentAPI interface {
 	ServiceDeregisterOpts(serviceID string, q *api.QueryOptions) error
 	ServicesWithFilterOpts(filter string, q *api.QueryOptions) (map[string]*api.AgentService, error)
 
-	Self() (map[string]map[string]interface{}, error)
+	Self() (map[string]map[string]any, error)
 }
 
 // ConfigAPI is the consul/api.ConfigEntries API subset used by Nomad Server.
@@ -337,7 +337,7 @@ func proxyUpstreamsDifferent(wanted *api.AgentServiceConnect, sidecar *api.Agent
 			return true
 		}
 
-		for i := 0; i < len(a); i++ {
+		for i := range a {
 			A := a[i]
 			B := b[i]
 			switch {
@@ -596,9 +596,7 @@ func (scw *ServiceClientWrapper) AllocRegistrations(allocID string) (
 				if a, ok := allocReg.Tasks[t]; !ok {
 					allocReg.Tasks[t] = task
 				} else {
-					for serviceName, service := range task.Services {
-						a.Services[serviceName] = service
-					}
+					maps.Copy(a.Services, task.Services)
 				}
 			}
 		}
@@ -713,7 +711,7 @@ type ServiceClient struct {
 
 	// seen is 1 if Consul has ever been seen; otherwise 0. Accessed with
 	// atomics.
-	seen int32
+	seen atomic.Int32
 
 	// deregisterProbationExpiry is the time before which consul sync shouldn't deregister
 	// unknown services.
@@ -797,13 +795,13 @@ const seen = 1
 // markSeen marks Consul as having been seen (meaning at least one operation
 // has succeeded).
 func (c *ServiceClient) markSeen() {
-	atomic.StoreInt32(&c.seen, seen)
+	c.seen.Store(seen)
 }
 
 // hasSeen returns true if any Consul operation has ever succeeded. Useful to
 // squelch errors if Consul isn't running.
 func (c *ServiceClient) hasSeen() bool {
-	return atomic.LoadInt32(&c.seen) == seen
+	return c.seen.Load() == seen
 }
 
 // syncReason indicates why a sync operation with consul is about to happen.
@@ -907,10 +905,7 @@ INIT:
 				default:
 				}
 			}
-			backoff := c.retryInterval * time.Duration(failures)
-			if backoff > c.maxRetryInterval {
-				backoff = c.maxRetryInterval
-			}
+			backoff := min(c.retryInterval*time.Duration(failures), c.maxRetryInterval)
 			retryTimer.Reset(backoff)
 		} else {
 			if failures > 0 {
@@ -1021,9 +1016,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			return fmt.Errorf("failed to query Consul services: %w", err)
 		} else {
-			for k, v := range nsServices {
-				servicesInConsul[k] = v
-			}
+			maps.Copy(servicesInConsul, nsServices)
 		}
 	}
 
@@ -1112,9 +1105,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 				return mErr.ErrorOrNil()
 			}
 		}
-		for k, v := range nsChecks {
-			checksInConsul[k] = v
-		}
+		maps.Copy(checksInConsul, nsChecks)
 	}
 
 	// Remove Nomad checks in Consul but unknown locally
@@ -1369,14 +1360,10 @@ func (c *ServiceClient) serviceRegs(
 	var meta map[string]string
 	if workload.Canary && len(service.CanaryMeta) > 0 {
 		meta = make(map[string]string, len(service.CanaryMeta)+1)
-		for k, v := range service.CanaryMeta {
-			meta[k] = v
-		}
+		maps.Copy(meta, service.CanaryMeta)
 	} else {
 		meta = make(map[string]string, len(service.Meta)+1)
-		for k, v := range service.Meta {
-			meta[k] = v
-		}
+		maps.Copy(meta, service.Meta)
 	}
 
 	// This enables the consul UI to show that Nomad registered this service
@@ -1805,17 +1792,13 @@ func (c *ServiceClient) AllocRegistrations(allocID string) (*serviceregistration
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve services from consul: %w", err)
 		}
-		for k, v := range nsServices {
-			services[k] = v
-		}
+		maps.Copy(services, nsServices)
 
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", qo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve checks from consul: %w", err)
 		}
-		for k, v := range nsChecks {
-			checks[k] = v
-		}
+		maps.Copy(checks, nsChecks)
 	}
 
 	// Populate the object
@@ -1906,9 +1889,7 @@ func (c *ServiceClient) Shutdown() error {
 		if err != nil {
 			c.logger.Error("failed to retrieve checks from consul", "error", err)
 		}
-		for k, v := range nsChecks {
-			remainingChecks[k] = v
-		}
+		maps.Copy(remainingChecks, nsChecks)
 	}
 
 	checkRemains := func(id string) bool {
@@ -1980,9 +1961,7 @@ func (c *ServiceClient) getServiceToken(serviceID string) string {
 func (c *ServiceClient) setServiceTokens(tokens map[string]string) {
 	c.serviceTokensLock.Lock()
 	defer c.serviceTokensLock.Unlock()
-	for serviceID, token := range tokens {
-		c.serviceTokens[serviceID] = token
-	}
+	maps.Copy(c.serviceTokens, tokens)
 }
 
 // gcDeregisteredServiceTokens cleans up the tokens for all explicitly

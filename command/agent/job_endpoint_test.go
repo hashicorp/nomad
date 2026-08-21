@@ -27,7 +27,7 @@ import (
 func TestHTTP_JobsList(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			// Create the job
 			job := mock.Job()
 			args := structs.JobRegisterRequest{
@@ -84,7 +84,7 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 		"aabbcccc-e8f7-fd38-c855-ab94ceb89706",
 	}
 	httpTest(t, nil, func(s *TestAgent) {
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			// Create the job
 			job := mock.Job()
 			job.ID = ids[i]
@@ -137,7 +137,7 @@ func TestHTTP_PrefixJobsList(t *testing.T) {
 func TestHTTP_JobsList_AllNamespaces_OSS(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			// Create the job
 			job := mock.Job()
 			args := structs.JobRegisterRequest{
@@ -2913,7 +2913,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Leader: true,
 						Driver: "docker",
 						User:   "mary",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"lol": "code",
 						},
 						Env: map[string]string{
@@ -3360,7 +3360,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Driver: "docker",
 						Leader: true,
 						User:   "mary",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"lol": "code",
 						},
 						Constraints: []*structs.Constraint{
@@ -3640,7 +3640,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Leader: true,
 						Driver: "docker",
 						User:   "mary",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"lol": "code",
 						},
 						Env: map[string]string{
@@ -3778,7 +3778,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Driver: "docker",
 						Leader: true,
 						User:   "mary",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"lol": "code",
 						},
 						Constraints: []*structs.Constraint{
@@ -4126,7 +4126,7 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	must.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	delay := time.Duration(200)
 	timeout := time.Duration(1000)
-	config := make(map[string]interface{})
+	config := make(map[string]any)
 	env := make(map[string]string)
 	meta := make(map[string]string)
 	must.Eq(t, &structs.SidecarTask{
@@ -4300,7 +4300,7 @@ func TestConversion_apiConsulMeshGatewayToStructs(t *testing.T) {
 func TestConversion_apiConnectSidecarServiceProxyToStructs(t *testing.T) {
 	ci.Parallel(t)
 	require.Nil(t, apiConnectSidecarServiceProxyToStructs(nil))
-	config := make(map[string]interface{})
+	config := make(map[string]any)
 	require.Equal(t, &structs.ConsulProxy{
 		LocalServiceAddress: "192.168.30.1",
 		LocalServicePort:    9000,
@@ -4382,7 +4382,7 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 						}},
 					EnvoyGatewayNoDefaultBind: true,
 					EnvoyDNSDiscoveryType:     "STRICT_DNS",
-					Config: map[string]interface{}{
+					Config: map[string]any{
 						"foo": "bar",
 					},
 				},
@@ -4400,7 +4400,7 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 					},
 					EnvoyGatewayNoDefaultBind: true,
 					EnvoyDNSDiscoveryType:     "STRICT_DNS",
-					Config: map[string]interface{}{
+					Config: map[string]any{
 						"foo": "bar",
 					},
 				},

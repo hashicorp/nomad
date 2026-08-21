@@ -310,7 +310,7 @@ func (l *AllocExecCommand) execImpl(client *api.Client, alloc *api.Allocation, t
 // setRawTerminal sets the stream terminal in raw mode, so process captures
 // Ctrl+C and other commands to forward to remote process.
 // It returns a cleanup function that restores terminal to original mode.
-func setRawTerminal(stream interface{}) (cleanup func(), err error) {
+func setRawTerminal(stream any) (cleanup func(), err error) {
 	fd, isTerminal := term.GetFdInfo(stream)
 	if !isTerminal {
 		return nil, errors.New("not a terminal")
@@ -327,7 +327,7 @@ func setRawTerminal(stream interface{}) (cleanup func(), err error) {
 // setRawTerminalOutput sets the output stream in Windows to raw mode,
 // so it disables LF -> CRLF translation.
 // It's basically a no-op on unix.
-func setRawTerminalOutput(stream interface{}) (cleanup func(), err error) {
+func setRawTerminalOutput(stream any) (cleanup func(), err error) {
 	fd, isTerminal := term.GetFdInfo(stream)
 	if !isTerminal {
 		return nil, errors.New("not a terminal")

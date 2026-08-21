@@ -35,7 +35,7 @@ func TestStopCommand_multi(t *testing.T) {
 
 	// create and run a handful of jobs
 	jobIDs := make([]string, 0, numJobs)
-	for i := 0; i < numJobs; i++ {
+	for range numJobs {
 		jobID := uuid.Generate()
 		jobIDs = append(jobIDs, jobID)
 	}
@@ -59,7 +59,7 @@ func TestStopCommand_multi(t *testing.T) {
 		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = new(16)
 		job.TaskGroups[0].Tasks[0].Resources.DiskMB = new(32)
 		job.TaskGroups[0].Tasks[0].Resources.CPU = new(10)
-		job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		job.TaskGroups[0].Tasks[0].Config = map[string]any{
 			"run_for": "30s",
 		}
 

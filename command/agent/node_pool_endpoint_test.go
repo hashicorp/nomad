@@ -330,7 +330,7 @@ func TestHTTP_NodePool_NodesList(t *testing.T) {
 
 			// Split test nodes between default, pool1, and pool2.
 			nodesByPool := make(map[string][]*structs.Node)
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				node := mock.Node()
 				switch i % 3 {
 				case 0:
@@ -430,7 +430,7 @@ func TestHTTP_NodePool_JobsList(t *testing.T) {
 		must.NoError(t, err)
 
 		for _, poolName := range []string{pool1.Name, "default", "all"} {
-			for i := 0; i < 2; i++ {
+			for range 2 {
 				job := mock.MinJob()
 				job.NodePool = poolName
 				jobRegReq := structs.JobRegisterRequest{
