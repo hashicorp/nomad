@@ -400,22 +400,27 @@ integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
 
 
 .PHONY: device-plugin
-device-plugin: GO_OUT ?= $(PROJECT_ROOT)/plugins/nomad-device-example
+device-plugin: GOOS=$(shell go env GOOS)
+device-plugin: GOARCH=$(shell go env GOARCH)
+device-plugin: PLUGIN_DIR="$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugins"
 device-plugin: # Build the example device plugin for e2e device tests
-	@echo "==> Removing old plugin development build..."
-	@rm -f $(GO_OUT)
+#	@export	PLUGIN_DIR=$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugins
+	@echo "==> Removing old plugin development build from ---"$(PLUGIN_DIR)"..."
+	@rm -f "$(PLUGIN_DIR)/nomad-device-example"
 	@echo "==> Building $@..."
-	@mkdir -p $(PROJECT_ROOT)/plugins
+	@mkdir -p "$(PLUGIN_DIR)"
 	@CGO_ENABLED=0 \
-		GOOS=$(shell go env GOOS) \
-		GOARCH=$(shell go env GOARCH) \
-		go build  -o $(GO_OUT)  ./plugins/device/cmd/example/cmd
-	@echo "binary at $(GO_OUT)"
+		go build  -o "$(PLUGIN_DIR)/nomad-device-example" ./plugins/device/cmd/example/cmd
+	@echo "binary at $(PLUGIN_DIR)"
+
 .PHONY: integration-test-devices
-integration-test-devices: device-plugin
-integration-test-devices: dev ## Run Nomad's device scheduling integration tests
+integration-test-devices: GOOS=$(shell go env GOOS)
+integration-test-devices: GOARCH=$(shell go env GOARCH)
+integration-test-devices: PLUGIN_DIR=$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugins
+integration-test-devices: dev
+integration-test-devices: device-plugin ## Run Nomad's device scheduling integration tests
 	@echo "==> Running Nomad integration test suite for Device Scheduling:"
-	NOMAD_E2E_PLUGIN_PATH="$(PROJECT_ROOT)/plugins/nomad-device-example" gotestsum --format=testname -- \
+	NOMAD_E2E_PLUGIN_PATH="$(PLUGIN_DIR)" gotestsum --format=testname -- \
 		-v \
 		-race \
 		-timeout=120s \

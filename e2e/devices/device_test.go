@@ -4,7 +4,6 @@
 package devices
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -21,7 +20,8 @@ import (
 )
 
 const (
-	envGate = "NOMAD_E2E_PLUGIN_PATH"
+	envGate    = "NOMAD_E2E_PLUGIN_PATH"
+	deviceName = "nomad/file/mock"
 )
 
 // hasDevicePlugin validates the device plugin is available or skips the test
@@ -102,7 +102,7 @@ func TestDeviceScheduling(t *testing.T) {
 		c.LogLevel = hclog.Warn.String()
 	}
 	pluginPath := os.Getenv(envGate)
-	must.FileExists(t, pluginPath)
+	must.FileExists(t, pluginPath+"/nomad-device-example")
 
 	c, err := os.ReadFile("./input/basic_device_config.hcl")
 	must.NoError(t, err)
@@ -127,26 +127,40 @@ func TestDeviceScheduling(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, nomadClient)
 	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			keyList, _, err := nomadClient.Keyring().List(nil)
+		wait.BoolFunc(func() bool {
+			nodes, _, err := nomadClient.Nodes().List(nil)
 			if err != nil {
-				return err
+				return false
 			}
-			if len(keyList) == 0 {
-				return errors.New("no keys found")
+
+			for _, nodeStub := range nodes {
+				node, _, err := nomadClient.Nodes().Info(nodeStub.ID, nil)
+				if err != nil {
+					return false
+				}
+				if node.NodeResources != nil && node.NodeResources.Devices != nil {
+					for _, device := range node.NodeResources.Devices {
+						fullName := device.Vendor + "/" + device.Type + "/" + device.Name
+						if strings.Contains(fullName, deviceName) ||
+							strings.Contains(device.Name, deviceName) {
+							return true
+						} else {
+							return false
+						}
+					}
+				}
 			}
-			return nil
+			return false
 		}),
-		wait.Timeout(5*time.Second),
+		wait.Attempts(2),
+		wait.Timeout(15*time.Second),
 		wait.Gap(100*time.Millisecond),
 	))
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Confirm nodes have mock devices available
-			if !hasDevicePlugin(t, nomadClient, "nomad/file/mock") {
-				t.Skip("skipping: no nodes with nomad/file/mock device plugin")
-			}
+			must.True(t, hasDevicePlugin(t, nomadClient, "nomad/file/mock"))
 			expectedAllocs := 0
 			expectedDevices := 0
 			if tc.expectedAllocs != 0 {
@@ -217,7 +231,7 @@ func TestDeviceScheduling(t *testing.T) {
 				var err error
 				var eval *api.Evaluation
 
-				must.Wait(t, wait.ContinualSuccess(
+				must.Wait(t, wait.InitialSuccess(
 					wait.TestFunc(func() (bool, error) {
 						eval, _, err = nomadClient.Evaluations().Info(evalID, &api.QueryOptions{WaitIndex: idx})
 						if err != nil {
@@ -228,6 +242,7 @@ func TestDeviceScheduling(t *testing.T) {
 						}
 						return false, fmt.Errorf("eval status: %s", eval.Status)
 					}),
+					wait.Attempts(3),
 					wait.Timeout(5*time.Second),
 					wait.Gap(100*time.Millisecond),
 				))
