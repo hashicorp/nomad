@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !linux && !windows
-// +build !linux,!windows
 
 package fingerprint
 

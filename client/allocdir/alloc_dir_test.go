@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !windows
-// +build !windows
 
 package allocdir
 
@@ -45,7 +44,7 @@ var (
 	t1 = &structs.Task{
 		Name:   "web",
 		Driver: "exec",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"command": "/bin/date",
 			"args":    "+%s",
 		},
@@ -57,7 +56,7 @@ var (
 	t2 = &structs.Task{
 		Name:   "web2",
 		Driver: "exec",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"command": "/bin/date",
 			"args":    "+%s",
 		},

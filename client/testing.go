@@ -34,7 +34,7 @@ func TestClient(t testing.TB, cb func(c *config.Config)) (*Client, func() error)
 	return TestClientWithRPCs(t, cb, nil)
 }
 
-func TestClientWithRPCs(t testing.TB, cb func(c *config.Config), rpcs map[string]interface{}) (*Client, func() error) {
+func TestClientWithRPCs(t testing.TB, cb func(c *config.Config), rpcs map[string]any) (*Client, func() error) {
 	conf, cleanup := config.TestClientConfig(t)
 
 	// Tighten the fingerprinter timeouts (must be done in client package

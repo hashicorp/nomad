@@ -357,11 +357,9 @@ func proxy(ctx context.Context, logger hclog.Logger, destAddr string, l net.List
 			return
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			proxyConn(ctx, logger, destAddr, conn)
-		}()
+		})
 	}
 }
 
@@ -403,9 +401,7 @@ func proxyConn(ctx context.Context, logger hclog.Logger, destAddr string, conn n
 	defer wg.Wait()
 
 	// socket -> consul
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		defer cancel()
 		n, err := io.Copy(dest, conn)
 		if ctx.Err() == nil && err != nil {
@@ -419,12 +415,10 @@ func proxyConn(ctx context.Context, logger hclog.Logger, destAddr string, conn n
 			"src_local", conn.LocalAddr(), "src_remote", conn.RemoteAddr(),
 			"bytes", n,
 		)
-	}()
+	})
 
 	// consul -> socket
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		defer cancel()
 		n, err := io.Copy(conn, dest)
 		if ctx.Err() == nil && err != nil {
@@ -437,7 +431,7 @@ func proxyConn(ctx context.Context, logger hclog.Logger, destAddr string, conn n
 			"src_local", conn.LocalAddr(), "src_remote", conn.RemoteAddr(),
 			"bytes", n,
 		)
-	}()
+	})
 
 	// When cancelled close connections to break out of copies goroutines.
 	<-ctx.Done()

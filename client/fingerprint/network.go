@@ -222,7 +222,7 @@ func deriveAddressAliases(iface net.Interface, addr net.IP, config *config.Confi
 	for name, conf := range config.HostNetworks {
 		var cidrMatch, ifaceMatch bool
 		if conf.CIDR != "" {
-			for _, cidr := range strings.Split(conf.CIDR, ",") {
+			for cidr := range strings.SplitSeq(conf.CIDR, ",") {
 				_, ipnet, err := net.ParseCIDR(cidr)
 				if err != nil {
 					continue

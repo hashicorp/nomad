@@ -177,7 +177,7 @@ func testSelfDrainSetup(t *testing.T, srv *nomad.Server, nodeID, jobID, sysJobID
 	job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:      "mock",
 		Driver:    "mock_driver",
-		Config:    map[string]interface{}{"run_for": "1m"},
+		Config:    map[string]any{"run_for": "1m"},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
 			CPU:      50,
@@ -194,7 +194,7 @@ func testSelfDrainSetup(t *testing.T, srv *nomad.Server, nodeID, jobID, sysJobID
 	sysJob.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:      "mock",
 		Driver:    "mock_driver",
-		Config:    map[string]interface{}{"run_for": "1m"},
+		Config:    map[string]any{"run_for": "1m"},
 		LogConfig: structs.DefaultLogConfig(),
 		Resources: &structs.Resources{
 			CPU:      50,
