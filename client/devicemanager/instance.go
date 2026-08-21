@@ -245,11 +245,9 @@ func (i *instanceManager) run() {
 	var wg sync.WaitGroup
 
 	// Start the fingerprinter
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		i.fingerprint()
-		wg.Done()
-	}()
+	})
 
 	// Wait for a valid result before starting stats collection
 	select {
@@ -259,11 +257,9 @@ func (i *instanceManager) run() {
 	}
 
 	// Start stats
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		i.collectStats()
-		wg.Done()
-	}()
+	})
 
 	// Do a final cleanup
 DONE:

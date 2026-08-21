@@ -81,7 +81,7 @@ var (
 // to avoid going over the network. If not provided, the Client will
 // maintain a connection pool to the servers
 type RPCHandler interface {
-	RPC(method string, args interface{}, reply interface{}) error
+	RPC(method string, args any, reply any) error
 }
 
 // Config is used to parameterize and configure the behavior of the client
@@ -1094,7 +1094,7 @@ func (c *Config) ReadStringListAlternativeToMapDefault(keys []string, defaultVal
 func splitValue(val string) map[string]struct{} {
 	list := make(map[string]struct{})
 	if val != "" {
-		for _, e := range strings.Split(val, ",") {
+		for e := range strings.SplitSeq(val, ",") {
 			trimmed := strings.TrimSpace(e)
 			list[trimmed] = struct{}{}
 		}

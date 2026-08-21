@@ -241,10 +241,7 @@ func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 
 	// If offsetting from the end subtract from the size
 	if req.Origin == "end" {
-		req.Offset = fileInfo.Size - req.Offset
-		if req.Offset < 0 {
-			req.Offset = 0
-		}
+		req.Offset = max(fileInfo.Size-req.Offset, 0)
 	}
 
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)

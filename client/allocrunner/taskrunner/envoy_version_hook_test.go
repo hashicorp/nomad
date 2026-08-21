@@ -54,21 +54,21 @@ func TestEnvoyVersionHook_taskImage(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("absent", func(t *testing.T) {
-		result := (*envoyVersionHook)(nil).taskImage(map[string]interface{}{
+		result := (*envoyVersionHook)(nil).taskImage(map[string]any{
 			// empty
 		})
 		must.Eq(t, envoy.ImageFormat, result)
 	})
 
 	t.Run("not a string", func(t *testing.T) {
-		result := (*envoyVersionHook)(nil).taskImage(map[string]interface{}{
+		result := (*envoyVersionHook)(nil).taskImage(map[string]any{
 			"image": 7, // not a string
 		})
 		must.Eq(t, envoy.ImageFormat, result)
 	})
 
 	t.Run("normal", func(t *testing.T) {
-		result := (*envoyVersionHook)(nil).taskImage(map[string]interface{}{
+		result := (*envoyVersionHook)(nil).taskImage(map[string]any{
 			"image": "custom/envoy:latest",
 		})
 		must.Eq(t, "custom/envoy:latest", result)
@@ -117,7 +117,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 
 	t.Run("default sidecar", func(t *testing.T) {
 		task := &structs.Task{
-			Config: map[string]interface{}{"image": envoy.SidecarConfigVar},
+			Config: map[string]any{"image": envoy.SidecarConfigVar},
 		}
 		hook.interpolateImage(task, taskEnvDefault)
 		must.Eq(t, envoy.ImageFormat, task.Config["image"])
@@ -125,7 +125,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 
 	t.Run("default gateway", func(t *testing.T) {
 		task := &structs.Task{
-			Config: map[string]interface{}{"image": envoy.GatewayConfigVar},
+			Config: map[string]any{"image": envoy.GatewayConfigVar},
 		}
 		hook.interpolateImage(task, taskEnvDefault)
 		must.Eq(t, envoy.ImageFormat, task.Config["image"])
@@ -133,7 +133,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 
 	t.Run("custom static", func(t *testing.T) {
 		task := &structs.Task{
-			Config: map[string]interface{}{"image": "custom/envoy"},
+			Config: map[string]any{"image": "custom/envoy"},
 		}
 		hook.interpolateImage(task, taskEnvDefault)
 		must.Eq(t, "custom/envoy", task.Config["image"])
@@ -141,7 +141,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 
 	t.Run("custom interpolated", func(t *testing.T) {
 		task := &structs.Task{
-			Config: map[string]interface{}{"image": "${MY_ENVOY}"},
+			Config: map[string]any{"image": "${MY_ENVOY}"},
 		}
 		hook.interpolateImage(task, taskenv.NewTaskEnv(map[string]string{
 			"MY_ENVOY": "my/envoy",
@@ -153,7 +153,7 @@ func TestEnvoyVersionHook_interpolateImage(t *testing.T) {
 
 	t.Run("no image", func(t *testing.T) {
 		task := &structs.Task{
-			Config: map[string]interface{}{},
+			Config: map[string]any{},
 		}
 		hook.interpolateImage(task, taskEnvDefault)
 		must.MapEmpty(t, task.Config)
@@ -190,7 +190,7 @@ func TestEnvoyVersionHook_skip(t *testing.T) {
 			Task: &structs.Task{
 				Driver: "docker",
 				Kind:   structs.NewTaskKind(structs.ConnectProxyPrefix, "task"),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"image": "custom/envoy:latest",
 				},
 			},
@@ -203,7 +203,7 @@ func TestEnvoyVersionHook_skip(t *testing.T) {
 			Task: &structs.Task{
 				Driver: "docker",
 				Kind:   structs.NewTaskKind(structs.ConnectProxyPrefix, "task"),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"image": "custom/envoy:v${NOMAD_envoy_version}",
 				},
 			},
@@ -216,7 +216,7 @@ func TestEnvoyVersionHook_skip(t *testing.T) {
 			Task: &structs.Task{
 				Driver: "docker",
 				Kind:   structs.NewTaskKind(structs.ConnectProxyPrefix, "task"),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"image": envoy.ImageFormat,
 				},
 			},
@@ -318,7 +318,7 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 	alloc := mock.ConnectAlloc()
 	alloc.Job.TaskGroups[0].Tasks[0] = mock.ConnectSidecarTask()
 	alloc.Job.TaskGroups[0].Tasks[0].Driver = "exec"
-	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"command": "/sidecar",
 	}
 	allocDir, cleanupDir := allocdir.TestAllocDir(t, logger, "EnvoyVersionHook", alloc.ID)

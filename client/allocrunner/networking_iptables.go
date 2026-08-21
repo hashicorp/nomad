@@ -7,6 +7,7 @@ package allocrunner
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/coreos/go-iptables/iptables"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -69,10 +70,8 @@ func ensureChain(ipt IPTablesChain, table, chain string) error {
 	if err != nil {
 		return fmt.Errorf("failed to list iptables chains: %v", err)
 	}
-	for _, ch := range chains {
-		if ch == chain {
-			return nil
-		}
+	if slices.Contains(chains, chain) {
+		return nil
 	}
 
 	err = ipt.NewChain(table, chain)
