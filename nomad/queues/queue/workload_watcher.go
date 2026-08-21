@@ -10,12 +10,11 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type WorkloadWatcher struct {
-	stateStore *state.StateStore
+	stateStore Snapshotter
 	config     *structs.BatchQueue
 	logger     hclog.Logger
 
@@ -29,7 +28,7 @@ type WorkloadWatcher struct {
 	maxConcurrentPlacements int
 }
 
-func NewWorkloadWatcher(s *state.StateStore, logger hclog.Logger, config *structs.BatchQueue) *WorkloadWatcher {
+func NewWorkloadWatcher(s Snapshotter, logger hclog.Logger, config *structs.BatchQueue) *WorkloadWatcher {
 	w := &WorkloadWatcher{
 		stateStore: s,
 		config:     config,
@@ -63,11 +62,11 @@ func (w *WorkloadWatcher) CanAttemptPlacement() bool {
 
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	full := w.currentPlacements < w.maxConcurrentPlacements
-	if full {
+	canAttemptPlacement := w.currentPlacements < w.maxConcurrentPlacements
+	if !canAttemptPlacement {
 		w.logger.Error("queue is at max concurrent placements")
 	}
-	return full
+	return canAttemptPlacement
 }
 
 // Results returns the channel that receives placement completion results.
