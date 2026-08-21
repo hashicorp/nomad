@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Improved robustness of reschedule logic for invalid states
+```
