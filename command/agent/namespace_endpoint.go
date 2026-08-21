@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) NamespacesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NamespacesRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -32,7 +32,7 @@ func (s *HTTPServer) NamespacesRequest(resp http.ResponseWriter, req *http.Reque
 	return out.Namespaces, nil
 }
 
-func (s *HTTPServer) NamespaceSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NamespaceSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	name := strings.TrimPrefix(req.URL.Path, "/v1/namespace/")
 	if len(name) == 0 {
 		return nil, CodedError(400, "Missing Namespace Name")
@@ -49,7 +49,7 @@ func (s *HTTPServer) NamespaceSpecificRequest(resp http.ResponseWriter, req *htt
 	}
 }
 
-func (s *HTTPServer) NamespaceCreateRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NamespaceCreateRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -58,7 +58,7 @@ func (s *HTTPServer) NamespaceCreateRequest(resp http.ResponseWriter, req *http.
 }
 
 func (s *HTTPServer) namespaceQuery(resp http.ResponseWriter, req *http.Request,
-	namespaceName string) (interface{}, error) {
+	namespaceName string) (any, error) {
 	args := structs.NamespaceSpecificRequest{
 		Name: namespaceName,
 	}
@@ -79,7 +79,7 @@ func (s *HTTPServer) namespaceQuery(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) namespaceUpdate(resp http.ResponseWriter, req *http.Request,
-	namespaceName string) (interface{}, error) {
+	namespaceName string) (any, error) {
 	// Parse the namespace
 	var namespace structs.Namespace
 	if err := decodeBody(req, &namespace); err != nil {
@@ -106,7 +106,7 @@ func (s *HTTPServer) namespaceUpdate(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) namespaceDelete(resp http.ResponseWriter, req *http.Request,
-	namespaceName string) (interface{}, error) {
+	namespaceName string) (any, error) {
 
 	args := structs.NamespaceDeleteRequest{
 		Namespaces: []string{namespaceName},

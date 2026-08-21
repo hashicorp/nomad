@@ -490,7 +490,7 @@ func parseVariableSpec(input []byte, verbose func(string)) (*api.Variable, error
 // parseVariableSpecImpl parses the variable taking as input the AST tree
 func parseVariableSpecImpl(result *api.Variable, list *ast.ObjectList) error {
 	// Decode the full thing into a map[string]interface for ease
-	var m map[string]interface{}
+	var m map[string]any
 	if err := hcl.DecodeObject(&m, list); err != nil {
 		return err
 	}
@@ -563,7 +563,7 @@ func sanitizePath(s string) string {
 
 // parseArgsData parses the given args in the format key=value into a map of
 // the provided arguments. The given reader can also supply key=value pairs.
-func parseArgsData(stdin io.Reader, args []string) (map[string]interface{}, error) {
+func parseArgsData(stdin io.Reader, args []string) (map[string]any, error) {
 	builder := &KVBuilder{Stdin: stdin}
 	if err := builder.Add(args...); err != nil {
 		return nil, err

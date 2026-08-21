@@ -12,7 +12,7 @@ import (
 // Self represents the response body from Consul /v1/agent/self API endpoint.
 // Care must always be taken to do type checks when casting, as structure could
 // potentially change over time.
-type Self = map[string]map[string]interface{}
+type Self = map[string]map[string]any
 
 func SKU(info Self) (string, bool) {
 	v, ok := info["Config"]["Version"].(string)
@@ -45,7 +45,7 @@ func Namespaces(info Self) bool {
 //	Network Segments, Redundancy Zone, Advanced Network Federation,
 //	Namespaces, SSO, Audit Logging
 func feature(name string, info Self) bool {
-	lic, licOK := info["Stats"]["license"].(map[string]interface{})
+	lic, licOK := info["Stats"]["license"].(map[string]any)
 	if !licOK {
 		return false
 	}

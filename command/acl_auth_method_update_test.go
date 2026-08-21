@@ -96,7 +96,7 @@ func TestACLAuthMethodUpdateCommand_Run(t *testing.T) {
 	defer os.Remove(configFile.Name())
 	must.Nil(t, err)
 
-	conf := map[string]interface{}{
+	conf := map[string]any{
 		"OIDCDiscoveryURL": "http://example.com",
 		"OIDCClientID":     "example-id",
 		"BoundAudiences":   []string{"example-aud"},

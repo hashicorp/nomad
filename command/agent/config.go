@@ -2168,9 +2168,7 @@ func (c *Config) Merge(b *Config) *Config {
 	if result.HTTPAPIResponseHeaders == nil {
 		result.HTTPAPIResponseHeaders = make(map[string]string)
 	}
-	for k, v := range b.HTTPAPIResponseHeaders {
-		result.HTTPAPIResponseHeaders[k] = v
-	}
+	maps.Copy(result.HTTPAPIResponseHeaders, b.HTTPAPIResponseHeaders)
 
 	result.Limits = c.Limits.Merge(b.Limits)
 
@@ -2967,25 +2965,19 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if result.Options == nil {
 		result.Options = make(map[string]string)
 	}
-	for k, v := range b.Options {
-		result.Options[k] = v
-	}
+	maps.Copy(result.Options, b.Options)
 
 	// Add the meta map values
 	if result.Meta == nil {
 		result.Meta = make(map[string]string)
 	}
-	for k, v := range b.Meta {
-		result.Meta[k] = v
-	}
+	maps.Copy(result.Meta, b.Meta)
 
 	// Add the chroot_env map values
 	if result.ChrootEnv == nil {
 		result.ChrootEnv = make(map[string]string)
 	}
-	for k, v := range b.ChrootEnv {
-		result.ChrootEnv[k] = v
-	}
+	maps.Copy(result.ChrootEnv, b.ChrootEnv)
 
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)

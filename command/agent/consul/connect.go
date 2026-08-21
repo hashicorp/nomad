@@ -58,12 +58,12 @@ func newConnectGateway(connect *structs.ConsulConnect) *api.AgentServiceConnectP
 		return nil
 	}
 
-	var envoyConfig map[string]interface{}
+	var envoyConfig map[string]any
 
 	// Populate the envoy configuration from the gateway.proxy block, if
 	// such configuration is provided.
 	if proxy := connect.Gateway.Proxy; proxy != nil {
-		envoyConfig = make(map[string]interface{})
+		envoyConfig = make(map[string]any)
 
 		if len(proxy.EnvoyGatewayBindAddresses) > 0 {
 			envoyConfig["envoy_gateway_bind_addresses"] = proxy.EnvoyGatewayBindAddresses
@@ -86,9 +86,7 @@ func newConnectGateway(connect *structs.ConsulConnect) *api.AgentServiceConnectP
 		}
 
 		if len(proxy.Config) > 0 {
-			for k, v := range proxy.Config {
-				envoyConfig[k] = v
-			}
+			maps.Copy(envoyConfig, proxy.Config)
 		}
 	}
 
@@ -243,9 +241,9 @@ func connectMeshGateway(in structs.ConsulMeshGateway) api.MeshGatewayConfig {
 	return gw
 }
 
-func connectProxyConfig(cfg map[string]interface{}, port int, info structs.AllocInfo, networks structs.Networks) map[string]interface{} {
+func connectProxyConfig(cfg map[string]any, port int, info structs.AllocInfo, networks structs.Networks) map[string]any {
 	if cfg == nil {
-		cfg = make(map[string]interface{})
+		cfg = make(map[string]any)
 	}
 	if _, ok := cfg["bind_address"]; !ok {
 		cfg["bind_address"] = connectProxyBindAddress(networks)
@@ -274,7 +272,7 @@ func connectProxyBindAddress(networks structs.Networks) string {
 // injectNomadInfo merges nomad information into cfg=>envoy_stats_tags
 //
 // cfg must not be nil
-func injectNomadInfo(cfg map[string]interface{}, defaultTags map[string]string) {
+func injectNomadInfo(cfg map[string]any, defaultTags map[string]string) {
 	const configKey = "envoy_stats_tags"
 
 	existingTagsI := cfg[configKey]

@@ -59,11 +59,11 @@ func testWorkload() *serviceregistration.WorkloadServices {
 // restartRecorder is a minimal WorkloadRestarter implementation that simply
 // counts how many restarts were triggered.
 type restartRecorder struct {
-	restarts int64
+	restarts atomic.Int64
 }
 
 func (r *restartRecorder) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	atomic.AddInt64(&r.restarts, 1)
+	r.restarts.Add(1)
 	return nil
 }
 

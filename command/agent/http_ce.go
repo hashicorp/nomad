@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
-// +build !ent
 
 package agent
 
@@ -26,7 +25,7 @@ func (s *HTTPServer) registerEnterpriseHandlers() {
 	s.mux.HandleFunc("/v1/recommendation/", s.wrap(s.entOnly))
 }
 
-func (s *HTTPServer) entOnly(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) entOnly(resp http.ResponseWriter, req *http.Request) (any, error) {
 	return nil, CodedError(501, ErrEntOnly)
 }
 

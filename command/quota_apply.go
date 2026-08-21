@@ -173,7 +173,7 @@ func parseQuotaSpecImpl(result *api.QuotaSpec, list *ast.ObjectList) error {
 	}
 
 	// Decode the full thing into a map[string]interface for ease
-	var m map[string]interface{}
+	var m map[string]any
 	if err := hcl.DecodeObject(&m, list); err != nil {
 		return err
 	}
@@ -209,7 +209,7 @@ func parseQuotaLimits(result *[]*api.QuotaLimit, list *ast.ObjectList) error {
 			return err
 		}
 
-		var m map[string]interface{}
+		var m map[string]any
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}
@@ -280,7 +280,7 @@ func parseQuotaResource(result *api.QuotaResources, list *ast.ObjectList) error 
 		return multierror.Prefix(err, "resources ->")
 	}
 
-	var m map[string]interface{}
+	var m map[string]any
 	if err := hcl.DecodeObject(&m, o.Val); err != nil {
 		return err
 	}
@@ -397,7 +397,7 @@ func parseDeviceResource(result *[]*api.RequestedDevice, list *ast.ObjectList) e
 		var device api.RequestedDevice
 		device.Name = name
 
-		var m map[string]interface{}
+		var m map[string]any
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}
@@ -438,7 +438,7 @@ func parseNodePoolLimit(result *[]*api.NodePoolLimit, list *ast.ObjectList) erro
 		var n api.NodePoolLimit
 		n.NodePool = name
 
-		var m map[string]interface{}
+		var m map[string]any
 		if err := hcl.DecodeObject(&m, o.Val); err != nil {
 			return err
 		}

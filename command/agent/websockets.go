@@ -75,7 +75,7 @@ type wsHandshakeMessage struct {
 }
 
 // readWsHandshake reads the websocket handshake message and returns the auth token
-func (s *HTTPServer) readWsHandshake(readFn func(interface{}) error, req *http.Request) (string, error) {
+func (s *HTTPServer) readWsHandshake(readFn func(any) error, req *http.Request) (string, error) {
 	// Avoid handshake if request doesn't require one
 	if hv := req.URL.Query().Get("ws_handshake"); hv == "" {
 		return "", nil

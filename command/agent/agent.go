@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	golog "log"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -1551,7 +1552,7 @@ func (a *Agent) Shutdown() error {
 }
 
 // RPC is used to make an RPC call to the Nomad servers
-func (a *Agent) RPC(method string, args interface{}, reply interface{}) error {
+func (a *Agent) RPC(method string, args any, reply any) error {
 	if a.server != nil {
 		return a.server.RPC(method, args, reply)
 	}
@@ -1574,15 +1575,11 @@ func (a *Agent) Stats() map[string]map[string]string {
 	stats := make(map[string]map[string]string)
 	if a.server != nil {
 		subStat := a.server.Stats()
-		for k, v := range subStat {
-			stats[k] = v
-		}
+		maps.Copy(stats, subStat)
 	}
 	if a.client != nil {
 		subStat := a.client.Stats()
-		for k, v := range subStat {
-			stats[k] = v
-		}
+		maps.Copy(stats, subStat)
 	}
 	return stats
 }
@@ -1829,7 +1826,7 @@ type noOpAuditor struct{}
 // Ensure noOpAuditor is an Auditor
 var _ event.Auditor = &noOpAuditor{}
 
-func (e *noOpAuditor) Event(ctx context.Context, eventType string, payload interface{}) error {
+func (e *noOpAuditor) Event(ctx context.Context, eventType string, payload any) error {
 	return nil
 }
 

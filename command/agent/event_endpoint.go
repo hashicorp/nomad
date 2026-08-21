@@ -43,7 +43,7 @@ func (w *deadlineWriter) Close() error {
 	return w.conn.Close()
 }
 
-func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) EventStream(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}

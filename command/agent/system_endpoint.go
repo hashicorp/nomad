@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) GarbageCollectRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) GarbageCollectRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPut {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -26,7 +26,7 @@ func (s *HTTPServer) GarbageCollectRequest(resp http.ResponseWriter, req *http.R
 	return nil, nil
 }
 
-func (s *HTTPServer) ReconcileJobSummaries(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ReconcileJobSummaries(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPut {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}

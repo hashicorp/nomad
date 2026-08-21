@@ -564,7 +564,7 @@ func TestAgent_ServerConfig_RaftTrailingLogs(t *testing.T) {
 	cases := []struct {
 		name   string
 		value  *int
-		expect interface{}
+		expect any
 		isErr  bool
 	}{
 		{
@@ -613,7 +613,7 @@ func TestAgent_ServerConfig_RaftSnapshotThreshold(t *testing.T) {
 	cases := []struct {
 		name   string
 		value  *int
-		expect interface{}
+		expect any
 		isErr  bool
 	}{
 		{
