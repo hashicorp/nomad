@@ -92,7 +92,7 @@ func TestFS_Stat(t *testing.T) {
 	// Create and add an alloc
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "500ms",
 	}
 	// Wait for alloc to be running
@@ -136,7 +136,7 @@ func TestFS_Stat_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -225,7 +225,7 @@ func TestFS_List(t *testing.T) {
 	// Create and add an alloc
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "500ms",
 	}
 	// Wait for alloc to be running
@@ -269,7 +269,7 @@ func TestFS_List_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -413,7 +413,7 @@ func TestFS_Stream_GC(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -510,7 +510,7 @@ func TestFS_Stream_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -631,7 +631,7 @@ func TestFS_Stream(t *testing.T) {
 	expected := "Hello from the other side"
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":       "2s",
 		"stdout_string": expected,
 	}
@@ -749,7 +749,7 @@ func TestFS_Stream_Follow(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":                "20s",
 		"stdout_string":          expectedBase,
 		"stdout_repeat":          repeat,
@@ -846,7 +846,7 @@ func TestFS_Stream_Limit(t *testing.T) {
 	expected := full[:limit]
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":       "2s",
 		"stdout_string": full,
 	}
@@ -1015,7 +1015,7 @@ func TestFS_Logs_TaskPending(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"start_block_for": "10s",
 	}
 
@@ -1131,7 +1131,7 @@ func TestFS_Logs_GC(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -1230,7 +1230,7 @@ func TestFS_Logs_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -1353,7 +1353,7 @@ func TestFS_Logs(t *testing.T) {
 	expected := "Hello from the other side\n"
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":       "2s",
 		"stdout_string": expected,
 	}
@@ -1456,7 +1456,7 @@ func TestFS_Logs_Follow(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for":                "20s",
 		"stdout_string":          expectedBase,
 		"stdout_repeat":          repeat,
@@ -2036,7 +2036,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 	task := "foo"
 	logType := "stdout"
 	expected := []byte("012")
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		logFile := fmt.Sprintf("%s.%s.%d", task, logType, i)
 		logFilePath := filepath.Join(logDir, logFile)
 		err := os.WriteFile(logFilePath, expected[i:i+1], 0777)
@@ -2131,7 +2131,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 			t.Fatalf("Failed to write file: %v", err)
 		}
 	}
-	for i := 0; i < initialWrites; i++ {
+	for i := range initialWrites {
 		writeToFile(i, expected[i:i+1])
 	}
 

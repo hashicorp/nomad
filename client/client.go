@@ -357,7 +357,7 @@ var (
 // registered via https://golang.org/pkg/net/rpc/#Server.RegisterName in place
 // of the client's normal RPC handlers. This allows server tests to override
 // the behavior of the client.
-func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxiesFunc consulApiShim.SupportedProxiesAPIFunc, consulServices serviceregistration.Handler, rpcs map[string]interface{}) (*Client, error) {
+func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxiesFunc consulApiShim.SupportedProxiesAPIFunc, consulServices serviceregistration.Handler, rpcs map[string]any) (*Client, error) {
 	// Create the tls wrapper
 	var tlsWrap tlsutil.RegionWrapper
 	if cfg.TLSConfig.EnableRPC {
@@ -436,10 +436,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// initialize the dynamic registry (needs to happen after init)
 	c.dynamicRegistry =
 		dynamicplugins.NewRegistry(c.stateDB, map[string]dynamicplugins.PluginDispenser{
-			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+			dynamicplugins.PluginTypeCSIController: func(info *dynamicplugins.PluginInfo) (any, error) {
 				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "controller")), nil
 			},
-			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (interface{}, error) {
+			dynamicplugins.PluginTypeCSINode: func(info *dynamicplugins.PluginInfo) (any, error) {
 				return csi.NewClient(info.ConnectionInfo.SocketPath, logger.Named("csi_client").With("plugin.name", info.Name, "plugin.type", "client")), nil
 			},
 		})
@@ -1516,9 +1516,7 @@ func (c *Client) getAllocRunners() map[string]interfaces.AllocRunner {
 	c.allocLock.RLock()
 	defer c.allocLock.RUnlock()
 	runners := make(map[string]interfaces.AllocRunner, len(c.allocs))
-	for id, ar := range c.allocs {
-		runners[id] = ar
-	}
+	maps.Copy(runners, c.allocs)
 	return runners
 }
 

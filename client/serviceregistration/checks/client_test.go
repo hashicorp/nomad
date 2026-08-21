@@ -226,7 +226,7 @@ func TestChecker_Do_HTTP(t *testing.T) {
 func bigResponse() (string, string) {
 	size := outputSizeLimit + 5
 	b := make([]byte, size, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		b[i] = 'a'
 	}
 	s := string(b)
@@ -570,8 +570,7 @@ func TestChecker_Do_TCP(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			logger := testlog.HCLogger(t)
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
 			c := New(logger)
 			c.(*checker).clock = clock

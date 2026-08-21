@@ -6,6 +6,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -264,9 +265,7 @@ func (c *Client) applyNodeUpdatesFromDriver(name string, info *structs.DriverInf
 	if !hadDriver {
 		// If the driver info has not yet been set, do that here
 		hasChanged = true
-		for attrName, newVal := range info.Attributes {
-			node.Attributes[attrName] = newVal
-		}
+		maps.Copy(node.Attributes, info.Attributes)
 	} else {
 		oldVal := node.Drivers[name]
 		// The driver info has already been set, fix it up

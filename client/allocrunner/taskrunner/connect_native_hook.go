@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -82,9 +83,7 @@ func (connectNativeHook) Name() string {
 
 // merge b into a, overwriting on conflicts
 func merge(a, b map[string]string) {
-	for k, v := range b {
-		a[k] = v
-	}
+	maps.Copy(a, b)
 }
 
 func (h *connectNativeHook) Prestart(

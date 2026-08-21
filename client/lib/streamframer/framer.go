@@ -237,10 +237,7 @@ func (s *StreamFramer) send() {
 // invalid on the next read or write into the StreamFramer buffer
 func (s *StreamFramer) readData() []byte {
 	// Compute the amount to read from the buffer
-	size := s.data.Len()
-	if size > s.frameSize {
-		size = s.frameSize
-	}
+	size := min(s.data.Len(), s.frameSize)
 	if size == 0 {
 		return nil
 	}

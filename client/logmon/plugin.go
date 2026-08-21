@@ -90,7 +90,7 @@ func (p *Plugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
 	return nil
 }
 
-func (p *Plugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p *Plugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (any, error) {
 	return &logmonClient{
 		doneCtx: ctx,
 		client:  proto.NewLogMonClient(c),

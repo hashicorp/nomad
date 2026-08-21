@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -614,8 +615,8 @@ func createDir(basePath, relPath string) error {
 
 	// We are going backwards since we create the root of the directory first
 	// and then create the entire nested structure.
-	for i := len(filePerms) - 1; i >= 0; i-- {
-		fi := filePerms[i]
+	for _, fi := range slices.Backward(filePerms) {
+
 		destDir := filepath.Join(basePath, fi.Name)
 		if err := os.MkdirAll(destDir, fi.Perm); err != nil {
 			return err
@@ -690,7 +691,7 @@ func SnapshotErrorFilename(allocID string) string {
 // writeError writes a special file to a tar archive with the error encountered
 // during snapshotting. See Snapshot().
 func writeError(tw *tar.Writer, allocID string, err error) error {
-	contents := []byte(fmt.Sprintf("Error snapshotting: %v", err))
+	contents := fmt.Appendf([]byte{}, "Error snapshotting: %v", err)
 	hdr := tar.Header{
 		Name:       SnapshotErrorFilename(allocID),
 		Mode:       int64(fileMode666),

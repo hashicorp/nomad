@@ -8,6 +8,7 @@ import (
 	"crypto/fips140"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -1091,9 +1092,7 @@ func loadTemplateEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[s
 		if err != nil {
 			return nil, fmt.Errorf("error parsing env template %q: %v", dest, err)
 		}
-		for k, v := range vars {
-			all[k] = v
-		}
+		maps.Copy(all, vars)
 	}
 	return all, nil
 }

@@ -122,18 +122,14 @@ func (tl *TaskLogger) IsRunning() bool {
 func (tl *TaskLogger) Close() {
 	var wg sync.WaitGroup
 	if tl.lro != nil {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			tl.lro.Close()
-			wg.Done()
-		}()
+		})
 	}
 	if tl.lre != nil {
-		wg.Add(1)
-		go func() {
+		wg.Go(func() {
 			tl.lre.Close()
-			wg.Done()
-		}()
+		})
 	}
 	wg.Wait()
 }
