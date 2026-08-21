@@ -8113,3 +8113,200 @@ func initNodeAndAllocs(t *testing.T, h *tests.Harness, job *structs.Job,
 	return node, job, allocs
 
 }
+
+// TestReconciler_RescheduleBadStates is a regression test designed to catch bad
+// behavior in the scheduler when faced with states that should be impossible.
+func TestReconciler_RescheduleBadStates(t *testing.T) {
+	ci.Parallel(t)
+
+	// 2 healthy nodes and a job with a disconnect block
+	node0 := mock.Node()
+	node1 := mock.Node()
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: time.Hour,
+		Replace:   new(true),
+	}
+
+	eval0 := mock.Eval()
+	eval0.TriggeredBy = structs.EvalTriggerNodeUpdate
+	eval0.JobID = job.ID
+
+	alloc0 := mock.MinAllocForJob(job)
+	alloc1 := mock.MinAllocForJob(job)
+
+	alloc0.NodeID = node0.ID
+	alloc0.FollowupEvalID = eval0.ID
+	alloc0.NextAllocation = alloc1.ID
+
+	alloc1.NodeID = node1.ID
+	alloc1.PreviousAllocation = alloc0.ID
+
+	// helper for flattening placements/stops
+	unpackPlan := func(plan *structs.Plan) (place, stop []string) {
+		for _, allocs := range plan.NodeAllocation {
+			for _, alloc := range allocs {
+				place = append(place, alloc.ID[:8])
+			}
+		}
+		for _, allocs := range plan.NodeUpdate {
+			for _, alloc := range allocs {
+				stop = append(stop, alloc.ID[:8])
+			}
+		}
+		return
+	}
+
+	testCases := []struct {
+		name        string
+		setupFn     func(*structs.Allocation)
+		expectPlace int
+		expectStop  int
+	}{
+		{
+			// this state is a baseline "normal state"
+			name: "0 unknown with next allocation set",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: "unknown",
+					Time:  time.Now(),
+				}}
+			},
+			expectPlace: 0,
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "1 unknown with weird alloc states",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.AllocStates = []*structs.AllocState{
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "unknown",
+						Time:  time.Now(),
+					},
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "",
+						Time:  time.Now(),
+					},
+				}
+			},
+			expectPlace: 0,
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "2 impossible unknown with force reschedule",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.DesiredTransition.ForceReschedule = new(true)
+				a0.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: "unknown",
+					Time:  time.Now(),
+				}}
+			},
+			expectPlace: 0, // should not replace because we already have 1
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "3 impossible running with force reschedule",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusRunning
+				a0.DesiredTransition.ForceReschedule = new(true)
+				a0.RescheduleTracker = &structs.RescheduleTracker{
+					Events:         []*structs.RescheduleEvent{{}},
+					LastReschedule: "ok",
+				}
+			},
+			expectPlace: 0, // should not replace because we already have 1
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "4 impossible unknown with force reschedule and weird alloc states",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.DesiredTransition.ForceReschedule = new(true)
+				a0.AllocStates = []*structs.AllocState{
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "unknown",
+						Time:  time.Now(),
+					},
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "",
+						Time:  time.Now(),
+					},
+				}
+			},
+			expectPlace: 0,
+			expectStop:  1, // stop 1 because we have 1 running
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := tests.NewHarness(t)
+			must.NoError(t, h.State.UpsertNode(
+				structs.MsgTypeTestSetup, h.NextIndex(), node0))
+			must.NoError(t, h.State.UpsertNode(
+				structs.MsgTypeTestSetup, h.NextIndex(), node1))
+			must.NoError(t, h.State.UpsertJob(
+				structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+			must.NoError(t, h.State.UpsertJobSummary(
+				h.NextIndex(), mock.JobSummary(job.ID)))
+
+			alloc0 := alloc0.Copy()
+			alloc1 := alloc1.Copy()
+			tc.setupFn(alloc0)
+
+			t.Logf("alloc0=%s", alloc0.ID[:8])
+			t.Logf("alloc1=%s", alloc1.ID[:8])
+
+			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+				h.NextIndex(), []*structs.Allocation{alloc0, alloc1}))
+
+			eval := eval0.Copy()
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+				h.NextIndex(), []*structs.Evaluation{eval}))
+
+			// first plan
+			must.NoError(t, h.Process(NewServiceScheduler, eval))
+			must.Len(t, 1, h.Plans, must.Sprint("expected a plan"))
+			place, stop := unpackPlan(h.Plans[0])
+			test.Len(t, tc.expectPlace, place, test.Sprint("wrong place count"))
+			test.Len(t, tc.expectStop, stop, test.Sprint("wrong stop count"))
+
+			// continue to run more evals to demonstrate extra plans and excess
+			// allocations
+			var lastPlanCount int
+			for {
+				lastPlanCount = len(h.Plans)
+				eval := mock.Eval()
+				eval.TriggeredBy = structs.EvalTriggerNodeUpdate
+				eval.JobID = job.ID
+				must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+					h.NextIndex(), []*structs.Evaluation{eval}))
+				must.NoError(t, h.Process(NewServiceScheduler, eval))
+				if len(h.Plans) > 5 || len(h.Plans) == lastPlanCount {
+					break // no new plan, or enough to show runaway
+				}
+			}
+			for i, plan := range h.Plans {
+				place, stop := unpackPlan(plan)
+				t.Logf("plan[%d] place=%v stop=%v", i, place, stop)
+			}
+			if lastPlanCount > 1 {
+				t.Fatal("expected at most one plan")
+			}
+		})
+	}
+}

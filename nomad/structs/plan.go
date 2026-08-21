@@ -177,9 +177,8 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 
 	if clientStatus != "" {
 		newAlloc.ClientStatus = clientStatus
+		newAlloc.AppendState(AllocStateFieldClientStatus, clientStatus)
 	}
-
-	newAlloc.AppendState(AllocStateFieldClientStatus, clientStatus)
 
 	if followupEvalID != "" {
 		newAlloc.FollowupEvalID = followupEvalID
