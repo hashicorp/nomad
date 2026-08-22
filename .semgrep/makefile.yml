@@ -1,0 +1,12 @@
+rules:
+  # Check use of latest versions in bootstrap tools
+  - id: "go-install-latest-versions"
+    patterns:
+      - pattern-regex: "@latest$"
+    message: "Use specific version tag not latest"
+    languages:
+      - "generic"
+    severity: "WARN"
+    paths:
+      include:
+        - "GNUMakefile"
