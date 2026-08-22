@@ -1281,28 +1281,19 @@ module('Acceptance | jobs list', function (hooks) {
         localStorage.removeItem('nomadPageSize');
       });
 
-      test('next, previous, and first page without constructing a token (opaque cursor for older-server compatibility)', async function (assert) {
-        // The UI must page using only tokens the server minted, never one it
-        // builds itself. A server from before the "<index>.<namespace>.<id>"
-        // cursor cannot parse a constructed token and returns no jobs, so a UI
-        // running against an older server (e.g. mid rolling-upgrade) has to stay
-        // token-agnostic. cursorFor is the only place the UI builds a token, so
-        // next/previous/first must never call it; only "last" (which has no
-        // prior token to reuse) may.
+      test('next, previous, first, and last all page with server-minted cursors', async function (assert) {
+        // The UI pages using only tokens the server minted, never one it builds
+        // itself. "last" reverse-walks for one fewer than a page so the server's
+        // nextToken lands on the final page's start, so even that jump reuses a
+        // minted token. Staying token-agnostic is what lets the list page against
+        // an older backend (e.g. mid rolling-upgrade) that mints a legacy token
+        // format the UI would otherwise have to know how to build.
         const pageSize = 5;
         const total = 15; // three aligned pages: [15..11], [10..6], [5..1]
         localStorage.setItem('nomadPageSize', pageSize.toString());
         createJobs(this.server, total);
 
         await JobsList.visit();
-
-        const controller = this.owner.lookup('controller:jobs.index');
-        let constructed = 0;
-        const originalCursorFor = controller.cursorFor;
-        controller.cursorFor = function (...args) {
-          constructed++;
-          return originalCursorFor.apply(this, args);
-        };
 
         const modifyIndexes = () =>
           Array.from(document.querySelectorAll('.job-row')).map((row) =>
@@ -1337,27 +1328,13 @@ module('Acceptance | jobs list', function (hooks) {
           'first returns to the first page',
         );
 
-        assert.strictEqual(
-          constructed,
-          0,
-          'next/previous/first paged without ever constructing a token',
-        );
-
-        // "last" has no prior token to reuse and is the one path that still
-        // constructs a cursor; confirm it does, so the boundary is intentional
-        // and this test fails if that ever silently changes.
         await click('[data-test-pager="last"]');
         assert.deepEqual(
           modifyIndexes(),
           [5, 4, 3, 2, 1],
           'last jumps to the final page',
         );
-        assert.ok(
-          constructed > 0,
-          'last constructs a token (the documented older-server gap)',
-        );
 
-        controller.cursorFor = originalCursorFor;
         localStorage.removeItem('nomadPageSize');
       });
 
@@ -1435,30 +1412,73 @@ module('Acceptance | jobs list', function (hooks) {
           .dom('[data-test-pager="first"]')
           .isNotDisabled('first is enabled: this is not the first page');
 
-        const controller = this.owner.lookup('controller:jobs.index');
-        let constructed = 0;
-        const originalCursorFor = controller.cursorFor;
-        controller.cursorFor = function (...args) {
-          constructed++;
-          return originalCursorFor.apply(this, args);
-        };
-
         await click('[data-test-pager="previous"]');
         assert.deepEqual(
           modifyIndexes(),
           [15, 14, 13, 12, 11],
           'previous from a cold cursor pages back to the first page',
         );
-        assert.strictEqual(
-          constructed,
-          0,
-          'previous from a cold cursor never constructs a token',
-        );
         assert
           .dom('[data-test-pager="previous"]')
           .isDisabled('previous is disabled once back on the first page');
 
-        controller.cursorFor = originalCursorFor;
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('paging backward and to the last page keeps the active filter applied', async function (assert) {
+        // prev and last page via the reverse query, which must carry the same
+        // filter as the forward query. Without it, paging back or jumping to
+        // last would page over the unfiltered set and surface jobs the filter
+        // excludes. Interleave two types so an unfiltered reverse query would
+        // return different rows than a filtered one.
+        const pageSize = 5;
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        for (let i = 1; i <= 15; i++) {
+          this.server.create('job', {
+            namespaceId: 'default',
+            type: i % 2 === 1 ? 'service' : 'batch',
+            modifyIndex: i,
+            createAllocations: false,
+            shallow: true,
+          });
+        }
+
+        // Eight service jobs (odd modify indexes) split into [15,13,11,9,7] and
+        // [5,3,1]; the interleaved batch jobs must never appear.
+        await JobsList.visit({ filter: 'Type == service' });
+
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 13, 11, 9, 7],
+          'first page shows only filtered jobs',
+        );
+
+        await click('[data-test-pager="next"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [5, 3, 1],
+          'next stays within the filtered set',
+        );
+
+        await click('[data-test-pager="previous"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 13, 11, 9, 7],
+          'previous pages back over the filtered set, not the full list',
+        );
+
+        await click('[data-test-pager="last"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [9, 7, 5, 3, 1],
+          'last jumps to the final filtered page, not the full list',
+        );
+
         localStorage.removeItem('nomadPageSize');
       });
     });

@@ -97,18 +97,6 @@ export default class JobsIndexController extends Controller {
   // first page can't be read from cursorAt alone; reachedStart probes for it.
   @tracked onFirstPage = true;
 
-  // cursorFor builds a page-start cursor from a job, matching the server's
-  // "<modifyIndex>.<namespace>.<id>" jobs/statuses token. Only "last" needs it:
-  // that page has no forward token to seed from, since nothing points back into
-  // the final page. Every other move reuses a token the server minted.
-  cursorFor(job) {
-    if (!job) {
-      return undefined;
-    }
-    const namespace = job.belongsTo('namespace').id() || 'default';
-    return `${job.modifyIndex}.${namespace}.${job.plainId}`;
-  }
-
   /**
    * @param {"prev"|"next"|"first"|"last"} page
    */
@@ -140,12 +128,16 @@ export default class JobsIndexController extends Controller {
       this.cursorAt = undefined;
       this.onFirstPage = true;
     } else if (page === 'last') {
-      // The one page the server can't mint a forward cursor for: nothing points
-      // back into the final page. Fetch it in reverse and build the cursor from
-      // its newest job (its first in display order).
-      const lastPage = await this.loadReverse();
-      const sorted = lastPage.sortBy('modifyIndex');
-      this.cursorAt = this.cursorFor(sorted[sorted.length - 1]);
+      // Reverse-walk from the end for one fewer than a page so the server's
+      // meta.nextToken lands on the first job of the last full page, then reuse
+      // that minted token. Asking for a full page would overshoot by one and
+      // strand the oldest job on a page of its own. This keeps every cursor
+      // server-minted (nothing constructed here), which also lets the list page
+      // against an older backend that mints the legacy token format.
+      const lastPage = await this.loadReverse({
+        per_page: Math.max(this.pageSize - 1, 1),
+      });
+      this.cursorAt = lastPage.meta.nextToken || undefined;
       this.onFirstPage = false;
     }
   }
@@ -310,16 +302,19 @@ export default class JobsIndexController extends Controller {
   }
 
   // Reverse query used by prev (to read the previous page's start token from
-  // meta.nextToken) and by last (to fetch the final page). per_page is exactly
-  // pageSize: prev reads the minted token rather than picking a job out of the
-  // result, so it needs no overlap job. next_token defaults to undefined, which
-  // "last" uses to walk back from the end of the list.
+  // meta.nextToken) and by last (to fetch the final page). next_token defaults
+  // to undefined, which "last" uses to walk back from the end of the list. The
+  // filter and namespace must match the forward query the route builds, or
+  // paging back / jumping to last would page over a different set than the one
+  // on screen and surface jobs the filter excludes.
   async loadReverse({ next_token = undefined, per_page = this.pageSize } = {}) {
-    return this.store.query(
-      'job',
-      { next_token, per_page, reverse: true },
-      { adapterOptions: { method: 'GET' } },
-    );
+    const params = { next_token, per_page, reverse: true, namespace: '*' };
+    if (this.filter) {
+      params.filter = this.filter;
+    }
+    return this.store.query('job', params, {
+      adapterOptions: { method: 'GET' },
+    });
   }
 
   @restartableTask *watchJobIDs(
