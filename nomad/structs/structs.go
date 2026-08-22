@@ -2942,12 +2942,10 @@ func (n *NetworkResource) Copy() *NetworkResource {
 	*newR = *n
 	newR.DNS = n.DNS.Copy()
 	if n.ReservedPorts != nil {
-		newR.ReservedPorts = make([]Port, len(n.ReservedPorts))
-		copy(newR.ReservedPorts, n.ReservedPorts)
+		newR.ReservedPorts = slices.Clone(n.ReservedPorts)
 	}
 	if n.DynamicPorts != nil {
-		newR.DynamicPorts = make([]Port, len(n.DynamicPorts))
-		copy(newR.DynamicPorts, n.DynamicPorts)
+		newR.DynamicPorts = slices.Clone(n.DynamicPorts)
 	}
 	return newR
 }
@@ -2997,6 +2995,39 @@ func (ns Networks) Copy() Networks {
 		out[i] = ns[i].Copy()
 	}
 	return out
+}
+
+func (ns *Networks) Max(other *Networks) {
+	if other == nil {
+		return
+	}
+
+	for _, n := range *other {
+		// Find the matching interface by IP or CIDR
+		idx := ns.NetIndex(n)
+		if idx == -1 {
+			*ns = append(*ns, n.Copy())
+		} else {
+			(*ns)[idx].Add(n)
+		}
+	}
+
+}
+
+func (ns *Networks) Add(other *Networks) {
+	if other == nil {
+		return
+	}
+
+	for _, n := range *other {
+		// Find the matching interface by IP or CIDR
+		idx := ns.NetIndex(n)
+		if idx == -1 {
+			*ns = append(*ns, n.Copy())
+		} else {
+			(*ns)[idx].Add(n)
+		}
+	}
 }
 
 // Port assignment and IP for the given label or empty values.
@@ -3214,6 +3245,39 @@ func (n *NodeResources) Copy() *NodeResources {
 	newN.Compatibility()
 
 	return newN
+}
+
+func (n *NodeResources) BaseComparable() *BaseComparableResource {
+	if n == nil {
+		return nil
+	}
+
+	return &BaseComparableResource{
+		ComparableCPU{
+			AllocatedCpuResources: AllocatedCpuResources{
+				CpuShares:     int64(n.Processors.TotalCompute()),
+				ReservedCores: n.Processors.Topology.UsableCoresUint16(),
+			},
+		},
+		ComparableMem{
+			AllocatedMemoryResources: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+		},
+		ComparableDisk{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+}
+
+func (n *NodeResources) ComparableNetworks() *ComparableNetworks {
+	if n == nil {
+		return nil
+	}
+
+	return &ComparableNetworks{
+		FlattenedNetworks: n.Networks,
+	}
 }
 
 // Comparable returns a comparable version of the nodes resources. This
@@ -3684,6 +3748,29 @@ func (n *NodeReservedResources) Copy() *NodeReservedResources {
 	return newN
 }
 
+func (n *NodeReservedResources) BaseComparable() *BaseComparableResource {
+	if n == nil {
+		return nil
+	}
+
+	return &BaseComparableResource{
+		ComparableCPU{
+			AllocatedCpuResources: AllocatedCpuResources{
+				CpuShares:     n.Cpu.CpuShares,
+				ReservedCores: n.Cpu.ReservedCpuCores,
+			},
+		},
+		ComparableMem{
+			AllocatedMemoryResources: AllocatedMemoryResources{
+				MemoryMB: n.Memory.MemoryMB,
+			},
+		},
+		ComparableDisk{
+			DiskMB: n.Disk.DiskMB,
+		},
+	}
+}
+
 // Comparable returns a comparable version of the node's reserved resources. The
 // returned resources doesn't contain any network information. This conversion
 // can be lossy so care must be taken when using it.
@@ -3733,6 +3820,46 @@ type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
 }
 
+// AllocWithCmpResource is an object used to cache an allocation with it's
+// AllocatedResources converted into a ComparableResource.
+//
+// Converting an AllocatedResource into a ComparableResource is an expensive
+// operation so this is a use optimization instead of repeatedly calling
+// alloc.AllocatedResource.Comparable().
+type AllocWithCmpResource struct {
+	Alloc    *Allocation
+	Resource *BaseComparableResource
+}
+
+type AllocResourceCache map[string]AllocWithCmpResource
+
+// Insert is used to easily insert a slice of allocations into the
+// resource cache.
+func (a AllocResourceCache) Insert(allocs ...*Allocation) {
+	for _, alloc := range allocs {
+		a[alloc.ID] = AllocWithCmpResource{
+			Alloc:    alloc,
+			Resource: alloc.AllocatedResources.BaseComparable(),
+		}
+	}
+}
+
+func (a AllocResourceCache) Remove(allocs ...*Allocation) {
+	for _, alloc := range allocs {
+		delete(a, alloc.ID)
+	}
+}
+
+func (a AllocResourceCache) Allocs() []*Allocation {
+	allocs := make([]*Allocation, len(a))
+	i := 0
+	for _, val := range a {
+		allocs[i] = val.Alloc
+		i++
+	}
+	return allocs
+}
+
 // AllocatedResources is the set of resources to be used by an allocation.
 type AllocatedResources struct {
 	// Tasks is a mapping of task name to the resources for the task.
@@ -3778,6 +3905,134 @@ func (a *AllocatedResources) Copy() *AllocatedResources {
 	}
 
 	return &out
+}
+
+func (a *AllocatedResources) ComparableNetworks() *ComparableNetworks {
+	if a == nil {
+		return nil
+	}
+	prestart := Networks{}
+	main := Networks{}
+	stop := Networks{}
+
+	c := &ComparableNetworks{}
+
+	for taskName, resources := range a.Tasks {
+		// l.distribute(&taskResources.Networks, a.TaskLifecycles[taskName])
+		lifecycle := a.TaskLifecycles[taskName]
+		if lifecycle == nil {
+			main.Add(&resources.Networks)
+			continue
+		}
+		switch lifecycle.Hook {
+		case TaskLifecycleHookPrestart:
+			if lifecycle.Sidecar {
+				main.Add(&resources.Networks)
+			}
+			prestart.Add(&resources.Networks)
+		case TaskLifecycleHookPoststart:
+			main.Add(&resources.Networks)
+		case TaskLifecycleHookPoststop:
+			stop.Add(&resources.Networks)
+		}
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	main.Max(&prestart)
+	main.Max(&stop)
+
+	c.FlattenedNetworks.Add(&main)
+	cp := a.Shared.Networks.Copy()
+
+	c.FlattenedNetworks.Add(&cp) // this matches the old comparables... Should we just get rid of shared?
+	c.SharedNetworks.Add(&cp)
+	c.SharedPorts = append(c.SharedPorts, a.Shared.Ports...)
+
+	return c
+}
+
+// BaseComparable flattens and returns the maximum necessary CPU/Mem/Disk
+// needed for an allocation to run. It returns a ComparableResourse that is
+// can be used to compare with other Allocations or Node resources.
+//
+// This method is called for each allocation on a node, for each node
+// that is iterated, so it can be quite the scheduling bottleneck.
+// Because of this, we inline logic for distributing resources to
+// lifecycles, as it's quite a bit faster and uses less memory.
+//
+// When updating this method, use care if making copies or allocating
+// memory, and benchmark the scheduler before and after :)
+func (a *AllocatedResources) BaseComparable() *BaseComparableResource {
+	if a == nil {
+		return nil
+	}
+
+	prestart := &AllocatedTaskResources{}
+	main := &AllocatedTaskResources{}
+	stop := &AllocatedTaskResources{}
+
+	c := &BaseComparableResource{}
+
+	c.ComparableDisk.DiskMB = a.Shared.DiskMB
+
+	for taskName, resources := range a.Tasks {
+		lifecycle := a.TaskLifecycles[taskName]
+
+		// Make a shallow copy here, only turn this into a deep copy
+		// if we have reserved cores and absolutely have to.
+		trCopy := resources
+
+		// Reserved cores (and their respective bandwidth) are not fungible,
+		// hence we should always include it as part of the Flattened resources.
+		if len(trCopy.Cpu.ReservedCores) > 0 {
+			// Deep copy, so we can mutate it
+			trCopy = &AllocatedTaskResources{
+				Cpu:    trCopy.Cpu,
+				Memory: trCopy.Memory,
+			}
+			c.ComparableCPU.AllocatedCpuResources.Add(&trCopy.Cpu)
+			trCopy.Cpu = AllocatedCpuResources{}
+		}
+
+		// Avoid copying networks and devices that is normally done
+		// in AllocatedTaskResources.Add()
+		add := func(tr *AllocatedTaskResources) {
+			tr.Cpu.Add(&trCopy.Cpu)
+			tr.Memory.Add(&trCopy.Memory)
+		}
+
+		if lifecycle == nil {
+			add(main)
+			continue
+		}
+		switch lifecycle.Hook {
+		case TaskLifecycleHookPrestart:
+			if lifecycle.Sidecar {
+				add(main)
+			}
+			add(prestart)
+		case TaskLifecycleHookPoststart:
+			add(main)
+		case TaskLifecycleHookPoststop:
+			add(stop)
+		}
+	}
+
+	doMax := func(tr *AllocatedTaskResources) {
+		main.Cpu.Max(&tr.Cpu)
+		main.Memory.Max(&tr.Memory)
+	}
+
+	// Update the main lifecycle to reflect the largest fungible resource set
+	doMax(prestart)
+	doMax(stop)
+
+	// The values in mainLifecycle were copied from the tasks resources,
+	// so we can just merge them into Flattened to avoid the unnecessary copy.
+	c.AllocatedCpuResources.Add(&main.Cpu)
+	c.AllocatedMemoryResources.Add(&main.Memory)
+
+	return c
 }
 
 // Comparable returns a comparable version of the allocations allocated
@@ -3910,6 +4165,8 @@ func (a *AllocatedTaskResources) NetIndex(n *NetworkResource) int {
 	return a.Networks.NetIndex(n)
 }
 
+// Add creates deep copies of pointer values from delta and adds them to
+// the allocatedTaskResource object.
 func (a *AllocatedTaskResources) Add(delta *AllocatedTaskResources) {
 	if delta == nil {
 		return
@@ -4019,7 +4276,6 @@ func (a *AllocatedSharedResources) Add(delta *AllocatedSharedResources) {
 	}
 	a.Networks = append(a.Networks, delta.Networks...)
 	a.DiskMB += delta.DiskMB
-
 }
 
 func (a *AllocatedSharedResources) Subtract(delta *AllocatedSharedResources) {
@@ -4072,11 +4328,24 @@ func (a *AllocatedCpuResources) Add(delta *AllocatedCpuResources) {
 	// add cpu bandwidth
 	a.CpuShares += delta.CpuShares
 
+	seen := make(map[uint16]struct{}, len(a.ReservedCores)+len(delta.ReservedCores))
+	union := make([]uint16, 0, len(a.ReservedCores)+len(delta.ReservedCores))
+
+	for _, v := range a.ReservedCores {
+		if _, ok := seen[v]; !ok {
+			seen[v] = struct{}{}
+			union = append(union, v)
+		}
+	}
+
+	for _, v := range delta.ReservedCores {
+		if _, ok := seen[v]; !ok {
+			seen[v] = struct{}{}
+			union = append(union, v)
+		}
+	}
 	// add cpu cores
-	cores := idset.From[uint16](a.ReservedCores)
-	deltaCores := idset.From[uint16](delta.ReservedCores)
-	cores.InsertSet(deltaCores)
-	a.ReservedCores = cores.Slice()
+	a.ReservedCores = union
 }
 
 func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
@@ -4084,14 +4353,21 @@ func (a *AllocatedCpuResources) Subtract(delta *AllocatedCpuResources) {
 		return
 	}
 
+	tmp := make(map[uint16]struct{}, len(a.ReservedCores))
+
+	for _, core := range a.ReservedCores {
+		tmp[core] = struct{}{}
+	}
+
+	// remove cpu cores
+	for _, core := range delta.ReservedCores {
+		delete(tmp, core)
+	}
+
 	// remove cpu bandwidth
 	a.CpuShares -= delta.CpuShares
 
-	// remove cpu cores
-	cores := idset.From[uint16](a.ReservedCores)
-	deltaCores := idset.From[uint16](delta.ReservedCores)
-	cores.RemoveSet(deltaCores)
-	a.ReservedCores = cores.Slice()
+	a.ReservedCores = slices.Collect(maps.Keys(tmp))
 }
 
 func (a *AllocatedCpuResources) Max(other *AllocatedCpuResources) {
@@ -4154,6 +4430,30 @@ func (a *AllocatedMemoryResources) Max(other *AllocatedMemoryResources) {
 }
 
 type AllocatedDevices []*AllocatedDeviceResource
+
+func (a AllocatedDevices) Add(delta AllocatedDevices) {
+	for _, d := range delta {
+		// Find the matching device
+		idx := a.Index(d)
+		if idx == -1 {
+			a = append(a, d.Copy())
+		} else {
+			a[idx].Add(d)
+		}
+	}
+}
+
+func (a AllocatedDevices) Max(delta AllocatedDevices) {
+	for _, d := range delta {
+		// Find the matching device
+		idx := a.Index(d)
+		if idx == -1 {
+			a = append(a, d.Copy())
+		} else {
+			a[idx].Add(d)
+		}
+	}
+}
 
 // Index finds the matching index using the passed device. If not found, -1 is
 // returned.

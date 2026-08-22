@@ -23,14 +23,16 @@ type groupedAllocs struct {
 }
 
 type allocInfo struct {
-	maxParallel int
-	resources   *structs.ComparableResources
+	maxParallel     int
+	baseResource    *structs.BaseComparableResource
+	networkResource *structs.ComparableNetworks
 }
 
 func (ai *allocInfo) Copy() *allocInfo {
 	return &allocInfo{
-		maxParallel: ai.maxParallel,
-		resources:   ai.resources.Copy(),
+		maxParallel:     ai.maxParallel,
+		baseResource:    ai.baseResource.Copy(),
+		networkResource: ai.networkResource.Copy(),
 	}
 }
 
@@ -66,8 +68,8 @@ func (n *NetworkPreemptionResource) Distance() float64 {
 
 // BasePreemptionResource implements PreemptionResource for CPU/Memory/Disk
 type BasePreemptionResource struct {
-	availableResources *structs.ComparableResources
-	resourceNeeded     *structs.ComparableResources
+	availableResources *structs.BaseComparableResource
+	resourceNeeded     *structs.BaseComparableResource
 }
 
 func (b *BasePreemptionResource) MeetsRequirements() bool {
@@ -80,22 +82,22 @@ func (b *BasePreemptionResource) Distance() float64 {
 }
 
 // PreemptionResourceFactory returns a new PreemptionResource
-type PreemptionResourceFactory func(availableResources *structs.ComparableResources, resourceAsk *structs.ComparableResources) PreemptionResource
+type PreemptionResourceFactory[T any] func(availableResources T, resourceAsk T) PreemptionResource
 
 // GetNetworkPreemptionResourceFactory returns a preemption resource factory for network assignments
-func GetNetworkPreemptionResourceFactory() PreemptionResourceFactory {
-	return func(availableResources *structs.ComparableResources, resourceNeeded *structs.ComparableResources) PreemptionResource {
-		available := availableResources.Flattened.Networks[0]
+func GetNetworkPreemptionResourceFactory() PreemptionResourceFactory[*structs.ComparableNetworks] {
+	return func(availableResources *structs.ComparableNetworks, resourceNeeded *structs.ComparableNetworks) PreemptionResource {
+		available := availableResources.FlattenedNetworks[0]
 		return &NetworkPreemptionResource{
 			availableResources: available,
-			resourceNeeded:     resourceNeeded.Flattened.Networks[0],
+			resourceNeeded:     resourceNeeded.FlattenedNetworks[0],
 		}
 	}
 }
 
 // GetBasePreemptionResourceFactory returns a preemption resource factory for CPU/Memory/Disk
-func GetBasePreemptionResourceFactory() PreemptionResourceFactory {
-	return func(availableResources *structs.ComparableResources, resourceNeeded *structs.ComparableResources) PreemptionResource {
+func GetBasePreemptionResourceFactory() PreemptionResourceFactory[*structs.BaseComparableResource] {
+	return func(availableResources *structs.BaseComparableResource, resourceNeeded *structs.BaseComparableResource) PreemptionResource {
 		return &BasePreemptionResource{
 			availableResources: availableResources,
 			resourceNeeded:     resourceNeeded,
@@ -124,7 +126,7 @@ type Preemptor struct {
 
 	// nodeRemainingResources tracks available resources on the node after
 	// accounting for running allocations
-	nodeRemainingResources *structs.ComparableResources
+	nodeRemainingResources *structs.BaseComparableResource
 
 	// currentAllocs is the candidate set used to find preemptible allocations
 	currentAllocs []*structs.Allocation
@@ -162,33 +164,45 @@ func (p *Preemptor) Copy() *Preemptor {
 
 // SetNode sets the node
 func (p *Preemptor) SetNode(node *structs.Node) {
-	nodeRemainingResources := node.NodeResources.Comparable()
+	nodeRemainingResources := node.NodeResources.BaseComparable()
 
 	// Subtract the reserved resources of the node
-	if c := node.ReservedResources.Comparable(); c != nil {
+	if c := node.ReservedResources.BaseComparable(); c != nil {
 		nodeRemainingResources.Subtract(c)
 	}
 	p.nodeRemainingResources = nodeRemainingResources
 }
 
 // SetCandidates initializes the candidate set from which preemptions are chosen
-func (p *Preemptor) SetCandidates(allocs []*structs.Allocation) {
+func (p *Preemptor) SetCandidates(allocs structs.AllocResourceCache) {
 	// Reset candidate set
 	p.currentAllocs = []*structs.Allocation{}
-	for _, alloc := range allocs {
+	p.allocDetails = make(map[string]*allocInfo)
+	for _, a := range allocs {
+
+		// Ignore the current allocation being place, which has not been assigned
+		// an ID yet.
+		if a.Alloc.ID == "" {
+			continue
+		}
 		// Ignore any allocations of the job being placed
 		// This filters out any previous allocs of the job, and any new allocs in the plan
-		if alloc.JobID == p.jobID.ID && alloc.Namespace == p.jobID.Namespace {
+		if a.Alloc.JobID == p.jobID.ID && a.Alloc.Namespace == p.jobID.Namespace {
 			continue
 		}
 
 		maxParallel := 0
-		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		tg := a.Alloc.Job.LookupTaskGroup(a.Alloc.TaskGroup)
 		if tg != nil && tg.Migrate != nil {
 			maxParallel = tg.Migrate.MaxParallel
 		}
-		p.allocDetails[alloc.ID] = &allocInfo{maxParallel: maxParallel, resources: alloc.AllocatedResources.Comparable()}
-		p.currentAllocs = append(p.currentAllocs, alloc)
+		p.allocDetails[a.Alloc.ID] = &allocInfo{
+			maxParallel:  maxParallel,
+			baseResource: a.Resource,
+			// This can be expensive, so we lazily create this only during preemption
+			networkResource: a.Alloc.AllocatedResources.ComparableNetworks(),
+		}
+		p.currentAllocs = append(p.currentAllocs, a.Alloc)
 	}
 }
 
@@ -225,11 +239,11 @@ func (p *Preemptor) getNumPreemptions(alloc *structs.Allocation) int {
 // the resources asked for. Only allocs with a job priority < 10 of jobPriority are considered
 // This method is meant only for finding preemptible allocations based on CPU/Memory/Disk
 func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources) []*structs.Allocation {
-	resourcesNeeded := resourceAsk.Comparable()
+	resourcesNeeded := resourceAsk.BaseComparable()
 
 	// Subtract current allocations
 	for _, alloc := range p.currentAllocs {
-		allocResources := p.allocDetails[alloc.ID].resources
+		allocResources := p.allocDetails[alloc.ID].baseResource
 		p.nodeRemainingResources.Subtract(allocResources)
 	}
 
@@ -242,7 +256,7 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 	// Initialize variable to track resources as they become available from preemption
 	availableResources := p.nodeRemainingResources.Copy()
 
-	resourcesAsked := resourceAsk.Comparable()
+	resourcesAsked := resourceAsk.BaseComparable()
 	// Iterate over allocations grouped by priority to find preemptible allocations
 	for _, allocGrp := range allocsByPriority {
 		for len(allocGrp.allocs) > 0 && !allRequirementsMet {
@@ -253,14 +267,14 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 				currentPreemptionCount := p.getNumPreemptions(alloc)
 				allocDetails := p.allocDetails[alloc.ID]
 				maxParallel := allocDetails.maxParallel
-				distance := scoreForTaskGroup(resourcesNeeded, allocDetails.resources, maxParallel, currentPreemptionCount)
+				distance := scoreForTaskGroup(resourcesNeeded, allocDetails.baseResource, maxParallel, currentPreemptionCount)
 				if distance < bestDistance {
 					bestDistance = distance
 					closestAllocIndex = index
 				}
 			}
 			closestAlloc := allocGrp.allocs[closestAllocIndex]
-			closestResources := p.allocDetails[closestAlloc.ID].resources
+			closestResources := p.allocDetails[closestAlloc.ID].baseResource
 			availableResources.Add(closestResources)
 
 			// This step needs the original resources asked for as the second arg, can't use the running total
@@ -287,8 +301,13 @@ func (p *Preemptor) PreemptForTaskGroup(resourceAsk *structs.AllocatedResources)
 	// We do another pass to eliminate unnecessary preemptions
 	// This filters out allocs whose resources are already covered by another alloc
 	basePreemptionResource := GetBasePreemptionResourceFactory()
-	resourcesNeeded = resourceAsk.Comparable()
-	filteredBestAllocs := p.filterSuperset(bestAllocs, p.nodeRemainingResources, resourcesNeeded, basePreemptionResource)
+	resourcesNeeded = resourceAsk.BaseComparable()
+
+	details := map[string]*structs.BaseComparableResource{}
+	for alloc, det := range p.allocDetails {
+		details[alloc] = det.baseResource
+	}
+	filteredBestAllocs := filterSuperset(bestAllocs, p.nodeRemainingResources, resourcesNeeded, basePreemptionResource, details)
 	return filteredBestAllocs
 
 }
@@ -326,8 +345,8 @@ func (p *Preemptor) PreemptForNetwork(networkResourceAsk *structs.NetworkResourc
 			continue
 		}
 
-		allocResources := p.allocDetails[alloc.ID].resources
-		networks := allocResources.Flattened.Networks
+		allocResources := p.allocDetails[alloc.ID].networkResource
+		networks := allocResources.FlattenedNetworks
 		if len(networks) == 0 {
 			continue
 		}
@@ -393,8 +412,8 @@ OUTER:
 
 			// Populate usedPort map
 			for _, alloc := range currentAllocs {
-				allocResources := p.allocDetails[alloc.ID].resources
-				for _, n := range allocResources.Flattened.Networks {
+				allocResources := p.allocDetails[alloc.ID].networkResource
+				for _, n := range allocResources.FlattenedNetworks {
 					reservedPorts := n.ReservedPorts
 					for _, p := range reservedPorts {
 						usedPortToAlloc[p.Value] = alloc
@@ -405,8 +424,8 @@ OUTER:
 			for _, port := range reservedPortsNeeded {
 				alloc, ok := usedPortToAlloc[port.Value]
 				if ok {
-					allocResources := p.allocDetails[alloc.ID].resources
-					preemptedBandwidth += allocResources.Flattened.Networks[0].MBits
+					allocResources := p.allocDetails[alloc.ID].networkResource
+					preemptedBandwidth += allocResources.FlattenedNetworks[0].MBits
 					allocsToPreempt = append(allocsToPreempt, alloc)
 				} else {
 					// Check if a higher priority allocation is using this port
@@ -441,8 +460,8 @@ OUTER:
 
 			// Iterate over allocs until end of if requirements have been met
 			for _, alloc := range allocs {
-				allocResources := p.allocDetails[alloc.ID].resources
-				preemptedBandwidth += allocResources.Flattened.Networks[0].MBits
+				allocResources := p.allocDetails[alloc.ID].networkResource
+				preemptedBandwidth += allocResources.FlattenedNetworks[0].MBits
 				allocsToPreempt = append(allocsToPreempt, alloc)
 				if preemptedBandwidth+freeBandwidth >= MbitsNeeded {
 					met = true
@@ -460,25 +479,27 @@ OUTER:
 	}
 
 	// Build a resource object with just the network Mbits filled in
-	nodeRemainingResources := &structs.ComparableResources{
-		Flattened: structs.AllocatedTaskResources{
-			Networks: []*structs.NetworkResource{
-				{
-					Device: preemptedDevice,
-					MBits:  freeBandwidth,
-				},
+	nodeRemainingResources := &structs.ComparableNetworks{
+		FlattenedNetworks: structs.Networks{
+			&structs.NetworkResource{
+				Device: preemptedDevice,
+				MBits:  freeBandwidth,
 			},
 		},
 	}
 
 	// Do a final pass to eliminate any superset allocations
 	preemptionResourceFactory := GetNetworkPreemptionResourceFactory()
-	resourcesNeeded := &structs.ComparableResources{
-		Flattened: structs.AllocatedTaskResources{
-			Networks: []*structs.NetworkResource{networkResourceAsk},
-		},
+	resourcesNeeded := &structs.ComparableNetworks{
+		FlattenedNetworks: structs.Networks{networkResourceAsk},
 	}
-	filteredBestAllocs := p.filterSuperset(allocsToPreempt, nodeRemainingResources, resourcesNeeded, preemptionResourceFactory)
+
+	details := map[string]*structs.ComparableNetworks{}
+	for alloc, det := range p.allocDetails {
+		details[alloc] = det.networkResource
+	}
+
+	filteredBestAllocs := filterSuperset(allocsToPreempt, nodeRemainingResources, resourcesNeeded, preemptionResourceFactory, details)
 	return filteredBestAllocs
 }
 
@@ -634,16 +655,16 @@ func selectBestAllocs(preemptionOptions []*deviceGroupAllocs, neededCount int) [
 
 // basicResourceDistance computes a distance using a coordinate system. It compares resource fields like CPU/Memory and Disk.
 // Values emitted are in the range [0, maxFloat]
-func basicResourceDistance(resourceAsk *structs.ComparableResources, resourceUsed *structs.ComparableResources) float64 {
+func basicResourceDistance(resourceAsk *structs.BaseComparableResource, resourceUsed *structs.BaseComparableResource) float64 {
 	memoryCoord, cpuCoord, diskMBCoord := 0.0, 0.0, 0.0
-	if resourceAsk.Flattened.Memory.MemoryMB > 0 {
-		memoryCoord = (float64(resourceAsk.Flattened.Memory.MemoryMB) - float64(resourceUsed.Flattened.Memory.MemoryMB)) / float64(resourceAsk.Flattened.Memory.MemoryMB)
+	if resourceAsk.MemoryMB > 0 {
+		memoryCoord = (float64(resourceAsk.MemoryMB) - float64(resourceUsed.MemoryMB)) / float64(resourceAsk.MemoryMB)
 	}
-	if resourceAsk.Flattened.Cpu.CpuShares > 0 {
-		cpuCoord = (float64(resourceAsk.Flattened.Cpu.CpuShares) - float64(resourceUsed.Flattened.Cpu.CpuShares)) / float64(resourceAsk.Flattened.Cpu.CpuShares)
+	if resourceAsk.CpuShares > 0 {
+		cpuCoord = (float64(resourceAsk.CpuShares) - float64(resourceUsed.CpuShares)) / float64(resourceAsk.CpuShares)
 	}
-	if resourceAsk.Shared.DiskMB > 0 {
-		diskMBCoord = (float64(resourceAsk.Shared.DiskMB) - float64(resourceUsed.Shared.DiskMB)) / float64(resourceAsk.Shared.DiskMB)
+	if resourceAsk.DiskMB > 0 {
+		diskMBCoord = (float64(resourceAsk.DiskMB) - float64(resourceUsed.DiskMB)) / float64(resourceAsk.DiskMB)
 	}
 	originDist := math.Sqrt(
 		math.Pow(memoryCoord, 2) +
@@ -666,7 +687,7 @@ func networkResourceDistance(resourceUsed *structs.NetworkResource, resourceNeed
 // scoreForTaskGroup is used to calculate a score (lower is better) based on the distance between
 // the needed resource and requirements. A penalty is added when the choice already has some existing
 // allocations in the plan that are being preempted.
-func scoreForTaskGroup(resourceAsk *structs.ComparableResources, resourceUsed *structs.ComparableResources, maxParallel int, numPreemptedAllocs int) float64 {
+func scoreForTaskGroup(resourceAsk *structs.BaseComparableResource, resourceUsed *structs.BaseComparableResource, maxParallel int, numPreemptedAllocs int) float64 {
 	maxParallelScorePenalty := 0.0
 	if maxParallel > 0 && numPreemptedAllocs >= maxParallel {
 		maxParallelScorePenalty = float64((numPreemptedAllocs+1)-maxParallel) * maxParallelPenalty
@@ -725,18 +746,25 @@ func filterAndGroupPreemptibleAllocs(jobPriority int, current []*structs.Allocat
 	return groupedSortedAllocs
 }
 
+type supersetter[T any] interface {
+	Add(T)
+	Copy() T
+}
+
 // filterSuperset is used as a final step to remove
 // any allocations that meet a superset of requirements from
 // the set of allocations to preempt
-func (p *Preemptor) filterSuperset(bestAllocs []*structs.Allocation,
-	nodeRemainingResources *structs.ComparableResources,
-	resourceAsk *structs.ComparableResources,
-	preemptionResourceFactory PreemptionResourceFactory) []*structs.Allocation {
+func filterSuperset[T supersetter[T]](
+	bestAllocs []*structs.Allocation,
+	nodeRemainingResources T,
+	resourceAsk T,
+	preemptionResourceFactory PreemptionResourceFactory[T],
+	allocDetails map[string]T) []*structs.Allocation {
 
 	// Sort bestAllocs by distance descending (without penalty)
 	sort.Slice(bestAllocs, func(i, j int) bool {
-		a1Resources := p.allocDetails[bestAllocs[i].ID].resources
-		a2Resources := p.allocDetails[bestAllocs[j].ID].resources
+		a1Resources := allocDetails[bestAllocs[i].ID]
+		a2Resources := allocDetails[bestAllocs[j].ID]
 		distance1 := preemptionResourceFactory(a1Resources, resourceAsk).Distance()
 		distance2 := preemptionResourceFactory(a2Resources, resourceAsk).Distance()
 		return distance1 > distance2
@@ -749,7 +777,7 @@ func (p *Preemptor) filterSuperset(bestAllocs []*structs.Allocation,
 	// in the preemption set
 	for _, alloc := range bestAllocs {
 		filteredBestAllocs = append(filteredBestAllocs, alloc)
-		allocResources := p.allocDetails[alloc.ID].resources
+		allocResources := allocDetails[alloc.ID]
 		availableResources.Add(allocResources)
 
 		premptionResource := preemptionResourceFactory(availableResources, resourceAsk)
@@ -776,8 +804,7 @@ func (p *Preemptor) distanceComparatorForNetwork(allocs []*structs.Allocation, n
 	}
 
 	// Dereference network usage on first alloc if its there
-	firstAllocResources := p.allocDetails[firstAlloc.ID].resources
-	firstAllocNetworks := firstAllocResources.Flattened.Networks
+	firstAllocNetworks := p.allocDetails[firstAlloc.ID].networkResource.FlattenedNetworks
 	var firstAllocNetResourceUsed *structs.NetworkResource
 	if len(firstAllocNetworks) > 0 {
 		firstAllocNetResourceUsed = firstAllocNetworks[0]
@@ -793,8 +820,7 @@ func (p *Preemptor) distanceComparatorForNetwork(allocs []*structs.Allocation, n
 	}
 
 	// Dereference network usage on second alloc if its there
-	secondAllocResources := p.allocDetails[secondAlloc.ID].resources
-	secondAllocNetworks := secondAllocResources.Flattened.Networks
+	secondAllocNetworks := p.allocDetails[secondAlloc.ID].networkResource.FlattenedNetworks
 	var secondAllocNetResourceUsed *structs.NetworkResource
 	if len(secondAllocNetworks) > 0 {
 		secondAllocNetResourceUsed = secondAllocNetworks[0]
