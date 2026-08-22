@@ -51,3 +51,11 @@ plugin "nomad-driver-exec2" {
     unveil_paths    = ["r:/etc/mime.types"]
   }
 }
+
+plugin "nomad-device-example" {
+  config {
+    dir            = "/tmp/nomad-device"
+    list_period    = "1s"
+    unhealthy_perm = "-rwxrwxrwx"
+  }
+}
