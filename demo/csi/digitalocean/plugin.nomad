@@ -10,15 +10,28 @@ job "digitalocean" {
     task "plugin" {
       driver = "docker"
 
-      config {
-        image = "digitalocean/do-csi-plugin:v2.1.1"
-        args = [
-          "--endpoint=${CSI_ENDPOINT}",
-          "--token=${token}",
-          "--url=https://api.digitalocean.com/",
-        ]
 
+      config {
+        image = "digitalocean/do-csi-plugin:v4.12.0"
+        entrypoint = [ "ash", "/local/run.sh" ]
         privileged = true
+      }
+      
+      template {
+        data        = <<EOH
+DO_TOKEN="{{ with nomadVar "secrets/digitalocean_csi_driver" }}{{ .token }}{{ end }}"
+EOH
+        destination = "secrets/do-token.env"
+        env         = true
+      }
+
+      template {
+        data = <<EOF
+#!/usr/bin/env ash
+/bin/do-csi-plugin --endpoint="unix:///csi/csi.sock" --token="$DO_TOKEN" --url="https://api.digitalocean.com/" # optionally you can add parameters such as --volume-limit=20
+EOF
+        destination = "local/run.sh"
+        env         = false
       }
 
       csi_plugin {
@@ -28,8 +41,9 @@ job "digitalocean" {
       }
 
       resources {
-        cpu    = 500
-        memory = 256
+        cpu    = 100
+        memory = 64
+        memory_max = 128                                                                                       # be aware of using Nomad Scheduler Memory Oversubscription
       }
     }
   }
