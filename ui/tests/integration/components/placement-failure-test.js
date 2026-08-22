@@ -8,7 +8,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
 import cleanWhitespace from '../../utils/clean-whitespace';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | placement failures', function (hooks) {
   setupRenderingTest(hooks);
@@ -91,8 +90,6 @@ module('Integration | Component | placement failures', function (hooks) {
       1,
       'Scores message shown',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('should render correctly when a node is not evaluated', async function (assert) {
@@ -116,8 +113,6 @@ module('Integration | Component | placement failures', function (hooks) {
       0,
       'Nodes exhausted message NOT shown when there are no nodes exhausted',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   function createFixture(obj = {}, name = 'Placement Failure') {

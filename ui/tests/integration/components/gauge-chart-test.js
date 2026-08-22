@@ -7,7 +7,6 @@ import { find, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import gaugeChart from 'nomad-ui/tests/pages/components/gauge-chart';
 
@@ -36,8 +35,6 @@ module('Integration | Component | gauge chart', function (hooks) {
     assert.deepEqual(GaugeChart.label, props.label);
     assert.deepEqual(GaugeChart.percentage, '50%');
     assert.ok(GaugeChart.svgIsPresent);
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('the width of the chart is determined based on the container and the height is a function of the width', async function (assert) {

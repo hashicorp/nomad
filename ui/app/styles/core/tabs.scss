@@ -14,9 +14,9 @@
 
   a {
     padding: 1em 1.5em;
-    color: darken($grey-blue, 20%);
+    color: var(--token-color-foreground-faint);
     border-bottom: none;
-    box-shadow: inset 0 0 0 $grey-blue;
+    box-shadow: inset 0 0 0 var(--token-color-border-primary);
     transition: box-shadow 0.1s ease-in-out;
     text-decoration: none;
 
