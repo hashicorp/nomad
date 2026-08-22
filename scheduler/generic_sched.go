@@ -538,8 +538,18 @@ func (s *GenericScheduler) computePlacements(
 				}
 			}
 
+			// Check if the volumes in the taskgroup have per_alloc enabled
+			hasPerAlloc := false
+
+			for _, volume := range tg.Volumes {
+				if volume.PerAlloc {
+					hasPerAlloc = true
+					break
+				}
+			}
+
 			// Check if this task group has already failed
-			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
+			if metric, ok := s.failedTGAllocs[tg.Name]; ok && !hasPerAlloc { // skip only when no per alloc in volume
 				metric.CoalescedFailures += 1
 				metric.ExhaustResources(tg)
 				continue
@@ -695,8 +705,28 @@ func (s *GenericScheduler) computePlacements(
 				// Update metrics with the resources requested by the task group.
 				s.ctx.Metrics().ExhaustResources(tg)
 
-				// Track the fact that we didn't find a placement
-				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
+				prevMetrics, ok := s.failedTGAllocs[tg.Name]
+				currentMetrics := s.ctx.Metrics()
+
+				if !ok || !hasPerAlloc {
+					s.failedTGAllocs[tg.Name] = currentMetrics
+				} else {
+					winner, loser := prevMetrics, currentMetrics
+					if currentMetrics.NodesExhausted > prevMetrics.NodesExhausted {
+						winner, loser = currentMetrics, prevMetrics
+					}
+
+					if winner.ConstraintFiltered == nil {
+						winner.ConstraintFiltered = make(map[string]int)
+					}
+
+					for reason, count := range loser.ConstraintFiltered {
+						winner.ConstraintFiltered[reason] += count
+					}
+
+					// Track the fact that we didn't find a placement
+					s.failedTGAllocs[tg.Name] = winner
+				}
 
 				// If we weren't able to find a placement for the allocation, back
 				// out the fact that we asked to stop the allocation.
