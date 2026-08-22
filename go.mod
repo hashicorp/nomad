@@ -8,6 +8,8 @@ replace (
 	github.com/hashicorp/go-kms-wrapping/v2 => github.com/tgross/go-kms-wrapping/v2 v2.0.0-20260804111501-651ec6543396
 	github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 => github.com/tgross/go-kms-wrapping/wrappers/aead/v2 v2.0.0-20260804111501-651ec6543396
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-nomad-1
+
+	github.com/hashicorp/nomad/plugin_interface => ./plugin_interface
 )
 
 // Nomad is built using the current source of the API and jobspec2 modules.
