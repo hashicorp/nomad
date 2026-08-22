@@ -315,15 +315,24 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 		return nil, invalidOrigin
 	}
 
+	// Parse useGlobalOffset parameter
+	var useGlobalOffset bool
+	if useGlobalOffsetStr := q.Get("useGlobalOffset"); useGlobalOffsetStr != "" {
+		if useGlobalOffset, err = strconv.ParseBool(useGlobalOffsetStr); err != nil {
+			return nil, CodedError(400, fmt.Sprintf("failed to parse useGlobalOffset field to boolean: %v", err))
+		}
+	}
+
 	// Create the request arguments
 	fsReq := &cstructs.FsLogsRequest{
-		AllocID:   allocID,
-		Task:      task,
-		LogType:   logType,
-		Offset:    offset,
-		Origin:    origin,
-		PlainText: plain,
-		Follow:    follow,
+		AllocID:         allocID,
+		Task:            task,
+		LogType:         logType,
+		Offset:          offset,
+		Origin:          origin,
+		PlainText:       plain,
+		Follow:          follow,
+		UseGlobalOffset: useGlobalOffset,
 	}
 	s.parse(resp, req, &fsReq.QueryOptions.Region, &fsReq.QueryOptions)
 
