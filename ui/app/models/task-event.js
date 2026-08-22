@@ -17,9 +17,13 @@ export default class TaskEvent extends Fragment {
   @attr('date') time;
   @attr('number') timeNanos;
   @attr('string') displayMessage;
+  @attr({ defaultValue: () => ({}) }) details;
 
   get message() {
     let message = simplifyTimeMessage(this.displayMessage);
+
+    if ('image' in this.details) message = `${message} ${this.details["image"]}`;
+    
     return message;
   }
 }
