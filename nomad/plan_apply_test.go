@@ -1446,3 +1446,72 @@ func TestPlanApply_PipelinedPlans(t *testing.T) {
 	}
 	must.Greater(t, 0.0, maxInFlight, must.Sprint("expected pipelined plans"))
 }
+
+func TestPlanApply_applyPlan_StaleSnapshotMissingEval(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, nil)
+	defer cleanup()
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	// Register node
+	node := mock.Node()
+	testRegisterNode(t, srv, node)
+
+	// Seed the job needed by the allocation and plan
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	setupIndex := srv.raft.AppliedIndex()
+	must.NoError(t, srv.State().UpsertJobSummary(setupIndex, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, srv.State().UpsertJob(structs.MsgTypeTestSetup, setupIndex, nil, alloc.Job))
+
+	// Take the planner's optimistic snapshot before registering the eval
+	snap, err := srv.State().Snapshot()
+	must.NoError(t, err)
+
+	// Register eval - canonical state now contains the evaluation, but the older
+	// optimistic snapshot does not
+	eval := mock.Eval()
+	eval.JobID = alloc.JobID
+	eval.Namespace = alloc.Namespace
+	alloc.EvalID = eval.ID
+	must.NoError(t, srv.State().UpsertEvals(
+		structs.MsgTypeTestSetup,
+		setupIndex,
+		[]*structs.Evaluation{eval},
+	))
+
+	// Verify the snapshot reproduces the missing evaluation condition
+	snapshotEval, err := snap.EvalByID(nil, eval.ID)
+	must.NoError(t, err)
+	must.Nil(t, snapshotEval)
+
+	plan := &structs.Plan{
+		Job:    alloc.Job,
+		EvalID: eval.ID,
+	}
+	result := &structs.PlanResult{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+	}
+
+	// Applying the plan must succeed despite the evaluation being absent from the
+	// optimistic snapshot
+	future, err := srv.applyPlan(plan, result, snap)
+	must.NoError(t, err)
+	must.NoError(t, future.Error())
+	must.Nil(t, future.Response())
+
+	// Verify the rest of the plan was applied to the optimistic snapshot
+	optimisticAlloc, err := snap.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.NotNil(t, optimisticAlloc)
+
+	// Verify the Raft request retained EvalID and advanced the eval's ModifyIndex
+	// in canonical state
+	canonicalEval, err := srv.State().EvalByID(nil, eval.ID)
+	must.NoError(t, err)
+	must.NotNil(t, canonicalEval)
+	must.Eq(t, future.Index(), canonicalEval.ModifyIndex)
+}
