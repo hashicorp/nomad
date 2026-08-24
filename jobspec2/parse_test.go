@@ -212,17 +212,17 @@ job "example" {
 			Body:    []byte(hcl),
 			AllowFS: true,
 		})
-		require.NoError(t, err)
-		require.NotNil(t, out.Meta)
-		require.Equal(t, "api", out.Meta["service_name"])
-		require.Equal(t, "8080", out.Meta["service_port"])
-		require.Equal(t, "", out.Meta["service_tags"])
-		require.Equal(t, "yes", out.Meta["service_meta_null"])
-		require.Equal(t, "yes", out.Meta["upstream_null"])
-		require.Equal(t, "a.example.com", out.Meta["backend0_host"])
-		require.Equal(t, "443", out.Meta["backend0_port"])
-		require.Equal(t, "b.example.com", out.Meta["backend1_host"])
-		require.Equal(t, "8443", out.Meta["backend1_port"])
+		must.NoError(t, err)
+		must.NotNil(t, out.Meta)
+		must.Eq(t, "api", out.Meta["service_name"])
+		must.Eq(t, "8080", out.Meta["service_port"])
+		must.Eq(t, "", out.Meta["service_tags"])
+		must.Eq(t, "yes", out.Meta["service_meta_null"])
+		must.Eq(t, "yes", out.Meta["upstream_null"])
+		must.Eq(t, "a.example.com", out.Meta["backend0_host"])
+		must.Eq(t, "443", out.Meta["backend0_port"])
+		must.Eq(t, "b.example.com", out.Meta["backend1_host"])
+		must.Eq(t, "8443", out.Meta["backend1_port"])
 	})
 
 	t.Run("explicit values override optional defaults", func(t *testing.T) {
@@ -232,19 +232,19 @@ job "example" {
 			ArgVars: []string{`service={name="web", port=9090, tags=["a","b"], meta={env="prod"}, upstream={address="127.0.0.1"}}`},
 			AllowFS: true,
 		})
-		require.NoError(t, err)
-		require.NotNil(t, out.Meta)
-		require.Equal(t, "web", out.Meta["service_name"])
-		require.Equal(t, "9090", out.Meta["service_port"])
-		require.Equal(t, "a,b", out.Meta["service_tags"])
-		require.Equal(t, "no", out.Meta["service_meta_null"])
-		require.Equal(t, "no", out.Meta["upstream_null"])
+		must.NoError(t, err)
+		must.NotNil(t, out.Meta)
+		must.Eq(t, "web", out.Meta["service_name"])
+		must.Eq(t, "9090", out.Meta["service_port"])
+		must.Eq(t, "a,b", out.Meta["service_tags"])
+		must.Eq(t, "no", out.Meta["service_meta_null"])
+		must.Eq(t, "no", out.Meta["upstream_null"])
 	})
 
 	t.Run("nested optional defaults applied via var-file", func(t *testing.T) {
 		varFile, err := os.CreateTemp("", "*.vars")
-		require.NoError(t, err)
-		defer os.Remove(varFile.Name())
+		must.NoError(t, err)
+		t.Cleanup(func() { _ = os.Remove(varFile.Name()) })
 
 		_, err = varFile.WriteString(`
 service = {
@@ -254,8 +254,8 @@ service = {
   }
 }
 `)
-		require.NoError(t, err)
-		require.NoError(t, varFile.Close())
+		must.NoError(t, err)
+		must.NoError(t, varFile.Close())
 
 		// Use a job that reads nested upstream.port default
 		nestedHCL := `
@@ -284,10 +284,10 @@ job "example" {
 			VarFiles: []string{varFile.Name()},
 			AllowFS:  true,
 		})
-		require.NoError(t, err)
-		require.Equal(t, "from-file", out.Meta["name"])
-		require.Equal(t, "10.0.0.1", out.Meta["addr"])
-		require.Equal(t, "80", out.Meta["port"])
+		must.NoError(t, err)
+		must.Eq(t, "from-file", out.Meta["name"])
+		must.Eq(t, "10.0.0.1", out.Meta["addr"])
+		must.Eq(t, "80", out.Meta["port"])
 	})
 
 	t.Run("missing required attribute still errors", func(t *testing.T) {
@@ -297,8 +297,7 @@ job "example" {
 			ArgVars: []string{`service={port=1}`},
 			AllowFS: true,
 		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "not compatible with the variable's type constraint")
+		must.ErrorContains(t, err, "not compatible with the variable's type constraint")
 	})
 }
 
