@@ -28,7 +28,18 @@ func NamespaceIDTokenizer[T namespaceIDGetter](target string) Tokenizer[T] {
 		// `a-b` and job `c` into the same token `a-b-c`, since `-` is an allowed
 		// character in namespace.
 		token := fmt.Sprintf("%s.%s", ns, id)
-		return token, cmp.Compare(token, target)
+
+		targetParts := strings.SplitN(target, ".", 2)
+		if len(targetParts) < 2 {
+			return token, cmp.Compare(token, target)
+		}
+
+		nsCmp := cmp.Compare(ns, targetParts[0])
+		if nsCmp != 0 {
+			return token, nsCmp
+		}
+
+		return token, cmp.Compare(id, targetParts[1])
 	}
 }
 
