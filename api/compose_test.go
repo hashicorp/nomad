@@ -18,13 +18,13 @@ func TestCompose(t *testing.T) {
 		SetMeta("foo", "bar").
 		Constrain(NewConstraint("kernel.name", "=", "linux")).
 		Require(&Resources{
-			CPU:      pointerOf(1250),
-			MemoryMB: pointerOf(1024),
-			DiskMB:   pointerOf(2048),
+			CPU:      new(1250),
+			MemoryMB: new(1024),
+			DiskMB:   new(2048),
 			Networks: []*NetworkResource{
 				{
 					CIDR:          "0.0.0.0/0",
-					MBits:         pointerOf(100),
+					MBits:         new(100),
 					ReservedPorts: []Port{{Label: "", Value: 80}, {Label: "", Value: 443}},
 				},
 			},
@@ -50,11 +50,11 @@ func TestCompose(t *testing.T) {
 
 	// Check that the composed result looks correct
 	expect := &Job{
-		Region:   pointerOf("global"),
-		ID:       pointerOf("job1"),
-		Name:     pointerOf("myjob"),
-		Type:     pointerOf(JobTypeService),
-		Priority: pointerOf(2),
+		Region:   new("global"),
+		ID:       new("job1"),
+		Name:     new("myjob"),
+		Type:     new(JobTypeService),
+		Priority: new(2),
 		Datacenters: []string{
 			"dc1",
 		},
@@ -70,8 +70,8 @@ func TestCompose(t *testing.T) {
 		},
 		TaskGroups: []*TaskGroup{
 			{
-				Name:  pointerOf("grp1"),
-				Count: pointerOf(2),
+				Name:  new("grp1"),
+				Count: new(2),
 				Constraints: []*Constraint{
 					{
 						LTarget: "kernel.name",
@@ -84,13 +84,13 @@ func TestCompose(t *testing.T) {
 						LTarget: "${node.class}",
 						RTarget: "large",
 						Operand: "=",
-						Weight:  pointerOf(int8(50)),
+						Weight:  new(int8(50)),
 					},
 				},
 				Spreads: []*Spread{
 					{
 						Attribute: "${node.datacenter}",
-						Weight:    pointerOf(int8(30)),
+						Weight:    new(int8(30)),
 						SpreadTarget: []*SpreadTarget{
 							{
 								Value:   "dc1",
@@ -108,13 +108,13 @@ func TestCompose(t *testing.T) {
 						Name:   "task1",
 						Driver: "exec",
 						Resources: &Resources{
-							CPU:      pointerOf(1250),
-							MemoryMB: pointerOf(1024),
-							DiskMB:   pointerOf(2048),
+							CPU:      new(1250),
+							MemoryMB: new(1024),
+							DiskMB:   new(2048),
 							Networks: []*NetworkResource{
 								{
 									CIDR:  "0.0.0.0/0",
-									MBits: pointerOf(100),
+									MBits: new(100),
 									ReservedPorts: []Port{
 										{Label: "", Value: 80},
 										{Label: "", Value: 443},

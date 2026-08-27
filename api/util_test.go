@@ -27,18 +27,18 @@ func testJob() *Job {
 	task := NewTask("task1", "raw_exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
-			CPU:      pointerOf(100),
-			MemoryMB: pointerOf(256),
+			CPU:      new(100),
+			MemoryMB: new(256),
 		}).
 		SetLogConfig(&LogConfig{
-			MaxFiles:      pointerOf(1),
-			MaxFileSizeMB: pointerOf(2),
+			MaxFiles:      new(1),
+			MaxFileSizeMB: new(2),
 		})
 
 	group := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 
 	job := NewBatchJob("job1", "redis", "global", 1).
@@ -60,18 +60,18 @@ func testJobWithScalingPolicy() *Job {
 	job := testJob()
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
 		Policy:  map[string]any{},
-		Min:     pointerOf(int64(1)),
-		Max:     pointerOf(int64(5)),
-		Enabled: pointerOf(true),
+		Min:     new(int64(1)),
+		Max:     new(int64(5)),
+		Enabled: new(true),
 	}
 	return job
 }
 
 func testPeriodicJob() *Job {
 	job := testJob().AddPeriodicConfig(&PeriodicConfig{
-		Enabled:  pointerOf(true),
-		Spec:     pointerOf("*/30 * * * *"),
-		SpecType: pointerOf("cron"),
+		Enabled:  new(true),
+		Spec:     new("*/30 * * * *"),
+		SpecType: new("cron"),
 	})
 	return job
 }
@@ -117,11 +117,11 @@ func testQuotaSpec() *QuotaSpec {
 			{
 				Region: "global",
 				RegionLimit: &QuotaResources{
-					CPU:      pointerOf(2000),
-					MemoryMB: pointerOf(2000),
+					CPU:      new(2000),
+					MemoryMB: new(2000),
 					Devices: []*RequestedDevice{{
 						Name:  "nvidia/gpu/1080ti",
-						Count: pointerOf(uint64(2)),
+						Count: new(uint64(2)),
 					}},
 				},
 			},
