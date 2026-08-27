@@ -12,7 +12,7 @@ case $(arch) in
     aarch64) ARCH="arm64" ;;
 esac
 
-VERSION=1.13.0
+VERSION=2.0.4
 DOWNLOAD=https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_${ARCH}.zip
 
 function install_vault() {
@@ -24,7 +24,7 @@ function install_vault() {
 	
 	curl -sSL --fail -o /tmp/vault.zip ${DOWNLOAD}
 
-	unzip -d /tmp /tmp/vault.zip
+	unzip -o -d /tmp /tmp/vault.zip
 	mv /tmp/vault /usr/bin/vault
 	chmod +x /usr/bin/vault
 }

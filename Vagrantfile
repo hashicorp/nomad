@@ -2,8 +2,8 @@
 # vi: set ft=ruby :
 #
 
-LINUX_BASE_BOX = "bento/ubuntu-18.04"
-FREEBSD_BASE_BOX = "freebsd/FreeBSD-11.3-STABLE"
+LINUX_BASE_BOX = "bento/ubuntu-24.04"
+FREEBSD_BASE_BOX = "freebsd/FreeBSD-15.1-RELEASE"
 
 LINUX_IP_ADDRESS = "192.168.56.200"
 

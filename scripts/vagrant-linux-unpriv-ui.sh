@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 
-export NODE_VERSION=18.16.1
+export NODE_VERSION=24.19.0
 
 # Install NVM for simple node.js version management
-curl -sSL --fail -o- https://raw.githubusercontent.com/creationix/nvm/v0.36.0/install.sh | bash
+curl -sSL --fail -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
 
 # This enables NVM without a logout/login
 export NVM_DIR="${HOME}/.nvm"
@@ -24,4 +24,4 @@ find ~/.nvm/versions/node -not -name "v${NODE_VERSION}" -depth 1 -exec rm -rf {}
 npm install -g ember-cli
 
 # Install pnpm for front-end dependency management
-npm install -g pnpm@10.15.0
+npm install -g pnpm@11.22.0
