@@ -653,7 +653,7 @@ func TestHTTP_Variables(t *testing.T) {
 
 // encodeBrokenReq is a test helper that damages input JSON in order to create
 // a parsing error for testing error pathways.
-func encodeBrokenReq(obj interface{}) io.ReadCloser {
+func encodeBrokenReq(obj any) io.ReadCloser {
 	// var buf *bytes.Buffer
 	// enc := json.NewEncoder(buf)
 	// enc.Encode(obj)

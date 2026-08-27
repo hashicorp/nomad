@@ -494,7 +494,8 @@ func formatDryRun(resp *api.JobPlanResponse, job *api.Job, colorize *colorstring
 // set, added or deleted task groups and tasks are expanded.
 func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	marker, _ := getDiffString(job.Type)
-	out := fmt.Sprintf("%s[bold]Job: %q\n", marker, job.ID)
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("%s[bold]Job: %q\n", marker, job.ID))
 
 	// Determine the longest markers and fields so that the output can be
 	// properly aligned.
@@ -509,9 +510,9 @@ func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	// verbose mode is set.
 	if job.Type == "Edited" || verbose {
 		fo := alignedFieldAndObjects(job.Fields, job.Objects, 0, longestField, longestMarker)
-		out += fo
+		out.WriteString(fo)
 		if len(fo) > 0 {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
@@ -519,10 +520,10 @@ func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	for _, tg := range job.TaskGroups {
 		_, mLength := getDiffString(tg.Type)
 		kPrefix := longestMarker - mLength
-		out += fmt.Sprintf("%s\n", formatTaskGroupDiff(tg, kPrefix, verbose))
+		out.WriteString(fmt.Sprintf("%s\n", formatTaskGroupDiff(tg, kPrefix, verbose)))
 	}
 
-	return out
+	return out.String()
 }
 
 // formatTaskGroupDiff produces an annotated diff of a task group. If the
@@ -531,7 +532,8 @@ func formatJobDiff(job *api.JobDiff, verbose bool) string {
 // the output of the task group.
 func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) string {
 	marker, _ := getDiffString(tg.Type)
-	out := fmt.Sprintf("%s%s[bold]Task Group: %q[reset]", marker, strings.Repeat(" ", tgPrefix), tg.Name)
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("%s%s[bold]Task Group: %q[reset]", marker, strings.Repeat(" ", tgPrefix), tg.Name))
 
 	// Append the updates and colorize them
 	if l := len(tg.Updates); l > 0 {
@@ -562,9 +564,9 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 			}
 			updates = append(updates, fmt.Sprintf("[reset]%s%d %s", color, count, updateType))
 		}
-		out += fmt.Sprintf(" (%s[reset])\n", strings.Join(updates, ", "))
+		out.WriteString(fmt.Sprintf(" (%s[reset])\n", strings.Join(updates, ", ")))
 	} else {
-		out += "[reset]\n"
+		out.WriteString("[reset]\n")
 	}
 
 	// Determine the longest field and markers so the output is properly
@@ -581,9 +583,9 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 	subStartPrefix := tgPrefix + 2
 	if tg.Type == "Edited" || verbose {
 		fo := alignedFieldAndObjects(tg.Fields, tg.Objects, subStartPrefix, longestField, longestMarker)
-		out += fo
+		out.WriteString(fo)
 		if len(fo) > 0 {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
@@ -591,10 +593,10 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 	for _, task := range tg.Tasks {
 		_, mLength := getDiffString(task.Type)
 		prefix := longestMarker - mLength
-		out += fmt.Sprintf("%s\n", formatTaskDiff(task, subStartPrefix, prefix, verbose))
+		out.WriteString(fmt.Sprintf("%s\n", formatTaskDiff(task, subStartPrefix, prefix, verbose)))
 	}
 
-	return out
+	return out.String()
 }
 
 // formatTaskDiff produces an annotated diff of a task. If the verbose field is
@@ -679,7 +681,7 @@ func formatFieldDiff(diff *api.FieldDiff, startPrefix, keyPrefix, valuePrefix in
 func alignedFieldAndObjects(fields []*api.FieldDiff, objects []*api.ObjectDiff,
 	startPrefix, longestField, longestMarker int) string {
 
-	var out string
+	var out strings.Builder
 	numFields := len(fields)
 	numObjects := len(objects)
 	haveObjects := numObjects != 0
@@ -687,26 +689,26 @@ func alignedFieldAndObjects(fields []*api.FieldDiff, objects []*api.ObjectDiff,
 		_, mLength := getDiffString(field.Type)
 		kPrefix := longestMarker - mLength
 		vPrefix := longestField - len(field.Name)
-		out += formatFieldDiff(field, startPrefix, kPrefix, vPrefix)
+		out.WriteString(formatFieldDiff(field, startPrefix, kPrefix, vPrefix))
 
 		// Avoid a dangling new line
 		if i+1 != numFields || haveObjects {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
 	for i, object := range objects {
 		_, mLength := getDiffString(object.Type)
 		kPrefix := longestMarker - mLength
-		out += formatObjectDiff(object, startPrefix, kPrefix)
+		out.WriteString(formatObjectDiff(object, startPrefix, kPrefix))
 
 		// Avoid a dangling new line
 		if i+1 != numObjects {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
-	return out
+	return out.String()
 }
 
 // getLongestPrefixes takes a list  of fields and objects and determines the

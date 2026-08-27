@@ -219,7 +219,7 @@ func parseNamespaceSpec(input []byte) (*api.Namespace, error) {
 // parseNamespaceSpec parses the quota namespace taking as input the AST tree
 func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 	// Decode the full thing into a map[string]interface for ease
-	var m map[string]interface{}
+	var m map[string]any
 	if err := hcl.DecodeObject(&m, list); err != nil {
 		return err
 	}
@@ -303,7 +303,7 @@ func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 
 	if metaO := list.Filter("meta"); len(metaO.Items) > 0 {
 		for _, o := range metaO.Elem().Items {
-			var m map[string]interface{}
+			var m map[string]any
 			if err := hcl.DecodeObject(&m, o.Val); err != nil {
 				return err
 			}
@@ -315,7 +315,7 @@ func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 
 	if reqClaimsO := list.Filter("required_extra_claims"); len(reqClaimsO.Items) > 0 {
 		for _, o := range reqClaimsO.Elem().Items {
-			var m map[string]interface{}
+			var m map[string]any
 			if err := hcl.DecodeObject(&m, o.Val); err != nil {
 				return err
 			}
@@ -327,7 +327,7 @@ func parseNamespaceSpecImpl(result *api.Namespace, list *ast.ObjectList) error {
 
 	if optClaimsO := list.Filter("optional_extra_claims"); len(optClaimsO.Items) > 0 {
 		for _, o := range optClaimsO.Elem().Items {
-			var m map[string]interface{}
+			var m map[string]any
 			if err := hcl.DecodeObject(&m, o.Val); err != nil {
 				return err
 			}

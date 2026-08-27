@@ -10,7 +10,7 @@ import (
 // Auditor describes the interface that must be implemented by an eventer.
 type Auditor interface {
 	// Event emits an event to the auditor.
-	Event(ctx context.Context, eventType string, payload interface{}) error
+	Event(ctx context.Context, eventType string, payload any) error
 
 	// Enabled details if the auditor is enabled or not.
 	Enabled() bool

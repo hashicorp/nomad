@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) ACLPoliciesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLPoliciesRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -34,7 +34,7 @@ func (s *HTTPServer) ACLPoliciesRequest(resp http.ResponseWriter, req *http.Requ
 	return out.Policies, nil
 }
 
-func (s *HTTPServer) ACLPolicySpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLPolicySpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// handle the special case for "self" call
 	if req.URL.Path == "/v1/acl/policy/self" {
 		return s.aclSelfPolicy(resp, req)
@@ -57,7 +57,7 @@ func (s *HTTPServer) ACLPolicySpecificRequest(resp http.ResponseWriter, req *htt
 }
 
 func (s *HTTPServer) aclPolicyQuery(resp http.ResponseWriter, req *http.Request,
-	policyName string) (interface{}, error) {
+	policyName string) (any, error) {
 	args := structs.ACLPolicySpecificRequest{
 		Name: policyName,
 	}
@@ -78,7 +78,7 @@ func (s *HTTPServer) aclPolicyQuery(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) aclPolicyUpdate(resp http.ResponseWriter, req *http.Request,
-	policyName string) (interface{}, error) {
+	policyName string) (any, error) {
 	// Parse the policy
 	var policy structs.ACLPolicy
 	if err := decodeBody(req, &policy); err != nil {
@@ -105,7 +105,7 @@ func (s *HTTPServer) aclPolicyUpdate(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) aclPolicyDelete(resp http.ResponseWriter, req *http.Request,
-	policyName string) (interface{}, error) {
+	policyName string) (any, error) {
 
 	args := structs.ACLPolicyDeleteRequest{
 		Names: []string{policyName},
@@ -120,7 +120,7 @@ func (s *HTTPServer) aclPolicyDelete(resp http.ResponseWriter, req *http.Request
 	return nil, nil
 }
 
-func (s *HTTPServer) ACLTokensRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLTokensRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -142,7 +142,7 @@ func (s *HTTPServer) ACLTokensRequest(resp http.ResponseWriter, req *http.Reques
 	return out.Tokens, nil
 }
 
-func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Ensure this is a PUT or POST
 	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -169,7 +169,7 @@ func (s *HTTPServer) ACLTokenBootstrap(resp http.ResponseWriter, req *http.Reque
 	return nil, nil
 }
 
-func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := req.URL.Path
 
 	switch path {
@@ -186,7 +186,7 @@ func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http
 	return s.aclTokenCrud(resp, req, accessor)
 }
 
-func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -232,7 +232,7 @@ func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) 
 }
 
 func (s *HTTPServer) aclTokenCrud(resp http.ResponseWriter, req *http.Request,
-	tokenAccessor string) (interface{}, error) {
+	tokenAccessor string) (any, error) {
 	if tokenAccessor == "" {
 		return nil, CodedError(400, "Missing Token Accessor")
 	}
@@ -250,7 +250,7 @@ func (s *HTTPServer) aclTokenCrud(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) aclTokenQuery(resp http.ResponseWriter, req *http.Request,
-	tokenAccessor string) (interface{}, error) {
+	tokenAccessor string) (any, error) {
 	args := structs.ACLTokenSpecificRequest{
 		AccessorID: tokenAccessor,
 	}
@@ -292,7 +292,7 @@ func (s *HTTPServer) aclTokenSelf(resp http.ResponseWriter, req *http.Request) (
 }
 
 func (s *HTTPServer) aclTokenUpdate(resp http.ResponseWriter, req *http.Request,
-	tokenAccessor string) (interface{}, error) {
+	tokenAccessor string) (any, error) {
 	// Parse the token
 	var token structs.ACLToken
 	if err := decodeBody(req, &token); err != nil {
@@ -322,7 +322,7 @@ func (s *HTTPServer) aclTokenUpdate(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) aclTokenDelete(resp http.ResponseWriter, req *http.Request,
-	tokenAccessor string) (interface{}, error) {
+	tokenAccessor string) (any, error) {
 
 	args := structs.ACLTokenDeleteRequest{
 		AccessorIDs: []string{tokenAccessor},
@@ -337,7 +337,7 @@ func (s *HTTPServer) aclTokenDelete(resp http.ResponseWriter, req *http.Request,
 	return nil, nil
 }
 
-func (s *HTTPServer) UpsertOneTimeToken(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) UpsertOneTimeToken(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Ensure this is a PUT or POST
 	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -355,7 +355,7 @@ func (s *HTTPServer) UpsertOneTimeToken(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Ensure this is a PUT or POST
 	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -378,7 +378,7 @@ func (s *HTTPServer) ExchangeOneTimeToken(resp http.ResponseWriter, req *http.Re
 
 // ACLRoleListRequest performs a listing of ACL roles and is callable via the
 // /v1/acl/roles HTTP API.
-func (s *HTTPServer) ACLRoleListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLRoleListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// The endpoint only supports GET requests.
 	if req.Method != http.MethodGet {
@@ -409,7 +409,7 @@ func (s *HTTPServer) ACLRoleListRequest(resp http.ResponseWriter, req *http.Requ
 
 // ACLRoleRequest creates a new ACL role and is callable via the
 // /v1/acl/role HTTP API.
-func (s *HTTPServer) ACLRoleRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLRoleRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// // The endpoint only supports PUT or POST requests.
 	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
@@ -423,7 +423,7 @@ func (s *HTTPServer) ACLRoleRequest(resp http.ResponseWriter, req *http.Request)
 
 // ACLRoleSpecificRequest is callable via the /v1/acl/role/ HTTP API and
 // handles read via both the role name and ID, updates, and deletions.
-func (s *HTTPServer) ACLRoleSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLRoleSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// Grab the suffix of the request, so we can further understand it.
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/acl/role/")
@@ -466,7 +466,7 @@ func (s *HTTPServer) ACLRoleSpecificRequest(resp http.ResponseWriter, req *http.
 }
 
 func (s *HTTPServer) aclRoleRequest(
-	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, roleID string) (any, error) {
 
 	// Identify the method which indicates which downstream function should be
 	// called.
@@ -483,7 +483,7 @@ func (s *HTTPServer) aclRoleRequest(
 }
 
 func (s *HTTPServer) aclRoleGetByIDRequest(
-	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, roleID string) (any, error) {
 
 	args := structs.ACLRoleByIDRequest{
 		RoleID: roleID,
@@ -505,7 +505,7 @@ func (s *HTTPServer) aclRoleGetByIDRequest(
 }
 
 func (s *HTTPServer) aclRoleDeleteRequest(
-	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, roleID string) (any, error) {
 
 	args := structs.ACLRolesDeleteByIDRequest{
 		ACLRoleIDs: []string{roleID},
@@ -523,7 +523,7 @@ func (s *HTTPServer) aclRoleDeleteRequest(
 // aclRoleUpsertRequest handles upserting an ACL to the Nomad servers. It can
 // handle both new creations, and updates to existing roles.
 func (s *HTTPServer) aclRoleUpsertRequest(
-	resp http.ResponseWriter, req *http.Request, roleID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, roleID string) (any, error) {
 
 	// Decode the ACL role.
 	var aclRole structs.ACLRole
@@ -556,7 +556,7 @@ func (s *HTTPServer) aclRoleUpsertRequest(
 }
 
 func (s *HTTPServer) aclRoleGetByNameRequest(
-	resp http.ResponseWriter, req *http.Request, roleName string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, roleName string) (any, error) {
 
 	args := structs.ACLRoleByNameRequest{
 		RoleName: roleName,
@@ -579,7 +579,7 @@ func (s *HTTPServer) aclRoleGetByNameRequest(
 
 // ACLAuthMethodListRequest performs a listing of ACL auth-methods and is
 // callable via the /v1/acl/auth-methods HTTP API.
-func (s *HTTPServer) ACLAuthMethodListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLAuthMethodListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// The endpoint only supports GET requests.
 	if req.Method != http.MethodGet {
@@ -610,7 +610,7 @@ func (s *HTTPServer) ACLAuthMethodListRequest(resp http.ResponseWriter, req *htt
 
 // ACLAuthMethodRequest creates a new ACL auth-method and is callable via the
 // /v1/acl/auth-method HTTP API.
-func (s *HTTPServer) ACLAuthMethodRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLAuthMethodRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// // The endpoint only supports PUT or POST requests.
 	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
@@ -625,7 +625,7 @@ func (s *HTTPServer) ACLAuthMethodRequest(resp http.ResponseWriter, req *http.Re
 // ACLAuthMethodSpecificRequest is callable via the /v1/acl/auth-method/ HTTP
 // API and handles reads, updates, and deletions of named methods.
 func (s *HTTPServer) ACLAuthMethodSpecificRequest(
-	resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// Grab the suffix of the request, so we can further understand it.
 	methodName := strings.TrimPrefix(req.URL.Path, "/v1/acl/auth-method/")
@@ -653,7 +653,7 @@ func (s *HTTPServer) ACLAuthMethodSpecificRequest(
 // aclAuthMethodGetRequest is callable via the /v1/acl/auth-method/ HTTP API
 // and is used for reading the named auth-method from state.
 func (s *HTTPServer) aclAuthMethodGetRequest(
-	resp http.ResponseWriter, req *http.Request, methodName string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, methodName string) (any, error) {
 
 	args := structs.ACLAuthMethodGetRequest{
 		MethodName: methodName,
@@ -677,7 +677,7 @@ func (s *HTTPServer) aclAuthMethodGetRequest(
 // aclAuthMethodDeleteRequest is callable via the /v1/acl/auth-method/ HTTP API
 // and is responsible for deleting the named auth-method from state.
 func (s *HTTPServer) aclAuthMethodDeleteRequest(
-	resp http.ResponseWriter, req *http.Request, methodName string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, methodName string) (any, error) {
 
 	args := structs.ACLAuthMethodDeleteRequest{
 		Names: []string{methodName},
@@ -696,7 +696,7 @@ func (s *HTTPServer) aclAuthMethodDeleteRequest(
 // servers. It can handle both new creations, and updates to existing
 // auth-methods.
 func (s *HTTPServer) aclAuthMethodUpsertRequest(
-	resp http.ResponseWriter, req *http.Request, methodName string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, methodName string) (any, error) {
 
 	// Decode the ACL auth-method.
 	var aclAuthMethod structs.ACLAuthMethod
@@ -731,7 +731,7 @@ func (s *HTTPServer) aclAuthMethodUpsertRequest(
 
 // ACLBindingRuleListRequest performs a listing of ACL binding rules and is
 // callable via the /v1/acl/binding-rules HTTP API.
-func (s *HTTPServer) ACLBindingRuleListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLBindingRuleListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// The endpoint only supports GET requests.
 	if req.Method != http.MethodGet {
@@ -762,7 +762,7 @@ func (s *HTTPServer) ACLBindingRuleListRequest(resp http.ResponseWriter, req *ht
 
 // ACLBindingRuleRequest creates a new ACL binding rule and is callable via the
 // /v1/acl/binding-rule HTTP API.
-func (s *HTTPServer) ACLBindingRuleRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLBindingRuleRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// // The endpoint only supports PUT or POST requests.
 	if !(req.Method == http.MethodPut || req.Method == http.MethodPost) {
@@ -776,7 +776,7 @@ func (s *HTTPServer) ACLBindingRuleRequest(resp http.ResponseWriter, req *http.R
 
 // ACLBindingRuleSpecificRequest is callable via the /v1/acl/binding-rule/ HTTP
 // API and handles read via both the ID, updates, and deletions.
-func (s *HTTPServer) ACLBindingRuleSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLBindingRuleSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// Grab the suffix of the request, so we can further understand it.
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/acl/binding-rule/")
@@ -802,7 +802,7 @@ func (s *HTTPServer) ACLBindingRuleSpecificRequest(resp http.ResponseWriter, req
 }
 
 func (s *HTTPServer) aclBindingRuleGetRequest(
-	resp http.ResponseWriter, req *http.Request, ruleID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, ruleID string) (any, error) {
 
 	args := structs.ACLBindingRuleRequest{
 		ACLBindingRuleID: ruleID,
@@ -824,7 +824,7 @@ func (s *HTTPServer) aclBindingRuleGetRequest(
 }
 
 func (s *HTTPServer) aclBindingRuleDeleteRequest(
-	resp http.ResponseWriter, req *http.Request, ruleID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, ruleID string) (any, error) {
 
 	args := structs.ACLBindingRulesDeleteRequest{
 		ACLBindingRuleIDs: []string{ruleID},
@@ -843,7 +843,7 @@ func (s *HTTPServer) aclBindingRuleDeleteRequest(
 // Nomad servers. It can handle both new creations, and updates to existing
 // rules.
 func (s *HTTPServer) aclBindingRuleUpsertRequest(
-	resp http.ResponseWriter, req *http.Request, ruleID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, ruleID string) (any, error) {
 
 	// Decode the ACL binding rule.
 	var aclBindingRule structs.ACLBindingRule
@@ -883,7 +883,7 @@ func (s *HTTPServer) aclBindingRuleUpsertRequest(
 }
 
 // ACLOIDCAuthURLRequest starts the OIDC login workflow.
-func (s *HTTPServer) ACLOIDCAuthURLRequest(_ http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLOIDCAuthURLRequest(_ http.ResponseWriter, req *http.Request) (any, error) {
 
 	// The endpoint only supports PUT or POST requests.
 	if req.Method != http.MethodPost && req.Method != http.MethodPut {
@@ -905,7 +905,7 @@ func (s *HTTPServer) ACLOIDCAuthURLRequest(_ http.ResponseWriter, req *http.Requ
 }
 
 // ACLOIDCCompleteAuthRequest completes the OIDC login workflow.
-func (s *HTTPServer) ACLOIDCCompleteAuthRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ACLOIDCCompleteAuthRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// The endpoint only supports PUT or POST requests.
 	if req.Method != http.MethodPost && req.Method != http.MethodPut {

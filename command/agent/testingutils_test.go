@@ -50,7 +50,7 @@ func MockJob() *api.Job {
 					{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"command": "/bin/date",
 						},
 						Env: map[string]string{
@@ -132,7 +132,7 @@ func MockRunnableJob() *api.Job {
 	job.TaskGroups[0].Count = new(1)
 	job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
 	job.TaskGroups[0].Tasks[0].Services = nil
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
 	}
 

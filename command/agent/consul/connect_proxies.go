@@ -66,7 +66,7 @@ func (c *ConnectProxies) Proxies() (map[string][]string, error) {
 
 	// convert interface{} to map[string]interface{}
 
-	intermediate, ok := proxies.(map[string]interface{})
+	intermediate, ok := proxies.(map[string]any)
 	if !ok {
 		return nil, errors.New("unexpected SupportedProxies response format from Consul")
 	}
@@ -78,7 +78,7 @@ func (c *ConnectProxies) Proxies() (map[string][]string, error) {
 
 		// convert interface{} to []interface{}
 
-		if si, ok := v.([]interface{}); ok {
+		if si, ok := v.([]any); ok {
 			ss := make([]string, 0, len(si))
 			for _, z := range si {
 

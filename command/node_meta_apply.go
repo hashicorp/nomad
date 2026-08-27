@@ -133,7 +133,7 @@ func parseMapFromArgs(args []string) map[string]*string {
 // applyNodeMetaUnset parses a comma separated list of keys to set as nil in
 // node metadata. The empty string key is ignored as its invalid to set.
 func applyNodeMetaUnset(m map[string]*string, unset string) {
-	for _, k := range strings.Split(unset, ",") {
+	for k := range strings.SplitSeq(unset, ",") {
 		if k != "" {
 			m[k] = nil
 		}

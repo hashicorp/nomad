@@ -18,7 +18,7 @@ func TestHTTP_ScalingPoliciesList(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			// Create the job
 			job, _ := mock.JobWithScalingPolicy()
 
@@ -59,7 +59,7 @@ func TestHTTP_ScalingPoliciesList_Filter(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
 		var job *structs.Job
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			// Create the job
 			job, _ = mock.JobWithScalingPolicy()
 

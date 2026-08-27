@@ -178,7 +178,7 @@ func sortedScalingEventList(e *api.JobScaleStatusResponse) []groupEvent {
 
 // valueOrNil helps format the event output in cases where the object has a
 // potential to be nil.
-func valueOrNil(i interface{}) string {
+func valueOrNil(i any) string {
 	switch t := i.(type) {
 	case *int64:
 		if t != nil {

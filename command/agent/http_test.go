@@ -52,7 +52,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 	job := mock.Job()
 	var allocs []*structs.Allocation
 	count := 1000
-	for i := 0; i < count; i++ {
+	for i := range count {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -60,7 +60,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 		allocs = append(allocs, alloc)
 	}
 
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return allocs[:count], nil
 	}
 	b.ResetTimer()
@@ -225,7 +225,7 @@ func TestSetHeaders(t *testing.T) {
 	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return &structs.Job{Name: "foo"}, nil
 	}
 
@@ -246,7 +246,7 @@ func TestContentTypeIsJSON(t *testing.T) {
 
 	resp := httptest.NewRecorder()
 
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return &structs.Job{Name: "foo"}, nil
 	}
 
@@ -339,7 +339,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	r := &structs.Job{Name: "foo"}
 
 	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return r, nil
 	}
 
@@ -378,7 +378,7 @@ func TestPermissionDenied(t *testing.T) {
 
 	{
 		resp := httptest.NewRecorder()
-		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 			return nil, structs.ErrPermissionDenied
 		}
 
@@ -391,7 +391,7 @@ func TestPermissionDenied(t *testing.T) {
 	// When remote RPC is used the errors have "rpc error: " prependend
 	{
 		resp := httptest.NewRecorder()
-		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 			return nil, fmt.Errorf("rpc error: %v", structs.ErrPermissionDenied)
 		}
 
@@ -409,7 +409,7 @@ func TestTokenNotFound(t *testing.T) {
 	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return nil, structs.ErrTokenNotFound
 	}
 
@@ -1285,7 +1285,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// Create max connections
 		conns := make([]net.Conn, maxConns)
 		errCh := make(chan error, maxConns)
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
 			require.NoError(t, err)
 
@@ -1304,7 +1304,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		}
 
 		// Now assert each error is a clientside read deadline error
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			select {
 			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
@@ -1314,7 +1314,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			}
 		}
 
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			require.NoError(t, conns[i].Close())
 		}
 	}
@@ -1547,8 +1547,8 @@ func Test_decodeBody(t *testing.T) {
 
 	testCases := []struct {
 		inputReq      *http.Request
-		inputOut      interface{}
-		expectedOut   interface{}
+		inputOut      any
+		expectedOut   any
 		expectedError error
 		name          string
 	}{
@@ -1632,7 +1632,7 @@ func setNamespace(req *http.Request, ns string) {
 	req.URL.RawQuery = q.Encode()
 }
 
-func encodeReq(obj interface{}) io.ReadCloser {
+func encodeReq(obj any) io.ReadCloser {
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
 	enc.Encode(obj)

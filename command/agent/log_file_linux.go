@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build dragonfly || linux || solaris
-// +build dragonfly linux solaris
 
 package agent
 

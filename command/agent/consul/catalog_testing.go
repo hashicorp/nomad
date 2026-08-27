@@ -143,7 +143,7 @@ func (c *MockAgent) SetStatus(s string) string {
 	return old
 }
 
-func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
+func (c *MockAgent) Self() (map[string]map[string]any, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.hits++
@@ -155,18 +155,18 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 		build = "1.9.5+ent:22ce6c6a"
 	}
 
-	stats := make(map[string]interface{})
+	stats := make(map[string]any)
 	if c.ent {
 		if c.namespaces {
-			stats = map[string]interface{}{
-				"license": map[string]interface{}{
+			stats = map[string]any{
+				"license": map[string]any{
 					"features": "Namespaces,",
 				},
 			}
 		}
 	}
 
-	return map[string]map[string]interface{}{
+	return map[string]map[string]any{
 		"Config": {
 			"Datacenter": "dc1",
 			"NodeName":   "x52",
@@ -187,13 +187,13 @@ func (c *MockAgent) Self() (map[string]map[string]interface{}, error) {
 			"ProtocolMax": 5,
 			"ProtocolMin": 1,
 			"Status":      1,
-			"Tags": map[string]interface{}{
+			"Tags": map[string]any{
 				"build": build,
 			},
 		},
 		"xDS": {
-			"SupportedProxies": map[string]interface{}{
-				"envoy": []interface{}{
+			"SupportedProxies": map[string]any{
+				"envoy": []any{
 					"1.14.2",
 					"1.13.2",
 					"1.12.4",

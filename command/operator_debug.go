@@ -1766,7 +1766,7 @@ func (c *OperatorDebugCommand) verboseOut(out string) {
 	}
 }
 
-func (c *OperatorDebugCommand) verboseOutf(format string, a ...interface{}) {
+func (c *OperatorDebugCommand) verboseOutf(format string, a ...any) {
 	c.verboseOut(fmt.Sprintf(format, a...))
 }
 
@@ -2015,7 +2015,7 @@ func (c *OperatorDebugCommand) getConsulAddrFromSelf(self *api.AgentSelf) string
 	var consulAddr string
 	r, ok := self.Config["Consul"]
 	if ok {
-		m, ok := r.(map[string]interface{})
+		m, ok := r.(map[string]any)
 		if ok {
 			raw := m["EnableSSL"]
 			c.consul.ssl, _ = raw.(bool)
@@ -2040,7 +2040,7 @@ func (c *OperatorDebugCommand) getVaultAddrFromSelf(self *api.AgentSelf) string 
 	var vaultAddr string
 	r, ok := self.Config["Vault"]
 	if ok {
-		m, ok := r.(map[string]interface{})
+		m, ok := r.(map[string]any)
 		if ok {
 			raw := m["EnableSSL"]
 			c.vault.ssl, _ = raw.(bool)

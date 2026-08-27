@@ -738,11 +738,11 @@ func (s *SetupConsulCommand) removeConfiguredComponents() int {
 }
 
 func printMap(m map[string][]string) string {
-	var output string
+	var output strings.Builder
 
 	for k, v := range m {
-		output += fmt.Sprintf("  * %s: %s\n", k, strings.Join(v, ", "))
+		output.WriteString(fmt.Sprintf("  * %s: %s\n", k, strings.Join(v, ", ")))
 	}
 
-	return output
+	return output.String()
 }

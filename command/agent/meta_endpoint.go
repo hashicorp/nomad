@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) NodeMetaRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NodeMetaRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		return s.nodeMetaRead(resp, req)
@@ -20,7 +20,7 @@ func (s *HTTPServer) NodeMetaRequest(resp http.ResponseWriter, req *http.Request
 	}
 }
 
-func (s *HTTPServer) nodeMetaRead(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) nodeMetaRead(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Build the request by parsing all common parameters and node id
 	args := structs.NodeSpecificRequest{}
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
@@ -54,7 +54,7 @@ func (s *HTTPServer) nodeMetaRead(resp http.ResponseWriter, req *http.Request) (
 	return reply, nil
 }
 
-func (s *HTTPServer) nodeMetaApply(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) nodeMetaApply(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Build the request by decoding body and then parsing all common
 	// parameters and node id
 	args := structs.NodeMetaApplyRequest{}
