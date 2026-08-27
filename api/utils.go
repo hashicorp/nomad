@@ -26,11 +26,6 @@ func formatFloat(f float64, maxPrec int) string {
 	return v[:sublen]
 }
 
-// pointerOf returns a pointer to a.
-func pointerOf[A any](a A) *A {
-	return &a
-}
-
 // pointerCopy returns a new pointer to a.
 func pointerCopy[A any](a *A) *A {
 	if a == nil {

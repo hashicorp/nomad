@@ -17,8 +17,8 @@ func TestTaskGroup_NewTaskGroup(t *testing.T) {
 
 	grp := NewTaskGroup("grp1", 2)
 	expect := &TaskGroup{
-		Name:  pointerOf("grp1"),
-		Count: pointerOf(2),
+		Name:  new("grp1"),
+		Count: new(2),
 	}
 	must.Eq(t, expect, grp)
 }
@@ -71,13 +71,13 @@ func TestTaskGroup_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  pointerOf(int8(100)),
+			Weight:  new(int8(100)),
 		},
 		{
 			LTarget: "${node.affinity}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  pointerOf(int8(50)),
+			Weight:  new(int8(50)),
 		},
 	}
 	must.Eq(t, expect, grp.Affinities)
@@ -125,7 +125,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    pointerOf(int8(100)),
+			Weight:    new(int8(100)),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -135,7 +135,7 @@ func TestTaskGroup_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    pointerOf(int8(100)),
+			Weight:    new(int8(100)),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",
@@ -228,13 +228,13 @@ func TestTask_Require(t *testing.T) {
 
 	// Create some require resources
 	resources := &Resources{
-		CPU:      pointerOf(1250),
-		MemoryMB: pointerOf(128),
-		DiskMB:   pointerOf(2048),
+		CPU:      new(1250),
+		MemoryMB: new(128),
+		DiskMB:   new(2048),
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "0.0.0.0/0",
-				MBits:         pointerOf(100),
+				MBits:         new(100),
 				ReservedPorts: []Port{{Label: "", Value: 80}, {Label: "", Value: 443}},
 			},
 		},
@@ -294,13 +294,13 @@ func TestTask_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  pointerOf(int8(100)),
+			Weight:  new(int8(100)),
 		},
 		{
 			LTarget: "${node.datacenter}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  pointerOf(int8(50)),
+			Weight:  new(int8(50)),
 		},
 	}
 	must.Eq(t, expect, task.Affinities)
@@ -310,8 +310,8 @@ func TestTask_Artifact(t *testing.T) {
 	testutil.Parallel(t)
 
 	a := TaskArtifact{
-		GetterSource:  pointerOf("http://localhost/foo.txt"),
-		GetterMode:    pointerOf("file"),
+		GetterSource:  new("http://localhost/foo.txt"),
+		GetterMode:    new("file"),
 		GetterHeaders: make(map[string]string),
 		GetterOptions: make(map[string]string),
 	}
@@ -379,10 +379,10 @@ func TestTask_Canonicalize_TaskLifecycle(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tg := &TaskGroup{
-				Name: pointerOf("foo"),
+				Name: new("foo"),
 			}
 			j := &Job{
-				ID: pointerOf("test"),
+				ID: new("test"),
 			}
 			tc.task.Canonicalize(tg, j)
 			must.Eq(t, tc.expected, tc.task.Lifecycle)
@@ -412,16 +412,16 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 		{
 			name: "all-fields",
 			task: taskWithWait(&WaitConfig{
-				Min: pointerOf(time.Duration(5)),
-				Max: pointerOf(time.Duration(10)),
+				Min: new(time.Duration(5)),
+				Max: new(time.Duration(10)),
 			}),
 			canonicalized: &WaitConfig{
-				Min: pointerOf(time.Duration(5)),
-				Max: pointerOf(time.Duration(10)),
+				Min: new(time.Duration(5)),
+				Max: new(time.Duration(10)),
 			},
 			copied: &WaitConfig{
-				Min: pointerOf(time.Duration(5)),
-				Max: pointerOf(time.Duration(10)),
+				Min: new(time.Duration(5)),
+				Max: new(time.Duration(10)),
 			},
 		},
 		{
@@ -439,25 +439,25 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 		{
 			name: "min-only",
 			task: taskWithWait(&WaitConfig{
-				Min: pointerOf(time.Duration(5)),
+				Min: new(time.Duration(5)),
 			}),
 			canonicalized: &WaitConfig{
-				Min: pointerOf(time.Duration(5)),
+				Min: new(time.Duration(5)),
 			},
 			copied: &WaitConfig{
-				Min: pointerOf(time.Duration(5)),
+				Min: new(time.Duration(5)),
 			},
 		},
 		{
 			name: "max-only",
 			task: taskWithWait(&WaitConfig{
-				Max: pointerOf(time.Duration(10)),
+				Max: new(time.Duration(10)),
 			}),
 			canonicalized: &WaitConfig{
-				Max: pointerOf(time.Duration(10)),
+				Max: new(time.Duration(10)),
 			},
 			copied: &WaitConfig{
-				Max: pointerOf(time.Duration(10)),
+				Max: new(time.Duration(10)),
 			},
 		},
 	}
@@ -465,10 +465,10 @@ func TestTask_Template_WaitConfig_Canonicalize_and_Copy(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tg := &TaskGroup{
-				Name: pointerOf("foo"),
+				Name: new("foo"),
 			}
 			j := &Job{
-				ID: pointerOf("test"),
+				ID: new("test"),
 			}
 			must.Eq(t, tc.copied, tc.task.Templates[0].Wait.Copy())
 			tc.task.Canonicalize(tg, j)
@@ -487,13 +487,13 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 			name:  "empty",
 			input: &Vault{},
 			expected: &Vault{
-				Env:                  pointerOf(true),
-				DisableFile:          pointerOf(false),
-				Namespace:            pointerOf(""),
+				Env:                  new(true),
+				DisableFile:          new(false),
+				Namespace:            new(""),
 				Cluster:              "default",
-				ChangeMode:           pointerOf("restart"),
-				ChangeSignal:         pointerOf("SIGHUP"),
-				AllowTokenExpiration: pointerOf(false),
+				ChangeMode:           new("restart"),
+				ChangeSignal:         new("SIGHUP"),
+				AllowTokenExpiration: new(false),
 			},
 		},
 	}
@@ -535,22 +535,22 @@ func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 
 	// Job with an Empty() Update
 	job := &Job{
-		ID: pointerOf("test"),
+		ID: new("test"),
 		Update: &UpdateStrategy{
-			AutoRevert:       pointerOf(false),
-			AutoPromote:      pointerOf(false),
-			Canary:           pointerOf(0),
-			HealthCheck:      pointerOf(""),
-			HealthyDeadline:  pointerOf(time.Duration(0)),
-			ProgressDeadline: pointerOf(time.Duration(0)),
-			MaxParallel:      pointerOf(0),
-			MinHealthyTime:   pointerOf(time.Duration(0)),
-			Stagger:          pointerOf(time.Duration(0)),
+			AutoRevert:       new(false),
+			AutoPromote:      new(false),
+			Canary:           new(0),
+			HealthCheck:      new(""),
+			HealthyDeadline:  new(time.Duration(0)),
+			ProgressDeadline: new(time.Duration(0)),
+			MaxParallel:      new(0),
+			MinHealthyTime:   new(time.Duration(0)),
+			Stagger:          new(time.Duration(0)),
 		},
 	}
 	job.Canonicalize()
 	tg := &TaskGroup{
-		Name: pointerOf("foo"),
+		Name: new("foo"),
 	}
 	tg.Canonicalize(job)
 	must.NotNil(t, job.Update)
@@ -561,15 +561,15 @@ func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 	testutil.Parallel(t)
 
 	job := &Job{
-		ID: pointerOf("test"),
+		ID: new("test"),
 	}
 	job.Canonicalize()
 	tg := &TaskGroup{
-		Name:  pointerOf("foo"),
+		Name:  new("foo"),
 		Count: nil,
 		Scaling: &ScalingPolicy{
 			Min:         nil,
-			Max:         pointerOf(int64(10)),
+			Max:         new(int64(10)),
 			Policy:      nil,
 			Enabled:     nil,
 			CreateIndex: 0,
@@ -587,7 +587,7 @@ func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 
 	// count == nil => count = Scaling.Min
 	tg.Count = nil
-	tg.Scaling.Min = pointerOf(int64(5))
+	tg.Scaling.Min = new(int64(5))
 	tg.Canonicalize(job)
 	must.Positive(t, *tg.Count)
 	must.NotNil(t, tg.Scaling.Min)
@@ -595,7 +595,7 @@ func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 	must.Eq(t, int64(*tg.Count), *tg.Scaling.Min)
 
 	// Scaling.Min == nil => Scaling.Min == count
-	tg.Count = pointerOf(5)
+	tg.Count = new(5)
 	tg.Scaling.Min = nil
 	tg.Canonicalize(job)
 	must.Positive(t, *tg.Count)
@@ -604,8 +604,8 @@ func TestTaskGroup_Canonicalize_Scaling(t *testing.T) {
 	must.Eq(t, int64(*tg.Count), *tg.Scaling.Min)
 
 	// both present, both persisted
-	tg.Count = pointerOf(5)
-	tg.Scaling.Min = pointerOf(int64(1))
+	tg.Count = new(5)
+	tg.Scaling.Min = new(int64(1))
 	tg.Canonicalize(job)
 	must.Positive(t, *tg.Count)
 	must.NotNil(t, tg.Scaling.Min)
@@ -617,32 +617,32 @@ func TestTaskGroup_Merge_Update(t *testing.T) {
 	testutil.Parallel(t)
 
 	job := &Job{
-		ID:     pointerOf("test"),
+		ID:     new("test"),
 		Update: &UpdateStrategy{},
 	}
 	job.Canonicalize()
 
 	// Merge and canonicalize part of an update block
 	tg := &TaskGroup{
-		Name: pointerOf("foo"),
+		Name: new("foo"),
 		Update: &UpdateStrategy{
-			AutoRevert:  pointerOf(true),
-			Canary:      pointerOf(5),
-			HealthCheck: pointerOf("foo"),
+			AutoRevert:  new(true),
+			Canary:      new(5),
+			HealthCheck: new("foo"),
 		},
 	}
 
 	tg.Canonicalize(job)
 	must.Eq(t, &UpdateStrategy{
-		AutoRevert:       pointerOf(true),
-		AutoPromote:      pointerOf(false),
-		Canary:           pointerOf(5),
-		HealthCheck:      pointerOf("foo"),
-		HealthyDeadline:  pointerOf(5 * time.Minute),
-		ProgressDeadline: pointerOf(10 * time.Minute),
-		MaxParallel:      pointerOf(1),
-		MinHealthyTime:   pointerOf(10 * time.Second),
-		Stagger:          pointerOf(30 * time.Second),
+		AutoRevert:       new(true),
+		AutoPromote:      new(false),
+		Canary:           new(5),
+		HealthCheck:      new("foo"),
+		HealthyDeadline:  new(5 * time.Minute),
+		ProgressDeadline: new(10 * time.Minute),
+		MaxParallel:      new(1),
+		MinHealthyTime:   new(10 * time.Second),
+		Stagger:          new(30 * time.Second),
 	}, tg.Update)
 }
 
@@ -672,44 +672,44 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 			jobMigrate:  nil,
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     pointerOf(1),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(10 * time.Second),
-				HealthyDeadline: pointerOf(5 * time.Minute),
+				MaxParallel:     new(1),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(10 * time.Second),
+				HealthyDeadline: new(5 * time.Minute),
 			},
 		},
 		{
 			desc:    "Empty job migrate strategy",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel:     pointerOf(0),
-				HealthCheck:     pointerOf(""),
-				MinHealthyTime:  pointerOf(time.Duration(0)),
-				HealthyDeadline: pointerOf(time.Duration(0)),
+				MaxParallel:     new(0),
+				HealthCheck:     new(""),
+				MinHealthyTime:  new(time.Duration(0)),
+				HealthyDeadline: new(time.Duration(0)),
 			},
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     pointerOf(0),
-				HealthCheck:     pointerOf(""),
-				MinHealthyTime:  pointerOf(time.Duration(0)),
-				HealthyDeadline: pointerOf(time.Duration(0)),
+				MaxParallel:     new(0),
+				HealthCheck:     new(""),
+				MinHealthyTime:  new(time.Duration(0)),
+				HealthyDeadline: new(time.Duration(0)),
 			},
 		},
 		{
 			desc:    "Inherit from job",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel:     pointerOf(3),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				MaxParallel:     new(3),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     pointerOf(3),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				MaxParallel:     new(3),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 		},
 		{
@@ -717,67 +717,67 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 			jobType:    "service",
 			jobMigrate: nil,
 			taskMigrate: &MigrateStrategy{
-				MaxParallel:     pointerOf(3),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				MaxParallel:     new(3),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 			expected: &MigrateStrategy{
-				MaxParallel:     pointerOf(3),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				MaxParallel:     new(3),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 		},
 		{
 			desc:    "Merge from job",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel: pointerOf(11),
+				MaxParallel: new(11),
 			},
 			taskMigrate: &MigrateStrategy{
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 			expected: &MigrateStrategy{
-				MaxParallel:     pointerOf(11),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				MaxParallel:     new(11),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 		},
 		{
 			desc:    "Override from group",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel: pointerOf(11),
+				MaxParallel: new(11),
 			},
 			taskMigrate: &MigrateStrategy{
-				MaxParallel:     pointerOf(5),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				MaxParallel:     new(5),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 			expected: &MigrateStrategy{
-				MaxParallel:     pointerOf(5),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(time.Duration(2)),
-				HealthyDeadline: pointerOf(time.Duration(2)),
+				MaxParallel:     new(5),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(time.Duration(2)),
+				HealthyDeadline: new(time.Duration(2)),
 			},
 		},
 		{
 			desc:    "Parallel from job, defaulting",
 			jobType: "service",
 			jobMigrate: &MigrateStrategy{
-				MaxParallel: pointerOf(5),
+				MaxParallel: new(5),
 			},
 			taskMigrate: nil,
 			expected: &MigrateStrategy{
-				MaxParallel:     pointerOf(5),
-				HealthCheck:     pointerOf("checks"),
-				MinHealthyTime:  pointerOf(10 * time.Second),
-				HealthyDeadline: pointerOf(5 * time.Minute),
+				MaxParallel:     new(5),
+				HealthCheck:     new("checks"),
+				MinHealthyTime:  new(10 * time.Second),
+				HealthyDeadline: new(5 * time.Minute),
 			},
 		},
 	}
@@ -785,13 +785,13 @@ func TestTaskGroup_Canonicalize_MigrateStrategy(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			job := &Job{
-				ID:      pointerOf("test"),
+				ID:      new("test"),
 				Migrate: tc.jobMigrate,
-				Type:    pointerOf(tc.jobType),
+				Type:    new(tc.jobType),
 			}
 			job.Canonicalize()
 			tg := &TaskGroup{
-				Name:    pointerOf("foo"),
+				Name:    new("foo"),
 				Migrate: tc.taskMigrate,
 			}
 			tg.Canonicalize(job)
@@ -805,12 +805,12 @@ func TestSpread_Canonicalize(t *testing.T) {
 	testutil.Parallel(t)
 
 	job := &Job{
-		ID:   pointerOf("test"),
-		Type: pointerOf("batch"),
+		ID:   new("test"),
+		Type: new("batch"),
 	}
 	job.Canonicalize()
 	tg := &TaskGroup{
-		Name: pointerOf("foo"),
+		Name: new("foo"),
 	}
 	type testCase struct {
 		desc           string
@@ -830,7 +830,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 			"Zero spread",
 			&Spread{
 				Attribute: "test",
-				Weight:    pointerOf(int8(0)),
+				Weight:    new(int8(0)),
 			},
 			0,
 		},
@@ -838,7 +838,7 @@ func TestSpread_Canonicalize(t *testing.T) {
 			"Non Zero spread",
 			&Spread{
 				Attribute: "test",
-				Weight:    pointerOf(int8(100)),
+				Weight:    new(int8(100)),
 			},
 			100,
 		},
@@ -867,48 +867,48 @@ func Test_NewDefaultReschedulePolicy(t *testing.T) {
 			desc:         "service job type",
 			inputJobType: "service",
 			expected: &ReschedulePolicy{
-				Attempts:      pointerOf(0),
-				Interval:      pointerOf(time.Duration(0)),
-				Delay:         pointerOf(30 * time.Second),
-				DelayFunction: pointerOf("exponential"),
-				MaxDelay:      pointerOf(1 * time.Hour),
-				Unlimited:     pointerOf(true),
+				Attempts:      new(0),
+				Interval:      new(time.Duration(0)),
+				Delay:         new(30 * time.Second),
+				DelayFunction: new("exponential"),
+				MaxDelay:      new(1 * time.Hour),
+				Unlimited:     new(true),
 			},
 		},
 		{
 			desc:         "batch job type",
 			inputJobType: "batch",
 			expected: &ReschedulePolicy{
-				Attempts:      pointerOf(1),
-				Interval:      pointerOf(24 * time.Hour),
-				Delay:         pointerOf(5 * time.Second),
-				DelayFunction: pointerOf("constant"),
-				MaxDelay:      pointerOf(time.Duration(0)),
-				Unlimited:     pointerOf(false),
+				Attempts:      new(1),
+				Interval:      new(24 * time.Hour),
+				Delay:         new(5 * time.Second),
+				DelayFunction: new("constant"),
+				MaxDelay:      new(time.Duration(0)),
+				Unlimited:     new(false),
 			},
 		},
 		{
 			desc:         "system job type",
 			inputJobType: "system",
 			expected: &ReschedulePolicy{
-				Attempts:      pointerOf(0),
-				Interval:      pointerOf(time.Duration(0)),
-				Delay:         pointerOf(time.Duration(0)),
-				DelayFunction: pointerOf(""),
-				MaxDelay:      pointerOf(time.Duration(0)),
-				Unlimited:     pointerOf(false),
+				Attempts:      new(0),
+				Interval:      new(time.Duration(0)),
+				Delay:         new(time.Duration(0)),
+				DelayFunction: new(""),
+				MaxDelay:      new(time.Duration(0)),
+				Unlimited:     new(false),
 			},
 		},
 		{
 			desc:         "unrecognised job type",
 			inputJobType: "unrecognised",
 			expected: &ReschedulePolicy{
-				Attempts:      pointerOf(0),
-				Interval:      pointerOf(time.Duration(0)),
-				Delay:         pointerOf(time.Duration(0)),
-				DelayFunction: pointerOf(""),
-				MaxDelay:      pointerOf(time.Duration(0)),
-				Unlimited:     pointerOf(false),
+				Attempts:      new(0),
+				Interval:      new(time.Duration(0)),
+				Delay:         new(time.Duration(0)),
+				DelayFunction: new(""),
+				MaxDelay:      new(time.Duration(0)),
+				Unlimited:     new(false),
 			},
 		},
 	}
@@ -926,13 +926,13 @@ func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
 
 	t.Run("override job consul in group", func(t *testing.T) {
 		job := &Job{
-			ID:              pointerOf("job"),
-			ConsulNamespace: pointerOf("ns1"),
+			ID:              new("job"),
+			ConsulNamespace: new("ns1"),
 		}
 		job.Canonicalize()
 
 		tg := &TaskGroup{
-			Name:   pointerOf("group"),
+			Name:   new("group"),
 			Consul: &Consul{Namespace: "ns2"},
 		}
 		tg.Canonicalize(job)
@@ -943,13 +943,13 @@ func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
 
 	t.Run("set in group only", func(t *testing.T) {
 		job := &Job{
-			ID:              pointerOf("job"),
+			ID:              new("job"),
 			ConsulNamespace: nil,
 		}
 		job.Canonicalize()
 
 		tg := &TaskGroup{
-			Name:   pointerOf("group"),
+			Name:   new("group"),
 			Consul: &Consul{Namespace: "ns2"},
 		}
 		tg.Canonicalize(job)
