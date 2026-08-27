@@ -45,7 +45,6 @@ type DynamicPriorityWorkload struct {
 	AgeAdjustment    int
 	SizeAdjustment   int
 	CreatedAt        int64
-	Status           string
 }
 
 type DynamicPriorityTenant struct {

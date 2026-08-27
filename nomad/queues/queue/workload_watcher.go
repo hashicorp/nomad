@@ -103,10 +103,8 @@ func (w *WorkloadWatcher) UntrackPlacement(workload Workload) {
 	// constrained.
 	if !strings.Contains(workload.GetStatus(), "constrained") {
 		w.currentPlacements--
-	} else {
-		if w.strictConstraints || w.dropConstrainedPlacements {
-			w.currentPlacements--
-		}
+	} else if w.strictConstraints || w.dropConstrainedPlacements {
+		w.currentPlacements--
 	}
 
 	// If the eval was blocked and then unblocked, the eval will not match in
