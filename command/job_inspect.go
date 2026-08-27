@@ -273,7 +273,7 @@ func getWithVarsOutput(namespace, jobID string, uiVars string, varsMap map[strin
 		runArgs = append(runArgs, "-var")
 		runArgs = append(runArgs, v)
 	}
-	for _, uiVar := range strings.Split(uiVars, "\n") {
+	for uiVar := range strings.SplitSeq(uiVars, "\n") {
 		uiVar = strings.TrimSpace(uiVar)
 		if uiVar != "" {
 			runArgs = append(runArgs, "-var")

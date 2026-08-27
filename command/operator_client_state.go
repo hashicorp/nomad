@@ -106,7 +106,7 @@ func (c *OperatorClientStateCommand) Run(args []string) int {
 				return 1
 			}
 
-			var ds interface{}
+			var ds any
 			if ls.TaskHandle == nil {
 				continue
 			}
@@ -172,5 +172,5 @@ type clientStateAlloc struct {
 type taskState struct {
 	LocalState  *trstate.LocalState
 	RemoteState any
-	DriverState interface{}
+	DriverState any
 }

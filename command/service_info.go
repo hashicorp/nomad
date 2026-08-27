@@ -261,7 +261,7 @@ func argsWithNewPageToken(osArgs []string, nextToken string) string {
 	newArgs := osArgs
 	numArgs := len(newArgs)
 
-	for i := 0; i < numArgs; i++ {
+	for i := range numArgs {
 
 		// If the caller already included a pagination token, replace this
 		// occurrence with the new next token and exit as we don't need to

@@ -476,7 +476,6 @@ func TestMeta_ShowUIPath(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			route := CommandUIRoutes[tc.context.Command]
 			expectedHint := fmt.Sprintf("\n\n==> %s in the Web UI: %s", route.Description, tc.expectedURL)
@@ -569,7 +568,6 @@ func TestMeta_ShowUIPath_EnvVarOverride(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc // capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 
 			// Set environment variable

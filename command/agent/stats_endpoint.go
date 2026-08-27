@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ClientStatsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// Build the request and get the requested Node ID
 	args := structs.NodeSpecificRequest{}

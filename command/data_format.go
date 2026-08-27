@@ -22,7 +22,7 @@ var (
 // DataFormatter is a transformer of the data.
 type DataFormatter interface {
 	// TransformData should return transformed string data.
-	TransformData(interface{}) (string, error)
+	TransformData(any) (string, error)
 }
 
 // DataFormat returns the data formatter specified format.
@@ -42,7 +42,7 @@ func DataFormat(format, tmpl string) (DataFormatter, error) {
 type JSONFormat struct{}
 
 // TransformData returns JSON format string data.
-func (p *JSONFormat) TransformData(data interface{}) (string, error) {
+func (p *JSONFormat) TransformData(data any) (string, error) {
 	var buf bytes.Buffer
 	err := codec.NewEncoder(&buf, jsonHandlePretty).Encode(data)
 	if err != nil {
@@ -57,7 +57,7 @@ type TemplateFormat struct {
 }
 
 // TransformData returns template format string data.
-func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
+func (p *TemplateFormat) TransformData(data any) (string, error) {
 	var out bytes.Buffer
 	if len(p.tmpl) == 0 {
 		return "", fmt.Errorf("template needs to be specified in golang's text/template format.")
@@ -75,7 +75,7 @@ func (p *TemplateFormat) TransformData(data interface{}) (string, error) {
 	return out.String(), nil
 }
 
-func Format(json bool, template string, data interface{}) (string, error) {
+func Format(json bool, template string, data any) (string, error) {
 	var format string
 	if json && len(template) > 0 {
 		return "", fmt.Errorf("Both json and template formatting are not allowed")

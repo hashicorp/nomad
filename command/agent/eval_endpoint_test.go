@@ -157,7 +157,7 @@ func TestHTTP_EvalsDelete(t *testing.T) {
 					// request array.
 					evalID := uuid.Generate()
 
-					for i := 0; i < 8000; i++ {
+					for i := range 8000 {
 						deleteReq.EvalIDs[i] = evalID
 					}
 

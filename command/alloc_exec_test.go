@@ -223,9 +223,9 @@ func TestAllocExecCommand_Run(t *testing.T) {
 
 	jobID := uuid.Generate()
 	job := testJob(jobID)
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
-		"exec_command": map[string]interface{}{
+		"exec_command": map[string]any{
 			"run_for":       "1ms",
 			"exit_code":     21,
 			"stdout_string": "sample stdout output\n",

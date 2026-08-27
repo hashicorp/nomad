@@ -73,7 +73,7 @@ func TestConnect_newConnect(t *testing.T) {
 			Port:    3000,
 			Address: "192.168.30.1",
 			Proxy: &api.AgentServiceConnectProxyConfig{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"bind_address":     "0.0.0.0",
 					"bind_port":        3000,
 					"envoy_stats_tags": []string{"nomad.alloc_id=" + allocID},
@@ -108,7 +108,7 @@ func TestConnect_newConnect(t *testing.T) {
 			Port:    3000,
 			Address: "192.168.30.1",
 			Proxy: &api.AgentServiceConnectProxyConfig{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"bind_address":     "0.0.0.0",
 					"bind_port":        3000,
 					"envoy_stats_tags": []string{"nomad.alloc_id=" + allocID},
@@ -171,7 +171,7 @@ func TestConnect_connectSidecarRegistration(t *testing.T) {
 			Port:    3000,
 			Address: "192.168.30.1",
 			Proxy: &api.AgentServiceConnectProxyConfig{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"bind_address":     "0.0.0.0",
 					"bind_port":        3000,
 					"envoy_stats_tags": []string{"nomad.alloc_id=" + allocID},
@@ -210,7 +210,7 @@ func TestConnect_connectProxy(t *testing.T) {
 			LocalServicePort:    0,
 			Upstreams:           nil,
 			Expose:              api.ExposeConfig{},
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"bind_address":     "0.0.0.0",
 				"bind_port":        2000,
 				"envoy_stats_tags": []string{"nomad.alloc_id=" + allocID},
@@ -261,7 +261,7 @@ func TestConnect_connectProxy(t *testing.T) {
 					ListenerPort:  23100,
 				}},
 			},
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"bind_address":     "0.0.0.0",
 				"bind_port":        2000,
 				"envoy_stats_tags": []string{"nomad.alloc_id=" + allocID},
@@ -554,7 +554,7 @@ func TestConnect_newConnectGateway(t *testing.T) {
 			},
 		})
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"connect_timeout_ms": int64(1000),
 			},
 		}, result)
@@ -585,14 +585,14 @@ func TestConnect_newConnectGateway(t *testing.T) {
 					},
 					EnvoyGatewayNoDefaultBind: true,
 					EnvoyDNSDiscoveryType:     "STRICT_DNS",
-					Config: map[string]interface{}{
+					Config: map[string]any{
 						"foo": 1,
 					},
 				},
 			},
 		})
 		require.Equal(t, &api.AgentServiceConnectProxyConfig{
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"connect_timeout_ms":                  int64(1000),
 				"envoy_gateway_bind_tagged_addresses": true,
 				"envoy_gateway_bind_addresses": map[string]*structs.ConsulGatewayBindAddress{
@@ -653,7 +653,7 @@ func Test_injectNomadInfo(t *testing.T) {
 		}
 	}
 
-	try := func(defaultTags map[string]string, cfg, exp map[string]interface{}) {
+	try := func(defaultTags map[string]string, cfg, exp map[string]any) {
 		// TODO: defaultTags get modified over the execution
 		injectNomadInfo(cfg, defaultTags)
 		cfgTags, expTags := cfg["envoy_stats_tags"], exp["envoy_stats_tags"]
@@ -666,8 +666,8 @@ func Test_injectNomadInfo(t *testing.T) {
 	// empty
 	try(
 		info1(),
-		make(map[string]interface{}),
-		map[string]interface{}{
+		make(map[string]any),
+		map[string]any{
 			"envoy_stats_tags": []string{"nomad.alloc_id=abc123"},
 		},
 	)
@@ -675,8 +675,8 @@ func Test_injectNomadInfo(t *testing.T) {
 	// merge fresh
 	try(
 		info1(),
-		map[string]interface{}{"foo": "bar"},
-		map[string]interface{}{
+		map[string]any{"foo": "bar"},
+		map[string]any{
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"nomad.alloc_id=abc123"},
 		},
@@ -685,11 +685,11 @@ func Test_injectNomadInfo(t *testing.T) {
 	// merge append
 	try(
 		info1(),
-		map[string]interface{}{
+		map[string]any{
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"k1=v1", "k2=v2"},
 		},
-		map[string]interface{}{
+		map[string]any{
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"k1=v1", "k2=v2", "nomad.alloc_id=abc123"},
 		},
@@ -698,11 +698,11 @@ func Test_injectNomadInfo(t *testing.T) {
 	// merge exists
 	try(
 		info2(),
-		map[string]interface{}{
+		map[string]any{
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"k1=v1", "k2=v2", "nomad.alloc_id=xyz789"},
 		},
-		map[string]interface{}{
+		map[string]any{
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"k1=v1", "k2=v2", "nomad.alloc_id=xyz789", "nomad.namespace=testns"},
 		},
@@ -711,10 +711,10 @@ func Test_injectNomadInfo(t *testing.T) {
 	// merge wrong type
 	try(
 		info1(),
-		map[string]interface{}{
+		map[string]any{
 			"envoy_stats_tags": "not a slice of string",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"envoy_stats_tags": []string{"nomad.alloc_id=abc123"},
 		},
 	)

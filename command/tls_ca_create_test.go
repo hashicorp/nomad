@@ -87,7 +87,6 @@ func TestCACreateCommand(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
 			cmd := &TLSCACreateCommand{Meta: Meta{Ui: ui}}
