@@ -208,7 +208,6 @@ func (iter *BinPackIterator) SetSchedulerConfiguration(schedConfig *structs.Sche
 }
 
 func (iter *BinPackIterator) Next() *RankedNode {
-
 NEXTNODE:
 	for {
 		// Get the next potential option
@@ -224,7 +223,6 @@ NEXTNODE:
 			iter.ctx.Logger().Named("binpack").Error("failed retrieving proposed allocations", "error", err)
 			continue
 		}
-
 		// Index the existing network usage.
 		// This should never collide, since it represents the current state of
 		// the node. If it does collide though, it means we found a bug! So
@@ -286,7 +284,6 @@ NEXTNODE:
 			currentPreemptions = append(currentPreemptions, allocs...)
 		}
 		preemptor.SetPreemptions(currentPreemptions)
-
 		// Check if we need task group network resource
 		if len(iter.taskGroup.Networks) > 0 {
 			ask := iter.taskGroup.Networks[0].Copy()
@@ -521,7 +518,8 @@ NEXTNODE:
 
 						var offer *structs.AllocatedDeviceResource
 						var sumAffinities float64
-						offer, sumAffinities, err = devAllocator.createOffer(memory, device)
+						var deviceTotalWeight float64
+						offer, sumAffinities, deviceTotalWeight, err = devAllocator.createOffer(memory, device)
 						if offer == nil || err != nil {
 							devAllocator = devAllocatorSnapshot
 							taskResources.Devices = taskResourcesSnapshot
@@ -534,11 +532,10 @@ NEXTNODE:
 						devAllocator.AddReserved(offer)
 						taskResources.Devices = append(taskResources.Devices, offer)
 
-						// Add the scores
-						if len(device.Affinities) != 0 {
-							for _, a := range device.Affinities {
-								totalDeviceAffinityWeight += math.Abs(float64(a.Weight))
-							}
+						// Add the scores - use returned weights which correctly
+						// handle first_available option-specific affinities
+						if deviceTotalWeight > 0 {
+							totalDeviceAffinityWeight += deviceTotalWeight
 							sumMatchingAffinities += sumAffinities
 						}
 						count++
@@ -567,7 +564,6 @@ NEXTNODE:
 				// and devices WITH leveraging preemption. We will have already
 				// made attempts without preemption.
 
-				// If preemption is not enabled, then this node is exhausted.
 				if !iter.evict {
 					// surface err from createOffer()
 					iter.ctx.Metrics().ExhaustedNode(option.Node, fmt.Sprintf("devices: %s", err))
@@ -608,7 +604,7 @@ NEXTNODE:
 							devices:    set.From(task.Resources.NUMA.GetDevices()),
 						}
 
-						offer, sumAffinities, err := devAllocator.createOffer(memory, device)
+						offer, sumAffinities, deviceTotalWeight, err := devAllocator.createOffer(memory, device)
 						if offer == nil {
 							offerErr = err
 
@@ -643,7 +639,7 @@ NEXTNODE:
 							devAllocatorEvict.AddAllocs(proposed)
 
 							// attempt the offer again
-							offerEvict, sumAffinitiesEvict, err := devAllocatorEvict.createOffer(memory, device)
+							offerEvict, sumAffinitiesEvict, deviceTotalWeightEvict, err := devAllocatorEvict.createOffer(memory, device)
 							if offerEvict == nil || err != nil {
 								// we cannot acquire this device even with preemption
 								iter.ctx.Logger().Named("binpack").Debug("unexpected error, unable to create device offer after considering preemption", "error", err)
@@ -654,17 +650,17 @@ NEXTNODE:
 							offer = offerEvict
 							sumAffinities = sumAffinitiesEvict
 							devAllocator = devAllocatorEvict
+							deviceTotalWeight = deviceTotalWeightEvict
 						}
 
 						// assign the offer for this device to our allocator
 						devAllocator.AddReserved(offer)
 						taskResources.Devices = append(taskResources.Devices, offer)
 
-						// Add the scores
-						if len(device.Affinities) != 0 {
-							for _, a := range device.Affinities {
-								totalDeviceAffinityWeight += math.Abs(float64(a.Weight))
-							}
+						// Add the scores - use returned weights which correctly
+						// handle first_available option-specific affinities
+						if deviceTotalWeight > 0 {
+							totalDeviceAffinityWeight += deviceTotalWeight
 							sumMatchingAffinities += sumAffinities
 						}
 						count++
@@ -1014,7 +1010,8 @@ type ScoreNormalizationIterator struct {
 func NewScoreNormalizationIterator(ctx Context, source RankIterator) *ScoreNormalizationIterator {
 	return &ScoreNormalizationIterator{
 		ctx:    ctx,
-		source: source}
+		source: source,
+	}
 }
 
 func (iter *ScoreNormalizationIterator) Reset() {

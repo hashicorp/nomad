@@ -5,10 +5,13 @@ package example
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/kr/pretty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -47,10 +49,7 @@ var (
 
 	// configSpec is the specification of the plugin's configuration
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"dir": hclspec.NewDefault(
-			hclspec.NewAttr("dir", "string", false),
-			hclspec.NewLiteral("\".\""),
-		),
+		"dir": hclspec.NewAttr("dir", "string", false),
 		"list_period": hclspec.NewDefault(
 			hclspec.NewAttr("list_period", "string", false),
 			hclspec.NewLiteral("\"5s\""),
@@ -59,14 +58,43 @@ var (
 			hclspec.NewAttr("unhealthy_perm", "string", false),
 			hclspec.NewLiteral("\"-rwxrwxrwx\""),
 		),
+		"attribute_config": hclspec.NewBlockList("attribute_config", hclspec.NewObject(map[string]*hclspec.Spec{
+			"attribute_name": hclspec.NewAttr("attribute_name", "string", false),
+			"attribute_type": hclspec.NewAttr("attribute_type", "string", false),
+			"attribute_unit": hclspec.NewAttr("unit", "string", false),
+			"default_value":  hclspec.NewAttr("default_value", "string", true),
+		}),
+		),
+
+		"static_config": hclspec.NewBlockList("static_config", hclspec.NewObject(map[string]*hclspec.Spec{
+			"id":        hclspec.NewAttr("id", "string", true),
+			"unhealthy": hclspec.NewAttr("unhealthy", "bool", false),
+		})),
 	})
 )
 
+// StaticDevices allows users to define devices in configuration
+// instead of relying on file discovery.
+type StaticDevice struct {
+	ID        string `codec:"id"`
+	Unhealthy bool   `codec:"unhealthy"`
+}
+
+// AttributeConfig defines a list of custom attributes and values
+type AttributeConfig struct {
+	AttributeName string `codec:"attribute_name"`
+	AttributeType string `codec:"attribute_type"`
+	DefaultValue  string `codec:"default_value"`
+	AttributeUnit string `codec:"attribute_unit"`
+}
+
 // Config contains configuration information for the plugin.
 type Config struct {
-	Dir           string `codec:"dir"`
-	ListPeriod    string `codec:"list_period"`
-	UnhealthyPerm string `codec:"unhealthy_perm"`
+	Dir             string             `codec:"dir"`
+	ListPeriod      string             `codec:"list_period"`
+	UnhealthyPerm   string             `codec:"unhealthy_perm"`
+	AttributeConfig []*AttributeConfig `codec:"attribute_config"`
+	StaticConfig    []*StaticDevice    `codec:"static_config"`
 }
 
 // FsDevice is an example device plugin. The device plugin exposes files as
@@ -85,6 +113,12 @@ type FsDevice struct {
 	// listPeriod is how often we should list the device directory to detect new
 	// devices
 	listPeriod time.Duration
+
+	// StaticDevices holds devices defined in static configuration
+	StaticDevices []*device.Device
+
+	// DefaultAttributes are those defined in configuration
+	DefaultAttributes map[string]*structs.Attribute
 
 	// devices is the set of detected devices and maps whether they are healthy
 	devices    map[string]bool
@@ -108,6 +142,41 @@ func (d *FsDevice) PluginInfo() (*base.PluginInfoResponse, error) {
 func (d *FsDevice) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
+func (d *FsDevice) configToAttribute(configAttr *AttributeConfig) (*structs.Attribute, error) {
+	var attr *structs.Attribute
+	if configAttr == nil {
+		return nil, fmt.Errorf("failed to parse attribute, cannot be nil: %v", configAttr)
+	}
+	switch strings.ToLower(configAttr.AttributeType) {
+	case "string":
+		if configAttr.DefaultValue == "" {
+			return nil, fmt.Errorf("failed to parse attribute: %v", configAttr)
+		}
+		attr = structs.NewStringAttribute(configAttr.DefaultValue)
+	case "float":
+		fVal, err := strconv.ParseFloat(configAttr.DefaultValue, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse attribute: %s. %w", configAttr.DefaultValue, err)
+		}
+		attr = structs.NewFloatAttribute(fVal, configAttr.AttributeUnit)
+	case "int":
+		iVal, err := strconv.ParseInt(configAttr.DefaultValue, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse attribute: %s. %w", configAttr.DefaultValue, err)
+		}
+		attr = structs.NewIntAttribute(iVal, configAttr.AttributeUnit)
+	case "bool":
+		bVal, err := strconv.ParseBool(configAttr.DefaultValue)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse attribute: %s. %w", configAttr.DefaultValue, err)
+		}
+		attr = structs.NewBoolAttribute(bVal)
+	default:
+		return nil, fmt.Errorf("failed to parse attribute: AttributeType must be one of ['string', 'float','int', or 'bool'] got: %s.", configAttr.AttributeType)
+	}
+
+	return attr, nil
+}
 
 // SetConfig is used to set the configuration of the plugin.
 func (d *FsDevice) SetConfig(c *base.Config) error {
@@ -116,31 +185,69 @@ func (d *FsDevice) SetConfig(c *base.Config) error {
 		return err
 	}
 
-	// Save the device directory and the unhealthy permissions
-	d.deviceDir = config.Dir
-	d.unhealthyPerm = config.UnhealthyPerm
+	if config.Dir != "" && len(config.StaticConfig) != 0 {
+		errText := fmt.Sprintf("both dir and static_config should not be set:\n dir:%s StaticConfig: %v", config.Dir, config.StaticConfig)
+		return errors.New(errText)
+	} else if config.Dir == "" && len(config.StaticConfig) != 0 {
+		config.Dir = "."
+	}
 
-	// Convert the poll period
 	period, err := time.ParseDuration(config.ListPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to parse list period %q: %v", config.ListPeriod, err)
 	}
 	d.listPeriod = period
+	if config.AttributeConfig != nil {
+		d.DefaultAttributes = make(map[string]*structs.Attribute, len(config.AttributeConfig))
+		for _, a := range config.AttributeConfig {
+			attr, err := d.configToAttribute(a)
+			if err != nil {
+				return err
+			}
 
-	d.logger.Debug("test debug")
-	d.logger.Info("config set", "config", log.Fmt("% #v", pretty.Formatter(config)))
+			d.DefaultAttributes[(strings.ToLower(a.AttributeName))] = attr
+		}
+	}
+	if len(config.StaticConfig) != 0 {
+		d.StaticDevices = make([]*device.Device, 0)
+
+		for _, v := range config.StaticConfig {
+			unhealthyDesc := "Device was designated unhealthy"
+			var desc string
+			if v.Unhealthy {
+				desc = unhealthyDesc
+			}
+			d.StaticDevices = append(d.StaticDevices, &device.Device{
+				ID:         v.ID,
+				Healthy:    !v.Unhealthy,
+				HealthDesc: desc,
+			})
+			d.devices[v.ID] = !v.Unhealthy
+		}
+
+	}
+
+	if config.Dir != "" {
+		// Save the device directory and the unhealthy permissions
+		d.deviceDir = config.Dir
+		d.unhealthyPerm = config.UnhealthyPerm
+	}
 	return nil
 }
 
 // Fingerprint streams detected devices. If device changes are detected or the
 // devices health changes, messages will be emitted.
 func (d *FsDevice) Fingerprint(ctx context.Context) (<-chan *device.FingerprintResponse, error) {
-	if d.deviceDir == "" {
-		return nil, status.New(codes.Internal, "device directory not set in config").Err()
+	if d.deviceDir == "" && len(d.StaticDevices) == 0 {
+		return nil, status.New(codes.Internal, "neither device directory nor static device list set in config").Err()
 	}
 
 	outCh := make(chan *device.FingerprintResponse)
-	go d.fingerprint(ctx, outCh)
+	if len(d.StaticDevices) == 0 {
+		go d.fingerprint(ctx, outCh)
+	} else {
+		go d.fingerprintStatic(ctx, outCh)
+	}
 	return outCh, nil
 }
 
@@ -159,7 +266,7 @@ func (d *FsDevice) fingerprint(ctx context.Context, devices chan *device.Fingerp
 			ticker.Reset(d.listPeriod)
 		}
 
-		d.logger.Trace("scanning for changes")
+		d.logger.Warn("scanning for changes")
 
 		files, err := ioutil.ReadDir(d.deviceDir)
 		if err != nil {
@@ -172,8 +279,42 @@ func (d *FsDevice) fingerprint(ctx context.Context, devices chan *device.Fingerp
 		if len(detected) == 0 {
 			continue
 		}
+		group, err := d.getDeviceGroup(detected)
+		if err != nil {
+			d.logger.Error("failed to get device group", "error", err)
+			if !strings.Contains(err.Error(), "failed to parse attribute") {
+				return
+			}
+		}
+		devices <- device.NewFingerprint(group)
 
-		devices <- device.NewFingerprint(getDeviceGroup(detected))
+	}
+}
+
+// fingerprint is the long running goroutine that detects hardware
+func (d *FsDevice) fingerprintStatic(ctx context.Context, devices chan *device.FingerprintResponse) {
+	defer close(devices)
+	// Create a timer that will fire immediately for the first detection
+	ticker := time.NewTimer(0)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ticker.Reset(d.listPeriod)
+		}
+
+		d.logger.Trace("compiling static fingerprints")
+
+		group, err := d.getDeviceGroup(d.StaticDevices)
+		if err != nil {
+			d.logger.Error("failed to get device group", "error", err)
+			if !strings.Contains(err.Error(), "failed to parse attribute") {
+				return
+			}
+		}
+		devices <- device.NewFingerprint(group)
 
 	}
 }
@@ -242,18 +383,29 @@ func (d *FsDevice) diffFiles(files []os.FileInfo) []*device.Device {
 }
 
 // getDeviceGroup is a helper to build the DeviceGroup given a set of devices.
-func getDeviceGroup(devices []*device.Device) *device.DeviceGroup {
-	return &device.DeviceGroup{
-		Vendor:  vendor,
-		Type:    deviceType,
-		Name:    deviceName,
-		Devices: devices,
-		Attributes: map[string]*structs.Attribute{
-			"cool-attribute": {
-				String: new("attribute-wearing-sunglasses"),
+func (d *FsDevice) getDeviceGroup(devices []*device.Device) (*device.DeviceGroup, error) {
+	if len(d.DefaultAttributes) == 0 {
+		return &device.DeviceGroup{
+			Vendor:  vendor,
+			Type:    deviceType,
+			Name:    deviceName,
+			Devices: devices,
+			Attributes: map[string]*structs.Attribute{
+				"cool-attribute": {
+					String: new("attribute-wearing-sunglasses"),
+				},
 			},
-		},
+		}, nil
 	}
+
+	return &device.DeviceGroup{
+		Vendor:     vendor,
+		Type:       deviceType,
+		Name:       deviceName,
+		Devices:    devices,
+		Attributes: d.DefaultAttributes,
+	}, nil
+
 }
 
 // Reserve returns information on how to mount the given devices.
