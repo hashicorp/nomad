@@ -27,6 +27,8 @@ type Broker interface {
 type Workload interface {
 	GetEval() *structs.Evaluation
 	SetEval(*structs.Evaluation)
+	GetStatus() string
+	SetStatus(string, string)
 	WaitOnRestore() bool
 }
 

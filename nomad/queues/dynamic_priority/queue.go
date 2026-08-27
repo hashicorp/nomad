@@ -345,6 +345,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *stru
 		tid:                tid,
 		priority:           0,
 		eval:               e,
+		status:             "queued",
 		requestedResources: requestedResources,
 		waitOnRestore:      false,
 	}
