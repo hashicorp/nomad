@@ -342,8 +342,8 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 				j, err := event.Job()
 				must.NoError(t, err)
 				must.Eq(t, &Job{
-					ID:        pointerOf("some-id"),
-					Namespace: pointerOf("some-namespace-id"),
+					ID:        new("some-id"),
+					Namespace: new("some-namespace-id"),
 				}, j)
 			},
 		},
@@ -356,8 +356,8 @@ func TestEventStream_PayloadValueHelpers(t *testing.T) {
 				must.NoError(t, err)
 				must.True(t, deleted, must.Sprint("did not populated Deleted value"))
 				must.Eq(t, &Job{
-					ID:        pointerOf("some-id"),
-					Namespace: pointerOf("some-namespace-id"),
+					ID:        new("some-id"),
+					Namespace: new("some-namespace-id"),
 				}, j)
 			},
 		},

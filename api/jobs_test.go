@@ -61,23 +61,23 @@ func TestJobs_Register_PreserveCounts(t *testing.T) {
 	task := NewTask("task", "exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
-			CPU:      pointerOf(100),
-			MemoryMB: pointerOf(256),
+			CPU:      new(100),
+			MemoryMB: new(256),
 		}).
 		SetLogConfig(&LogConfig{
-			MaxFiles:      pointerOf(1),
-			MaxFileSizeMB: pointerOf(2),
+			MaxFiles:      new(1),
+			MaxFileSizeMB: new(2),
 		})
 
 	group1 := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 	group2 := NewTaskGroup("group2", 2).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 
 	job := NewBatchJob("job", "redis", "global", 1).
@@ -94,11 +94,11 @@ func TestJobs_Register_PreserveCounts(t *testing.T) {
 
 	// Update the job, new groups to test PreserveCounts
 	group1.Count = nil
-	group2.Count = pointerOf(0)
+	group2.Count = new(0)
 	group3 := NewTaskGroup("group3", 3).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 	job.AddTaskGroup(group3)
 
@@ -132,23 +132,23 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	task := NewTask("task", "exec").
 		SetConfig("command", "/bin/sleep").
 		Require(&Resources{
-			CPU:      pointerOf(100),
-			MemoryMB: pointerOf(256),
+			CPU:      new(100),
+			MemoryMB: new(256),
 		}).
 		SetLogConfig(&LogConfig{
-			MaxFiles:      pointerOf(1),
-			MaxFileSizeMB: pointerOf(2),
+			MaxFiles:      new(1),
+			MaxFileSizeMB: new(2),
 		})
 
 	group1 := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 	group2 := NewTaskGroup("group2", 2).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 
 	job := NewBatchJob("job", "redis", "global", 1).
@@ -164,12 +164,12 @@ func TestJobs_Register_NoPreserveCounts(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Update the job, new groups to test PreserveCounts
-	group1.Count = pointerOf(0)
+	group1.Count = new(0)
 	group2.Count = nil
 	group3 := NewTaskGroup("group3", 3).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 	job.AddTaskGroup(group3)
 
@@ -202,14 +202,14 @@ func TestJobs_Register_PreserveResources(t *testing.T) {
 	task := NewTask("task", "exec").
 		SetConfig("command", "/bin/echo").
 		SetLogConfig(&LogConfig{
-			MaxFiles:      pointerOf(1),
-			MaxFileSizeMB: pointerOf(2),
+			MaxFiles:      new(1),
+			MaxFileSizeMB: new(2),
 		})
 
 	group1 := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 
 	job := NewBatchJob("job", "redis", "global", 1).
@@ -225,8 +225,8 @@ func TestJobs_Register_PreserveResources(t *testing.T) {
 
 	// Update the job, new groups to test PreserveCounts
 	task.Resources = &Resources{
-		CPU:      pointerOf(50),
-		MemoryMB: pointerOf(128),
+		CPU:      new(50),
+		MemoryMB: new(128),
 	}
 
 	// Update the job, with PreserveResources = true
@@ -258,14 +258,14 @@ func TestJobs_Register_NoPreserveResources(t *testing.T) {
 	task := NewTask("task", "exec").
 		SetConfig("command", "/bin/echo").
 		SetLogConfig(&LogConfig{
-			MaxFiles:      pointerOf(1),
-			MaxFileSizeMB: pointerOf(2),
+			MaxFiles:      new(1),
+			MaxFileSizeMB: new(2),
 		})
 
 	group1 := NewTaskGroup("group1", 1).
 		AddTask(task).
 		RequireDisk(&EphemeralDisk{
-			SizeMB: pointerOf(25),
+			SizeMB: new(25),
 		})
 
 	job := NewBatchJob("job", "redis", "global", 1).
@@ -281,8 +281,8 @@ func TestJobs_Register_NoPreserveResources(t *testing.T) {
 
 	// Update the job, new groups to test PreserveCounts
 	task.Resources = &Resources{
-		CPU:      pointerOf(50),
-		MemoryMB: pointerOf(128),
+		CPU:      new(50),
+		MemoryMB: new(128),
 	}
 
 	// Update the job, with PreserveResources = true
@@ -389,76 +389,76 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				ID:                pointerOf(""),
-				Name:              pointerOf(""),
-				Region:            pointerOf("global"),
-				Namespace:         pointerOf(DefaultNamespace),
-				Type:              pointerOf("service"),
-				ParentID:          pointerOf(""),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				ID:                new(""),
+				Name:              new(""),
+				Region:            new("global"),
+				Namespace:         new(DefaultNamespace),
+				Type:              new("service"),
+				ParentID:          new(""),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Status:            new(""),
+				StatusDescription: new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(30 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(5 * time.Minute),
-					ProgressDeadline: pointerOf(10 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(false),
+					Stagger:          new(30 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(5 * time.Minute),
+					ProgressDeadline: new(10 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf(""),
-						Count: pointerOf(1),
+						Name:  new(""),
+						Count: new(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:           pointerOf(15 * time.Second),
-							Attempts:        pointerOf(2),
-							Interval:        pointerOf(30 * time.Minute),
-							Mode:            pointerOf("fail"),
-							RenderTemplates: pointerOf(false),
+							Delay:           new(15 * time.Second),
+							Attempts:        new(2),
+							Interval:        new(30 * time.Minute),
+							Mode:            new("fail"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(0),
-							Interval:      pointerOf(time.Duration(0)),
-							DelayFunction: pointerOf("exponential"),
-							Delay:         pointerOf(30 * time.Second),
-							MaxDelay:      pointerOf(1 * time.Hour),
-							Unlimited:     pointerOf(true),
+							Attempts:      new(0),
+							Interval:      new(time.Duration(0)),
+							DelayFunction: new("exponential"),
+							Delay:         new(30 * time.Second),
+							MaxDelay:      new(1 * time.Hour),
+							Unlimited:     new(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:          pointerOf(30 * time.Second),
-							MaxParallel:      pointerOf(1),
-							HealthCheck:      pointerOf("checks"),
-							MinHealthyTime:   pointerOf(10 * time.Second),
-							HealthyDeadline:  pointerOf(5 * time.Minute),
-							ProgressDeadline: pointerOf(10 * time.Minute),
-							AutoRevert:       pointerOf(false),
-							Canary:           pointerOf(0),
-							AutoPromote:      pointerOf(false),
+							Stagger:          new(30 * time.Second),
+							MaxParallel:      new(1),
+							HealthCheck:      new("checks"),
+							MinHealthyTime:   new(10 * time.Second),
+							HealthyDeadline:  new(5 * time.Minute),
+							ProgressDeadline: new(10 * time.Minute),
+							AutoRevert:       new(false),
+							Canary:           new(0),
+							AutoPromote:      new(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
 							{
-								KillTimeout:   pointerOf(5 * time.Second),
+								KillTimeout:   new(5 * time.Second),
 								LogConfig:     DefaultLogConfig(),
 								Resources:     DefaultResources(),
 								RestartPolicy: defaultServiceJobRestartPolicy(),
@@ -471,7 +471,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "batch",
 			input: &Job{
-				Type: pointerOf("batch"),
+				Type: new("batch"),
 				TaskGroups: []*TaskGroup{
 					{
 						Tasks: []*Task{
@@ -481,53 +481,53 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				ID:                pointerOf(""),
-				Name:              pointerOf(""),
-				Region:            pointerOf("global"),
-				Namespace:         pointerOf(DefaultNamespace),
-				Type:              pointerOf("batch"),
-				ParentID:          pointerOf(""),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				ID:                new(""),
+				Name:              new(""),
+				Region:            new("global"),
+				Namespace:         new(DefaultNamespace),
+				Type:              new("batch"),
+				ParentID:          new(""),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Status:            new(""),
+				StatusDescription: new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf(""),
-						Count: pointerOf(1),
+						Name:  new(""),
+						Count: new(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:           pointerOf(15 * time.Second),
-							Attempts:        pointerOf(3),
-							Interval:        pointerOf(24 * time.Hour),
-							Mode:            pointerOf("fail"),
-							RenderTemplates: pointerOf(false),
+							Delay:           new(15 * time.Second),
+							Attempts:        new(3),
+							Interval:        new(24 * time.Hour),
+							Mode:            new("fail"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(1),
-							Interval:      pointerOf(24 * time.Hour),
-							DelayFunction: pointerOf("constant"),
-							Delay:         pointerOf(5 * time.Second),
-							MaxDelay:      pointerOf(time.Duration(0)),
-							Unlimited:     pointerOf(false),
+							Attempts:      new(1),
+							Interval:      new(24 * time.Hour),
+							DelayFunction: new("constant"),
+							Delay:         new(5 * time.Second),
+							MaxDelay:      new(time.Duration(0)),
+							Unlimited:     new(false),
 						},
 						Tasks: []*Task{
 							{
-								KillTimeout:   pointerOf(5 * time.Second),
+								KillTimeout:   new(5 * time.Second),
 								LogConfig:     DefaultLogConfig(),
 								Resources:     DefaultResources(),
 								RestartPolicy: defaultBatchJobRestartPolicy(),
@@ -540,13 +540,13 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "partial",
 			input: &Job{
-				Name:      pointerOf("foo"),
-				Namespace: pointerOf("bar"),
-				ID:        pointerOf("bar"),
-				ParentID:  pointerOf("lol"),
+				Name:      new("foo"),
+				Namespace: new("bar"),
+				ID:        new("bar"),
+				ParentID:  new("lol"),
 				TaskGroups: []*TaskGroup{
 					{
-						Name: pointerOf("bar"),
+						Name: new("bar"),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -556,71 +556,71 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         pointerOf("bar"),
-				ID:                pointerOf("bar"),
-				Name:              pointerOf("foo"),
-				Region:            pointerOf("global"),
-				Type:              pointerOf("service"),
-				ParentID:          pointerOf("lol"),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				Namespace:         new("bar"),
+				ID:                new("bar"),
+				Name:              new("foo"),
+				Region:            new("global"),
+				Type:              new("service"),
+				ParentID:          new("lol"),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				Status:            new(""),
+				StatusDescription: new(""),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(30 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(5 * time.Minute),
-					ProgressDeadline: pointerOf(10 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(false),
+					Stagger:          new(30 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(5 * time.Minute),
+					ProgressDeadline: new(10 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:  new("bar"),
+						Count: new(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:           pointerOf(15 * time.Second),
-							Attempts:        pointerOf(2),
-							Interval:        pointerOf(30 * time.Minute),
-							Mode:            pointerOf("fail"),
-							RenderTemplates: pointerOf(false),
+							Delay:           new(15 * time.Second),
+							Attempts:        new(2),
+							Interval:        new(30 * time.Minute),
+							Mode:            new("fail"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(0),
-							Interval:      pointerOf(time.Duration(0)),
-							DelayFunction: pointerOf("exponential"),
-							Delay:         pointerOf(30 * time.Second),
-							MaxDelay:      pointerOf(1 * time.Hour),
-							Unlimited:     pointerOf(true),
+							Attempts:      new(0),
+							Interval:      new(time.Duration(0)),
+							DelayFunction: new("exponential"),
+							Delay:         new(30 * time.Second),
+							MaxDelay:      new(1 * time.Hour),
+							Unlimited:     new(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:          pointerOf(30 * time.Second),
-							MaxParallel:      pointerOf(1),
-							HealthCheck:      pointerOf("checks"),
-							MinHealthyTime:   pointerOf(10 * time.Second),
-							HealthyDeadline:  pointerOf(5 * time.Minute),
-							ProgressDeadline: pointerOf(10 * time.Minute),
-							AutoRevert:       pointerOf(false),
-							Canary:           pointerOf(0),
-							AutoPromote:      pointerOf(false),
+							Stagger:          new(30 * time.Second),
+							MaxParallel:      new(1),
+							HealthCheck:      new("checks"),
+							MinHealthyTime:   new(10 * time.Second),
+							HealthyDeadline:  new(5 * time.Minute),
+							ProgressDeadline: new(10 * time.Minute),
+							AutoRevert:       new(false),
+							Canary:           new(0),
+							AutoPromote:      new(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -628,7 +628,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:          "task1",
 								LogConfig:     DefaultLogConfig(),
 								Resources:     DefaultResources(),
-								KillTimeout:   pointerOf(5 * time.Second),
+								KillTimeout:   new(5 * time.Second),
 								RestartPolicy: defaultServiceJobRestartPolicy(),
 							},
 						},
@@ -639,29 +639,29 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "example_template",
 			input: &Job{
-				ID:          pointerOf("example_template"),
-				Name:        pointerOf("example_template"),
+				ID:          new("example_template"),
+				Name:        new("example_template"),
 				Datacenters: []string{"dc1"},
-				Type:        pointerOf("service"),
+				Type:        new("service"),
 				Update: &UpdateStrategy{
-					MaxParallel: pointerOf(1),
-					AutoPromote: pointerOf(true),
+					MaxParallel: new(1),
+					AutoPromote: new(true),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("cache"),
-						Count: pointerOf(1),
+						Name:  new("cache"),
+						Count: new(1),
 						RestartPolicy: &RestartPolicy{
-							Interval: pointerOf(5 * time.Minute),
-							Attempts: pointerOf(10),
-							Delay:    pointerOf(25 * time.Second),
-							Mode:     pointerOf("delay"),
+							Interval: new(5 * time.Minute),
+							Attempts: new(10),
+							Delay:    new(25 * time.Second),
+							Mode:     new("delay"),
 						},
 						Update: &UpdateStrategy{
-							AutoRevert: pointerOf(true),
+							AutoRevert: new(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
-							SizeMB: pointerOf(300),
+							SizeMB: new(300),
 						},
 						Tasks: []*Task{
 							{
@@ -675,14 +675,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								RestartPolicy: &RestartPolicy{
 									// inherit other values from TG
-									Attempts: pointerOf(20),
+									Attempts: new(20),
 								},
 								Resources: &Resources{
-									CPU:      pointerOf(500),
-									MemoryMB: pointerOf(256),
+									CPU:      new(500),
+									MemoryMB: new(256),
 									Networks: []*NetworkResource{
 										{
-											MBits: pointerOf(10),
+											MBits: new(10),
 											DynamicPorts: []Port{
 												{
 													Label: "db",
@@ -709,13 +709,13 @@ func TestJobs_Canonicalize(t *testing.T) {
 								},
 								Templates: []*Template{
 									{
-										EmbeddedTmpl: pointerOf("---"),
-										DestPath:     pointerOf("local/file.yml"),
+										EmbeddedTmpl: new("---"),
+										DestPath:     new("local/file.yml"),
 									},
 									{
-										EmbeddedTmpl: pointerOf("FOO=bar\n"),
-										DestPath:     pointerOf("local/file.env"),
-										Envvars:      pointerOf(true),
+										EmbeddedTmpl: new("FOO=bar\n"),
+										DestPath:     new("local/file.env"),
+										Envvars:      new(true),
 									},
 								},
 							},
@@ -724,72 +724,72 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         pointerOf(DefaultNamespace),
-				ID:                pointerOf("example_template"),
-				Name:              pointerOf("example_template"),
-				ParentID:          pointerOf(""),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				Region:            pointerOf("global"),
-				Type:              pointerOf("service"),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				Namespace:         new(DefaultNamespace),
+				ID:                new("example_template"),
+				Name:              new("example_template"),
+				ParentID:          new(""),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				Region:            new("global"),
+				Type:              new("service"),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				Status:            new(""),
+				StatusDescription: new(""),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Datacenters:       []string{"dc1"},
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(30 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(5 * time.Minute),
-					ProgressDeadline: pointerOf(10 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(true),
+					Stagger:          new(30 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(5 * time.Minute),
+					ProgressDeadline: new(10 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(true),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("cache"),
-						Count: pointerOf(1),
+						Name:  new("cache"),
+						Count: new(1),
 						RestartPolicy: &RestartPolicy{
-							Interval:        pointerOf(5 * time.Minute),
-							Attempts:        pointerOf(10),
-							Delay:           pointerOf(25 * time.Second),
-							Mode:            pointerOf("delay"),
-							RenderTemplates: pointerOf(false),
+							Interval:        new(5 * time.Minute),
+							Attempts:        new(10),
+							Delay:           new(25 * time.Second),
+							Mode:            new("delay"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(0),
-							Interval:      pointerOf(time.Duration(0)),
-							DelayFunction: pointerOf("exponential"),
-							Delay:         pointerOf(30 * time.Second),
-							MaxDelay:      pointerOf(1 * time.Hour),
-							Unlimited:     pointerOf(true),
+							Attempts:      new(0),
+							Interval:      new(time.Duration(0)),
+							DelayFunction: new("exponential"),
+							Delay:         new(30 * time.Second),
+							MaxDelay:      new(1 * time.Hour),
+							Unlimited:     new(true),
 						},
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						Update: &UpdateStrategy{
-							Stagger:          pointerOf(30 * time.Second),
-							MaxParallel:      pointerOf(1),
-							HealthCheck:      pointerOf("checks"),
-							MinHealthyTime:   pointerOf(10 * time.Second),
-							HealthyDeadline:  pointerOf(5 * time.Minute),
-							ProgressDeadline: pointerOf(10 * time.Minute),
-							AutoRevert:       pointerOf(true),
-							Canary:           pointerOf(0),
-							AutoPromote:      pointerOf(true),
+							Stagger:          new(30 * time.Second),
+							MaxParallel:      new(1),
+							HealthCheck:      new("checks"),
+							MinHealthyTime:   new(10 * time.Second),
+							HealthyDeadline:  new(5 * time.Minute),
+							ProgressDeadline: new(10 * time.Minute),
+							AutoRevert:       new(true),
+							Canary:           new(0),
+							AutoPromote:      new(true),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -803,19 +803,19 @@ func TestJobs_Canonicalize(t *testing.T) {
 									}},
 								},
 								RestartPolicy: &RestartPolicy{
-									Interval:        pointerOf(5 * time.Minute),
-									Attempts:        pointerOf(20),
-									Delay:           pointerOf(25 * time.Second),
-									Mode:            pointerOf("delay"),
-									RenderTemplates: pointerOf(false),
+									Interval:        new(5 * time.Minute),
+									Attempts:        new(20),
+									Delay:           new(25 * time.Second),
+									Mode:            new("delay"),
+									RenderTemplates: new(false),
 								},
 								Resources: &Resources{
-									CPU:      pointerOf(500),
-									Cores:    pointerOf(0),
-									MemoryMB: pointerOf(256),
+									CPU:      new(500),
+									Cores:    new(0),
+									MemoryMB: new(256),
 									Networks: []*NetworkResource{
 										{
-											MBits: pointerOf(10),
+											MBits: new(10),
 											DynamicPorts: []Port{
 												{
 													Label: "db",
@@ -845,38 +845,38 @@ func TestJobs_Canonicalize(t *testing.T) {
 										},
 									},
 								},
-								KillTimeout: pointerOf(5 * time.Second),
+								KillTimeout: new(5 * time.Second),
 								LogConfig:   DefaultLogConfig(),
 								Templates: []*Template{
 									{
-										SourcePath:    pointerOf(""),
-										DestPath:      pointerOf("local/file.yml"),
-										EmbeddedTmpl:  pointerOf("---"),
-										ChangeMode:    pointerOf("restart"),
-										ChangeSignal:  pointerOf(""),
-										Splay:         pointerOf(5 * time.Second),
-										Perms:         pointerOf("0644"),
-										LeftDelim:     pointerOf("{{"),
-										RightDelim:    pointerOf("}}"),
-										Envvars:       pointerOf(false),
-										VaultGrace:    pointerOf(time.Duration(0)),
-										ErrMissingKey: pointerOf(false),
-										Once:          pointerOf(false),
+										SourcePath:    new(""),
+										DestPath:      new("local/file.yml"),
+										EmbeddedTmpl:  new("---"),
+										ChangeMode:    new("restart"),
+										ChangeSignal:  new(""),
+										Splay:         new(5 * time.Second),
+										Perms:         new("0644"),
+										LeftDelim:     new("{{"),
+										RightDelim:    new("}}"),
+										Envvars:       new(false),
+										VaultGrace:    new(time.Duration(0)),
+										ErrMissingKey: new(false),
+										Once:          new(false),
 									},
 									{
-										SourcePath:    pointerOf(""),
-										DestPath:      pointerOf("local/file.env"),
-										EmbeddedTmpl:  pointerOf("FOO=bar\n"),
-										ChangeMode:    pointerOf("restart"),
-										ChangeSignal:  pointerOf(""),
-										Splay:         pointerOf(5 * time.Second),
-										Perms:         pointerOf("0644"),
-										LeftDelim:     pointerOf("{{"),
-										RightDelim:    pointerOf("}}"),
-										Envvars:       pointerOf(true),
-										VaultGrace:    pointerOf(time.Duration(0)),
-										ErrMissingKey: pointerOf(false),
-										Once:          pointerOf(false),
+										SourcePath:    new(""),
+										DestPath:      new("local/file.env"),
+										EmbeddedTmpl:  new("FOO=bar\n"),
+										ChangeMode:    new("restart"),
+										ChangeSignal:  new(""),
+										Splay:         new(5 * time.Second),
+										Perms:         new("0644"),
+										LeftDelim:     new("{{"),
+										RightDelim:    new("}}"),
+										Envvars:       new(true),
+										VaultGrace:    new(time.Duration(0)),
+										ErrMissingKey: new(false),
+										Once:          new(false),
 									},
 								},
 							},
@@ -888,82 +888,82 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "periodic",
 			input: &Job{
-				ID:       pointerOf("bar"),
+				ID:       new("bar"),
 				Periodic: &PeriodicConfig{},
 			},
 			expected: &Job{
-				Namespace:         pointerOf(DefaultNamespace),
-				ID:                pointerOf("bar"),
-				ParentID:          pointerOf(""),
-				Name:              pointerOf("bar"),
-				Region:            pointerOf("global"),
-				Type:              pointerOf("service"),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				Namespace:         new(DefaultNamespace),
+				ID:                new("bar"),
+				ParentID:          new(""),
+				Name:              new("bar"),
+				Region:            new("global"),
+				Type:              new("service"),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				Status:            new(""),
+				StatusDescription: new(""),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(30 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(5 * time.Minute),
-					ProgressDeadline: pointerOf(10 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(false),
+					Stagger:          new(30 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(5 * time.Minute),
+					ProgressDeadline: new(10 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(false),
 				},
 				Periodic: &PeriodicConfig{
-					Enabled:         pointerOf(true),
-					Spec:            pointerOf(""),
+					Enabled:         new(true),
+					Spec:            new(""),
 					Specs:           []string{},
-					SpecType:        pointerOf(PeriodicSpecCron),
-					ProhibitOverlap: pointerOf(false),
-					TimeZone:        pointerOf("UTC"),
+					SpecType:        new(PeriodicSpecCron),
+					ProhibitOverlap: new(false),
+					TimeZone:        new("UTC"),
 				},
 			},
 		},
 		{
 			name: "update_merge",
 			input: &Job{
-				Name:     pointerOf("foo"),
-				ID:       pointerOf("bar"),
-				ParentID: pointerOf("lol"),
+				Name:     new("foo"),
+				ID:       new("bar"),
+				ParentID: new("lol"),
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(1 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(6 * time.Minute),
-					ProgressDeadline: pointerOf(7 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(false),
+					Stagger:          new(1 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(6 * time.Minute),
+					ProgressDeadline: new(7 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name: pointerOf("bar"),
+						Name: new("bar"),
 						Consul: &Consul{
 							Namespace: "",
 						},
 						Update: &UpdateStrategy{
-							Stagger:        pointerOf(2 * time.Second),
-							MaxParallel:    pointerOf(2),
-							HealthCheck:    pointerOf("manual"),
-							MinHealthyTime: pointerOf(1 * time.Second),
-							AutoRevert:     pointerOf(true),
-							Canary:         pointerOf(1),
-							AutoPromote:    pointerOf(true),
+							Stagger:        new(2 * time.Second),
+							MaxParallel:    new(2),
+							HealthCheck:    new("manual"),
+							MinHealthyTime: new(1 * time.Second),
+							AutoRevert:     new(true),
+							Canary:         new(1),
+							AutoPromote:    new(true),
 						},
 						Tasks: []*Task{
 							{
@@ -972,7 +972,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name: pointerOf("baz"),
+						Name: new("baz"),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -982,75 +982,75 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         pointerOf(DefaultNamespace),
-				ID:                pointerOf("bar"),
-				Name:              pointerOf("foo"),
-				Region:            pointerOf("global"),
-				Type:              pointerOf("service"),
-				ParentID:          pointerOf("lol"),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				Namespace:         new(DefaultNamespace),
+				ID:                new("bar"),
+				Name:              new("foo"),
+				Region:            new("global"),
+				Type:              new("service"),
+				ParentID:          new("lol"),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				Status:            new(""),
+				StatusDescription: new(""),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(1 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(6 * time.Minute),
-					ProgressDeadline: pointerOf(7 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(false),
+					Stagger:          new(1 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(6 * time.Minute),
+					ProgressDeadline: new(7 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:  new("bar"),
+						Count: new(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:           pointerOf(15 * time.Second),
-							Attempts:        pointerOf(2),
-							Interval:        pointerOf(30 * time.Minute),
-							Mode:            pointerOf("fail"),
-							RenderTemplates: pointerOf(false),
+							Delay:           new(15 * time.Second),
+							Attempts:        new(2),
+							Interval:        new(30 * time.Minute),
+							Mode:            new("fail"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(0),
-							Interval:      pointerOf(time.Duration(0)),
-							DelayFunction: pointerOf("exponential"),
-							Delay:         pointerOf(30 * time.Second),
-							MaxDelay:      pointerOf(1 * time.Hour),
-							Unlimited:     pointerOf(true),
+							Attempts:      new(0),
+							Interval:      new(time.Duration(0)),
+							DelayFunction: new("exponential"),
+							Delay:         new(30 * time.Second),
+							MaxDelay:      new(1 * time.Hour),
+							Unlimited:     new(true),
 						},
 						Consul: &Consul{
 							Namespace: "",
 							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
-							Stagger:          pointerOf(2 * time.Second),
-							MaxParallel:      pointerOf(2),
-							HealthCheck:      pointerOf("manual"),
-							MinHealthyTime:   pointerOf(1 * time.Second),
-							HealthyDeadline:  pointerOf(6 * time.Minute),
-							ProgressDeadline: pointerOf(7 * time.Minute),
-							AutoRevert:       pointerOf(true),
-							Canary:           pointerOf(1),
-							AutoPromote:      pointerOf(true),
+							Stagger:          new(2 * time.Second),
+							MaxParallel:      new(2),
+							HealthCheck:      new("manual"),
+							MinHealthyTime:   new(1 * time.Second),
+							HealthyDeadline:  new(6 * time.Minute),
+							ProgressDeadline: new(7 * time.Minute),
+							AutoRevert:       new(true),
+							Canary:           new(1),
+							AutoPromote:      new(true),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -1058,44 +1058,44 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:          "task1",
 								LogConfig:     DefaultLogConfig(),
 								Resources:     DefaultResources(),
-								KillTimeout:   pointerOf(5 * time.Second),
+								KillTimeout:   new(5 * time.Second),
 								RestartPolicy: defaultServiceJobRestartPolicy(),
 							},
 						},
 					},
 					{
-						Name:  pointerOf("baz"),
-						Count: pointerOf(1),
+						Name:  new("baz"),
+						Count: new(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:           pointerOf(15 * time.Second),
-							Attempts:        pointerOf(2),
-							Interval:        pointerOf(30 * time.Minute),
-							Mode:            pointerOf("fail"),
-							RenderTemplates: pointerOf(false),
+							Delay:           new(15 * time.Second),
+							Attempts:        new(2),
+							Interval:        new(30 * time.Minute),
+							Mode:            new("fail"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(0),
-							Interval:      pointerOf(time.Duration(0)),
-							DelayFunction: pointerOf("exponential"),
-							Delay:         pointerOf(30 * time.Second),
-							MaxDelay:      pointerOf(1 * time.Hour),
-							Unlimited:     pointerOf(true),
+							Attempts:      new(0),
+							Interval:      new(time.Duration(0)),
+							DelayFunction: new("exponential"),
+							Delay:         new(30 * time.Second),
+							MaxDelay:      new(1 * time.Hour),
+							Unlimited:     new(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:          pointerOf(1 * time.Second),
-							MaxParallel:      pointerOf(1),
-							HealthCheck:      pointerOf("checks"),
-							MinHealthyTime:   pointerOf(10 * time.Second),
-							HealthyDeadline:  pointerOf(6 * time.Minute),
-							ProgressDeadline: pointerOf(7 * time.Minute),
-							AutoRevert:       pointerOf(false),
-							Canary:           pointerOf(0),
-							AutoPromote:      pointerOf(false),
+							Stagger:          new(1 * time.Second),
+							MaxParallel:      new(1),
+							HealthCheck:      new("checks"),
+							MinHealthyTime:   new(10 * time.Second),
+							HealthyDeadline:  new(6 * time.Minute),
+							ProgressDeadline: new(7 * time.Minute),
+							AutoRevert:       new(false),
+							Canary:           new(0),
+							AutoPromote:      new(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -1103,7 +1103,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:          "task1",
 								LogConfig:     DefaultLogConfig(),
 								Resources:     DefaultResources(),
-								KillTimeout:   pointerOf(5 * time.Second),
+								KillTimeout:   new(5 * time.Second),
 								RestartPolicy: defaultServiceJobRestartPolicy(),
 							},
 						},
@@ -1114,13 +1114,13 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "missing update for system job",
 			input: &Job{
-				Name:     pointerOf("foo"),
-				ID:       pointerOf("bar"),
-				ParentID: pointerOf("lol"),
-				Type:     pointerOf(JobTypeSystem),
+				Name:     new("foo"),
+				ID:       new("bar"),
+				ParentID: new("lol"),
+				Type:     new(JobTypeSystem),
 				TaskGroups: []*TaskGroup{
 					{
-						Name: pointerOf("bar"),
+						Name: new("bar"),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -1130,36 +1130,36 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         pointerOf(DefaultNamespace),
-				ID:                pointerOf("bar"),
-				ParentID:          pointerOf("lol"),
-				Name:              pointerOf("foo"),
-				Region:            pointerOf("global"),
-				Type:              pointerOf(JobTypeSystem),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				Namespace:         new(DefaultNamespace),
+				ID:                new("bar"),
+				ParentID:          new("lol"),
+				Name:              new("foo"),
+				Region:            new("global"),
+				Type:              new(JobTypeSystem),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				Status:            new(""),
+				StatusDescription: new(""),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Update:            DefaultUpdateStrategy(),
 				TaskGroups: []*TaskGroup{
 					{
-						Name:          pointerOf("bar"),
-						Count:         pointerOf(1),
+						Name:          new("bar"),
+						Count:         new(1),
 						RestartPolicy: defaultServiceJobRestartPolicy(),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						Update: DefaultUpdateStrategy(),
 						Tasks: []*Task{
@@ -1167,7 +1167,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:          "task1",
 								LogConfig:     DefaultLogConfig(),
 								Resources:     DefaultResources(),
-								KillTimeout:   pointerOf(5 * time.Second),
+								KillTimeout:   new(5 * time.Second),
 								RestartPolicy: defaultServiceJobRestartPolicy(),
 							},
 						},
@@ -1178,36 +1178,36 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "restart_merge",
 			input: &Job{
-				Name:     pointerOf("foo"),
-				ID:       pointerOf("bar"),
-				ParentID: pointerOf("lol"),
+				Name:     new("foo"),
+				ID:       new("bar"),
+				ParentID: new("lol"),
 				TaskGroups: []*TaskGroup{
 					{
-						Name: pointerOf("bar"),
+						Name: new("bar"),
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(15 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:    new(15 * time.Second),
+							Attempts: new(2),
+							Interval: new(30 * time.Minute),
+							Mode:     new("fail"),
 						},
 						Tasks: []*Task{
 							{
 								Name: "task1",
 								RestartPolicy: &RestartPolicy{
-									Attempts:        pointerOf(5),
-									Delay:           pointerOf(1 * time.Second),
-									RenderTemplates: pointerOf(true),
+									Attempts:        new(5),
+									Delay:           new(1 * time.Second),
+									RenderTemplates: new(true),
 								},
 							},
 						},
 					},
 					{
-						Name: pointerOf("baz"),
+						Name: new("baz"),
 						RestartPolicy: &RestartPolicy{
-							Delay:    pointerOf(20 * time.Second),
-							Attempts: pointerOf(2),
-							Interval: pointerOf(30 * time.Minute),
-							Mode:     pointerOf("fail"),
+							Delay:    new(20 * time.Second),
+							Attempts: new(2),
+							Interval: new(30 * time.Minute),
+							Mode:     new("fail"),
 						},
 						Consul: &Consul{
 							Namespace: "",
@@ -1221,71 +1221,71 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 			expected: &Job{
-				Namespace:         pointerOf(DefaultNamespace),
-				ID:                pointerOf("bar"),
-				Name:              pointerOf("foo"),
-				Region:            pointerOf("global"),
-				Type:              pointerOf("service"),
-				ParentID:          pointerOf("lol"),
-				NodePool:          pointerOf(""),
-				Priority:          pointerOf(JobDefaultPriority),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				Namespace:         new(DefaultNamespace),
+				ID:                new("bar"),
+				Name:              new("foo"),
+				Region:            new("global"),
+				Type:              new("service"),
+				ParentID:          new("lol"),
+				NodePool:          new(""),
+				Priority:          new(JobDefaultPriority),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				Status:            new(""),
+				StatusDescription: new(""),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(30 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(5 * time.Minute),
-					ProgressDeadline: pointerOf(10 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(false),
+					Stagger:          new(30 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(5 * time.Minute),
+					ProgressDeadline: new(10 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(false),
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:  new("bar"),
+						Count: new(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:           pointerOf(15 * time.Second),
-							Attempts:        pointerOf(2),
-							Interval:        pointerOf(30 * time.Minute),
-							Mode:            pointerOf("fail"),
-							RenderTemplates: pointerOf(false),
+							Delay:           new(15 * time.Second),
+							Attempts:        new(2),
+							Interval:        new(30 * time.Minute),
+							Mode:            new("fail"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(0),
-							Interval:      pointerOf(time.Duration(0)),
-							DelayFunction: pointerOf("exponential"),
-							Delay:         pointerOf(30 * time.Second),
-							MaxDelay:      pointerOf(1 * time.Hour),
-							Unlimited:     pointerOf(true),
+							Attempts:      new(0),
+							Interval:      new(time.Duration(0)),
+							DelayFunction: new("exponential"),
+							Delay:         new(30 * time.Second),
+							MaxDelay:      new(1 * time.Hour),
+							Unlimited:     new(true),
 						},
 						Update: &UpdateStrategy{
-							Stagger:          pointerOf(30 * time.Second),
-							MaxParallel:      pointerOf(1),
-							HealthCheck:      pointerOf("checks"),
-							MinHealthyTime:   pointerOf(10 * time.Second),
-							HealthyDeadline:  pointerOf(5 * time.Minute),
-							ProgressDeadline: pointerOf(10 * time.Minute),
-							AutoRevert:       pointerOf(false),
-							Canary:           pointerOf(0),
-							AutoPromote:      pointerOf(false),
+							Stagger:          new(30 * time.Second),
+							MaxParallel:      new(1),
+							HealthCheck:      new("checks"),
+							MinHealthyTime:   new(10 * time.Second),
+							HealthyDeadline:  new(5 * time.Minute),
+							ProgressDeadline: new(10 * time.Minute),
+							AutoRevert:       new(false),
+							Canary:           new(0),
+							AutoPromote:      new(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -1293,54 +1293,54 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
 								Resources:   DefaultResources(),
-								KillTimeout: pointerOf(5 * time.Second),
+								KillTimeout: new(5 * time.Second),
 								RestartPolicy: &RestartPolicy{
-									Attempts:        pointerOf(5),
-									Delay:           pointerOf(1 * time.Second),
-									Interval:        pointerOf(30 * time.Minute),
-									Mode:            pointerOf("fail"),
-									RenderTemplates: pointerOf(true),
+									Attempts:        new(5),
+									Delay:           new(1 * time.Second),
+									Interval:        new(30 * time.Minute),
+									Mode:            new("fail"),
+									RenderTemplates: new(true),
 								},
 							},
 						},
 					},
 					{
-						Name:  pointerOf("baz"),
-						Count: pointerOf(1),
+						Name:  new("baz"),
+						Count: new(1),
 						EphemeralDisk: &EphemeralDisk{
-							Sticky:  pointerOf(false),
-							Migrate: pointerOf(false),
-							SizeMB:  pointerOf(300),
+							Sticky:  new(false),
+							Migrate: new(false),
+							SizeMB:  new(300),
 						},
 						RestartPolicy: &RestartPolicy{
-							Delay:           pointerOf(20 * time.Second),
-							Attempts:        pointerOf(2),
-							Interval:        pointerOf(30 * time.Minute),
-							Mode:            pointerOf("fail"),
-							RenderTemplates: pointerOf(false),
+							Delay:           new(20 * time.Second),
+							Attempts:        new(2),
+							Interval:        new(30 * time.Minute),
+							Mode:            new("fail"),
+							RenderTemplates: new(false),
 						},
 						ReschedulePolicy: &ReschedulePolicy{
-							Attempts:      pointerOf(0),
-							Interval:      pointerOf(time.Duration(0)),
-							DelayFunction: pointerOf("exponential"),
-							Delay:         pointerOf(30 * time.Second),
-							MaxDelay:      pointerOf(1 * time.Hour),
-							Unlimited:     pointerOf(true),
+							Attempts:      new(0),
+							Interval:      new(time.Duration(0)),
+							DelayFunction: new("exponential"),
+							Delay:         new(30 * time.Second),
+							MaxDelay:      new(1 * time.Hour),
+							Unlimited:     new(true),
 						},
 						Consul: &Consul{
 							Namespace: "",
 							Cluster:   "default",
 						},
 						Update: &UpdateStrategy{
-							Stagger:          pointerOf(30 * time.Second),
-							MaxParallel:      pointerOf(1),
-							HealthCheck:      pointerOf("checks"),
-							MinHealthyTime:   pointerOf(10 * time.Second),
-							HealthyDeadline:  pointerOf(5 * time.Minute),
-							ProgressDeadline: pointerOf(10 * time.Minute),
-							AutoRevert:       pointerOf(false),
-							Canary:           pointerOf(0),
-							AutoPromote:      pointerOf(false),
+							Stagger:          new(30 * time.Second),
+							MaxParallel:      new(1),
+							HealthCheck:      new("checks"),
+							MinHealthyTime:   new(10 * time.Second),
+							HealthyDeadline:  new(5 * time.Minute),
+							ProgressDeadline: new(10 * time.Minute),
+							AutoRevert:       new(false),
+							Canary:           new(0),
+							AutoPromote:      new(false),
 						},
 						Migrate: DefaultMigrateStrategy(),
 						Tasks: []*Task{
@@ -1348,13 +1348,13 @@ func TestJobs_Canonicalize(t *testing.T) {
 								Name:        "task1",
 								LogConfig:   DefaultLogConfig(),
 								Resources:   DefaultResources(),
-								KillTimeout: pointerOf(5 * time.Second),
+								KillTimeout: new(5 * time.Second),
 								RestartPolicy: &RestartPolicy{
-									Delay:           pointerOf(20 * time.Second),
-									Attempts:        pointerOf(2),
-									Interval:        pointerOf(30 * time.Minute),
-									Mode:            pointerOf("fail"),
-									RenderTemplates: pointerOf(false),
+									Delay:           new(20 * time.Second),
+									Attempts:        new(2),
+									Interval:        new(30 * time.Minute),
+									Mode:            new("fail"),
+									RenderTemplates: new(false),
 								},
 							},
 						},
@@ -1365,14 +1365,14 @@ func TestJobs_Canonicalize(t *testing.T) {
 		{
 			name: "multiregion",
 			input: &Job{
-				Name:     pointerOf("foo"),
-				ID:       pointerOf("bar"),
-				ParentID: pointerOf("lol"),
+				Name:     new("foo"),
+				ID:       new("bar"),
+				ParentID: new("lol"),
 				Multiregion: &Multiregion{
 					Regions: []*MultiregionRegion{
 						{
 							Name:  "west",
-							Count: pointerOf(1),
+							Count: new(1),
 						},
 					},
 				},
@@ -1380,48 +1380,48 @@ func TestJobs_Canonicalize(t *testing.T) {
 			expected: &Job{
 				Multiregion: &Multiregion{
 					Strategy: &MultiregionStrategy{
-						MaxParallel: pointerOf(0),
-						OnFailure:   pointerOf(""),
+						MaxParallel: new(0),
+						OnFailure:   new(""),
 					},
 					Regions: []*MultiregionRegion{
 						{
 							Name:        "west",
-							Count:       pointerOf(1),
+							Count:       new(1),
 							Datacenters: []string{},
 							Meta:        map[string]string{},
 						},
 					},
 				},
-				Namespace:         pointerOf(DefaultNamespace),
-				ID:                pointerOf("bar"),
-				Name:              pointerOf("foo"),
-				Region:            pointerOf("global"),
-				Type:              pointerOf("service"),
-				ParentID:          pointerOf("lol"),
-				Priority:          pointerOf(JobDefaultPriority),
-				NodePool:          pointerOf(""),
-				AllAtOnce:         pointerOf(false),
-				ConsulNamespace:   pointerOf(""),
-				VaultNamespace:    pointerOf(""),
-				NomadTokenID:      pointerOf(""),
-				Stop:              pointerOf(false),
-				Stable:            pointerOf(false),
-				Version:           pointerOf(uint64(0)),
-				Status:            pointerOf(""),
-				StatusDescription: pointerOf(""),
-				CreateIndex:       pointerOf(uint64(0)),
-				ModifyIndex:       pointerOf(uint64(0)),
-				JobModifyIndex:    pointerOf(uint64(0)),
+				Namespace:         new(DefaultNamespace),
+				ID:                new("bar"),
+				Name:              new("foo"),
+				Region:            new("global"),
+				Type:              new("service"),
+				ParentID:          new("lol"),
+				Priority:          new(JobDefaultPriority),
+				NodePool:          new(""),
+				AllAtOnce:         new(false),
+				ConsulNamespace:   new(""),
+				VaultNamespace:    new(""),
+				NomadTokenID:      new(""),
+				Stop:              new(false),
+				Stable:            new(false),
+				Version:           new(uint64(0)),
+				Status:            new(""),
+				StatusDescription: new(""),
+				CreateIndex:       new(uint64(0)),
+				ModifyIndex:       new(uint64(0)),
+				JobModifyIndex:    new(uint64(0)),
 				Update: &UpdateStrategy{
-					Stagger:          pointerOf(30 * time.Second),
-					MaxParallel:      pointerOf(1),
-					HealthCheck:      pointerOf("checks"),
-					MinHealthyTime:   pointerOf(10 * time.Second),
-					HealthyDeadline:  pointerOf(5 * time.Minute),
-					ProgressDeadline: pointerOf(10 * time.Minute),
-					AutoRevert:       pointerOf(false),
-					Canary:           pointerOf(0),
-					AutoPromote:      pointerOf(false),
+					Stagger:          new(30 * time.Second),
+					MaxParallel:      new(1),
+					HealthCheck:      new("checks"),
+					MinHealthyTime:   new(10 * time.Second),
+					HealthyDeadline:  new(5 * time.Minute),
+					ProgressDeadline: new(10 * time.Minute),
+					AutoRevert:       new(false),
+					Canary:           new(0),
+					AutoPromote:      new(false),
 				},
 			},
 		},
@@ -1500,11 +1500,11 @@ func TestJobs_Revert(t *testing.T) {
 	assertWriteMeta(t, wm)
 
 	// Fail revert at incorrect enforce
-	_, _, err = jobs.Revert(*job.ID, 0, pointerOf(uint64(10)), nil, "", "")
+	_, _, err = jobs.Revert(*job.ID, 0, new(uint64(10)), nil, "", "")
 	must.ErrorContains(t, err, "enforcing version")
 
 	// Works at correct index
-	revertResp, wm, err := jobs.Revert(*job.ID, 0, pointerOf(uint64(1)), nil, "", "")
+	revertResp, wm, err := jobs.Revert(*job.ID, 0, new(uint64(1)), nil, "", "")
 	must.NoError(t, err)
 	must.UUIDv4(t, revertResp.EvalID)
 	must.Positive(t, revertResp.EvalCreateIndex)
@@ -1567,13 +1567,13 @@ func TestJobs_ScaleInvalidAction(t *testing.T) {
 
 	// Register test job
 	job := testJob()
-	job.ID = pointerOf("TestJobs_Scale")
+	job.ID = new("TestJobs_Scale")
 	_, wm, err := jobs.Register(job, nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 
 	// Perform a scaling action with bad group name, verify error
-	_, _, err = jobs.Scale(*job.ID, "incorrect-group-name", pointerOf(2),
+	_, _, err = jobs.Scale(*job.ID, "incorrect-group-name", new(2),
 		"because", false, nil, nil)
 	must.ErrorContains(t, err, "does not exist")
 }
@@ -1683,7 +1683,7 @@ func TestJobs_Submission_versions(t *testing.T) {
 
 	job := testJob()
 	jobID := *job.ID                       // job1
-	job.TaskGroups[0].Count = pointerOf(0) // no need to actually run
+	job.TaskGroups[0].Count = new(0) // no need to actually run
 
 	// trying to retrieve a version before job is submitted returns a Not Found
 	_, _, nfErr := jobs.Submission(jobID, 0, nil)
@@ -1783,8 +1783,8 @@ func TestJobs_Submission_namespaces(t *testing.T) {
 	commonJobID := "common"
 
 	job := testJob()
-	job.ID = pointerOf(commonJobID)
-	job.TaskGroups[0].Count = pointerOf(0)
+	job.ID = new(commonJobID)
+	job.TaskGroups[0].Count = new(0)
 
 	// register our test job into first namespace
 	_, wm, err := jobs.RegisterOpts(job, &RegisterOptions{
@@ -1813,9 +1813,9 @@ func TestJobs_Submission_namespaces(t *testing.T) {
 
 	// create a second test job for our second namespace
 	job2 := testJob()
-	job2.ID = pointerOf(commonJobID)
+	job2.ID = new(commonJobID)
 	// keep job name redis to prove we write to correct namespace
-	job.TaskGroups[0].Count = pointerOf(0)
+	job.TaskGroups[0].Count = new(0)
 
 	// register our second job into the second namespace
 	_, wm, err = jobs.RegisterOpts(job2, &RegisterOptions{
@@ -1871,7 +1871,7 @@ func TestJobs_Submission_delete(t *testing.T) {
 	jobs := c.Jobs()
 	job := testJob()
 	jobID := *job.ID
-	job.TaskGroups[0].Count = pointerOf(0)
+	job.TaskGroups[0].Count = new(0)
 	job.Meta = map[string]string{"version": "0"}
 
 	// register our test job into first namespace
@@ -2297,11 +2297,11 @@ func TestJobs_NewBatchJob(t *testing.T) {
 
 	job := NewBatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
-		Region:   pointerOf("global"),
-		ID:       pointerOf("job1"),
-		Name:     pointerOf("myjob"),
-		Type:     pointerOf(JobTypeBatch),
-		Priority: pointerOf(5),
+		Region:   new("global"),
+		ID:       new("job1"),
+		Name:     new("myjob"),
+		Type:     new(JobTypeBatch),
+		Priority: new(5),
 	}
 	must.Eq(t, expect, job)
 }
@@ -2311,11 +2311,11 @@ func TestJobs_NewServiceJob(t *testing.T) {
 
 	job := NewServiceJob("job1", "myjob", "global", 5)
 	expect := &Job{
-		Region:   pointerOf("global"),
-		ID:       pointerOf("job1"),
-		Name:     pointerOf("myjob"),
-		Type:     pointerOf(JobTypeService),
-		Priority: pointerOf(5),
+		Region:   new("global"),
+		ID:       new("job1"),
+		Name:     new("myjob"),
+		Type:     new(JobTypeService),
+		Priority: new(5),
 	}
 	must.Eq(t, expect, job)
 }
@@ -2325,11 +2325,11 @@ func TestJobs_NewSystemJob(t *testing.T) {
 
 	job := NewSystemJob("job1", "myjob", "global", 5)
 	expect := &Job{
-		Region:   pointerOf("global"),
-		ID:       pointerOf("job1"),
-		Name:     pointerOf("myjob"),
-		Type:     pointerOf(JobTypeSystem),
-		Priority: pointerOf(5),
+		Region:   new("global"),
+		ID:       new("job1"),
+		Name:     new("myjob"),
+		Type:     new(JobTypeSystem),
+		Priority: new(5),
 	}
 	must.Eq(t, expect, job)
 }
@@ -2339,11 +2339,11 @@ func TestJobs_NewSysbatchJob(t *testing.T) {
 
 	job := NewSysbatchJob("job1", "myjob", "global", 5)
 	expect := &Job{
-		Region:   pointerOf("global"),
-		ID:       pointerOf("job1"),
-		Name:     pointerOf("myjob"),
-		Type:     pointerOf(JobTypeSysbatch),
-		Priority: pointerOf(5),
+		Region:   new("global"),
+		ID:       new("job1"),
+		Name:     new("myjob"),
+		Type:     new(JobTypeSysbatch),
+		Priority: new(5),
 	}
 	must.Eq(t, expect, job)
 }
@@ -2413,13 +2413,13 @@ func TestJobs_AddAffinity(t *testing.T) {
 			LTarget: "kernel.version",
 			RTarget: "4.6",
 			Operand: "=",
-			Weight:  pointerOf(int8(100)),
+			Weight:  new(int8(100)),
 		},
 		{
 			LTarget: "${node.datacenter}",
 			RTarget: "dc2",
 			Operand: "=",
-			Weight:  pointerOf(int8(50)),
+			Weight:  new(int8(50)),
 		},
 	}
 	must.Eq(t, expect, job.Affinities)
@@ -2467,7 +2467,7 @@ func TestJobs_AddSpread(t *testing.T) {
 	expect := []*Spread{
 		{
 			Attribute: "${meta.rack}",
-			Weight:    pointerOf(int8(100)),
+			Weight:    new(int8(100)),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "r1",
@@ -2477,7 +2477,7 @@ func TestJobs_AddSpread(t *testing.T) {
 		},
 		{
 			Attribute: "${node.datacenter}",
-			Weight:    pointerOf(int8(100)),
+			Weight:    new(int8(100)),
 			SpreadTarget: []*SpreadTarget{
 				{
 					Value:   "dc1",
@@ -2505,7 +2505,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 	newCount := origCount + 1
 
 	// Trying to scale against a target before it exists returns an error
-	_, _, err := jobs.Scale(id, "missing", pointerOf(newCount), "this won't work", false, nil, nil)
+	_, _, err := jobs.Scale(id, "missing", new(newCount), "this won't work", false, nil, nil)
 	must.ErrorContains(t, err, "not found")
 
 	// Register the job
@@ -2515,7 +2515,7 @@ func TestJobs_ScaleAction(t *testing.T) {
 
 	// Perform scaling action
 	scalingResp, wm, err := jobs.Scale(id, groupName,
-		pointerOf(newCount), "need more instances", false,
+		new(newCount), "need more instances", false,
 		map[string]any{
 			"meta": "data",
 		}, nil)

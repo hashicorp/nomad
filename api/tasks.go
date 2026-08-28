@@ -146,11 +146,11 @@ type DisconnectStrategy struct {
 
 func (ds *DisconnectStrategy) Canonicalize() {
 	if ds.Replace == nil {
-		ds.Replace = pointerOf(true)
+		ds.Replace = new(true)
 	}
 
 	if ds.Reconcile == nil {
-		ds.Reconcile = pointerOf(ReconcileOptionBestScore)
+		ds.Reconcile = new(ReconcileOptionBestScore)
 	}
 }
 
@@ -239,21 +239,21 @@ func NewAffinity(lTarget string, operand string, rTarget string, weight int8) *A
 		LTarget: lTarget,
 		RTarget: rTarget,
 		Operand: operand,
-		Weight:  pointerOf(weight),
+		Weight:  new(weight),
 	}
 }
 
 func (a *Affinity) Canonicalize() {
 	if a.Weight == nil {
-		a.Weight = pointerOf(int8(50))
+		a.Weight = new(int8(50))
 	}
 }
 
 func NewDefaultDisconnectStrategy() *DisconnectStrategy {
 	return &DisconnectStrategy{
-		LostAfter: pointerOf(0 * time.Minute),
-		Replace:   pointerOf(true),
-		Reconcile: pointerOf(ReconcileOptionBestScore),
+		LostAfter: new(0 * time.Minute),
+		Replace:   new(true),
+		Reconcile: new(ReconcileOptionBestScore),
 	}
 }
 
@@ -264,25 +264,25 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 		// This needs to be in sync with DefaultServiceJobReschedulePolicy
 		// in nomad/structs/structs.go
 		dp = &ReschedulePolicy{
-			Delay:         pointerOf(30 * time.Second),
-			DelayFunction: pointerOf("exponential"),
-			MaxDelay:      pointerOf(1 * time.Hour),
-			Unlimited:     pointerOf(true),
+			Delay:         new(30 * time.Second),
+			DelayFunction: new("exponential"),
+			MaxDelay:      new(1 * time.Hour),
+			Unlimited:     new(true),
 
-			Attempts: pointerOf(0),
-			Interval: pointerOf(time.Duration(0)),
+			Attempts: new(0),
+			Interval: new(time.Duration(0)),
 		}
 	case "batch":
 		// This needs to be in sync with DefaultBatchJobReschedulePolicy
 		// in nomad/structs/structs.go
 		dp = &ReschedulePolicy{
-			Attempts:      pointerOf(1),
-			Interval:      pointerOf(24 * time.Hour),
-			Delay:         pointerOf(5 * time.Second),
-			DelayFunction: pointerOf("constant"),
+			Attempts:      new(1),
+			Interval:      new(24 * time.Hour),
+			Delay:         new(5 * time.Second),
+			DelayFunction: new("constant"),
 
-			MaxDelay:  pointerOf(time.Duration(0)),
-			Unlimited: pointerOf(false),
+			MaxDelay:  new(time.Duration(0)),
+			Unlimited: new(false),
 		}
 
 	default:
@@ -292,12 +292,12 @@ func NewDefaultReschedulePolicy(jobType string) *ReschedulePolicy {
 		// This also applies to batch/sysbatch jobs, which do not reschedule;
 		// we still want to return a safe object.
 		dp = &ReschedulePolicy{
-			Attempts:      pointerOf(0),
-			Interval:      pointerOf(time.Duration(0)),
-			Delay:         pointerOf(time.Duration(0)),
-			DelayFunction: pointerOf(""),
-			MaxDelay:      pointerOf(time.Duration(0)),
-			Unlimited:     pointerOf(false),
+			Attempts:      new(0),
+			Interval:      new(time.Duration(0)),
+			Delay:         new(time.Duration(0)),
+			DelayFunction: new(""),
+			MaxDelay:      new(time.Duration(0)),
+			Unlimited:     new(false),
 		}
 	}
 	return dp
@@ -345,14 +345,14 @@ func NewSpreadTarget(value string, percent uint8) *SpreadTarget {
 func NewSpread(attribute string, weight int8, spreadTargets []*SpreadTarget) *Spread {
 	return &Spread{
 		Attribute:    attribute,
-		Weight:       pointerOf(weight),
+		Weight:       new(weight),
 		SpreadTarget: spreadTargets,
 	}
 }
 
 func (s *Spread) Canonicalize() {
 	if s.Weight == nil {
-		s.Weight = pointerOf(int8(50))
+		s.Weight = new(int8(50))
 	}
 }
 
@@ -365,21 +365,21 @@ type EphemeralDisk struct {
 
 func DefaultEphemeralDisk() *EphemeralDisk {
 	return &EphemeralDisk{
-		Sticky:  pointerOf(false),
-		Migrate: pointerOf(false),
-		SizeMB:  pointerOf(300),
+		Sticky:  new(false),
+		Migrate: new(false),
+		SizeMB:  new(300),
 	}
 }
 
 func (e *EphemeralDisk) Canonicalize() {
 	if e.Sticky == nil {
-		e.Sticky = pointerOf(false)
+		e.Sticky = new(false)
 	}
 	if e.Migrate == nil {
-		e.Migrate = pointerOf(false)
+		e.Migrate = new(false)
 	}
 	if e.SizeMB == nil {
-		e.SizeMB = pointerOf(300)
+		e.SizeMB = new(300)
 	}
 }
 
@@ -394,10 +394,10 @@ type MigrateStrategy struct {
 
 func DefaultMigrateStrategy() *MigrateStrategy {
 	return &MigrateStrategy{
-		MaxParallel:     pointerOf(1),
-		HealthCheck:     pointerOf("checks"),
-		MinHealthyTime:  pointerOf(10 * time.Second),
-		HealthyDeadline: pointerOf(5 * time.Minute),
+		MaxParallel:     new(1),
+		HealthCheck:     new("checks"),
+		MinHealthyTime:  new(10 * time.Second),
+		HealthyDeadline: new(5 * time.Minute),
 	}
 }
 
@@ -476,15 +476,15 @@ type VolumeMount struct {
 
 func (vm *VolumeMount) Canonicalize() {
 	if vm.PropagationMode == nil {
-		vm.PropagationMode = pointerOf(VolumeMountPropagationPrivate)
+		vm.PropagationMode = new(VolumeMountPropagationPrivate)
 	}
 
 	if vm.ReadOnly == nil {
-		vm.ReadOnly = pointerOf(false)
+		vm.ReadOnly = new(false)
 	}
 
 	if vm.SELinuxLabel == nil {
-		vm.SELinuxLabel = pointerOf("")
+		vm.SELinuxLabel = new("")
 	}
 }
 
@@ -521,22 +521,22 @@ type TaskGroup struct {
 // NewTaskGroup creates a new TaskGroup.
 func NewTaskGroup(name string, count int) *TaskGroup {
 	return &TaskGroup{
-		Name:  pointerOf(name),
-		Count: pointerOf(count),
+		Name:  new(name),
+		Count: new(count),
 	}
 }
 
 // Canonicalize sets defaults and merges settings that should be inherited from the job
 func (g *TaskGroup) Canonicalize(job *Job) {
 	if g.Name == nil {
-		g.Name = pointerOf("")
+		g.Name = new("")
 	}
 
 	if g.Count == nil {
 		if g.Scaling != nil && g.Scaling.Min != nil {
-			g.Count = pointerOf(int(*g.Scaling.Min))
+			g.Count = new(int(*g.Scaling.Min))
 		} else {
-			g.Count = pointerOf(1)
+			g.Count = new(1)
 		}
 	}
 	if g.Scaling != nil {
@@ -641,11 +641,11 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 // in nomad/structs/structs.go
 func defaultServiceJobRestartPolicy() *RestartPolicy {
 	return &RestartPolicy{
-		Delay:           pointerOf(15 * time.Second),
-		Attempts:        pointerOf(2),
-		Interval:        pointerOf(30 * time.Minute),
-		Mode:            pointerOf(RestartPolicyModeFail),
-		RenderTemplates: pointerOf(false),
+		Delay:           new(15 * time.Second),
+		Attempts:        new(2),
+		Interval:        new(30 * time.Minute),
+		Mode:            new(RestartPolicyModeFail),
+		RenderTemplates: new(false),
 	}
 }
 
@@ -653,11 +653,11 @@ func defaultServiceJobRestartPolicy() *RestartPolicy {
 // in nomad/structs/structs.go
 func defaultBatchJobRestartPolicy() *RestartPolicy {
 	return &RestartPolicy{
-		Delay:           pointerOf(15 * time.Second),
-		Attempts:        pointerOf(3),
-		Interval:        pointerOf(24 * time.Hour),
-		Mode:            pointerOf(RestartPolicyModeFail),
-		RenderTemplates: pointerOf(false),
+		Delay:           new(15 * time.Second),
+		Attempts:        new(3),
+		Interval:        new(24 * time.Hour),
+		Mode:            new(RestartPolicyModeFail),
+		RenderTemplates: new(false),
 	}
 }
 
@@ -720,21 +720,21 @@ type LogConfig struct {
 
 func DefaultLogConfig() *LogConfig {
 	return &LogConfig{
-		MaxFiles:      pointerOf(10),
-		MaxFileSizeMB: pointerOf(10),
-		Disabled:      pointerOf(false),
+		MaxFiles:      new(10),
+		MaxFileSizeMB: new(10),
+		Disabled:      new(false),
 	}
 }
 
 func (l *LogConfig) Canonicalize() {
 	if l.MaxFiles == nil {
-		l.MaxFiles = pointerOf(10)
+		l.MaxFiles = new(10)
 	}
 	if l.MaxFileSizeMB == nil {
-		l.MaxFileSizeMB = pointerOf(10)
+		l.MaxFileSizeMB = new(10)
 	}
 	if l.Disabled == nil {
-		l.Disabled = pointerOf(false)
+		l.Disabled = new(false)
 	}
 }
 
@@ -808,7 +808,7 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	t.Resources.Canonicalize()
 
 	if t.KillTimeout == nil {
-		t.KillTimeout = pointerOf(5 * time.Second)
+		t.KillTimeout = new(5 * time.Second)
 	}
 	if t.LogConfig == nil {
 		t.LogConfig = DefaultLogConfig()
@@ -868,14 +868,14 @@ type TaskArtifact struct {
 
 func (a *TaskArtifact) Canonicalize() {
 	if a.GetterMode == nil {
-		a.GetterMode = pointerOf("any")
+		a.GetterMode = new("any")
 	}
 	if a.GetterInsecure == nil {
-		a.GetterInsecure = pointerOf(false)
+		a.GetterInsecure = new(false)
 	}
 	if a.GetterSource == nil {
 		// Shouldn't be possible, but we don't want to panic
-		a.GetterSource = pointerOf("")
+		a.GetterSource = new("")
 	}
 	if len(a.GetterOptions) == 0 {
 		a.GetterOptions = nil
@@ -893,7 +893,7 @@ func (a *TaskArtifact) Canonicalize() {
 			a.RelativeDest = &dest
 		default:
 			// Default to a directory
-			a.RelativeDest = pointerOf("local/")
+			a.RelativeDest = new("local/")
 		}
 	}
 }
@@ -926,19 +926,19 @@ type ChangeScript struct {
 
 func (ch *ChangeScript) Canonicalize() {
 	if ch.Command == nil {
-		ch.Command = pointerOf("")
+		ch.Command = new("")
 	}
 	if ch.Args == nil {
 		ch.Args = []string{}
 	}
 	if ch.Timeout == nil {
-		ch.Timeout = pointerOf(5 * time.Second)
+		ch.Timeout = new(5 * time.Second)
 	}
 	if ch.FailOnError == nil {
-		ch.FailOnError = pointerOf(false)
+		ch.FailOnError = new(false)
 	}
 	if ch.RunOnFirstRender == nil {
-		ch.RunOnFirstRender = pointerOf(false)
+		ch.RunOnFirstRender = new(false)
 	}
 }
 
@@ -964,54 +964,54 @@ type Template struct {
 
 func (tmpl *Template) Canonicalize() {
 	if tmpl.SourcePath == nil {
-		tmpl.SourcePath = pointerOf("")
+		tmpl.SourcePath = new("")
 	}
 	if tmpl.DestPath == nil {
-		tmpl.DestPath = pointerOf("")
+		tmpl.DestPath = new("")
 	}
 	if tmpl.EmbeddedTmpl == nil {
-		tmpl.EmbeddedTmpl = pointerOf("")
+		tmpl.EmbeddedTmpl = new("")
 	}
 	if tmpl.ChangeMode == nil {
-		tmpl.ChangeMode = pointerOf("restart")
+		tmpl.ChangeMode = new("restart")
 	}
 	if tmpl.ChangeSignal == nil {
 		if *tmpl.ChangeMode == "signal" {
-			tmpl.ChangeSignal = pointerOf("SIGHUP")
+			tmpl.ChangeSignal = new("SIGHUP")
 		} else {
-			tmpl.ChangeSignal = pointerOf("")
+			tmpl.ChangeSignal = new("")
 		}
 	} else {
 		sig := *tmpl.ChangeSignal
-		tmpl.ChangeSignal = pointerOf(strings.ToUpper(sig))
+		tmpl.ChangeSignal = new(strings.ToUpper(sig))
 	}
 	if tmpl.ChangeScript != nil {
 		tmpl.ChangeScript.Canonicalize()
 	}
 	if tmpl.Once == nil {
-		tmpl.Once = pointerOf(false)
+		tmpl.Once = new(false)
 	}
 	if tmpl.Splay == nil {
-		tmpl.Splay = pointerOf(5 * time.Second)
+		tmpl.Splay = new(5 * time.Second)
 	}
 	if tmpl.Perms == nil {
-		tmpl.Perms = pointerOf("0644")
+		tmpl.Perms = new("0644")
 	}
 	if tmpl.LeftDelim == nil {
-		tmpl.LeftDelim = pointerOf("{{")
+		tmpl.LeftDelim = new("{{")
 	}
 	if tmpl.RightDelim == nil {
-		tmpl.RightDelim = pointerOf("}}")
+		tmpl.RightDelim = new("}}")
 	}
 	if tmpl.Envvars == nil {
-		tmpl.Envvars = pointerOf(false)
+		tmpl.Envvars = new(false)
 	}
 	if tmpl.ErrMissingKey == nil {
-		tmpl.ErrMissingKey = pointerOf(false)
+		tmpl.ErrMissingKey = new(false)
 	}
 	//COMPAT(0.12) VaultGrace is deprecated and unused as of Vault 0.5
 	if tmpl.VaultGrace == nil {
-		tmpl.VaultGrace = pointerOf(time.Duration(0))
+		tmpl.VaultGrace = new(time.Duration(0))
 	}
 }
 
@@ -1029,25 +1029,25 @@ type Vault struct {
 
 func (v *Vault) Canonicalize() {
 	if v.Env == nil {
-		v.Env = pointerOf(true)
+		v.Env = new(true)
 	}
 	if v.DisableFile == nil {
-		v.DisableFile = pointerOf(false)
+		v.DisableFile = new(false)
 	}
 	if v.Namespace == nil {
-		v.Namespace = pointerOf("")
+		v.Namespace = new("")
 	}
 	if v.Cluster == "" {
 		v.Cluster = "default"
 	}
 	if v.ChangeMode == nil {
-		v.ChangeMode = pointerOf("restart")
+		v.ChangeMode = new("restart")
 	}
 	if v.ChangeSignal == nil {
-		v.ChangeSignal = pointerOf("SIGHUP")
+		v.ChangeSignal = new("SIGHUP")
 	}
 	if v.AllowTokenExpiration == nil {
-		v.AllowTokenExpiration = pointerOf(false)
+		v.AllowTokenExpiration = new(false)
 	}
 }
 

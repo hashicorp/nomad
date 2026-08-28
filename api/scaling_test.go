@@ -26,7 +26,7 @@ func TestScalingPolicies_ListPolicies(t *testing.T) {
 	// Register a job with a scaling policy
 	job := testJob()
 	job.TaskGroups[0].Scaling = &ScalingPolicy{
-		Max: pointerOf(int64(100)),
+		Max: new(int64(100)),
 	}
 	_, _, err = jobs.Register(job, nil)
 	must.NoError(t, err)
@@ -74,9 +74,9 @@ func TestScalingPolicies_GetPolicy(t *testing.T) {
 	// Register a job with a scaling policy
 	job := testJob()
 	policy := &ScalingPolicy{
-		Enabled: pointerOf(true),
-		Min:     pointerOf(int64(1)),
-		Max:     pointerOf(int64(1)),
+		Enabled: new(true),
+		Min:     new(int64(1)),
+		Max:     new(int64(1)),
 		Policy: map[string]any{
 			"key": "value",
 		},

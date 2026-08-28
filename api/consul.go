@@ -149,11 +149,11 @@ func (st *SidecarTask) Canonicalize() {
 	}
 
 	if st.KillTimeout == nil {
-		st.KillTimeout = pointerOf(5 * time.Second)
+		st.KillTimeout = new(5 * time.Second)
 	}
 
 	if st.ShutdownDelay == nil {
-		st.ShutdownDelay = pointerOf(time.Duration(0))
+		st.ShutdownDelay = new(time.Duration(0))
 	}
 
 	for _, vm := range st.VolumeMounts {
@@ -418,7 +418,7 @@ func (p *ConsulGatewayProxy) Canonicalize() {
 
 	if p.ConnectTimeout == nil {
 		// same as the default from consul
-		p.ConnectTimeout = pointerOf(defaultGatewayConnectTimeout)
+		p.ConnectTimeout = new(defaultGatewayConnectTimeout)
 	}
 
 	if len(p.EnvoyGatewayBindAddresses) == 0 {
@@ -448,7 +448,7 @@ func (p *ConsulGatewayProxy) Copy() *ConsulGatewayProxy {
 	}
 
 	return &ConsulGatewayProxy{
-		ConnectTimeout:                  pointerOf(*p.ConnectTimeout),
+		ConnectTimeout:                  new(*p.ConnectTimeout),
 		EnvoyGatewayBindTaggedAddresses: p.EnvoyGatewayBindTaggedAddresses,
 		EnvoyGatewayBindAddresses:       binds,
 		EnvoyGatewayNoDefaultBind:       p.EnvoyGatewayNoDefaultBind,
