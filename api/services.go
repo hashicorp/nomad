@@ -147,7 +147,7 @@ func (c *CheckRestart) Canonicalize() {
 	}
 
 	if c.Grace == nil {
-		c.Grace = pointerOf(1 * time.Second)
+		c.Grace = new(1 * time.Second)
 	}
 }
 

@@ -38,13 +38,13 @@ func TestFS_Logs(t *testing.T) {
 	}
 
 	job := &Job{
-		ID:          pointerOf("TestFS_Logs"),
-		Region:      pointerOf("global"),
+		ID:          new("TestFS_Logs"),
+		Region:      new("global"),
 		Datacenters: []string{"dc1"},
-		Type:        pointerOf("batch"),
+		Type:        new("batch"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: pointerOf("TestFS_LogsGroup"),
+				Name: new("TestFS_LogsGroup"),
 				Tasks: []*Task{
 					{
 						Name:   "logger",

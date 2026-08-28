@@ -222,13 +222,13 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 
 	// Create a job, task group and alloc
 	job := &Job{
-		Name:      pointerOf("foo"),
-		Namespace: pointerOf(DefaultNamespace),
-		ID:        pointerOf("bar"),
-		ParentID:  pointerOf("lol"),
+		Name:      new("foo"),
+		Namespace: new(DefaultNamespace),
+		ID:        new("bar"),
+		ParentID:  new("lol"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: pointerOf("bar"),
+				Name: new("bar"),
 				Tasks: []*Task{
 					{
 						Name: "task1",
@@ -268,8 +268,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "no reschedule events",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: pointerOf(3),
-				Interval: pointerOf(15 * time.Minute),
+				Attempts: new(3),
+				Interval: new(15 * time.Minute),
 			},
 			expAttempted: 0,
 			expTotal:     3,
@@ -277,8 +277,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "all reschedule events within interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: pointerOf(3),
-				Interval: pointerOf(15 * time.Minute),
+				Attempts: new(3),
+				Interval: new(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -294,8 +294,8 @@ func TestAllocations_RescheduleInfo(t *testing.T) {
 		{
 			desc: "some reschedule events outside interval",
 			reschedulePolicy: &ReschedulePolicy{
-				Attempts: pointerOf(3),
-				Interval: pointerOf(15 * time.Minute),
+				Attempts: new(3),
+				Interval: new(15 * time.Minute),
 			},
 			time: time.Now(),
 			rescheduleTracker: &RescheduleTracker{
@@ -440,13 +440,13 @@ func TestAllocations_ExecErrors(t *testing.T) {
 	a := c.Allocations()
 
 	job := &Job{
-		Name:      pointerOf("foo"),
-		Namespace: pointerOf(DefaultNamespace),
-		ID:        pointerOf("bar"),
-		ParentID:  pointerOf("lol"),
+		Name:      new("foo"),
+		Namespace: new(DefaultNamespace),
+		ID:        new("bar"),
+		ParentID:  new("lol"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: pointerOf("bar"),
+				Name: new("bar"),
 				Tasks: []*Task{
 					{
 						Name: "task1",
@@ -557,41 +557,41 @@ func TestAllocation_ClientTerminalStatus(t *testing.T) {
 func TestAllocations_ShouldMigrate(t *testing.T) {
 	testutil.Parallel(t)
 
-	must.True(t, DesiredTransition{Migrate: pointerOf(true)}.ShouldMigrate())
+	must.True(t, DesiredTransition{Migrate: new(true)}.ShouldMigrate())
 	must.False(t, DesiredTransition{}.ShouldMigrate())
-	must.False(t, DesiredTransition{Migrate: pointerOf(false)}.ShouldMigrate())
+	must.False(t, DesiredTransition{Migrate: new(false)}.ShouldMigrate())
 }
 
 func TestAllocations_ShouldReschedule(t *testing.T) {
 	testutil.Parallel(t)
 
-	must.True(t, DesiredTransition{Reschedule: pointerOf(true)}.ShouldReschedule())
+	must.True(t, DesiredTransition{Reschedule: new(true)}.ShouldReschedule())
 	must.False(t, DesiredTransition{}.ShouldReschedule())
-	must.False(t, DesiredTransition{Reschedule: pointerOf(false)}.ShouldReschedule())
+	must.False(t, DesiredTransition{Reschedule: new(false)}.ShouldReschedule())
 }
 
 func TestAllocations_ShouldForceReschedule(t *testing.T) {
 	testutil.Parallel(t)
 
-	must.True(t, DesiredTransition{ForceReschedule: pointerOf(true)}.ShouldForceReschedule())
+	must.True(t, DesiredTransition{ForceReschedule: new(true)}.ShouldForceReschedule())
 	must.False(t, DesiredTransition{}.ShouldForceReschedule())
-	must.False(t, DesiredTransition{ForceReschedule: pointerOf(false)}.ShouldForceReschedule())
+	must.False(t, DesiredTransition{ForceReschedule: new(false)}.ShouldForceReschedule())
 }
 
 func TestAllocations_ShouldIgnoreShutdownDelay(t *testing.T) {
 	testutil.Parallel(t)
 
-	must.True(t, DesiredTransition{NoShutdownDelay: pointerOf(true)}.ShouldIgnoreShutdownDelay())
+	must.True(t, DesiredTransition{NoShutdownDelay: new(true)}.ShouldIgnoreShutdownDelay())
 	must.False(t, DesiredTransition{}.ShouldIgnoreShutdownDelay())
-	must.False(t, DesiredTransition{NoShutdownDelay: pointerOf(false)}.ShouldIgnoreShutdownDelay())
+	must.False(t, DesiredTransition{NoShutdownDelay: new(false)}.ShouldIgnoreShutdownDelay())
 }
 
 func TestAllocations_ShouldDisableMigrationPlacement(t *testing.T) {
 	testutil.Parallel(t)
 
-	must.True(t, DesiredTransition{MigrateDisablePlacement: pointerOf(true)}.ShouldDisableMigrationPlacement())
+	must.True(t, DesiredTransition{MigrateDisablePlacement: new(true)}.ShouldDisableMigrationPlacement())
 	must.False(t, DesiredTransition{}.ShouldDisableMigrationPlacement())
-	must.False(t, DesiredTransition{MigrateDisablePlacement: pointerOf(false)}.ShouldDisableMigrationPlacement())
+	must.False(t, DesiredTransition{MigrateDisablePlacement: new(false)}.ShouldDisableMigrationPlacement())
 }
 
 func TestAllocations_Services(t *testing.T) {

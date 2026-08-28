@@ -45,7 +45,7 @@ func TestConsul_MergeNamespace(t *testing.T) {
 
 	t.Run("already set", func(t *testing.T) {
 		a := &Consul{Namespace: "foo"}
-		ns := pointerOf("bar")
+		ns := new("bar")
 		a.MergeNamespace(ns)
 		must.Eq(t, "foo", a.Namespace)
 		must.Eq(t, "bar", *ns)
@@ -53,7 +53,7 @@ func TestConsul_MergeNamespace(t *testing.T) {
 
 	t.Run("inherit", func(t *testing.T) {
 		a := &Consul{Namespace: ""}
-		ns := pointerOf("bar")
+		ns := new("bar")
 		a.MergeNamespace(ns)
 		must.Eq(t, "bar", a.Namespace)
 		must.Eq(t, "bar", *ns)
@@ -257,9 +257,9 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 
 	t.Run("non empty sidecar_task resources", func(t *testing.T) {
 		exp := DefaultResources()
-		exp.MemoryMB = pointerOf(333)
+		exp.MemoryMB = new(333)
 		st := &SidecarTask{
-			Resources: &Resources{MemoryMB: pointerOf(333)},
+			Resources: &Resources{MemoryMB: new(333)},
 		}
 		st.Canonicalize()
 		must.Eq(t, exp, st.Resources)
@@ -286,14 +286,14 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 	t.Run("non empty sidecar_task volume_mount", func(t *testing.T) {
 		st := &SidecarTask{
 			VolumeMounts: []*VolumeMount{{
-				Volume:      pointerOf("vol0"),
-				Destination: pointerOf("/local/foo"),
+				Volume:      new("vol0"),
+				Destination: new("/local/foo"),
 			}},
 		}
 		st.Canonicalize()
-		must.Eq(t, pointerOf(false), st.VolumeMounts[0].ReadOnly)
-		must.Eq(t, pointerOf("private"), st.VolumeMounts[0].PropagationMode)
-		must.Eq(t, pointerOf(""), st.VolumeMounts[0].SELinuxLabel)
+		must.Eq(t, new(false), st.VolumeMounts[0].ReadOnly)
+		must.Eq(t, new("private"), st.VolumeMounts[0].PropagationMode)
+		must.Eq(t, new(""), st.VolumeMounts[0].SELinuxLabel)
 	})
 
 }
@@ -324,7 +324,7 @@ func TestConsulGateway_Canonicalize(t *testing.T) {
 			},
 		}
 		cg.Canonicalize()
-		must.Eq(t, pointerOf(5*time.Second), cg.Proxy.ConnectTimeout)
+		must.Eq(t, new(5*time.Second), cg.Proxy.ConnectTimeout)
 		must.True(t, cg.Proxy.EnvoyGatewayBindTaggedAddresses)
 		must.Nil(t, cg.Proxy.EnvoyGatewayBindAddresses)
 		must.True(t, cg.Proxy.EnvoyGatewayNoDefaultBind)
@@ -344,7 +344,7 @@ func TestConsulGateway_Copy(t *testing.T) {
 
 	gateway := &ConsulGateway{
 		Proxy: &ConsulGatewayProxy{
-			ConnectTimeout:                  pointerOf(3 * time.Second),
+			ConnectTimeout:                  new(3 * time.Second),
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses: map[string]*ConsulGatewayBindAddress{
 				"listener1": {Address: "10.0.0.1", Port: 2000},
@@ -473,9 +473,9 @@ func TestConsulIngressConfigEntry_Copy(t *testing.T) {
 					},
 					Remove: []string{"test2"},
 				},
-				MaxConnections:        pointerOf(uint32(5120)),
-				MaxPendingRequests:    pointerOf(uint32(512)),
-				MaxConcurrentRequests: pointerOf(uint32(2048)),
+				MaxConnections:        new(uint32(5120)),
+				MaxPendingRequests:    new(uint32(512)),
+				MaxConcurrentRequests: new(uint32(2048)),
 			}, {
 				Name:  "service2",
 				Hosts: []string{"2.2.2.2"},
