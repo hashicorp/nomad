@@ -7808,6 +7808,93 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 
 }
 
+// Tests that when more than one alloc in a per_alloc-volume task group
+// fails placement in the same eval, FailedTGAllocs reflects all of the
+// distinct failures, not just whichever alloc was evaluated last.
+func TestServiceSched_CSIVolumesPerAlloc_MergedFailures(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	// Create nodes running the CSI plugin, capped so that placement fails
+	// only because the per-alloc volumes are missing, not because of
+	// unrelated resource exhaustion.
+	for range 5 {
+		node := mock.Node()
+		node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"test-plugin": {
+				PluginID: "test-plugin",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{MaxVolumes: 2},
+			},
+		}
+		must.NoError(t, h.State.UpsertNode(
+			structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Only volume-unique[0] exists. A 3-count job needs indices 0, 1, and 2,
+	// so allocs for index 1 and index 2 will both fail to place, each for a
+	// different missing volume.
+	vol0 := structs.NewCSIVolume("volume-unique[0]", 0)
+	vol0.PluginID = "test-plugin"
+	vol0.Namespace = structs.DefaultNamespace
+	vol0.AccessMode = structs.CSIVolumeAccessModeSingleNodeWriter
+	vol0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
+	must.NoError(t, h.State.UpsertCSIVolume(
+		h.NextIndex(), []*structs.CSIVolume{vol0}))
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"unique": {
+			Type:     "csi",
+			Name:     "unique",
+			Source:   "volume-unique",
+			PerAlloc: true,
+		},
+	}
+	// Volumes were added after mock.Job() already canonicalized the job, so
+	// HasPerAllocVolumes must be recomputed here to match what real job
+	// registration does (Job.Register always canonicalizes on the way in).
+	job.Canonicalize()
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	err := h.Process(NewServiceScheduler, eval)
+	must.NoError(t, err)
+	must.Len(t, 1, h.Evals, must.Sprint("expected one eval"))
+
+	// Only one alloc (index 0) should have placed.
+	out, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 1, out, must.Sprint("expected 1 placed allocation"))
+
+	// Expect a blocked eval, since 2 allocs are still queued.
+	must.NotEq(t, "", h.Evals[0].BlockedEval,
+		must.Sprint("expected a blocked eval to be spawned"))
+	must.Eq(t, 2, h.Evals[0].QueuedAllocations["web"],
+		must.Sprint("expected 2 queued allocs"))
+
+	// Both missing-volume failures should be present in the merged metric.
+	metric := h.Evals[0].FailedTGAllocs["web"]
+	must.NotNil(t, metric, must.Sprint("expected a failed TG alloc metric for \"web\""))
+	must.Eq(t, 5, metric.ConstraintFiltered["missing CSI volume(s) volume-unique[1]"],
+		must.Sprint("expected the index 1 volume failure to be present in the merged metric"))
+	must.Eq(t, 5, metric.ConstraintFiltered["missing CSI volume(s) volume-unique[2]"],
+		must.Sprint("expected the index 2 volume failure to be present in the merged metric"))
+}
+
 func TestServiceSched_CSITopology(t *testing.T) {
 	ci.Parallel(t)
 	h := tests.NewHarness(t)
