@@ -7819,7 +7819,7 @@ func TestServiceSched_CSIVolumesPerAlloc_MergedFailures(t *testing.T) {
 	// Create nodes running the CSI plugin, capped so that placement fails
 	// only because the per-alloc volumes are missing, not because of
 	// unrelated resource exhaustion.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		node := mock.Node()
 		node.CSINodePlugins = map[string]*structs.CSIInfo{
 			"test-plugin": {
@@ -7854,6 +7854,10 @@ func TestServiceSched_CSIVolumesPerAlloc_MergedFailures(t *testing.T) {
 			PerAlloc: true,
 		},
 	}
+	// Volumes were added after mock.Job() already canonicalized the job, so
+	// HasPerAllocVolumes must be recomputed here to match what real job
+	// registration does (Job.Register always canonicalizes on the way in).
+	job.Canonicalize()
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	eval := &structs.Evaluation{

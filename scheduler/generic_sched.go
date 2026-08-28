@@ -538,15 +538,7 @@ func (s *GenericScheduler) computePlacements(
 				}
 			}
 
-			// Check if the volumes in the taskgroup have per_alloc enabled
-			hasPerAlloc := false
-
-			for _, volume := range tg.Volumes {
-				if volume.PerAlloc {
-					hasPerAlloc = true
-					break
-				}
-			}
+			hasPerAlloc := tg.HasPerAllocVolumes
 
 			// Check if this task group has already failed
 			if metric, ok := s.failedTGAllocs[tg.Name]; ok && !hasPerAlloc { // skip only when no per alloc in volume
@@ -708,24 +700,32 @@ func (s *GenericScheduler) computePlacements(
 				prevMetrics, ok := s.failedTGAllocs[tg.Name]
 				currentMetrics := s.ctx.Metrics()
 
+				// Only the first failure for a task group short-circuits into
+				// the fast path (metric = current, no merge): either this is
+				// the group's first failure this eval (!ok), or the group has
+				// no per_alloc volume so every alloc's failure reason is
+				// interchangeable (!hasPerAlloc). A later failure in a
+				// per_alloc group (ok && hasPerAlloc) falls through to the
+				// merge branch below, since each alloc's per-alloc volume can
+				// fail for a distinct reason that must be preserved.
 				if !ok || !hasPerAlloc {
 					s.failedTGAllocs[tg.Name] = currentMetrics
 				} else {
-					winner, loser := prevMetrics, currentMetrics
+					reporting, dropping := prevMetrics, currentMetrics
 					if currentMetrics.NodesExhausted > prevMetrics.NodesExhausted {
-						winner, loser = currentMetrics, prevMetrics
+						reporting, dropping = currentMetrics, prevMetrics
 					}
 
-					if winner.ConstraintFiltered == nil {
-						winner.ConstraintFiltered = make(map[string]int)
+					if reporting.ConstraintFiltered == nil {
+						reporting.ConstraintFiltered = make(map[string]int)
 					}
 
-					for reason, count := range loser.ConstraintFiltered {
-						winner.ConstraintFiltered[reason] += count
+					for reason, count := range dropping.ConstraintFiltered {
+						reporting.ConstraintFiltered[reason] += count
 					}
 
 					// Track the fact that we didn't find a placement
-					s.failedTGAllocs[tg.Name] = winner
+					s.failedTGAllocs[tg.Name] = reporting
 				}
 
 				// If we weren't able to find a placement for the allocation, back

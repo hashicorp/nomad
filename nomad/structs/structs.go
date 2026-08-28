@@ -6932,6 +6932,12 @@ type TaskGroup struct {
 	// Volumes is a map of volumes that have been requested by the task group.
 	Volumes map[string]*VolumeRequest
 
+	// HasPerAllocVolumes records whether any entry in Volumes is per_alloc —
+	// i.e. each alloc in the group gets an independently feasible/infeasible
+	// volume rather than sharing one. Computed once in Canonicalize instead
+	// of rescanning Volumes on every placement attempt in computePlacements.
+	HasPerAllocVolumes bool
+
 	// ShutdownDelay is the amount of time to wait between deregistering
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
@@ -7073,6 +7079,13 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
+	}
+
+	for _, v := range tg.Volumes {
+		if v.PerAlloc {
+			tg.HasPerAllocVolumes = true
+			break
+		}
 	}
 }
 
