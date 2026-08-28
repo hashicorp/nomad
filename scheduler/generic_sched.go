@@ -538,8 +538,10 @@ func (s *GenericScheduler) computePlacements(
 				}
 			}
 
+			hasPerAlloc := tg.HasPerAllocVolumes
+
 			// Check if this task group has already failed
-			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
+			if metric, ok := s.failedTGAllocs[tg.Name]; ok && !hasPerAlloc { // skip only when no per alloc in volume
 				metric.CoalescedFailures += 1
 				metric.ExhaustResources(tg)
 				continue
@@ -695,8 +697,36 @@ func (s *GenericScheduler) computePlacements(
 				// Update metrics with the resources requested by the task group.
 				s.ctx.Metrics().ExhaustResources(tg)
 
-				// Track the fact that we didn't find a placement
-				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
+				prevMetrics, ok := s.failedTGAllocs[tg.Name]
+				currentMetrics := s.ctx.Metrics()
+
+				// Only the first failure for a task group short-circuits into
+				// the fast path (metric = current, no merge): either this is
+				// the group's first failure this eval (!ok), or the group has
+				// no per_alloc volume so every alloc's failure reason is
+				// interchangeable (!hasPerAlloc). A later failure in a
+				// per_alloc group (ok && hasPerAlloc) falls through to the
+				// merge branch below, since each alloc's per-alloc volume can
+				// fail for a distinct reason that must be preserved.
+				if !ok || !hasPerAlloc {
+					s.failedTGAllocs[tg.Name] = currentMetrics
+				} else {
+					reporting, dropping := prevMetrics, currentMetrics
+					if currentMetrics.NodesExhausted > prevMetrics.NodesExhausted {
+						reporting, dropping = currentMetrics, prevMetrics
+					}
+
+					if reporting.ConstraintFiltered == nil {
+						reporting.ConstraintFiltered = make(map[string]int)
+					}
+
+					for reason, count := range dropping.ConstraintFiltered {
+						reporting.ConstraintFiltered[reason] += count
+					}
+
+					// Track the fact that we didn't find a placement
+					s.failedTGAllocs[tg.Name] = reporting
+				}
 
 				// If we weren't able to find a placement for the allocation, back
 				// out the fact that we asked to stop the allocation.
