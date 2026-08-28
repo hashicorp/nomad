@@ -223,7 +223,7 @@ type TaskGroupDiff struct {
 func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, error) {
 	diff := &TaskGroupDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-	filter := []string{"Name"}
+	filter := []string{"Name", "HasPerAllocVolumes"}
 
 	if tg == nil && other == nil {
 		return diff, nil
