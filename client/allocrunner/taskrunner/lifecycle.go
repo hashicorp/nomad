@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	te "github.com/hashicorp/nomad/client/allocrunner/taskrunner/errors"
@@ -113,6 +114,33 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 	waitCh, err := handle.WaitCh(ctx)
 	if err != nil {
 		return err
+	}
+
+	// Wait for ShutdownDelay after prekill hooks so services have time to
+	// drain before the task is signalled. This matches handleKill; restart
+	// previously skipped the delay (issue #25289).
+	if delay := tr.Task().ShutdownDelay; delay != 0 {
+		var ev *structs.TaskEvent
+		if tr.alloc.DesiredTransition.ShouldIgnoreShutdownDelay() {
+			tr.logger.Debug("skipping shutdown_delay", "shutdown_delay", delay)
+			ev = structs.NewTaskEvent(structs.TaskSkippingShutdownDelay).
+				SetDisplayMessage(fmt.Sprintf("Skipping shutdown_delay of %s before killing the task.", delay))
+			tr.UpdateState(structs.TaskStatePending, ev)
+		} else {
+			tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
+			ev = structs.NewTaskEvent(structs.TaskWaitingShuttingDownDelay).
+				SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
+			tr.UpdateState(structs.TaskStatePending, ev)
+
+			select {
+			case <-waitCh:
+				return nil
+			case <-tr.shutdownDelayCtx.Done():
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
 	}
 
 	// Kill the task using an exponential backoff in-case of failures.
