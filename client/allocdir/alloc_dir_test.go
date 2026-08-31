@@ -464,3 +464,244 @@ func TestAllocDir_SkipAllocDir(t *testing.T) {
 		t.Fatalf("expected chroot to not exist but error is: %v", err)
 	}
 }
+
+func TestSanitizePath(t *testing.T) {
+	tmp := t.TempDir()
+
+	resolvedTmp, err := filepath.EvalSymlinks(tmp)
+	must.NoError(t, err)
+
+	tmp = resolvedTmp
+
+	allocDir := filepath.Join(tmp, "alloc")
+	must.NoError(t, os.MkdirAll(allocDir, 0o755))
+
+	taskDir := filepath.Join(allocDir, "task1")
+	localDir := filepath.Join(taskDir, "local")
+	secretsDir := filepath.Join(taskDir, "secrets")
+	privateDir := filepath.Join(taskDir, "private")
+
+	for _, dir := range []string{
+		localDir,
+		secretsDir,
+		privateDir,
+	} {
+		must.NoError(t, os.MkdirAll(dir, 0o755))
+	}
+
+	must.NoError(t, os.WriteFile(
+		filepath.Join(localDir, "file.txt"),
+		[]byte("hello"),
+		0o644,
+	))
+
+	must.NoError(t, os.WriteFile(
+		filepath.Join(secretsDir, "secret.txt"),
+		[]byte("secret"),
+		0o600,
+	))
+
+	must.NoError(t, os.WriteFile(
+		filepath.Join(privateDir, "private.txt"),
+		[]byte("private"),
+		0o600,
+	))
+
+	outsideDir := filepath.Join(tmp, "outside")
+	must.NoError(t, os.MkdirAll(outsideDir, 0o755))
+	must.NoError(t, os.WriteFile(
+		filepath.Join(outsideDir, "outside.txt"),
+		[]byte("outside"),
+		0o644,
+	))
+
+	// local/secrets-link -> ../secrets
+	must.NoError(t, os.Symlink(
+		secretsDir,
+		filepath.Join(localDir, "secrets-link"),
+	))
+
+	// local/private-link -> ../private
+	must.NoError(t, os.Symlink(
+		privateDir,
+		filepath.Join(localDir, "private-link"),
+	))
+
+	// local/outside-link -> directory outside allocation
+	must.NoError(t, os.Symlink(
+		outsideDir,
+		filepath.Join(localDir, "outside-link"),
+	))
+
+	// Simulate paths like /var -> /private/var.
+	allocSymlink := filepath.Join(tmp, "alloc-link")
+	must.NoError(t, os.Symlink(allocDir, allocSymlink))
+
+	tasksDir := map[string]*TaskDir{
+		"task1": {
+			SecretsDir: secretsDir,
+			PrivateDir: privateDir,
+		},
+	}
+
+	tests := []struct {
+		name        string
+		base        string
+		path        string
+		want        string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "empty path",
+			base: allocDir,
+			path: "",
+			want: allocDir,
+		},
+		{
+			name: "dot means allocation root",
+			base: allocDir,
+			path: ".",
+			want: allocDir,
+		},
+		{
+			name: "normal task directory",
+			base: allocDir,
+			path: "task1",
+			want: taskDir,
+		},
+		{
+			name: "normal local directory",
+			base: allocDir,
+			path: "task1/local",
+			want: localDir,
+		},
+		{
+			name: "normal file",
+			base: allocDir,
+			path: "task1/local/file.txt",
+			want: filepath.Join(localDir, "file.txt"),
+		},
+		{
+			name: "dot path component",
+			base: allocDir,
+			path: "task1/./local/file.txt",
+			want: filepath.Join(localDir, "file.txt"),
+		},
+		{
+			name: "dot dot that remains inside allocation",
+			base: allocDir,
+			path: "task1/local/../local/file.txt",
+			want: filepath.Join(localDir, "file.txt"),
+		},
+
+		// Allocation escape.
+		{
+			name:        "parent traversal outside allocation",
+			base:        allocDir,
+			path:        "../outside/outside.txt",
+			wantErr:     true,
+			errContains: "path escapes the alloc directory",
+		},
+		{
+			name:        "multiple parent traversal outside allocation",
+			base:        allocDir,
+			path:        "../../outside",
+			wantErr:     true,
+			errContains: "path escapes the alloc directory",
+		},
+		{
+			name:        "symlink escapes allocation",
+			base:        allocDir,
+			path:        "task1/local/outside-link/outside.txt",
+			wantErr:     true,
+			errContains: "path escapes the alloc directory",
+		},
+
+		// Secrets.
+		{
+			name:        "secrets directory itself",
+			base:        allocDir,
+			path:        "task1/secrets",
+			wantErr:     true,
+			errContains: "path not found",
+		},
+		{
+			name:        "file inside secrets",
+			base:        allocDir,
+			path:        "task1/secrets/secret.txt",
+			wantErr:     true,
+			errContains: "path not found",
+		},
+		{
+			name:        "secrets through dot dot",
+			base:        allocDir,
+			path:        "task1/local/../secrets/secret.txt",
+			wantErr:     true,
+			errContains: "path not found",
+		},
+		{
+			name:        "secrets through symlink",
+			base:        allocDir,
+			path:        "task1/local/secrets-link",
+			wantErr:     true,
+			errContains: "path escapes the alloc directory",
+		},
+
+		// Private.
+		{
+			name:        "private directory itself",
+			base:        allocDir,
+			path:        "task1/private",
+			wantErr:     true,
+			errContains: "path not found",
+		},
+		{
+			name:        "file inside private",
+			base:        allocDir,
+			path:        "task1/private/private.txt",
+			wantErr:     true,
+			errContains: "path not found",
+		},
+		{
+			name:        "private through dot dot",
+			base:        allocDir,
+			path:        "task1/local/../private/private.txt",
+			wantErr:     true,
+			errContains: "path not found",
+		},
+		{
+			name:        "private through symlink",
+			base:        allocDir,
+			path:        "task1/local/private-link",
+			wantErr:     true,
+			errContains: "path escapes the alloc directory",
+		},
+		{
+			name:        "file inside private through symlink",
+			base:        allocDir,
+			path:        "task1/local/private-link/private.txt",
+			wantErr:     true,
+			errContains: "path escapes the alloc directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := sanitizePath(tt.base, tt.path, tasksDir)
+
+			if tt.wantErr {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tt.errContains)
+				return
+			}
+
+			must.NoError(t, err)
+
+			want, err := filepath.Abs(tt.want)
+			must.NoError(t, err)
+
+			must.StrContains(t, want, got)
+		})
+	}
+}
