@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 
-export NODE_VERSION=24.19.0
+export NODE_VERSION=20.19.4
 
 # Install NVM for simple node.js version management
 curl -sSL --fail -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
