@@ -11,6 +11,7 @@ overrides:
   ansi-html@<0.0.8: '>=0.0.8'
   brace-expansion@>=5.0.0 <5.0.6: '>=5.0.6'
   diff@>=6.0.0 <8.0.3: '>=8.0.3'
+  'engine.io@>=6.5.0 <6.6.7': '>=6.6.7'
   ember-inflector: 6.0.0
   linkify-it: 5.0.2
   markdown-it: ^14.2.0
