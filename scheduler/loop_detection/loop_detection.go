@@ -12,76 +12,47 @@ import (
 )
 
 var (
-	ErrEmptyNodeID      = errors.New("node id cannot be empty")
-	ErrSelfDependency   = errors.New("node cannot depend on itself")
-	ErrNodeNotFound     = errors.New("node not found")
-	ErrNodeIsDependency = errors.New("cannot remove node: another node depends on it")
+	ErrEmptyNodeID        = errors.New("node id cannot be empty")
+	ErrSelfDependency     = errors.New("node cannot depend on itself")
+	ErrNodeNotFound       = errors.New("node not found")
+	ErrNodeIsDependency   = errors.New("cannot remove node: another node depends on it")
+	ErrCircularDependency = errors.New("circular dependency detected")
 )
 
-// Store implements Graph.
-// Internally it keeps:
-// 1) an array of linked lists
-// 2) a map[nodeID]*linkedList
+// Store maintains a directed dependency graph.
+// deps:
+//
+//	node -> nodes it depends on
+//
+// dependents:
+//
+//	node -> nodes that depend on it
+//
+// Both maps also act as the node index, so node lookup is expected O(1).
 type Store struct {
 	logger hclog.Logger
 	mu     sync.RWMutex
 
-	allLists []*linkedList
-	byNode   map[string]*linkedList
-	index    map[string]int // nodeID -> position in allLists
-
-	// adjacency: node -> dependencies
-	deps map[string]map[string]struct{}
-	// reverse adjacency: node -> dependents
+	deps       map[string]map[string]struct{}
 	dependents map[string]map[string]struct{}
-}
-
-type listNode struct {
-	id   string
-	next *listNode
-}
-
-type linkedList struct {
-	head *listNode // head is the owner node
-	tail *listNode
-}
-
-func newLinkedList(owner string) *linkedList {
-	h := &listNode{id: owner}
-	return &linkedList{head: h, tail: h}
-}
-
-func (l *linkedList) appendUnique(dep string) bool {
-	if l.head == nil {
-		l.head = &listNode{id: dep}
-		l.tail = l.head
-		return true
-	}
-	for n := l.head.next; n != nil; n = n.next {
-		if n.id == dep {
-			return false
-		}
-	}
-	n := &listNode{id: dep}
-	l.tail.next = n
-	l.tail = n
-	return true
 }
 
 // New creates an empty dependency graph.
 func New(logger hclog.Logger) *Store {
 	return &Store{
 		logger:     logger.Named("loop-detection"),
-		allLists:   make([]*linkedList, 0),
-		byNode:     make(map[string]*linkedList),
-		index:      make(map[string]int),
 		deps:       make(map[string]map[string]struct{}),
 		dependents: make(map[string]map[string]struct{}),
 	}
 }
 
-// AddNodes adds/updates nodeID with dependencies.
-// It prevents circular dependencies.
+// AddNodes adds dependencies to nodeID.
+// Before adding:
+//
+//	nodeID -> dependency
+//
+// we check whether dependency can already reach nodeID.
+// If it can, adding the edge would create a cycle.
 func (s *Store) AddNodes(nodeID string, dependencies ...string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -89,46 +60,76 @@ func (s *Store) AddNodes(nodeID string, dependencies ...string) error {
 	if nodeID == "" {
 		return ErrEmptyNodeID
 	}
-	if err := s.ensureNode(nodeID); err != nil {
-		return err
-	}
 
+	// Normalize and validate the complete request before modifying the graph.
+	newDeps := make([]string, 0, len(dependencies))
 	seen := make(map[string]struct{}, len(dependencies))
+
 	for _, dep := range dependencies {
 		if dep == "" {
 			return ErrEmptyNodeID
 		}
+
 		if dep == nodeID {
 			return ErrSelfDependency
 		}
+
 		if _, ok := seen[dep]; ok {
 			continue
 		}
+
 		seen[dep] = struct{}{}
+		newDeps = append(newDeps, dep)
+	}
 
-		if err := s.ensureNode(dep); err != nil {
-			return err
+	// Validate all proposed edges before changing any state.
+	//
+	// Adding:
+	//
+	//     nodeID -> dep
+	//
+	// creates a cycle if dep can already reach nodeID.
+	for _, dep := range newDeps {
+		// Existing edges don't need to be checked again.
+		if deps, ok := s.deps[nodeID]; ok {
+			if _, exists := deps[dep]; exists {
+				continue
+			}
 		}
 
-		// If dep already reaches nodeID, adding nodeID->dep creates a cycle.
 		if s.reaches(dep, nodeID) {
-			return fmt.Errorf("circular dependency detected: %s -> %s would create a loop", nodeID, dep)
+			return fmt.Errorf("%w: %s -> %s would create a loop", ErrCircularDependency,
+				nodeID, dep)
 		}
+	}
 
-		if _, ok := s.deps[nodeID][dep]; ok {
-			continue // edge already exists
+	// All validation succeeded. Now mutate the graph.
+	s.ensureNode(nodeID)
+
+	for _, dep := range newDeps {
+		s.ensureNode(dep)
+
+		// Edge may already exist.
+		if _, exists := s.deps[nodeID][dep]; exists {
+			continue
 		}
 
 		s.deps[nodeID][dep] = struct{}{}
 		s.dependents[dep][nodeID] = struct{}{}
-		s.byNode[nodeID].appendUnique(dep)
 	}
 
 	return nil
 }
 
 // RemoveNode removes nodeID if no other node depends on it.
-// Also prunes orphan dependency branches that become unreferenced.
+//
+// Complexity:
+//
+//   - node lookup: expected O(1)
+//   - no dependencies: expected O(1)
+//   - N dependencies: O(N)
+//
+// A node that is still referenced by another node is not removed.
 func (s *Store) RemoveNode(nodeID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -136,125 +137,123 @@ func (s *Store) RemoveNode(nodeID string) error {
 	if nodeID == "" {
 		return ErrEmptyNodeID
 	}
-	if _, ok := s.byNode[nodeID]; !ok {
+
+	// Expected O(1) lookup.
+	deps, ok := s.deps[nodeID]
+	if !ok {
 		return ErrNodeNotFound
 	}
+
+	// Expected O(1): len(map).
 	if len(s.dependents[nodeID]) > 0 {
 		return ErrNodeIsDependency
 	}
 
-	children := keysSet(s.deps[nodeID])
+	// Remove reverse references for outgoing edges.
+	//
+	// If the node has no dependencies, this loop performs zero iterations,
+	// making removal expected O(1).
+	children := make([]string, 0, len(deps))
 
-	// Remove outgoing edges nodeID -> child.
-	for child := range s.deps[nodeID] {
-		delete(s.dependents[child], nodeID)
+	for dep := range deps {
+		delete(s.dependents[dep], nodeID)
+		children = append(children, dep)
 	}
 
 	delete(s.deps, nodeID)
 	delete(s.dependents, nodeID)
-	s.removeList(nodeID)
 
-	// Remove orphan sub-branches.
+	// Preserve the previous behavior of pruning dependency nodes that
+	// become completely unreferenced.
 	for _, child := range children {
 		s.pruneOrphan(child)
 	}
+
 	return nil
 }
 
-func (s *Store) ensureNode(nodeID string) error {
-	if nodeID == "" {
-		return ErrEmptyNodeID
-	}
-	if _, ok := s.byNode[nodeID]; ok {
-		if _, ok := s.deps[nodeID]; !ok {
-			s.deps[nodeID] = make(map[string]struct{})
-		}
-		if _, ok := s.dependents[nodeID]; !ok {
-			s.dependents[nodeID] = make(map[string]struct{})
-		}
-		return nil
+// ensureNode initializes entries for nodeID.
+//
+// Caller must hold s.mu.
+func (s *Store) ensureNode(nodeID string) {
+	if _, ok := s.deps[nodeID]; !ok {
+		s.deps[nodeID] = make(map[string]struct{})
 	}
 
-	ll := newLinkedList(nodeID)
-	s.byNode[nodeID] = ll
-	s.index[nodeID] = len(s.allLists)
-	s.allLists = append(s.allLists, ll)
-	s.deps[nodeID] = make(map[string]struct{})
-	s.dependents[nodeID] = make(map[string]struct{})
-	return nil
+	if _, ok := s.dependents[nodeID]; !ok {
+		s.dependents[nodeID] = make(map[string]struct{})
+	}
 }
 
-// reaches checks if start depends (directly/indirectly) on target.
+// reaches reports whether start can reach target by following dependency
+// edges.
+//
+// It uses an iterative DFS to avoid recursion depth concerns.
+//
+// Caller must hold s.mu.
 func (s *Store) reaches(start, target string) bool {
 	if start == target {
 		return true
 	}
-	visited := map[string]struct{}{}
+
+	visited := make(map[string]struct{})
 	stack := []string{start}
 
 	for len(stack) > 0 {
-		n := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
+		last := len(stack) - 1
+		node := stack[last]
+		stack = stack[:last]
 
-		if _, ok := visited[n]; ok {
+		if _, ok := visited[node]; ok {
 			continue
 		}
-		visited[n] = struct{}{}
 
-		for dep := range s.deps[n] {
+		visited[node] = struct{}{}
+
+		for dep := range s.deps[node] {
 			if dep == target {
 				return true
 			}
-			stack = append(stack, dep)
+
+			if _, seen := visited[dep]; !seen {
+				stack = append(stack, dep)
+			}
 		}
 	}
+
 	return false
 }
 
+// pruneOrphan removes nodeID when:
+//
+//   - the node exists
+//   - no active node depends on it
+//
+// It recursively removes any dependency nodes that become orphaned.
+//
+// Caller must hold s.mu.
+
 func (s *Store) pruneOrphan(nodeID string) {
-	if _, ok := s.byNode[nodeID]; !ok {
+	deps, ok := s.deps[nodeID]
+	if !ok {
 		return
 	}
+
 	if len(s.dependents[nodeID]) > 0 {
 		return
 	}
 
-	deps := s.deps[nodeID]
-	children := keysSet(deps)
+	children := make([]string, 0, len(deps))
 
-	for child := range s.deps[nodeID] {
+	for child := range deps {
 		delete(s.dependents[child], nodeID)
+		children = append(children, child)
 	}
+
 	delete(s.deps, nodeID)
 	delete(s.dependents, nodeID)
-	s.removeList(nodeID)
 
 	for _, child := range children {
 		s.pruneOrphan(child)
 	}
-}
-
-func (s *Store) removeList(nodeID string) {
-	i, ok := s.index[nodeID]
-	if !ok {
-		return
-	}
-	last := len(s.allLists) - 1
-	if i != last {
-		s.allLists[i] = s.allLists[last]
-		owner := s.allLists[i].head.id
-		s.index[owner] = i
-	}
-	s.allLists[last] = nil
-	s.allLists = s.allLists[:last]
-	delete(s.index, nodeID)
-	delete(s.byNode, nodeID)
-}
-
-func keysSet(m map[string]struct{}) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	return out
 }

@@ -137,7 +137,10 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 		return []string{}, nil
 	}
 
-	c.loopDetector.AddNodes(eval.JobID, djIDs...)
+	err = c.loopDetector.AddNodes(eval.JobID, djIDs...)
+	if err != nil {
+		return []string{}, err
+	}
 
 	ctx, cancel := context.WithDeadlineCause(c.mainContext,
 		time.Now().Add(dependencyTimeout(job)), errDependencyTimeout)
