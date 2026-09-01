@@ -440,9 +440,11 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	allocsToUpsert = append(allocsToUpsert, allocsStopped...)
 	allocsToUpsert = append(allocsToUpsert, allocsPreempted...)
 
-	// handle upgrade path
+	// Handle the upgrade path. Note that we're intentionally not copying the
+	// allocation here. These allocs are always coming from a Plan.Submit RPC
+	// and not the state store, and the response to the RPC wants to include any
+	// mutations the FSM apply does like index updates
 	for _, alloc := range allocsToUpsert {
-		alloc = alloc.Copy()
 		alloc.Canonicalize()
 	}
 
