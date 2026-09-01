@@ -183,7 +183,7 @@ type Config struct {
 	// HTTPDisableWebSocketOriginCheck is used to disable the origin check when
 	// upgrading HTTP connections to a websocket. This is useful for Nomad
 	// debugging and development.
-	HTTPDisableWebSocketOriginCheck bool `hcl:"http_disable_websocket_origin_check"`
+	HTTPDisableWebSocketOriginCheck *bool `hcl:"http_disable_websocket_origin_check"`
 
 	// HTTPDisableHTTP2 is used to disable support for the HTTP2 protocol.
 	HTTPDisableHTTP2 bool `hcl:"http_disable_http2"`
@@ -2180,6 +2180,10 @@ func (c *Config) Merge(b *Config) *Config {
 
 	if b.HTTPDisableHTTP2 {
 		result.HTTPDisableHTTP2 = true
+	}
+
+	if b.HTTPDisableWebSocketOriginCheck != nil {
+		result.HTTPDisableWebSocketOriginCheck = new(*b.HTTPDisableWebSocketOriginCheck)
 	}
 
 	result.Limits = c.Limits.Merge(b.Limits)
