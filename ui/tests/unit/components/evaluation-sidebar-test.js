@@ -16,15 +16,9 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
       id: 'eval-123',
       status: 'complete',
       // Ember Data internal properties that should NOT appear in JSON
-      _internalModel: {
-        /* internal state */
-      },
-      store: {
-        /* store reference */
-      },
-      __data__: {
-        /* internal data */
-      },
+      _internalModel: {/* internal state */},
+      store: {/* store reference */},
+      __data__: {/* internal data */},
       serialize() {
         // serialize() should return only the clean data
         return {
@@ -67,12 +61,8 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
       id: 'eval-456',
       status: 'pending',
       // Ember Data internal properties that should NOT appear in JSON
-      _internalModel: {
-        /* internal state */
-      },
-      store: {
-        /* store reference */
-      },
+      _internalModel: {/* internal state */},
+      store: {/* store reference */},
       toJSON() {
         // toJSON() should return only the clean data
         return {
@@ -115,15 +105,9 @@ module('Unit | Component | evaluation-sidebar/detail', function (hooks) {
       id: 'eval-789',
       status: 'failed',
       // Ember Data internal properties that WOULD be exposed without serialization
-      _internalModel: {
-        /* internal state */
-      },
-      store: {
-        /* store reference */
-      },
-      __data__: {
-        /* internal data */
-      },
+      _internalModel: {/* internal state */},
+      store: {/* store reference */},
+      __data__: {/* internal data */},
       // No serialize() or toJSON() methods
     };
 
