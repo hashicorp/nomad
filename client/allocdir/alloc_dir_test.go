@@ -688,7 +688,12 @@ func TestSanitizePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := sanitizePath(tt.base, tt.path, tasksDir)
+			allocDir := AllocDir{
+				AllocDir: tt.base,
+				TaskDirs: tasksDir,
+			}
+
+			got, err := allocDir.sanitizePath(tt.path)
 
 			if tt.wantErr {
 				must.Error(t, err)
