@@ -35,25 +35,9 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sst
 		opt(bs)
 	}
 
-	bs.nodesSetter = bs.dependencyWrapper(bs.setNodes)
+	bs.nodesSetter = bs.dependencyWrapper(bs.GenericScheduler.setNodes)
 
 	return bs
-}
-
-func (bs *BatchScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
-
-	blockers, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
-	if err != nil {
-		return []*structs.Node{}, nil, err
-	}
-
-	if len(blockers) > 0 {
-		bs.GenericScheduler.ctx.Metrics().AddBlockedDependencies(blockers...)
-		_, _, byDC, err := readyNodesInDCsAndPool(bs.state, job.Datacenters, job.NodePool)
-		return []*structs.Node{}, byDC, err
-	}
-
-	return bs.GenericScheduler.setNodes(job)
 }
 
 // This wrapper is used to limit the initial pool of nodes for the feasibility check
