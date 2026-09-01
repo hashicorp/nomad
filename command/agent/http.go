@@ -155,11 +155,15 @@ func NewHTTPServers(agent *Agent, config *Config) ([]*HTTPServer, error) {
 		Subprotocols:    []string{websocketProtocolWatcher},
 	}
 
-	// If running in dev mode, or the check has been explicitly disabled in the config, stub
-	// the origin check when upgrading the connection to a websocket. This is especially useful
-	// when doing ui development and using the ember proxy.
-	if config.DevMode || config.HTTPDisableWebSocketOriginCheck {
-		wsUpgrader.CheckOrigin = func(*http.Request) bool { return true }
+	// If running in dev mode and the option to disable the websocket origin check is unset
+	// then disable the origin check. Otherwise, only disable if it has been explicitly set
+	// in the configuration. Disabling of the origin check is useful when doing UI development
+	// and using the ember proxy to reach an agent in dev mode or a local cluster.
+	if (config.DevMode && config.HTTPDisableWebSocketOriginCheck == nil) ||
+		(config.HTTPDisableWebSocketOriginCheck != nil && *config.HTTPDisableWebSocketOriginCheck) {
+		wsUpgrader.CheckOrigin = func(*http.Request) bool {
+			return true
+		}
 	}
 
 	protocols := new(http.Protocols)

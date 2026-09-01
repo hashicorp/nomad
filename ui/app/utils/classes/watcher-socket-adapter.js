@@ -74,9 +74,7 @@ export default class WatcherSocketAdapter {
     // state and just reject the response promise and close the
     // socket.
     socket.onerror = () => {
-      this.rejectPromise(
-        new DOMException('fatal websocket error', 'WebSocketError'),
-      );
+      this.rejectPromise(new Error('fatal websocket error', 'WebSocketError'));
       this.close();
     };
 
@@ -92,10 +90,7 @@ export default class WatcherSocketAdapter {
       // then just reject the promise with a connection closed error.
       if (event.code == CLOSE_NORMAL_CLOSURE_CODE) {
         this.rejectPromise(
-          new DOMException(
-            'remote connection closed',
-            'net::ERR_CONNECTION_CLOSED',
-          ),
+          new Error('remote connection closed', 'net::ERR_CONNECTION_CLOSED'),
         );
         return;
       }

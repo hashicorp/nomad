@@ -28,13 +28,18 @@ export default class Watchable extends ApplicationAdapter {
   @service store;
   @service watcherFetch;
 
-  // Overriding ajax is not advised, but this is a minimal modification
-  // that sets off a series of events that results in query params being
-  // available in handleResponse below. Unfortunately, this is the only
-  // place where what becomes requestData can be modified.
+  // Overriding ajax is not advised, but we are doing it for a couple reasons
+  // here. First, and the original reason, is to make some basic modifications
+  // to make query params available within handleResponse below. It's either this
+  // weird side-effecting thing that also requires a change to ajaxOptions or
+  // overriding ajax completely.
   //
-  // It's either this weird side-effecting thing that also requires a change
-  // to ajaxOptions or overriding ajax completely.
+  // Secondly, this override provides support for using websockets for watcher
+  // requests. If the request is flagged as a watchable request, and watcher
+  // websockets are enabled, then the request will be converted to a use a
+  // websocket.
+  //
+  // ref: https://github.com/warp-drive-data/warp-drive/blob/v4.12.8/packages/adapter/src/rest.ts
   async ajax(url, type, options = {}) {
     const hasParams = hasNonBlockingQueryParams(options);
     if (!hasParams || type !== 'GET') return super.ajax(url, type, options);
@@ -67,20 +72,45 @@ export default class Watchable extends ApplicationAdapter {
     // Apply ajaxOptions so everything is correctly set for the request.
     let hash = super.ajaxOptions(url, type, options);
 
-    // Run the fetch through our service
-    let response = await this.watcherFetch.fetch(hash);
-    // Process the response to extract the payload.
+    // Run the fetch through our service and return a rejected promise
+    // if it fails.
+    let response;
+    try {
+      response = await this.watcherFetch.fetch(hash);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+
+    // Process the response to extract the payload. If an error is
+    // encountered, just store it in the payload. It will be handled
+    // below.
     let payload = Promise.resolve(response.text())
       .then((text) => JSON.parse(text))
       .catch((e) => e);
 
-    // Return the handled result and done.
-    return this.handleResponse(
-      response.status,
-      response.headers,
-      payload,
-      requestData,
-    );
+    // Attempt to handle the result and return a rejected promise
+    // if it fails. If the payload is an error, it will be adjusted
+    // as needed and returned.
+    let result;
+    try {
+      result = this.handleResponse(
+        response.status,
+        response.headers,
+        payload,
+        requestData,
+      );
+    } catch (e) {
+      return Promise.reject(e);
+    }
+
+    // Check if the result is an adapter error and if it is return
+    // a rejected promise.
+    if (result && result.isAdapterError) {
+      return Promise.reject(result);
+    }
+
+    // Finally, we can return our result.
+    return Promise.resolve(result);
   }
 
   findAll(store, type, sinceToken, snapshotRecordArray, additionalParams = {}) {
