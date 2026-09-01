@@ -434,11 +434,11 @@ func (a *AllocDir) sanitizePath(path string) (string, error) {
 	for _, taskDir := range a.TaskDirs {
 
 		if err := escapingfs.ChildEscapesParentDir(taskDir.SecretsDir, requestedPath); err == nil {
-			return "", fmt.Errorf("path not found")
+			return "", fmt.Errorf("Reading secret file prohibited: %s", path)
 		}
 
 		if err := escapingfs.ChildEscapesParentDir(taskDir.PrivateDir, requestedPath); err == nil {
-			return "", fmt.Errorf("path not found")
+			return "", fmt.Errorf("Reading secret file prohibited: %s", path)
 		}
 	}
 
