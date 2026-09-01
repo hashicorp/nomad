@@ -696,7 +696,6 @@ func TestSanitizePath(t *testing.T) {
 			got, err := allocDir.sanitizePath(tt.path)
 
 			if tt.wantErr {
-				must.Error(t, err)
 				must.ErrorContains(t, err, tt.errContains)
 				return
 			}
