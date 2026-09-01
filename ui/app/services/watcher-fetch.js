@@ -19,7 +19,7 @@ export default class WatcherFetchService extends Service {
     // Only GET requests are supported.
     if (hash.method !== 'GET') {
       return new Promise(() => {
-        throw new DOMException(
+        throw new Error(
           'unsupported request method: ' + hash.method,
           'UnsupportedMethodError',
         );
