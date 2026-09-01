@@ -3,7 +3,6 @@ module github.com/hashicorp/nomad/api
 go 1.26
 
 require (
-	github.com/felixge/httpsnoop v1.1.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/cronexpr v1.1.3
