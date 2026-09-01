@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -31,8 +30,8 @@ func TestFS_Logs(t *testing.T) {
 	index := node.ModifyIndex
 
 	var input strings.Builder
-	input.Grow(units.MB)
-	lines := 80 * units.KB
+	input.Grow(1_000_000)
+	lines := 80 * 1000
 	for i := range lines {
 		_, _ = fmt.Fprintf(&input, "%d\n", i)
 	}
