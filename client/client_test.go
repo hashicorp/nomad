@@ -1015,7 +1015,6 @@ func TestClient_AddAllocError(t *testing.T) {
 
 	// Set these two fields to nil to cause alloc runner creation to fail
 	alloc1.AllocatedResources = nil
-	alloc1.TaskResources = nil
 
 	state := s1.State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
