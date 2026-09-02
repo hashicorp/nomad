@@ -136,9 +136,11 @@ func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 
 	must.NoError(t, q.Start(ctx))
 
+	job1 := mock.Job()
 	eval1 := mock.Eval()
 	eval1.Type = structs.JobTypeBatch
 	eval1.Status = structs.EvalStatusComplete
+	job2 := mock.Job()
 	eval2 := mock.Eval()
 	eval2.Type = structs.JobTypeBatch
 	eval2.Status = structs.EvalStatusComplete

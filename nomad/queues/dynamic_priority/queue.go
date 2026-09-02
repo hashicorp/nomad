@@ -57,6 +57,8 @@ type DynamicPriorityQueue struct {
 	wg     sync.WaitGroup
 
 	logger hclog.Logger
+
+	watcher *queue.WorkloadWatcher
 }
 
 func NewDynamicPriorityQueue(logger hclog.Logger, ss *state.StateStore, broker queue.Broker, conf *structs.DynamicQueueConfig) *DynamicPriorityQueue {
@@ -72,6 +74,7 @@ func NewDynamicPriorityQueue(logger hclog.Logger, ss *state.StateStore, broker q
 		wg:         sync.WaitGroup{},
 		state:      ss,
 		logger:     logger.Named("dynamic_priority_queue"),
+		watcher:    queue.NewWorkloadWatcher(ss, logger),
 	}
 }
 
@@ -136,7 +139,7 @@ func (d *DynamicPriorityQueue) Restore(eval *structs.Evaluation, j *structs.Job)
 	// generate the tenant if it doesn't exist
 	d.ensureTenant(w.tid)
 
-	placed, err := queue.IsSchedulingComplete(w, d.state)
+	placed, err := d.watcher.IsSchedulingComplete(w)
 	if err != nil {
 		return err
 	}
@@ -205,12 +208,12 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 // at a time, enqueues them onto the Eval Broker, and waits for them
 // to be placed before continuing.
 func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-d.qNotify:
-
 			// Pop a workload off the queue if available
 			w := d.queue.Pop()
 
@@ -220,10 +223,10 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 				d.evalBroker.Enqueue(w.GetEval())
 			}
 
-			// Wait for the eval to be placed
-			err := queue.WaitForPlacement(ctx, w, d.state, memdb.NewWatchSet())
+			// Start watching for placement
+			err := d.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 			if err != nil {
-				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
+				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID, "err", err)
 			}
 
 			if evalHasPlacement(w.GetEval()) {
@@ -231,8 +234,6 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			}
 			l := d.queue.Len()
 
-			// If the queue still has work, notify self
-			// to continue.
 			if l > 0 {
 				select {
 				case d.qNotify <- struct{}{}:
@@ -275,6 +276,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *stru
 		tid:                tid,
 		priority:           0,
 		eval:               e,
+		status:             "queued",
 		requestedResources: requestedResources,
 		waitOnRestore:      false,
 	}

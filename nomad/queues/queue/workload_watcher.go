@@ -15,17 +15,16 @@ import (
 
 type WorkloadWatcher struct {
 	stateStore Snapshotter
-	config     *structs.BatchQueue
-	logger     hclog.Logger
-	mu         sync.Mutex
+	// config     *structs.BatchQueueConfig
+	logger hclog.Logger
+	mu     sync.Mutex
 
 	inProgressWorkloads map[string]Workload
 }
 
-func NewWorkloadWatcher(s Snapshotter, logger hclog.Logger, config *structs.BatchQueue) *WorkloadWatcher {
+func NewWorkloadWatcher(s Snapshotter, logger hclog.Logger) *WorkloadWatcher {
 	w := &WorkloadWatcher{
 		stateStore:          s,
-		config:              config,
 		logger:              logger.Named("workload_watcher"),
 		inProgressWorkloads: make(map[string]Workload),
 	}
