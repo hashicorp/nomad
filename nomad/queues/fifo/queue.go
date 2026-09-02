@@ -39,9 +39,11 @@ type FifoQueue struct {
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	watcher *queue.WorkloadWatcher
 }
 
-func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger) *FifoQueue {
+func NewFifoQueue(ss *state.StateStore, broker queue.Broker, conf *structs.BatchQueue, logger hclog.Logger) *FifoQueue {
 	return &FifoQueue{
 		queue:      queue.NewWorkloadQueue(workloadSortFn()),
 		enqueueCh:  make(chan *fifoWorkload, 8192),
@@ -49,6 +51,7 @@ func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger
 		evalBroker: broker,
 		state:      ss,
 		logger:     logger.Named("Fifo Queue"),
+		watcher:    queue.NewWorkloadWatcher(ss, logger, conf),
 	}
 }
 
@@ -112,6 +115,7 @@ func (f *FifoQueue) runProducer(ctx context.Context) {
 }
 
 func (f *FifoQueue) runConsumer(ctx context.Context) {
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -119,9 +123,11 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 		case <-f.qNotify:
 			w := f.queue.Pop()
 
-			f.evalBroker.Enqueue(w.GetEval())
+			if !w.WaitOnRestore() {
+				f.evalBroker.Enqueue(w.GetEval())
+			}
 
-			err := queue.WaitForPlacement(ctx, w, f.state, memdb.NewWatchSet())
+			err := f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 			if err != nil {
 				f.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
 			}
@@ -168,7 +174,7 @@ func (f *FifoQueue) restore(snap *state.StateSnapshot) error {
 
 		w := newFifoWorkload(eval)
 
-		placed, err := queue.IsSchedulingComplete(w, f.state)
+		placed, err := f.watcher.IsSchedulingComplete(w)
 		if err != nil {
 			f.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		}
