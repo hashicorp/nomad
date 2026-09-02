@@ -16,7 +16,6 @@ import (
 	"testing/iotest"
 	"time"
 
-	"github.com/felixge/httpsnoop"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
@@ -212,19 +211,39 @@ func closingHandler(sc int, b string) http.Handler {
 	})
 }
 
+// captureResponseWriter wraps http.ResponseWriter to capture the status code
+// and number of bytes written by the handler.
+type captureResponseWriter struct {
+	http.ResponseWriter
+	code    int
+	written int64
+}
+
+func (c *captureResponseWriter) WriteHeader(code int) {
+	c.code = code
+	c.ResponseWriter.WriteHeader(code)
+}
+
+func (c *captureResponseWriter) Write(b []byte) (int, error) {
+	n, err := c.ResponseWriter.Write(b)
+	c.written += int64(n)
+	return n, err
+}
+
 // testLogRequestHandler wraps a http.Handler with a logger that writes to the
 // test log output
 func testLogRequestHandler(t *testing.T, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// call the original http.Handler wrapped in a httpsnoop
-		m := httpsnoop.CaptureMetrics(h, w, r)
+		crw := &captureResponseWriter{ResponseWriter: w, code: http.StatusOK}
+		start := time.Now()
+		h.ServeHTTP(crw, r)
 		ri := httpReqInfo{
 			uri:       r.URL.String(),
 			method:    r.Method,
 			ipaddr:    ipAddrFromRemoteAddr(r.RemoteAddr),
-			code:      m.Code,
-			duration:  m.Duration,
-			size:      m.Written,
+			code:      crw.code,
+			duration:  time.Since(start),
+			size:      crw.written,
 			userAgent: r.UserAgent(),
 		}
 		t.Logf("%s", ri.String())
