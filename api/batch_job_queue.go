@@ -46,6 +46,7 @@ type DynamicPriorityWorkload struct {
 	CpuAdjustment    int
 	MemoryAdjustment int
 	CreatedAt        int64
+	Status           string
 }
 
 type DynamicPriorityTenant struct {
@@ -59,6 +60,7 @@ type Workload struct {
 	JobID     string
 	Position  int
 	CreatedAt int64
+	Status    string
 }
 
 type BatchJobQueueJobsResponse struct {
