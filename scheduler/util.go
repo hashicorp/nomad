@@ -655,8 +655,6 @@ func inplaceUpdate(ctx feasible.Context, eval *structs.Evaluation, job *structs.
 					networks = tr.Networks
 					devices = tr.Devices
 				}
-			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
-				networks = tr.Networks
 			}
 
 			// Add the networks and devices back
@@ -670,8 +668,7 @@ func inplaceUpdate(ctx feasible.Context, eval *structs.Evaluation, job *structs.
 
 		// Update the allocation
 		newAlloc.EvalID = eval.ID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,
@@ -850,7 +847,6 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 			newAlloc := existing.Copy()
 			newAlloc.EvalID = evalID
 			newAlloc.Job = nil
-			newAlloc.Resources = nil
 
 			newMax, newOK := newAlloc.MaxRunDuration()
 			if oldOK != newOK || oldMax != newMax {
@@ -892,8 +888,6 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 					devices = tr.Devices
 					cores = tr.Cpu.ReservedCores
 				}
-			} else if tr, ok := existing.TaskResources[task]; ok {
-				networks = tr.Networks
 			}
 
 			// Add the networks back
@@ -908,8 +902,7 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 
 		// Update the allocation
 		newAlloc.EvalID = evalID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,

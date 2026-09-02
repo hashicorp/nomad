@@ -949,9 +949,11 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 	// Get Resources
 	var cpu, mem, disk int
 	for _, alloc := range runningAllocs {
-		cpu += *alloc.Resources.CPU
-		mem += *alloc.Resources.MemoryMB
-		disk += *alloc.Resources.DiskMB
+		for _, taskResources := range alloc.AllocatedResources.Tasks {
+			cpu += int(taskResources.Cpu.CpuShares)
+			mem += int(taskResources.Memory.MemoryMB)
+		}
+		disk += int(alloc.AllocatedResources.Shared.DiskMB)
 	}
 	allocCount := strconv.Itoa(len(runningAllocs))
 

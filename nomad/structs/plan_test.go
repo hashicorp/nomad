@@ -93,8 +93,6 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 		DesiredStatus:         AllocDesiredStatusEvict,
 		DesiredDescription:    fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID),
 		AllocatedResources:    alloc.AllocatedResources,
-		TaskResources:         alloc.TaskResources,
-		SharedResources:       alloc.SharedResources,
 	}
 	must.Eq(t, expectedAlloc, appendedAlloc)
 }

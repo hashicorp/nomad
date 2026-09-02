@@ -495,8 +495,6 @@ func TestWatcher_AutoPromoteDeployment(t *testing.T) {
 		a.TaskGroup = "api"
 		a.AllocatedResources.Tasks["api"] = a.AllocatedResources.Tasks["web"].Copy()
 		delete(a.AllocatedResources.Tasks, "web")
-		a.TaskResources["api"] = a.TaskResources["web"].Copy()
-		delete(a.TaskResources, "web")
 		a.DeploymentStatus = &structs.AllocDeploymentStatus{
 			Canary: false,
 		}
