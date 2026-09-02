@@ -424,6 +424,8 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	testCases := []struct {
 		name      string
 		sortOrder structs.SortOrder
+		placing   int
+		completed int
 		workloads []*dynamicPriorityWorkload
 		exp       *queue.WorkloadIter
 	}{
@@ -698,13 +700,152 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:      "tracks placing workloads and returns them in the results",
+			sortOrder: structs.SortByPriority,
+			placing:   1,
+			workloads: []*dynamicPriorityWorkload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateTime:  time.Unix(20, 0).UnixNano(),
+						CreateIndex: 12,
+					},
+					priority:        59,
+					status:          "queued",
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval2",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval2",
+						JobID:       "job2",
+						Priority:    50,
+						CreateTime:  time.Unix(10, 0).UnixNano(),
+						CreateIndex: 10,
+					},
+					priority:        60,
+					status:          "queued",
+					sizeAdjustment:  3,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+			},
+			exp: &queue.WorkloadIter{
+				Workloads: []structs.QueueWorkload{
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job2",
+						Tenant:           "tenantA",
+						Position:         0,
+						Status:           "placing",
+						AdjustedPriority: 60,
+						BasePriority:     50,
+						SizeAdjustment:   3,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(10, 0).UnixNano(),
+						CreateIndex:      10,
+					},
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						Position:         1,
+						Status:           "queued",
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(20, 0).UnixNano(),
+						CreateIndex:      12,
+					},
+				},
+			},
+		},
+		{
+			name:      "completed workloads are removed from output",
+			sortOrder: structs.SortByPriority,
+			placing:   2,
+			completed: 1,
+			workloads: []*dynamicPriorityWorkload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateTime:  time.Unix(20, 0).UnixNano(),
+						CreateIndex: 12,
+					},
+					priority:        59,
+					status:          "queued",
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval2",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval2",
+						JobID:       "job2",
+						Priority:    50,
+						CreateTime:  time.Unix(10, 0).UnixNano(),
+						CreateIndex: 10,
+					},
+					priority:        60,
+					status:          "queued",
+					sizeAdjustment:  3,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+			},
+			exp: &queue.WorkloadIter{
+				Workloads: []structs.QueueWorkload{
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						Position:         0,
+						Status:           "placing",
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(20, 0).UnixNano(),
+						CreateIndex:      12,
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			testQueue := &DynamicPriorityQueue{}
+			ss := state.TestStateStore(t)
+			testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{
+				TenantType: "namespace",
+			}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
 			testQueue.queue = queue.NewWorkloadQueue(workloadSortFn())
+
 			for _, w := range tc.workloads {
 				testQueue.queue.Push(w)
+			}
+			if tc.placing > 0 {
+				for i := range tc.placing {
+					w := testQueue.queue.Pop()
+					testQueue.watcher.TrackPlacement(w)
+					if i < tc.completed {
+						testQueue.watcher.UntrackPlacement(w)
+					}
+				}
 			}
 
 			got := testQueue.Jobs(tc.sortOrder)

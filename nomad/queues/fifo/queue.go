@@ -208,15 +208,32 @@ func (f *FifoQueue) Type() structs.BatchQueueType {
 func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	f.qMux.Lock()
 	sortedWorkloads := f.queue.Slice()
-	defer f.qMux.Unlock()
+	f.qMux.Unlock()
 
 	workloads := []structs.QueueWorkload{}
+
+	// Add in-progress workloads (being placed)
+	inProgress := f.watcher.GetInProgressWorkloads()
+	for _, w := range inProgress {
+		eval := w.GetEval()
+		workloads = append(workloads, &structs.Workload{
+			JobID:       eval.JobID,
+			Namespace:   eval.Namespace,
+			Position:    0, // In-progress workloads have position 0
+			Status:      w.GetStatus(),
+			CreatedAt:   eval.CreateTime,
+			CreateIndex: eval.CreateIndex,
+		})
+	}
+
+	// Add queued workloads
 	for pos, workload := range sortedWorkloads {
 		eval := workload.GetEval()
 		workloads = append(workloads, &structs.Workload{
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
 			Position:    pos + 1,
+			Status:      "queued",
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
 		})

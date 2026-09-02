@@ -485,8 +485,29 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 	sortedWorkloads := d.queue.Slice()
 	d.qMux.Unlock()
 
-	pos := 0
 	workloads := []structs.QueueWorkload{}
+
+	// Add in-progress workloads (being placed)
+	inProgress := d.watcher.GetInProgressWorkloads()
+	for _, w := range inProgress {
+		eval := w.GetEval()
+		dpw := w.(*dynamicPriorityWorkload)
+		workloads = append(workloads, &structs.DynamicPriorityWorkload{
+			JobID:            eval.JobID,
+			Tenant:           string(dpw.tid),
+			Namespace:        eval.Namespace,
+			Status:           dpw.GetStatus(),
+			AdjustedPriority: dpw.priority,
+			BasePriority:     eval.Priority,
+			UsageAdjustment:  dpw.usageAdjustment,
+			AgeAdjustment:    dpw.ageAdjustment,
+			SizeAdjustment:   dpw.sizeAdjustment,
+			CreatedAt:        eval.CreateTime,
+			CreateIndex:      eval.CreateIndex,
+		})
+	}
+
+	pos := 0
 	for _, workload := range sortedWorkloads {
 		w := workload.(*dynamicPriorityWorkload)
 		// waitOnRestore does not count towards position in queue
@@ -500,6 +521,7 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 			Tenant:           string(w.tid),
 			Namespace:        w.eval.Namespace,
 			Position:         pos,
+			Status:           w.GetStatus(),
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
 			UsageAdjustment:  w.usageAdjustment,
