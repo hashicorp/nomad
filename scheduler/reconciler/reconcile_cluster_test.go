@@ -3402,6 +3402,139 @@ func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
 	assertNamesHaveIndexes(t, intRange(0, 0), placeResultsToNames(r.Place))
 }
 
+// TestReconciler_PreviouslyFailedAlloc_ClusterRestart is a regression test for
+// https://github.com/hashicorp/nomad/issues/5921. After a full cluster restart,
+// an allocation that had failed and was already rescheduled must not be counted
+// as a live allocation nor resurrected. The reconciler must keep the running
+// count equal to the task group Count and must never place an extra allocation
+// to "replace" a failed alloc whose replacement is already running, even when
+// the stale failed alloc still carries DesiredStatus=run (the exact condition
+// reported in #5921).
+func TestReconciler_PreviouslyFailedAlloc_ClusterRestart(t *testing.T) {
+	ci.Parallel(t)
+
+	newJob := func() *structs.Job {
+		job := mock.Job()
+		job.TaskGroups[0].Count = 3
+		job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+			Attempts: 5,
+			Interval: 24 * time.Hour,
+		}
+		return job
+	}
+
+	// buildAllocs returns three healthy running allocations plus a stale
+	// previously-failed allocation (index 0) that was already rescheduled to
+	// its now-running replacement (allocs[0]). The stale alloc still carries
+	// DesiredStatus=run, which is the condition reported in #5921.
+	buildAllocs := func(job *structs.Job) []*structs.Allocation {
+		nodes := []string{uuid.Generate(), uuid.Generate(), uuid.Generate()}
+
+		var allocs []*structs.Allocation
+		for i := range 3 {
+			alloc := mock.Alloc()
+			alloc.Job = job
+			alloc.JobID = job.ID
+			alloc.NodeID = nodes[i]
+			alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+			alloc.ClientStatus = structs.AllocClientStatusRunning
+			alloc.DesiredStatus = structs.AllocDesiredStatusRun
+			allocs = append(allocs, alloc)
+		}
+
+		replacement := allocs[0]
+
+		stale := mock.Alloc()
+		stale.Job = job
+		stale.JobID = job.ID
+		stale.NodeID = nodes[0]
+		stale.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(0))
+		stale.ClientStatus = structs.AllocClientStatusFailed
+		stale.DesiredStatus = structs.AllocDesiredStatusRun // #5921: never stopped
+		stale.NextAllocation = replacement.ID
+		stale.RescheduleTracker = &structs.RescheduleTracker{Events: []*structs.RescheduleEvent{{
+			RescheduleTime: time.Now().Add(-time.Hour).UTC().UnixNano(),
+			PrevAllocID:    uuid.Generate(),
+			PrevNodeID:     nodes[0],
+		}}}
+		replacement.PreviousAllocation = stale.ID
+		replacement.RescheduleTracker = stale.RescheduleTracker.Copy()
+
+		return append(allocs, stale)
+	}
+
+	t.Run("all nodes recovered", func(t *testing.T) {
+		job := newJob()
+		allocs := buildAllocs(job)
+
+		reconciler := NewAllocReconciler(
+			testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+				JobID:          job.ID,
+				Job:            job,
+				ExistingAllocs: allocs,
+				EvalPriority:   50,
+			}, ClusterState{
+				TaintedNodes: nil,
+				Now:          time.Now().UTC(),
+			})
+		r := reconciler.Compute()
+
+		// Running count already equals Count=3: nothing to place, nothing to
+		// stop, and the stale failed alloc must not be rescheduled.
+		assertResults(t, r, &resultExpectation{
+			place:   0,
+			inplace: 0,
+			stop:    0,
+			desiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {
+					Ignore: 3,
+				},
+			},
+		})
+	})
+
+	t.Run("one node still down", func(t *testing.T) {
+		job := newJob()
+		allocs := buildAllocs(job)
+
+		// allocs[1] is a healthy running alloc whose node has not come back yet
+		// after the restart, so that alloc is lost and needs one replacement.
+		downNode := mock.Node()
+		downNode.ID = allocs[1].NodeID
+		downNode.Status = structs.NodeStatusDown
+
+		reconciler := NewAllocReconciler(
+			testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+				JobID:          job.ID,
+				Job:            job,
+				ExistingAllocs: allocs,
+				EvalPriority:   50,
+			}, ClusterState{
+				TaintedNodes: map[string]*structs.Node{downNode.ID: downNode},
+				Now:          time.Now().UTC(),
+			})
+		r := reconciler.Compute()
+
+		// Exactly one replacement for the lost alloc; the stale failed alloc is
+		// still ignored, so the running count returns to Count=3, not more.
+		assertResults(t, r, &resultExpectation{
+			place:   1,
+			inplace: 0,
+			stop:    1,
+			desiredTGUpdates: map[string]*structs.DesiredUpdates{
+				job.TaskGroups[0].Name: {
+					Place:  1,
+					Stop:   1,
+					Ignore: 2,
+				},
+			},
+		})
+
+		assertNamesHaveIndexes(t, intRange(1, 1), placeResultsToNames(r.Place))
+		assertNamesHaveIndexes(t, intRange(1, 1), stopResultsToNames(r.Stop))
+	})
+}
+
 // Tests the reconciler cancels an old deployment when the job is being stopped
 func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 	ci.Parallel(t)
