@@ -504,6 +504,7 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 			Tenant:           string(w.tid),
 			Namespace:        w.eval.Namespace,
 			Position:         pos,
+			Status:           w.GetStatus(),
 			AdjustedPriority: w.priority,
 			BasePriority:     w.eval.Priority,
 			UsageAdjustment:  w.usageAdjustment,

@@ -208,6 +208,7 @@ func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
 			Position:    pos + 1,
+			Status:      "queued",
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
 		})
