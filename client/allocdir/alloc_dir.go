@@ -93,7 +93,7 @@ var (
 type Interface interface {
 	AllocDirFS
 
-	NewTaskDir(*structs.Task) *TaskDir
+	NewTaskDir(*structs.Task, int) *TaskDir
 	AllocDirPath() string
 	ShareDirPath() string
 	GetTaskDir(string) *TaskDir
@@ -174,7 +174,7 @@ func NewAllocDir(logger hclog.Logger, clientAllocDir, clientMountsDir, allocID s
 }
 
 // NewTaskDir creates a new TaskDir and adds it to the AllocDirs TaskDirs map.
-func (a *AllocDir) NewTaskDir(task *structs.Task) *TaskDir {
+func (a *AllocDir) NewTaskDir(task *structs.Task, index int) *TaskDir {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -183,7 +183,7 @@ func (a *AllocDir) NewTaskDir(task *structs.Task) *TaskDir {
 		secretsSize = task.Resources.SecretsMB
 	}
 
-	td := a.newTaskDir(task.Name, secretsSize)
+	td := a.newTaskDir(task.Name, secretsSize, index)
 	a.TaskDirs[task.Name] = td
 	return td
 }

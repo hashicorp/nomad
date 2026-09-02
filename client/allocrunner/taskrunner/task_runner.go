@@ -1231,6 +1231,7 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 		DeviceEnv:        env.DeviceEnv(),
 		User:             task.User,
 		AllocDir:         tr.taskDir.AllocDir,
+		AltTaskDir:       tr.taskDir.Dir,
 		StdoutPath:       tr.logmonHookConfig.stdoutFifo,
 		StderrPath:       tr.logmonHookConfig.stderrFifo,
 		AllocID:          tr.allocID,

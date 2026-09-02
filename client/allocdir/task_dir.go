@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -98,9 +99,9 @@ type TaskDir struct {
 // create paths on disk.
 //
 // Call AllocDir.NewTaskDir to create new TaskDirs
-func (a *AllocDir) newTaskDir(taskName string, secretsInMB int) *TaskDir {
-	taskDir := filepath.Join(a.AllocDir, taskName)
-	taskUnique := filepath.Base(a.AllocDir) + "-" + taskName
+func (a *AllocDir) newTaskDir(taskName string, secretsInMB, index int) *TaskDir {
+	taskDir := filepath.Join(a.AllocDir, strconv.Itoa(index))
+	taskUnique := filepath.Base(a.AllocDir) + "-" + strconv.Itoa(index)
 
 	if secretsInMB == 0 {
 		secretsInMB = defaultSecretDirTmpfsSize

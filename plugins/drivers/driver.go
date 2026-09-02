@@ -296,6 +296,7 @@ type TaskConfig struct {
 	Mounts           []*MountConfig
 	User             string
 	AllocDir         string
+	AltTaskDir       string
 	rawDriverConfig  []byte
 	StdoutPath       string
 	StderrPath       string
@@ -345,7 +346,8 @@ func (tc *TaskConfig) EnvList() []string {
 }
 
 func (tc *TaskConfig) TaskDir() *allocdir.TaskDir {
-	taskDir := filepath.Join(tc.AllocDir, tc.Name)
+	taskDir := tc.AltTaskDir
+
 	return &allocdir.TaskDir{
 		Dir:            taskDir,
 		SharedAllocDir: filepath.Join(tc.AllocDir, allocdir.SharedAllocName),
