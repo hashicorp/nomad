@@ -23,8 +23,9 @@ const _WorkerStatus_name = "UnknownStartingStartedPausingPausedResumingStoppingS
 var _WorkerStatus_index = [...]uint8{0, 7, 15, 22, 29, 35, 43, 51, 58}
 
 func (i WorkerStatus) String() string {
-	if i < 0 || i >= WorkerStatus(len(_WorkerStatus_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_WorkerStatus_index)-1 {
 		return "WorkerStatus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _WorkerStatus_name[_WorkerStatus_index[i]:_WorkerStatus_index[i+1]]
+	return _WorkerStatus_name[_WorkerStatus_index[idx]:_WorkerStatus_index[idx+1]]
 }
