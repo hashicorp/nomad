@@ -3,7 +3,11 @@
 
 package dynamic
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"fmt"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 type dynamicPriorityWorkload struct {
 	// id uniquely identifies this workload
@@ -26,6 +30,9 @@ type dynamicPriorityWorkload struct {
 	// By doing this, we can ensure at most 1 queue workloads blocked
 	// due to resource contraints even in the event of queue restores.
 	waitOnRestore bool
+
+	status      string
+	description string
 }
 
 func (w *dynamicPriorityWorkload) GetEval() *structs.Evaluation {
@@ -38,4 +45,16 @@ func (w *dynamicPriorityWorkload) WaitOnRestore() bool {
 
 func (w *dynamicPriorityWorkload) SetEval(e *structs.Evaluation) {
 	w.eval = e
+}
+
+func (w *dynamicPriorityWorkload) GetStatus() string {
+	if w.description != "" {
+		return fmt.Sprintf("%s (%s)", w.status, w.description)
+	}
+	return w.status
+}
+
+func (w *dynamicPriorityWorkload) SetStatus(s, description string) {
+	w.status = s
+	w.description = description
 }

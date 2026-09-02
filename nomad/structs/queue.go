@@ -21,6 +21,7 @@ type DynamicPriorityWorkload struct {
 	Tenant           string
 	Namespace        string
 	Position         int
+	Status           string
 	AdjustedPriority int
 	BasePriority     int
 	UsageAdjustment  int
@@ -53,6 +54,7 @@ type Workload struct {
 	JobID       string
 	Namespace   string
 	Position    int
+	Status      string
 	CreatedAt   int64
 	CreateIndex uint64
 }

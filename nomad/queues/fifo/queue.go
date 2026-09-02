@@ -42,9 +42,11 @@ type FifoQueue struct {
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	watcher *queue.WorkloadWatcher
 }
 
-func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger) *FifoQueue {
+func NewFifoQueue(ss *state.StateStore, broker queue.Broker, conf *structs.BatchQueue, logger hclog.Logger) *FifoQueue {
 	return &FifoQueue{
 		queue:      queue.NewWorkloadQueue(workloadSortFn()),
 		enqueueCh:  make(chan *fifoWorkload, 8192),
@@ -53,6 +55,7 @@ func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger
 		state:      ss,
 		qMux:       sync.Mutex{},
 		logger:     logger.Named("Fifo Queue"),
+		watcher:    queue.NewWorkloadWatcher(ss, logger, conf),
 	}
 }
 
@@ -118,6 +121,7 @@ func (f *FifoQueue) runProducer(ctx context.Context) {
 }
 
 func (f *FifoQueue) runConsumer(ctx context.Context) {
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -127,9 +131,11 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 			w := f.queue.Pop()
 			f.qMux.Unlock()
 
-			f.evalBroker.Enqueue(w.GetEval())
+			if !w.WaitOnRestore() {
+				f.evalBroker.Enqueue(w.GetEval())
+			}
 
-			err := queue.WaitForPlacement(ctx, w, f.state, memdb.NewWatchSet())
+			err := f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 			if err != nil {
 				f.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
 			}
@@ -181,7 +187,7 @@ func (f *FifoQueue) restore(snap *state.StateSnapshot) error {
 
 		w := newFifoWorkload(eval)
 
-		placed, err := queue.IsSchedulingComplete(w, f.state)
+		placed, err := f.watcher.IsSchedulingComplete(w)
 		if err != nil {
 			f.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		}
@@ -202,15 +208,32 @@ func (f *FifoQueue) Type() structs.BatchQueueType {
 func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	f.qMux.Lock()
 	sortedWorkloads := f.queue.Slice()
-	defer f.qMux.Unlock()
+	f.qMux.Unlock()
 
 	workloads := []structs.QueueWorkload{}
+
+	// Add in-progress workloads (being placed)
+	inProgress := f.watcher.GetInProgressWorkloads()
+	for _, w := range inProgress {
+		eval := w.GetEval()
+		workloads = append(workloads, &structs.Workload{
+			JobID:       eval.JobID,
+			Namespace:   eval.Namespace,
+			Position:    0, // In-progress workloads have position 0
+			Status:      w.GetStatus(),
+			CreatedAt:   eval.CreateTime,
+			CreateIndex: eval.CreateIndex,
+		})
+	}
+
+	// Add queued workloads
 	for pos, workload := range sortedWorkloads {
 		eval := workload.GetEval()
 		workloads = append(workloads, &structs.Workload{
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
 			Position:    pos + 1,
+			Status:      "queued",
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
 		})

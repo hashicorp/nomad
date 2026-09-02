@@ -34,14 +34,15 @@ func TestQueueJobsCommand_printDynamicQueueFormatted(t *testing.T) {
 			UsageAdjustment:  10,
 			AgeAdjustment:    5,
 			SizeAdjustment:   6,
+			Status:           "queued",
 			CreatedAt:        time.Now().UnixNano(),
 		},
 	}
 	cmd.printDynamicQueueFormatted(testResp)
 
 	expect := "Batch Queue Workloads\n" +
-		"JobID  Tenant       Adjusted Priority  Base Priority  Position  Usage  Age  Size  CreatedAt\n" +
-		fmt.Sprintf("123    testTenant1  10                 10             1         10     5    6     %v\n", formatUnixNanoTime(testResp[0].CreatedAt))
+		"JobID  Tenant       Status  Adjusted Priority  Base Priority  Position  Usage  Age  Size  CreatedAt\n" +
+		fmt.Sprintf("123    testTenant1  queued  10                 10             1         10     5    6     %v\n", formatUnixNanoTime(testResp[0].CreatedAt))
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
@@ -61,12 +62,13 @@ func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
 			UsageAdjustment:  10,
 			AgeAdjustment:    5,
 			SizeAdjustment:   6,
+			Status:           "queued",
 			CreatedAt:        time.Now().UnixNano(),
 		},
 	}
 	cmd.printDynamicQueueJSON(testResp)
 
-	expect := `[{"JobID":"123","Tenant":"testTenant1","Position":1,"AdjustedPriority":10,"BasePriority":10,"UsageAdjustment":10,"AgeAdjustment":5,"SizeAdjustment":6,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `}]` + "\n"
+	expect := `[{"JobID":"123","Tenant":"testTenant1","Position":1,"AdjustedPriority":10,"BasePriority":10,"UsageAdjustment":10,"AgeAdjustment":5,"SizeAdjustment":6,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `,"Status":"queued"}]` + "\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
@@ -80,14 +82,15 @@ func TestQueueJobsCommand_printQueueFormatted(t *testing.T) {
 		{
 			JobID:     "123",
 			Position:  1,
+			Status:    "queued",
 			CreatedAt: time.Now().UnixNano(),
 		},
 	}
 	cmd.printQueueFormatted(testResp)
 
 	expect := "Batch Queue Workloads\n" +
-		"JobID  Position  CreatedAt\n" +
-		fmt.Sprintf("123    1         %v\n", formatUnixNanoTime(testResp[0].CreatedAt))
+		"JobID  Status  Position  CreatedAt\n" +
+		fmt.Sprintf("123    queued  1         %v\n", formatUnixNanoTime(testResp[0].CreatedAt))
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
@@ -101,12 +104,13 @@ func TestQueueJobsCommand_printQueueJSON(t *testing.T) {
 		{
 			JobID:     "123",
 			Position:  1,
+			Status:    "queued",
 			CreatedAt: time.Now().UnixNano(),
 		},
 	}
 	cmd.printQueueJSON(testResp)
 
-	expect := `[{"JobID":"123","Position":1,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `}]` + "\n"
+	expect := `[{"JobID":"123","Position":1,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `,"Status":"queued"}]` + "\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }

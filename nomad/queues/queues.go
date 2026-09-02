@@ -22,7 +22,7 @@ func NewQueue(ss *state.StateStore, sconf *structs.BatchQueue, broker queue.Brok
 		}
 		return dynamic.NewDynamicPriorityQueue(ss, broker, sconf, qconf, logger), nil
 	case structs.BatchQueueTypeFifo:
-		return fifo.NewFifoQueue(ss, broker, logger), nil
+		return fifo.NewFifoQueue(ss, broker, sconf, logger), nil
 	default:
 		return passthrough.NewPassthroughQueue(broker), nil
 	}

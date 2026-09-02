@@ -4,139 +4,18 @@
 package dynamic
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 )
-
-func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
-
-	t.Run("returns if eval complete", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		ws := memdb.NewWatchSet()
-		doneCh := make(chan error)
-		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
-		go func() {
-			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
-			doneCh <- err
-		}()
-
-		testEval.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
-
-		done := <-doneCh
-
-		must.NoError(t, done)
-	})
-
-	t.Run("continues watching blocked evals", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		ws := memdb.NewWatchSet()
-		doneCh := make(chan error)
-		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
-		go func() {
-			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
-			doneCh <- err
-		}()
-
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
-
-		select {
-		case <-doneCh:
-			t.Fatal("should not have exited")
-		default:
-		}
-
-		blocked.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{blocked})
-
-		done := <-doneCh
-		must.NoError(t, done)
-	})
-
-	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		next := mock.Eval()
-
-		testEval.Status = structs.EvalStatusFailed
-		testEval.NextEval = next.ID
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, next})
-
-		ws := memdb.NewWatchSet()
-		doneCh := make(chan error)
-		workload := &dynamicPriorityWorkload{eval: testEval.Copy()}
-		go func() {
-			err := queue.WaitForPlacement(t.Context(), workload, testQueue.state, ws)
-			doneCh <- err
-		}()
-
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
-
-		select {
-		case <-doneCh:
-			t.Fatal("should not have exited")
-		default:
-		}
-
-		next.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{next})
-
-		done := <-doneCh
-		must.NoError(t, done)
-	})
-}
 
 func TestDynamicPriorityQueue_decayUsage(t *testing.T) {
 	t.Run("decays usage by half after half-life", func(t *testing.T) {
@@ -545,6 +424,8 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	testCases := []struct {
 		name      string
 		sortOrder structs.SortOrder
+		placing   int
+		completed int
 		workloads []*dynamicPriorityWorkload
 		exp       *queue.WorkloadIter
 	}{
@@ -819,13 +700,152 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:      "tracks placing workloads and returns them in the results",
+			sortOrder: structs.SortByPriority,
+			placing:   1,
+			workloads: []*dynamicPriorityWorkload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateTime:  time.Unix(20, 0).UnixNano(),
+						CreateIndex: 12,
+					},
+					priority:        59,
+					status:          "queued",
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval2",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval2",
+						JobID:       "job2",
+						Priority:    50,
+						CreateTime:  time.Unix(10, 0).UnixNano(),
+						CreateIndex: 10,
+					},
+					priority:        60,
+					status:          "queued",
+					sizeAdjustment:  3,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+			},
+			exp: &queue.WorkloadIter{
+				Workloads: []structs.QueueWorkload{
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job2",
+						Tenant:           "tenantA",
+						Position:         0,
+						Status:           "placing",
+						AdjustedPriority: 60,
+						BasePriority:     50,
+						SizeAdjustment:   3,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(10, 0).UnixNano(),
+						CreateIndex:      10,
+					},
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						Position:         1,
+						Status:           "queued",
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(20, 0).UnixNano(),
+						CreateIndex:      12,
+					},
+				},
+			},
+		},
+		{
+			name:      "completed workloads are removed from output",
+			sortOrder: structs.SortByPriority,
+			placing:   2,
+			completed: 1,
+			workloads: []*dynamicPriorityWorkload{
+				{
+					id:  "eval1",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval1",
+						JobID:       "job1",
+						Priority:    50,
+						CreateTime:  time.Unix(20, 0).UnixNano(),
+						CreateIndex: 12,
+					},
+					priority:        59,
+					status:          "queued",
+					sizeAdjustment:  2,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+				{
+					id:  "eval2",
+					tid: "tenantA",
+					eval: &structs.Evaluation{
+						ID:          "eval2",
+						JobID:       "job2",
+						Priority:    50,
+						CreateTime:  time.Unix(10, 0).UnixNano(),
+						CreateIndex: 10,
+					},
+					priority:        60,
+					status:          "queued",
+					sizeAdjustment:  3,
+					ageAdjustment:   3,
+					usageAdjustment: 4,
+				},
+			},
+			exp: &queue.WorkloadIter{
+				Workloads: []structs.QueueWorkload{
+					&structs.DynamicPriorityWorkload{
+						JobID:            "job1",
+						Tenant:           "tenantA",
+						Position:         0,
+						Status:           "placing",
+						AdjustedPriority: 59,
+						BasePriority:     50,
+						SizeAdjustment:   2,
+						AgeAdjustment:    3,
+						UsageAdjustment:  4,
+						CreatedAt:        time.Unix(20, 0).UnixNano(),
+						CreateIndex:      12,
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			testQueue := &DynamicPriorityQueue{}
+			ss := state.TestStateStore(t)
+			testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{
+				TenantType: "namespace",
+			}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
 			testQueue.queue = queue.NewWorkloadQueue(workloadSortFn())
+
 			for _, w := range tc.workloads {
 				testQueue.queue.Push(w)
+			}
+			if tc.placing > 0 {
+				for i := range tc.placing {
+					w := testQueue.queue.Pop()
+					testQueue.watcher.TrackPlacement(w)
+					if i < tc.completed {
+						testQueue.watcher.UntrackPlacement(w)
+					}
+				}
 			}
 
 			got := testQueue.Jobs(tc.sortOrder)
@@ -881,75 +901,6 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 		}
 		must.Eq(t, tc.exp, testQueue.Tenants())
 	}
-}
-
-func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
-	t.Run("pending eval results in false", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		testEval.Status = structs.EvalStatusPending
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-		}
-
-		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
-		must.NoError(t, err)
-		must.False(t, complete)
-	})
-
-	t.Run("eval with pending blockedEval results in false", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-		blocked.Status = structs.EvalStatusPending
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-		}
-
-		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
-		must.NoError(t, err)
-		must.False(t, complete)
-	})
-
-	t.Run("eval with complete blockedEval results in true", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-		blocked.Status = structs.EvalStatusComplete
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		workload := &dynamicPriorityWorkload{
-			id:   testEval.ID,
-			tid:  TenantID("tenant"),
-			eval: testEval.Copy(),
-		}
-
-		complete, err := queue.IsSchedulingComplete(workload, testQueue.state)
-		must.NoError(t, err)
-		must.True(t, complete)
-	})
 }
 
 func TestDynamicPriorityQueue_restore(t *testing.T) {
