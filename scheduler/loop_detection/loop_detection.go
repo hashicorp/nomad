@@ -19,7 +19,7 @@ var (
 	ErrCircularDependency = errors.New("circular dependency detected")
 )
 
-// Store maintains a directed dependency graph.
+// loopDetector maintains a directed dependency graph.
 // deps:
 //
 //	node -> nodes it depends on
@@ -29,7 +29,7 @@ var (
 //	node -> nodes that depend on it
 //
 // Both maps also act as the node index, so node lookup is expected O(1).
-type Store struct {
+type loopDetector struct {
 	logger hclog.Logger
 	mu     sync.RWMutex
 
@@ -38,8 +38,8 @@ type Store struct {
 }
 
 // New creates an empty dependency graph.
-func New(logger hclog.Logger) *Store {
-	return &Store{
+func New(logger hclog.Logger) *loopDetector {
+	return &loopDetector{
 		logger:     logger.Named("loop-detection"),
 		deps:       make(map[string]map[string]struct{}),
 		dependents: make(map[string]map[string]struct{}),
@@ -53,7 +53,7 @@ func New(logger hclog.Logger) *Store {
 //
 // we check whether dependency can already reach nodeID.
 // If it can, adding the edge would create a cycle.
-func (s *Store) AddNodes(nodeID string, dependencies ...string) error {
+func (s *loopDetector) AddNodes(nodeID string, dependencies ...string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -130,7 +130,7 @@ func (s *Store) AddNodes(nodeID string, dependencies ...string) error {
 //   - N dependencies: O(N)
 //
 // A node that is still referenced by another node is not removed.
-func (s *Store) RemoveNode(nodeID string) error {
+func (s *loopDetector) RemoveNode(nodeID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -175,7 +175,7 @@ func (s *Store) RemoveNode(nodeID string) error {
 // ensureNode initializes entries for nodeID.
 //
 // Caller must hold s.mu.
-func (s *Store) ensureNode(nodeID string) {
+func (s *loopDetector) ensureNode(nodeID string) {
 	if _, ok := s.deps[nodeID]; !ok {
 		s.deps[nodeID] = make(map[string]struct{})
 	}
@@ -191,7 +191,7 @@ func (s *Store) ensureNode(nodeID string) {
 // It uses an iterative DFS to avoid recursion depth concerns.
 //
 // Caller must hold s.mu.
-func (s *Store) reaches(start, target string) bool {
+func (s *loopDetector) reaches(start, target string) bool {
 	if start == target {
 		return true
 	}
@@ -232,8 +232,7 @@ func (s *Store) reaches(start, target string) bool {
 // It recursively removes any dependency nodes that become orphaned.
 //
 // Caller must hold s.mu.
-
-func (s *Store) pruneOrphan(nodeID string) {
+func (s *loopDetector) pruneOrphan(nodeID string) {
 	deps, ok := s.deps[nodeID]
 	if !ok {
 		return
@@ -256,4 +255,32 @@ func (s *Store) pruneOrphan(nodeID string) {
 	for _, child := range children {
 		s.pruneOrphan(child)
 	}
+}
+
+// CreatesCircularDependency reports whether adding any of the edges
+//
+//	dep -> nodeID
+//
+// would create a circular dependency.
+//
+// A cycle exists if nodeID already reaches dep through the dependency graph.
+func (s *loopDetector) CreatesCircularDependency(dep string, nodeIDs ...string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if dep == "" {
+		return false
+	}
+
+	for _, nodeID := range nodeIDs {
+		if nodeID == "" {
+			continue
+		}
+
+		if nodeID == dep || s.reaches(nodeID, dep) {
+			return true
+		}
+	}
+
+	return false
 }

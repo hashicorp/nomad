@@ -72,6 +72,14 @@ type Dependency struct {
 	Jobs    []*JobDependency
 }
 
+func (d *Dependency) Empty() bool {
+	if d != nil && len(d.Jobs) > 0 {
+		return false
+	}
+
+	return true
+}
+
 // Equal checks if two dependencies are equal.
 func (d *Dependency) Equal(o *Dependency) bool {
 	if d == nil || o == nil {
