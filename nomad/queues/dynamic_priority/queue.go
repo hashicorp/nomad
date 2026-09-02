@@ -61,6 +61,8 @@ type DynamicPriorityQueue struct {
 	wg     sync.WaitGroup
 
 	logger hclog.Logger
+
+	watcher *queue.WorkloadWatcher
 }
 
 func NewDynamicPriorityQueue(ss *state.StateStore, broker queue.Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
@@ -78,6 +80,7 @@ func NewDynamicPriorityQueue(ss *state.StateStore, broker queue.Broker, qconf *s
 		wg:          sync.WaitGroup{},
 		state:       ss,
 		logger:      logger.Named("Dynamic Priority Queue"),
+		watcher:     queue.NewWorkloadWatcher(ss, logger, qconf),
 	}
 }
 
@@ -189,7 +192,7 @@ func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) e
 		// in SetEnabled, but it's also entirely possible a queue eval is blocked and
 		// waiting to be completed from a previous DPQ placement. If that happens
 		// we should enqueue it and push it to the front of the queue.
-		complete, err := queue.IsSchedulingComplete(w, d.state)
+		complete, err := d.watcher.IsSchedulingComplete(w)
 		if err != nil {
 			d.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		}
@@ -257,12 +260,12 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 // at a time, enqueues them onto the Eval Broker, and waits for them
 // to be placed before continuing.
 func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-d.qNotify:
-
 			// Pop a workload off the queue if available
 			d.qMux.Lock()
 			w := d.queue.Pop()
@@ -274,21 +277,20 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 				d.evalBroker.Enqueue(w.GetEval())
 			}
 
-			// Wait for the eval to be placed
-			err := queue.WaitForPlacement(ctx, w, d.state, memdb.NewWatchSet())
+			// Start watching for placement
+			err := d.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 			if err != nil {
-				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
+				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID, "err", err)
 			}
 
 			d.qMux.Lock()
+			l := d.queue.Len()
+
 			if evalHasPlacement(w.GetEval()) {
 				d.updateUsage(w)
 			}
-			l := d.queue.Len()
 			d.qMux.Unlock()
 
-			// If the queue still has work, notify self
-			// to continue.
 			if l > 0 {
 				select {
 				case d.qNotify <- struct{}{}:
@@ -331,6 +333,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *stru
 		tid:                tid,
 		priority:           0,
 		eval:               e,
+		status:             "queued",
 		requestedResources: requestedResources,
 		waitOnRestore:      false,
 	}

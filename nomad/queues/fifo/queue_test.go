@@ -70,7 +70,7 @@ func TestFifoQueue_workloadSortFn(t *testing.T) {
 func TestFifoQueue_restore(t *testing.T) {
 	t.Run("unplaced workload is enqueued", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewFifoQueue(ss, nil, hclog.New(hclog.DefaultOptions))
+		testQueue := NewFifoQueue(ss, nil, &structs.BatchQueue{}, hclog.New(hclog.DefaultOptions))
 
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
@@ -101,7 +101,7 @@ func TestFifoQueue_restore(t *testing.T) {
 
 	t.Run("skips pending non-batch and non-register evals", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewFifoQueue(ss, nil, hclog.New(hclog.DefaultOptions))
+		testQueue := NewFifoQueue(ss, nil, &structs.BatchQueue{}, hclog.New(hclog.DefaultOptions))
 
 		batchJob := mock.Job()
 		batchJob.Type = structs.JobTypeBatch
@@ -150,15 +150,17 @@ func TestFifoQueue_restore(t *testing.T) {
 func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	ss := state.TestStateStore(t)
 	broker := newTestBroker()
-	q := NewFifoQueue(ss, broker, hclog.New(hclog.DefaultOptions))
+	q := NewFifoQueue(ss, broker, &structs.BatchQueue{}, hclog.New(hclog.DefaultOptions))
 
 	ctx := t.Context()
 
 	must.NoError(t, q.Start(ctx))
 
+	job1 := mock.Job()
 	eval1 := mock.Eval()
 	eval1.Type = structs.JobTypeBatch
 	eval1.Status = structs.EvalStatusComplete
+	job2 := mock.Job()
 	eval2 := mock.Eval()
 	eval2.Type = structs.JobTypeBatch
 	eval2.Status = structs.EvalStatusComplete
@@ -166,8 +168,8 @@ func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval1})
 	ss.UpsertEvals(structs.MsgTypeTestSetup, 5, []*structs.Evaluation{eval2})
 
-	q.Enqueue(eval1)
-	q.Enqueue(eval2)
+	q.Enqueue(eval1, job1)
+	q.Enqueue(eval2, job2)
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
