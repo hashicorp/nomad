@@ -31,6 +31,7 @@ type evalUnblocker interface {
 type loopDetector interface {
 	AddNodes(dependantJob string, dependeeJob ...string) error
 	RemoveNode(dependantJob string) error
+	CreatesCircularDependency(dependantJob string, dependeeJob ...string) bool
 }
 
 // This function is a raft apply, to use it here is possible only because the coordinator
@@ -104,28 +105,32 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 		return []string{}, nil
 	}
 
-	djSet := map[string]struct{}{}
+	numDeps := len(job.Dependencies.Jobs)
+
+	djNames := make([]string, 0, numDeps)
+	djs := make(map[string]*structs.Job, numDeps)
+
 	for _, depJob := range job.Dependencies.Jobs {
 		if depJob == nil || depJob.Name == "" {
 			continue
 		}
 
-		djSet[depJob.Name] = struct{}{}
-	}
-
-	djIDs := make([]string, 0, len(djSet))
-	for jobID := range djSet {
-		djIDs = append(djIDs, jobID)
-	}
-
-	djs := map[string]*structs.Job{}
-	for _, jID := range djIDs {
-		j, err := state.JobByID(nil, job.Namespace, jID)
-		if err != nil {
-			c.logger.Error("failed to get job by ID", "error", err)
+		if _, ok := djs[depJob.Name]; ok {
 			continue
 		}
-		djs[jID] = j
+
+		dependentJob, err := state.JobByID(nil, job.Namespace, depJob.Name)
+		if err != nil {
+			c.logger.Error("failed to get dependency job", "job_id", depJob.Name,
+				"error", err)
+			continue
+		}
+
+		// dependentJob may be nil in cases where the dependent job has not been
+		// scheduled yet. That's intentional: the presence of the key means
+		// this dependency has already been processed.
+		djs[depJob.Name] = dependentJob
+		djNames = append(djNames, depJob.Name)
 	}
 
 	blockers, err := c.verifyDependencies(job, djs)
@@ -137,7 +142,7 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 		return []string{}, nil
 	}
 
-	err = c.loopDetector.AddNodes(eval.JobID, djIDs...)
+	err = c.loopDetector.AddNodes(eval.JobID, djNames...)
 	if err != nil {
 		return []string{}, err
 	}
@@ -147,10 +152,10 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 	c.dependencies[eval.ID] = &dependency{
 		cancelFunc: cancel,
 		job:        job,
-		dependees:  djIDs,
+		dependees:  djNames,
 	}
 
-	go c.waitForDependency(ctx, state, eval, djIDs...)
+	go c.waitForDependency(ctx, state, eval, djNames...)
 
 	return blockers, nil
 }
@@ -340,6 +345,20 @@ func (c *Coordinator) Reload(state sstructs.State, evals memdb.ResultIterator) {
 	}
 }
 
+func (c *Coordinator) CreatesCircularDependency(job *structs.Job) bool {
+	if job.Dependencies == nil {
+		return false
+	}
+
+	numDeps := len(job.Dependencies.Jobs)
+	djNames := make([]string, 0, numDeps)
+	for _, depJob := range job.Dependencies.Jobs {
+		djNames = append(djNames, depJob.Name)
+	}
+
+	return c.loopDetector.CreatesCircularDependency(job.Name, djNames...)
+}
+
 func NewNoOpCoordinator() *NoOpCoordinator {
 	return &NoOpCoordinator{}
 }
@@ -353,4 +372,8 @@ func (c *NoOpCoordinator) HasDependencies(j *structs.Job) (bool, error) {
 func (c *NoOpCoordinator) CheckDependency(state sstructs.State, job *structs.Job,
 	eval *structs.Evaluation) ([]string, error) {
 	return []string{}, nil
+}
+
+func (c *NoOpCoordinator) CreatesCircularDependency(j *structs.Job) bool {
+	return false
 }
