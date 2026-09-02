@@ -546,7 +546,6 @@ func TestSanitizePath(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		base        string
 		path        string
 		want        string
 		wantErr     bool
@@ -554,43 +553,36 @@ func TestSanitizePath(t *testing.T) {
 	}{
 		{
 			name: "empty path",
-			base: allocDir,
 			path: "",
 			want: allocDir,
 		},
 		{
 			name: "dot means allocation root",
-			base: allocDir,
 			path: ".",
 			want: allocDir,
 		},
 		{
 			name: "normal task directory",
-			base: allocDir,
 			path: "task1",
 			want: taskDir,
 		},
 		{
 			name: "normal local directory",
-			base: allocDir,
 			path: "task1/local",
 			want: localDir,
 		},
 		{
 			name: "normal file",
-			base: allocDir,
 			path: "task1/local/file.txt",
 			want: filepath.Join(localDir, "file.txt"),
 		},
 		{
 			name: "dot path component",
-			base: allocDir,
 			path: "task1/./local/file.txt",
 			want: filepath.Join(localDir, "file.txt"),
 		},
 		{
 			name: "dot dot that remains inside allocation",
-			base: allocDir,
 			path: "task1/local/../local/file.txt",
 			want: filepath.Join(localDir, "file.txt"),
 		},
@@ -598,21 +590,18 @@ func TestSanitizePath(t *testing.T) {
 		// Allocation escape.
 		{
 			name:        "parent traversal outside allocation",
-			base:        allocDir,
 			path:        "../outside/outside.txt",
 			wantErr:     true,
 			errContains: "path escapes the alloc directory",
 		},
 		{
 			name:        "multiple parent traversal outside allocation",
-			base:        allocDir,
 			path:        "../../outside",
 			wantErr:     true,
 			errContains: "path escapes the alloc directory",
 		},
 		{
 			name:        "symlink escapes allocation",
-			base:        allocDir,
 			path:        "task1/local/outside-link/outside.txt",
 			wantErr:     true,
 			errContains: "path escapes the alloc directory",
@@ -621,65 +610,62 @@ func TestSanitizePath(t *testing.T) {
 		// Secrets.
 		{
 			name:        "secrets directory itself",
-			base:        allocDir,
 			path:        "task1/secrets",
 			wantErr:     true,
 			errContains: "Reading secret file prohibited: task1/secrets",
 		},
 		{
 			name:        "file inside secrets",
-			base:        allocDir,
 			path:        "task1/secrets/secret.txt",
 			wantErr:     true,
 			errContains: "Reading secret file prohibited: task1/secrets/secret.txt",
 		},
 		{
 			name:        "secrets through dot dot",
-			base:        allocDir,
 			path:        "task1/local/../secrets/secret.txt",
 			wantErr:     true,
 			errContains: "Reading secret file prohibited: task1/local/../secrets/secret.txt",
 		},
 		{
 			name:        "secrets through symlink",
-			base:        allocDir,
 			path:        "task1/local/secrets-link",
 			wantErr:     true,
 			errContains: "path escapes the alloc directory",
+		},
+		{
+			name:        "secrets through capitalization",
+			path:        "task1/Secrets",
+			wantErr:     true,
+			errContains: "Reading secret file prohibited: task1/Secrets",
 		},
 
 		// Private.
 		{
 			name:        "private directory itself",
-			base:        allocDir,
 			path:        "task1/private",
 			wantErr:     true,
 			errContains: "Reading secret file prohibited: task1/private",
 		},
 		{
 			name:        "file inside private",
-			base:        allocDir,
 			path:        "task1/private/private.txt",
 			wantErr:     true,
 			errContains: "Reading secret file prohibited: task1/private/private.txt",
 		},
 		{
 			name:        "private through dot dot",
-			base:        allocDir,
 			path:        "task1/local/../private/private.txt",
 			wantErr:     true,
 			errContains: "Reading secret file prohibited: task1/local/../private/private.txt",
 		},
 		{
 			name:        "private through symlink",
-			base:        allocDir,
 			path:        "task1/local/private-link",
 			wantErr:     true,
 			errContains: "path escapes the alloc directory",
 		},
 		{
 			name:        "file inside private through symlink",
-			base:        allocDir,
 			path:        "task1/local/private-link/private.txt",
 			wantErr:     true,
 			errContains: "path escapes the alloc directory",
@@ -689,7 +675,7 @@ func TestSanitizePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			allocDir := AllocDir{
-				AllocDir: tt.base,
+				AllocDir: allocDir,
 				TaskDirs: tasksDir,
 			}
 

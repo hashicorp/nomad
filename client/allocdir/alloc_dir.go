@@ -411,9 +411,6 @@ func (a *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 // does not read into the secrets or private directories and returns an absolute
 // path of the provided path.
 func (a *AllocDir) sanitizePath(path string) (string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
 	// In some non linux systmes, directories like /var and /tmp resolve to
 	// /private/var and /private/tmp.
 	resolvedAllocDir, err := filepath.EvalSymlinks(a.AllocDir)
@@ -430,14 +427,18 @@ func (a *AllocDir) sanitizePath(path string) (string, error) {
 		return "", fmt.Errorf("path escapes the alloc directory")
 	}
 
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
 	// Check it does not access the secrets or private directories
 	for _, taskDir := range a.TaskDirs {
-
-		if err := escapingfs.ChildEscapesParentDir(taskDir.SecretsDir, requestedPath); err == nil {
+		rps := strings.ReplaceAll(requestedPath, "/Secrets", "/secrets")
+		if err := escapingfs.ChildEscapesParentDir(taskDir.SecretsDir, rps); err == nil {
 			return "", fmt.Errorf("Reading secret file prohibited: %s", path)
 		}
 
-		if err := escapingfs.ChildEscapesParentDir(taskDir.PrivateDir, requestedPath); err == nil {
+		rpp := strings.ReplaceAll(requestedPath, "/Private", "/private")
+		if err := escapingfs.ChildEscapesParentDir(taskDir.PrivateDir, rpp); err == nil {
 			return "", fmt.Errorf("Reading secret file prohibited: %s", path)
 		}
 	}
