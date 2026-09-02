@@ -24,8 +24,9 @@ const _SchedulerWorkerStatus_name = "UnknownStatusRunningWaitingToDequeueWaiting
 var _SchedulerWorkerStatus_index = [...]uint8{0, 13, 20, 36, 50, 60, 70, 77, 84, 90}
 
 func (i SchedulerWorkerStatus) String() string {
-	if i < 0 || i >= SchedulerWorkerStatus(len(_SchedulerWorkerStatus_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_SchedulerWorkerStatus_index)-1 {
 		return "SchedulerWorkerStatus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _SchedulerWorkerStatus_name[_SchedulerWorkerStatus_index[i]:_SchedulerWorkerStatus_index[i+1]]
+	return _SchedulerWorkerStatus_name[_SchedulerWorkerStatus_index[idx]:_SchedulerWorkerStatus_index[idx+1]]
 }

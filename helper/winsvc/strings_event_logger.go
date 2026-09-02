@@ -19,8 +19,9 @@ const _EventlogLevel_name = "UNKNOWNINFOWARNERROR"
 var _EventlogLevel_index = [...]uint8{0, 7, 11, 15, 20}
 
 func (i EventlogLevel) String() string {
-	if i >= EventlogLevel(len(_EventlogLevel_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_EventlogLevel_index)-1 {
 		return "EventlogLevel(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _EventlogLevel_name[_EventlogLevel_index[i]:_EventlogLevel_index[i+1]]
+	return _EventlogLevel_name[_EventlogLevel_index[idx]:_EventlogLevel_index[idx+1]]
 }
