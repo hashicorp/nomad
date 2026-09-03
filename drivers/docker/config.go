@@ -48,14 +48,14 @@ const (
 	dockerAuthHelperPrefix = "docker-credential-"
 )
 
-func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
-	conf := map[string]interface{}{}
+func PluginLoader(opts map[string]string) (map[string]any, error) {
+	conf := map[string]any{}
 	if v, ok := opts["docker.endpoint"]; ok {
 		conf["endpoint"] = v
 	}
 
 	// dockerd auth
-	authConf := map[string]interface{}{}
+	authConf := map[string]any{}
 	if v, ok := opts["docker.auth.config"]; ok {
 		authConf["config"] = v
 	}
@@ -66,7 +66,7 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 
 	// dockerd tls
 	if _, ok := opts["docker.tls.cert"]; ok {
-		conf["tls"] = map[string]interface{}{
+		conf["tls"] = map[string]any{
 			"cert": opts["docker.tls.cert"],
 			"key":  opts["docker.tls.key"],
 			"ca":   opts["docker.tls.ca"],
@@ -74,7 +74,7 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	}
 
 	// garbage collection
-	gcConf := map[string]interface{}{}
+	gcConf := map[string]any{}
 	if v, err := strconv.ParseBool(opts["docker.cleanup.image"]); err == nil {
 		gcConf["image"] = v
 	}
@@ -87,7 +87,7 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf["gc"] = gcConf
 
 	// volume options
-	volConf := map[string]interface{}{}
+	volConf := map[string]any{}
 	if v, err := strconv.ParseBool(opts["docker.volumes.enabled"]); err == nil {
 		volConf["enabled"] = v
 	}
@@ -126,8 +126,8 @@ var (
 
 	// PluginConfig is the docker config factory function registered in the plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, l) },
+		Config:  map[string]any{},
+		Factory: func(ctx context.Context, l hclog.Logger) any { return NewDockerDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC.

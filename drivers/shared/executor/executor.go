@@ -327,7 +327,7 @@ type UniversalExecutor struct {
 	command  *ExecCommand
 
 	exitState     *ProcessState
-	processExited chan interface{}
+	processExited chan any
 
 	totalCpuStats  *cpustats.Tracker
 	userCpuStats   *cpustats.Tracker
@@ -341,7 +341,7 @@ type UniversalExecutor struct {
 func NewExecutor(logger hclog.Logger, compute cpustats.Compute) Executor {
 	ue := &UniversalExecutor{
 		logger:         logger.Named("executor"),
-		processExited:  make(chan interface{}),
+		processExited:  make(chan any),
 		totalCpuStats:  cpustats.New(compute),
 		userCpuStats:   cpustats.New(compute),
 		systemCpuStats: cpustats.New(compute),

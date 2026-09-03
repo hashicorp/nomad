@@ -68,8 +68,8 @@ var (
 	// PluginConfig is the qemu driver factory function registered in the
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewQemuDriver(ctx, l) },
+		Config:  map[string]any{},
+		Factory: func(ctx context.Context, l hclog.Logger) any { return NewQemuDriver(ctx, l) },
 	}
 
 	versionRegex = regexp.MustCompile(`version (\d[\.\d+]+)`)

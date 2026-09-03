@@ -72,13 +72,11 @@ func TestMockDriver_StartWaitRecoverWaitStop(t *testing.T) {
 
 	var waitDone bool
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		result := <-ch
 		must.Error(t, result.Err)
 		waitDone = true
-	}()
+	})
 
 	originalStatus, err := d.InspectTask(task.ID)
 	must.NoError(t, err)

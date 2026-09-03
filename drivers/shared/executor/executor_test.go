@@ -526,7 +526,7 @@ func TestExecutor_Start_Kill_Immediately_NoGrace(t *testing.T) {
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 
-			waitCh := make(chan interface{})
+			waitCh := make(chan any)
 			go func() {
 				defer close(waitCh)
 				executor.Wait(context.Background())
@@ -562,7 +562,7 @@ func TestExecutor_Start_Kill_Immediately_WithGrace(t *testing.T) {
 			require.NoError(err)
 			require.NotZero(ps.Pid)
 
-			waitCh := make(chan interface{})
+			waitCh := make(chan any)
 			go func() {
 				defer close(waitCh)
 				executor.Wait(context.Background())
