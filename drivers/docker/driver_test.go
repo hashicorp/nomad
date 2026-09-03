@@ -150,7 +150,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 //
 // If there is a problem during setup this function will abort or skip the test
 // and indicate the reason.
-func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]interface{}) (*mclient.Client, *dtestutil.DriverHarness, *taskHandle, func()) {
+func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]any) (*mclient.Client, *dtestutil.DriverHarness, *taskHandle, func()) {
 	client := newTestDockerClient(t)
 	driver := dockerDriverHarness(t, driverCfg)
 	cleanup := driver.MkAllocDir(task, loggingIsEnabled(&DriverConfig{}, task))
@@ -192,14 +192,14 @@ func cleanSlate(client *mclient.Client, imageID string) {
 
 // dockerDriverHarness wires up everything needed to launch a task with a docker driver.
 // A driver plugin interface and cleanup function is returned
-func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.DriverHarness {
+func dockerDriverHarness(t *testing.T, cfg map[string]any) *dtestutil.DriverHarness {
 	logger := testlog.HCLogger(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel() })
 	harness := dtestutil.NewDriverHarness(t, NewDockerDriver(ctx, logger))
 	if cfg == nil {
-		cfg = map[string]interface{}{
-			"gc": map[string]interface{}{
+		cfg = map[string]any{
+			"gc": map[string]any{
 				"image":       false,
 				"image_delay": "1s",
 			},
@@ -213,7 +213,7 @@ func dockerDriverHarness(t *testing.T, cfg map[string]interface{}) *dtestutil.Dr
 		InternalPlugins: map[loader.PluginID]*loader.InternalPluginConfig{
 			PluginID: {
 				Config: cfg,
-				Factory: func(context.Context, hclog.Logger) interface{} {
+				Factory: func(context.Context, hclog.Logger) any {
 					return harness
 				},
 			},
@@ -874,7 +874,7 @@ func TestDockerDriver_ExtraLabels(t *testing.T) {
 
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	dockerClientConfig := make(map[string]interface{})
+	dockerClientConfig := make(map[string]any)
 
 	dockerClientConfig["extra_labels"] = []string{"task*", "job_name"}
 	client, d, handle, cleanup := dockerSetup(t, task, dockerClientConfig)
@@ -908,7 +908,7 @@ func TestDockerDriver_LoggingConfiguration(t *testing.T) {
 
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	dockerClientConfig := make(map[string]interface{})
+	dockerClientConfig := make(map[string]any)
 	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
 
 	dockerClientConfig["logging"] = LoggingConfig{
@@ -939,7 +939,7 @@ func TestDockerDriver_LogCollectionDisabled(t *testing.T) {
 
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	dockerClientConfig := make(map[string]interface{})
+	dockerClientConfig := make(map[string]any)
 	loggerConfig := map[string]string{"gelf-address": "udp://1.2.3.4:12201", "tag": "gelf"}
 
 	dockerClientConfig["logging"] = LoggingConfig{
@@ -1227,7 +1227,7 @@ func TestDockerDriver_CreateContainerConfig_AllowedModes(t *testing.T) {
 			image := "org/repro:0.1"
 			task, config, _ := dockerTask(t)
 
-			dockerClientConfig := make(map[string]interface{})
+			dockerClientConfig := make(map[string]any)
 			dockerClientConfig["allowed_modes"] = tc.modes
 			if tc.allowPrivileged {
 				dockerClientConfig["allow_privileged"] = tc.allowPrivileged
@@ -1652,7 +1652,7 @@ func TestDockerDriver_CreateContainerConfigWithRuntimes(t *testing.T) {
 		t.Run(testCase.description, func(t *testing.T) {
 			task, cfg, _ := dockerTask(t)
 
-			dh := dockerDriverHarness(t, map[string]interface{}{
+			dh := dockerDriverHarness(t, map[string]any{
 				"allow_runtimes": []string{"runc", "nvidia", "nvidia-runtime-modified-name"},
 			})
 			driver := dh.Impl().(*Driver)
@@ -2256,8 +2256,8 @@ func TestDockerDriver_EnableImageGC(t *testing.T) {
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client := newTestDockerClient(t)
-	driver := dockerDriverHarness(t, map[string]interface{}{
-		"gc": map[string]interface{}{
+	driver := dockerDriverHarness(t, map[string]any{
+		"gc": map[string]any{
 			"container":   true,
 			"image":       true,
 			"image_delay": "2s",
@@ -2324,8 +2324,8 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client := newTestDockerClient(t)
-	driver := dockerDriverHarness(t, map[string]interface{}{
-		"gc": map[string]interface{}{
+	driver := dockerDriverHarness(t, map[string]any{
+		"gc": map[string]any{
 			"container":   true,
 			"image":       false,
 			"image_delay": "1s",
@@ -2389,8 +2389,8 @@ func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
 	client := newTestDockerClient(t)
-	driver := dockerDriverHarness(t, map[string]interface{}{
-		"gc": map[string]interface{}{
+	driver := dockerDriverHarness(t, map[string]any{
+		"gc": map[string]any{
 			"container":   true,
 			"image":       true,
 			"image_delay": "0s",
@@ -2494,7 +2494,7 @@ func TestDockerDriver_Stats(t *testing.T) {
 	}
 }
 
-func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath string) (*drivers.TaskConfig, *dtestutil.DriverHarness, *TaskConfig, string, func()) {
+func setupDockerVolumes(t *testing.T, cfg map[string]any, hostpath string) (*drivers.TaskConfig, *dtestutil.DriverHarness, *TaskConfig, string, func()) {
 	testutil.DockerCompatible(t)
 
 	randfn := fmt.Sprintf("test-%d", rand.Int())
@@ -2531,11 +2531,11 @@ func TestDockerDriver_VolumesDisabled(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	cfg := map[string]interface{}{
-		"volumes": map[string]interface{}{
+	cfg := map[string]any{
+		"volumes": map[string]any{
 			"enabled": false,
 		},
-		"gc": map[string]interface{}{
+		"gc": map[string]any{
 			"image": false,
 		},
 	}
@@ -2598,11 +2598,11 @@ func TestDockerDriver_VolumesEnabled(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	cfg := map[string]interface{}{
-		"volumes": map[string]interface{}{
+	cfg := map[string]any{
+		"volumes": map[string]any{
 			"enabled": true,
 		},
-		"gc": map[string]interface{}{
+		"gc": map[string]any{
 			"image": false,
 		},
 	}
@@ -3188,7 +3188,7 @@ func TestDockerDriver_CreateContainerConfig_CPUHardLimit(t *testing.T) {
 	schema, _ := driver.TaskConfigSchema()
 	spec, _ := hclspecutils.Convert(schema)
 
-	val, _, _ := hclutils.ParseHclInterface(map[string]interface{}{
+	val, _, _ := hclutils.ParseHclInterface(map[string]any{
 		"image":          "foo/bar",
 		"cpu_hard_limit": true,
 	}, spec, nil)
@@ -3606,7 +3606,7 @@ func Test_validateNamespace(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			dockerClientConfig := make(map[string]interface{})
+			dockerClientConfig := make(map[string]any)
 
 			if tc.allowPrivileged {
 				dockerClientConfig["allow_privileged"] = tc.allowPrivileged

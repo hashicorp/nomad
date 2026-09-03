@@ -87,8 +87,7 @@ func TestJavaDriver_Fingerprint(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -110,8 +109,7 @@ func TestJavaDriver_Jar_Start_Wait(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newJavaDriverTest(t, ctx)
 
@@ -152,8 +150,7 @@ func TestJavaDriver_Jar_Stop_Wait(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -213,8 +210,7 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -252,8 +248,7 @@ func TestJavaDriver_WorkDir(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newJavaDriverTest(t, ctx)
 
@@ -346,8 +341,7 @@ func TestJavaDriver_ExecTaskStreaming(t *testing.T) {
 	ci.Parallel(t)
 	javaCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -453,8 +447,7 @@ func Test_dnsConfig(t *testing.T) {
 	ctestutil.RequireRoot(t)
 	javaCompatible(t)
 	require := require.New(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newJavaDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)

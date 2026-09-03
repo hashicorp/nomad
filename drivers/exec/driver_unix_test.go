@@ -29,8 +29,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -42,7 +41,7 @@ func TestExecDriver_StartWaitStop(t *testing.T) {
 		Resources: testResources(allocID, "test"),
 	}
 
-	taskConfig := map[string]interface{}{
+	taskConfig := map[string]any{
 		"command": "/bin/sleep",
 		"args":    []string{"600"},
 	}
@@ -92,8 +91,7 @@ func TestExec_ExecTaskStreaming(t *testing.T) {
 	ci.SkipTestWithoutRootAccess(t)
 	ci.Parallel(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -129,8 +127,7 @@ func TestExec_dnsConfig(t *testing.T) {
 	ctestutils.RequireRoot(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -256,8 +253,7 @@ func TestExecDriver_Capabilities(t *testing.T) {
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
 			d := newExecDriverTest(t, ctx)
 			harness := dtestutil.NewDriverHarness(t, d)

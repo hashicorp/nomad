@@ -50,6 +50,6 @@ func main() {
 }
 
 // factory returns a new instance of the docker driver plugin
-func factory(ctx context.Context, log log.Logger) interface{} {
+func factory(ctx context.Context, log log.Logger) any {
 	return docker.NewDockerDriver(ctx, log)
 }
