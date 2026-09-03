@@ -48,7 +48,6 @@ func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger
 		qNotify:    make(chan struct{}, 1),
 		evalBroker: broker,
 		state:      ss,
-		qMux:       sync.Mutex{},
 		logger:     logger.Named("Fifo Queue"),
 	}
 }
@@ -127,9 +126,7 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 				f.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
 			}
 
-			f.qMux.Lock()
 			l := f.queue.Len()
-			f.qMux.Unlock()
 
 			if l > 0 {
 				select {
