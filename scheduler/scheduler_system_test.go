@@ -4167,7 +4167,8 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 		tgName                  string
 		nodeAllocation          map[string][]*structs.Allocation
 		expectedDesiredCanaries int
-		expectedNodeAllocation  []string
+		expectedNodeAllocCount  int      // total allocs to remain after eviction
+		expectedNodeAllocation  []string // specific alloc IDs expected to be present
 	}{
 		{
 			name:                    "no required canaries",
@@ -4175,6 +4176,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 			tgName:                  "foo",
 			nodeAllocation:          nil,
 			expectedDesiredCanaries: 0,
+			expectedNodeAllocCount:  0,
 			expectedNodeAllocation:  nil,
 		},
 		{
@@ -4208,6 +4210,7 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 				},
 			},
 			expectedDesiredCanaries: 0,
+			expectedNodeAllocCount:  4,
 			expectedNodeAllocation:  []string{"tg1_alloc1", "tg1_alloc2", "tg2_alloc1", "tg2_alloc2"},
 		},
 		{
@@ -4241,7 +4244,8 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 				},
 			},
 			expectedDesiredCanaries: 1,
-			expectedNodeAllocation:  []string{"tg1_alloc1", "tg2_alloc1", "tg2_alloc2"},
+			expectedNodeAllocCount:  3, // 1 random surviving tg1 canary + 2 tg2 canaries
+			expectedNodeAllocation:  []string{"tg2_alloc1", "tg2_alloc2"},
 		},
 	}
 	for _, tt := range tests {
@@ -4256,8 +4260,8 @@ func TestSystemSched_evictUnneededCanaries(t *testing.T) {
 			for _, a := range s.plan.NodeAllocation {
 				allocsOnNodes = append(allocsOnNodes, a...)
 			}
-			// TODO: this test is flaky since it depends on map ordering which is not supported
-			must.SliceContainsAllFunc(t, allocsOnNodes, tt.expectedNodeAllocation,
+			must.Len(t, tt.expectedNodeAllocCount, allocsOnNodes, must.Sprint("unexpected number of remaining allocs"))
+			must.SliceContainsSubsetFunc(t, allocsOnNodes, tt.expectedNodeAllocation,
 				func(a *structs.Allocation, id string) bool {
 					return a.ID == id
 				})
