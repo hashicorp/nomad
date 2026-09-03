@@ -12,6 +12,8 @@ replace (
 replace (
 	github.com/hashicorp/nomad/api => ./api
 	github.com/hashicorp/nomad/jobspec2 => ./jobspec2
+
+	github.com/hashicorp/consul-template => ../consul-template
 )
 
 require (
