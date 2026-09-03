@@ -339,12 +339,18 @@ func TestVaultHook_Prestart(t *testing.T) {
 		)
 
 		client := vaultclient.NewMockVaultClient()
-		client.On("DeriveTokenWithJWT", t.Context(), vaultclient.JWTLoginRequest{}).Return(
+		// On the first derive, acquire the token successfully
+		client.On("DeriveTokenWithJWT", mock.Anything, vaultclient.JWTLoginRequest{}).Return(
 			"testToken", true, 0, nil,
-		)
+		).Once()
+
+		// on renewal and subsequent derives, return permission denied
 		client.On("Renew", mock.Anything, "testToken", 0).Return(
 			time.Minute,
 			errors.New("permission denied"),
+		)
+		client.On("DeriveTokenWithJWT", mock.Anything, vaultclient.JWTLoginRequest{}).Return(
+			"testToken", false, 0, errors.New("permission denied"),
 		)
 
 		mockLifecycle := trtesting.NewMockTaskHooks()
@@ -368,7 +374,7 @@ func TestVaultHook_Prestart(t *testing.T) {
 			if mockLifecycle.KillEvent() != nil {
 				return nil
 			}
-			return errors.New("test")
+			return errors.New("no kill event yet")
 		})))
 	})
 }
