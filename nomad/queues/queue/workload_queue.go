@@ -53,12 +53,12 @@ func (pq *WorkloadQueue) UpdateAll(updateFn func(w Workload)) {
 	pq.mux.Lock()
 	defer pq.mux.Unlock()
 
-	newQueue := NewWorkloadQueue(pq.sortFn)
+	newTs := set.NewTreeSet(pq.sortFn)
 	for w := range pq.ts.Items() {
 		updateFn(w)
-		newQueue.Push(w)
+		newTs.Insert(w)
 	}
-	*pq = newQueue
+	pq.ts = newTs
 }
 
 // Iterate does an in order traversal of each item in the queue
