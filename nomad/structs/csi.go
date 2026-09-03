@@ -1242,10 +1242,18 @@ const (
 
 	// CSIControllerSupportsCondition indicates plugin support for
 	// VOLUME_CONDITION
+	//
+	// Deprecated: Volume condition feature was removed from the CSI
+	// specification and replaced with the volume health feature. This
+	// remains only for compatibility and will never be true.
+	// ref: https://github.com/container-storage-interface/spec/pull/604
 	CSIControllerSupportsCondition CSIControllerCapability = 10
 
 	// CSIControllerSupportsGet indicates plugin support for GET_VOLUME
 	CSIControllerSupportsGet CSIControllerCapability = 11
+
+	// CSIControllerSupportsGetHealth indicates plugin support for GET_VOLUME_HEALTH
+	CSIControllerSupportsGetHealth CSIControllerCapability = 12
 )
 
 type CSINodeCapability byte
@@ -1298,6 +1306,8 @@ func (p *CSIPlugin) HasControllerCapability(cap CSIControllerCapability) bool {
 			return c.ControllerInfo.SupportsCondition
 		case CSIControllerSupportsGet:
 			return c.ControllerInfo.SupportsGet
+		case CSIControllerSupportsGetHealth:
+			return c.ControllerInfo.SupportsGetHealth
 		default:
 			return false
 		}

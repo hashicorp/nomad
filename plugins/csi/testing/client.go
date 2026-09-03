@@ -61,6 +61,8 @@ type ControllerClient struct {
 	NextCreateSnapshotResponse             *csipbv1.CreateSnapshotResponse
 	NextDeleteSnapshotResponse             *csipbv1.DeleteSnapshotResponse
 	NextListSnapshotsResponse              *csipbv1.ListSnapshotsResponse
+	NextVolumeHealthResponse               *csipbv1.ControllerGetVolumeHealthResponse
+	NextVolumeHealthErr                    error
 }
 
 // NewControllerClient returns a new ControllerClient
@@ -138,6 +140,10 @@ func (c *ControllerClient) DeleteSnapshot(ctx context.Context, in *csipbv1.Delet
 
 func (c *ControllerClient) ListSnapshots(ctx context.Context, in *csipbv1.ListSnapshotsRequest, opts ...grpc.CallOption) (*csipbv1.ListSnapshotsResponse, error) {
 	return c.NextListSnapshotsResponse, c.NextErr
+}
+
+func (c *ControllerClient) ControllerGetVolumeHealth(ctx context.Context, in *csipbv1.ControllerGetVolumeHealthRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetVolumeHealthResponse, error) {
+	return c.NextVolumeHealthResponse, c.NextVolumeHealthErr
 }
 
 // NodeClient is a CSI Node client used for testing

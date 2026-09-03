@@ -137,6 +137,7 @@ func applyCapabilitySetToControllerInfo(cs *csi.ControllerCapabilitySet, info *s
 	info.SupportsListVolumesAttachedNodes = cs.HasListVolumesPublishedNodes
 	info.SupportsCondition = cs.HasVolumeCondition
 	info.SupportsGet = cs.HasGetVolume
+	info.SupportsGetHealth = cs.HasGetVolumeHealth
 }
 
 func (p *pluginFingerprinter) buildControllerFingerprint(ctx context.Context, base *structs.CSIInfo) (*structs.CSIInfo, error) {

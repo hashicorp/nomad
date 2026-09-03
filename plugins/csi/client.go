@@ -81,6 +81,7 @@ type CSIControllerClient interface {
 	CreateSnapshot(ctx context.Context, in *csipbv1.CreateSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.CreateSnapshotResponse, error)
 	DeleteSnapshot(ctx context.Context, in *csipbv1.DeleteSnapshotRequest, opts ...grpc.CallOption) (*csipbv1.DeleteSnapshotResponse, error)
 	ListSnapshots(ctx context.Context, in *csipbv1.ListSnapshotsRequest, opts ...grpc.CallOption) (*csipbv1.ListSnapshotsResponse, error)
+	ControllerGetVolumeHealth(ctx context.Context, in *csipbv1.ControllerGetVolumeHealthRequest, opts ...grpc.CallOption) (*csipbv1.ControllerGetVolumeHealthResponse, error)
 }
 
 // CSINodeClient defines the minimal CSI Node Plugin interface used
@@ -487,7 +488,62 @@ func (c *client) ControllerListVolumes(ctx context.Context, req *ControllerListV
 		}
 		return nil, err
 	}
-	return NewListVolumesResponse(resp), nil
+
+	healthResps := map[string][]*VolumeHealthStatus{}
+HEALTH_LOOP:
+	for _, entry := range resp.Entries {
+		req := &ControllerGetVolumeHealthRequest{
+			VolumeID: entry.Volume.GetVolumeId(),
+		}
+		resp, err := c.ControllerGetVolumeHealth(ctx, req, opts...)
+		if err != nil {
+			if s, ok := status.FromError(err); ok {
+				switch s.Code() {
+				case codes.Unimplemented:
+					// The ControllerGetVolumeHealth endpoint is optional and was not implemented
+					// so stop attempting to collect health information.
+					c.logger.Warn("controller plugin does not implement volume health")
+					break HEALTH_LOOP
+				case codes.NotFound:
+					// Health information for this volume was not found, but attempt to continue
+					// collecting health information.
+					c.logger.Warn("volume health information was not found", "volume-id", req.VolumeID, "error", err)
+					continue
+				case codes.Internal:
+					return nil, fmt.Errorf(
+						"controller plugin returned an internal error, check the plugin allocation logs for more information: %v", err)
+				}
+			}
+			return nil, err
+		}
+
+		healthResps[resp.VolumeID] = resp.Statuses
+	}
+
+	return NewListVolumesResponse(resp, healthResps), nil
+}
+
+func (c *client) ControllerGetVolumeHealth(ctx context.Context, req *ControllerGetVolumeHealthRequest, opts ...grpc.CallOption) (*ControllerGetVolumeHealthResponse, error) {
+	if err := c.ensureConnected(ctx); err != nil {
+		return nil, err
+	}
+
+	creq := req.ToCSIRepresentation()
+	resp, err := c.controllerClient.ControllerGetVolumeHealth(ctx, creq, opts...)
+	if err != nil {
+		code := status.Code(err)
+		switch code {
+		case codes.Unimplemented:
+			return nil, fmt.Errorf(
+				"controller plugin does not implement ControllerGetVolumeHealth: %w", err)
+		case codes.NotFound:
+			return nil, fmt.Errorf(
+				"volume %q health status does not exist: %w", req.VolumeID, err)
+		}
+		return nil, err
+	}
+
+	return NewGetVolumeHealthResponse(resp), nil
 }
 
 func (c *client) ControllerDeleteVolume(ctx context.Context, req *ControllerDeleteVolumeRequest, opts ...grpc.CallOption) error {

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
@@ -60,6 +61,10 @@ type CSIPlugin interface {
 	// ControllerListVolumes is used to list all volumes available in the
 	// external storage provider
 	ControllerListVolumes(ctx context.Context, req *ControllerListVolumesRequest, opts ...grpc.CallOption) (*ControllerListVolumesResponse, error)
+
+	// ControllerGetVolumeHealth is used to get the health of a remove volume
+	// in the external storage provider.
+	ControllerGetVolumeHealth(ctx context.Context, req *ControllerGetVolumeHealthRequest, opts ...grpc.CallOption) (*ControllerGetVolumeHealthResponse, error)
 
 	// ControllerExpandVolume is used to expand a volume's size
 	ControllerExpandVolume(ctx context.Context, req *ControllerExpandVolumeRequest, opts ...grpc.CallOption) (*ControllerExpandVolumeResponse, error)
@@ -314,8 +319,14 @@ type ControllerCapabilitySet struct {
 	HasPublishReadonly           bool
 	HasExpandVolume              bool
 	HasListVolumesPublishedNodes bool
-	HasVolumeCondition           bool
 	HasGetVolume                 bool
+	HasGetVolumeHealth           bool
+
+	// Volume condition feature was removed from the CSI specification
+	// and replaced with the volume health feature. This remains only
+	// for compatibility and will never be true.
+	// ref: https://github.com/container-storage-interface/spec/pull/604
+	HasVolumeCondition bool
 }
 
 func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse) *ControllerCapabilitySet {
@@ -345,8 +356,8 @@ func NewControllerCapabilitySet(resp *csipbv1.ControllerGetCapabilitiesResponse)
 				cs.HasExpandVolume = true
 			case csipbv1.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES:
 				cs.HasListVolumesPublishedNodes = true
-			case csipbv1.ControllerServiceCapability_RPC_VOLUME_CONDITION:
-				cs.HasVolumeCondition = true
+			case csipbv1.ControllerServiceCapability_RPC_GET_VOLUME_HEALTH:
+				cs.HasGetVolumeHealth = true
 			case csipbv1.ControllerServiceCapability_RPC_GET_VOLUME:
 				cs.HasGetVolume = true
 			default:
@@ -705,7 +716,7 @@ type ControllerListVolumesResponse struct {
 	NextToken string
 }
 
-func NewListVolumesResponse(resp *csipbv1.ListVolumesResponse) *ControllerListVolumesResponse {
+func NewListVolumesResponse(resp *csipbv1.ListVolumesResponse, volHealths map[string][]*VolumeHealthStatus) *ControllerListVolumesResponse {
 	if resp == nil {
 		return &ControllerListVolumesResponse{}
 	}
@@ -714,7 +725,7 @@ func NewListVolumesResponse(resp *csipbv1.ListVolumesResponse) *ControllerListVo
 		for _, entry := range resp.Entries {
 			vol := entry.GetVolume()
 			status := entry.GetStatus()
-			entries = append(entries, &ListVolumesResponse_Entry{
+			newEntry := &ListVolumesResponse_Entry{
 				Volume: &Volume{
 					CapacityBytes:      vol.CapacityBytes,
 					ExternalVolumeID:   vol.VolumeId,
@@ -725,11 +736,41 @@ func NewListVolumesResponse(resp *csipbv1.ListVolumesResponse) *ControllerListVo
 				Status: &ListVolumesResponse_VolumeStatus{
 					PublishedNodeIds: status.GetPublishedNodeIds(),
 					VolumeCondition: &VolumeCondition{
-						Abnormal: status.GetVolumeCondition().GetAbnormal(),
-						Message:  status.GetVolumeCondition().GetMessage(),
+						Abnormal: false,
 					},
 				},
-			})
+				Health: &VolumeHealth{
+					Healthy: true,
+				},
+			}
+
+			// Add the new entry to the list before moving on.
+			entries = append(entries, newEntry)
+
+			// If volume health information is not available, skip.
+			healthStats, ok := volHealths[vol.GetVolumeId()]
+			if !ok || len(healthStats) == 0 {
+				continue
+			}
+
+			// Collect the statuses and reasons to populate
+			// the entry.
+			messages := make([]string, len(healthStats))
+			statuses := make([]*VolumeHealthStatus, len(healthStats))
+			for i, healthStatus := range healthStats {
+				messages[i] = healthStatus.Reason
+				status := *healthStatus
+				statuses[i] = &status
+			}
+
+			// Update the health information and mark as unhealthy
+			newEntry.Health.Healthy = false
+			newEntry.Health.Statuses = statuses
+
+			// Set the volume condition in the status to retain
+			// compatibility.
+			newEntry.Status.VolumeCondition.Abnormal = true
+			newEntry.Status.VolumeCondition.Message = strings.Join(messages, ", ")
 		}
 	}
 	return &ControllerListVolumesResponse{
@@ -741,6 +782,7 @@ func NewListVolumesResponse(resp *csipbv1.ListVolumesResponse) *ControllerListVo
 type ListVolumesResponse_Entry struct {
 	Volume *Volume
 	Status *ListVolumesResponse_VolumeStatus
+	Health *VolumeHealth
 }
 
 type ListVolumesResponse_VolumeStatus struct {
@@ -751,6 +793,55 @@ type ListVolumesResponse_VolumeStatus struct {
 type VolumeCondition struct {
 	Abnormal bool
 	Message  string
+}
+
+type VolumeHealth struct {
+	Healthy  bool
+	Statuses []*VolumeHealthStatus
+}
+
+type ControllerGetVolumeHealthRequest struct {
+	VolumeID string
+	Secrets  structs.CSISecrets
+}
+
+func (r *ControllerGetVolumeHealthRequest) ToCSIRepresentation() *csipbv1.ControllerGetVolumeHealthRequest {
+	return &csipbv1.ControllerGetVolumeHealthRequest{
+		VolumeId: r.VolumeID,
+		Secrets:  r.Secrets,
+	}
+}
+
+type ControllerGetVolumeHealthResponse struct {
+	VolumeID string
+	Statuses []*VolumeHealthStatus
+}
+
+func NewGetVolumeHealthResponse(resp *csipbv1.ControllerGetVolumeHealthResponse) *ControllerGetVolumeHealthResponse {
+	result := &ControllerGetVolumeHealthResponse{}
+	if resp.GetVolumeHealth() == nil {
+		return result
+	}
+
+	health := resp.GetVolumeHealth()
+	result.VolumeID = health.GetVolumeId()
+	result.Statuses = make([]*VolumeHealthStatus, len(health.GetHealthStatuses()))
+
+	for i, status := range health.GetHealthStatuses() {
+		result.Statuses[i] = &VolumeHealthStatus{
+			Status:  status.GetStatus().String(),
+			Reason:  status.GetReason(),
+			Message: status.GetMessage(),
+		}
+	}
+
+	return result
+}
+
+type VolumeHealthStatus struct {
+	Status  string
+	Reason  string
+	Message string
 }
 
 type ControllerCreateSnapshotRequest struct {
@@ -869,7 +960,13 @@ type NodeCapabilitySet struct {
 	HasStageUnstageVolume bool
 	HasGetVolumeStats     bool
 	HasExpandVolume       bool
-	HasVolumeCondition    bool
+	HasVolumeHealth       bool
+
+	// Deprecated: Volume condition feature was removed from the CSI
+	// specification and replaced with the volume health feature. This
+	// remains only for compatibility and will never be true.
+	// ref: https://github.com/container-storage-interface/spec/pull/604
+	HasVolumeCondition bool
 }
 
 func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabilitySet {
@@ -884,8 +981,8 @@ func NewNodeCapabilitySet(resp *csipbv1.NodeGetCapabilitiesResponse) *NodeCapabi
 				cs.HasGetVolumeStats = true
 			case csipbv1.NodeServiceCapability_RPC_EXPAND_VOLUME:
 				cs.HasExpandVolume = true
-			case csipbv1.NodeServiceCapability_RPC_VOLUME_CONDITION:
-				cs.HasVolumeCondition = true
+			case csipbv1.NodeServiceCapability_RPC_GET_VOLUME_HEALTH:
+				cs.HasVolumeHealth = true
 			default:
 				continue
 			}

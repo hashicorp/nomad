@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: Replace support for volume condition with volume health
+```
