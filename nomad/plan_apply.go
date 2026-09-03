@@ -392,8 +392,16 @@ func (p *planner) applyPlan(plan *structs.Plan, result *structs.PlanResult, snap
 	// Optimistically apply to our state view
 	if snap != nil {
 		defer metrics.MeasureSince(metricPlanOptimisiticApply, time.Now())
+
+		// A plan can reference an evaluation registered after this snapshot was
+		// created. Skip the evaluation's ModifyIndex update in the snapshot, where
+		// the evaluation may be absent. The Raft request still performs the update
+		// in canonical state.
+		optimisticReq := req
+		optimisticReq.EvalID = ""
+
 		nextIdx := p.srv.raft.AppliedIndex() + 1
-		if err := snap.UpsertPlanResults(structs.ApplyPlanResultsRequestType, nextIdx, &req); err != nil {
+		if err := snap.UpsertPlanResults(structs.ApplyPlanResultsRequestType, nextIdx, &optimisticReq); err != nil {
 			return future, err
 		}
 	}

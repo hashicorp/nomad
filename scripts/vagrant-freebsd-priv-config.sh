@@ -13,7 +13,7 @@ mkdir -p /usr/local/etc/pkg/repos
 
 cat <<EOT > /usr/local/etc/pkg/repos/FreeBSD.conf
 FreeBSD: {
-	url: "pkg+http://pkg.FreeBSD.org/\${ABI}/latest"
+	url: "https://pkg.FreeBSD.org/\${ABI}/latest"
 }
 EOT
 

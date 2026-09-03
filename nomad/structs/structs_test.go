@@ -738,6 +738,44 @@ func TestJob_Warnings(t *testing.T) {
 			Expected: []string{},
 			Job:      connectSidecarServiceJob(new(time.Second)),
 		},
+		{
+			Name: "Unlimited reschedule policy and low delay warning",
+			Expected: []string{
+				"Reschedule policy has unlimited attempts enabled and a low delay; reschedule thrashing possible",
+			},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "web",
+						ReschedulePolicy: &ReschedulePolicy{
+							Unlimited:     true,
+							DelayFunction: "exponential",
+							Delay:         1 * time.Second,
+							MaxDelay:      1 * time.Hour,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Unlimited reschedule and high delay no warning",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "web",
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      3,
+							Interval:      30 * time.Minute,
+							Delay:         20 * time.Second,
+							DelayFunction: "constant",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -5203,6 +5241,27 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				DelayFunction: "exponential",
 				Delay:         5 * time.Second,
 				MaxDelay:      1 * time.Hour,
+			},
+		},
+		{
+			desc: "Valid minimum delay of 1 second",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      15 * time.Second,
+				Delay:         1 * time.Second,
+				DelayFunction: "constant",
+			},
+		},
+		{
+			desc: "Invalid delay below 1 second",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      15 * time.Second,
+				Delay:         500 * time.Millisecond,
+				DelayFunction: "constant",
+			},
+			errors: []error{
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 500*time.Millisecond),
 			},
 		},
 	}
