@@ -91,8 +91,8 @@ type vaultHook struct {
 	// logger is used to log
 	logger log.Logger
 
-	// The hook's context, derived from the taskrunner . This is stored on the
-	// vaulHook because it currently is not injected via Prestart.
+	// The hook's context, derived from the taskrunner's killCtx. This is stored
+	// on the vaulHook because it is not injected via Prestart.
 	taskCtx context.Context
 
 	// The hooks cancel func to exit the token renewal loop.
