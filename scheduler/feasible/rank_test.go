@@ -2621,18 +2621,19 @@ func TestNodeAffinityIterator(t *testing.T) {
 		scoreNorm := NewScoreNormalizationIterator(ctx, nodeAffinity)
 		out := collectRanked(scoreNorm)
 
-		// Total weight = 300
+		// Denominator = max(sum of positive weights, sum of negative weights)
+		// = max(100+50+50, 100) = 200
 		// Node 0 matches two affinities(dc and kernel version), total weight = 150
-		test.Eq(t, 0.5, out[0].FinalScore)
+		test.Eq(t, 0.75, out[0].FinalScore)
 
 		// Node 1 matches an anti affinity, weight = -100
-		test.Eq(t, -(1.0 / 3.0), out[1].FinalScore)
+		test.Eq(t, -0.5, out[1].FinalScore)
 
-		// Node 2 matches one affinity(node class) with weight 50
-		test.Eq(t, -(1.0 / 6.0), out[2].FinalScore)
+		// Node 2 matches dc anti affinity and node class, total weight = -50
+		test.Eq(t, -0.25, out[2].FinalScore)
 
 		// Node 3 matches one affinity (dc) with weight = 100
-		test.Eq(t, 1.0/3.0, out[3].FinalScore)
+		test.Eq(t, 0.5, out[3].FinalScore)
 
 		// Node 4 matches no affinities but should still generate a score
 		test.Eq(t, 0, out[4].FinalScore)
@@ -2663,18 +2664,18 @@ func TestNodeAffinityIterator(t *testing.T) {
 		scoreNorm := NewScoreNormalizationIterator(ctx, nodeAffinity)
 		out := collectRanked(scoreNorm)
 
-		// Total weight = 300
+		// Denominator = max(100+50+50, 100) = 200
 		// Node 0 matches two affinities(dc and kernel version), total weight = 150
-		test.Eq(t, (0.5+bp)/2, out[0].FinalScore)
+		test.Eq(t, (0.75+bp)/2, out[0].FinalScore)
 
 		// Node 1 matches an anti affinity, weight = -100
-		test.Eq(t, (-(1.0/3.0)+bp)/2, out[1].FinalScore)
+		test.Eq(t, (-0.5+bp)/2, out[1].FinalScore)
 
-		// Node 2 matches one affinity(node class) with weight 50
-		test.Eq(t, (-(1.0/6.0)+bp)/2, out[2].FinalScore)
+		// Node 2 matches dc anti affinity and node class, total weight = -50
+		test.Eq(t, (-0.25+bp)/2, out[2].FinalScore)
 
 		// Node 3 matches one affinity (dc) with weight = 100
-		test.Eq(t, ((1.0/3.0)+bp)/2, out[3].FinalScore)
+		test.Eq(t, (0.5+bp)/2, out[3].FinalScore)
 
 		// Node 4 matches no affinities but should still generate a score and
 		// the final score should be lower than any positive score
@@ -2682,5 +2683,32 @@ func TestNodeAffinityIterator(t *testing.T) {
 		test.Len(t, 2, out[4].Scores)
 		test.Less(t, out[0].FinalScore, out[4].FinalScore)
 		test.Less(t, out[3].FinalScore, out[4].FinalScore)
+	})
+
+	t.Run("mixed sign weights preserve full range", func(t *testing.T) {
+		// Regression for #11130: an anti-affinity targeting an unrelated node
+		// must not shrink a matching node's affinity score. With a +100 and a
+		// -100 affinity on different datacenters, a node matching only the +100
+		// should score the full 1.0 and a node matching only the -100 should
+		// score -1.0, rather than the squashed 0.5/-0.5 produced when the
+		// denominator sums the absolute value of every weight.
+		nodeA := &RankedNode{Node: mock.Node()} // datacenter dc1
+		nodeB := &RankedNode{Node: mock.Node()}
+		nodeB.Node.Datacenter = "dc2"
+
+		rangeJob := mock.Job()
+		rangeJob.TaskGroups[0].Affinities = []*structs.Affinity{
+			{Operand: "=", LTarget: "${node.datacenter}", RTarget: "dc1", Weight: 100},
+			{Operand: "=", LTarget: "${node.datacenter}", RTarget: "dc2", Weight: -100},
+		}
+
+		static := NewStaticRankIterator(ctx, []*RankedNode{nodeA, nodeB})
+		nodeAffinity := NewNodeAffinityIterator(ctx, static)
+		nodeAffinity.SetTaskGroup(rangeJob.TaskGroups[0])
+		scoreNorm := NewScoreNormalizationIterator(ctx, nodeAffinity)
+		out := collectRanked(scoreNorm)
+
+		test.Eq(t, 1.0, out[0].FinalScore)  // nodeA matches only the +100 affinity
+		test.Eq(t, -1.0, out[1].FinalScore) // nodeB matches only the -100 anti-affinity
 	})
 }

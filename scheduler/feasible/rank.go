@@ -974,10 +974,21 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 		return option
 	}
 	// TODO(preetha): we should calculate normalized weights once and reuse it here
-	sumWeight := 0.0
+	// Normalize by the larger of the total positive and total negative weight
+	// rather than the sum of all absolute weights. Using the sum would let an
+	// anti-affinity on one node shrink the score of a node that only matches a
+	// positive affinity (and vice versa), squashing the usable [-1, 1] range
+	// whenever positive and negative weights are mixed.
+	sumPosWeight := 0.0
+	sumNegWeight := 0.0
 	for _, affinity := range iter.affinities {
-		sumWeight += math.Abs(float64(affinity.Weight))
+		if affinity.Weight >= 0 {
+			sumPosWeight += float64(affinity.Weight)
+		} else {
+			sumNegWeight += math.Abs(float64(affinity.Weight))
+		}
 	}
+	sumWeight := math.Max(sumPosWeight, sumNegWeight)
 
 	totalAffinityScore := 0.0
 	for _, affinity := range iter.affinities {
@@ -985,7 +996,10 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 			totalAffinityScore += float64(affinity.Weight)
 		}
 	}
-	normScore := totalAffinityScore / sumWeight
+	normScore := 0.0
+	if sumWeight > 0 {
+		normScore = totalAffinityScore / sumWeight
+	}
 	option.Scores = append(option.Scores, normScore)
 	iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", normScore)
 	return option
