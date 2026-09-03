@@ -62,7 +62,10 @@ func (pq *WorkloadQueue) UpdateAll(updateFn func(w Workload)) {
 }
 
 // Iterate does an in order traversal of each item in the queue
-// and called the passed function on the workload.
+// and calls the passed function on the workload.
+//
+// The callback function should NOT mutate the workload, but use it
+// to construct a separate threadsafe object.
 func (pq *WorkloadQueue) Iterate(fn func(Workload)) {
 	pq.mux.Lock()
 	defer pq.mux.Unlock()
