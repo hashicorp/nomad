@@ -395,10 +395,12 @@ type DynamicQueueConfig struct {
 	CalcInterval time.Duration `mapstructure:"calc_interval" json:"calc_interval"`
 	MaxAge       time.Duration `mapstructure:"max_age" json:"max_age"`
 	HalfLife     time.Duration `mapstructure:"half_life" json:"half_life"`
-	MaxSize      int           `mapstructure:"max_size" json:"max_size"`
+	MaxCpu       int           `mapstructure:"max_cpu" json:"max_cpu"`
+	MaxMemory    int           `mapstructure:"max_memory" json:"max_memory"`
 	AgeWeight    int           `mapstructure:"age_weight" json:"age_weight"`
 	UsageWeight  int           `mapstructure:"usage_weight" json:"usage_weight"`
-	SizeWeight   int           `mapstructure:"size_weight" json:"size_weight"`
+	CpuWeight    int           `mapstructure:"cpu_weight" json:"cpu_weight"`
+	MemWeight    int           `mapstructure:"memory_weight" json:"memory_weight"`
 }
 
 func (d *DynamicQueueConfig) Validate() error {
