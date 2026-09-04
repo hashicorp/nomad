@@ -1215,11 +1215,11 @@ func (s *BoltStateDB) updateWithOptions(opts []WriteOption, updateFn func(tx *bo
 // 0.9 schema. Creates a backup before upgrading.
 func (s *BoltStateDB) Upgrade() error {
 	// Check to see if the underlying DB needs upgrading.
-	upgrade09, upgrade13, err := NeedsUpgrade(s.db.BoltDB())
+	upgrade13, err := NeedsUpgrade(s.db.BoltDB())
 	if err != nil {
 		return err
 	}
-	if !upgrade09 && !upgrade13 {
+	if !upgrade13 {
 		// No upgrade needed!
 		return nil
 	}
@@ -1232,12 +1232,6 @@ func (s *BoltStateDB) Upgrade() error {
 
 	// Perform the upgrade
 	if err := s.db.Update(func(tx *boltdd.Tx) error {
-
-		if upgrade09 {
-			if err := UpgradeAllocs(s.logger, tx); err != nil {
-				return err
-			}
-		}
 		if upgrade13 {
 			if err := UpgradeDynamicPluginRegistry(s.logger, tx); err != nil {
 				return err
