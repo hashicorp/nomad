@@ -850,6 +850,39 @@ module('Acceptance | jobs list', function (hooks) {
         assert.dom('[data-test-pager="last"]').isDisabled();
         localStorage.removeItem('nomadPageSize');
       });
+      test('paging back onto the first page disables first and previous', async function (assert) {
+        // Paging prev lands on a server-minted cursor rather than an empty one,
+        // so the first page reached by paging back must still recognize it is
+        // the first page and disable first/previous, not leave them enabled for
+        // a dead click that just re-renders the same page.
+        const pageSize = 5;
+        const total = 15; // three pages: [15..11], [10..6], [5..1]
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        await JobsList.visit();
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        await click('[data-test-pager="next"]');
+        await click('[data-test-pager="previous"]');
+
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 14, 13, 12, 11],
+          'previous returns to the first page',
+        );
+        assert
+          .dom('[data-test-pager="previous"]')
+          .isDisabled('previous is disabled back on the first page');
+        assert
+          .dom('[data-test-pager="first"]')
+          .isDisabled('first is disabled back on the first page');
+
+        localStorage.removeItem('nomadPageSize');
+      });
     });
     module('Jobs are appropriately sorted by modify index', function () {
       test('on a single long page', async function (assert) {
@@ -1032,6 +1065,418 @@ module('Acceptance | jobs list', function (hooks) {
             .reverse()
             .slice(pageSize, pageSize * 2),
           'Keynav takes me forward a page',
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+      test('jobs that share a modify index paginate without duplicates or gaps', async function (assert) {
+        // Regression test for the ModifyIndex-only pagination cursor: several
+        // jobs can share a ModifyIndex, and the cursor must still reach each of
+        // them exactly once instead of repeating a page or stranding jobs.
+        const pageSize = 5;
+        const total = 12; // more than two pages, all sharing one modify index
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        for (let i = 0; i < total; i++) {
+          const id = `shared-${String(i).padStart(2, '0')}`;
+          this.server.create('job', {
+            id,
+            name: id,
+            namespaceId: 'default',
+            modifyIndex: 1000, // identical across all of them
+            createAllocations: false,
+            shallow: true,
+          });
+        }
+
+        await JobsList.visit();
+
+        // Walk forward to the end, collecting every job we see on each page.
+        const seen = [];
+        for (let guard = 0; guard <= total; guard++) {
+          for (let i = 0; i < JobsList.jobs.length; i++) {
+            seen.push(JobsList.jobs.objectAt(i).name);
+          }
+          const next = document.querySelector('[data-test-pager="next"]');
+          if (!next || next.disabled) {
+            break;
+          }
+          await click('[data-test-pager="next"]');
+        }
+
+        const unique = new Set(seen);
+        assert.strictEqual(
+          seen.length,
+          unique.size,
+          'no job was shown on more than one page',
+        );
+        assert.strictEqual(
+          unique.size,
+          total,
+          'every job sharing the modify index was reachable',
+        );
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('cursorAt is a string or undefined, never null, while paging', async function (assert) {
+        // cursorAt must always be a string or undefined, never null: undefined
+        // is omitted from the query string, null is not.
+        const pageSize = 5;
+        const total = 12; // three pages: 5, 5, 2
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        await JobsList.visit();
+
+        const controller = this.owner.lookup('controller:jobs.index');
+
+        assert.strictEqual(
+          controller.cursorAt,
+          undefined,
+          'cursorAt is undefined on the first page',
+        );
+
+        await click('[data-test-pager="next"]');
+        assert.strictEqual(
+          typeof controller.cursorAt,
+          'string',
+          'cursorAt is a string after paging forward',
+        );
+
+        // Paging back onto the first page lands on the server-minted token for
+        // that page rather than undefined; either is fine, but it must not be
+        // null, which (unlike undefined) is not omitted from the query string.
+        await click('[data-test-pager="previous"]');
+        assert.notStrictEqual(
+          controller.cursorAt,
+          null,
+          'cursorAt is never null back on the first page',
+        );
+        assert.ok(
+          controller.cursorAt === undefined ||
+            typeof controller.cursorAt === 'string',
+          'cursorAt is a string or undefined back on the first page',
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Previous from the last page navigates to the penultimate page', async function (assert) {
+        // Jumping to the last page and clicking Previous should land on the
+        // penultimate page, not on a previously-visited page.
+        const pageSize = 5;
+        const total = 15; // three full pages: [15..11], [10..6], [5..1]
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        await JobsList.visit();
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        await click('[data-test-pager="last"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [5, 4, 3, 2, 1],
+          'last page shows the oldest jobs',
+        );
+
+        await click('[data-test-pager="previous"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [10, 9, 8, 7, 6],
+          'previous goes to the penultimate page, not back to the first',
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('paging backward from the last page reaches every page without duplicates or gaps', async function (assert) {
+        // Starting from the last page and clicking Previous repeatedly should
+        // visit every job exactly once and stop at the first page.
+        const pageSize = 5;
+        const total = 15;
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        await JobsList.visit();
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        await click('[data-test-pager="last"]');
+
+        const seen = [];
+        for (let guard = 0; guard <= total; guard++) {
+          seen.push(...modifyIndexes());
+          const prev = document.querySelector('[data-test-pager="previous"]');
+          if (!prev || prev.disabled) {
+            break;
+          }
+          await click('[data-test-pager="previous"]');
+        }
+
+        const unique = new Set(seen);
+        assert.strictEqual(
+          seen.length,
+          unique.size,
+          'no job was shown on more than one page while paging backward',
+        );
+        assert.strictEqual(
+          unique.size,
+          total,
+          'every job was reachable paging backward from the last page',
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('paging backward through jobs that share a modify index has no duplicates or gaps', async function (assert) {
+        // Backward counterpart to the forward shared-modify-index test: when
+        // jobs share a modify index the previous-page cursor must respect the
+        // namespace/id tiebreak, or paging back repeats or strands jobs.
+        const pageSize = 5;
+        const total = 15;
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        for (let i = 0; i < total; i++) {
+          const id = `shared-${String(i).padStart(2, '0')}`;
+          this.server.create('job', {
+            id,
+            name: id,
+            namespaceId: 'default',
+            modifyIndex: 1000, // identical across all of them
+            createAllocations: false,
+            shallow: true,
+          });
+        }
+
+        await JobsList.visit();
+        await click('[data-test-pager="last"]');
+
+        const seen = [];
+        for (let guard = 0; guard <= total; guard++) {
+          for (let i = 0; i < JobsList.jobs.length; i++) {
+            seen.push(JobsList.jobs.objectAt(i).name);
+          }
+          const prev = document.querySelector('[data-test-pager="previous"]');
+          if (!prev || prev.disabled) {
+            break;
+          }
+          await click('[data-test-pager="previous"]');
+        }
+
+        const unique = new Set(seen);
+        assert.strictEqual(
+          seen.length,
+          unique.size,
+          'no job was shown on more than one page while paging backward',
+        );
+        assert.strictEqual(
+          unique.size,
+          total,
+          'every job sharing the modify index was reachable paging backward',
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('next, previous, first, and last all page with server-minted cursors', async function (assert) {
+        // The UI pages using only tokens the server minted, never one it builds
+        // itself. "last" reverse-walks for one fewer than a page so the server's
+        // nextToken lands on the final page's start, so even that jump reuses a
+        // minted token. Staying token-agnostic is what lets the list page against
+        // an older backend (e.g. mid rolling-upgrade) that mints a legacy token
+        // format the UI would otherwise have to know how to build.
+        const pageSize = 5;
+        const total = 15; // three aligned pages: [15..11], [10..6], [5..1]
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        await JobsList.visit();
+
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        await click('[data-test-pager="next"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [10, 9, 8, 7, 6],
+          'next advances a page',
+        );
+
+        await click('[data-test-pager="next"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [5, 4, 3, 2, 1],
+          'next reaches the last page',
+        );
+
+        await click('[data-test-pager="previous"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [10, 9, 8, 7, 6],
+          'previous returns to the middle page',
+        );
+
+        await click('[data-test-pager="first"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 14, 13, 12, 11],
+          'first returns to the first page',
+        );
+
+        await click('[data-test-pager="last"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [5, 4, 3, 2, 1],
+          'last jumps to the final page',
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('changing the page size resets to the first page', async function (assert) {
+        // Page boundaries depend on page size, so the current cursor is stale
+        // once it changes; the controller must reset to the first page instead
+        // of paging from a cursor that no longer lines up.
+        const pageSize = 5;
+        const total = 15;
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        await JobsList.visit();
+        const controller = this.owner.lookup('controller:jobs.index');
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        await click('[data-test-pager="next"]');
+        assert.strictEqual(
+          typeof controller.cursorAt,
+          'string',
+          'on a later page the cursor is set',
+        );
+
+        controller.handlePageSizeChange(10);
+        await settled();
+
+        assert.strictEqual(
+          controller.cursorAt,
+          undefined,
+          'changing page size drops the cursor',
+        );
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 14, 13, 12, 11, 10, 9, 8, 7, 6],
+          'the first page is shown at the new page size',
+        );
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('cold-loading a shared or refreshed URL past the first page renders it and pages correctly', async function (assert) {
+        // A deep-linked/shared URL or a refresh lands on a page with only a
+        // server-minted cursor and no in-memory history. The page must render,
+        // its first/previous buttons must reflect that it is not the first page,
+        // and previous must page back using a server-minted token (never a
+        // constructed one), exactly as gulducat's older-server case requires.
+        const pageSize = 5;
+        const total = 15; // three pages: [15..11], [10..6], [5..1]
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        createJobs(this.server, total);
+
+        // Build the second page's start token the way the server mints it,
+        // "<modifyIndex>.<namespace>.<id>", then open it cold.
+        const boundary = this.server.db.jobs.findBy({ modifyIndex: 10 });
+        const cursorAt = `10.default.${boundary.id}`;
+        await JobsList.visit({ cursorAt });
+
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        assert.deepEqual(
+          modifyIndexes(),
+          [10, 9, 8, 7, 6],
+          'the shared cursor renders its page on cold load',
+        );
+        assert
+          .dom('[data-test-pager="previous"]')
+          .isNotDisabled('previous is enabled: this is not the first page');
+        assert
+          .dom('[data-test-pager="first"]')
+          .isNotDisabled('first is enabled: this is not the first page');
+
+        await click('[data-test-pager="previous"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 14, 13, 12, 11],
+          'previous from a cold cursor pages back to the first page',
+        );
+        assert
+          .dom('[data-test-pager="previous"]')
+          .isDisabled('previous is disabled once back on the first page');
+
+        localStorage.removeItem('nomadPageSize');
+      });
+
+      test('paging backward and to the last page keeps the active filter applied', async function (assert) {
+        // prev and last page via the reverse query, which must carry the same
+        // filter as the forward query. Without it, paging back or jumping to
+        // last would page over the unfiltered set and surface jobs the filter
+        // excludes. Interleave two types so an unfiltered reverse query would
+        // return different rows than a filtered one.
+        const pageSize = 5;
+        localStorage.setItem('nomadPageSize', pageSize.toString());
+        for (let i = 1; i <= 15; i++) {
+          this.server.create('job', {
+            namespaceId: 'default',
+            type: i % 2 === 1 ? 'service' : 'batch',
+            modifyIndex: i,
+            createAllocations: false,
+            shallow: true,
+          });
+        }
+
+        // Eight service jobs (odd modify indexes) split into [15,13,11,9,7] and
+        // [5,3,1]; the interleaved batch jobs must never appear.
+        await JobsList.visit({ filter: 'Type == service' });
+
+        const modifyIndexes = () =>
+          Array.from(document.querySelectorAll('.job-row')).map((row) =>
+            parseInt(row.getAttribute('data-test-modify-index')),
+          );
+
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 13, 11, 9, 7],
+          'first page shows only filtered jobs',
+        );
+
+        await click('[data-test-pager="next"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [5, 3, 1],
+          'next stays within the filtered set',
+        );
+
+        await click('[data-test-pager="previous"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [15, 13, 11, 9, 7],
+          'previous pages back over the filtered set, not the full list',
+        );
+
+        await click('[data-test-pager="last"]');
+        assert.deepEqual(
+          modifyIndexes(),
+          [9, 7, 5, 3, 1],
+          'last jumps to the final filtered page, not the full list',
         );
 
         localStorage.removeItem('nomadPageSize');
