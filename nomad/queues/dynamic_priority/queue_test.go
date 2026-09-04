@@ -418,7 +418,7 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 	}
 }
 
-func TestDynamicPriorityQueue_sizeAdjustment(t *testing.T) {
+func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 	testCases := []struct {
 		name     string
 		conf     *structs.DynamicQueueConfig
@@ -426,24 +426,28 @@ func TestDynamicPriorityQueue_sizeAdjustment(t *testing.T) {
 		exp      int
 	}{
 		{
-			name: "larger size results in 0 adjustment",
+			name: "larger requests results in 0 adjustment",
 			conf: &structs.DynamicQueueConfig{
-				SizeWeight: 10,
-				MaxSize:    1000,
+				CpuWeight: 10,
+				MaxCpu:    1000,
+				MemWeight: 10,
+				MaxMemory: 1000,
 			},
 			workload: &dynamicPriorityWorkload{requestedResources: &UsageList{
 				resources: &ResourceUsage{
-					CPU:    500,
-					Memory: 500,
+					CPU:    1000,
+					Memory: 1000,
 				},
 			}},
 			exp: 0,
 		},
 		{
-			name: "smaller sized job results in expected adjustment",
+			name: "smaller requests results in expected adjustment",
 			conf: &structs.DynamicQueueConfig{
-				SizeWeight: 10,
-				MaxSize:    1000,
+				CpuWeight: 10,
+				MaxCpu:    1000,
+				MemWeight: 10,
+				MaxMemory: 1000,
 			},
 			workload: &dynamicPriorityWorkload{requestedResources: &UsageList{
 				resources: &ResourceUsage{
@@ -456,8 +460,10 @@ func TestDynamicPriorityQueue_sizeAdjustment(t *testing.T) {
 		{
 			name: "negative weight results in negative adjustment",
 			conf: &structs.DynamicQueueConfig{
-				SizeWeight: -10,
-				MaxSize:    1000,
+				CpuWeight: -10,
+				MaxCpu:    1000,
+				MemWeight: -10,
+				MaxMemory: 1000,
 			},
 			workload: &dynamicPriorityWorkload{requestedResources: &UsageList{
 				resources: &ResourceUsage{
@@ -473,7 +479,8 @@ func TestDynamicPriorityQueue_sizeAdjustment(t *testing.T) {
 		testQueue := &DynamicPriorityQueue{
 			conf: tc.conf,
 		}
-		must.Eq(t, tc.exp, testQueue.sizeAdjustment(tc.workload), must.Sprint(tc.name))
+		must.Eq(t, tc.exp, testQueue.cpuAdjustment(tc.workload), must.Sprint(tc.name))
+		must.Eq(t, tc.exp, testQueue.memAdjustment(tc.workload), must.Sprint(tc.name))
 	}
 }
 
@@ -560,7 +567,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 10,
 					},
 					priority:        59,
-					sizeAdjustment:  2,
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
@@ -573,7 +579,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         1,
 						AdjustedPriority: 59,
 						BasePriority:     50,
-						SizeAdjustment:   2,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreatedAt:        time.Unix(20, 0).UnixNano(),
@@ -596,7 +601,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 14,
 					},
 					priority:        59,
-					sizeAdjustment:  2,
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
@@ -610,7 +614,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 12,
 					},
 					priority:        66,
-					sizeAdjustment:  12,
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
@@ -624,7 +627,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 10,
 					},
 					priority:        51,
-					sizeAdjustment:  0,
 					ageAdjustment:   0,
 					usageAdjustment: 1,
 				},
@@ -637,7 +639,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         3,
 						AdjustedPriority: 51,
 						BasePriority:     50,
-						SizeAdjustment:   0,
 						AgeAdjustment:    0,
 						UsageAdjustment:  1,
 						CreateIndex:      10,
@@ -648,7 +649,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         1,
 						AdjustedPriority: 66,
 						BasePriority:     50,
-						SizeAdjustment:   12,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreateIndex:      12,
@@ -659,7 +659,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         2,
 						AdjustedPriority: 59,
 						BasePriority:     50,
-						SizeAdjustment:   2,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreateIndex:      14,
@@ -681,7 +680,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 14,
 					},
 					priority:        59,
-					sizeAdjustment:  2,
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
@@ -695,7 +693,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 12,
 					},
 					priority:        66,
-					sizeAdjustment:  12,
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
@@ -709,7 +706,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 10,
 					},
 					priority:        51,
-					sizeAdjustment:  0,
 					ageAdjustment:   0,
 					usageAdjustment: 1,
 				},
@@ -722,7 +718,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         1,
 						AdjustedPriority: 66,
 						BasePriority:     50,
-						SizeAdjustment:   12,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreateIndex:      12,
@@ -733,7 +728,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         2,
 						AdjustedPriority: 59,
 						BasePriority:     50,
-						SizeAdjustment:   2,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreateIndex:      14,
@@ -744,7 +738,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         3,
 						AdjustedPriority: 51,
 						BasePriority:     50,
-						SizeAdjustment:   0,
 						AgeAdjustment:    0,
 						UsageAdjustment:  1,
 						CreateIndex:      10,
@@ -767,7 +760,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 12,
 					},
 					priority:        59,
-					sizeAdjustment:  2,
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
@@ -782,7 +774,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						CreateIndex: 10,
 					},
 					priority:        59,
-					sizeAdjustment:  2,
 					ageAdjustment:   3,
 					usageAdjustment: 4,
 				},
@@ -795,7 +786,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         1,
 						AdjustedPriority: 59,
 						BasePriority:     50,
-						SizeAdjustment:   2,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreatedAt:        time.Unix(10, 0).UnixNano(),
@@ -807,7 +797,6 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 						Position:         2,
 						AdjustedPriority: 59,
 						BasePriority:     50,
-						SizeAdjustment:   2,
 						AgeAdjustment:    3,
 						UsageAdjustment:  4,
 						CreatedAt:        time.Unix(20, 0).UnixNano(),

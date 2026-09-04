@@ -39,7 +39,8 @@ type DynamicPriorityWorkload struct {
 	BasePriority     int
 	UsageAdjustment  int
 	AgeAdjustment    int
-	SizeAdjustment   int
+	CpuAdjustment    int
+	MemoryAdjustment int
 	CreatedAt        int64
 }
 
@@ -130,27 +131,37 @@ type DynamicQueueConfig struct {
 	// MetadataKey specifies the key used in job meta{} block.
 	// Each unique value is treated as a separate tenant.
 	// Only valid with TenantType = "metadata"
-	MetadataKey string `hcl:"metadata_key"`
+	MetadataKey string `hcl:"metadata_key,optional"`
+
+	// TODO: sensible defaults for interval and halflife
 
 	// CalcInterval is how often the queue will recalculate priorities.
-	CalcInterval time.Duration `hcl:"calc_interval"`
+	CalcInterval time.Duration `hcl:"calc_interval,optional"`
 
-	// AgeWeight determines how much the job's age affects its priority.
-	AgeWeight int `hcl:"age_weight"`
-	// MaxAge is the top end of the age calculation for a job,
-	// past which the age weight is capped.
-	MaxAge time.Duration `hcl:"max_age"`
-
-	// UsageWeight determines ...
-	UsageWeight int `hcl:"usage_weight"`
 	// HalfLife determines the rate at which we decay the impact of a job's
 	// resource usage over time.
-	HalfLife time.Duration `hcl:"half_life"`
+	HalfLife time.Duration `hcl:"half_life,optional"`
 
-	// SizeWeight ... TODO: mike made this obsolete
-	SizeWeight int `hcl:"size_weight"`
-	// MaxSize ... ditto ^
-	MaxSize int `hcl:"max_size"`
+	// UsageWeight determines how much a tenant's total resource usage affects
+	// the priority of all of its queued jobs.
+	UsageWeight int `hcl:"usage_weight,optional"`
+
+	// TODO: validate these weight/max pairs; if weight is set, max must be set too
+
+	// AgeWeight determines how much the job's age affects its priority.
+	AgeWeight int `hcl:"age_weight,optional"`
+	// MaxAge is the top end of the age calculation for a job, past which the age weight is capped.
+	MaxAge time.Duration `hcl:"max_age,optional"`
+
+	// CpuWeight determines how much a job's requested cpu affects its priority.
+	CpuWeight int `hcl:"cpu_weight,optional"`
+	// MaxCpu is the top end of the cpu value for a job, past which the cpu weight is capped.
+	MaxCpu int `hcl:"max_cpu,optional"`
+
+	// MemWeight determines how much a job's requested mem affects its priority.
+	MemWeight int `hcl:"memory_weight,optional"`
+	// MaxMemory is the top end of the memory value for a job, past which the memory weight is capped.
+	MaxMemory int `hcl:"max_memory,optional"`
 }
 
 func (qc *DynamicQueueConfig) Validate() error {

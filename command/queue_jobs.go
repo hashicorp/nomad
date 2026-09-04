@@ -181,10 +181,10 @@ func (c *QueueJobsCommand) printDynamicQueueFormatted(resp []api.DynamicPriority
 	}
 
 	out := make([]string, len(resp)+1)
-	out[0] = "JobID|Tenant|Adjusted Priority|Base Priority|Position|Usage|Age|Size|CreatedAt"
+	out[0] = "JobID|Tenant|Adjusted Priority|Base Priority|Position|Usage|Age|Cpu|Memory|CreatedAt"
 
 	for i, v := range resp {
-		out[i+1] = fmt.Sprintf("%s|%s|%d|%d|%d|%d|%d|%d|%s",
+		out[i+1] = fmt.Sprintf("%s|%s|%d|%d|%d|%d|%d|%d|%d|%s",
 			v.JobID,
 			v.Tenant,
 			v.AdjustedPriority,
@@ -192,7 +192,8 @@ func (c *QueueJobsCommand) printDynamicQueueFormatted(resp []api.DynamicPriority
 			v.Position,
 			v.UsageAdjustment,
 			v.AgeAdjustment,
-			v.SizeAdjustment,
+			v.CpuAdjustment,
+			v.MemoryAdjustment,
 			formatUnixNanoTime(v.CreatedAt),
 		)
 	}

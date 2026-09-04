@@ -100,12 +100,17 @@ type DynamicQueueConfig struct {
 	MetadataKey string
 
 	CalcInterval time.Duration
-	AgeWeight    int
-	MaxAge       time.Duration
 	HalfLife     time.Duration
-	SizeWeight   int
-	MaxSize      int
-	UsageWeight  int
+
+	UsageWeight int
+
+	MaxAge    time.Duration
+	AgeWeight int
+
+	CpuWeight int
+	MaxCpu    int
+	MemWeight int
+	MaxMemory int
 }
 
 func (qc *DynamicQueueConfig) Validate() error {
