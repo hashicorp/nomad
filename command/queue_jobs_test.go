@@ -33,15 +33,16 @@ func TestQueueJobsCommand_printDynamicQueueFormatted(t *testing.T) {
 			BasePriority:     10,
 			UsageAdjustment:  10,
 			AgeAdjustment:    5,
-			SizeAdjustment:   6,
+			CpuAdjustment:    5,
+			MemoryAdjustment: 5,
 			CreatedAt:        time.Now().UnixNano(),
 		},
 	}
 	cmd.printDynamicQueueFormatted(testResp)
 
 	expect := "Batch Queue Workloads\n" +
-		"JobID  Tenant       Adjusted Priority  Base Priority  Position  Usage  Age  Size  CreatedAt\n" +
-		fmt.Sprintf("123    testTenant1  10                 10             1         10     5    6     %v\n", formatUnixNanoTime(testResp[0].CreatedAt))
+		"JobID  Tenant       Adjusted Priority  Base Priority  Position  Usage  Age  Cpu  Memory  CreatedAt\n" +
+		"123    testTenant1  10                 10             1         10     5    5    5       " + fmt.Sprintf("%v\n", formatUnixNanoTime(testResp[0].CreatedAt))
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
@@ -60,7 +61,8 @@ func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
 			BasePriority:     10,
 			UsageAdjustment:  10,
 			AgeAdjustment:    5,
-			SizeAdjustment:   6,
+			CpuAdjustment:    5,
+			MemoryAdjustment: 5,
 			CreatedAt:        time.Now().UnixNano(),
 		},
 	}
