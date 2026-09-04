@@ -43,7 +43,8 @@ type DynamicPriorityWorkload struct {
 	BasePriority     int
 	UsageAdjustment  int
 	AgeAdjustment    int
-	SizeAdjustment   int
+	CpuAdjustment    int
+	MemoryAdjustment int
 	CreatedAt        int64
 }
 
