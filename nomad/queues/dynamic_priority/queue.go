@@ -23,13 +23,13 @@ type DynamicPriorityQueue struct {
 	// ability for log(n) insert and delete and allows for Top(k) lookups
 	queue queue.WorkloadQueue
 
-	// qMux locks the queue during concurrent access
-	qMux sync.Mutex
-
 	// tenants is used to keep track of cluster usage for this queue.
 	// When workloads are placed or the  configured interval is passed,
 	// cluster usage is updated for the workloads of each tenant.
 	tenants map[TenantID]*Tenant
+
+	// tMux locks the tenant map for concurrent access
+	tMux sync.Mutex
 
 	// qNotify allows for notifying the consumer that workloads
 	// have been added to the queue
@@ -63,7 +63,6 @@ func NewDynamicPriorityQueue(logger hclog.Logger, ss *state.StateStore, broker q
 	return &DynamicPriorityQueue{
 		queue:      queue.NewWorkloadQueue(workloadSortFn()),
 		evalBroker: broker,
-		qMux:       sync.Mutex{},
 		tenants:    make(map[TenantID]*Tenant),
 		enqueueCh:  make(chan *dynamicPriorityWorkload, 8192),
 		qNotify:    make(chan struct{}, 1),
@@ -175,12 +174,10 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case w := <-d.enqueueCh:
-			d.qMux.Lock()
 			// use createTime so that workloads have consistent age
 			// priority calculations after restoring from state.
 			d.setWorkloadPriority(time.Unix(0, w.eval.CreateTime), w)
 			d.queue.Push(w)
-			d.qMux.Unlock()
 
 			// Notify Workload consumer of new workload
 			select {
@@ -188,9 +185,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			default:
 			}
 		case <-time.After(d.conf.CalcInterval):
-			d.qMux.Lock()
 			d.calculatePriorities(time.Now())
-			d.qMux.Unlock()
 		}
 	}
 }
@@ -206,9 +201,7 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 		case <-d.qNotify:
 
 			// Pop a workload off the queue if available
-			d.qMux.Lock()
 			w := d.queue.Pop()
-			d.qMux.Unlock()
 
 			// We don't need to pass the waitOnRestore workload
 			// to the eval broker, that already happened.
@@ -222,12 +215,10 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
 			}
 
-			d.qMux.Lock()
 			if evalHasPlacement(w.GetEval()) {
 				d.updateUsage(w)
 			}
 			l := d.queue.Len()
-			d.qMux.Unlock()
 
 			// If the queue still has work, notify self
 			// to continue.
@@ -318,6 +309,9 @@ func (d *DynamicPriorityQueue) setWorkloadPriority(now time.Time, w *dynamicPrio
 // usageAdjustment calculates the adjustment to a workload's priority based on
 // it's tenant's usage relative to the total usage, and configured weight.
 func (d *DynamicPriorityQueue) usageAdjustment(w *dynamicPriorityWorkload) int {
+	d.tMux.Lock()
+	defer d.tMux.Unlock()
+
 	if d.conf.UsageWeight == 0 {
 		return 0
 	}
@@ -340,6 +334,9 @@ func (d *DynamicPriorityQueue) usageAdjustment(w *dynamicPriorityWorkload) int {
 // half-life. If the eval no longer exists in the state store, its workload's
 // usage is removed from the calculation.
 func (d *DynamicPriorityQueue) decayUsage(now time.Time) {
+	d.tMux.Lock()
+	defer d.tMux.Unlock()
+
 	totalUsage := &ResourceUsage{}
 
 	snap, err := d.state.Snapshot()
@@ -373,7 +370,6 @@ func (d *DynamicPriorityQueue) decayUsage(now time.Time) {
 }
 
 func decayMultiplier(now, createdAt time.Time, halfLife time.Duration) float64 {
-	// elapsed := time.Unix(0, ts).Sub(time.Unix(0, createdAt)).Seconds()
 	elapsed := now.Sub(createdAt)
 	return math.Pow(0.5, elapsed.Seconds()/halfLife.Seconds())
 }
@@ -421,17 +417,14 @@ func (d *DynamicPriorityQueue) sizeAdjustment(w *dynamicPriorityWorkload) int {
 }
 
 func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
-	d.qMux.Lock()
-	sortedWorkloads := d.queue.Slice()
-	d.qMux.Unlock()
-
 	pos := 0
 	workloads := []structs.QueueWorkload{}
-	for _, workload := range sortedWorkloads {
+
+	d.queue.Iterate(func(workload queue.Workload) {
 		w := workload.(*dynamicPriorityWorkload)
 		// waitOnRestore does not count towards position in queue
 		if w.waitOnRestore {
-			continue
+			return
 		}
 		pos++
 
@@ -448,7 +441,8 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 			CreatedAt:        w.eval.CreateTime,
 			CreateIndex:      w.eval.CreateIndex,
 		})
-	}
+	})
+
 	iter := queue.NewWorkloadIter(workloads)
 
 	if sortOrder != structs.SortByPriority {
@@ -459,8 +453,8 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 }
 
 func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
-	d.qMux.Lock()
-	defer d.qMux.Unlock()
+	d.tMux.Lock()
+	defer d.tMux.Unlock()
 
 	tenants := []structs.DynamicPriorityTenant{}
 	for _, t := range d.tenants {
@@ -479,6 +473,8 @@ func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
 
 // updateUsage updates the tenant and total usage for a given workload.
 func (d *DynamicPriorityQueue) updateUsage(w queue.Workload) {
+	d.tMux.Lock()
+	defer d.tMux.Unlock()
 
 	workload := w.(*dynamicPriorityWorkload)
 	tenant := d.tenants[workload.tid]
