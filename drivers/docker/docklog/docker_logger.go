@@ -57,7 +57,7 @@ type StartOpts struct {
 func NewDockerLogger(logger hclog.Logger) DockerLogger {
 	return &dockerLogger{
 		logger: logger,
-		doneCh: make(chan interface{}),
+		doneCh: make(chan any),
 	}
 }
 
@@ -70,7 +70,7 @@ type dockerLogger struct {
 	stdLock sync.Mutex
 
 	cancelCtx context.CancelFunc
-	doneCh    chan interface{}
+	doneCh    chan any
 }
 
 // Start log monitoring

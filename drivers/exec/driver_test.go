@@ -90,8 +90,7 @@ func TestExecDriver_Fingerprint_NonLinux(t *testing.T) {
 		t.Skip("Test only available not on Linux")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -112,8 +111,7 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -134,8 +132,7 @@ func TestExecDriver_WorkDir(t *testing.T) {
 
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -177,8 +174,7 @@ func TestExecDriver_StartWait(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -213,8 +209,7 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -278,8 +273,7 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	dCtx, dCancel := context.WithCancel(context.Background())
-	defer dCancel()
+	dCtx := t.Context()
 
 	d := newExecDriverTest(t, dCtx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -309,12 +303,10 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	require.NoError(t, err)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		result := <-ch
 		require.Error(t, result.Err)
-	}()
+	})
 
 	require.NoError(t, harness.WaitUntilStarted(task.ID, 1*time.Second))
 	cancel()
@@ -352,8 +344,7 @@ func TestExecDriver_NoOrphanedExecutor(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -389,7 +380,7 @@ func TestExecDriver_NoOrphanedExecutor(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
+	taskConfig := map[string]any{}
 	taskConfig["command"] = "force-an-error"
 	must.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 
@@ -415,8 +406,7 @@ func TestExecDriver_NoOrphanedTasks(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -452,7 +442,7 @@ func TestExecDriver_NoOrphanedTasks(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
 
-	taskConfig := map[string]interface{}{}
+	taskConfig := map[string]any{}
 	taskConfig["command"] = "/bin/sh"
 	// print the child PID in the task PID namespace, then sleep for 5 seconds to give us a chance to examine processes
 	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & sleep 20`)}
@@ -541,8 +531,7 @@ func TestExecDriver_Stats(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	dctx, dcancel := context.WithCancel(context.Background())
-	defer dcancel()
+	dctx := t.Context()
 
 	d := newExecDriverTest(t, dctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -569,8 +558,7 @@ func TestExecDriver_Stats(t *testing.T) {
 	require.NotNil(t, handle)
 
 	require.NoError(t, harness.WaitUntilStarted(task.ID, 1*time.Second))
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	statsCh, err := harness.TaskStats(ctx, task.ID, time.Second*10)
 	require.NoError(t, err)
 	select {
@@ -589,8 +577,7 @@ func TestExecDriver_Start_Wait_AllocDir(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -642,8 +629,7 @@ func TestExecDriver_User(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -680,8 +666,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -712,7 +697,7 @@ func TestExecDriver_HandlerExec(t *testing.T) {
 	stdout := strings.TrimSpace(string(res.Stdout))
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
-		for _, line := range strings.Split(stdout, "\n") {
+		for line := range strings.SplitSeq(stdout, "\n") {
 			// skip empty lines
 			if line == "" {
 				continue
@@ -750,8 +735,7 @@ func TestExecDriver_DevicesAndMounts(t *testing.T) {
 	err := os.WriteFile(filepath.Join(tmpDir, "testfile"), []byte("from-host"), 600)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -860,8 +844,7 @@ func TestExecDriver_NoPivotRoot(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -982,8 +965,7 @@ func TestDriver_Config_setDeniedIds(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
 			d := newExecDriverTest(t, ctx)
 

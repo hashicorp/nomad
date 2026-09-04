@@ -55,8 +55,8 @@ var (
 	// PluginConfig is the java driver factory function registered in the
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDriver(ctx, l) },
+		Config:  map[string]any{},
+		Factory: func(ctx context.Context, l hclog.Logger) any { return NewDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC

@@ -18,17 +18,13 @@ func runCommand(c Command, stdout, stderr io.WriteCloser, cancelCh <-chan struct
 	errCh := make(chan error, 1)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		runCommandOutput(stdout, c.StdoutString, c.StdoutRepeat, c.stdoutRepeatDuration, cancelCh, logger, errCh)
-	}()
+	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		runCommandOutput(stderr, c.StderrString, c.StderrRepeat, c.stderrRepeatDuration, cancelCh, logger, errCh)
-	}()
+	})
 
 	timer := time.NewTimer(c.runForDuration)
 	defer timer.Stop()
@@ -80,7 +76,7 @@ func runCommandOutput(writer io.WriteCloser,
 		return
 	}
 
-	for i := 0; i < outputRepeat; i++ {
+	for i := range outputRepeat {
 		select {
 		case <-cancelCh:
 			logger.Warn("exiting before done writing output", "i", i, "total", outputRepeat)

@@ -175,7 +175,7 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 		Resources: testResources(allocID, taskName),
 	}
 
-	taskConfig := map[string]interface{}{}
+	taskConfig := map[string]any{}
 	taskConfig["command"] = testtask.Path()
 	taskConfig["args"] = []string{"sleep", "100s"}
 
@@ -249,7 +249,7 @@ func TestRawExecDriver_DestroyKillsAll(t *testing.T) {
 
 	harness.MakeTaskCgroup(allocID, taskName)
 
-	taskConfig := map[string]interface{}{}
+	taskConfig := map[string]any{}
 	taskConfig["command"] = "/bin/sh"
 	taskConfig["args"] = []string{"-c", fmt.Sprintf(`sleep 3600 & echo "SLEEP_PID=$!"`)}
 
@@ -469,13 +469,11 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 
 	var waitDone bool
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		result := <-ch
 		require.Error(result.Err)
 		waitDone = true
-	}()
+	})
 
 	originalStatus, err := d.InspectTask(task.ID)
 	require.NoError(err)

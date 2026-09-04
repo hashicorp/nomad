@@ -561,7 +561,7 @@ func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
 	_, err = executor.Launch(execCmd)
 	require.NoError(t, err)
 
-	ch := make(chan interface{})
+	ch := make(chan any)
 	go func() {
 		executor.Wait(context.Background())
 		close(ch)
@@ -655,7 +655,7 @@ CapAmb: 0000000000000400`,
 			_, err := executor.Launch(execCmd)
 			require.NoError(t, err)
 
-			ch := make(chan interface{})
+			ch := make(chan any)
 			go func() {
 				executor.Wait(context.Background())
 				close(ch)
@@ -713,7 +713,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
-	ch := make(chan interface{})
+	ch := make(chan any)
 	go func() {
 		executor.Wait(context.Background())
 		close(ch)
