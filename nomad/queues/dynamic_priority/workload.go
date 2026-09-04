@@ -15,7 +15,8 @@ type dynamicPriorityWorkload struct {
 	eval               *structs.Evaluation
 	requestedResources *UsageList
 
-	sizeAdjustment  int
+	cpuAdjustment   int
+	memAdjustment   int
 	ageAdjustment   int
 	usageAdjustment int
 

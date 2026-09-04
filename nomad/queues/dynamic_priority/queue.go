@@ -365,7 +365,8 @@ func (d *DynamicPriorityQueue) setWorkloadPriority(now time.Time, w *dynamicPrio
 	w.priority = w.eval.Priority +
 		d.usageAdjustment(w) +
 		d.ageAdjustment(now, w) +
-		d.sizeAdjustment(w)
+		d.cpuAdjustment(w) +
+		d.memAdjustment(w)
 }
 
 // usageAdjustment calculates the adjustment to a workload's priority based on
@@ -460,16 +461,28 @@ func (d *DynamicPriorityQueue) ageAdjustment(now time.Time, w *dynamicPriorityWo
 	return w.ageAdjustment
 }
 
-func (d *DynamicPriorityQueue) sizeAdjustment(w *dynamicPriorityWorkload) int {
-	if d.conf.SizeWeight == 0 {
+func (d *DynamicPriorityQueue) cpuAdjustment(w *dynamicPriorityWorkload) int {
+	if d.conf.CpuWeight == 0 {
 		return 0
 	}
 
-	size := w.requestedResources.resources.Total() / float64(d.conf.MaxSize)
+	size := w.requestedResources.resources.CPU / float64(d.conf.MaxCpu)
 	sizeClamped := min(1.0, max(0.0, size))
 
-	w.sizeAdjustment = int((1 - sizeClamped) * float64(d.conf.SizeWeight))
-	return w.sizeAdjustment
+	w.cpuAdjustment = int((1 - sizeClamped) * float64(d.conf.CpuWeight))
+	return w.cpuAdjustment
+}
+
+func (d *DynamicPriorityQueue) memAdjustment(w *dynamicPriorityWorkload) int {
+	if d.conf.MemWeight == 0 {
+		return 0
+	}
+
+	size := w.requestedResources.resources.Memory / float64(d.conf.MaxMemory)
+	sizeClamped := min(1.0, max(0.0, size))
+
+	w.memAdjustment = int((1 - sizeClamped) * float64(d.conf.MemWeight))
+	return w.memAdjustment
 }
 
 func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
@@ -493,7 +506,8 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 			BasePriority:     w.eval.Priority,
 			UsageAdjustment:  w.usageAdjustment,
 			AgeAdjustment:    w.ageAdjustment,
-			SizeAdjustment:   w.sizeAdjustment,
+			CpuAdjustment:    w.cpuAdjustment,
+			MemoryAdjustment: w.memAdjustment,
 			CreatedAt:        w.eval.CreateTime,
 			CreateIndex:      w.eval.CreateIndex,
 		})
