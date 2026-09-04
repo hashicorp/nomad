@@ -362,7 +362,7 @@ func (s *TestServer) waitForServers() {
 		}
 
 		jwks := struct {
-			Keys []interface{} `json:"keys"`
+			Keys []any `json:"keys"`
 		}{}
 		if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
 			return false, fmt.Errorf("error decoding jwks response: %w", err)
@@ -469,7 +469,7 @@ func (s *TestServer) get(path string) *http.Response {
 
 // encodePayload returns a new io.Reader wrapping the encoded contents
 // of the payload, suitable for passing directly to a new request.
-func (s *TestServer) encodePayload(payload interface{}) io.Reader {
+func (s *TestServer) encodePayload(payload any) io.Reader {
 	var encoded bytes.Buffer
 	enc := json.NewEncoder(&encoded)
 	if err := enc.Encode(payload); err != nil {

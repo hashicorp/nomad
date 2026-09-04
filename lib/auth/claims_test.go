@@ -16,14 +16,14 @@ func TestSelectorData(t *testing.T) {
 		Name        string
 		Mapping     map[string]string
 		ListMapping map[string]string
-		Data        map[string]interface{}
+		Data        map[string]any
 		Expected    *structs.ACLAuthClaims
 	}{
 		{
 			"no mappings",
 			nil,
 			nil,
-			map[string]interface{}{"iss": "https://hashicorp.com"},
+			map[string]any{"iss": "https://hashicorp.com"},
 			&structs.ACLAuthClaims{
 				Value: map[string]string{},
 				List:  map[string][]string{},
@@ -34,7 +34,7 @@ func TestSelectorData(t *testing.T) {
 			"key",
 			map[string]string{"iss": "issuer"},
 			nil,
-			map[string]interface{}{"iss": "https://hashicorp.com"},
+			map[string]any{"iss": "https://hashicorp.com"},
 			&structs.ACLAuthClaims{
 				Value: map[string]string{"issuer": "https://hashicorp.com"},
 				List:  map[string][]string{},
@@ -45,7 +45,7 @@ func TestSelectorData(t *testing.T) {
 			"key doesn't exist",
 			map[string]string{"iss": "issuer"},
 			nil,
-			map[string]interface{}{"nope": "https://hashicorp.com"},
+			map[string]any{"nope": "https://hashicorp.com"},
 			&structs.ACLAuthClaims{
 				Value: map[string]string{},
 				List:  map[string][]string{},
@@ -56,8 +56,8 @@ func TestSelectorData(t *testing.T) {
 			"list",
 			nil,
 			map[string]string{"groups": "g"},
-			map[string]interface{}{
-				"groups": []interface{}{
+			map[string]any{
+				"groups": []any{
 					"A", 42, false,
 				},
 			},
@@ -85,7 +85,6 @@ func TestSelectorData(t *testing.T) {
 				},
 			},
 		},
-
 	}
 
 	for _, tt := range cases {

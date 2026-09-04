@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -132,19 +133,10 @@ func groupedHelpFunc(f cli.HelpFunc) cli.HelpFunc {
 		// commands output
 		otherCommands := make([]string, 0, len(commands))
 		for k := range commands {
-			found := false
-			for _, v := range commonCommands {
-				if k == v {
-					found = true
-					break
-				}
-			}
+			found := slices.Contains(commonCommands, k)
 
-			for _, v := range aliases {
-				if k == v {
-					found = true
-					break
-				}
+			if slices.Contains(aliases, k) {
+				found = true
 			}
 
 			if !found {

@@ -6,7 +6,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -92,7 +91,7 @@ func TestScript_Exec_Cancel(t *testing.T) {
 
 	// The underlying ScriptExecutor (newBlockScriptExec) *cannot* be
 	// canceled. Only a wrapper around it obeys the context cancelation.
-	require.NotEqual(t, atomic.LoadInt32(&exec.exited), 1,
+	require.NotEqual(t, exec.exited.Load(), 1,
 		"expected script executor to still be running after timeout")
 }
 
@@ -122,7 +121,7 @@ func TestScript_Exec_TimeoutBasic(t *testing.T) {
 
 	// The underlying ScriptExecutor (newBlockScriptExec) *cannot* be
 	// canceled. Only a wrapper around it obeys the context cancelation.
-	require.NotEqual(t, atomic.LoadInt32(&exec.exited), 1,
+	require.NotEqual(t, exec.exited.Load(), 1,
 		"expected script executor to still be running after timeout")
 
 	// Cancel and watch for exit

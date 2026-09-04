@@ -41,14 +41,14 @@ func (m *mockStatsUpdater) UpdateStats(ru *cstructs.TaskResourceUsage) {
 }
 
 type mockDriverStats struct {
-	called uint32
+	called atomic.Uint32
 
 	// err is returned by Stats if it is non-nil
 	err error
 }
 
 func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-chan *cstructs.TaskResourceUsage, error) {
-	atomic.AddUint32(&m.called, 1)
+	m.called.Add(1)
 
 	if m.err != nil {
 		return nil, m.err
@@ -80,7 +80,7 @@ func (m *mockDriverStats) Stats(ctx context.Context, interval time.Duration) (<-
 }
 
 func (m *mockDriverStats) Called() int {
-	return int(atomic.LoadUint32(&m.called))
+	return int(m.called.Load())
 }
 
 // TestTaskRunner_StatsHook_PoststartExited asserts the stats hook starts and

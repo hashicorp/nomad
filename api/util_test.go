@@ -132,11 +132,6 @@ func testQuotaSpec() *QuotaSpec {
 // conversions utils only used for testing
 // added here to avoid linter warning
 
-// float64ToPtr returns the pointer to an float64
-func float64ToPtr(f float64) *float64 {
-	return &f
-}
-
 // generateUUID generates a uuid useful for testing only
 func generateUUID() string {
 	buf := make([]byte, 16)

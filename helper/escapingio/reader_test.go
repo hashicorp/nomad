@@ -143,11 +143,9 @@ func TestEscapingReader_FlushesPartialReads(t *testing.T) {
 
 	var rerr error
 	var wg sync.WaitGroup
-	wg.Add(1)
 
 	// goroutine for reading partial data
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		buf := make([]byte, 1024)
 		for {
@@ -161,7 +159,7 @@ func TestEscapingReader_FlushesPartialReads(t *testing.T) {
 				break
 			}
 		}
-	}()
+	})
 
 	expected := &bytes.Buffer{}
 
@@ -377,7 +375,7 @@ func checkEquivalenceToReadOnce(t *testing.T, input string) bool {
 type readingInput string
 
 func (i readingInput) Generate(rand *rand.Rand, size int) reflect.Value {
-	v, ok := quick.Value(reflect.TypeOf(""), rand)
+	v, ok := quick.Value(reflect.TypeFor[string](), rand)
 	if !ok {
 		panic("couldn't generate a string")
 	}

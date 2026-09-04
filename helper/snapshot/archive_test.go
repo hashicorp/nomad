@@ -115,7 +115,7 @@ func TestArchive_BadData(t *testing.T) {
 
 func TestArchive_hashList(t *testing.T) {
 	hl := newHashList()
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		h := hl.Add(fmt.Sprintf("file-%d", i))
 		if _, err := io.CopyN(h, rand.Reader, 32); err != nil {
 			t.Fatalf("err: %v", err)

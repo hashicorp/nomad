@@ -276,7 +276,7 @@ func testReversion(t *testing.T) {
 	t.Cleanup(e2eutil.MaybeCleanupJobsAndGC(&jobIDs))
 
 	// register job 3 times
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		yVar := fmt.Sprintf("-var=Y=%d", i)
 
 		// register the job
@@ -298,7 +298,7 @@ func testReversion(t *testing.T) {
 	// there should be a submission for version 3, and it should
 	// contain Y=1 as did the version 1 of the job
 	expectY := []string{"0", "1", "2", "1"}
-	for version := 0; version < 4; version++ {
+	for version := range 4 {
 		sub, _, err := nomad.Jobs().Submission(jobID, version, &api.QueryOptions{
 			Namespace: "default",
 		})

@@ -133,8 +133,8 @@ func ParseColumns(section string) ([]map[string]string, error) {
 // (ex. the Latest Deployment section of `nomad job status :id`)
 func ParseFields(section string) (map[string]string, error) {
 	parsed := map[string]string{}
-	rows := strings.Split(strings.TrimSpace(section), "\n")
-	for _, row := range rows {
+	rows := strings.SplitSeq(strings.TrimSpace(section), "\n")
+	for row := range rows {
 		kv := strings.Split(row, "=")
 		if len(kv) == 0 {
 			continue

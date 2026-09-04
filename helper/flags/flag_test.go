@@ -15,7 +15,7 @@ import (
 func TestStringFlag_implements(t *testing.T) {
 	ci.Parallel(t)
 
-	var raw interface{}
+	var raw any
 	raw = new(StringFlag)
 	if _, ok := raw.(flag.Value); !ok {
 		t.Fatalf("StringFlag should be a Value")

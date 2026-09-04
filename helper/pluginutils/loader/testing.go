@@ -36,7 +36,7 @@ type MockInstance struct {
 	InternalPlugin  bool
 	KillF           func()
 	ReattachConfigF func() (*plugin.ReattachConfig, bool)
-	PluginF         func() interface{}
+	PluginF         func() any
 	ExitedF         func() bool
 	ApiVersionF     func() string
 }
@@ -44,14 +44,14 @@ type MockInstance struct {
 func (m *MockInstance) Internal() bool                                 { return m.InternalPlugin }
 func (m *MockInstance) Kill()                                          { m.KillF() }
 func (m *MockInstance) ReattachConfig() (*plugin.ReattachConfig, bool) { return m.ReattachConfigF() }
-func (m *MockInstance) Plugin() interface{}                            { return m.PluginF() }
+func (m *MockInstance) Plugin() any                                    { return m.PluginF() }
 func (m *MockInstance) Exited() bool                                   { return m.ExitedF() }
 func (m *MockInstance) ApiVersion() string                             { return m.ApiVersionF() }
 
 // MockBasicExternalPlugin returns a MockInstance that simulates an external
 // plugin returning it has been exited after kill is called. It returns the
 // passed inst as the plugin
-func MockBasicExternalPlugin(inst interface{}, apiVersion string) *MockInstance {
+func MockBasicExternalPlugin(inst any, apiVersion string) *MockInstance {
 	var killedLock sync.Mutex
 	killed := new(false)
 	return &MockInstance{
@@ -74,7 +74,7 @@ func MockBasicExternalPlugin(inst interface{}, apiVersion string) *MockInstance 
 			}, true
 		},
 
-		PluginF: func() interface{} {
+		PluginF: func() any {
 			return inst
 		},
 
