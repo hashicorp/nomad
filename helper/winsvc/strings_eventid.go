@@ -20,8 +20,9 @@ const _WindowsEventId_name = "unknown eventservice startingservice readyservice 
 var _WindowsEventId_index = [...]uint8{0, 13, 29, 42, 57, 68}
 
 func (i WindowsEventId) String() string {
-	if i >= WindowsEventId(len(_WindowsEventId_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_WindowsEventId_index)-1 {
 		return "WindowsEventId(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _WindowsEventId_name[_WindowsEventId_index[i]:_WindowsEventId_index[i+1]]
+	return _WindowsEventId_name[_WindowsEventId_index[idx]:_WindowsEventId_index[idx+1]]
 }
