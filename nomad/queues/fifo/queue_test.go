@@ -166,8 +166,8 @@ func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval1})
 	ss.UpsertEvals(structs.MsgTypeTestSetup, 5, []*structs.Evaluation{eval2})
 
-	q.Enqueue(eval1)
-	q.Enqueue(eval2)
+	q.Enqueue(eval1, nil)
+	q.Enqueue(eval2, nil)
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
