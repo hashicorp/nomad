@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/netip"
 	"os"
@@ -1495,9 +1496,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	labels := make(map[string]string, len(driverConfig.Labels)+1)
-	for k, v := range driverConfig.Labels {
-		labels[k] = v
-	}
+	maps.Copy(labels, driverConfig.Labels)
 	// main mandatory label
 	labels[dockerLabelAllocID] = task.AllocID
 
@@ -1932,7 +1931,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	defer opts.Stdout.Close()
 	defer opts.Stderr.Close()
 
-	done := make(chan interface{})
+	done := make(chan any)
 	defer close(done)
 
 	h, ok := d.tasks.Get(taskID)

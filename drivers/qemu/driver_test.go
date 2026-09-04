@@ -37,8 +37,7 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	topology := numalib.Scan(numalib.PlatformScanners(false))
 	d := NewQemuDriver(ctx, testlog.HCLogger(t))
@@ -115,8 +114,7 @@ func TestQemuDriver_User(t *testing.T) {
 	ctestutil.QemuCompatible_x86_64(t)
 	ctestutil.CgroupsCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	topology := numalib.Scan(numalib.PlatformScanners(false))
 	d := NewQemuDriver(ctx, testlog.HCLogger(t))
@@ -242,8 +240,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 	ctestutil.QemuCompatible_aarch64(t)
 
 	t.Run("fingerpints all emulators", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 
 		d := NewQemuDriver(ctx, testlog.HCLogger(t))
 		harness := dtestutil.NewDriverHarness(t, d)
@@ -265,8 +262,7 @@ func TestQemuDriver_Fingerprint(t *testing.T) {
 
 	t.Run("fingerprints only allowed emulators", func(t *testing.T) {
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		ctx := t.Context()
 
 		allowedEms := []string{"x86_64"}
 		d := NewQemuDriver(ctx, testlog.HCLogger(t))

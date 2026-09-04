@@ -342,7 +342,7 @@ func (d *dockerCoordinator) removeImageImpl(id string, ctx context.Context) {
 	}
 	d.imageLock.Unlock()
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := d.client.ImageRemove(d.ctx, id, mclient.ImageRemoveOptions{
 			Force: true, // necessary to GC images referenced by multiple tags
 		})

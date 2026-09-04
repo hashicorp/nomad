@@ -5,6 +5,7 @@
 package capabilities
 
 import (
+	"maps"
 	"sort"
 	"strings"
 )
@@ -44,9 +45,7 @@ func insert(data map[string]nothing, cap string) {
 	switch name := normalize(cap); name {
 	case "":
 	case "all":
-		for k, v := range Supported().data {
-			data[k] = v
-		}
+		maps.Copy(data, Supported().data)
 		return
 	default:
 		data[name] = null

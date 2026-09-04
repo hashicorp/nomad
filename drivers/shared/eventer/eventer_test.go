@@ -19,8 +19,7 @@ func TestEventer(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	e := NewEventer(ctx, testlog.HCLogger(t))
 
 	events := []*drivers.TaskEvent{
@@ -38,8 +37,7 @@ func TestEventer(t *testing.T) {
 		},
 	}
 
-	ctx1, cancel1 := context.WithCancel(context.Background())
-	defer cancel1()
+	ctx1 := t.Context()
 	consumer1, err := e.TaskEvents(ctx1)
 	require.NoError(err)
 	ctx2 := (context.Background())
@@ -102,13 +100,11 @@ func TestEventer_iterateConsumers(t *testing.T) {
 	require.Equal(1, len(e.consumers))
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		ev1, ok := <-consumer
 		require.Exactly(ev, ev1)
 		require.True(ok)
-	}()
+	})
 	e.iterateConsumers(ev)
 	wg.Wait()
 

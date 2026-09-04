@@ -114,8 +114,7 @@ func newEnabledRawExecDriver(t *testing.T) *Driver {
 func TestRawExecDriver_SetConfig(t *testing.T) {
 	ci.Parallel(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	logger := testlog.HCLogger(t)
 

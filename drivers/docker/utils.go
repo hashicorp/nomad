@@ -369,10 +369,10 @@ func registryGetAuthConfigKey(index *registrytypes.IndexInfo) string {
 
 func registryConvertToHostname(rawURL string) string {
 	stripped := rawURL
-	if strings.HasPrefix(stripped, "http://") {
-		stripped = strings.TrimPrefix(stripped, "http://")
-	} else if strings.HasPrefix(stripped, "https://") {
-		stripped = strings.TrimPrefix(stripped, "https://")
+	if after, ok := strings.CutPrefix(stripped, "http://"); ok {
+		stripped = after
+	} else if after, ok := strings.CutPrefix(stripped, "https://"); ok {
+		stripped = after
 	}
 	stripped, _, _ = strings.Cut(stripped, "/")
 	return stripped
