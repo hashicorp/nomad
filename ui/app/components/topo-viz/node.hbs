@@ -129,6 +129,20 @@
               height="{{this.height}}px"
             />
           {{/if}}
+          {{#if this.data.memoryReserved}}
+            <g
+              data-test-reserved-memory
+              class="reserved-segment"
+              clip-path="url(#{{this.maskId}})"
+              {{on "mouseenter" this.highlightReserved}}
+              {{on "mouseleave" this.allocationBlur}}>
+              <rect
+                fill="url(#diagonal-stripe-orange)"
+                x="{{this.data.memoryReserved.x}}px"
+                width="{{this.data.memoryReserved.width}}px"
+                height="{{this.height}}px" />
+            </g>
+          {{/if}}
           {{#each this.data.memory key="allocation.id" as |memory|}}
             <g
               data-test-memory-rect="{{memory.allocation.allocation.id}}"
@@ -192,6 +206,21 @@
               width="{{this.data.cpuRemainder.width}}px"
               height="{{this.height}}px"
             />
+          {{/if}}
+          {{#if this.data.cpuReserved}}
+            <g
+              data-test-reserved-cpu
+              class="reserved-segment"
+              clip-path="url(#{{this.maskId}})"
+              {{on "mouseenter" this.highlightReserved}}
+              {{on "mouseleave" this.allocationBlur}}>
+              <rect
+                fill="url(#diagonal-stripe-orange)"
+                x="{{this.data.cpuReserved.x}}px"
+                y="{{this.yOffset}}px"
+                width="{{this.data.cpuReserved.width}}px"
+                height="{{this.height}}px" />
+            </g>
           {{/if}}
           {{#each this.data.cpu key="allocation.id" as |cpu|}}
             <g
