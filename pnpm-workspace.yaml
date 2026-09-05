@@ -16,6 +16,7 @@ overrides:
   ember-inflector: 6.0.0
   linkify-it: 5.0.2
   markdown-it: ^14.2.0
+  fast-uri: '>=3.1.6'
   qs@>=6.11.1 <=6.15.1: '>=6.15.2'
   shell-quote@>=1.1.0 <=1.8.3: '>=1.8.4'
   tmp@<0.2.6: '>=0.2.6'
