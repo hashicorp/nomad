@@ -166,7 +166,7 @@ type BinPackIterator struct {
 	jobId                  structs.NamespacedID
 	taskGroup              *structs.TaskGroup
 	memoryOversubscription bool
-	scoreFit               func(*structs.Node, *structs.ComparableResources) float64
+	scoreFit               func(*structs.Node, *structs.BaseComparableResource) float64
 }
 
 // NewBinPackIterator returns a BinPackIterator which tries to fit tasks
@@ -225,6 +225,11 @@ NEXTNODE:
 			continue
 		}
 
+		// Once we have populated this, we should no longer use proposed.
+		allocResources := make(structs.AllocResourceCache, len(proposed))
+		allocResources.Insert(proposed...)
+		allocs := allocResources.Allocs()
+
 		// Index the existing network usage.
 		// This should never collide, since it represents the current state of
 		// the node. If it does collide though, it means we found a bug! So
@@ -239,14 +244,14 @@ NEXTNODE:
 			iter.ctx.Metrics().ExhaustedNode(option.Node, "network: invalid node")
 			continue
 		}
-		if collide, reason := netIdx.AddAllocs(proposed); collide {
+		if collide, reason := netIdx.AddAllocs(allocs); collide {
 			event := &sstructs.PortCollisionEvent{
 				Reason:      reason,
 				NetIndex:    netIdx.Copy(),
 				Node:        option.Node,
-				Allocations: make([]*structs.Allocation, len(proposed)),
+				Allocations: make([]*structs.Allocation, len(allocs)),
 			}
-			for i, alloc := range proposed {
+			for i, alloc := range allocs {
 				event.Allocations[i] = alloc.Copy()
 			}
 			iter.ctx.SendEvent(event)
@@ -256,7 +261,7 @@ NEXTNODE:
 
 		// Create a device allocator
 		devAllocator := newDeviceAllocator(iter.ctx, option.Node)
-		devAllocator.AddAllocs(proposed)
+		devAllocator.AddAllocs(allocs)
 
 		// Track the affinities of the devices
 		totalDeviceAffinityWeight := 0.0
@@ -323,7 +328,7 @@ NEXTNODE:
 				}
 
 				// Look for preemptible allocations to satisfy the network resource for this task
-				preemptor.SetCandidates(proposed)
+				preemptor.SetCandidates(allocResources)
 
 				netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 				if netPreemptions == nil {
@@ -336,13 +341,14 @@ NEXTNODE:
 				allocsToPreempt = append(allocsToPreempt, netPreemptions...)
 
 				// First subtract out preempted allocations
-				proposed = structs.RemoveAllocs(proposed, netPreemptions)
+				allocResources.Remove(netPreemptions...)
+				allocs = allocResources.Allocs()
 
 				// Reset the network index and try the offer again
 				netIdx.Release()
 				netIdx = structs.NewNetworkIndex()
 				netIdx.SetNode(option.Node)
-				netIdx.AddAllocs(proposed)
+				netIdx.AddAllocs(allocs)
 
 				offer, err = netIdx.AssignPorts(ask)
 				if err != nil {
@@ -411,7 +417,7 @@ NEXTNODE:
 					}
 
 					// Look for preemptible allocations to satisfy the network resource for this task
-					preemptor.SetCandidates(proposed)
+					preemptor.SetCandidates(allocResources)
 
 					netPreemptions := preemptor.PreemptForNetwork(ask, netIdx)
 					if netPreemptions == nil {
@@ -424,13 +430,14 @@ NEXTNODE:
 					allocsToPreempt = append(allocsToPreempt, netPreemptions...)
 
 					// First subtract out preempted allocations
-					proposed = structs.RemoveAllocs(proposed, netPreemptions)
+					allocResources.Remove(netPreemptions...)
+					allocs = allocResources.Allocs()
 
 					// Reset the network index and try the offer again
 					netIdx.Release()
 					netIdx = structs.NewNetworkIndex()
 					netIdx.SetNode(option.Node)
-					netIdx.AddAllocs(proposed)
+					netIdx.AddAllocs(allocs)
 
 					offer, err = netIdx.AssignTaskNetwork(ask)
 					if offer == nil {
@@ -473,9 +480,8 @@ NEXTNODE:
 
 				// set of already consumed cores on this node
 				consumedCores := idset.Empty[hw.CoreID]()
-				for _, alloc := range proposed {
-					allocCores := alloc.AllocatedResources.Comparable().Flattened.Cpu.ReservedCores
-					idset.InsertSlice(consumedCores, allocCores...)
+				for _, val := range allocResources {
+					idset.InsertSlice(consumedCores, val.Resource.ReservedCores...)
 				}
 
 				// add cores reserved for other tasks
@@ -590,7 +596,7 @@ NEXTNODE:
 				totalDeviceAffinityWeightSnapshot := totalDeviceAffinityWeight
 				preemptorSnapshot := preemptor.Copy()
 				allocsToPreemptSnapshot := helper.CopySlice(allocsToPreempt)
-				proposedSnapshot := helper.CopySlice(proposed)
+				allocSnapshot := helper.CopySlice(allocs)
 
 				var offerErr error = nil
 
@@ -613,7 +619,7 @@ NEXTNODE:
 							offerErr = err
 
 							// get the potential preemptions
-							preemptor.SetCandidates(proposed) // allocations
+							preemptor.SetCandidates(allocResources) // allocations
 							devicePreemptions := preemptor.PreemptForDevice(device, devAllocator)
 
 							restoreSnapshots := func() {
@@ -623,7 +629,7 @@ NEXTNODE:
 								totalDeviceAffinityWeight = totalDeviceAffinityWeightSnapshot
 								preemptor = preemptorSnapshot
 								allocsToPreempt = allocsToPreemptSnapshot
-								proposed = proposedSnapshot
+								allocs = allocSnapshot
 							}
 
 							// not able to assign device even with preemption,
@@ -636,11 +642,12 @@ NEXTNODE:
 							allocsToPreempt = append(allocsToPreempt, devicePreemptions...)
 
 							// subtract out preempted allocations
-							proposed = structs.RemoveAllocs(proposed, allocsToPreempt)
+							allocResources.Remove(allocsToPreempt...)
+							allocs = allocResources.Allocs()
 
-							// use a device allocator with new set of proposed allocs
+							// use a device allocator with new set of allocs
 							devAllocatorEvict := newDeviceAllocator(iter.ctx, option.Node)
-							devAllocatorEvict.AddAllocs(proposed)
+							devAllocatorEvict.AddAllocs(allocs)
 
 							// attempt the offer again
 							offerEvict, sumAffinitiesEvict, err := devAllocatorEvict.createOffer(memory, device)
@@ -694,9 +701,8 @@ NEXTNODE:
 
 				// set of consumed cores on this node
 				consumedCores := idset.Empty[hw.CoreID]()
-				for _, alloc := range proposed { // proposed is existing + proposal
-					allocCores := alloc.AllocatedResources.Comparable().Flattened.Cpu.ReservedCores
-					idset.InsertSlice(consumedCores, allocCores...)
+				for _, val := range allocResources {
+					idset.InsertSlice(consumedCores, val.Resource.ReservedCores...)
 				}
 
 				// add cores reserved for other tasks
@@ -718,7 +724,6 @@ NEXTNODE:
 				cores, bandwidth := (&coreSelector{
 					topology:         option.Node.NodeResources.Processors.Topology,
 					availableCores:   availableCores,
-					shuffle:          randomizeCores,
 					deviceMemoryNode: deviceMemoryNode,
 				}).Select(task.Resources)
 
@@ -742,14 +747,11 @@ NEXTNODE:
 			total.TaskLifecycles[task.Name] = task.Lifecycle
 		}
 
-		// Store current set of running allocs before adding resources for the task group
-		current := proposed
-
 		// Add the resources we are trying to fit
-		proposed = append(proposed, &structs.Allocation{AllocatedResources: total})
+		allocResources.Insert(&structs.Allocation{AllocatedResources: total})
 
 		// Check if these allocations fit, if they do not, simply skip this node
-		fit, dim, util, _ := structs.AllocsFit(option.Node, proposed, netIdx, false)
+		fit, dim, util, _ := structs.AllocsFit(option.Node, allocResources, netIdx, false)
 		netIdx.Release()
 		if !fit {
 			// Skip the node if evictions are not enabled
@@ -762,7 +764,7 @@ NEXTNODE:
 			// any allocs can be preempted
 
 			// Initialize preemptor with candidate set
-			preemptor.SetCandidates(current)
+			preemptor.SetCandidates(allocResources)
 
 			preemptedAllocs := preemptor.PreemptForTaskGroup(total)
 			allocsToPreempt = append(allocsToPreempt, preemptedAllocs...)
