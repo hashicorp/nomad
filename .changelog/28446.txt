@@ -1,0 +1,3 @@
+```release-note:bug
+client: Prevent logmon from leaking file descriptors of unused log pipes
+```
