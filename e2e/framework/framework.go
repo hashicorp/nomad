@@ -100,7 +100,7 @@ func New() *Framework {
 		Arch:     *fArch,
 		Tags:     map[string]struct{}{},
 	}
-	for _, tag := range strings.Split(*fTags, ",") {
+	for tag := range strings.SplitSeq(*fTags, ",") {
 		env.Tags[tag] = struct{}{}
 	}
 	return &Framework{
@@ -247,8 +247,7 @@ func (f *Framework) runCase(t *testing.T, s *TestSuite, c TestCase) {
 		// Here we need to iterate through the methods of the case to find
 		// ones that are test functions
 		reflectC := reflect.TypeOf(c)
-		for i := 0; i < reflectC.NumMethod(); i++ {
-			method := reflectC.Method(i)
+		for method := range reflectC.Methods() {
 			if ok := isTestMethod(method.Name); !ok {
 				continue
 			}

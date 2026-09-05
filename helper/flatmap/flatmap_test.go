@@ -38,12 +38,12 @@ type containers struct {
 }
 
 type interfaceHolder struct {
-	value interface{}
+	value any
 }
 
 func TestFlatMap(t *testing.T) {
 	cases := []struct {
-		Input         interface{}
+		Input         any
 		Expected      map[string]string
 		Filter        []string
 		PrimitiveOnly bool

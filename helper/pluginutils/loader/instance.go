@@ -21,7 +21,7 @@ type PluginInstance interface {
 	ReattachConfig() (config *plugin.ReattachConfig, canReattach bool)
 
 	// Plugin returns the wrapped plugin instance.
-	Plugin() interface{}
+	Plugin() any
 
 	// Exited returns whether the plugin has exited
 	Exited() bool
@@ -32,7 +32,7 @@ type PluginInstance interface {
 
 // internalPluginInstance wraps an internal plugin
 type internalPluginInstance struct {
-	instance   interface{}
+	instance   any
 	apiVersion string
 	killFn     func()
 }
@@ -41,21 +41,21 @@ func (p *internalPluginInstance) Internal() bool { return true }
 func (p *internalPluginInstance) Kill()          { p.killFn() }
 
 func (p *internalPluginInstance) ReattachConfig() (*plugin.ReattachConfig, bool) { return nil, false }
-func (p *internalPluginInstance) Plugin() interface{}                            { return p.instance }
+func (p *internalPluginInstance) Plugin() any                                    { return p.instance }
 func (p *internalPluginInstance) Exited() bool                                   { return false }
 func (p *internalPluginInstance) ApiVersion() string                             { return p.apiVersion }
 
 // externalPluginInstance wraps an external plugin
 type externalPluginInstance struct {
 	client     *plugin.Client
-	instance   interface{}
+	instance   any
 	apiVersion string
 }
 
-func (p *externalPluginInstance) Internal() bool      { return false }
-func (p *externalPluginInstance) Plugin() interface{} { return p.instance }
-func (p *externalPluginInstance) Exited() bool        { return p.client.Exited() }
-func (p *externalPluginInstance) ApiVersion() string  { return p.apiVersion }
+func (p *externalPluginInstance) Internal() bool     { return false }
+func (p *externalPluginInstance) Plugin() any        { return p.instance }
+func (p *externalPluginInstance) Exited() bool       { return p.client.Exited() }
+func (p *externalPluginInstance) ApiVersion() string { return p.apiVersion }
 
 func (p *externalPluginInstance) ReattachConfig() (*plugin.ReattachConfig, bool) {
 	return p.client.ReattachConfig(), true

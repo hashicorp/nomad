@@ -50,7 +50,7 @@ func (sc *StreamClient) Close() {
 // Conn is a pooled connection to a Nomad server
 type Conn struct {
 	refCount    int32
-	shouldClose int32
+	shouldClose atomic.Int32
 
 	addr     net.Addr
 	session  *yamux.Session
@@ -73,7 +73,7 @@ func (c *Conn) markForUse() {
 // releaseUse is the complement of `markForUse`, to free up the reference count
 func (c *Conn) releaseUse() {
 	refCount := atomic.AddInt32(&c.refCount, -1)
-	if refCount == 0 && atomic.LoadInt32(&c.shouldClose) == 1 {
+	if refCount == 0 && c.shouldClose.Load() == 1 {
 		c.Close()
 	}
 }
@@ -122,7 +122,7 @@ func (c *Conn) getRPCClient() (*StreamClient, error) {
 func (c *Conn) returnClient(client *StreamClient) {
 	didSave := false
 	c.clientLock.Lock()
-	if c.clients.Len() < c.pool.maxStreams && atomic.LoadInt32(&c.shouldClose) == 0 {
+	if c.clients.Len() < c.pool.maxStreams && c.shouldClose.Load() == 0 {
 		c.clients.PushFront(client)
 		didSave = true
 
@@ -447,7 +447,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 // an error
 func (p *ConnPool) clearConn(conn *Conn) {
 	// Ensure returned streams are closed
-	atomic.StoreInt32(&conn.shouldClose, 1)
+	conn.shouldClose.Store(1)
 
 	// Clear from the cache
 	p.Lock()
@@ -510,7 +510,7 @@ func (p *ConnPool) StreamingRPC(region string, addr net.Addr) (net.Conn, error) 
 }
 
 // RPC is used to make an RPC call to a remote host
-func (p *ConnPool) RPC(region string, addr net.Addr, method string, args interface{}, reply interface{}) error {
+func (p *ConnPool) RPC(region string, addr net.Addr, method string, args any, reply any) error {
 	// Get a usable client
 	conn, sc, err := p.getRPCClient(region, addr)
 	if err != nil {

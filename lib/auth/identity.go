@@ -10,7 +10,7 @@ import (
 type Identity struct {
 	// Claims is the format of this Identity suitable for selection
 	// with a binding rule.
-	Claims interface{}
+	Claims any
 
 	// ClaimMappings is the format of this Identity suitable for interpolation in a
 	// bind name within a binding rule.

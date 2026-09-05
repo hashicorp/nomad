@@ -31,11 +31,11 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		config       interface{}
+		config       any
 		spec         hcldec.Spec
 		vars         map[string]cty.Value
-		expected     interface{}
-		expectedType interface{}
+		expected     any
+		expectedType any
 	}{
 		{
 			name: "single string attr",
@@ -387,7 +387,6 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Logf("Val: % #v", pretty.Formatter(c.config))
 			// Parse the interface
@@ -602,11 +601,11 @@ func TestCtyValueToMapInterface(t *testing.T) {
 
 	m, err := hclutils.CtyValueToMapInterface(v)
 	must.NoError(t, err)
-	must.Eq(t, map[string]interface{}{
+	must.Eq(t, map[string]any{
 		"a": "hello",
 		"b": 42,
-		"c": []interface{}{"one", "two"},
-		"d": map[string]interface{}{"x": true},
+		"c": []any{"one", "two"},
+		"d": map[string]any{"x": true},
 	}, m)
 }
 
@@ -618,7 +617,7 @@ func TestCtyValueToMapInterface_MapInput(t *testing.T) {
 
 	m, err := hclutils.CtyValueToMapInterface(v)
 	must.NoError(t, err)
-	must.Eq(t, map[string]interface{}{
+	must.Eq(t, map[string]any{
 		"first":  "value",
 		"second": "another",
 	}, m)

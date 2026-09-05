@@ -16,7 +16,7 @@ type heapItem struct {
 	ScoreVal float64
 }
 
-func (h *heapItem) Data() interface{} {
+func (h *heapItem) Data() any {
 	return h.Value
 }
 

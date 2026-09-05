@@ -78,7 +78,7 @@ func TestValidate(t *testing.T) {
 		name    string
 		token   string
 		conf    *structs.ACLAuthMethodConfig
-		want    map[string]interface{}
+		want    map[string]any
 		wantErr bool
 	}{
 		{

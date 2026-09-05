@@ -578,28 +578,28 @@ func TestNodeStatValueFormatting(t *testing.T) {
 		{
 			"2.718",
 			StatValue{
-				FloatNumeratorVal: float64ToPtr(2.718),
+				FloatNumeratorVal: new(2.718),
 			},
 		},
 		{
 			"2.718 / 3.14",
 			StatValue{
-				FloatNumeratorVal:   float64ToPtr(2.718),
-				FloatDenominatorVal: float64ToPtr(3.14),
+				FloatNumeratorVal:   new(2.718),
+				FloatDenominatorVal: new(3.14),
 			},
 		},
 		{
 			"2.718 MHz",
 			StatValue{
-				FloatNumeratorVal: float64ToPtr(2.718),
+				FloatNumeratorVal: new(2.718),
 				Unit:              "MHz",
 			},
 		},
 		{
 			"2.718 / 3.14 MHz",
 			StatValue{
-				FloatNumeratorVal:   float64ToPtr(2.718),
-				FloatDenominatorVal: float64ToPtr(3.14),
+				FloatNumeratorVal:   new(2.718),
+				FloatDenominatorVal: new(3.14),
 				Unit:                "MHz",
 			},
 		},

@@ -6,6 +6,7 @@ package loader
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -411,9 +412,7 @@ func (l *PluginLoader) mergePlugins(internal, external map[PluginID]*pluginInfo)
 	finalized := make(map[PluginID]*pluginInfo, len(internal))
 
 	// Load the internal plugins
-	for k, v := range internal {
-		finalized[k] = v
-	}
+	maps.Copy(finalized, internal)
 
 	for k, extPlugin := range external {
 		internal, ok := finalized[k]
@@ -461,7 +460,7 @@ func (l *PluginLoader) validatePluginConfigs() (map[string]*InternalPluginConfig
 // validatePluginConfig is used to validate the plugin's configuration. If the
 // plugin has a config, it is parsed with the plugins config schema and
 // SetConfig is called to ensure the config is valid.
-func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) (map[string]interface{}, error) {
+func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) (map[string]any, error) {
 	var mErr multierror.Error
 
 	// Check if a config is allowed
@@ -484,7 +483,7 @@ func (l *PluginLoader) validatePluginConfig(id PluginID, info *pluginInfo) (map[
 	// If there is no config, initialize it to an empty map so we can still
 	// handle defaults
 	if info.config == nil {
-		info.config = map[string]interface{}{}
+		info.config = map[string]any{}
 	}
 
 	// Parse the config using the spec

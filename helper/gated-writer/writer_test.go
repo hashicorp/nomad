@@ -109,13 +109,10 @@ func TestWriter_WithMultipleWriters(t *testing.T) {
 	wg := &sync.WaitGroup{}
 
 	for _, str := range strs {
-		str := str
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-waitCh
 			writer.Write([]byte(str))
-		}()
+		})
 	}
 
 	// synchronize calls to Write() as closely as possible
