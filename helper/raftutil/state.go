@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	"github.com/hashicorp/nomad/helper/raftwalmetadata"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -78,7 +79,7 @@ func raftStateInfoBoltDB(p string) (store RaftStore, firstIdx uint64, lastIdx ui
 }
 
 func raftStateInfoWAL(p string) (store RaftStore, firstIdx uint64, lastIdx uint64, err error) {
-	s, err := raftwal.Open(p)
+	s, err := raftwal.Open(p, raftwal.WithMetaStore(&raftwalmetadata.FileMetaDB{}))
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("failed to open WAL logs: %v", err)
 	}
