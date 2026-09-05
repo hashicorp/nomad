@@ -42,7 +42,7 @@
     {{#if (eq @statusMode "historical")}}
       <JobPage::Parts::SummaryChart @job={{@job}} />
     {{else}}
-      <h3 class="title is-4 running-allocs-title">
+      <h2 class="title is-4 running-allocs-title">
         {{#if this.allAllocsComplete}}
           All allocations have completed successfully
         {{else}}
@@ -60,7 +60,7 @@
           {{pluralize "Allocation" this.runningAllocs.length}}
           Running
         {{/if}}
-      </h3>
+      </h2>
       <JobStatus::AllocationStatusRow
         @allocBlocks={{this.allocBlocks}}
         @steady={{true}}
@@ -125,7 +125,7 @@
         />
 
         <section class="versions">
-          <h4>Versions</h4>
+          <h3>Versions</h3>
           <ul>
             {{#each this.versions as |versionObj|}}
               <li>

@@ -137,7 +137,7 @@
 
 .ember-power-select-prefix,
 .dropdown-prefix {
-  color: $grey;
+  color: var(--token-color-foreground-primary);
 }
 
 .ember-power-select-option,

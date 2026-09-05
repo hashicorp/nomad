@@ -75,7 +75,7 @@
     font-weight: $weight-semibold;
 
     .group {
-      color: $cool-gray-500;
+      color: $ui-gray-700;
       font-weight: $weight-normal;
 
       &::before {
@@ -86,7 +86,7 @@
   }
 
   .namespace {
-    color: $cool-gray-500;
+    color: $ui-gray-700;
 
     .namespace-label {
       font-weight: $weight-semibold;
@@ -116,7 +116,7 @@
     }
 
     td.diff {
-      color: $cool-gray-500;
+      color: $ui-gray-700;
     }
   }
 
@@ -131,7 +131,7 @@
     .button {
       display: flex;
       flex-direction: row-reverse;
-      color: $ui-gray-400;
+      color: $ui-gray-700;
 
       .icon {
         margin-left: 0.75em;

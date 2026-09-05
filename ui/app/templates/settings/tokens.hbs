@@ -121,7 +121,7 @@
     {{#if this.canSignIn}}
       <div class="sign-in-methods">
         {{#if this.nonTokenAuthMethods.length}}
-          <h3 class="title is-4">Sign in with SSO</h3>
+          <h2 class="title is-4">Sign in with SSO</h2>
           <p>Sign in to Nomad using the configured authorization provider. After
             logging in, the policies and rules for the token will be listed.</p>
           <div class="sso-auth-methods">
@@ -138,7 +138,7 @@
           <span class="or-divider"><span>Or</span></span>
         {{/if}}
 
-        <h3 class="title is-4">Sign in with token</h3>
+        <h2 class="title is-4">Sign in with token</h2>
         <p>Clusters that use Access Control Lists require tokens to perform
           certain tasks. By providing a token Secret ID{{#if
             this.hasJWTAuthMethods
@@ -207,8 +207,8 @@
     {{#if this.shouldShowPolicies}}
       <div class="token-details">
         {{#unless this.tokenRecord.isExpired}}
-          <h3 data-test-token-name class="title is-4">Token:
-            {{this.tokenRecord.name}}</h3>
+          <h2 data-test-token-name class="title is-4">Token:
+            {{this.tokenRecord.name}}</h2>
           <Hds::Form::MaskedInput::Field
             readonly
             @isContentMasked={{false}}
@@ -236,7 +236,7 @@
           {{#if this.tokenRecord.roles.length}}
             <Hds::Separator />
             <div>
-              <h3 class="title is-4">Roles</h3>
+              <h2 class="title is-4">Roles</h2>
               {{#each this.tokenRecord.roles as |role|}}
                 <div data-test-token-role class="boxed-section">
                   <div data-test-role-name class="boxed-section-head">
@@ -249,7 +249,7 @@
                       </p>
                     {{/if}}
                     <div data-test-role-policies>
-                      <h4 class="title is-5">Policies</h4>
+                      <h3 class="title is-5">Policies</h3>
                       {{#each role.policies as |policy|}}
                         <li><a href="#{{policy.name}}">{{policy.name}}</a></li>
                       {{/each}}
@@ -261,7 +261,7 @@
           {{/if}}
           <Hds::Separator />
           <div>
-            <h3 class="title is-4">Policies</h3>
+            <h2 class="title is-4">Policies</h2>
             {{#if (eq this.tokenRecord.type "management")}}
               <div data-test-token-management-message class="boxed-section">
                 <div class="boxed-section-body has-centered-text">

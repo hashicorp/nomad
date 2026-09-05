@@ -11,17 +11,19 @@
 
   .empty-message-headline {
     font-size: $size-3;
-    color: $grey;
+    color: var(--token-color-foreground-primary);
     text-align: center;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
   }
 
   .empty-message-body {
     padding: 0 20%;
     text-align: center;
-    color: $grey;
+    color: var(--token-color-foreground-primary);
 
     strong {
-      color: $grey;
+      color: var(--token-color-foreground-primary);
     }
 
     &:not(:last-child) {

@@ -50,11 +50,11 @@
   .axis {
     line,
     path {
-      stroke: $grey-blue;
+      stroke: var(--token-color-border-primary);
     }
 
     text {
-      fill: darken($grey-blue, 20%);
+      fill: var(--token-color-foreground-faint);
     }
   }
 
@@ -64,7 +64,7 @@
     }
 
     line {
-      stroke: lighten($grey-blue, 10%);
+      stroke: var(--token-color-border-faint);
       stroke-dasharray: 5 10;
     }
   }

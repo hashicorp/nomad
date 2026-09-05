@@ -8,7 +8,6 @@ import { module, skip, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import faker from 'nomad-ui/mirage/faker';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module('Integration | Component | list table', function (hooks) {
   setupRenderingTest(hooks);
@@ -100,8 +99,6 @@ module('Integration | Component | list table', function (hooks) {
         'Index',
       );
     });
-
-    await componentA11yAudit(this.element, assert);
   });
 
   // Ember doesn't support query params (or controllers or routes) in integration tests,

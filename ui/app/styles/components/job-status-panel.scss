@@ -14,7 +14,7 @@
     gap: 1rem;
     grid-auto-columns: 100%;
 
-    & > h3 {
+    & > h2 {
       grid-area: title;
       margin: 0;
     }
@@ -85,7 +85,7 @@
       gap: 1rem;
       grid-auto-columns: 100%;
 
-      & > h4 {
+      & > h3 {
         margin-bottom: -0.5rem;
         display: grid;
         grid-template-columns: auto 1fr;
@@ -135,7 +135,6 @@
     }
 
     .version-count {
-      color: $blue;
       position: relative;
       z-index: 1;
       left: -1rem;
@@ -154,9 +153,9 @@
       grid-template-columns: 3fr 1fr 1fr 1fr;
     }
 
-    & > section > h4,
-    & > legend > h4,
-    & > section > a > h4 {
+    & > section > h3,
+    & > legend > h3,
+    & > section > a > h3 {
       margin-bottom: 0.5rem;
     }
 
@@ -168,7 +167,7 @@
     }
 
     .latest-deployment {
-      h4 svg {
+      h3 svg {
         position: relative;
         top: 3px;
       }
@@ -187,7 +186,7 @@
   // #endregion layout
 
   .select-mode {
-    border: 1px solid $grey-blue;
+    border: 1px solid var(--token-color-border-primary);
     background: rgb(0 0 0 / 5%);
     border-radius: 2px;
     display: grid;
@@ -498,7 +497,7 @@
       margin-bottom: 1rem;
       align-items: end;
 
-      & > h4 {
+      & > h3 {
         margin-bottom: 0;
         height: 100%;
 

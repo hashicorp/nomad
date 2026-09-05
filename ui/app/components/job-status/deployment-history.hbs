@@ -5,7 +5,7 @@
 
 <div class="deployment-history {{if this.isHidden 'hidden'}}">
   <header>
-    <h4 class="title is-5">
+    <h3 class="title is-5">
       <button
         class="button"
         {{on "click" (fn (mut this.isHidden) (if this.isHidden false true))}}
@@ -18,7 +18,7 @@
           <Hds::Icon @name="chevron-up" />
         {{/if}}
       </button>
-    </h4>
+    </h3>
     {{#unless this.isHidden}}
       <SearchBox
         data-test-history-search

@@ -78,7 +78,7 @@ $hdsInputHeight: 35px;
       height: 100%;
       box-shadow: none;
       margin-left: -2px;
-      border-color: $grey-blue;
+      border-color: var(--token-color-border-primary);
     }
 
     .key-value-error {

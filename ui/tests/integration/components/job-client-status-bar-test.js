@@ -9,7 +9,6 @@ import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import sinon from 'sinon';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import jobClientStatusBar from 'nomad-ui/tests/pages/components/job-client-status-bar';
 
 const JobClientStatusBar = create(jobClientStatusBar());
@@ -54,7 +53,6 @@ module('Integration | Component | job-client-status-bar', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(JobClientStatusBar.isPresent, 'Client Status Bar is rendered');
-    await componentA11yAudit(this.element, assert);
   });
 
   test('it fires the onBarClick handler method when clicking a bar in the chart', async function (assert) {

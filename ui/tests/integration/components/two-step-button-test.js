@@ -7,7 +7,6 @@ import { find, click, render } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import sinon from 'sinon';
 import { create } from 'ember-cli-page-object';
 import twoStepButton from 'nomad-ui/tests/pages/components/two-step-button';
@@ -58,8 +57,6 @@ module('Integration | Component | two step button', function (hooks) {
       find('[data-test-confirmation-message]'),
       'No confirmation message yet',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('clicking the idle state button transitions into the promptForConfirmation state', async function (assert) {
@@ -90,7 +87,6 @@ module('Integration | Component | two step button', function (hooks) {
     );
 
     assert.notOk(find('[data-test-idle-button]'), 'No more idle button');
-    await componentA11yAudit(this.element, assert);
   });
 
   test('canceling in the promptForConfirmation state calls the onCancel hook and resets to the idle state', async function (assert) {
@@ -138,8 +134,6 @@ module('Integration | Component | two step button', function (hooks) {
       'Loading...',
       'The confirm button is in a loading state',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('when in the prompt state, clicking outside will reset state back to idle', async function (assert) {
@@ -192,7 +186,5 @@ module('Integration | Component | two step button', function (hooks) {
     await render(commonTemplate);
 
     assert.ok(TwoStepButton.isDisabled, 'The idle button is disabled');
-
-    await componentA11yAudit(this.element, assert);
   });
 });

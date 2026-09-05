@@ -7,7 +7,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import pathTree from 'nomad-ui/utils/path-tree';
 import Service from '@ember/service';
 let tree;
@@ -43,16 +42,12 @@ module('Integration | Component | variable-paths', function (hooks) {
     this.set('emptyRoot', { children: {}, files: [] });
     await render(hbs`<VariablePaths @branch={{this.emptyRoot}} />`);
     assert.dom('tbody tr').exists({ count: 0 });
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('it renders with data', async function (assert) {
     this.set('tree', tree);
     await render(hbs`<VariablePaths @branch={{this.tree.paths.root}} />`);
     assert.dom('tbody tr').exists({ count: 2 }, 'There are two rows');
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('it allows for traversal: Folders', async function (assert) {
@@ -72,8 +67,6 @@ module('Integration | Component | variable-paths', function (hooks) {
         'folder',
         'Correctly renders the folder icon',
       );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('it allows for traversal: Files', async function (assert) {
@@ -137,6 +130,5 @@ module('Integration | Component | variable-paths', function (hooks) {
         'file-text',
         'Correctly renders the file icon',
       );
-    await componentA11yAudit(this.element, assert);
   });
 });

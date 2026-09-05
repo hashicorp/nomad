@@ -204,24 +204,24 @@
           class="acl-table"
           @model={{@policies}}
           @columns={{array
-            (hash key="selected" width="80px")
             (hash key="name" label="Name" isSortable=true)
             (hash key="description" label="Description")
             (hash key="definition" label="View Policy Definition")
           }}
           @sortBy="name"
+          @isSelectable={{true}}
+          @selectionAriaLabelSuffix="policy"
+          @onSelectionChange={{this.onPoliciesSelectionChange}}
         >
           <:body as |B|>
-            <B.Tr>
-              <B.Td class="selection-checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={{find-by "name" B.data.name @token.policies}}
-                    {{on "change" (fn this.updateTokenPolicies B.data)}}
-                  />
-                </label>
-              </B.Td>
+            <B.Tr
+              @selectionKey={{B.data.name}}
+              @isSelected={{if
+                (find-by "name" B.data.name @token.policies)
+                true
+                false
+              }}
+            >
               <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>
@@ -237,9 +237,9 @@
         </Hds::Table>
       {{else}}
         <div class="empty-message">
-          <h3 data-test-empty-role-list-headline class="empty-message-headline">
+          <h2 data-test-empty-role-list-headline class="empty-message-headline">
             No Policies
-          </h3>
+          </h2>
           <p class="empty-message-body">
             Get started by
             <LinkTo @route="administration.policies.new">creating a new policy</LinkTo>
@@ -258,25 +258,25 @@
           class="acl-table"
           @model={{@roles}}
           @columns={{array
-            (hash key="selected" width="80px")
             (hash key="name" label="Name" isSortable=true)
             (hash key="description" label="Description")
             (hash key="policies" label="Policies")
             (hash key="definition" label="View Role Info")
           }}
           @sortBy="name"
+          @isSelectable={{true}}
+          @selectionAriaLabelSuffix="role"
+          @onSelectionChange={{this.onRolesSelectionChange}}
         >
           <:body as |B|>
-            <B.Tr>
-              <B.Td class="selection-checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={{find-by "name" B.data.name @token.roles}}
-                    {{on "change" (fn this.updateTokenRoles B.data)}}
-                  />
-                </label>
-              </B.Td>
+            <B.Tr
+              @selectionKey={{B.data.name}}
+              @isSelected={{if
+                (find-by "name" B.data.name @token.roles)
+                true
+                false
+              }}
+            >
               <B.Td data-test-role-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>
@@ -305,9 +305,9 @@
         </Hds::Table>
       {{else}}
         <div class="empty-message">
-          <h3 data-test-empty-role-list-headline class="empty-message-headline">
+          <h2 data-test-empty-role-list-headline class="empty-message-headline">
             No Roles
-          </h3>
+          </h2>
           <p class="empty-message-body">
             Get started by
             <LinkTo @route="administration.roles.new">creating a new role</LinkTo>

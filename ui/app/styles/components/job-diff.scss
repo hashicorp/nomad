@@ -4,7 +4,7 @@
  */
 
 .job-diff {
-  color: $grey-blue;
+  color: var(--token-color-foreground-faint);
   font-family: $family-monospace;
 
   &.is-added,
