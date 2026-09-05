@@ -147,8 +147,6 @@ type QuotaResources struct {
 	MemoryMB    *int                   `mapstructure:"memory" hcl:"memory,optional"`
 	MemoryMaxMB *int                   `mapstructure:"memory_max" hcl:"memory_max,optional"`
 	Devices     []*RequestedDevice     `hcl:"device,block"`
-	NUMA        *NUMAResource          `hcl:"numa,block"`
-	SecretsMB   *int                   `mapstructure:"secrets" hcl:"secrets,optional"`
 	Storage     *QuotaStorageResources `mapstructure:"storage" hcl:"storage,block"`
 	NodePools   []*NodePoolLimit       `hcl:"node_pool,block"`
 }
@@ -161,8 +159,6 @@ type NodePoolLimit struct {
 	MemoryMB    *int                   `mapstructure:"memory" hcl:"memory,optional"`
 	MemoryMaxMB *int                   `mapstructure:"memory_max" hcl:"memory_max,optional"`
 	Devices     []*RequestedDevice     `hcl:"device,block"`
-	NUMA        *NUMAResource          `hcl:"numa,block"`
-	SecretsMB   *int                   `mapstructure:"secrets" hcl:"secrets,optional"`
 	Storage     *QuotaStorageResources `mapstructure:"storage" hcl:"storage,block"`
 }
 
