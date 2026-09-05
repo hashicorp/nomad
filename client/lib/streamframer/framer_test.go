@@ -141,6 +141,30 @@ func TestStreamFramer_Batch(t *testing.T) {
 	}
 }
 
+func TestStreamFramer_BatchOffsetUsesFrameEnd(t *testing.T) {
+	hRate, bWindow := 100*time.Millisecond, 500*time.Millisecond
+	frames := make(chan *StreamFrame, 10)
+	sf := NewStreamFramer(frames, hRate, bWindow, 3)
+	sf.Run()
+	defer sf.Destroy()
+
+	if err := sf.Send("foo", "", []byte{0xa}, 1); err != nil {
+		t.Fatalf("Send() failed %v", err)
+	}
+	if err := sf.Send("foo", "", []byte{0xb, 0xc}, 3); err != nil {
+		t.Fatalf("Send() failed %v", err)
+	}
+
+	select {
+	case frame := <-frames:
+		if frame.Offset != 3 {
+			t.Fatalf("expected frame end offset 3, got %d", frame.Offset)
+		}
+	case <-time.After(10 * time.Duration(testutil.TestMultiplier()) * bWindow):
+		t.Fatalf("did not receive batched frame")
+	}
+}
+
 func TestStreamFramer_Heartbeat(t *testing.T) {
 	// Create the stream framer
 	frames := make(chan *StreamFrame, 10)
