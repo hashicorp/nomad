@@ -1,0 +1,3 @@
+```release-note:bug
+client: prevent Alloc FS API from accessing secret dir when symlinked into task
+```
