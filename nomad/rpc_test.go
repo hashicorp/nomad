@@ -805,7 +805,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 		// Create max connections
 		conns := make([]net.Conn, maxConns)
 		errCh := make(chan error, maxConns)
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
 			require.NoError(t, err)
 			defer conns[i].Close()
@@ -825,7 +825,7 @@ func TestRPC_Limits_OK(t *testing.T) {
 
 		// Now assert each error is a clientside read deadline error
 		deadline := time.After(10 * time.Second)
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			select {
 			case <-deadline:
 				t.Fatalf("timed out waiting for conn error %d/%d", i+1, maxConns)
@@ -1478,7 +1478,7 @@ func (h tlsTestHelper) connect(t *testing.T, s *Server, c *config.TLSConfig) net
 	return tlsConn
 }
 
-func (h tlsTestHelper) nomadRPC(t *testing.T, s *Server, c *config.TLSConfig, method string, arg interface{}) error {
+func (h tlsTestHelper) nomadRPC(t *testing.T, s *Server, c *config.TLSConfig, method string, arg any) error {
 	t.Helper()
 	conn := h.connect(t, s, c)
 	defer conn.Close()

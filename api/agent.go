@@ -469,7 +469,7 @@ type ServerMembers struct {
 }
 
 type AgentSelf struct {
-	Config map[string]interface{}       `json:"config"`
+	Config map[string]any               `json:"config"`
 	Member AgentMember                  `json:"member"`
 	Stats  map[string]map[string]string `json:"stats"`
 }

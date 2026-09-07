@@ -21,7 +21,7 @@ import (
 func TestHTTP_NodesList(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			// Create the node
 			node := mock.Node()
 			args := structs.NodeRegisterRequest{
@@ -77,7 +77,7 @@ func TestHTTP_NodesPrefixList(t *testing.T) {
 			"1234cccc-abcd-efab-cdef-123456789abc",
 			"1234dddd-abcd-efab-cdef-123456789abc",
 		}
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			// Create the node
 			node := mock.Node()
 			node.ID = ids[i]
@@ -134,7 +134,7 @@ func TestHTTP_NodesOSList(t *testing.T) {
 			"ubuntu",
 			"centos",
 		}
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			// Create the node
 			node := mock.Node()
 			node.ID = ids[i]

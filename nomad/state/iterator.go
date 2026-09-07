@@ -4,22 +4,22 @@
 package state
 
 type SliceIterator struct {
-	data []interface{}
+	data []any
 	idx  int
 }
 
 func NewSliceIterator() *SliceIterator {
 	return &SliceIterator{
-		data: []interface{}{},
+		data: []any{},
 		idx:  0,
 	}
 }
 
-func (i *SliceIterator) Add(datum interface{}) {
+func (i *SliceIterator) Add(datum any) {
 	i.data = append(i.data, datum)
 }
 
-func (i *SliceIterator) Next() interface{} {
+func (i *SliceIterator) Next() any {
 	if i.idx == len(i.data) {
 		return nil
 	}

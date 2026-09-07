@@ -977,7 +977,7 @@ func (s *BoltStateDB) GetDynamicPluginRegistryState() (*dynamicplugins.RegistryS
 }
 
 func keyForCheck(allocID string, checkID structs.CheckID) []byte {
-	return []byte(fmt.Sprintf("%s_%s", allocID, checkID))
+	return fmt.Appendf([]byte{}, "%s_%s", allocID, checkID)
 }
 
 // PutCheckResult puts qr into the state store.

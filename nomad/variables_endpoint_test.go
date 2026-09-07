@@ -851,7 +851,6 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := testFn(
 				&structs.QueryOptions{AuthToken: tc.token, Namespace: namespace.Name},

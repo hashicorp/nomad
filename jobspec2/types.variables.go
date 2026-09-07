@@ -459,14 +459,14 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 		}
 		raw = raw[len(VarEnvPrefix):] // trim the prefix
 
-		eq := strings.Index(raw, "=")
-		if eq == -1 {
+		before, after, ok := strings.Cut(raw, "=")
+		if !ok {
 			// Seems invalid, so we'll ignore it.
 			continue
 		}
 
-		name := raw[:eq]
-		value := raw[eq+1:]
+		name := before
+		value := after
 
 		variable, found := variables[name]
 		if !found {

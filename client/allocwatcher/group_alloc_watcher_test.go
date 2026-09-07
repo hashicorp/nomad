@@ -23,7 +23,7 @@ func TestPrevAlloc_GroupPrevAllocWatcher_Block(t *testing.T) {
 
 	defer cleanup()
 
-	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	conf.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "500ms",
 	}
 
@@ -89,13 +89,13 @@ func TestPrevAlloc_GroupPrevAllocWatcher_BlockMulti(t *testing.T) {
 
 	conf1, cleanup1 := newConfig(t)
 	defer cleanup1()
-	conf1.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	conf1.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "500ms",
 	}
 
 	conf2, cleanup2 := newConfig(t)
 	defer cleanup2()
-	conf2.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	conf2.Alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "500ms",
 	}
 

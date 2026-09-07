@@ -60,7 +60,7 @@ func TestNodeDrainCommand_Detach(t *testing.T) {
 					{
 						Name:   "mock_task",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "10m",
 						},
 					},
@@ -145,7 +145,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 					{
 						Name:   "mock_task",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "10m",
 						},
 						Resources: &api.Resources{
@@ -175,7 +175,7 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 					{
 						Name:   "mock_systask",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"run_for": "10m",
 						},
 						Resources: &api.Resources{

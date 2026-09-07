@@ -84,7 +84,7 @@ type Recommendation struct {
 	Resource       string
 	Value          int
 	Current        int
-	Meta           map[string]interface{}
+	Meta           map[string]any
 	Stats          map[string]float64
 	EnforceVersion bool
 

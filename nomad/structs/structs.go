@@ -5,6 +5,7 @@ package structs
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -860,7 +861,7 @@ type JobScaleRequest struct {
 	Count   *int64
 	Message string
 	Error   bool
-	Meta    map[string]interface{}
+	Meta    map[string]any
 
 	// PolicyOverride is set when the user is attempting to override any policies
 	PolicyOverride bool
@@ -2893,14 +2894,14 @@ type NetworkResource struct {
 
 func (n *NetworkResource) Hash() uint32 {
 	var data []byte
-	data = append(data, []byte(fmt.Sprintf("%s%s%s%s%s%d", n.Mode, n.Device, n.CIDR, n.IP, n.Hostname, n.MBits))...)
+	data = fmt.Appendf(data, "%s%s%s%s%s%d", n.Mode, n.Device, n.CIDR, n.IP, n.Hostname, n.MBits)
 
 	for i, port := range n.ReservedPorts {
-		data = append(data, []byte(fmt.Sprintf("r%d%s%d%d", i, port.Label, port.Value, port.To))...)
+		data = fmt.Appendf(data, "r%d%s%d%d", i, port.Label, port.Value, port.To)
 	}
 
 	for i, port := range n.DynamicPorts {
-		data = append(data, []byte(fmt.Sprintf("d%d%s%d%d", i, port.Label, port.Value, port.To))...)
+		data = fmt.Appendf(data, "d%d%s%d%d", i, port.Label, port.Value, port.To)
 	}
 
 	return crc32.ChecksumIEEE(data)
@@ -3203,7 +3204,7 @@ func (n *NodeResources) Copy() *NodeResources {
 	if n.Devices != nil {
 		devices := len(n.Devices)
 		newN.Devices = make([]*NodeDeviceResource, devices)
-		for i := 0; i < devices; i++ {
+		for i := range devices {
 			newN.Devices[i] = n.Devices[i].Copy()
 		}
 	}
@@ -3896,7 +3897,7 @@ func (a *AllocatedTaskResources) Copy() *AllocatedTaskResources {
 	if newA.Devices != nil {
 		n := len(a.Devices)
 		newA.Devices = make([]*AllocatedDeviceResource, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			newA.Devices[i] = a.Devices[i].Copy()
 		}
 	}
@@ -5337,9 +5338,7 @@ func (js *JobSummary) Copy() *JobSummary {
 	newJobSummary := new(JobSummary)
 	*newJobSummary = *js
 	newTGSummary := make(map[string]TaskGroupSummary, len(js.Summary))
-	for k, v := range js.Summary {
-		newTGSummary[k] = v
-	}
+	maps.Copy(newTGSummary, js.Summary)
 	newJobSummary.Summary = newTGSummary
 	newJobSummary.Children = newJobSummary.Children.Copy()
 	return newJobSummary
@@ -5564,9 +5563,7 @@ func (m *Multiregion) Copy() *Multiregion {
 			Meta:        map[string]string{},
 		}
 		copyRegion.Datacenters = append(copyRegion.Datacenters, region.Datacenters...)
-		for k, v := range region.Meta {
-			copyRegion.Meta[k] = v
-		}
+		maps.Copy(copyRegion.Meta, region.Meta)
 		copy.Regions = append(copy.Regions, copyRegion)
 	}
 	return copy
@@ -5810,9 +5807,7 @@ func (n *Namespace) Copy() *Namespace {
 
 	if n.Meta != nil {
 		nc.Meta = make(map[string]string, len(n.Meta))
-		for k, v := range n.Meta {
-			nc.Meta[k] = v
-		}
+		maps.Copy(nc.Meta, n.Meta)
 	}
 	copy(nc.Hash, n.Hash)
 	return nc
@@ -6307,7 +6302,7 @@ type ScalingEvent struct {
 	Error bool
 
 	// Meta is a map of metadata returned during a scaling event
-	Meta map[string]interface{}
+	Meta map[string]any
 
 	// EvalID is the ID for an evaluation if one was created as part of a scaling event
 	EvalID *string
@@ -6351,7 +6346,7 @@ type ScalingPolicy struct {
 	Target map[string]string
 
 	// Policy is an opaque description of the scaling policy, passed to the autoscaler
-	Policy map[string]interface{}
+	Policy map[string]any
 
 	// Min is the minimum allowable scaling count for this target
 	Min int64
@@ -6416,7 +6411,7 @@ func (p *ScalingPolicy) Copy() *ScalingPolicy {
 
 	c := ScalingPolicy{
 		ID:          p.ID,
-		Policy:      opaquePolicyConfig.(map[string]interface{}),
+		Policy:      opaquePolicyConfig.(map[string]any),
 		Enabled:     p.Enabled,
 		Type:        p.Type,
 		Min:         p.Min,
@@ -6425,9 +6420,7 @@ func (p *ScalingPolicy) Copy() *ScalingPolicy {
 		ModifyIndex: p.ModifyIndex,
 	}
 	c.Target = make(map[string]string, len(p.Target))
-	for k, v := range p.Target {
-		c.Target[k] = v
-	}
+	maps.Copy(c.Target, p.Target)
 	return &c
 }
 
@@ -6499,9 +6492,7 @@ func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
 		CreateIndex: p.CreateIndex,
 		ModifyIndex: p.ModifyIndex,
 	}
-	for k, v := range p.Target {
-		stub.Target[k] = v
-	}
+	maps.Copy(stub.Target, p.Target)
 	return stub
 }
 
@@ -6607,7 +6598,7 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 }
 
 const ReschedulePolicyMinInterval = 15 * time.Second
-const ReschedulePolicyMinDelay = 5 * time.Second
+const ReschedulePolicyMinDelay = 1 * time.Second
 
 var RescheduleDelayFunctions = [...]string{"constant", "exponential", "fibonacci"}
 
@@ -6650,7 +6641,7 @@ func (r *ReschedulePolicy) Enabled() bool {
 }
 
 // Validate uses different criteria to validate the reschedule policy
-// Delay must be a minimum of 5 seconds
+// Delay must be a minimum of 1 second
 // Delay Ceiling is ignored if Delay Function is "constant"
 // Number of possible attempts is validated, given the interval, delay and delay function
 func (r *ReschedulePolicy) Validate() error {
@@ -6941,6 +6932,12 @@ type TaskGroup struct {
 	// Volumes is a map of volumes that have been requested by the task group.
 	Volumes map[string]*VolumeRequest
 
+	// HasPerAllocVolumes records whether any entry in Volumes is per_alloc —
+	// i.e. each alloc in the group gets an independently feasible/infeasible
+	// volume rather than sharing one. Computed once in Canonicalize instead
+	// of rescanning Volumes on every placement attempt in computePlacements.
+	HasPerAllocVolumes bool
+
 	// ShutdownDelay is the amount of time to wait between deregistering
 	// group services in consul and stopping tasks.
 	ShutdownDelay *time.Duration
@@ -6988,7 +6985,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	if tg.Networks != nil {
 		n := len(tg.Networks)
 		ntg.Networks = make([]*NetworkResource, n)
-		for i := 0; i < n; i++ {
+		for i := range n {
 			ntg.Networks[i] = tg.Networks[i].Copy()
 		}
 	}
@@ -7082,6 +7079,13 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 
 	for _, task := range tg.Tasks {
 		task.Canonicalize(job, tg)
+	}
+
+	for _, v := range tg.Volumes {
+		if v.PerAlloc {
+			tg.HasPerAllocVolumes = true
+			break
+		}
 	}
 }
 
@@ -7244,6 +7248,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	// Check that there is only one leader task if any
 	tasks := make(map[string]int)
 	leaderTasks := 0
+	mainTasks := 0
 	for idx, task := range tg.Tasks {
 		if task.Name == "" {
 			mErr = multierror.Append(mErr, fmt.Errorf("Task %d missing name", idx+1))
@@ -7256,10 +7261,20 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		if task.Leader {
 			leaderTasks++
 		}
+
+		if task.IsMain() {
+			mainTasks++
+		}
 	}
 
 	if leaderTasks > 1 {
 		mErr = multierror.Append(mErr, fmt.Errorf("Only one task may be marked as leader"))
+	}
+
+	// A task group made up entirely of lifecycle tasks (prestart, poststart, or
+	// poststop) has no main task to run, which is invalid.
+	if len(tg.Tasks) > 0 && mainTasks == 0 {
+		mErr = multierror.Append(mErr, fmt.Errorf("Task group %s must have at least one main task", tg.Name))
 	}
 
 	// Validate the volume requests
@@ -7646,6 +7661,19 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 		mErr.Errors = append(mErr.Errors, errors.New("PreventRescheduleOnLost is deprecated and ignored in favor of Disconnect.Replace"))
 	}
 
+	// Warn about unbounded rescheduling which may cause thrashing if tasks have
+	// unlimited attempts and a low delay.
+	//
+	// The 5 second gate on the delay is used as this was the previous minimum
+	// value which did not produce a warning. It therefore feels like the right
+	// gate to use.
+	if rp := tg.ReschedulePolicy; rp != nil && rp.Unlimited && rp.Delay < 5*time.Second {
+		mErr.Errors = append(
+			mErr.Errors,
+			errors.New("Reschedule policy has unlimited attempts enabled and a low delay; reschedule thrashing possible"),
+		)
+	}
+
 	// Check for mbits network field
 	if len(tg.Networks) > 0 && tg.Networks[0].MBits > 0 {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("mbits has been deprecated as of Nomad 0.12.0. Please remove mbits from the network block"))
@@ -7893,7 +7921,7 @@ type Task struct {
 	User string
 
 	// Config is provided to the driver to initialize
-	Config map[string]interface{}
+	Config map[string]any
 
 	// Map of environment variables to be used by the driver
 	Env map[string]string
@@ -8095,7 +8123,7 @@ func (t *Task) Copy() *Task {
 	if i, err := copystructure.Copy(nt.Config); err != nil {
 		panic(err.Error())
 	} else {
-		nt.Config = i.(map[string]interface{})
+		nt.Config = i.(map[string]any)
 	}
 
 	if t.Templates != nil {
@@ -9934,23 +9962,36 @@ func (ta *TaskArtifact) validateChecksum() error {
 		return fmt.Errorf("checksum value cannot be empty")
 	}
 
-	parts := strings.Split(check, ":")
-	if l := len(parts); l != 2 {
+	// Cut on the first colon only: a "file:<url>" checksum carries a URL
+	// value that may itself contain colons (e.g. a port).
+	checksumType, checksumVal, ok := strings.Cut(check, ":")
+	if !ok {
 		return fmt.Errorf(`checksum must be given as "type:value"; got %q`, check)
 	}
 
-	checksumVal := parts[1]
+	// A "file:<url>" checksum tells go-getter to read the checksum from a
+	// remote file rather than supplying a hex digest inline, so there is no
+	// digest to validate here; the getter resolves it at fetch time.
+	if checksumType == "file" {
+		return nil
+	}
+
 	checksumBytes, err := hex.DecodeString(checksumVal)
 	if err != nil {
 		return fmt.Errorf("invalid checksum: %v", err)
 	}
 
-	checksumType := parts[0]
 	expectedLength := 0
 	switch checksumType {
 	case "md5":
+		if fips140.Enabled() {
+			return fmt.Errorf("md5 checksums are not supported in FIPS-140 mode")
+		}
 		expectedLength = md5.Size
 	case "sha1":
+		if fips140.Enabled() {
+			return fmt.Errorf("sha1 checksums are not supported in FIPS-140 mode")
+		}
 		expectedLength = sha1.Size
 	case "sha256":
 		expectedLength = sha256.Size
@@ -10684,8 +10725,8 @@ func (rt *RescheduleTracker) rescheduleInfo(reschedulePolicy *ReschedulePolicy, 
 
 	attempted := 0
 	if rt != nil && attempts > 0 {
-		for j := len(rt.Events) - 1; j >= 0; j-- {
-			lastAttempt := rt.Events[j].RescheduleTime
+		for _, v := range slices.Backward(rt.Events) {
+			lastAttempt := v.RescheduleTime
 			timeDiff := failTime.UTC().UnixNano() - lastAttempt
 			if timeDiff < interval.Nanoseconds() {
 				attempted += 1
@@ -10751,7 +10792,7 @@ func (s *NodeScoreMeta) Score() float64 {
 	return s.NormScore
 }
 
-func (s *NodeScoreMeta) Data() interface{} {
+func (s *NodeScoreMeta) Data() any {
 	return s
 }
 
@@ -10788,7 +10829,7 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	// Sets the default type for decoding a map into a nil interface{}.
 	// This is necessary in particular because we store the driver configs as a
 	// nil interface{}.
-	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	h.MapType = reflect.TypeFor[map[string]any]()
 
 	// only review struct codec tags
 	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
@@ -10797,12 +10838,12 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 }()
 
 // Decode is used to decode a MsgPack encoded object
-func Decode(buf []byte, out interface{}) error {
+func Decode(buf []byte, out any) error {
 	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
 }
 
 // Encode is used to encode a MsgPack object with type prefix
-func Encode(t MessageType, msg interface{}) ([]byte, error) {
+func Encode(t MessageType, msg any) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteByte(uint8(t))
 	err := codec.NewEncoder(&buf, MsgpackHandle).Encode(msg)

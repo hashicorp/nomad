@@ -270,7 +270,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_GuessPodman(t *testi
 	job.TaskGroups[0].Tasks = []*structs.Task{{
 		Name:   "mytask",
 		Driver: "podman",
-		Config: make(map[string]interface{}),
+		Config: make(map[string]any),
 	}}
 
 	expTG := job.TaskGroups[0].Copy()
@@ -301,7 +301,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 	job.TaskGroups[0].Services[0].Connect.SidecarTask = &structs.SidecarTask{
 		Driver: "raw_exec",
 		User:   "sidecars",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"command": "/bin/sidecar",
 			"args":    []string{"a", "b"},
 		},
@@ -321,7 +321,7 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 			Kind:   structs.NewTaskKind(structs.ConnectIngressPrefix, "my-gateway"),
 			Driver: "raw_exec",
 			User:   "sidecars",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"command": "/bin/sidecar",
 				"args":    []string{"a", "b"},
 			},
@@ -934,7 +934,7 @@ func TestJobEndpointConnect_gatewayProxyIsDefault(t *testing.T) {
 	t.Run("unrelated fields set", func(t *testing.T) {
 		result := gatewayProxyIsDefault(&structs.ConsulGatewayProxy{
 			ConnectTimeout: new(2 * time.Second),
-			Config:         map[string]interface{}{"foo": 1},
+			Config:         map[string]any{"foo": 1},
 		})
 		require.True(t, result)
 	})
@@ -1069,7 +1069,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 		result := gatewayProxy(&structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
 				ConnectTimeout: new(2 * time.Second),
-				Config:         map[string]interface{}{"foo": 1},
+				Config:         map[string]any{"foo": 1},
 			},
 			Ingress: &structs.ConsulIngressConfigEntry{
 				Listeners: []*structs.ConsulIngressListener{{
@@ -1083,7 +1083,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 		}, "bridge")
 		require.Equal(t, &structs.ConsulGatewayProxy{
 			ConnectTimeout:                  new(2 * time.Second),
-			Config:                          map[string]interface{}{"foo": 1},
+			Config:                          map[string]any{"foo": 1},
 			EnvoyGatewayNoDefaultBind:       true,
 			EnvoyGatewayBindTaggedAddresses: false,
 			EnvoyGatewayBindAddresses: map[string]*structs.ConsulGatewayBindAddress{
@@ -1097,7 +1097,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 	t.Run("ingress leave as-is", func(t *testing.T) {
 		result := gatewayProxy(&structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				Config:                          map[string]interface{}{"foo": 1},
+				Config:                          map[string]any{"foo": 1},
 				EnvoyGatewayBindTaggedAddresses: true,
 			},
 			Ingress: &structs.ConsulIngressConfigEntry{
@@ -1112,7 +1112,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 		}, "bridge")
 		require.Equal(t, &structs.ConsulGatewayProxy{
 			ConnectTimeout:                  nil,
-			Config:                          map[string]interface{}{"foo": 1},
+			Config:                          map[string]any{"foo": 1},
 			EnvoyGatewayNoDefaultBind:       false,
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses:       nil,
@@ -1152,7 +1152,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 	t.Run("terminating leave as-is", func(t *testing.T) {
 		result := gatewayProxy(&structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				Config:                          map[string]interface{}{"foo": 1},
+				Config:                          map[string]any{"foo": 1},
 				EnvoyGatewayBindTaggedAddresses: true,
 			},
 			Terminating: &structs.ConsulTerminatingConfigEntry{
@@ -1163,7 +1163,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 		}, "bridge")
 		require.Equal(t, &structs.ConsulGatewayProxy{
 			ConnectTimeout:                  nil,
-			Config:                          map[string]interface{}{"foo": 1},
+			Config:                          map[string]any{"foo": 1},
 			EnvoyGatewayNoDefaultBind:       false,
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses:       nil,
@@ -1213,7 +1213,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 	t.Run("mesh leave as-is", func(t *testing.T) {
 		result := gatewayProxy(&structs.ConsulGateway{
 			Proxy: &structs.ConsulGatewayProxy{
-				Config:                          map[string]interface{}{"foo": 1},
+				Config:                          map[string]any{"foo": 1},
 				EnvoyGatewayBindTaggedAddresses: true,
 			},
 			Mesh: &structs.ConsulMeshConfigEntry{
@@ -1222,7 +1222,7 @@ func TestJobEndpointConnect_gatewayProxy(t *testing.T) {
 		}, "bridge")
 		require.Equal(t, &structs.ConsulGatewayProxy{
 			ConnectTimeout:                  nil,
-			Config:                          map[string]interface{}{"foo": 1},
+			Config:                          map[string]any{"foo": 1},
 			EnvoyGatewayNoDefaultBind:       false,
 			EnvoyGatewayBindTaggedAddresses: true,
 			EnvoyGatewayBindAddresses:       nil,

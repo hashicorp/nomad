@@ -5,8 +5,10 @@ package template
 
 import (
 	"context"
+	"crypto/fips140"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -788,6 +790,9 @@ func parseTemplateConfigs(config *TaskTemplateManagerConfig) (map[*ctconf.Templa
 		ct.RightDelim = &tmpl.RightDelim
 		ct.ErrMissingKey = &tmpl.ErrMissingKey
 		ct.FunctionDenylist = config.ClientConfig.TemplateConfig.FunctionDenylist
+		if fips140.Enabled() {
+			ct.FunctionDenylist = append(ct.FunctionDenylist, "md5sum")
+		}
 		if sandboxEnabled {
 			ct.SandboxPath = &config.TaskDir
 		}
@@ -1087,9 +1092,7 @@ func loadTemplateEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[s
 		if err != nil {
 			return nil, fmt.Errorf("error parsing env template %q: %v", dest, err)
 		}
-		for k, v := range vars {
-			all[k] = v
-		}
+		maps.Copy(all, vars)
 	}
 	return all, nil
 }

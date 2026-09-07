@@ -21,7 +21,7 @@ var (
 	releaseLockQueryParam = string(structs.VarOpLockRelease)
 )
 
-func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -44,7 +44,7 @@ func (s *HTTPServer) VariablesListRequest(resp http.ResponseWriter, req *http.Re
 	return out.Data, nil
 }
 
-func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/var/")
 	if len(path) == 0 {
 		return nil, CodedError(http.StatusBadRequest, "missing variable path")
@@ -83,7 +83,7 @@ func (s *HTTPServer) VariableSpecificRequest(resp http.ResponseWriter, req *http
 	}
 }
 
-func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Request, path string) (interface{}, error) {
+func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Request, path string) (any, error) {
 
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
@@ -107,7 +107,7 @@ func (s *HTTPServer) variableLockRenew(resp http.ResponseWriter, req *http.Reque
 }
 
 func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.Request,
-	path, operation string) (interface{}, error) {
+	path, operation string) (any, error) {
 
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
@@ -143,7 +143,7 @@ func (s *HTTPServer) variableLockOperation(resp http.ResponseWriter, req *http.R
 }
 
 func (s *HTTPServer) variableQuery(resp http.ResponseWriter, req *http.Request,
-	path string) (interface{}, error) {
+	path string) (any, error) {
 	args := structs.VariablesReadRequest{
 		Path: path,
 	}
@@ -164,7 +164,7 @@ func (s *HTTPServer) variableQuery(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) variableUpsert(resp http.ResponseWriter, req *http.Request,
-	path string) (interface{}, error) {
+	path string) (any, error) {
 
 	// Parse the Variable
 	var Variable structs.VariableDecrypted
@@ -220,7 +220,7 @@ func (s *HTTPServer) variableUpsert(resp http.ResponseWriter, req *http.Request,
 }
 
 func (s *HTTPServer) variableDelete(resp http.ResponseWriter, req *http.Request,
-	path string) (interface{}, error) {
+	path string) (any, error) {
 
 	args := structs.VariablesApplyRequest{
 		Op: structs.VarOpDelete,

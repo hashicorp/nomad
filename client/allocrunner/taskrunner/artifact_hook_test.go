@@ -167,7 +167,7 @@ func TestTaskRunner_ArtifactHook_ConcurrentDownloadSuccess(t *testing.T) {
 	srcdir := t.TempDir()
 
 	numOfFiles := 7
-	for i := 0; i < numOfFiles; i++ {
+	for i := range numOfFiles {
 		file := filepath.Join(srcdir, fmt.Sprintf("file%d.txt", i))
 		require.NoError(t, os.WriteFile(file, []byte{byte(i)}, 0644))
 	}

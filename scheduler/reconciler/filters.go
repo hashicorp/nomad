@@ -521,17 +521,20 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	return false, false
 }
 
-// updateByReschedulable is a helper method that encapsulates logic for whether a failed allocation
-// should be rescheduled now, later or left in the untainted set
+// updateByReschedulable is a helper method that encapsulates logic for whether
+// a failed allocation should be rescheduled now, later or left in the untainted
+// set
 func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID string, d *structs.Deployment, isDisconnecting bool) (rescheduleNow, rescheduleLater bool, rescheduleTime time.Time) {
-	// If the allocation is part of an ongoing active deployment, we only allow it to reschedule
-	// if it has been marked eligible
+	// If the allocation is part of an ongoing active deployment, we only allow
+	// it to reschedule if it has been marked eligible
 	if d != nil && alloc.DeploymentID == d.ID && d.Active() && !alloc.DesiredTransition.ShouldReschedule() {
 		return
 	}
 
-	// Check if the allocation is marked as it should be force rescheduled
-	if alloc.DesiredTransition.ShouldForceReschedule() {
+	// Check if the terminal allocation is marked as it should be force
+	// rescheduled. Only terminal allocations should ever have this
+	// DesiredTransition set.
+	if alloc.DesiredTransition.ShouldForceReschedule() && alloc.ClientTerminalStatus() {
 		rescheduleNow = true
 	}
 
@@ -540,7 +543,8 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 		return
 	}
 
-	// Reschedule if the eval ID matches the alloc's followup evalID or if its close to its reschedule time
+	// Reschedule if the eval ID matches the alloc's followup evalID or if its
+	// close to its reschedule time
 	var eligible bool
 	switch {
 	case isDisconnecting:

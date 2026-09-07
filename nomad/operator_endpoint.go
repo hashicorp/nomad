@@ -511,7 +511,7 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	return nil
 }
 
-func (op *Operator) forwardStreamingRPC(region string, method string, args interface{}, in io.ReadWriteCloser) error {
+func (op *Operator) forwardStreamingRPC(region string, method string, args any, in io.ReadWriteCloser) error {
 	server, err := op.srv.findRegionServer(region)
 	if err != nil {
 		return err
@@ -520,7 +520,7 @@ func (op *Operator) forwardStreamingRPC(region string, method string, args inter
 	return op.forwardStreamingRPCToServer(server, method, args, in)
 }
 
-func (op *Operator) forwardStreamingRPCToServer(server *peers.Parts, method string, args interface{}, in io.ReadWriteCloser) error {
+func (op *Operator) forwardStreamingRPCToServer(server *peers.Parts, method string, args any, in io.ReadWriteCloser) error {
 	srvConn, err := op.srv.streamingRpc(server, method)
 	if err != nil {
 		return err

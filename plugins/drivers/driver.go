@@ -5,13 +5,12 @@ package drivers
 
 import (
 	"context"
-	"crypto/md5"
 	"fmt"
 	"io"
 	"maps"
 	"path/filepath"
+	"slices"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -197,12 +196,7 @@ type Capabilities struct {
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
-	for _, mode := range c.NetIsolationModes {
-		if mode == m {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.NetIsolationModes, m)
 }
 
 type NetIsolationMode string
@@ -362,7 +356,7 @@ func (tc *TaskConfig) TaskDir() *allocdir.TaskDir {
 	}
 }
 
-func (tc *TaskConfig) DecodeDriverConfig(t interface{}) error {
+func (tc *TaskConfig) DecodeDriverConfig(t any) error {
 	return base.MsgPackDecode(tc.rawDriverConfig, t)
 }
 
@@ -376,7 +370,7 @@ func (tc *TaskConfig) EncodeDriverConfig(val cty.Value) error {
 	return nil
 }
 
-func (tc *TaskConfig) EncodeConcreteDriverConfig(t interface{}) error {
+func (tc *TaskConfig) EncodeConcreteDriverConfig(t any) error {
 	data := []byte{}
 	err := base.MsgPackEncode(&data, t)
 	if err != nil {
@@ -573,30 +567,12 @@ func (d *DriverNetwork) Copy() *DriverNetwork {
 		return nil
 	}
 	pm := make(map[string]int, len(d.PortMap))
-	for k, v := range d.PortMap {
-		pm[k] = v
-	}
+	maps.Copy(pm, d.PortMap)
 	return &DriverNetwork{
 		PortMap:       pm,
 		IP:            d.IP,
 		AutoAdvertise: d.AutoAdvertise,
 	}
-}
-
-// Hash the contents of a DriverNetwork struct to detect changes. If it is nil,
-// an empty slice is returned.
-func (d *DriverNetwork) Hash() []byte {
-	if d == nil {
-		return []byte{}
-	}
-	h := md5.New()
-	io.WriteString(h, d.IP)
-	io.WriteString(h, strconv.FormatBool(d.AutoAdvertise))
-	for k, v := range d.PortMap {
-		io.WriteString(h, k)
-		io.WriteString(h, strconv.Itoa(v))
-	}
-	return h.Sum(nil)
 }
 
 //// helper types for operating on raw exec operation

@@ -87,6 +87,12 @@ export default class SystemService extends Service {
       return region;
     }
 
+    // When there is only one region and nothing is stored in localStorage,
+    // fall back to that single region so the header can display it.
+    if (regions.length === 1) {
+      return regions.objectAt(0);
+    }
+
     return null;
   }
 

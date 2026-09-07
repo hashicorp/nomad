@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -81,17 +82,11 @@ func taskValidateNetworkMode(network *structs.NetworkResource, ns *structs.Names
 		return true, network_mode
 	}
 	allow := len(ns.Capabilities.EnabledNetworkModes) == 0
-	for _, m := range ns.Capabilities.EnabledNetworkModes {
-		if network_mode == m {
-			allow = true
-			break
-		}
+	if slices.Contains(ns.Capabilities.EnabledNetworkModes, network_mode) {
+		allow = true
 	}
-	for _, m := range ns.Capabilities.DisabledNetworkModes {
-		if network_mode == m {
-			allow = false
-			break
-		}
+	if slices.Contains(ns.Capabilities.DisabledNetworkModes, network_mode) {
+		allow = false
 	}
 	return allow, network_mode
 }
@@ -101,17 +96,11 @@ func taskValidateDriver(task *structs.Task, ns *structs.Namespace) bool {
 		return true
 	}
 	allow := len(ns.Capabilities.EnabledTaskDrivers) == 0
-	for _, d := range ns.Capabilities.EnabledTaskDrivers {
-		if task.Driver == d {
-			allow = true
-			break
-		}
+	if slices.Contains(ns.Capabilities.EnabledTaskDrivers, task.Driver) {
+		allow = true
 	}
-	for _, d := range ns.Capabilities.DisabledTaskDrivers {
-		if task.Driver == d {
-			allow = false
-			break
-		}
+	if slices.Contains(ns.Capabilities.DisabledTaskDrivers, task.Driver) {
+		allow = false
 	}
 	return allow
 }

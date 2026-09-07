@@ -19,7 +19,7 @@ type taskHandle struct {
 
 	pluginExitAfter time.Duration
 	killAfter       time.Duration
-	waitCh          chan interface{}
+	waitCh          chan any
 
 	taskConfig  *drivers.TaskConfig
 	command     Command

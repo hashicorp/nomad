@@ -46,7 +46,7 @@ func NewEvaluatePool(workers, bufSize int) *EvaluatePool {
 		req:        make(chan evaluateRequest, bufSize),
 		res:        make(chan evaluateResult, bufSize),
 	}
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		stopCh := make(chan struct{})
 		p.workerStop[i] = stopCh
 		go p.run(stopCh)

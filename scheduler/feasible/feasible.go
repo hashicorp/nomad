@@ -16,6 +16,7 @@ import (
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -28,7 +29,7 @@ const (
 	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
 	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
 	FilterConstraintCSIVolumesLookupFailed         = "CSI volume lookup failed"
-	FilterConstraintCSIVolumeNotFoundTemplate      = "missing CSI Volume %s"
+	FilterConstraintCSIVolumeNotFoundTemplate      = "missing CSI volume(s) %s"
 	FilterConstraintCSIVolumeNoReadTemplate        = "CSI volume %s is unschedulable or has exhausted its available reader claims"
 	FilterConstraintCSIVolumeNoWriteTemplate       = "CSI volume %s is unschedulable or is read-only"
 	FilterConstraintCSIVolumeInUseTemplate         = "CSI volume %s has exhausted its available writer claims"
@@ -473,7 +474,18 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 			if err != nil {
 				return false
 			}
-			for _, req := range job.LookupTaskGroup(alloc.TaskGroup).Volumes {
+			// The job may have been purged or garbage collected (JobByID
+			// returns nil, nil), or the alloc's task group may no longer exist.
+			// We cannot prove this allocation is not using the volume, so treat
+			// it as unavailable rather than dereference the nil job.
+			if job == nil {
+				return false
+			}
+			tg := job.LookupTaskGroup(alloc.TaskGroup)
+			if tg == nil {
+				return false
+			}
+			for _, req := range tg.Volumes {
 				if vol.MatchesRequestSource(req, alloc) {
 					if !req.ReadOnly {
 						return false
@@ -490,10 +502,12 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 }
 
 type CSIVolumeChecker struct {
-	ctx       Context
-	namespace string
-	jobID     string
-	volumes   map[string]*structs.VolumeRequest
+	ctx        Context
+	namespace  string
+	jobID      string
+	volumeReqs map[string]*structs.VolumeRequest
+	volumes    map[string]*structs.CSIVolume
+	missing    []string
 }
 
 func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
@@ -510,28 +524,51 @@ func (c *CSIVolumeChecker) SetNamespace(namespace string) {
 	c.namespace = namespace
 }
 
-func (c *CSIVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
+func (c *CSIVolumeChecker) SetVolumes(allocName string, volumeReqs map[string]*structs.VolumeRequest) {
 
-	xs := make(map[string]*structs.VolumeRequest)
+	reqs := make(map[string]*structs.VolumeRequest, len(volumeReqs))
+	vols := make(map[string]*structs.CSIVolume, len(volumeReqs))
+	missing := []string{}
 
-	// Filter to only CSI Volumes
-	for alias, req := range volumes {
+	for alias, req := range volumeReqs {
 		if req.Type != structs.VolumeTypeCSI {
-			continue
+			continue // filter to only CSI volumes
 		}
+		id := req.Source
 		if req.PerAlloc {
 			// provide a unique volume source per allocation
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			xs[alias] = copied
+			id = copied.Source
+			reqs[alias] = copied
 		} else {
-			xs[alias] = req
+			reqs[alias] = req
 		}
+
+		vol, err := c.ctx.State().CSIVolumeByID(nil, c.namespace, id)
+		if vol == nil || err != nil {
+			missing = append(missing, id)
+			continue
+		}
+		vols[alias] = vol
 	}
-	c.volumes = xs
+	c.volumes = vols
+	c.volumeReqs = reqs
+	c.missing = missing
 }
 
 func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
+	if len(c.missing) > 0 {
+		missing := helper.ConvertSlice(c.missing, func(id string) string {
+			return fmt.Sprintf("csi-volume:%s:%s", c.namespace, id)
+		})
+
+		c.ctx.Eligibility().SetMissingResources(missing)
+		c.ctx.Metrics().FilterNode(n, fmt.Sprintf(FilterConstraintCSIVolumeNotFoundTemplate,
+			strings.Join(c.missing, ", ")))
+		return false
+	}
+
 	ok, failReason := c.isFeasible(n)
 	if ok {
 		return true
@@ -548,7 +585,7 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 	// - this node is running the node plugin, implies matching topology
 
 	// Fast path: Requested no volumes. No need to check further.
-	if len(c.volumes) == 0 {
+	if len(c.volumeReqs) == 0 {
 		return true, ""
 	}
 
@@ -573,12 +610,9 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 	}
 
 	// For volume requests, find volumes and determine feasibility
-	for _, req := range c.volumes {
-		vol, err := c.ctx.State().CSIVolumeByID(ws, c.namespace, req.Source)
-		if err != nil {
-			return false, FilterConstraintCSIVolumesLookupFailed
-		}
-		if vol == nil {
+	for alias, req := range c.volumeReqs {
+		vol, ok := c.volumes[alias]
+		if !ok {
 			return false, fmt.Sprintf(FilterConstraintCSIVolumeNotFoundTemplate, req.Source)
 		}
 
@@ -1099,7 +1133,7 @@ func resolveTarget(target string, node *structs.Node) (string, bool) {
 
 // checkConstraint checks if a constraint is satisfied. The lVal and rVal
 // interfaces may be nil.
-func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
+func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal any, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -1137,7 +1171,7 @@ func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal interface
 }
 
 // checkAffinity checks if a specific affinity is satisfied
-func checkAffinity(ctx Context, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
+func checkAffinity(ctx Context, operand string, lVal, rVal any, lFound, rFound bool) bool {
 	return checkConstraint(ctx, operand, lVal, rVal, lFound, rFound)
 }
 
@@ -1212,7 +1246,7 @@ func compareOrder[T cmp.Ordered](op string, left, right T) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(parse verConstraintParser, lVal, rVal interface{}) bool {
+func checkVersionMatch(parse verConstraintParser, lVal, rVal any) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -1283,7 +1317,7 @@ func checkAttributeVersionMatch(parse verConstraintParser, lVal, rVal *psstructs
 
 // checkRegexpMatch is used to compare a value on the
 // left hand side with a regexp on the right hand side
-func checkRegexpMatch(ctx ConstraintContext, lVal, rVal interface{}) bool {
+func checkRegexpMatch(ctx ConstraintContext, lVal, rVal any) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1316,7 +1350,7 @@ func checkRegexpMatch(ctx ConstraintContext, lVal, rVal interface{}) bool {
 
 // checkSetContainsAll is used to see if the left hand side contains the
 // string on the right hand side
-func checkSetContainsAll(lVal, rVal interface{}) bool {
+func checkSetContainsAll(lVal, rVal any) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1336,7 +1370,7 @@ func checkSetContainsAll(lVal, rVal interface{}) bool {
 		lookup[cleaned] = struct{}{}
 	}
 
-	for _, r := range strings.Split(rStr, ",") {
+	for r := range strings.SplitSeq(rStr, ",") {
 		cleaned := strings.TrimSpace(r)
 		if _, ok := lookup[cleaned]; !ok {
 			return false
@@ -1348,7 +1382,7 @@ func checkSetContainsAll(lVal, rVal interface{}) bool {
 
 // checkSetContainsAny is used to see if the left hand side contains any
 // values on the right hand side
-func checkSetContainsAny(lVal, rVal interface{}) bool {
+func checkSetContainsAny(lVal, rVal any) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1368,7 +1402,7 @@ func checkSetContainsAny(lVal, rVal interface{}) bool {
 		lookup[cleaned] = struct{}{}
 	}
 
-	for _, r := range strings.Split(rStr, ",") {
+	for r := range strings.SplitSeq(rStr, ",") {
 		cleaned := strings.TrimSpace(r)
 		if _, ok := lookup[cleaned]; ok {
 			return true
@@ -1496,8 +1530,9 @@ OUTER:
 			evalElig.SetTaskGroupEligibility(true, w.tg, option.ComputedClass)
 		}
 
-		// tgAvailable handlers are available transiently, so we test them without
-		// affecting the computed class
+		// tgAvailable handlers are available transiently (ex. volumes which can
+		// have a maximum number of claims), so we test them without affecting
+		// the computed class
 		if !w.available(option) {
 			continue OUTER
 		}
@@ -1510,11 +1545,6 @@ OUTER:
 // e.g. the health status of a plugin or driver, or that are not considered in node
 // computed class, e.g. host volumes.
 func (w *FeasibilityWrapper) available(option *structs.Node) bool {
-	// If we don't have any availability checks, we're available
-	if len(w.tgAvailable) == 0 {
-		return true
-	}
-
 	for _, check := range w.tgAvailable {
 		if !check.Feasible(option) {
 			return false

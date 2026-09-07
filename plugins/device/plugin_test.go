@@ -253,8 +253,7 @@ func TestDevicePlugin_Fingerprint(t *testing.T) {
 	}
 
 	// Create a context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Get the stream
 	stream, err := impl.Fingerprint(ctx)
@@ -331,8 +330,7 @@ func TestDevicePlugin_Fingerprint_StreamErr(t *testing.T) {
 	}
 
 	// Create a context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Get the stream
 	stream, err := impl.Fingerprint(ctx)
@@ -570,8 +568,7 @@ func TestDevicePlugin_Stats(t *testing.T) {
 	}
 
 	// Create a context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Get the stream
 	stream, err := impl.Stats(ctx, time.Millisecond)
@@ -648,8 +645,7 @@ func TestDevicePlugin_Stats_StreamErr(t *testing.T) {
 	}
 
 	// Create a context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Get the stream
 	stream, err := impl.Stats(ctx, time.Millisecond)

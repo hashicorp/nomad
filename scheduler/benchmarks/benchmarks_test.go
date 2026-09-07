@@ -186,7 +186,7 @@ func upsertNodes(h *tests.Harness, count, racks int) {
 
 	datacenters := []string{"dc-1", "dc-2"}
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		node := mock.Node()
 		node.Datacenter = datacenters[i%2]
 		node.Meta = map[string]string{}

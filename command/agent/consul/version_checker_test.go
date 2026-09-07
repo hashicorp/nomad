@@ -14,7 +14,7 @@ func TestConsulSupportsTLSSkipVerify(t *testing.T) {
 	ci.Parallel(t)
 
 	assertSupport := func(expected bool, blob string) {
-		self := map[string]map[string]interface{}{}
+		self := map[string]map[string]any{}
 		if err := json.Unmarshal([]byte("{"+blob+"}"), &self); err != nil {
 			t.Fatalf("invalid json: %v", err)
 		}

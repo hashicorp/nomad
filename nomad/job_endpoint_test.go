@@ -634,7 +634,7 @@ func TestJobEndpoint_Register_ConnectIngressGateway_full(t *testing.T) {
 					},
 				},
 				EnvoyGatewayNoDefaultBind: true,
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "baz",
 				},
@@ -878,7 +878,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 					Resources: &structs.Resources{
 						CPU: 500,
 					},
-					Config: map[string]interface{}{
+					Config: map[string]any{
 						"labels": map[string]string{
 							"foo": "bar",
 						},
@@ -920,7 +920,7 @@ func TestJobEndpoint_Register_ConnectWithSidecarTask(t *testing.T) {
 	require.Equal(500, sidecarTask.Resources.CPU)
 	require.Equal(connectSidecarResources().MemoryMB, sidecarTask.Resources.MemoryMB)
 	cfg := connectSidecarDriverConfig()
-	cfg["labels"] = map[string]interface{}{
+	cfg["labels"] = map[string]any{
 		"foo": "bar",
 	}
 	require.Equal(cfg, sidecarTask.Config)
@@ -7389,7 +7389,7 @@ func TestJobEndpoint_Scale(t *testing.T) {
 		},
 		Count:   new(int64(originalCount + 1)),
 		Message: "because of the load",
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"metrics": map[string]string{
 				"1": "a",
 				"2": "b",
@@ -7461,7 +7461,7 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 		originalCount := job.TaskGroups[0].Count
 		newCount := int64(originalCount + 1)
 		groupName := job.TaskGroups[0].Name
-		scalingMetadata := map[string]interface{}{
+		scalingMetadata := map[string]any{
 			"meta": "data",
 		}
 		scalingMessage := "original reason for scaling"
@@ -7514,7 +7514,7 @@ func TestJobEndpoint_ScaleEnforceIndex(t *testing.T) {
 		},
 		Count:   new(int64(originalCount + 1)),
 		Message: "because of the load",
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"metrics": map[string]string{
 				"1": "a",
 				"2": "b",
@@ -7584,7 +7584,7 @@ func TestJobEndpoint_Scale_InformationalEventsShouldNotBeBlocked(t *testing.T) {
 
 		// register informational scaling event
 		groupName := job.TaskGroups[0].Name
-		scalingMetadata := map[string]interface{}{
+		scalingMetadata := map[string]any{
 			"meta": "data",
 		}
 		scalingMessage := "original reason for scaling"
@@ -7812,7 +7812,7 @@ func TestJobEndpoint_Scale_Invalid(t *testing.T) {
 		},
 		Count:   new(int64(count) + 1),
 		Message: "this should fail",
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"metrics": map[string]string{
 				"1": "a",
 				"2": "b",
@@ -7954,7 +7954,7 @@ func TestJobEndpoint_Scale_NoEval(t *testing.T) {
 		},
 		Count:   nil, // no count => no eval
 		Message: "something informative",
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"metrics": map[string]string{
 				"1": "a",
 				"2": "b",
@@ -8299,7 +8299,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 		Count:   new(int64(5)),
 		Message: "message",
 		Error:   false,
-		Meta: map[string]interface{}{
+		Meta: map[string]any{
 			"a": "b",
 		},
 		EvalID: nil,

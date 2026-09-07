@@ -19,7 +19,7 @@ import (
 //
 // The HCL parser stores the hcl AST as the map values, and decodeMapInterfaceType
 // evaluates the AST and converts them to the native golang types.
-func decodeMapInterfaceType(v interface{}, ctx *hcl.EvalContext) hcl.Diagnostics {
+func decodeMapInterfaceType(v any, ctx *hcl.EvalContext) hcl.Diagnostics {
 	w := &walker{ctx: ctx}
 	err := reflectwalk.Walk(v, w)
 	if err != nil {
@@ -37,7 +37,7 @@ type walker struct {
 	diags hcl.Diagnostics
 }
 
-var mapStringInterfaceType = reflect.TypeOf(map[string]interface{}{})
+var mapStringInterfaceType = reflect.TypeFor[map[string]any]()
 
 func (w *walker) Map(m reflect.Value) error {
 	if !m.Type().AssignableTo(mapStringInterfaceType) {
@@ -51,7 +51,7 @@ func (w *walker) Map(m reflect.Value) error {
 
 	for _, k := range m.MapKeys() {
 		v := m.MapIndex(k)
-		if attr, ok := v.Interface().(*hcl.Attribute); ok {
+		if attr, ok := reflect.TypeAssert[*hcl.Attribute](v); ok {
 			c, diags := decodeInterface(attr.Expr, w.ctx)
 			w.diags = append(w.diags, diags...)
 
@@ -64,7 +64,7 @@ func (w *walker) Map(m reflect.Value) error {
 func (w *walker) MapElem(m, k, v reflect.Value) error {
 	return nil
 }
-func decodeInterface(expr hcl.Expression, ctx *hcl.EvalContext) (interface{}, hcl.Diagnostics) {
+func decodeInterface(expr hcl.Expression, ctx *hcl.EvalContext) (any, hcl.Diagnostics) {
 	srvVal, diags := expr.Value(ctx)
 
 	dst, err := interfaceFromCtyValue(srvVal)
@@ -81,7 +81,7 @@ func decodeInterface(expr hcl.Expression, ctx *hcl.EvalContext) (interface{}, hc
 	return dst, diags
 }
 
-func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
+func interfaceFromCtyValue(val cty.Value) (any, error) {
 	t := val.Type()
 
 	if val.IsNull() {
@@ -114,7 +114,7 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 			panic("unsupported primitive type")
 		}
 	case isCollectionOfMaps(t):
-		result := []map[string]interface{}{}
+		result := []map[string]any{}
 
 		it := val.ElementIterator()
 		for it.Next() {
@@ -123,11 +123,11 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
-			result = append(result, evi.(map[string]interface{}))
+			result = append(result, evi.(map[string]any))
 		}
 		return result, nil
 	case t.IsListType(), t.IsSetType(), t.IsTupleType():
-		result := []interface{}{}
+		result := []any{}
 
 		it := val.ElementIterator()
 		for it.Next() {
@@ -140,7 +140,7 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 		}
 		return result, nil
 	case t.IsMapType():
-		result := map[string]interface{}{}
+		result := map[string]any{}
 		it := val.ElementIterator()
 		for it.Next() {
 			ek, ev := it.Element()
@@ -155,7 +155,7 @@ func interfaceFromCtyValue(val cty.Value) (interface{}, error) {
 		}
 		return result, nil
 	case t.IsObjectType():
-		result := map[string]interface{}{}
+		result := map[string]any{}
 
 		for k := range t.AttributeTypes() {
 			av := val.GetAttr(k)
@@ -195,7 +195,7 @@ func isCollectionOfMaps(t cty.Type) bool {
 	}
 }
 
-func smallestNumber(b *big.Float) interface{} {
+func smallestNumber(b *big.Float) any {
 	if v, acc := b.Int64(); acc == big.Exact {
 		// check if it fits in int
 		if int64(int(v)) == v {

@@ -210,7 +210,6 @@ func TestDrainingNode_Table(t *testing.T) {
 	// Default test drainingNode has no allocs, so it should be done and
 	// have no remaining allocs.
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 			dn := testDrainingNode(t)

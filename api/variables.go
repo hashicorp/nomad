@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"strings"
 )
@@ -439,9 +440,7 @@ func NewVariable(path string) *Variable {
 func (v *Variable) Copy() *Variable {
 	var out = *v
 	out.Items = make(VariableItems)
-	for key, value := range v.Items {
-		out.Items[key] = value
-	}
+	maps.Copy(out.Items, v.Items)
 	return &out
 }
 

@@ -705,7 +705,7 @@ func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 	if len(host) < 2 {
 		t.Skip("No host environment variables. Can't test")
 	}
-	skip := strings.Split(host[0], "=")[0]
+	skip, _, _ := strings.Cut(host[0], "=")
 	env := testEnvBuilder().
 		SetHostEnvvars([]string{skip}).
 		Build()

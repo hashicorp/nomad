@@ -10,7 +10,6 @@ import { computed as overridable } from 'ember-overridable-computed';
 import { scheduleOnce } from '@ember/runloop';
 import { task, timeout } from 'ember-concurrency';
 import { lazyClick } from '../helpers/lazy-click';
-import AllocationStatsTracker from 'nomad-ui/utils/classes/allocation-stats-tracker';
 import classic from 'ember-classic-decorator';
 import ENV from 'nomad-ui/config/environment';
 import {
@@ -30,6 +29,7 @@ import {
 export default class AllocationRow extends Component {
   @service store;
   @service token;
+  @service('stats-trackers-registry') statsTrackersRegistry;
 
   allocation = null;
 
@@ -45,10 +45,7 @@ export default class AllocationRow extends Component {
   get stats() {
     if (!this.get('allocation.isRunning')) return undefined;
 
-    return AllocationStatsTracker.create({
-      fetch: (url) => this.token.authorizedRequest(url),
-      allocation: this.allocation,
-    });
+    return this.statsTrackersRegistry.getTracker(this.allocation);
   }
 
   @computed('stats.cpu.[]')

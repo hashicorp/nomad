@@ -789,15 +789,15 @@ once their TTL reaches zero.
 }
 
 func printMapOfStrings(m map[string]string) string {
-	var output string
+	var output strings.Builder
 
 	for k, v := range m {
 		if v != "" {
-			output += fmt.Sprintf("  * %s: %q\n", k, v)
+			output.WriteString(fmt.Sprintf("  * %s: %q\n", k, v))
 		} else {
-			output += fmt.Sprintf("  * %s\n", k)
+			output.WriteString(fmt.Sprintf("  * %s\n", k))
 		}
 	}
 
-	return output
+	return output.String()
 }

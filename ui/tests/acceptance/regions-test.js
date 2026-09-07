@@ -53,6 +53,11 @@ module('Acceptance | regions (only one)', function (hooks) {
 
     assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
     assert.ok(Layout.navbar.singleRegion.isPresent, 'Single region');
+    assert.equal(
+      Layout.navbar.singleRegion.text,
+      'Region: some-region',
+      'Single region name is shown',
+    );
   });
 
   test('pages do not include the region query param', async function (assert) {

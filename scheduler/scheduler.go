@@ -30,7 +30,7 @@ var BuiltinSchedulers = map[string]structs.Factory{
 // NewScheduler is used to instantiate and return a new scheduler
 // given the scheduler name, initial state, and planner.
 func NewScheduler(
-	name string, logger log.Logger, eventsCh chan<- interface{}, state structs.State, planner structs.Planner,
+	name string, logger log.Logger, eventsCh chan<- any, state structs.State, planner structs.Planner,
 ) (structs.Scheduler, error) {
 	// Lookup the factory function
 	factory, ok := BuiltinSchedulers[name]

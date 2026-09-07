@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"regexp"
 	"strings"
@@ -183,8 +184,8 @@ func (vl *VariableLock) MarshalJSON() ([]byte, error) {
 func (vl *VariableLock) UnmarshalJSON(data []byte) (err error) {
 	type Alias VariableLock
 	aux := &struct {
-		TTL       interface{}
-		LockDelay interface{}
+		TTL       any
+		LockDelay any
 		*Alias
 	}{
 		Alias: (*Alias)(vl),
@@ -335,9 +336,7 @@ func (vd VariableDecrypted) Copy() VariableDecrypted {
 
 func (vi VariableItems) Copy() VariableItems {
 	out := make(VariableItems, len(vi))
-	for k, v := range vi {
-		out[k] = v
-	}
+	maps.Copy(out, vi)
 	return out
 }
 

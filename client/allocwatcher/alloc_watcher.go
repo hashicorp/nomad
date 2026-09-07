@@ -33,7 +33,7 @@ const (
 // RPCer is the interface needed by a prevAllocWatcher to make RPC calls.
 type RPCer interface {
 	// RPC allows retrieving remote allocs.
-	RPC(method string, args interface{}, reply interface{}) error
+	RPC(method string, args any, reply any) error
 }
 
 // terminated is the interface needed by a prevAllocWatcher to check if an
@@ -375,6 +375,12 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		resp := structs.SingleAllocResponse{}
 		err := p.rpc.RPC("Alloc.GetAlloc", &req, &resp)
 		if err != nil {
+			if structs.IsErrPermissionDenied(err) || structs.IsErrUnknownAllocation(err) {
+				p.logger.Warn("unable to read previous alloc; skipping data migration",
+					"error", err)
+				return nil
+			}
+
 			retry := getRemoteRetryIntv + helper.RandomStagger(getRemoteRetryIntv)
 			timer, stop := helper.NewSafeTimer(retry)
 			p.logger.Error("error querying previous alloc", "error", err, "wait", retry)

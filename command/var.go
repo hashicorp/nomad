@@ -168,12 +168,12 @@ func renderWithGoTemplate(sv *api.Variable, tpl string) (string, error) {
 type KVBuilder struct {
 	Stdin io.Reader
 
-	result map[string]interface{}
+	result map[string]any
 	stdin  bool
 }
 
 // Map returns the built map.
-func (b *KVBuilder) Map() map[string]interface{} {
+func (b *KVBuilder) Map() map[string]any {
 	return b.result
 }
 
@@ -191,7 +191,7 @@ func (b *KVBuilder) Add(args ...string) error {
 func (b *KVBuilder) add(raw string) error {
 	// Regardless of validity, make sure we make our result
 	if b.result == nil {
-		b.result = make(map[string]interface{})
+		b.result = make(map[string]any)
 	}
 
 	// Empty strings are fine, just ignored
@@ -264,7 +264,7 @@ func (b *KVBuilder) add(raw string) error {
 
 	// Repeated keys will be converted into a slice
 	if existingValue, ok := b.result[key]; ok {
-		var sliceValue []interface{}
+		var sliceValue []any
 		if err := mapstructure.WeakDecode(existingValue, &sliceValue); err != nil {
 			return err
 		}
@@ -294,8 +294,7 @@ func (b *KVBuilder) addReader(r io.Reader) error {
 // check-and-set error
 func handleCASError(err error, c VarUI) (handled bool) {
 	ui := c.GetConcurrentUI()
-	var cErr api.ErrCASConflict
-	if errors.As(err, &cErr) {
+	if cErr, ok := errors.AsType[api.ErrCASConflict](err); ok {
 		lastUpdate := ""
 		if cErr.Conflict.ModifyIndex > 0 {
 			lastUpdate = fmt.Sprintf(

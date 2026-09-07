@@ -78,6 +78,9 @@ type secretsHook struct {
 
 	// secrets to be fetched and populated for interpolation
 	secrets []*structs.Secret
+
+	// firstRun stores whether it is the first run for the hook
+	firstRun bool
 }
 
 func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secretsHook {
@@ -90,6 +93,7 @@ func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secrets
 		nomadNamespace: conf.nomadNamespace,
 		jobId:          conf.jobId,
 		secrets:        secrets,
+		firstRun:       true,
 	}
 }
 
@@ -98,6 +102,12 @@ func (h *secretsHook) Name() string {
 }
 
 func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+	first := h.firstRun
+	h.firstRun = false
+	if !first {
+		return nil
+	}
+
 	tmplProvider, pluginProvider, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
 	if err != nil {
 		return err
@@ -180,7 +190,6 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		h.envBuilder.SetSecrets(vars)
 	}
 
-	resp.Done = true
 	return nil
 }
 

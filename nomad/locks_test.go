@@ -167,7 +167,7 @@ func TestServer_createAndRenewVariableLockTimer(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, mockVar1.LockID(), varGetResp.LockID())
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		// Renew the lock
 		err = testServer.RenewTTLTimer(*mockVar1)
 		must.NoError(t, err)

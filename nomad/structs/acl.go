@@ -5,6 +5,7 @@ package structs
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -893,7 +894,7 @@ func (a *ACLToken) MarshalJSON() ([]byte, error) {
 func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
 	type Alias ACLToken
 	aux := &struct {
-		ExpirationTTL interface{}
+		ExpirationTTL any
 		Hash          string
 		*Alias
 	}{
@@ -1328,7 +1329,7 @@ func (a *ACLAuthMethod) MarshalJSON() ([]byte, error) {
 func (a *ACLAuthMethod) UnmarshalJSON(data []byte) (err error) {
 	type Alias ACLAuthMethod
 	aux := &struct {
-		MaxTokenTTL interface{}
+		MaxTokenTTL any
 		*Alias
 	}{
 		Alias: (*Alias)(a),
@@ -1895,6 +1896,9 @@ func (k *OIDCClientAssertionKey) Validate() error {
 		if k.KeyIDHeader != OIDCClientAssertionHeaderX5t && k.KeyIDHeader != OIDCClientAssertionHeaderX5tS256 {
 			return fmt.Errorf("%w; certificate-derived key header must be one of: %q, %q",
 				ErrInvalidKeyIDHeader, OIDCClientAssertionHeaderX5tS256, OIDCClientAssertionHeaderX5t)
+		}
+		if fips140.Enabled() && k.KeyIDHeader == OIDCClientAssertionHeaderX5t {
+			return errors.New("x5t assertion headers use SHA-1, which is forbidden in FIPS-140 mode")
 		}
 	}
 
@@ -2504,7 +2508,7 @@ func (a *ACLCreateClientIntroductionTokenRequest) MarshalJSON() ([]byte, error) 
 func (a *ACLCreateClientIntroductionTokenRequest) UnmarshalJSON(data []byte) (err error) {
 	type Alias ACLCreateClientIntroductionTokenRequest
 	aux := &struct {
-		TTL interface{}
+		TTL any
 		*Alias
 	}{
 		Alias: (*Alias)(a),

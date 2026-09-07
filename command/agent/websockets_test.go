@@ -187,7 +187,7 @@ func TestHTTP_ReadWsHandshake(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			called := false
-			readFn := func(h interface{}) error {
+			readFn := func(h any) error {
 				called = true
 				if !tc.handshake {
 					return fmt.Errorf("should not be called")

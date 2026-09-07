@@ -105,7 +105,7 @@ func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Re
 
 // KeyringRequest is used route operator/raft API requests to the implementing
 // functions.
-func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	path := strings.TrimPrefix(req.URL.Path, "/v1/operator/keyring/")
 	switch {
@@ -145,7 +145,7 @@ func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request)
 	}
 }
 
-func (s *HTTPServer) keyringListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) keyringListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	args := structs.KeyringListRootKeyMetaRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -164,7 +164,7 @@ func (s *HTTPServer) keyringListRequest(resp http.ResponseWriter, req *http.Requ
 	return out.Keys, nil
 }
 
-func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	args := structs.KeyringRotateRootKeyRequest{}
 	s.parseWriteRequest(req, &args.WriteRequest)
@@ -196,7 +196,7 @@ func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Re
 	return out, nil
 }
 
-func (s *HTTPServer) keyringDeleteRequest(resp http.ResponseWriter, req *http.Request, keyID string, force bool) (interface{}, error) {
+func (s *HTTPServer) keyringDeleteRequest(resp http.ResponseWriter, req *http.Request, keyID string, force bool) (any, error) {
 
 	args := structs.KeyringDeleteRootKeyRequest{KeyID: keyID, Force: force}
 	s.parseWriteRequest(req, &args.WriteRequest)

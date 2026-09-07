@@ -52,12 +52,12 @@ func (m *MacOS) scanAppleSilicon(top *Topology) {
 	top.Cores = make([]Core, pCoreCount+eCoreCount)
 	nthCore := hw.CoreID(0)
 
-	for i := 0; i < pCoreCount; i++ {
+	for range pCoreCount {
 		top.insert(nodeID, socketID, nthCore, Performance, maxSpeed, pCoreSpeed)
 		nthCore++
 	}
 
-	for i := 0; i < eCoreCount; i++ {
+	for range eCoreCount {
 		top.insert(nodeID, socketID, nthCore, Efficiency, maxSpeed, eCoreSpeed)
 		nthCore++
 	}

@@ -149,9 +149,7 @@ func (b *WorkloadIdentityClaimsBuilder) WithVault(extraClaims map[string]string)
 		return b
 	}
 	b.vault = b.task.Vault
-	for k, v := range extraClaims {
-		b.extras[k] = v
-	}
+	maps.Copy(b.extras, extraClaims)
 	return b
 }
 

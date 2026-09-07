@@ -677,7 +677,7 @@ func (mr *mockRPC) calls() map[string]int {
 }
 
 // RPC mocks the server RPCs, acting as though any request succeeds.
-func (mr *mockRPC) RPC(method string, _, _ interface{}) error {
+func (mr *mockRPC) RPC(method string, _, _ any) error {
 	mr.l.Lock()
 	defer mr.l.Unlock()
 

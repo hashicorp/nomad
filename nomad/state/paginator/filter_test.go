@@ -279,7 +279,7 @@ func setupPopulatedState(b *testing.B, evalCount int) *state.StateStore {
 func generateEvals(count int) []*structs.Evaluation {
 	evals := []*structs.Evaluation{}
 	ns := structs.DefaultNamespace
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if i > count/2 {
 			ns = "other"
 		}

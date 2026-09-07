@@ -4,7 +4,7 @@
 package structs
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"slices"
@@ -187,7 +187,8 @@ func (s *ServiceRegistration) HashWith(key string) string {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(s.Port))
 
-	sum := md5.New()
+	sum := sha256.New()
+
 	sum.Write(buf)
 	sum.Write([]byte(s.AllocID))
 	sum.Write([]byte(s.ID))

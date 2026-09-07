@@ -10,14 +10,14 @@ import (
 )
 
 // extendFunc is a mapping from one struct to another, to change the shape of the encoded JSON
-type extendFunc func(interface{}) interface{}
+type extendFunc func(any) any
 
 // nomadJsonEncodingExtensions is a catch-all go-msgpack extension
 // it looks up the types in the list of registered extension functions and applies it
 type nomadJsonEncodingExtensions struct{}
 
 // ConvertExt calls the registered conversions functions
-func (n nomadJsonEncodingExtensions) ConvertExt(v interface{}) interface{} {
+func (n nomadJsonEncodingExtensions) ConvertExt(v any) any {
 	if fn, ok := extendedTypes[reflect.TypeOf(v)]; ok {
 		return fn(v)
 	} else {
@@ -28,7 +28,7 @@ func (n nomadJsonEncodingExtensions) ConvertExt(v interface{}) interface{} {
 }
 
 // UpdateExt is required by go-msgpack, but not used by us
-func (n nomadJsonEncodingExtensions) UpdateExt(_ interface{}, _ interface{}) {}
+func (n nomadJsonEncodingExtensions) UpdateExt(_ any, _ any) {}
 
 // NomadJsonEncodingExtensions registers all extension functions against the
 // provided JsonHandle.

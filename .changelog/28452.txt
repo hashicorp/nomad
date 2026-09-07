@@ -1,0 +1,3 @@
+```release-note:bug
+planner: Fixed a bug where valid evaluations could be unnecessarily retried, delaying workload placement under load
+```

@@ -88,7 +88,7 @@ func TestRequestTime(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	var out interface{}
+	var out any
 
 	qm, err := client.query("/", &out, nil)
 	if err != nil {

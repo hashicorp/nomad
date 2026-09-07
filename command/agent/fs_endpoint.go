@@ -28,7 +28,7 @@ var (
 	invalidOrigin         = CodedError(400, "origin must be start or end")
 )
 
-func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/client/fs/")
 	switch {
 	case strings.HasPrefix(path, "ls/"):
@@ -52,7 +52,7 @@ func (s *HTTPServer) FsRequest(resp http.ResponseWriter, req *http.Request) (int
 	}
 }
 
-func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var allocID, path string
 
 	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/ls/"); allocID == "" {
@@ -93,7 +93,7 @@ func (s *HTTPServer) DirectoryListRequest(resp http.ResponseWriter, req *http.Re
 	return reply.Files, nil
 }
 
-func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var allocID, path string
 	if allocID = strings.TrimPrefix(req.URL.Path, "/v1/client/fs/stat/"); allocID == "" {
 		return nil, allocIDNotPresentErr
@@ -133,7 +133,7 @@ func (s *HTTPServer) FileStatRequest(resp http.ResponseWriter, req *http.Request
 	return reply.Info, nil
 }
 
-func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var allocID, path string
 	var offset, limit int64
 	var err error
@@ -173,7 +173,7 @@ func (s *HTTPServer) FileReadAtRequest(resp http.ResponseWriter, req *http.Reque
 	return s.fsStreamImpl(resp, req, "FileSystem.Stream", fsReq, fsReq.AllocID)
 }
 
-func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var allocID, path string
 
 	q := req.URL.Query()
@@ -205,7 +205,7 @@ func (s *HTTPServer) FileCatRequest(resp http.ResponseWriter, req *http.Request)
 //   - offset: The offset to start streaming data at, defaults to zero.
 //   - origin: Either "start" or "end" and defines from where the offset is
 //     applied. Defaults to "start".
-func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var allocID, path string
 	var err error
 
@@ -264,7 +264,7 @@ func (s *HTTPServer) Stream(resp http.ResponseWriter, req *http.Request) (interf
 //   - offset: The offset to start streaming data at, defaults to zero.
 //   - origin: Either "start" or "end" and defines from where the offset is
 //     applied. Defaults to "start".
-func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var allocID, task, logType string
 	var plain, follow bool
 	var err error
@@ -343,7 +343,7 @@ func (s *HTTPServer) Logs(resp http.ResponseWriter, req *http.Request) (interfac
 // args and then expects a stream of StreamErrWrapper results where the payload
 // is copied to the response body.
 func (s *HTTPServer) fsStreamImpl(resp http.ResponseWriter,
-	req *http.Request, method string, args interface{}, allocID string) (interface{}, error) {
+	req *http.Request, method string, args any, allocID string) (any, error) {
 
 	// Get the correct handler
 	localClient, remoteClient, localServer := s.rpcHandlerForAlloc(allocID)

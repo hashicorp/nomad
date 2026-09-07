@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Ensure deployment IDs are not written to an evaluation when the generated deployment is not persisted to state due to plan apply retries
+```

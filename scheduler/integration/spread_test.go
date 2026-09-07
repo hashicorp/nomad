@@ -113,7 +113,7 @@ func TestSpreadOnLargeCluster(t *testing.T) {
 // evenly distributed in those racks
 func generateEvenRacks(nodes int, rackCount int) map[string]int {
 	racks := map[string]int{}
-	for i := 0; i < nodes; i++ {
+	for i := range nodes {
 		racks[fmt.Sprintf("r%d", i%rackCount)]++
 	}
 	return racks
@@ -123,7 +123,7 @@ func generateEvenRacks(nodes int, rackCount int) map[string]int {
 // of nodes in that rack
 func generateUnevenRacks(t *testing.T, nodes int, rackCount int) map[string]int {
 	rackNames := []string{}
-	for i := 0; i < rackCount; i++ {
+	for i := range rackCount {
 		rackNames = append(rackNames, fmt.Sprintf("r%d", i))
 	}
 
@@ -134,7 +134,7 @@ func generateUnevenRacks(t *testing.T, nodes int, rackCount int) map[string]int 
 	t.Logf("nodes=%d racks=%d seed=%d\n", nodes, rackCount, seed)
 
 	racks := map[string]int{}
-	for i := 0; i < nodes; i++ {
+	for range nodes {
 		idx := int(random.Int63()) % len(rackNames)
 		racks[rackNames[idx]]++
 	}
@@ -148,12 +148,12 @@ func upsertNodes(h *tests.Harness, count int, racks map[string]int) error {
 	datacenters := []string{"dc-1", "dc-2"}
 	rackAssignments := []string{}
 	for rack, count := range racks {
-		for i := 0; i < count; i++ {
+		for range count {
 			rackAssignments = append(rackAssignments, rack)
 		}
 	}
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		node := mock.Node()
 		node.Datacenter = datacenters[i%2]
 		node.Meta = map[string]string{}
@@ -267,7 +267,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	nodes := []*structs.Node{}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		err := h.State.UpsertNode(structs.MsgTypeTestSetup,
@@ -309,7 +309,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	must.NoError(t, err)
 
 	allocs := []*structs.Allocation{}
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		alloc := mock.Alloc()
 		alloc.Job = job1
 		alloc.JobID = job1.ID
@@ -366,7 +366,7 @@ func TestSpread_ImplicitTargets(t *testing.T) {
 		var nodes []*feasible.RankedNode
 
 		for i, dc := range dcs {
-			for n := 0; n < 4; n++ {
+			for range 4 {
 				node := mock.Node()
 				node.Datacenter = dc
 				must.NoError(t, h.State.UpsertNode(

@@ -32,7 +32,7 @@ const (
 // considers the task complete on success.
 type SystemScheduler struct {
 	logger   log.Logger
-	eventsCh chan<- interface{}
+	eventsCh chan<- any
 	state    sstructs.State
 	planner  sstructs.Planner
 
@@ -59,7 +59,7 @@ type SystemScheduler struct {
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewSystemScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	return &SystemScheduler{
 		logger:   logger.Named("system_sched"),
 		eventsCh: eventsCh,
@@ -411,11 +411,10 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		// submitted jobs should have a non-empty update block as part of
 		// canonicalization)
 		// - canary parameter in the update block has to be positive
-		// - deployment has to be non-nil and it cannot have been promoted
+		// - deployment cannot have been promoted
 		// - this cannot be the initial job version
 		isCanarying := !tg.Update.IsEmpty() &&
 			tg.Update.Canary > 0 &&
-			dstate != nil &&
 			!dstate.Promoted &&
 			s.job.Version != 0 &&
 			s.tgDestructiveUpdateCounts[tg.Name] > 0
@@ -660,7 +659,7 @@ func (s *SystemScheduler) addBlocked(node *structs.Node) error {
 		classEligibility = e.GetClasses()
 	}
 
-	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
+	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs, e.MissingResources())
 	blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	blocked.NodeID = node.ID
 

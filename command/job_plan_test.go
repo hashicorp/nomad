@@ -235,7 +235,7 @@ func TestPlanCommand_Preemptions(t *testing.T) {
 
 	// Less than 10 unique job ids
 	var preemptedAllocs []*api.AllocationListStub
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		job_id := "job" + strconv.Itoa(i%4)
 		alloc := &api.AllocationListStub{
 			ID:        "alloc",
@@ -261,7 +261,7 @@ func TestPlanCommand_Preemptions(t *testing.T) {
 	// More than 10 unique job IDs
 	preemptedAllocs = make([]*api.AllocationListStub, 0)
 	var job_type string
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		job_id := "job" + strconv.Itoa(i)
 		if i%2 == 0 {
 			job_type = "service"

@@ -4,7 +4,6 @@
 // For now CNI is supported only on Linux.
 //
 //go:build linux
-// +build linux
 
 package allocrunner
 
@@ -13,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -113,9 +113,7 @@ func addCustomCNIArgs(networks []*structs.NetworkResource, cniArgs map[string]st
 		if net.CNI == nil {
 			continue
 		}
-		for k, v := range net.CNI.Args {
-			cniArgs[k] = v
-		}
+		maps.Copy(cniArgs, net.CNI.Args)
 	}
 }
 

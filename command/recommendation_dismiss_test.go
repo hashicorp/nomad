@@ -61,7 +61,7 @@ func TestRecommendationDismissCommand_Run(t *testing.T) {
 		Task:     testJob.TaskGroups[0].Tasks[0].Name,
 		Resource: "CPU",
 		Value:    1050,
-		Meta:     map[string]interface{}{"test-meta-entry": "test-meta-value"},
+		Meta:     map[string]any{"test-meta-entry": "test-meta-value"},
 		Stats:    map[string]float64{"p13": 1.13},
 	}
 	recResp, _, err := client.Recommendations().Upsert(&rec, nil)
@@ -125,7 +125,7 @@ func testRecommendationAutocompleteCommand(t *testing.T, client *api.Client, srv
 		Task:     testJob.TaskGroups[0].Tasks[0].Name,
 		Resource: "CPU",
 		Value:    1050,
-		Meta:     map[string]interface{}{"test-meta-entry": "test-meta-value"},
+		Meta:     map[string]any{"test-meta-entry": "test-meta-value"},
 		Stats:    map[string]float64{"p13": 1.13},
 	}
 	rec, _, err = client.Recommendations().Upsert(rec, nil)

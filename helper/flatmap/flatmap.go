@@ -45,7 +45,7 @@ func flatten(prefix string, v reflect.Value, primitiveOnly, enteredStruct bool, 
 		output[prefix] = fmt.Sprintf("%v", v.String())
 	case reflect.Invalid:
 		output[prefix] = "nil"
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if primitiveOnly && enteredStruct {
 			return
 		}

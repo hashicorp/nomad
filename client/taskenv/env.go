@@ -226,9 +226,7 @@ func (t *TaskEnv) List() []string {
 // DeviceEnv returns the task's environment variables set by device hooks.
 func (t *TaskEnv) DeviceEnv() map[string]string {
 	m := make(map[string]string, len(t.deviceEnv))
-	for k, v := range t.deviceEnv {
-		m[k] = v
-	}
+	maps.Copy(m, t.deviceEnv)
 
 	return m
 }
@@ -236,9 +234,7 @@ func (t *TaskEnv) DeviceEnv() map[string]string {
 // Map of the task's environment variables.
 func (t *TaskEnv) Map() map[string]string {
 	m := make(map[string]string, len(t.EnvMap))
-	for k, v := range t.EnvMap {
-		m[k] = v
-	}
+	maps.Copy(m, t.EnvMap)
 
 	return m
 }
@@ -247,12 +243,8 @@ func (t *TaskEnv) Map() map[string]string {
 // single map.
 func (t *TaskEnv) All() map[string]string {
 	m := make(map[string]string, len(t.EnvMap)+len(t.NodeAttrs))
-	for k, v := range t.EnvMap {
-		m[k] = v
-	}
-	for k, v := range t.NodeAttrs {
-		m[k] = v
-	}
+	maps.Copy(m, t.EnvMap)
+	maps.Copy(m, t.NodeAttrs)
 
 	return m
 }
@@ -276,9 +268,7 @@ func (t *TaskEnv) WithTask(alloc *structs.Allocation, task *structs.Task) *TaskE
 		newT.EnvMap[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
 	}
 
-	for k, v := range task.Env {
-		newT.EnvMap[k] = v
-	}
+	maps.Copy(newT.EnvMap, task.Env)
 	newT.EnvMap[TaskName] = task.Name
 	return newT
 }
@@ -294,7 +284,7 @@ func (t *TaskEnv) AllValues() (map[string]cty.Value, map[string]error, error) {
 	errs := make(map[string]error)
 
 	// Intermediate map for building up nested go types
-	allMap := make(map[string]interface{}, len(t.EnvMap)+len(t.NodeAttrs))
+	allMap := make(map[string]any, len(t.EnvMap)+len(t.NodeAttrs))
 
 	// Intermediate map for all env vars including those whose keys that
 	// cannot be nested (eg foo...bar)
@@ -332,7 +322,7 @@ func (t *TaskEnv) AllValues() (map[string]cty.Value, map[string]error, error) {
 	if !ok {
 		return nil, nil, fmt.Errorf("missing node variable")
 	}
-	nodeMap, ok := nodeMapI.(map[string]interface{})
+	nodeMap, ok := nodeMapI.(map[string]any)
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid type for node variable: %T", nodeMapI)
 	}
@@ -613,9 +603,7 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	buildNetworkEnv(envMap, b.networks, b.driverNetwork)
 
 	// Build the addr of the other tasks
-	for k, v := range b.otherPorts {
-		envMap[k] = v
-	}
+	maps.Copy(envMap, b.otherPorts)
 
 	// Build the Consul Connect upstream env vars
 	buildUpstreamsEnv(envMap, b.upstreams)
@@ -684,9 +672,7 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	}
 
 	// Copy template env vars as they override task env vars
-	for k, v := range b.templateEnv {
-		envMap[k] = v
-	}
+	maps.Copy(envMap, b.templateEnv)
 
 	// Clean keys (see #2405)
 	prefixesToClean := [...]string{AddrPrefix, IpPrefix, PortPrefix, HostPortPrefix, MetaPrefix}
@@ -717,9 +703,7 @@ func (b *Builder) Build() *TaskEnv {
 		nodeAttrs[nodeRegionKey] = b.region
 	}
 	// Copy node attributes
-	for k, v := range b.nodeAttrs {
-		nodeAttrs[k] = v
-	}
+	maps.Copy(nodeAttrs, b.nodeAttrs)
 
 	envMap, deviceEnvs := b.buildEnv(b.allocDir, b.localDir, b.secretsDir, nodeAttrs)
 	envMapClient, _ := b.buildEnv(b.clientSharedAllocDir, b.clientTaskLocalDir, b.clientTaskSecretsDir, nodeAttrs)
@@ -773,9 +757,7 @@ func (b *Builder) setTask(task *structs.Task) *Builder {
 	}
 	b.taskName = task.Name
 	b.envvars = make(map[string]string, len(task.Env))
-	for k, v := range task.Env {
-		b.envvars[k] = v
-	}
+	maps.Copy(b.envvars, task.Env)
 
 	// COMPAT(0.11): Remove in 0.11
 	if task.Resources == nil {

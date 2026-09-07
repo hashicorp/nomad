@@ -1313,7 +1313,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 				// Compute the diffs
 
 				if args.Diffs {
-					for i := 0; i < len(out); i++ {
+					for i := range out {
 						var old, new *structs.Job
 						new = out[i]
 
@@ -2305,13 +2305,7 @@ func (j *Job) ScaleStatus(args *structs.JobScaleStatusRequest,
 				}
 			}
 
-			maxIndex := job.ModifyIndex
-			if eventsIndex > maxIndex {
-				maxIndex = eventsIndex
-			}
-			if allocsIndex > maxIndex {
-				maxIndex = allocsIndex
-			}
+			maxIndex := max(allocsIndex, max(eventsIndex, job.ModifyIndex))
 			reply.Index = maxIndex
 
 			// Set the query response

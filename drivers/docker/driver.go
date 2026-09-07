@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/netip"
 	"os"
@@ -1495,9 +1496,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	labels := make(map[string]string, len(driverConfig.Labels)+1)
-	for k, v := range driverConfig.Labels {
-		labels[k] = v
-	}
+	maps.Copy(labels, driverConfig.Labels)
 	// main mandatory label
 	labels[dockerLabelAllocID] = task.AllocID
 
@@ -1932,7 +1931,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	defer opts.Stdout.Close()
 	defer opts.Stderr.Close()
 
-	done := make(chan interface{})
+	done := make(chan any)
 	defer close(done)
 
 	h, ok := d.tasks.Get(taskID)
@@ -2083,7 +2082,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 
 		if cert+key+ca != "" {
 			d.logger.Debug("using TLS client connection", "endpoint", dockerEndpoint)
-			newClient, err = mclient.NewClientWithOpts(
+			newClient, err = mclient.New(
 				append(opts,
 					mclient.WithHost(dockerEndpoint),
 					mclient.WithTLSClientConfig(ca, cert, key),
@@ -2094,7 +2093,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 			}
 		} else {
 			d.logger.Debug("using standard client connection", "endpoint", dockerEndpoint)
-			newClient, err = mclient.NewClientWithOpts(
+			newClient, err = mclient.New(
 				append(opts,
 					mclient.WithHost(dockerEndpoint),
 				)...,
@@ -2105,9 +2104,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 		}
 	} else {
 		d.logger.Debug("using client connection initialized from environment")
-		newClient, err = mclient.NewClientWithOpts(
-			append(opts, mclient.FromEnv)...,
-		)
+		newClient, err = mclient.New(append(opts, mclient.FromEnv)...)
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}

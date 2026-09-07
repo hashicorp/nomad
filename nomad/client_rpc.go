@@ -239,7 +239,7 @@ func (s *Server) forwardClientRPC(method, nodeID string, args, reply any) error 
 
 // NodeRpc is used to make an RPC call to a node. The method takes the
 // Yamux session for the node and the method to be called.
-func NodeRpc(session *yamux.Session, method string, args, reply interface{}) error {
+func NodeRpc(session *yamux.Session, method string, args, reply any) error {
 	// Open a new session
 	stream, err := session.Open()
 	if err != nil {
@@ -308,7 +308,7 @@ func NodeStreamingRpc(session *yamux.Session, method string) (net.Conn, error) {
 // findNodeConnAndForward is a helper for finding the server with a connection
 // to the given node and forwarding the RPC to the correct server. This does not
 // work for streaming RPCs.
-func findNodeConnAndForward(srv *Server, nodeID, method string, args, reply interface{}) error {
+func findNodeConnAndForward(srv *Server, nodeID, method string, args, reply any) error {
 	// Determine the Server that has a connection to the node.
 	srvWithConn, err := srv.serverWithNodeConn(nodeID, srv.Region())
 	if err != nil {

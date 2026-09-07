@@ -386,7 +386,7 @@ func TestCheckWatcher_Deadlock(t *testing.T) {
 	n := cap(cw.checkUpdateCh) + 1
 	checks := make([]*structs.ServiceCheck, n)
 	restarters := make([]*fakeWorkloadRestarter, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		c := testCheck()
 		r := newFakeWorkloadRestarter(cw,
 			fmt.Sprintf("alloc%d", i),
@@ -399,8 +399,7 @@ func TestCheckWatcher_Deadlock(t *testing.T) {
 	}
 
 	// Run
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go cw.Run(ctx)
 
 	// Watch

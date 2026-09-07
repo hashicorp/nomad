@@ -81,7 +81,7 @@ type LibcontainerExecutor struct {
 
 	container      *libcontainer.Container
 	userProc       *libcontainer.Process
-	userProcExited chan interface{}
+	userProcExited chan any
 	exitState      *ProcessState
 	sigChan        chan os.Signal
 }
@@ -274,7 +274,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
-	l.userProcExited = make(chan interface{})
+	l.userProcExited = make(chan any)
 	go l.wait()
 
 	return &ProcessState{

@@ -462,7 +462,7 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 	}
 
 	for _, obj := range list.Items {
-		var m map[string]interface{}
+		var m map[string]any
 		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
 			return err
 		}
@@ -503,7 +503,7 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 		}
 
 		if o := listVal.Filter("default_identity"); len(o.Items) > 0 {
-			var m map[string]interface{}
+			var m map[string]any
 			defaultIdentityBlock := o.Items[0]
 			if err := hcl.DecodeObject(&m, defaultIdentityBlock.Val); err != nil {
 				return err
@@ -529,7 +529,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 	}
 
 	for _, obj := range list.Items {
-		var m map[string]interface{}
+		var m map[string]any
 		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
 			return err
 		}
@@ -579,7 +579,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 
 		if o := listVal.Filter("service_identity"); len(o.Items) > 0 {
-			var m map[string]interface{}
+			var m map[string]any
 			serviceIdentityBlock := o.Items[0]
 			if err := hcl.DecodeObject(&m, serviceIdentityBlock.Val); err != nil {
 				return err
@@ -593,7 +593,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 
 		if o := listVal.Filter("task_identity"); len(o.Items) > 0 {
-			var m map[string]interface{}
+			var m map[string]any
 			taskIdentityBlock := o.Items[0]
 			if err := hcl.DecodeObject(&m, taskIdentityBlock.Val); err != nil {
 				return err
@@ -628,7 +628,7 @@ func parseKeyringConfigs(c *Config, keyringBlocks *ast.ObjectList) error {
 
 		provider.Config = map[string]string{}
 
-		var m map[string]interface{}
+		var m map[string]any
 		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
 			return err
 		}

@@ -124,12 +124,7 @@ func (t *CSITopology) MatchFound(o []*CSITopology) bool {
 		return false
 	}
 
-	for _, other := range o {
-		if t.Contains(other) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(o, t.Contains)
 }
 
 // CSITopologyRequest are the topologies submitted as options to the
@@ -508,7 +503,7 @@ func (n *NodeMetaApplyRequest) Validate() error {
 		// Validate keys are dotted identifiers since their primary use case is in
 		// constraints as interpolated hcl variables.
 		// https://github.com/hashicorp/hcl/blob/v2.16.0/hclsyntax/spec.md#identifiers
-		for _, part := range strings.Split(k, ".") {
+		for part := range strings.SplitSeq(k, ".") {
 			if !hclsyntax.ValidIdentifier(part) {
 				return fmt.Errorf("%q is invalid; metadata keys must be valid dotted hcl identifiers", k)
 			}

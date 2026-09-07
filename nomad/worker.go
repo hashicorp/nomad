@@ -428,8 +428,7 @@ func (w *Worker) run(raftSyncLimit time.Duration) {
 		w.setWorkloadStatus(WorkloadWaitingForRaft)
 		snap, err := w.snapshotMinIndex(waitIndex, raftSyncLimit)
 		if err != nil {
-			var timeoutErr ErrMinIndexDeadlineExceeded
-			if errors.As(err, &timeoutErr) {
+			if _, ok := errors.AsType[ErrMinIndexDeadlineExceeded](err); ok {
 				w.logger.Warn("timeout waiting for Raft index required by eval",
 					"eval", eval.ID, "index", waitIndex, "timeout", raftSyncLimit)
 				w.sendNack(eval, token)

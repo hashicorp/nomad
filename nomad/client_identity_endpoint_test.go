@@ -88,7 +88,7 @@ func TestNodeIdentity_Renew_Forward(t *testing.T) {
 	ci.Parallel(t)
 
 	servers := []*Server{}
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		s, cleanup := TestServer(t, func(c *Config) {
 			c.BootstrapExpect = 3
 			c.NumSchedulers = 0
@@ -110,7 +110,7 @@ func TestNodeIdentity_Renew_Forward(t *testing.T) {
 
 	clients := make([]*client.Client, 4)
 
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		c, cleanup := client.TestClient(t, func(c *config.Config) {
 			c.Servers = followers
 		})

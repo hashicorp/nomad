@@ -10,7 +10,7 @@ import (
 )
 
 // ListVolumesRequest dispatches requests for listing volumes to a specific type.
-func (s *HTTPServer) ListVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ListVolumesRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	query := req.URL.Query()
 	qtype, ok := query["type"]
 	if !ok {

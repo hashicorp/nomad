@@ -201,7 +201,7 @@ func ScalingPolicy() *structs.ScalingPolicy {
 			structs.ScalingTargetGroup:     uuid.Generate(),
 			structs.ScalingTargetTask:      uuid.Generate(),
 		},
-		Policy: map[string]interface{}{
+		Policy: map[string]any{
 			"a": "b",
 		},
 		Enabled: true,

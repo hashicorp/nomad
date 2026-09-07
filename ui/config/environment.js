@@ -11,6 +11,19 @@ if (process.env.USE_MIRAGE) {
   USE_MIRAGE = process.env.USE_MIRAGE == 'true';
 }
 
+let USE_WATCHER_WEBSOCKETS = true;
+
+if (process.env.USE_WATCHER_WEBSOCKETS) {
+  USE_WATCHER_WEBSOCKETS = process.env.USE_WATCHER_WEBSOCKETS == 'true';
+}
+
+// Usage of websockets is not allowed in FIPS-140 mode due to lack
+// of SHA1. Check if FIPS mode has been enabled for the go build and,
+// if so, disable websockets use for watchers.
+if (process.env.GOFIPS140) {
+  USE_WATCHER_WEBSOCKETS = false;
+}
+
 module.exports = function (environment) {
   const ENV = {
     modulePrefix: 'nomad-ui',
@@ -33,6 +46,7 @@ module.exports = function (environment) {
       mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,
+      watcherWebSockets: USE_WATCHER_WEBSOCKETS,
     },
   };
 
@@ -59,6 +73,9 @@ module.exports = function (environment) {
 
     ENV.APP.rootElement = '#ember-testing';
     ENV.APP.autoboot = false;
+
+    // disable watcher sockets while testing
+    ENV.APP.watcherWebSockets = false;
   }
 
   if (environment === 'production') {

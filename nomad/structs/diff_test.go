@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -3381,7 +3382,7 @@ func TestTaskGroupDiff(t *testing.T) {
 								Env: map[string]string{
 									"FOO": "BAR",
 								},
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"foo": "baz",
 								},
 								VolumeMounts: []*VolumeMount{
@@ -3406,7 +3407,7 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									EnvoyDNSDiscoveryType:     "STRICT_DNS",
 									EnvoyGatewayNoDefaultBind: false,
-									Config: map[string]interface{}{
+									Config: map[string]any{
 										"foo": 1,
 									},
 								},
@@ -3493,7 +3494,7 @@ func TestTaskGroupDiff(t *testing.T) {
 											ListenerPort:  "api_expose_healthcheck",
 										}},
 									},
-									Config: map[string]interface{}{
+									Config: map[string]any{
 										"foo": "qux",
 									},
 									TransparentProxy: &ConsulTransparentProxy{
@@ -3519,7 +3520,7 @@ func TestTaskGroupDiff(t *testing.T) {
 									},
 									EnvoyDNSDiscoveryType:     "LOGICAL_DNS",
 									EnvoyGatewayNoDefaultBind: true,
-									Config: map[string]interface{}{
+									Config: map[string]any{
 										"foo": 2,
 									},
 								},
@@ -4855,7 +4856,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     10,
 					Min:     1,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "1m",
 						"evaluation_interval": "5s",
 					},
@@ -4918,7 +4919,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     10,
 					Min:     1,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "1m",
 						"evaluation_interval": "5s",
 					},
@@ -4982,7 +4983,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     10,
 					Min:     1,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "1m",
 						"evaluation_interval": "5s",
 					},
@@ -4993,7 +4994,7 @@ func TestTaskGroupDiff(t *testing.T) {
 					Enabled: true,
 					Max:     15,
 					Min:     5,
-					Policy: map[string]interface{}{
+					Policy: map[string]any{
 						"cooldown":            "2m",
 						"evaluation_interval": "10s",
 					},
@@ -5358,6 +5359,65 @@ func TestTaskGroupDiff(t *testing.T) {
 				must.Eq(t, c.Expected, result)
 			}
 		})
+	}
+}
+
+func TestTaskDiff_ConfigArgsNumericOrder(t *testing.T) {
+	ci.Parallel(t)
+
+	// Slice elements are flattened to "args[<index>]" names. The diff must sort
+	// them numerically, not lexically, so args[2] comes before args[10]
+	args := make([]string, 12)
+	for i := range args {
+		args[i] = fmt.Sprintf("v%d", i)
+	}
+	old := &Task{Name: "web"}
+	updated := &Task{Name: "web", Config: map[string]any{"args": args}}
+
+	diff, err := old.Diff(updated, false)
+	must.NoError(t, err)
+
+	var cfg *ObjectDiff
+	for _, o := range diff.Objects {
+		if o.Name == "Config" {
+			cfg = o
+			break
+		}
+	}
+	must.NotNil(t, cfg)
+
+	got := make([]string, len(cfg.Fields))
+	for i, f := range cfg.Fields {
+		got[i] = f.Name
+	}
+
+	want := make([]string, 12)
+	for i := range want {
+		want[i] = fmt.Sprintf("args[%d]", i)
+	}
+	must.Eq(t, want, got)
+}
+
+func TestSplitIndexedName(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name  string
+		base  string
+		index int
+		ok    bool
+	}{
+		{"args[10]", "args", 10, true},
+		{"args[0]", "args", 0, true},
+		{"args", "", 0, false},    // no index suffix
+		{"[0]", "", 0, false},     // index only, empty base
+		{"args[x]", "", 0, false}, // non-numeric index
+	}
+	for _, tc := range cases {
+		base, index, ok := splitIndexedName(tc.name)
+		must.Eq(t, tc.base, base)
+		must.Eq(t, tc.index, index)
+		must.Eq(t, tc.ok, ok)
 	}
 }
 
@@ -6736,7 +6796,7 @@ func TestTaskDiff(t *testing.T) {
 		{
 			Name: "Config same",
 			Old: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "bar",
 					"bam": []string{"a", "b"},
@@ -6748,7 +6808,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "bar",
 					"bam": []string{"a", "b"},
@@ -6766,7 +6826,7 @@ func TestTaskDiff(t *testing.T) {
 		{
 			Name: "Config edited",
 			Old: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "baz",
 					"bam": []string{"a", "b"},
@@ -6778,7 +6838,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 2,
 					"bar": "baz",
 					"bam": []string{"a", "c", "d"},
@@ -6847,7 +6907,7 @@ func TestTaskDiff(t *testing.T) {
 			Name:       "Config edited with context",
 			Contextual: true,
 			Old: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 1,
 					"bar": "baz",
 					"bam": []string{"a", "b"},
@@ -6859,7 +6919,7 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 			New: &Task{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": 2,
 					"bar": "baz",
 					"bam": []string{"a", "c", "d"},

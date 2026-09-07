@@ -4,7 +4,7 @@
 package structs
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"strconv"
 )
@@ -77,7 +77,8 @@ const (
 //
 // Checks of group-level services have no task.
 func NomadCheckID(allocID, group string, c *ServiceCheck) CheckID {
-	sum := md5.New()
+	sum := sha256.New()
+
 	hashString(sum, allocID)
 	hashString(sum, group)
 	hashString(sum, c.TaskName)

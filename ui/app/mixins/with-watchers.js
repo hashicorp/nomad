@@ -19,6 +19,11 @@ export default Mixin.create(WithVisibilityDetection, {
       assert('Watchers must be Ember Concurrency Tasks.', !!watcher.cancelAll);
       watcher.cancelAll();
     });
+    // once the watchers have been canceled, remove the listener.
+    window.removeEventListener(
+      'beforeunload',
+      this.cancelAllWatchers.bind(this),
+    );
   },
 
   startWatchers() {
@@ -27,6 +32,10 @@ export default Mixin.create(WithVisibilityDetection, {
 
   setupController() {
     this.startWatchers(...arguments);
+    // include a beforeunload listener so if the page is reloaded or
+    // the route is manually adjusted the active watchers will be
+    // properly canceled.
+    window.addEventListener('beforeunload', this.cancelAllWatchers.bind(this));
     return this._super(...arguments);
   },
 
@@ -35,6 +44,13 @@ export default Mixin.create(WithVisibilityDetection, {
       this.cancelAllWatchers();
     } else {
       this.startWatchers(this.controller, this.controller.get('model'));
+      // include a beforeunload listener so if the page is reloaded or
+      // the route is manually adjusted the active watchers will be
+      // properly canceled.
+      window.addEventListener(
+        'beforeunload',
+        this.cancelAllWatchers.bind(this),
+      );
     }
   },
 

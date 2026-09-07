@@ -43,7 +43,6 @@ func TestTlsCertCreateCommand_InvalidArgs(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-		tc := tc
 		t.Run(name, func(t *testing.T) {
 			ci.Parallel(t)
 			ui := cli.NewMockUi()
@@ -141,7 +140,6 @@ func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		must.True(t, t.Run(tc.name, func(t *testing.T) {
 			ui := cli.NewMockUi()
 			cmd := &TLSCertCreateCommand{Meta: Meta{Ui: ui}}
@@ -306,7 +304,6 @@ func TestTlsRecordPreparation(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		must.True(t, t.Run(tc.name, func(t *testing.T) {
 			var ipAddresses []net.IP
 			for _, i := range tc.ipAddresses {

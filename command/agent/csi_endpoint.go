@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
 		return s.csiVolumeRegister(resp, req)
@@ -39,7 +39,7 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 	return out.Volumes, nil
 }
 
-func (s *HTTPServer) CSIExternalVolumesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSIExternalVolumesRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -62,7 +62,7 @@ func (s *HTTPServer) CSIExternalVolumesRequest(resp http.ResponseWriter, req *ht
 }
 
 // CSIVolumeSpecificRequest dispatches GET and PUT
-func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Tokenize the suffix of the path to get the volume id
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volume/csi/")
 	tokens := strings.Split(reqSuffix, "/")
@@ -105,7 +105,7 @@ func (s *HTTPServer) CSIVolumeSpecificRequest(resp http.ResponseWriter, req *htt
 	return nil, CodedError(404, resourceNotFoundErr)
 }
 
-func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http.Request) (any, error) {
 	args := structs.CSIVolumeGetRequest{
 		ID: id,
 	}
@@ -126,7 +126,7 @@ func (s *HTTPServer) csiVolumeGet(id string, resp http.ResponseWriter, req *http
 	return out.Volume, nil
 }
 
-func (s *HTTPServer) csiVolumeRegister(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeRegister(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodPost, http.MethodPut:
 	default:
@@ -149,7 +149,7 @@ func (s *HTTPServer) csiVolumeRegister(resp http.ResponseWriter, req *http.Reque
 	return out, nil
 }
 
-func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodPost, http.MethodPut:
 	default:
@@ -172,7 +172,7 @@ func (s *HTTPServer) csiVolumeCreate(resp http.ResponseWriter, req *http.Request
 	return out, nil
 }
 
-func (s *HTTPServer) csiVolumeDeregister(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeDeregister(id string, resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodDelete {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -203,7 +203,7 @@ func (s *HTTPServer) csiVolumeDeregister(id string, resp http.ResponseWriter, re
 	return nil, nil
 }
 
-func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodDelete {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -225,7 +225,7 @@ func (s *HTTPServer) csiVolumeDelete(id string, resp http.ResponseWriter, req *h
 	return nil, nil
 }
 
-func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodDelete {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -253,7 +253,7 @@ func (s *HTTPServer) csiVolumeDetach(id string, resp http.ResponseWriter, req *h
 	return nil, nil
 }
 
-func (s *HTTPServer) CSISnapshotsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSISnapshotsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
 		return s.csiSnapshotCreate(resp, req)
@@ -265,7 +265,7 @@ func (s *HTTPServer) CSISnapshotsRequest(resp http.ResponseWriter, req *http.Req
 	return nil, CodedError(405, ErrInvalidMethod)
 }
 
-func (s *HTTPServer) csiSnapshotCreate(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiSnapshotCreate(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	args := structs.CSISnapshotCreateRequest{}
 	if err := decodeBody(req, &args); err != nil {
@@ -282,7 +282,7 @@ func (s *HTTPServer) csiSnapshotCreate(resp http.ResponseWriter, req *http.Reque
 	return out, nil
 }
 
-func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	args := structs.CSISnapshotDeleteRequest{}
 	s.parseWriteRequest(req, &args.WriteRequest)
@@ -307,7 +307,7 @@ func (s *HTTPServer) csiSnapshotDelete(resp http.ResponseWriter, req *http.Reque
 	return nil, nil
 }
 
-func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	args := structs.CSISnapshotListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
@@ -328,7 +328,7 @@ func (s *HTTPServer) csiSnapshotList(resp http.ResponseWriter, req *http.Request
 }
 
 // CSIPluginsRequest lists CSI plugins
-func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -360,7 +360,7 @@ func (s *HTTPServer) CSIPluginsRequest(resp http.ResponseWriter, req *http.Reque
 }
 
 // CSIPluginSpecificRequest list the job with CSIInfo
-func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) CSIPluginSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -400,8 +400,8 @@ func parseCSISecrets(req *http.Request) structs.CSISecrets {
 	}
 
 	secrets := map[string]string{}
-	secretkvs := strings.Split(secretsHeader, ",")
-	for _, secretkv := range secretkvs {
+	secretkvs := strings.SplitSeq(secretsHeader, ",")
+	for secretkv := range secretkvs {
 		if key, value, found := strings.Cut(secretkv, "="); found {
 			secrets[key] = value
 		}

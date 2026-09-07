@@ -21,17 +21,9 @@ func formatFloat(f float64, maxPrec int) string {
 		return v
 	}
 
-	sublen := idx + maxPrec + 1
-	if sublen > len(v) {
-		sublen = len(v)
-	}
+	sublen := min(idx+maxPrec+1, len(v))
 
 	return v[:sublen]
-}
-
-// pointerOf returns a pointer to a.
-func pointerOf[A any](a A) *A {
-	return &a
 }
 
 // pointerCopy returns a new pointer to a.

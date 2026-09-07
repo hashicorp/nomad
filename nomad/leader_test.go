@@ -834,7 +834,7 @@ func TestLeader_ClusterID_noUpgrade(t *testing.T) {
 	TestJoin(t, servers[0], servers[1], servers[2])
 
 	// Wait for servers to settle
-	for i := 0; i < len(servers); i++ {
+	for i := range servers {
 		testutil.WaitForLeader(t, servers[i].RPC)
 	}
 

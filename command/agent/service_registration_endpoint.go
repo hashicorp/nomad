@@ -14,7 +14,7 @@ import (
 // using the structs.ServiceRegistrationListRPCMethod RPC endpoint and is
 // callable via the /v1/services HTTP API.
 func (s *HTTPServer) ServiceRegistrationListRequest(
-	resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// The endpoint only supports GET requests.
 	if req.Method != http.MethodGet {
@@ -45,7 +45,7 @@ func (s *HTTPServer) ServiceRegistrationListRequest(
 
 // ServiceRegistrationRequest is callable via the /v1/service/ HTTP API and
 // handles service reads and individual service registration deletions.
-func (s *HTTPServer) ServiceRegistrationRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ServiceRegistrationRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 
 	// Grab the suffix of the request, so we can further understand it.
 	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/service/")
@@ -91,7 +91,7 @@ func (s *HTTPServer) ServiceRegistrationRequest(resp http.ResponseWriter, req *h
 // serviceGetRequest performs a reading of service registrations by name using
 // the structs.ServiceRegistrationGetServiceRPCMethod RPC endpoint.
 func (s *HTTPServer) serviceGetRequest(
-	resp http.ResponseWriter, req *http.Request, serviceName string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, serviceName string) (any, error) {
 
 	args := structs.ServiceRegistrationByNameRequest{
 		ServiceName: serviceName,
@@ -116,7 +116,7 @@ func (s *HTTPServer) serviceGetRequest(
 // serviceDeleteRequest performs a reading of service registrations by name using
 // the structs.ServiceRegistrationDeleteByIDRPCMethod RPC endpoint.
 func (s *HTTPServer) serviceDeleteRequest(
-	resp http.ResponseWriter, req *http.Request, serviceID string) (interface{}, error) {
+	resp http.ResponseWriter, req *http.Request, serviceID string) (any, error) {
 
 	args := structs.ServiceRegistrationDeleteByIDRequest{ID: serviceID}
 	s.parseWriteRequest(req, &args.WriteRequest)

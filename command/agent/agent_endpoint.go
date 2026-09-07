@@ -60,7 +60,7 @@ func nomadMember(m serf.Member) Member {
 	}
 }
 
-func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -103,7 +103,7 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 	return self, nil
 }
 
-func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -144,7 +144,7 @@ func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Reques
 	}, nil
 }
 
-func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -162,7 +162,7 @@ func (s *HTTPServer) AgentMembersRequest(resp http.ResponseWriter, req *http.Req
 	return out, nil
 }
 
-func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Get the provided loglevel.
 	logLevel := req.URL.Query().Get("log_level")
 	if logLevel == "" {
@@ -234,7 +234,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	return nil, codedErr
 }
 
-func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Process and validate arguments
 	onDisk := false
 	onDiskBool, err := parseBool(req, "on_disk")
@@ -421,7 +421,7 @@ func (s *HTTPServer) streamMonitor(resp http.ResponseWriter, req *http.Request,
 	return codedErr
 }
 
-func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -547,7 +547,7 @@ func (s *HTTPServer) agentPprof(reqType pprof.ReqType, resp http.ResponseWriter,
 // AgentServersRequest is used to query the list of servers used by the Nomad
 // Client for RPCs.  This endpoint can also be used to update the list of
 // servers for a given agent.
-func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
 		return s.updateServers(resp, req)
@@ -558,7 +558,7 @@ func (s *HTTPServer) AgentServersRequest(resp http.ResponseWriter, req *http.Req
 	}
 }
 
-func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (any, error) {
 	client := s.agent.Client()
 	if client == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
@@ -579,7 +579,7 @@ func (s *HTTPServer) listServers(resp http.ResponseWriter, req *http.Request) (i
 	return peers, nil
 }
 
-func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -599,7 +599,7 @@ func (s *HTTPServer) AgentReloadRequest(resp http.ResponseWriter, req *http.Requ
 	return nil, nil
 }
 
-func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) (any, error) {
 	client := s.agent.Client()
 	if client == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
@@ -632,7 +632,7 @@ func (s *HTTPServer) updateServers(resp http.ResponseWriter, req *http.Request) 
 }
 
 // KeyringOperationRequest allows an operator to install/delete/use keys
-func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(501, ErrInvalidMethod)
@@ -691,7 +691,7 @@ func (s *HTTPServer) KeyringOperationRequest(resp http.ResponseWriter, req *http
 
 type agentSelf struct {
 	Config *Config                      `json:"config"`
-	Member Member                       `json:"member,omitempty"`
+	Member Member                       `json:"member"`
 	Stats  map[string]map[string]string `json:"stats"`
 }
 
@@ -701,7 +701,7 @@ type joinResult struct {
 	Warning   string `json:"warning"`
 }
 
-func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) HealthRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -803,7 +803,7 @@ type healthResponseAgent struct {
 
 // AgentHostRequest runs on servers and clients, and captures information about the host system to add
 // to the nomad operator debug archive.
-func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -878,7 +878,7 @@ func (s *HTTPServer) AgentHostRequest(resp http.ResponseWriter, req *http.Reques
 
 // AgentSchedulerWorkerInfoRequest is used to query the running state of the
 // agent's scheduler workers.
-func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
@@ -919,7 +919,7 @@ func (s *HTTPServer) AgentSchedulerWorkerInfoRequest(resp http.ResponseWriter, r
 // of the scheduler workers running in a Nomad server agent.
 // This endpoint can also be used to update the count of running workers for a
 // given agent.
-func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if s.agent.Server() == nil {
 		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
 	}
@@ -933,7 +933,7 @@ func (s *HTTPServer) AgentSchedulerWorkerConfigRequest(resp http.ResponseWriter,
 	}
 }
 
-func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (any, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)
@@ -957,7 +957,7 @@ func (s *HTTPServer) getScheduleWorkersConfig(resp http.ResponseWriter, req *htt
 	return response, nil
 }
 
-func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *http.Request) (any, error) {
 	srv := s.agent.Server()
 	if srv == nil {
 		return nil, CodedError(http.StatusBadRequest, ErrServerOnly)

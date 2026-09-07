@@ -1,0 +1,3 @@
+```release-note:improvement
+job: Allow setting `reschedule.delay` to values as low as 1s
+```

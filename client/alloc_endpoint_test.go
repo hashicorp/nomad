@@ -45,7 +45,7 @@ func TestAllocations_Restart(t *testing.T) {
 		Attempts: 0,
 		Mode:     nstructs.RestartPolicyModeFail,
 	}
-	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	a.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10s",
 	}
 	require.Nil(client.addAlloc(a, ""))
@@ -132,7 +132,7 @@ func TestAllocations_Restart_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -275,7 +275,7 @@ func TestAllocations_GarbageCollect(t *testing.T) {
 	}
 	a.Job.TaskGroups[0].RestartPolicy = rp
 	a.Job.TaskGroups[0].Tasks[0].RestartPolicy = rp
-	a.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	a.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "10ms",
 	}
 	require.Nil(client.addAlloc(a, ""))
@@ -316,7 +316,7 @@ func TestAllocations_GarbageCollect_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 3
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -430,7 +430,7 @@ func TestAllocations_Signal_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -502,7 +502,7 @@ func TestAllocations_SetPauseState(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -635,7 +635,7 @@ func TestAllocations_Stats_ACL(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -796,9 +796,9 @@ func TestAlloc_ExecStreaming(t *testing.T) {
 	expectedStderr := "Hello from the other side\n"
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
-		"exec_command": map[string]interface{}{
+		"exec_command": map[string]any{
 			"run_for":       "1ms",
 			"stdout_string": expectedStdout,
 			"stderr_string": expectedStderr,
@@ -1017,7 +1017,7 @@ func TestAlloc_ExecStreaming_ACL_Basic(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
 	}
 
@@ -1112,7 +1112,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 		pluginConfig := []*nconfig.PluginConfig{
 			{
 				Name: "mock_driver",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"fs_isolation": string(isolation),
 				},
 			},
@@ -1136,9 +1136,9 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Image(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
-		"exec_command": map[string]interface{}{
+		"exec_command": map[string]any{
 			"run_for":       "1ms",
 			"stdout_string": "some output",
 		},
@@ -1262,7 +1262,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 		pluginConfig := []*nconfig.PluginConfig{
 			{
 				Name: "mock_driver",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"fs_isolation": string(isolation),
 				},
 			},
@@ -1286,9 +1286,9 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_Chroot(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
-		"exec_command": map[string]interface{}{
+		"exec_command": map[string]any{
 			"run_for":       "1ms",
 			"stdout_string": "some output",
 		},
@@ -1406,7 +1406,7 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 		pluginConfig := []*nconfig.PluginConfig{
 			{
 				Name: "mock_driver",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"fs_isolation": string(isolation),
 				},
 			},
@@ -1430,9 +1430,9 @@ func TestAlloc_ExecStreaming_ACL_WithIsolation_None(t *testing.T) {
 
 	job := mock.BatchJob()
 	job.TaskGroups[0].Count = 1
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+	job.TaskGroups[0].Tasks[0].Config = map[string]any{
 		"run_for": "20s",
-		"exec_command": map[string]interface{}{
+		"exec_command": map[string]any{
 			"run_for":       "1ms",
 			"stdout_string": "some output",
 		},

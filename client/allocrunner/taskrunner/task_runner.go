@@ -1129,17 +1129,14 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 func (tr *TaskRunner) killTask(handle *DriverHandle, resultCh <-chan *drivers.ExitResult) (*drivers.ExitResult, error) {
 	// Cap the number of times we attempt to kill the task.
 	var err error
-	for i := 0; i < killFailureLimit; i++ {
+	for i := range killFailureLimit {
 		if err = handle.Kill(); err != nil {
 			if err == drivers.ErrTaskNotFound {
 				tr.logger.Warn("couldn't find task to kill", "task_id", handle.ID())
 				return nil, nil
 			}
 			// Calculate the new backoff
-			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
-			if backoff > killBackoffLimit {
-				backoff = killBackoffLimit
-			}
+			backoff := min((1<<(2*uint64(i)))*killBackoffBaseline, killBackoffLimit)
 
 			tr.logger.Error("failed to kill task", "backoff", backoff, "error", err)
 			select {

@@ -231,7 +231,7 @@ func TestConfig_Merge(t *testing.T) {
 			{
 				Name: "docker",
 				Args: []string{"foo"},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"bar": 1,
 				},
 			},
@@ -478,14 +478,14 @@ func TestConfig_Merge(t *testing.T) {
 			{
 				Name: "docker",
 				Args: []string{"bam"},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"baz": 2,
 				},
 			},
 			{
 				Name: "exec",
 				Args: []string{"arg"},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"config": true,
 				},
 			},

@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug where a job plan diff sorted indexed fields such as `args` lexically, listing `args[10]` before `args[2]`
+```

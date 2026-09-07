@@ -49,7 +49,7 @@ func TestClientFS_List_Local(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -208,7 +208,7 @@ func TestClientFS_List_Remote(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -326,7 +326,7 @@ func TestClientFS_Stat_Local(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -485,7 +485,7 @@ func TestClientFS_Stat_Remote(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for": "2s",
 		},
 		LogConfig: structs.DefaultLogConfig(),
@@ -758,7 +758,7 @@ func TestClientFS_Streaming_Local(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":       "2s",
 			"stdout_string": expected,
 		},
@@ -892,7 +892,7 @@ func TestClientFS_Streaming_Local_Follow(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":                "3s",
 			"stdout_string":          expectedBase,
 			"stdout_repeat":          repeat,
@@ -1036,7 +1036,7 @@ func TestClientFS_Streaming_Remote_Server(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":       "2s",
 			"stdout_string": expected,
 		},
@@ -1183,7 +1183,7 @@ func TestClientFS_Streaming_Remote_Region(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":       "2s",
 			"stdout_string": expected,
 		},
@@ -1588,7 +1588,7 @@ func TestClientFS_Logs_Local(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":       "2s",
 			"stdout_string": expected,
 		},
@@ -1723,7 +1723,7 @@ func TestClientFS_Logs_Local_Follow(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":                "20s",
 			"stdout_string":          expectedBase,
 			"stdout_repeat":          repeat,
@@ -1868,7 +1868,7 @@ func TestClientFS_Logs_Remote_Server(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":       "2s",
 			"stdout_string": expected,
 		},
@@ -2016,7 +2016,7 @@ func TestClientFS_Logs_Remote_Region(t *testing.T) {
 	a.Job.TaskGroups[0].Tasks[0] = &structs.Task{
 		Name:   "web",
 		Driver: "mock_driver",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"run_for":       "2s",
 			"stdout_string": expected,
 		},

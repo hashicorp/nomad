@@ -305,10 +305,10 @@ func extractJobSpecEnvVars(envVars []string) map[string]string {
 		// Identify the index of the equals sign which is where we split the
 		// variable k/v pair. -1 indicates the equals sign is not found and
 		// therefore the var is not valid.
-		if eq := strings.Index(raw, "="); eq == -1 {
+		if before, after, ok := strings.Cut(raw, "="); !ok {
 			continue
-		} else if raw[:eq] != "" {
-			m[raw[:eq]] = raw[eq+1:]
+		} else if before != "" {
+			m[before] = after
 		}
 	}
 

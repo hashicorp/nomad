@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !release
-// +build !release
 
 package allocrunner
 
@@ -84,7 +83,7 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		ClientConfig:       clientConf,
 		StateDB:            stateDB,
 		ConsulServices:     consulRegMock,
-		VaultFunc:          vaultclient.NewMockVaultClient,
+		VaultFunc:          func(string) (vaultclient.VaultClient, error) { return vaultclient.NewMockVaultClient(), nil },
 		StateUpdater:       &MockStateUpdater{},
 		PrevAllocWatcher:   allocwatcher.NoopPrevAlloc{},
 		PrevAllocMigrator:  allocwatcher.NoopPrevAlloc{},

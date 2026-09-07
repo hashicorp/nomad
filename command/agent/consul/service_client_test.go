@@ -606,7 +606,7 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 			MeshGateway: api.MeshGatewayConfig{
 				Mode: "remote",
 			},
-			Config: map[string]interface{}{"foo": 1},
+			Config: map[string]any{"foo": 1},
 		}
 	}
 
@@ -721,7 +721,7 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 
 	try(t, "different config", func(p proxy) {
 		diff := upstream1()
-		diff.Config = map[string]interface{}{"foo": 2}
+		diff.Config = map[string]any{"foo": 2}
 		p.Upstreams = []api.Upstream{
 			diff,
 			upstream2(),

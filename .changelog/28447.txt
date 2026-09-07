@@ -1,0 +1,3 @@
+```release-note:bug
+state: Fixed a bug where plans from older versioned followers did not have allocation resource schemas upgraded when written on the leader
+```

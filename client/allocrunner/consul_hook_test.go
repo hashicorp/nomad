@@ -4,9 +4,9 @@
 package allocrunner
 
 import (
-	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"testing"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -97,13 +97,13 @@ func Test_consulHook_prepareConsulTokensForTask(t *testing.T) {
 	ti := *task.IdentityHandle(wid)
 	jwt, err := hook.widmgr.Get(ti)
 	must.NoError(t, err)
-	hashJWT1 := md5.Sum([]byte(jwt.JWT))
+	hashJWT1 := fnv.New128().Sum([]byte(jwt.JWT))
 
 	task2 := hook.alloc.LookupTask("extra")
 	ti2 := *task2.IdentityHandle(wid)
 	jwt2, err := hook.widmgr.Get(ti2)
 	must.NoError(t, err)
-	hashJWT2 := md5.Sum([]byte(jwt2.JWT))
+	hashJWT2 := fnv.New128().Sum([]byte(jwt2.JWT))
 
 	tests := []struct {
 		name           string
@@ -195,7 +195,7 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 		jwt, err := hook.widmgr.Get(widHandle)
 		must.NoError(t, err)
 
-		hash := md5.Sum([]byte(jwt.JWT))
+		hash := fnv.New128().Sum([]byte(jwt.JWT))
 		hashedJWT[widHandle.InterpolatedWorkloadIdentifier] = hex.EncodeToString(hash[:])
 	}
 

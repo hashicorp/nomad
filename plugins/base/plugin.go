@@ -52,7 +52,7 @@ func (p *PluginBase) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error
 	return nil
 }
 
-func (p *PluginBase) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
+func (p *PluginBase) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (any, error) {
 	return &BasePluginClient{
 		Client:  proto.NewBasePluginClient(c),
 		DoneCtx: ctx,
@@ -67,7 +67,7 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 	// maintain binary format from time prior to upgrading latest ugorji
 	h.BasicHandle.TimeNotBuiltin = true
 
-	h.MapType = reflect.TypeOf(map[string]interface{}(nil))
+	h.MapType = reflect.TypeFor[map[string]any]()
 
 	// only review struct codec tags - ignore `json` flags
 	h.TypeInfos = codec.NewTypeInfos([]string{"codec"})
@@ -76,11 +76,11 @@ var MsgpackHandle = func() *codec.MsgpackHandle {
 }()
 
 // MsgPackDecode is used to decode a MsgPack encoded object
-func MsgPackDecode(buf []byte, out interface{}) error {
+func MsgPackDecode(buf []byte, out any) error {
 	return codec.NewDecoder(bytes.NewReader(buf), MsgpackHandle).Decode(out)
 }
 
 // MsgPackEncode is used to encode an object to MsgPack
-func MsgPackEncode(b *[]byte, in interface{}) error {
+func MsgPackEncode(b *[]byte, in any) error {
 	return codec.NewEncoderBytes(b, MsgpackHandle).Encode(in)
 }

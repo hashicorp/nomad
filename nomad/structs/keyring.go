@@ -331,9 +331,7 @@ func (c *KEKProviderConfig) Copy() *KEKProviderConfig {
 func (c *KEKProviderConfig) Merge(o *KEKProviderConfig) *KEKProviderConfig {
 	result := c.Copy()
 	result.Active = o.Active
-	for k, v := range o.Config {
-		result.Config[k] = v
-	}
+	maps.Copy(result.Config, o.Config)
 	return result
 }
 

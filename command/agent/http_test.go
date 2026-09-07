@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
@@ -52,7 +53,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 	job := mock.Job()
 	var allocs []*structs.Allocation
 	count := 1000
-	for i := 0; i < count; i++ {
+	for i := range count {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -60,7 +61,7 @@ func BenchmarkHTTPRequests(b *testing.B) {
 		allocs = append(allocs, alloc)
 	}
 
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return allocs[:count], nil
 	}
 	b.ResetTimer()
@@ -91,6 +92,140 @@ func TestMultipleInterfaces(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
+	}
+}
+
+func TestHTTP2(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name       string
+		config     func(*Config)
+		status     int
+		protoMajor int
+		errMsg     string
+	}{
+		{
+			name:       "enabled by default",
+			status:     200,
+			protoMajor: 2,
+		},
+		{
+			name: "disabled by config",
+			config: func(c *Config) {
+				c.HTTPDisableHTTP2 = true
+			},
+			errMsg: "frame too large",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := makeHTTPServer(t, tc.config)
+			t.Cleanup(s.Shutdown)
+
+			// Create a custom transport with HTTP2 only. Note that we are
+			// using unencrypted since we don't have all the TLS stuff setup.
+			transpo := http.DefaultTransport.(*http.Transport).Clone()
+			transpo.Protocols = new(http.Protocols)
+			transpo.Protocols.SetUnencryptedHTTP2(true)
+
+			client := &http.Client{Transport: transpo}
+			resp, err := client.Get(fmt.Sprintf("http://%s/", s.Agent.config.AdvertiseAddrs.HTTP))
+			if err != nil {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.errMsg)
+				return
+			}
+
+			must.Eq(t, tc.status, resp.StatusCode, must.Sprintf("expecting %d status code", tc.status))
+			must.Eq(t, tc.protoMajor, resp.ProtoMajor, must.Sprintf("expecting HTTP%d protocol", resp.ProtoMajor))
+		})
+	}
+}
+
+func TestWebSocket(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name        string
+		config      func(*Config)
+		headers     http.Header
+		origin      string
+		msgContains string
+		err         error
+	}{
+		{
+			name: "ok",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(false)
+			},
+		},
+		{
+			name: "bad origin",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(false)
+			},
+			origin: "http://bad-host",
+			err:    websocket.ErrBadHandshake,
+		},
+		{
+			name: "origin check disabled",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(true)
+			},
+		},
+		{
+			name: "origin check disabled with bad origin",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(true)
+			},
+			origin: "http://bad-host",
+		},
+		{
+			name:        "receives message with payload",
+			msgContains: `"payload":`,
+		},
+		{
+			name:        "receives message with headers",
+			msgContains: `"headers":`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := makeHTTPServer(t, tc.config)
+			t.Cleanup(s.Shutdown)
+			httpAddr := s.Agent.config.AdvertiseAddrs.HTTP
+			headers := tc.headers
+			if headers == nil {
+				headers = make(http.Header)
+			}
+			if tc.origin == "" {
+				headers.Add("Origin", fmt.Sprintf("http://%s", httpAddr))
+			} else {
+				headers.Add("Origin", tc.origin)
+			}
+			// Use path that has registered handler supporting websocket upgrade.
+			url := fmt.Sprintf("ws://%s/v1/jobs", httpAddr)
+
+			conn, _, err := websocket.DefaultDialer.DialContext(t.Context(), url, headers)
+			if tc.err != nil {
+				must.ErrorIs(t, err, tc.err)
+				return
+			}
+			must.NoError(t, err, must.Sprintf("bad origin at %v", httpAddr))
+
+			if tc.msgContains == "" {
+				return
+			}
+
+			_, r, err := conn.NextReader()
+			must.NoError(t, err)
+			body, err := io.ReadAll(r)
+			must.NoError(t, err)
+			must.StrContains(t, string(body), tc.msgContains)
+		})
 	}
 }
 
@@ -225,7 +360,7 @@ func TestSetHeaders(t *testing.T) {
 	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return &structs.Job{Name: "foo"}, nil
 	}
 
@@ -246,7 +381,7 @@ func TestContentTypeIsJSON(t *testing.T) {
 
 	resp := httptest.NewRecorder()
 
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return &structs.Job{Name: "foo"}, nil
 	}
 
@@ -339,7 +474,7 @@ func testPrettyPrint(pretty string, prettyFmt bool, t *testing.T) {
 	r := &structs.Job{Name: "foo"}
 
 	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return r, nil
 	}
 
@@ -378,7 +513,7 @@ func TestPermissionDenied(t *testing.T) {
 
 	{
 		resp := httptest.NewRecorder()
-		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 			return nil, structs.ErrPermissionDenied
 		}
 
@@ -391,7 +526,7 @@ func TestPermissionDenied(t *testing.T) {
 	// When remote RPC is used the errors have "rpc error: " prependend
 	{
 		resp := httptest.NewRecorder()
-		handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+		handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 			return nil, fmt.Errorf("rpc error: %v", structs.ErrPermissionDenied)
 		}
 
@@ -409,7 +544,7 @@ func TestTokenNotFound(t *testing.T) {
 	defer s.Shutdown()
 
 	resp := httptest.NewRecorder()
-	handler := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	handler := func(resp http.ResponseWriter, req *http.Request) (any, error) {
 		return nil, structs.ErrTokenNotFound
 	}
 
@@ -1285,7 +1420,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		// Create max connections
 		conns := make([]net.Conn, maxConns)
 		errCh := make(chan error, maxConns)
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			conns[i], err = net.DialTimeout("tcp", addr, 1*time.Second)
 			require.NoError(t, err)
 
@@ -1304,7 +1439,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 		}
 
 		// Now assert each error is a clientside read deadline error
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			select {
 			case <-time.After(2 * time.Second):
 				t.Fatalf("timed out waiting for conn error %d", i)
@@ -1314,7 +1449,7 @@ func TestHTTPServer_Limits_OK(t *testing.T) {
 			}
 		}
 
-		for i := 0; i < maxConns; i++ {
+		for i := range maxConns {
 			require.NoError(t, conns[i].Close())
 		}
 	}
@@ -1547,8 +1682,8 @@ func Test_decodeBody(t *testing.T) {
 
 	testCases := []struct {
 		inputReq      *http.Request
-		inputOut      interface{}
-		expectedOut   interface{}
+		inputOut      any
+		expectedOut   any
 		expectedError error
 		name          string
 	}{
@@ -1632,7 +1767,7 @@ func setNamespace(req *http.Request, ns string) {
 	req.URL.RawQuery = q.Encode()
 }
 
-func encodeReq(obj interface{}) io.ReadCloser {
+func encodeReq(obj any) io.ReadCloser {
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
 	enc.Encode(obj)

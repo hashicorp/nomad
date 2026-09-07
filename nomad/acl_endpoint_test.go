@@ -3919,7 +3919,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetCustomClaims(map[string]interface{}{
+	oidcTestProvider.SetCustomClaims(map[string]any{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
@@ -4157,12 +4157,12 @@ func TestACL_OIDCCompleteAuth_IssEnforcedProvider(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetCustomClaims(map[string]interface{}{
+	oidcTestProvider.SetCustomClaims(map[string]any{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
 	})
-	oidcTestProvider.SetAdditionalConfiguration(map[string]interface{}{
+	oidcTestProvider.SetAdditionalConfiguration(map[string]any{
 		"authorization_response_iss_parameter_supported": true,
 	})
 

@@ -25,7 +25,7 @@ import (
 // alongside a 404 when a job is not found.
 const jobNotFoundErr = "job not found"
 
-func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		return s.jobListRequest(resp, req)
@@ -36,7 +36,7 @@ func (s *HTTPServer) JobsRequest(resp http.ResponseWriter, req *http.Request) (i
 	}
 }
 
-func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	args := structs.JobListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -64,7 +64,7 @@ func (s *HTTPServer) jobListRequest(resp http.ResponseWriter, req *http.Request)
 	return out.Jobs, nil
 }
 
-func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/job/")
 	switch {
 	case strings.HasSuffix(path, "/evaluate"):
@@ -134,7 +134,7 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	}
 }
 
-func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -169,7 +169,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 }
 
 func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+	jobName string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -204,7 +204,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Ensure request method is POST or PUT
 	if !(req.Method == http.MethodPost || req.Method == http.MethodPut) {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -237,7 +237,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 }
 
 func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Request,
-	jobName string) (interface{}, error) {
+	jobName string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -255,7 +255,7 @@ func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Re
 	return out, nil
 }
 
-func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -284,7 +284,7 @@ func (s *HTTPServer) jobAllocations(resp http.ResponseWriter, req *http.Request,
 	return out.Allocations, nil
 }
 
-func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -307,7 +307,7 @@ func (s *HTTPServer) jobEvaluations(resp http.ResponseWriter, req *http.Request,
 	return out.Evaluations, nil
 }
 
-func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -332,7 +332,7 @@ func (s *HTTPServer) jobDeployments(resp http.ResponseWriter, req *http.Request,
 	return out.Deployments, nil
 }
 
-func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -374,7 +374,7 @@ func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, job
 	return out.Actions, nil
 }
 
-func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	task := req.URL.Query().Get("task")
 	action := req.URL.Query().Get("action")
 	allocID := req.URL.Query().Get("allocID")
@@ -406,7 +406,7 @@ func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, j
 	return s.execStream(conn, &args)
 }
 
-func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (any, error) {
 	switch req.Method {
 	case http.MethodPut, http.MethodPost:
 		return s.jobVersionApplyTag(resp, req, jobID, name)
@@ -417,7 +417,7 @@ func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, 
 	}
 }
 
-func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (any, error) {
 	var args api.TagVersionRequest
 
 	if err := decodeBody(req, &args); err != nil {
@@ -446,7 +446,7 @@ func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (any, error) {
 	rpcArgs := structs.JobApplyTagRequest{
 		JobID: jobID,
 		Name:  name,
@@ -507,7 +507,7 @@ func (s *HTTPServer) jobSubmissionQuery(resp http.ResponseWriter, req *http.Requ
 	return out.Submission, nil
 }
 
-func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		return s.jobQuery(resp, req, jobID)
@@ -520,7 +520,7 @@ func (s *HTTPServer) jobCRUD(resp http.ResponseWriter, req *http.Request, jobID 
 	}
 }
 
-func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	args := structs.JobSpecificRequest{
 		JobID: jobID,
 	}
@@ -552,7 +552,7 @@ func (s *HTTPServer) jobQuery(resp http.ResponseWriter, req *http.Request, jobID
 	return job, nil
 }
 
-func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	var args api.JobRegisterRequest
 	if err := decodeBody(req, &args); err != nil {
 		return nil, CodedError(400, err.Error())
@@ -613,7 +613,7 @@ func (s *HTTPServer) jobUpdate(resp http.ResponseWriter, req *http.Request, jobI
 	return out, nil
 }
 
-func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	args := structs.JobDeregisterRequest{
 		JobID: jobID,
@@ -681,7 +681,7 @@ func (s *HTTPServer) jobDelete(resp http.ResponseWriter, req *http.Request, jobI
 	return out, nil
 }
 
-func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	switch req.Method {
 	case http.MethodGet:
@@ -693,7 +693,7 @@ func (s *HTTPServer) jobScale(resp http.ResponseWriter, req *http.Request, jobID
 	}
 }
 
-func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	args := structs.JobScaleStatusRequest{
 		JobID: jobID,
@@ -715,7 +715,7 @@ func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 	return out.JobScaleStatus, nil
 }
 
-func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -753,7 +753,7 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	diffsStr := req.URL.Query().Get("diffs")
 	diffTagName := req.URL.Query().Get("diff_tag")
@@ -801,7 +801,7 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 	return out, nil
 }
 
-func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -829,7 +829,7 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobI
 	return out, nil
 }
 
-func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
@@ -857,7 +857,7 @@ func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request, jobI
 	return out, nil
 }
 
-func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	args := structs.JobSummaryRequest{
 		JobID: jobID,
 	}
@@ -878,7 +878,7 @@ func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Reque
 	return out.JobSummary, nil
 }
 
-func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -903,7 +903,7 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 	return out, nil
 }
 
-func (s *HTTPServer) jobDispatchPayloadRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobDispatchPayloadRequest(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -928,7 +928,7 @@ func (s *HTTPServer) jobDispatchPayloadRequest(resp http.ResponseWriter, req *ht
 }
 
 // JobsParseRequest parses a hcl jobspec and returns a api.Job
-func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -978,7 +978,7 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 // to the job identifier. It is callable via the
 // /v1/job/:jobID/services HTTP API and uses the
 // structs.JobServiceRegistrationsRPCMethod RPC method.
-func (s *HTTPServer) jobServiceRegistrations(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+func (s *HTTPServer) jobServiceRegistrations(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
 
 	// The endpoint only supports GET requests.
 	if req.Method != http.MethodGet {

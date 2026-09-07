@@ -21,26 +21,25 @@ var hclDecoder *gohcl.Decoder
 
 func init() {
 	hclDecoder = newHCLDecoder()
-	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.TaskGroup{}), decodeTaskGroup)
-	hclDecoder.RegisterBlockDecoder(reflect.TypeOf(api.Task{}), decodeTask)
+	hclDecoder.RegisterBlockDecoder(reflect.TypeFor[api.TaskGroup](), decodeTaskGroup)
+	hclDecoder.RegisterBlockDecoder(reflect.TypeFor[api.Task](), decodeTask)
 }
 
 func newHCLDecoder() *gohcl.Decoder {
 	decoder := &gohcl.Decoder{}
 
 	// time conversion
-	d := time.Duration(0)
-	decoder.RegisterExpressionDecoder(reflect.TypeOf(d), decodeDuration)
-	decoder.RegisterExpressionDecoder(reflect.TypeOf(&d), decodeDuration)
+	decoder.RegisterExpressionDecoder(reflect.TypeFor[time.Duration](), decodeDuration)
+	decoder.RegisterExpressionDecoder(reflect.TypeFor[*time.Duration](), decodeDuration)
 
 	// custom nomad types
-	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
-	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
+	decoder.RegisterBlockDecoder(reflect.TypeFor[api.Affinity](), decodeAffinity)
+	decoder.RegisterBlockDecoder(reflect.TypeFor[api.Constraint](), decodeConstraint)
 
 	return decoder
 }
 
-func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val any) hcl.Diagnostics {
 	srcVal, diags := expr.Value(ctx)
 	if srcVal.IsNull() {
 		diags = append(diags, &hcl.Diagnostic{
@@ -108,7 +107,7 @@ var affinitySpec = hcldec.ObjectSpec{
 	api.ConstraintSetContainsAny: &hcldec.AttrSpec{Name: api.ConstraintSetContainsAny, Type: cty.String, Required: false},
 }
 
-func decodeAffinity(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+func decodeAffinity(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnostics {
 	a := val.(*api.Affinity)
 	v, diags := hcldec.Decode(body, affinitySpec, ctx)
 	if len(diags) != 0 {
@@ -128,7 +127,7 @@ func decodeAffinity(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Di
 	weight := v.GetAttr("weight")
 	if !weight.IsNull() {
 		w, _ := weight.AsBigFloat().Int64()
-		a.Weight = pointerOf(int8(w))
+		a.Weight = new(int8(w))
 	}
 
 	// If "version" is provided, set the operand
@@ -195,7 +194,7 @@ var constraintSpec = hcldec.ObjectSpec{
 	api.ConstraintAttributeIsNotSet: &hcldec.AttrSpec{Name: api.ConstraintAttributeIsNotSet, Type: cty.String, Required: false},
 }
 
-func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnostics {
 	c := val.(*api.Constraint)
 
 	v, diags := hcldec.Decode(body, constraintSpec, ctx)
@@ -261,7 +260,7 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.
 	return diags
 }
 
-func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnostics {
 	tg := val.(*api.TaskGroup)
 
 	var diags hcl.Diagnostics
@@ -298,7 +297,7 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 	}
 
 	d := newHCLDecoder()
-	d.RegisterBlockDecoder(reflect.TypeOf(api.Task{}), decodeTask)
+	d.RegisterBlockDecoder(reflect.TypeFor[api.Task](), decodeTask)
 	diags = d.DecodeBody(tgBody, ctx, tg)
 
 	if metaAttr != nil {
@@ -333,7 +332,7 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.D
 
 }
 
-func decodeTask(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+func decodeTask(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnostics {
 	// special case scaling policy
 	t := val.(*api.Task)
 

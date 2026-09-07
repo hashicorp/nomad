@@ -4,6 +4,8 @@
 package hclutil
 
 import (
+	"slices"
+
 	"github.com/hashicorp/hcl/v2"
 	hcls "github.com/hashicorp/hcl/v2/hclsyntax"
 )
@@ -215,11 +217,11 @@ func blockToExpr(b *hcls.Block) hcls.Expression {
 
 	// Create nested maps, with the labels as keys.
 	// Starts wrapping from most inner label to outer
-	for i := len(b.Labels) - 1; i >= 0; i-- {
+	for i, v0 := range slices.Backward(b.Labels) {
 		keyExpr := &hcls.ScopeTraversalExpr{
 			Traversal: hcl.Traversal{
 				hcl.TraverseRoot{
-					Name:     b.Labels[i],
+					Name:     v0,
 					SrcRange: b.LabelRanges[i],
 				},
 			},

@@ -14,8 +14,16 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
 
   startWatchers(controller) {
     controller.set('watcher', this.watch.perform());
+    controller.set('watcherAllocations', this.watchAllocations.perform());
   }
 
+  // Single shared long-poll for all nodes in the list.
   @watchAll('node') watch;
-  @collect('watch') watchers;
+
+  // Single shared long-poll for all allocations.
+  // Keeps node.runningAllocations up to date for every row without each row
+  // opening its own /v1/node/:id/allocations blocking-query connection.
+  @watchAll('allocation') watchAllocations;
+
+  @collect('watch', 'watchAllocations') watchers;
 }

@@ -57,7 +57,7 @@ export default class Tokens extends Controller {
    * @returns {import('@ember/array/mutable').default<import('../../models/auth-method').default>}
    */
   get authMethods() {
-    return this.model?.authMethods || [];
+    return this.model.authMethods;
   }
 
   get hasJWTAuthMethods() {

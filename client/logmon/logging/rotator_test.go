@@ -301,7 +301,7 @@ func benchmarkRotatorWithInputSize(size int, b *testing.B) {
 		must.NoError(b, err)
 
 		// Insert random new lines
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			index := rand.Intn(size)
 			data[index] = '\n'
 		}

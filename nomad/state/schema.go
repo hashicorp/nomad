@@ -386,7 +386,7 @@ func jobSubmissionSchema() *memdb.TableSchema {
 
 // jobIsGCable satisfies the ConditionalIndexFunc interface and creates an index
 // on whether a job is eligible for garbage collection.
-func jobIsGCable(obj interface{}) (bool, error) {
+func jobIsGCable(obj any) (bool, error) {
 	j, ok := obj.(*structs.Job)
 	if !ok {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
@@ -429,7 +429,7 @@ func jobIsGCable(obj interface{}) (bool, error) {
 
 // jobIsPeriodic satisfies the ConditionalIndexFunc interface and creates an index
 // on whether a job is periodic.
-func jobIsPeriodic(obj interface{}) (bool, error) {
+func jobIsPeriodic(obj any) (bool, error) {
 	j, ok := obj.(*structs.Job)
 	if !ok {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
@@ -752,7 +752,7 @@ func allocTableSchema() *memdb.TableSchema {
 
 						// Conditional indexer on if allocation is terminal
 						&memdb.ConditionalIndex{
-							Conditional: func(obj interface{}) (bool, error) {
+							Conditional: func(obj any) (bool, error) {
 								// Cast to allocation
 								alloc, ok := obj.(*structs.Allocation)
 								if !ok {
@@ -818,7 +818,7 @@ func allocTableSchema() *memdb.TableSchema {
 							Field: "SigningKeyID",
 						},
 						&memdb.ConditionalIndex{
-							Conditional: func(obj interface{}) (bool, error) {
+							Conditional: func(obj any) (bool, error) {
 								alloc, ok := obj.(*structs.Allocation)
 								if !ok {
 									return false, fmt.Errorf(
@@ -868,7 +868,7 @@ type ACLPolicyJobACLFieldIndex struct{}
 
 // FromObject is used to extract an index value from an
 // object or to indicate that the index value is missing.
-func (a *ACLPolicyJobACLFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+func (a *ACLPolicyJobACLFieldIndex) FromObject(obj any) (bool, []byte, error) {
 	policy, ok := obj.(*structs.ACLPolicy)
 	if !ok {
 		return false, nil, fmt.Errorf("object %#v is not an ACLPolicy", obj)
@@ -893,7 +893,7 @@ func (a *ACLPolicyJobACLFieldIndex) FromObject(obj interface{}) (bool, []byte, e
 }
 
 // FromArgs is used to build an exact index lookup based on arguments
-func (a *ACLPolicyJobACLFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+func (a *ACLPolicyJobACLFieldIndex) FromArgs(args ...any) ([]byte, error) {
 	if len(args) < 1 || len(args) > 2 {
 		return nil, fmt.Errorf("must provide one or two arguments")
 	}
@@ -920,7 +920,7 @@ func (a *ACLPolicyJobACLFieldIndex) FromArgs(args ...interface{}) ([]byte, error
 }
 
 // PrefixFromArgs returns a prefix that should be used for scanning based on the arguments
-func (a *ACLPolicyJobACLFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (a *ACLPolicyJobACLFieldIndex) PrefixFromArgs(args ...any) ([]byte, error) {
 	val, err := a.FromArgs(args...)
 	if err != nil {
 		return nil, err
@@ -1001,11 +1001,11 @@ func aclTokenTableSchema() *memdb.TableSchema {
 	}
 }
 
-func indexExpiresLocalFromACLToken(raw interface{}) ([]byte, error) {
+func indexExpiresLocalFromACLToken(raw any) ([]byte, error) {
 	return indexExpiresFromACLToken(raw, false)
 }
 
-func indexExpiresGlobalFromACLToken(raw interface{}) ([]byte, error) {
+func indexExpiresGlobalFromACLToken(raw any) ([]byte, error) {
 	return indexExpiresFromACLToken(raw, true)
 }
 
@@ -1013,7 +1013,7 @@ func indexExpiresGlobalFromACLToken(raw interface{}) ([]byte, error) {
 // allows us to use an ACL tokens ExpirationTime as an index, if it is a
 // non-default value. This allows for efficient lookups when trying to deal
 // with removal of expired tokens from state.
-func indexExpiresFromACLToken(raw interface{}, global bool) ([]byte, error) {
+func indexExpiresFromACLToken(raw any, global bool) ([]byte, error) {
 	p, ok := raw.(*structs.ACLToken)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type %T for structs.ACLToken index", raw)
@@ -1062,7 +1062,7 @@ func oneTimeTokenTableSchema() *memdb.TableSchema {
 // singletonRecord can be used to describe tables which should contain only 1 entry.
 // Example uses include storing node config or cluster metadata blobs.
 var singletonRecord = &memdb.ConditionalIndex{
-	Conditional: func(interface{}) (bool, error) { return true, nil },
+	Conditional: func(any) (bool, error) { return true, nil },
 }
 
 // schedulerConfigTableSchema returns the MemDB schema for the scheduler config table.
@@ -1157,7 +1157,7 @@ type ScalingPolicyTargetFieldIndex struct {
 
 // FromObject is used to extract an index value from an
 // object or to indicate that the index value is missing.
-func (s *ScalingPolicyTargetFieldIndex) FromObject(obj interface{}) (bool, []byte, error) {
+func (s *ScalingPolicyTargetFieldIndex) FromObject(obj any) (bool, []byte, error) {
 	policy, ok := obj.(*structs.ScalingPolicy)
 	if !ok {
 		return false, nil, fmt.Errorf("object %#v is not a ScalingPolicy", obj)
@@ -1178,7 +1178,7 @@ func (s *ScalingPolicyTargetFieldIndex) FromObject(obj interface{}) (bool, []byt
 }
 
 // FromArgs is used to build an exact index lookup based on arguments
-func (s *ScalingPolicyTargetFieldIndex) FromArgs(args ...interface{}) ([]byte, error) {
+func (s *ScalingPolicyTargetFieldIndex) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
@@ -1192,7 +1192,7 @@ func (s *ScalingPolicyTargetFieldIndex) FromArgs(args ...interface{}) ([]byte, e
 }
 
 // PrefixFromArgs returns a prefix that should be used for scanning based on the arguments
-func (s *ScalingPolicyTargetFieldIndex) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (s *ScalingPolicyTargetFieldIndex) PrefixFromArgs(args ...any) ([]byte, error) {
 	val, err := s.FromArgs(args...)
 	if err != nil {
 		return nil, err
@@ -1447,7 +1447,7 @@ type variableKeyIDFieldIndexer struct{}
 
 // FromArgs implements go-memdb/Indexer and is used to build an exact
 // index lookup based on arguments
-func (s *variableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error) {
+func (s *variableKeyIDFieldIndexer) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("must provide only a single argument")
 	}
@@ -1462,7 +1462,7 @@ func (s *variableKeyIDFieldIndexer) FromArgs(args ...interface{}) ([]byte, error
 
 // PrefixFromArgs implements go-memdb/PrefixIndexer and returns a
 // prefix that should be used for scanning based on the arguments
-func (s *variableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+func (s *variableKeyIDFieldIndexer) PrefixFromArgs(args ...any) ([]byte, error) {
 	val, err := s.FromArgs(args...)
 	if err != nil {
 		return nil, err
@@ -1479,7 +1479,7 @@ func (s *variableKeyIDFieldIndexer) PrefixFromArgs(args ...interface{}) ([]byte,
 // FromObject implements go-memdb/SingleIndexer and is used to extract
 // an index value from an object or to indicate that the index value
 // is missing.
-func (s *variableKeyIDFieldIndexer) FromObject(obj interface{}) (bool, []byte, error) {
+func (s *variableKeyIDFieldIndexer) FromObject(obj any) (bool, []byte, error) {
 	variable, ok := obj.(*structs.VariableEncrypted)
 	if !ok {
 		return false, nil, fmt.Errorf("object %#v is not a Variable", obj)

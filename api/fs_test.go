@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/go-units"
 	"github.com/hashicorp/nomad/api/internal/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -31,25 +30,25 @@ func TestFS_Logs(t *testing.T) {
 	index := node.ModifyIndex
 
 	var input strings.Builder
-	input.Grow(units.MB)
-	lines := 80 * units.KB
-	for i := 0; i < lines; i++ {
+	input.Grow(1_000_000)
+	lines := 80 * 1000
+	for i := range lines {
 		_, _ = fmt.Fprintf(&input, "%d\n", i)
 	}
 
 	job := &Job{
-		ID:          pointerOf("TestFS_Logs"),
-		Region:      pointerOf("global"),
+		ID:          new("TestFS_Logs"),
+		Region:      new("global"),
 		Datacenters: []string{"dc1"},
-		Type:        pointerOf("batch"),
+		Type:        new("batch"),
 		TaskGroups: []*TaskGroup{
 			{
-				Name: pointerOf("TestFS_LogsGroup"),
+				Name: new("TestFS_LogsGroup"),
 				Tasks: []*Task{
 					{
 						Name:   "logger",
 						Driver: "mock_driver",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"stdout_string": input.String(),
 						},
 					},
@@ -107,7 +106,7 @@ func TestFS_Logs(t *testing.T) {
 	alloc, _, err := c.Allocations().Info(allocID, nil)
 	must.NoError(t, err)
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 
@@ -133,7 +132,7 @@ func TestFS_Logs(t *testing.T) {
 		must.Eq(t, input.Len(), result.Len())
 
 		// Check complete ordering
-		for i := 0; i < lines; i++ {
+		for i := range lines {
 			line, readErr := result.ReadBytes('\n')
 			must.NoError(t, readErr, must.Sprintf("unexpected error on line %d: %v", i, readErr))
 			must.Eq(t, fmt.Sprintf("%d\n", i), string(line))

@@ -23,7 +23,7 @@ func DockerIsConnected(t *testing.T) bool {
 		return runtime.GOOS == "windows"
 	}
 
-	client, err := docker.NewClientWithOpts(docker.FromEnv, docker.WithAPIVersionNegotiation())
+	client, err := docker.New(docker.FromEnv, docker.WithAPIVersionNegotiation())
 	if err != nil {
 		return false
 	}

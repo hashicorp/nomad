@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) DeploymentsRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) DeploymentsRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -32,7 +32,7 @@ func (s *HTTPServer) DeploymentsRequest(resp http.ResponseWriter, req *http.Requ
 	return out.Deployments, nil
 }
 
-func (s *HTTPServer) DeploymentSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) DeploymentSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/deployment/")
 	switch {
 	case strings.HasPrefix(path, "allocations/"):
@@ -59,7 +59,7 @@ func (s *HTTPServer) DeploymentSpecificRequest(resp http.ResponseWriter, req *ht
 }
 
 // TODO test and api
-func (s *HTTPServer) deploymentFail(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+func (s *HTTPServer) deploymentFail(resp http.ResponseWriter, req *http.Request, deploymentID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -76,7 +76,7 @@ func (s *HTTPServer) deploymentFail(resp http.ResponseWriter, req *http.Request,
 	return out, nil
 }
 
-func (s *HTTPServer) deploymentPause(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+func (s *HTTPServer) deploymentPause(resp http.ResponseWriter, req *http.Request, deploymentID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -101,7 +101,7 @@ func (s *HTTPServer) deploymentPause(resp http.ResponseWriter, req *http.Request
 	return out, nil
 }
 
-func (s *HTTPServer) deploymentPromote(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+func (s *HTTPServer) deploymentPromote(resp http.ResponseWriter, req *http.Request, deploymentID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -126,7 +126,7 @@ func (s *HTTPServer) deploymentPromote(resp http.ResponseWriter, req *http.Reque
 	return out, nil
 }
 
-func (s *HTTPServer) deploymentUnblock(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+func (s *HTTPServer) deploymentUnblock(resp http.ResponseWriter, req *http.Request, deploymentID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -151,7 +151,7 @@ func (s *HTTPServer) deploymentUnblock(resp http.ResponseWriter, req *http.Reque
 	return out, nil
 }
 
-func (s *HTTPServer) deploymentSetAllocHealth(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+func (s *HTTPServer) deploymentSetAllocHealth(resp http.ResponseWriter, req *http.Request, deploymentID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -176,7 +176,7 @@ func (s *HTTPServer) deploymentSetAllocHealth(resp http.ResponseWriter, req *htt
 	return out, nil
 }
 
-func (s *HTTPServer) deploymentAllocations(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+func (s *HTTPServer) deploymentAllocations(resp http.ResponseWriter, req *http.Request, deploymentID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -203,7 +203,7 @@ func (s *HTTPServer) deploymentAllocations(resp http.ResponseWriter, req *http.R
 	return out.Allocations, nil
 }
 
-func (s *HTTPServer) deploymentQuery(resp http.ResponseWriter, req *http.Request, deploymentID string) (interface{}, error) {
+func (s *HTTPServer) deploymentQuery(resp http.ResponseWriter, req *http.Request, deploymentID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}

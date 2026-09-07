@@ -243,12 +243,12 @@ func (p PendingPlans) Swap(i, j int) {
 }
 
 // Push is used to add a new evaluation to the slice
-func (p *PendingPlans) Push(e interface{}) {
+func (p *PendingPlans) Push(e any) {
 	*p = append(*p, e.(*pendingPlan))
 }
 
 // Pop is used to remove an evaluation from the slice
-func (p *PendingPlans) Pop() interface{} {
+func (p *PendingPlans) Pop() any {
 	n := len(*p)
 	e := (*p)[n-1]
 	(*p)[n-1] = nil

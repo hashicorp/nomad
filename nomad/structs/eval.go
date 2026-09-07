@@ -5,6 +5,8 @@ package structs
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -199,6 +201,10 @@ type Evaluation struct {
 	// evaluation.
 	QuotaLimitReached string
 
+	// MissingNonNodeResources marks whether we could not find a resource not
+	// tied to a specific node (ex. CSI volume) when processing the eval.
+	MissingNonNodeResources []string
+
 	// EscapedComputedClass marks whether the job has constraints that are not
 	// captured by computed node classes.
 	EscapedComputedClass bool
@@ -348,9 +354,7 @@ func (e *Evaluation) Copy() *Evaluation {
 	// Copy ClassEligibility
 	if e.ClassEligibility != nil {
 		classes := make(map[string]bool, len(e.ClassEligibility))
-		for class, elig := range e.ClassEligibility {
-			classes[class] = elig
-		}
+		maps.Copy(classes, e.ClassEligibility)
 		ne.ClassEligibility = classes
 	}
 
@@ -366,11 +370,11 @@ func (e *Evaluation) Copy() *Evaluation {
 	// Copy queued allocations
 	if e.QueuedAllocations != nil {
 		queuedAllocations := make(map[string]int, len(e.QueuedAllocations))
-		for tg, num := range e.QueuedAllocations {
-			queuedAllocations[tg] = num
-		}
+		maps.Copy(queuedAllocations, e.QueuedAllocations)
 		ne.QueuedAllocations = queuedAllocations
 	}
+
+	ne.MissingNonNodeResources = slices.Clone(e.MissingNonNodeResources)
 
 	return ne
 }
@@ -446,24 +450,25 @@ func (e *Evaluation) NextRollingEval(wait time.Duration) *Evaluation {
 // ineligible, whether the job has escaped computed node classes and whether the
 // quota limit was reached.
 func (e *Evaluation) CreateBlockedEval(classEligibility map[string]bool,
-	escaped bool, quotaReached string, failedTGAllocs map[string]*AllocMetric) *Evaluation {
+	escaped bool, quotaReached string, failedTGAllocs map[string]*AllocMetric, missing []string) *Evaluation {
 	now := time.Now().UTC().UnixNano()
 	return &Evaluation{
-		ID:                   uuid.Generate(),
-		Namespace:            e.Namespace,
-		Priority:             e.Priority,
-		Type:                 e.Type,
-		TriggeredBy:          EvalTriggerQueuedAllocs,
-		JobID:                e.JobID,
-		JobModifyIndex:       e.JobModifyIndex,
-		Status:               EvalStatusBlocked,
-		PreviousEval:         e.ID,
-		FailedTGAllocs:       failedTGAllocs,
-		ClassEligibility:     classEligibility,
-		EscapedComputedClass: escaped,
-		QuotaLimitReached:    quotaReached,
-		CreateTime:           now,
-		ModifyTime:           now,
+		ID:                      uuid.Generate(),
+		Namespace:               e.Namespace,
+		Priority:                e.Priority,
+		Type:                    e.Type,
+		TriggeredBy:             EvalTriggerQueuedAllocs,
+		JobID:                   e.JobID,
+		JobModifyIndex:          e.JobModifyIndex,
+		Status:                  EvalStatusBlocked,
+		PreviousEval:            e.ID,
+		FailedTGAllocs:          failedTGAllocs,
+		ClassEligibility:        classEligibility,
+		EscapedComputedClass:    escaped,
+		QuotaLimitReached:       quotaReached,
+		MissingNonNodeResources: missing,
+		CreateTime:              now,
+		ModifyTime:              now,
 	}
 }
 

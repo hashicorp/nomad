@@ -151,7 +151,7 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 	}
 
 	var mErr multierror.Error
-	addErr := func(msg string, args ...interface{}) {
+	addErr := func(msg string, args ...any) {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf(msg, args...))
 	}
 

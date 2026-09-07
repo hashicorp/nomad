@@ -33,7 +33,7 @@ type rpcEndpoints struct {
 }
 
 // ClientRPC is used to make a local, client only RPC call
-func (c *Client) ClientRPC(method string, args interface{}, reply interface{}) error {
+func (c *Client) ClientRPC(method string, args any, reply any) error {
 	codec := &inmem.InmemCodec{
 		Method: method,
 		Args:   args,
@@ -154,12 +154,10 @@ TRY:
 		// to block so it finishes by our deadline.
 
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
-			newBlockTime := time.Until(deadline)
+
 			// We can get below 0 here on slow computers because we slept for
-			// jitter so at least try to get an immediate response
-			if newBlockTime < 0 {
-				newBlockTime = 0
-			}
+			// jitter so at least try to get an immediate response.
+			newBlockTime := max(time.Until(deadline), 0)
 			info.SetTimeToBlock(newBlockTime)
 			return c.RPC(method, args, reply)
 		}
@@ -171,7 +169,7 @@ TRY:
 }
 
 // canRetry returns true if the given situation is safe for a retry.
-func canRetry(args interface{}, err error) bool {
+func canRetry(args any, err error) bool {
 	// No leader errors are always safe to retry since no state could have
 	// been changed.
 	if structs.IsErrNoLeader(err) {
@@ -286,7 +284,7 @@ func (c *Client) streamingRpcConn(server *servers.Server, method string) (net.Co
 }
 
 // setupClientRpc is used to setup the Client's RPC endpoints
-func (c *Client) setupClientRpc(rpcs map[string]interface{}) {
+func (c *Client) setupClientRpc(rpcs map[string]any) {
 	// Create the RPC Server
 	c.rpcServer = rpc.NewServer()
 

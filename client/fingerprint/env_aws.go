@@ -201,8 +201,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 // recommended error handling with aws-sdk-go-v2.
 // See also: https://github.com/aws/aws-sdk-go-v2/issues/1306
 func (f *EnvAWSFingerprint) handleImdsError(err error, attr string) error {
-	var apiErr *smithyHttp.ResponseError
-	if errors.As(err, &apiErr) {
+	if _, ok := errors.AsType[*smithyHttp.ResponseError](err); ok {
 		// In the event of a request error while fetching attributes, just log and return nil.
 		// This will happen if attributes do not exist for this instance (ex. ipv6, public-ipv4s).
 		f.logger.Debug("could not read attribute value", "attribute", attr, "error", err)

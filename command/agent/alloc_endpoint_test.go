@@ -765,7 +765,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		state := s.server.State()
 		alloc := mock.Alloc()
 		alloc.Job.TaskGroups[0].Tasks[0].Driver = "mock_driver"
-		alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		alloc.Job.TaskGroups[0].Tasks[0].Config = map[string]any{
 			"run_for": "30s",
 		}
 		alloc.NodeID = s.client.NodeID()

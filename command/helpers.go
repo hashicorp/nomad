@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -591,9 +592,7 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 func mergeAutocompleteFlags(flags ...complete.Flags) complete.Flags {
 	merged := make(map[string]complete.Predictor, len(flags))
 	for _, f := range flags {
-		for k, v := range f {
-			merged[k] = v
-		}
+		maps.Copy(merged, f)
 	}
 	return merged
 }

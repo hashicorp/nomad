@@ -208,10 +208,10 @@ func TestInterpolate_interpolateMapStringInterface(t *testing.T) {
 	})
 
 	t.Run("not nil", func(t *testing.T) {
-		require.Equal(t, map[string]interface{}{
+		require.Equal(t, map[string]any{
 			"a":   1,
 			"bar": 2,
-		}, interpolateMapStringInterface(testEnv, map[string]interface{}{
+		}, interpolateMapStringInterface(testEnv, map[string]any{
 			"a":      1,
 			"${foo}": 2,
 		}))
@@ -284,7 +284,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 						LocalPathPort: 10002,
 					}},
 				},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"${config1}": 1,
 					"port":       "${port1}",
 				},
@@ -294,7 +294,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 			Name:   "name", // not interpolated by taskenv
 			Driver: "${driver1}",
 			User:   "${user1}",
-			Config: map[string]interface{}{"${config2}": 2},
+			Config: map[string]any{"${config2}": 2},
 			Env:    map[string]string{"${env1}": "${env2}"},
 			Resources: &structs.Resources{
 				CPU:      1,
@@ -349,7 +349,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 					},
 				},
 				EnvoyGatewayNoDefaultBind: true,
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"${config3}": 4,
 				},
 			},
@@ -394,7 +394,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 						LocalPathPort: 10002,
 					}},
 				},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"_config1": 1,
 					"port":     "12345",
 				},
@@ -404,7 +404,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 			Name:   "name", // not interpolated by InterpolateServices
 			Driver: "_driver1",
 			User:   "_user1",
-			Config: map[string]interface{}{"_config2": 2},
+			Config: map[string]any{"_config2": 2},
 			Env:    map[string]string{"_env1": "_env2"},
 			Resources: &structs.Resources{
 				CPU:      1,
@@ -459,7 +459,7 @@ func TestInterpolate_interpolateConnect(t *testing.T) {
 					},
 				},
 				EnvoyGatewayNoDefaultBind: true,
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"_config3": 4,
 				},
 			},

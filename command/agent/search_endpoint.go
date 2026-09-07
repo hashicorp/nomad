@@ -11,14 +11,14 @@ import (
 
 // SearchRequest accepts a prefix and context and returns a list of matching
 // IDs for that context.
-func (s *HTTPServer) SearchRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) SearchRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method == http.MethodPost || req.Method == http.MethodPut {
 		return s.newSearchRequest(resp, req)
 	}
 	return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 }
 
-func (s *HTTPServer) newSearchRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) newSearchRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	args := structs.SearchRequest{}
 
 	if err := decodeBody(req, &args); err != nil {
@@ -38,14 +38,14 @@ func (s *HTTPServer) newSearchRequest(resp http.ResponseWriter, req *http.Reques
 	return out, nil
 }
 
-func (s *HTTPServer) FuzzySearchRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) FuzzySearchRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method == http.MethodPost || req.Method == http.MethodPut {
 		return s.newFuzzySearchRequest(resp, req)
 	}
 	return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 }
 
-func (s *HTTPServer) newFuzzySearchRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) newFuzzySearchRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var args structs.FuzzySearchRequest
 
 	if err := decodeBody(req, &args); err != nil {

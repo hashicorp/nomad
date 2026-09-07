@@ -5,6 +5,7 @@ package feasible
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -25,12 +26,12 @@ func TestStaticIterator_Reset(t *testing.T) {
 
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		nodes = append(nodes, mock.Node())
 	}
 	static := NewStaticIterator(ctx, nodes)
 
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		static.Reset()
 		for j := 0; j < i; j++ {
 			static.Next()
@@ -57,7 +58,7 @@ func TestStaticIterator_SetNodes(t *testing.T) {
 
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		nodes = append(nodes, mock.Node())
 	}
 	static := NewStaticIterator(ctx, nodes)
@@ -75,7 +76,7 @@ func TestRandomIterator(t *testing.T) {
 
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		nodes = append(nodes, mock.Node())
 	}
 
@@ -902,6 +903,36 @@ func TestDynamicHostVolumeIsAvailable(t *testing.T) {
 
 }
 
+func TestDynamicHostVolumeIsAvailable_PurgedJob(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := MockContext(t)
+	checker := NewHostVolumeChecker(ctx)
+
+	vol := &structs.HostVolume{
+		Name:  "example",
+		State: structs.HostVolumeStateReady,
+		RequestedCapabilities: []*structs.HostVolumeCapability{{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
+		}},
+	}
+
+	// A proposed alloc whose job has been purged or garbage collected: JobByID
+	// returns nil, nil. The checker cannot prove the alloc is not using the
+	// volume, so it must report the volume unavailable rather than dereference
+	// the nil job (#28301).
+	orphan := mock.Alloc()
+
+	must.False(t, checker.hostVolumeIsAvailable(
+		vol,
+		structs.HostVolumeAccessModeSingleNodeSingleWriter,
+		structs.HostVolumeAttachmentModeFilesystem,
+		false,
+		[]*structs.Allocation{orphan},
+	))
+}
+
 func TestCSIVolumeChecker(t *testing.T) {
 	ci.Parallel(t)
 	state, ctx := MockContext(t)
@@ -1161,6 +1192,111 @@ func TestCSIVolumeChecker(t *testing.T) {
 		must.False(t, act, must.Sprint("request with missing volume should never be feasible"))
 	}
 
+}
+
+func TestCSIVolumeChecker_PerAllocBlocking(t *testing.T) {
+	ci.Parallel(t)
+	state, ctx := MockContext(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+
+	nodes[0].CSINodePlugins = map[string]*structs.CSIInfo{
+		"foo": {
+			PluginID: "foo",
+			Healthy:  true,
+			NodeInfo: &structs.CSINodeInfo{
+				MaxVolumes: 1,
+				AccessibleTopology: &structs.CSITopology{
+					Segments: map[string]string{"rack": "R1"},
+				},
+			},
+		},
+	}
+	nodes[1].CSINodePlugins = maps.Clone(nodes[0].CSINodePlugins)
+	nodes[2].CSINodePlugins = maps.Clone(nodes[0].CSINodePlugins)
+
+	// Create the plugins in the state store
+	index := uint64(999)
+	for _, node := range nodes {
+		err := state.UpsertNode(structs.MsgTypeTestSetup, index, node)
+		must.NoError(t, err)
+		index++
+	}
+
+	vid2 := "test-volume"
+	reqs := map[string]*structs.VolumeRequest{
+		vid2: {
+			Name:     vid2,
+			Type:     "csi",
+			Source:   vid2,
+			PerAlloc: true,
+		},
+	}
+
+	job := mock.MinJob()
+	job.TaskGroups[0].Count = 2
+	job.TaskGroups[0].Volumes = reqs
+	allocName0 := job.TaskGroups[0].Name + "[0]"
+	allocName1 := job.TaskGroups[0].Name + "[1]"
+
+	err := state.UpsertJob(structs.MsgTypeTestSetup, index, nil, job)
+	must.NoError(t, err)
+	index++
+	summary := mock.JobSummary(job.ID)
+	must.NoError(t, state.UpsertJobSummary(index, summary))
+	index++
+
+	checker := NewCSIVolumeChecker(ctx)
+	checker.SetNamespace(structs.DefaultNamespace)
+
+	for _, node := range nodes {
+		checker.SetVolumes(allocName0, reqs)
+		act := checker.Feasible(node)
+		must.False(t, act, must.Sprint("request with missing volume should never be feasible"))
+
+		checker.SetVolumes(allocName1, reqs)
+		act = checker.Feasible(node)
+		must.False(t, act, must.Sprint("request with missing volume should never be feasible"))
+	}
+
+	must.Eq(t, []string{
+		"csi-volume:default:test-volume[0]",
+		"csi-volume:default:test-volume[1]",
+	}, ctx.Eligibility().MissingResources())
+
+	// Create the volume in the state store
+	vid := "test-volume[1]"
+	vol := structs.NewCSIVolume(vid, index)
+	vol.PluginID = "foo"
+	vol.Namespace = structs.DefaultNamespace
+	vol.AccessMode = structs.CSIVolumeAccessModeMultiNodeMultiWriter
+	vol.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
+	must.NoError(t, err)
+	index++
+
+	ctx.Reset()
+	ctx.Eligibility().Reset()
+	checker = NewCSIVolumeChecker(ctx)
+	checker.SetNamespace(structs.DefaultNamespace)
+
+	for _, node := range nodes {
+		checker.SetVolumes(allocName0, reqs)
+		act := checker.Feasible(node)
+		must.False(t, act, must.Sprint("request with missing volume should never be feasible"))
+
+		checker.SetVolumes(allocName1, reqs)
+		act = checker.Feasible(node)
+		must.True(t, act, must.Sprint("request with missing volume should never be feasible"))
+	}
+
+	must.Eq(t, []string{
+		"csi-volume:default:test-volume[0]",
+	}, ctx.Eligibility().MissingResources())
 }
 
 func TestNetworkChecker(t *testing.T) {
@@ -1662,7 +1798,7 @@ func TestCheckConstraint(t *testing.T) {
 
 	type tcase struct {
 		op         string
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{
@@ -1862,7 +1998,7 @@ func TestCheckVersionConstraint(t *testing.T) {
 	ci.Parallel(t)
 
 	type tcase struct {
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{
@@ -1916,7 +2052,7 @@ func TestCheckSemverConstraint(t *testing.T) {
 
 	type tcase struct {
 		name       string
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{
@@ -1983,7 +2119,6 @@ func TestCheckSemverConstraint(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			_, ctx := MockContext(t)
 			p := newSemverConstraintParser(ctx)
@@ -1997,7 +2132,7 @@ func TestCheckRegexpConstraint(t *testing.T) {
 	ci.Parallel(t)
 
 	type tcase struct {
-		lVal, rVal interface{}
+		lVal, rVal any
 		result     bool
 	}
 	cases := []tcase{

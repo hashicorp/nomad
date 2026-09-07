@@ -83,7 +83,6 @@ func TestUpgrade_NeedsUpgrade_Error(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
 			db := setupBoltDB(t)
 

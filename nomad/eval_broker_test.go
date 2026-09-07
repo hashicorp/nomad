@@ -717,7 +717,7 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 	b.SetEnabled(true)
 	NUM := 1000
 
-	for i := 0; i < NUM; i++ {
+	for i := range NUM {
 		eval1 := mock.Eval()
 		if i < (NUM / 2) {
 			eval1.Type = structs.JobTypeService
@@ -728,7 +728,7 @@ func TestEvalBroker_Dequeue_Fairness(t *testing.T) {
 	}
 
 	counter := 0
-	for i := 0; i < NUM; i++ {
+	for range NUM {
 		out1, _, _ := b.Dequeue(defaultSched, time.Second)
 
 		switch out1.Type {
@@ -955,7 +955,7 @@ func TestEvalBroker_DeliveryLimit(t *testing.T) {
 	eval := mock.Eval()
 	b.Enqueue(eval)
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		// Dequeue should work
 		out, token, err := b.Dequeue(defaultSched, time.Second)
 		if err != nil {
@@ -1045,7 +1045,7 @@ func TestEvalBroker_AckAtDeliveryLimit(t *testing.T) {
 	eval := mock.Eval()
 	b.Enqueue(eval)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		// Dequeue should work
 		out, token, err := b.Dequeue(defaultSched, time.Second)
 		if err != nil {
@@ -1504,7 +1504,7 @@ func TestEvalBroker_Cancelable(t *testing.T) {
 	b := testBroker(t, time.Minute)
 
 	evals := []*structs.Evaluation{}
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		eval := mock.Eval()
 		evals = append(evals, eval)
 	}
@@ -1562,7 +1562,7 @@ func TestEvalBroker_IntegrationTest(t *testing.T) {
 	err = msgpackrpc.CallWithCodec(codec, "Node.Register", nodeReq, &nodeResp)
 	must.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		status := structs.NodeStatusDown
 		if i%2 == 0 {
 			status = structs.NodeStatusReady

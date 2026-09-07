@@ -83,9 +83,7 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 	must.NoError(t, err)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		select {
 		case f := <-ch:
 			must.Eq(t, f, fingerprints[0])
@@ -98,7 +96,7 @@ func TestBaseDriver_Fingerprint(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			t.Fatal("did not receive fingerprint[1]")
 		}
-	}()
+	})
 	must.False(t, complete.Load().(bool))
 	wg.Wait()
 	must.True(t, complete.Load().(bool))

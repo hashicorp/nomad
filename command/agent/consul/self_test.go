@@ -72,14 +72,14 @@ func TestSelf_Namespaces(t *testing.T) {
 
 	t.Run("supports namespaces", func(t *testing.T) {
 		enabled := Namespaces(Self{
-			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, Namespaces, SSO, Audit Logging"}},
+			"Stats": {"license": map[string]any{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, Namespaces, SSO, Audit Logging"}},
 		})
 		require.True(t, enabled)
 	})
 
 	t.Run("no namespaces", func(t *testing.T) {
 		enabled := Namespaces(Self{
-			"Stats": {"license": map[string]interface{}{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, SSO, Audit Logging"}},
+			"Stats": {"license": map[string]any{"features": "Automated Backups, Automated Upgrades, Enhanced Read Scalability, Network Segments, Redundancy Zone, Advanced Network Federation, SSO, Audit Logging"}},
 		})
 		require.False(t, enabled)
 	})
@@ -95,7 +95,7 @@ func TestSelf_Namespaces(t *testing.T) {
 	})
 
 	t.Run("features missing", func(t *testing.T) {
-		enabled := Namespaces(Self{"Stats": {"license": map[string]interface{}{}}})
+		enabled := Namespaces(Self{"Stats": {"license": map[string]any{}}})
 		require.False(t, enabled)
 	})
 }

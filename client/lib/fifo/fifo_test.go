@@ -45,9 +45,7 @@ func TestFIFO(t *testing.T) {
 
 	var readBuf bytes.Buffer
 	var wait sync.WaitGroup
-	wait.Add(1)
-	go func() {
-		defer wait.Done()
+	wait.Go(func() {
 
 		var err error
 		reader, err = readerOpenFn()
@@ -58,7 +56,7 @@ func TestFIFO(t *testing.T) {
 
 		_, err = io.Copy(&readBuf, reader)
 		assert.NoError(t, err)
-	}()
+	})
 
 	writer, err := OpenWriter(path)
 	require.NoError(err)
@@ -98,9 +96,7 @@ func TestWriteClose(t *testing.T) {
 
 	var readBuf bytes.Buffer
 	var wait sync.WaitGroup
-	wait.Add(1)
-	go func() {
-		defer wait.Done()
+	wait.Go(func() {
 
 		var err error
 		reader, err = readerOpenFn()
@@ -111,16 +107,14 @@ func TestWriteClose(t *testing.T) {
 
 		_, err = io.Copy(&readBuf, reader)
 		assert.NoError(t, err)
-	}()
+	})
 
 	writer, err := OpenWriter(path)
 	require.NoError(err)
 
 	var count int
-	wait.Add(1)
-	go func() {
-		defer wait.Done()
-		for count = 0; count < int(^uint16(0)); count++ {
+	wait.Go(func() {
+		for count = range int(^uint16(0)) {
 			_, err := writer.Write([]byte(","))
 			if err != nil && IsClosedErr(err) {
 				break
@@ -128,7 +122,7 @@ func TestWriteClose(t *testing.T) {
 			require.NoError(err)
 			time.Sleep(5 * time.Millisecond)
 		}
-	}()
+	})
 
 	time.Sleep(500 * time.Millisecond)
 	require.NoError(writer.Close())

@@ -40,7 +40,7 @@ type SingleIndexer struct {
 // generate an index from multiple values, use a struct type with multiple fields.
 type ReadIndex func(arg any) ([]byte, error)
 
-func (f ReadIndex) FromArgs(args ...interface{}) ([]byte, error) {
+func (f ReadIndex) FromArgs(args ...any) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("index supports only a single arg")
 	}

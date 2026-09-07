@@ -46,7 +46,7 @@ func NodeResourcesToAllocatedResources(n *NodeResources) *AllocatedResources {
 // - no devices
 func MockBasicTopology() *numalib.Topology {
 	cores := make([]numalib.Core, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		cores[i] = numalib.Core{
 			SocketID:  0,
 			NodeID:    0,
@@ -82,7 +82,7 @@ func MockBasicTopology() *numalib.Topology {
 //     fpga/kv0         - 0000:09:01.0
 func MockWorkstationTopology() *numalib.Topology {
 	cores := make([]numalib.Core, 32)
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		cores[i] = numalib.Core{
 			SocketID:  hw.SocketID(i % 2),
 			NodeID:    hw.NodeID(i % 2),
@@ -297,7 +297,7 @@ func MockJob() *Job {
 					{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"command": "/bin/date",
 						},
 						Env: map[string]string{

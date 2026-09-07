@@ -16,7 +16,7 @@ import (
 )
 
 // DrainingNodeWatcher is the interface for watching for draining nodes.
-type DrainingNodeWatcher interface{}
+type DrainingNodeWatcher any
 
 // TrackedNodes returns the set of tracked nodes
 func (n *NodeDrainer) TrackedNodes() map[string]*structs.Node {
@@ -223,7 +223,7 @@ func (w *nodeDrainWatcher) getNodes(minIndex uint64) (map[string]*structs.Node, 
 
 // getNodesImpl is used to get nodes from the state store, returning the set of
 // nodes and the current node table index.
-func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
+func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateStore) (any, uint64, error) {
 	iter, err := state.Nodes(ws)
 	if err != nil {
 		return nil, 0, err

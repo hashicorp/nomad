@@ -180,7 +180,7 @@ func TestStateDB_Batch(t *testing.T) {
 		startTime := time.Now()
 		const numAllocs = 1000
 		var allocs []*structs.Allocation
-		for i := 0; i < numAllocs; i++ {
+		for range numAllocs {
 			allocs = append(allocs, mock.Alloc())
 		}
 		var wg sync.WaitGroup
