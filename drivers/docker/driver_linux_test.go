@@ -16,6 +16,8 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -114,6 +116,29 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 	))
 }
 
+func TestDockerDriver_Cpuset(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+
+	task, cfg, _ := dockerTask(t)
+
+	cpusetDir := t.TempDir()
+	cpusetFile := filepath.Join(cpusetDir, effectiveCpusetFile())
+	must.NoError(t, os.WriteFile(cpusetFile, []byte("0-2"), 0o600))
+	t.Cleanup(func() {
+		_ = os.Remove(cpusetFile)
+	})
+
+	task.Resources.LinuxResources.CpusetCgroupPath = cpusetDir
+
+	opts, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+	must.NoError(t, err)
+	must.Eq(t, "0-2", opts.Host.Resources.CpusetCpus)
+}
+
 func TestDockerDriver_NormalizeCPUShares(t *testing.T) {
 	dh := dockerDriverHarness(t, nil)
 	driver := dh.Impl().(*Driver)
@@ -137,4 +162,65 @@ func TestDockerDriver_NormalizeCPUShares(t *testing.T) {
 	driver.compute.TotalCompute = maxCPUShares * 2
 	must.Eq(t, 500, driver.cpuResources(1000))
 	must.Eq(t, maxCPUShares/2, driver.cpuResources(maxCPUShares))
+}
+
+func TestDockerDriver_CpuSet(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name             string
+		cpusetCgroupPath string
+		fileContent      string
+		createFile       bool
+		want             string
+		wantErrText      string
+	}{
+		{
+			name:             "empty cgroup path returns empty cpuset",
+			cpusetCgroupPath: "",
+			want:             "",
+		},
+		{
+			name:        "reads cpuset from cgroup file",
+			fileContent: "0-2",
+			createFile:  true,
+			want:        "0-2",
+		},
+		{
+			name:        "returns error when cpuset file is missing",
+			wantErrText: "unable to read usable cores",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := &Driver{logger: testlog.HCLogger(t)}
+
+			cpusetCgroupPath := tc.cpusetCgroupPath
+			if (cpusetCgroupPath == "" && tc.createFile) || tc.wantErrText != "" {
+				cpusetCgroupPath = t.TempDir()
+			}
+
+			resources := &drivers.Resources{LinuxResources: &drivers.LinuxResources{
+				CpusetCgroupPath: cpusetCgroupPath,
+			}}
+
+			if tc.createFile {
+				source := filepath.Join(cpusetCgroupPath, effectiveCpusetFile())
+				must.NoError(t, os.WriteFile(source, []byte(tc.fileContent), 0o600))
+				t.Cleanup(func() {
+					_ = os.Remove(source)
+				})
+			}
+
+			got, err := d.cpuSet(resources)
+			if tc.wantErrText != "" {
+				must.ErrorContains(t, err, tc.wantErrText)
+				return
+			}
+
+			must.NoError(t, err)
+			must.Eq(t, tc.want, got)
+		})
+	}
 }

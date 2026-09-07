@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where jobs that share a ModifyIndex (for example, several jobs rescheduled in a single Raft transaction after a node failure) were omitted from the jobs page and the `/v1/jobs/statuses` endpoint
+```

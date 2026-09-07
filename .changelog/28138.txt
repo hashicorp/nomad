@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where complex HCL variables passed via -var flag could not be edited in the web UI
+```

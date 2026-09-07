@@ -16,6 +16,7 @@ BUILD_DATE_FLAG = $(GO_MODULE)/version.BuildDate=$(BUILD_DATE)
 GO_LDFLAGS = -X $(GIT_COMMIT_FLAG) -X $(BUILD_DATE_FLAG)
 
 GOPATH := $(shell go env GOPATH)
+GOFIPS140 ?= "off"
 
 # Respect $GOBIN if set in environment or via $GOENV file.
 BIN := $(shell go env GOBIN)
@@ -92,6 +93,7 @@ ifeq (,$(findstring $(THIS_OS),$(SUPPORTED_OSES)))
 endif
 	@echo "==> Building $@ with tags $(GO_TAGS)..."
 	@CGO_ENABLED=$(CGO_ENABLED) \
+		GOFIPS140=$(GOFIPS140) \
 		GOOS=$(firstword $(subst _, ,$*)) \
 		GOARCH=$(lastword $(subst _, ,$*)) \
 		CC=$(CC) \
@@ -138,16 +140,16 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-msgpack/v2/codec/codecgen@v2.1.5
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
-	go install golang.org/x/tools/cmd/stringer@v0.30.0
+	go install golang.org/x/tools/cmd/stringer@v0.49.0
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.9.4
 	go install github.com/shoenig/go-modtool@v0.2.0
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	go install github.com/hashicorp/go-hclog/hclogvet@bd6194f1f5b126dbad2a3fdf3b9b6556cc3496c3
+	go install github.com/hashicorp/go-hclog/hclogvet@e4c86b4cdbc417b598e03d5e4344ddff3419aea1
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -162,7 +164,9 @@ check: ## Lint the source code
 	@golangci-lint run --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting ./api source code..."
-	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
+	@cd ./api && golangci-lint run \
+	  --enable modernize \
+	  --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
 	@GOFLAGS="-tags=$(GO_TAGS_COMMA)" hclogvet ./...
@@ -266,6 +270,7 @@ tidy: ## Tidy up the go mod files
 	@echo "==> Tidy up submodules"
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
+	@cd jobspec2 && go mod tidy
 	@echo "==> Tidy nomad module"
 	@go-modtool -config=ci/modtool.toml fmt go.mod
 	@go mod tidy
@@ -287,6 +292,23 @@ dev: hclfmt ## Build for the current development platform
 	@mkdir -p $(BIN)
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(PROJECT_ROOT)/bin/
 	@cp $(PROJECT_ROOT)/$(DEV_TARGET) $(BIN)
+
+.PHONY: dev-debug
+dev-debug: GOOS=$(shell go env GOOS)
+dev-debug: GOARCH=$(shell go env GOARCH)
+dev-debug: ## Build for the current platform with debug symbols and no optimizations
+	@echo "==> Removing old development build..."
+	@rm -f $(PROJECT_ROOT)/bin/nomad
+	@rm -f $(BIN)/nomad
+	@echo "==> Done"
+	@echo "==> Building debug binary..."
+	@go build \
+	    -gcflags "all=-N -l" \
+		-ldflags "$(GO_LDFLAGS)" \
+		-tags "$(GO_TAGS) $(NOMAD_UI_TAG)" \
+		-o $(PROJECT_ROOT)/bin/nomad
+	@cp $(PROJECT_ROOT)/bin/nomad $(BIN)
+	@echo "==> Done"
 
 .PHONY: dev-static
 dev-static:

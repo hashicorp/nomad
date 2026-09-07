@@ -887,16 +887,11 @@ func (w *deploymentWatcher) getEval() *structs.Evaluation {
 
 // getDeploymentStatusUpdate returns a deployment status update
 func (w *deploymentWatcher) getDeploymentStatusUpdate(status, desc string) *structs.DeploymentStatusUpdate {
-	// only pass UpdatedAt value for paused deployments
-	var updatedAt int64
-	if status == structs.DeploymentStatusPaused || status == structs.DeploymentStatusRunning {
-		updatedAt = time.Now().UTC().UnixNano()
-	}
 	return &structs.DeploymentStatusUpdate{
 		DeploymentID:      w.deploymentID,
 		Status:            status,
 		StatusDescription: desc,
-		UpdatedAt:         updatedAt,
+		UpdatedAt:         time.Now().UTC().UnixNano(),
 	}
 }
 
@@ -946,7 +941,7 @@ func (w *deploymentWatcher) getAllocs(index uint64) ([]*structs.AllocListStub, u
 }
 
 // getDeploysImpl retrieves all deployments from the passed state store.
-func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (interface{}, uint64, error) {
+func (w *deploymentWatcher) getAllocsImpl(ws memdb.WatchSet, state *state.StateStore) (any, uint64, error) {
 	if err := w.queryLimiter.Wait(w.ctx); err != nil {
 		return nil, 0, err
 	}

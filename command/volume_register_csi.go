@@ -53,7 +53,7 @@ func csiDecodeVolume(input *ast.File) (*api.CSIVolume, error) {
 	}
 
 	// Decode the full thing into a map[string]interface for ease
-	var m map[string]interface{}
+	var m map[string]any
 	err = hcl.DecodeObject(&m, list)
 	if err != nil {
 		return nil, err
@@ -98,7 +98,7 @@ func csiDecodeVolume(input *ast.File) (*api.CSIVolume, error) {
 				break
 			}
 
-			var m map[string]interface{}
+			var m map[string]any
 			if err := hcl.DecodeObject(&m, ot.List); err != nil {
 				return nil, err
 			}

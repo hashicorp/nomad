@@ -48,14 +48,14 @@ const (
 	dockerAuthHelperPrefix = "docker-credential-"
 )
 
-func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
-	conf := map[string]interface{}{}
+func PluginLoader(opts map[string]string) (map[string]any, error) {
+	conf := map[string]any{}
 	if v, ok := opts["docker.endpoint"]; ok {
 		conf["endpoint"] = v
 	}
 
 	// dockerd auth
-	authConf := map[string]interface{}{}
+	authConf := map[string]any{}
 	if v, ok := opts["docker.auth.config"]; ok {
 		authConf["config"] = v
 	}
@@ -66,7 +66,7 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 
 	// dockerd tls
 	if _, ok := opts["docker.tls.cert"]; ok {
-		conf["tls"] = map[string]interface{}{
+		conf["tls"] = map[string]any{
 			"cert": opts["docker.tls.cert"],
 			"key":  opts["docker.tls.key"],
 			"ca":   opts["docker.tls.ca"],
@@ -74,7 +74,7 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	}
 
 	// garbage collection
-	gcConf := map[string]interface{}{}
+	gcConf := map[string]any{}
 	if v, err := strconv.ParseBool(opts["docker.cleanup.image"]); err == nil {
 		gcConf["image"] = v
 	}
@@ -87,7 +87,7 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	conf["gc"] = gcConf
 
 	// volume options
-	volConf := map[string]interface{}{}
+	volConf := map[string]any{}
 	if v, err := strconv.ParseBool(opts["docker.volumes.enabled"]); err == nil {
 		volConf["enabled"] = v
 	}
@@ -126,8 +126,8 @@ var (
 
 	// PluginConfig is the docker config factory function registered in the plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewDockerDriver(ctx, l) },
+		Config:  map[string]any{},
+		Factory: func(ctx context.Context, l hclog.Logger) any { return NewDockerDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC.
@@ -321,6 +321,26 @@ var (
 		// ContainerAdmin. If so, exits with an error unless the task config has
 		// privileged=true.
 		"windows_allow_insecure_container_admin": hclspec.NewAttr("windows_allow_insecure_container_admin", "bool", false),
+
+		// allowed_modes options
+		"allowed_modes": hclspec.NewBlock("allowed_modes", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"pid": hclspec.NewDefault(
+				hclspec.NewAttr("pid", "list(string)", false),
+				hclspec.NewLiteral(`[]`),
+			),
+			"ipc": hclspec.NewDefault(
+				hclspec.NewAttr("ipc", "list(string)", false),
+				hclspec.NewLiteral(`[]`),
+			),
+			"userns": hclspec.NewDefault(
+				hclspec.NewAttr("userns", "list(string)", false),
+				hclspec.NewLiteral(`[]`),
+			),
+			"uts": hclspec.NewDefault(
+				hclspec.NewAttr("uts", "list(string)", false),
+				hclspec.NewLiteral(`[]`),
+			),
+		})),
 	})
 
 	// mountBodySpec is the hcl specification for the `mount` block
@@ -665,27 +685,28 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint                           string        `codec:"endpoint"`
-	Auth                               AuthConfig    `codec:"auth"`
-	TLS                                TLSConfig     `codec:"tls"`
-	GC                                 GCConfig      `codec:"gc"`
-	Volumes                            VolumeConfig  `codec:"volumes"`
-	AllowPrivileged                    bool          `codec:"allow_privileged"`
-	AllowCaps                          []string      `codec:"allow_caps"`
-	GPURuntimeName                     string        `codec:"nvidia_runtime"`
-	InfraImage                         string        `codec:"infra_image"`
-	InfraImagePullTimeout              string        `codec:"infra_image_pull_timeout"`
-	infraImagePullTimeoutDuration      time.Duration `codec:"-"`
-	ImagePullTimeout                   string        `codec:"image_pull_timeout"`
-	ContainerExistsAttempts            uint64        `codec:"container_exists_attempts"`
-	DisableLogCollection               bool          `codec:"disable_log_collection"`
-	PullActivityTimeout                string        `codec:"pull_activity_timeout"`
-	PidsLimit                          int64         `codec:"pids_limit"`
-	pullActivityTimeoutDuration        time.Duration `codec:"-"`
-	OOMScoreAdj                        int           `codec:"oom_score_adj"`
-	WindowsAllowInsecureContainerAdmin bool          `codec:"windows_allow_insecure_container_admin"`
-	ExtraLabels                        []string      `codec:"extra_labels"`
-	Logging                            LoggingConfig `codec:"logging"`
+	Endpoint                           string             `codec:"endpoint"`
+	Auth                               AuthConfig         `codec:"auth"`
+	TLS                                TLSConfig          `codec:"tls"`
+	GC                                 GCConfig           `codec:"gc"`
+	Volumes                            VolumeConfig       `codec:"volumes"`
+	AllowPrivileged                    bool               `codec:"allow_privileged"`
+	AllowCaps                          []string           `codec:"allow_caps"`
+	GPURuntimeName                     string             `codec:"nvidia_runtime"`
+	InfraImage                         string             `codec:"infra_image"`
+	InfraImagePullTimeout              string             `codec:"infra_image_pull_timeout"`
+	infraImagePullTimeoutDuration      time.Duration      `codec:"-"`
+	ImagePullTimeout                   string             `codec:"image_pull_timeout"`
+	ContainerExistsAttempts            uint64             `codec:"container_exists_attempts"`
+	DisableLogCollection               bool               `codec:"disable_log_collection"`
+	PullActivityTimeout                string             `codec:"pull_activity_timeout"`
+	PidsLimit                          int64              `codec:"pids_limit"`
+	pullActivityTimeoutDuration        time.Duration      `codec:"-"`
+	OOMScoreAdj                        int                `codec:"oom_score_adj"`
+	WindowsAllowInsecureContainerAdmin bool               `codec:"windows_allow_insecure_container_admin"`
+	ExtraLabels                        []string           `codec:"extra_labels"`
+	Logging                            LoggingConfig      `codec:"logging"`
+	AllowedModes                       AllowedModesConfig `codec:"allowed_modes"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
@@ -723,6 +744,13 @@ type VolumeConfig struct {
 type LoggingConfig struct {
 	Type   string            `codec:"type"`
 	Config map[string]string `codec:"config"`
+}
+
+type AllowedModesConfig struct {
+	PID    []string `codec:"pid"`
+	IPC    []string `codec:"ipc"`
+	Userns []string `codec:"userns"`
+	UTS    []string `codec:"uts"`
 }
 
 func (d *Driver) PluginInfo() (*base.PluginInfoResponse, error) {
@@ -801,6 +829,9 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		}
 	}
 
+	if err := validateAllowedNamespace(d.config.AllowedModes); err != nil {
+		return err
+	}
 	d.config.allowRuntimes = make(map[string]struct{}, len(d.config.AllowRuntimesList))
 	for _, r := range d.config.AllowRuntimesList {
 		d.config.allowRuntimes[r] = struct{}{}
@@ -840,4 +871,41 @@ func (d *Driver) TaskConfigSchema() (*hclspec.Spec, error) {
 func (d *Driver) Capabilities() (*drivers.Capabilities, error) {
 	driverCapabilities.DisableLogCollection = d.config != nil && d.config.DisableLogCollection
 	return driverCapabilities, nil
+}
+
+func validateAllowedNamespace(allowedNS AllowedModesConfig) error {
+	// check user supplied allowlist values against containerapi type validator
+	// https://github.com/moby/moby/blob/master/api/types/container/hostconfig.go
+
+	if len(allowedNS.PID) > 0 {
+		for _, v := range allowedNS.PID {
+			if !containerapi.PidMode(v).Valid() {
+				return fmt.Errorf("cannot apply allowed_modes configuration, %q is not a valid pid_mode", v)
+			}
+		}
+	}
+	if len(allowedNS.IPC) > 0 {
+		for _, v := range allowedNS.IPC {
+			if !containerapi.IpcMode(v).Valid() {
+				return fmt.Errorf("cannot apply allowed_modes configuration, %q is not a valid ipc_mode", v)
+			}
+		}
+	}
+
+	if len(allowedNS.Userns) > 0 {
+		for _, v := range allowedNS.Userns {
+			if !containerapi.UsernsMode(v).Valid() {
+				return fmt.Errorf("cannot apply allowed_modes configuration, %q is not a valid userns_mode", v)
+			}
+		}
+	}
+
+	if len(allowedNS.UTS) > 0 {
+		for _, v := range allowedNS.UTS {
+			if !containerapi.UTSMode(v).Valid() {
+				return fmt.Errorf("cannot apply allowed_modes configuration, %q is not a valid utc_mode", v)
+			}
+		}
+	}
+	return nil
 }

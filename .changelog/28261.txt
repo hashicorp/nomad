@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug where the client allocation endpoints returned a 500 error instead of a 404 when the allocation's node could not be found
+```

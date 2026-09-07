@@ -180,6 +180,14 @@ type Config struct {
 	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `hcl:"http_api_response_headers"`
 
+	// HTTPDisableWebSocketOriginCheck is used to disable the origin check when
+	// upgrading HTTP connections to a websocket. This is useful for Nomad
+	// debugging and development.
+	HTTPDisableWebSocketOriginCheck *bool `hcl:"http_disable_websocket_origin_check"`
+
+	// HTTPDisableHTTP2 is used to disable support for the HTTP2 protocol.
+	HTTPDisableHTTP2 bool `hcl:"http_disable_http2"`
+
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `hcl:"sentinel"`
 
@@ -716,6 +724,10 @@ type ServerConfig struct {
 	// PlanRejectionTracker configures the node plan rejection tracker that
 	// detects potentially bad nodes.
 	PlanRejectionTracker *PlanRejectionTracker `hcl:"plan_rejection_tracker"`
+
+	// PlanApplyPipeline is the maximum number of outstanding plans there can be
+	// waiting on Raft apply
+	PlanApplyPipeline int `hcl:"plan_apply_pipeline"`
 
 	// EnableEventBroker configures whether this server's state store
 	// will generate events for its event stream.
@@ -1884,6 +1896,7 @@ func DefaultConfig() *Config {
 				NodeThreshold: 100,
 				NodeWindow:    5 * time.Minute,
 			},
+			PlanApplyPipeline: 1,
 			ServerJoin: &ServerJoin{
 				RetryJoin:        []string{},
 				RetryInterval:    30 * time.Second,
@@ -2163,8 +2176,14 @@ func (c *Config) Merge(b *Config) *Config {
 	if result.HTTPAPIResponseHeaders == nil {
 		result.HTTPAPIResponseHeaders = make(map[string]string)
 	}
-	for k, v := range b.HTTPAPIResponseHeaders {
-		result.HTTPAPIResponseHeaders[k] = v
+	maps.Copy(result.HTTPAPIResponseHeaders, b.HTTPAPIResponseHeaders)
+
+	if b.HTTPDisableHTTP2 {
+		result.HTTPDisableHTTP2 = true
+	}
+
+	if b.HTTPDisableWebSocketOriginCheck != nil {
+		result.HTTPDisableWebSocketOriginCheck = new(*b.HTTPDisableWebSocketOriginCheck)
 	}
 
 	result.Limits = c.Limits.Merge(b.Limits)
@@ -2757,6 +2776,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.PlanRejectionTracker != nil {
 		result.PlanRejectionTracker = result.PlanRejectionTracker.Merge(b.PlanRejectionTracker)
 	}
+	if b.PlanApplyPipeline != 0 {
+		result.PlanApplyPipeline = b.PlanApplyPipeline
+	}
 
 	if b.DefaultSchedulerConfig != nil {
 		c := *b.DefaultSchedulerConfig
@@ -2959,25 +2981,19 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if result.Options == nil {
 		result.Options = make(map[string]string)
 	}
-	for k, v := range b.Options {
-		result.Options[k] = v
-	}
+	maps.Copy(result.Options, b.Options)
 
 	// Add the meta map values
 	if result.Meta == nil {
 		result.Meta = make(map[string]string)
 	}
-	for k, v := range b.Meta {
-		result.Meta[k] = v
-	}
+	maps.Copy(result.Meta, b.Meta)
 
 	// Add the chroot_env map values
 	if result.ChrootEnv == nil {
 		result.ChrootEnv = make(map[string]string)
 	}
-	for k, v := range b.ChrootEnv {
-		result.ChrootEnv[k] = v
-	}
+	maps.Copy(result.ChrootEnv, b.ChrootEnv)
 
 	if b.ServerJoin != nil {
 		result.ServerJoin = result.ServerJoin.Merge(b.ServerJoin)

@@ -214,7 +214,6 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.expectedErrMsg, func(t *testing.T) {
 			updateReq := &structs.KeyringUpdateRootKeyRequest{
 				RootKey: tc.key,

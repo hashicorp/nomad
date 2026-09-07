@@ -82,12 +82,13 @@ type allocServicesClient interface {
 }
 
 type envoyBootstrapHookConfig struct {
-	alloc           *structs.Allocation
-	consul          consulTransportConfig
-	consulNamespace string
-	consulServices  allocServicesClient
-	node            *structs.Node
-	logger          hclog.Logger
+	alloc               *structs.Allocation
+	consul              consulTransportConfig
+	consulNamespace     string
+	consulServices      allocServicesClient
+	consulFallbackToken string
+	node                *structs.Node
+	logger              hclog.Logger
 }
 
 func decodeTriState(b *bool) string {
@@ -103,12 +104,13 @@ func decodeTriState(b *bool) string {
 
 func newEnvoyBootstrapHookConfig(alloc *structs.Allocation, consul *config.ConsulConfig, consulNamespace string, consulServices allocServicesClient, node *structs.Node, logger hclog.Logger) *envoyBootstrapHookConfig {
 	return &envoyBootstrapHookConfig{
-		alloc:           alloc,
-		consul:          newConsulTransportConfig(consul),
-		consulNamespace: consulNamespace,
-		consulServices:  consulServices,
-		node:            node,
-		logger:          logger,
+		alloc:               alloc,
+		consul:              newConsulTransportConfig(consul),
+		consulNamespace:     consulNamespace,
+		consulServices:      consulServices,
+		consulFallbackToken: consul.Token,
+		node:                node,
+		logger:              logger,
 	}
 }
 
@@ -138,6 +140,11 @@ type envoyBootstrapHook struct {
 
 	// consulNamespace is the Consul namespace as set by in the job
 	consulNamespace string
+
+	// consulFallbackToken is the Nomad client agent's own Consul token, which
+	// we'll use as a fallback when Workload Identity has not been configured
+	// for the task
+	consulFallbackToken string
 
 	// envoyBootstrapWaitTime is the total amount of time hook will wait for Consul
 	envoyBootstrapWaitTime time.Duration
@@ -169,6 +176,7 @@ func newEnvoyBootstrapHook(c *envoyBootstrapHookConfig) *envoyBootstrapHook {
 		alloc:                    c.alloc,
 		consulConfig:             c.consul,
 		consulNamespace:          c.consulNamespace,
+		consulFallbackToken:      c.consulFallbackToken,
 		envoyBootstrapWaitTime:   waitTime,
 		envoyBootstrapInitialGap: initialGap,
 		envoyBootstrapMaxJitter:  envoyBootstrapMaxJitter,
@@ -626,8 +634,8 @@ func (h *envoyBootstrapHook) maybeLoadSIToken(task, dir string) (string, error) 
 			h.logger.Error("failed to load SI token", "task", task, "error", err)
 			return "", fmt.Errorf("failed to load SI token for %s: %w", task, err)
 		}
-		h.logger.Trace("no SI token to load", "task", task)
-		return "", nil // token file does not exist
+		h.logger.Trace("no SI token to load, falling back to agent token", "task", task)
+		return h.consulFallbackToken, nil // token file does not exist
 	}
 	h.logger.Trace("recovered pre-existing SI token", "task", task)
 	return string(token), nil

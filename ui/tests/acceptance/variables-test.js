@@ -100,7 +100,6 @@ module('Acceptance | variables', function (hooks) {
 
     assert.ok(fooLink, 'foo0 file is present');
 
-
     await click(fooLink);
     assert.ok(
       currentURL().includes('/variables/var/a/b/c/foo0'),
@@ -108,7 +107,6 @@ module('Acceptance | variables', function (hooks) {
     );
     const deleteButton = find('[data-test-delete-button] button');
     assert.dom(deleteButton).exists('delete button is present');
-
 
     await click(deleteButton);
     assert
@@ -209,7 +207,6 @@ module('Acceptance | variables', function (hooks) {
       'Related Entities box is job-oriented',
     );
 
-
     let relatedJobLink = find('.related-entities a');
     await click(relatedJobLink);
     assert
@@ -243,7 +240,6 @@ module('Acceptance | variables', function (hooks) {
       ),
       'Related Entities box is group-oriented',
     );
-
 
     let relatedGroupLink = find('.related-entities a');
     await click(relatedGroupLink);
@@ -280,7 +276,6 @@ module('Acceptance | variables', function (hooks) {
       ),
       'Related Entities box is task-oriented',
     );
-
 
     let relatedTaskLink = find('.related-entities a');
     await click(relatedTaskLink);
@@ -358,7 +353,6 @@ module('Acceptance | variables', function (hooks) {
     assert.dom('.flash-message.alert-critical').doesNotExist();
     await typeIn('[data-test-var-key]', 'myKey');
     await typeIn('[data-test-var-value]', 'superSecret');
-
 
     await click('button[type="submit"]');
 
@@ -579,7 +573,6 @@ module('Acceptance | variables', function (hooks) {
         'variables.variable.edit',
         'Clicking the button navigates you to editing view.',
       );
-
 
       assert.dom('[data-test-path-input]').isDisabled('Path cannot be edited');
 

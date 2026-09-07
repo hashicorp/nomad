@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/netip"
 	"os"
@@ -29,6 +30,8 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/docker/docklog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -36,6 +39,7 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/hostnames"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -804,8 +808,10 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 			src = filepath.Clean(src)
 		}
 
-		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, src) {
-			return nil, fmt.Errorf("volumes are not enabled; cannot mount host paths: %+q", userbind)
+		if !d.config.Volumes.Enabled {
+			if err := escapingfs.ChildEscapesParentDir(task.AllocDir, src); err != nil {
+				return nil, fmt.Errorf("volumes are not enabled; cannot mount host path: %q", userbind)
+			}
 		}
 
 		bind := src + ":" + dst
@@ -948,23 +954,22 @@ const (
 // (whichever is greater). If resources.memory_max = -1, there is no hard limit
 // and task.config.memory_hard_limit is ignored.
 //
+// It is expected that the scheduler already included the space for the
+// secrets inside the taskMemory and if oversubscription is not enabled,
+// taskMemory.MemoryMaxMB was set to 0.
+//
 // Returns (memory (hard), memory_reservation (soft)) values in bytes.
 func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (memory, reserve int64) {
-	memHard := driverHardLimitMB
-	memReserved := taskMemory.MemoryMB
-	memMax := taskMemory.MemoryMaxMB
+	if taskMemory.MemoryMaxMB == memoryNoLimit {
+		return 0, mbToBytes(taskMemory.MemoryMB)
+	}
 
-	if memMax == memoryNoLimit {
-		return 0, mbToBytes(memReserved)
+	highLimit := max(driverHardLimitMB, taskMemory.MemoryMaxMB)
+	if highLimit == 0 {
+		return mbToBytes(taskMemory.MemoryMB), 0
 	}
-	if memMax > memHard {
-		memHard = memMax
-	}
-	if memHard <= 0 {
-		memHard = memReserved
-		memReserved = 0
-	}
-	return mbToBytes(memHard), mbToBytes(memReserved)
+
+	return mbToBytes(highLimit), mbToBytes(taskMemory.MemoryMB)
 }
 
 func mbToBytes(n int64) int64 {
@@ -995,20 +1000,48 @@ func (d *Driver) cpuResources(requested int64) int64 {
 	return result
 }
 
+// cpuSet reads the available cores from the nomad client in order to assign
+// them to the new container, ensuring all tasks run in nomad assigned cpus.
+func (d *Driver) cpuSet(taskResources *drivers.Resources) (string, error) {
+
+	if taskResources.LinuxResources != nil &&
+		taskResources.LinuxResources.CpusetCgroupPath == "" {
+		return "", nil
+	}
+
+	// read the current value of usable cores
+	source := filepath.Join(taskResources.LinuxResources.CpusetCgroupPath, effectiveCpusetFile())
+	b, err := os.ReadFile(source)
+	if err != nil {
+		return "", fmt.Errorf("unable to read usable cores: %w", err)
+	}
+
+	return idset.Parse[hw.CoreID](string(b)).String(), nil
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (createContainerOptions, error) {
+
+	logger := d.logger.With("task_name", task.Name)
+	c := createContainerOptions{}
 
 	// ensure that PortMap variables are populated early on
 	task.Env = taskenv.SetPortMapEnvs(task.Env, driverConfig.PortMap)
 
-	logger := d.logger.With("task_name", task.Name)
-	var c createContainerOptions
 	if task.Resources == nil {
 		// Guard against missing resources. We should never have been able to
 		// schedule a job without specifying this.
 		logger.Error("task.Resources is empty")
 		return c, fmt.Errorf("task.Resources is empty")
 	}
+
+	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit,
+		task.Resources.NomadResources.Memory)
+	if memory > 0 && memoryReservation > memory {
+		return c, fmt.Errorf("task memory requirements exceed driver hard limit of %d MB",
+			driverConfig.MemoryHardLimit)
+	}
+
 	binds, err := d.containerBinds(task, driverConfig)
 	if err != nil {
 		return c, err
@@ -1057,8 +1090,6 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		}
 	}
 
-	memory, memoryReservation := memoryLimits(driverConfig.MemoryHardLimit, task.Resources.NomadResources.Memory)
-
 	var pidsLimit int64 = -1 // default unlimited
 
 	// Pids limit defined in Nomad plugin config.
@@ -1101,6 +1132,15 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		CPUShares:         cpuShares,
 		CpusetCpus:        task.Resources.LinuxResources.CpusetCpus,
 		PidsLimit:         &pidsLimit,
+	}
+
+	if hostConfig.Resources.CpusetCpus == "" {
+		clientCpus, err := d.cpuSet(task.Resources)
+		if err != nil {
+			d.logger.Warn("failed to read cpuset from cgroup, ignoring", "error", err)
+		}
+
+		hostConfig.Resources.CpusetCpus = clientCpus
 	}
 
 	// Setting cpuset_cpus in driver config is no longer supported (it has
@@ -1323,12 +1363,27 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		hostConfig.Mounts = append(hostConfig.Mounts, hm)
 	}
 
-	hostConfig.ExtraHosts = driverConfig.ExtraHosts
-
+	if ipcErr := d.validateNamespace(d.config.AllowedModes.IPC, "ipc_mode", driverConfig.IPCMode); ipcErr != nil {
+		return c, ipcErr
+	}
 	hostConfig.IpcMode = containerapi.IpcMode(driverConfig.IPCMode)
+
+	if pidErr := d.validateNamespace(d.config.AllowedModes.PID, "pid_mode", driverConfig.PidMode); pidErr != nil {
+		return c, pidErr
+	}
 	hostConfig.PidMode = containerapi.PidMode(driverConfig.PidMode)
+
+	if utsErr := d.validateNamespace(d.config.AllowedModes.UTS, "uts_mode", driverConfig.UTSMode); utsErr != nil {
+		return c, utsErr
+	}
 	hostConfig.UTSMode = containerapi.UTSMode(driverConfig.UTSMode)
+
+	if usernsErr := d.validateNamespace(d.config.AllowedModes.Userns, "userns_mode", driverConfig.UsernsMode); usernsErr != nil {
+		return c, usernsErr
+	}
 	hostConfig.UsernsMode = containerapi.UsernsMode(driverConfig.UsernsMode)
+
+	hostConfig.ExtraHosts = driverConfig.ExtraHosts
 	hostConfig.SecurityOpt = driverConfig.SecurityOpt
 	hostConfig.Sysctls = driverConfig.Sysctl
 
@@ -1441,9 +1496,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	labels := make(map[string]string, len(driverConfig.Labels)+1)
-	for k, v := range driverConfig.Labels {
-		labels[k] = v
-	}
+	maps.Copy(labels, driverConfig.Labels)
 	// main mandatory label
 	labels[dockerLabelAllocID] = task.AllocID
 
@@ -1562,12 +1615,10 @@ func (d *Driver) toDockerMount(m *DockerMount, task *drivers.TaskConfig) (*mount
 	case "bind":
 		hm.Source = expandPath(task.TaskDir().Dir, hm.Source)
 
-		// paths inside alloc dir are always allowed as they mount within
-		// a container, and treated as relative to task dir
-		if !d.config.Volumes.Enabled && !isParentPath(task.AllocDir, hm.Source) {
-			return nil, fmt.Errorf(
-				"volumes are not enabled; cannot mount host path: %q %q",
-				hm.Source, task.AllocDir)
+		if !d.config.Volumes.Enabled {
+			if err := escapingfs.ChildEscapesParentDir(task.AllocDir, hm.Source); err != nil {
+				return nil, fmt.Errorf("volumes are not enabled; cannot mount host path: %q", hm.Source)
+			}
 		}
 	case "tmpfs":
 		// no source, so no sandbox check required
@@ -1880,7 +1931,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	defer opts.Stdout.Close()
 	defer opts.Stderr.Close()
 
-	done := make(chan interface{})
+	done := make(chan any)
 	defer close(done)
 
 	h, ok := d.tasks.Get(taskID)
@@ -2031,7 +2082,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 
 		if cert+key+ca != "" {
 			d.logger.Debug("using TLS client connection", "endpoint", dockerEndpoint)
-			newClient, err = mclient.NewClientWithOpts(
+			newClient, err = mclient.New(
 				append(opts,
 					mclient.WithHost(dockerEndpoint),
 					mclient.WithTLSClientConfig(ca, cert, key),
@@ -2042,7 +2093,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 			}
 		} else {
 			d.logger.Debug("using standard client connection", "endpoint", dockerEndpoint)
-			newClient, err = mclient.NewClientWithOpts(
+			newClient, err = mclient.New(
 				append(opts,
 					mclient.WithHost(dockerEndpoint),
 				)...,
@@ -2053,9 +2104,7 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*mclient.Client, error)
 		}
 	} else {
 		d.logger.Debug("using client connection initialized from environment")
-		newClient, err = mclient.NewClientWithOpts(
-			append(opts, mclient.FromEnv)...,
-		)
+		newClient, err = mclient.New(append(opts, mclient.FromEnv)...)
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
@@ -2116,4 +2165,24 @@ func isDockerTransientError(err error) bool {
 
 func stopWithZeroTimeout() mclient.ContainerStopOptions {
 	return mclient.ContainerStopOptions{Timeout: new(0)}
+}
+
+func (d *Driver) validateNamespace(allowedModes []string, field string, desiredNs string) error {
+	// return early if allow_privileged is configured or
+	// if the desiredNs is empty
+	if d.config.AllowPrivileged {
+		return nil
+	}
+	if desiredNs == "" {
+		return nil
+	}
+
+	for _, v := range allowedModes {
+		// return if the desired namespace matches a value in allowedModes
+		if glob.Glob(v, desiredNs) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cannot apply %q configuration", field)
 }

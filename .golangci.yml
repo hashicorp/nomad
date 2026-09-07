@@ -32,6 +32,7 @@ linters:
     - govet
     - ineffassign
     - misspell
+    - modernize
     - staticcheck
     - unconvert
     - usestdlibvars
@@ -67,6 +68,9 @@ linters:
         text: assignOp
       - path: (.+)\.go$
         text: unlambda
+      - path-except: (^client/|^command/|^drivers/|^jobspec2/|^plugins/|^nomad/|^scheduler/)
+        linters:
+          - modernize
     paths:
       - ".*\\.generated\\.go$"
       - ".*bindata_assetfs\\.go$"

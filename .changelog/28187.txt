@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where a client could panic after an alloc is GC'd
+```

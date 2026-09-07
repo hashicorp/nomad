@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -42,7 +42,7 @@ func (s *HTTPServer) NodesRequest(resp http.ResponseWriter, req *http.Request) (
 	return out.Nodes, nil
 }
 
-func (s *HTTPServer) NodeSpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) NodeSpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/node/")
 	switch {
 	case strings.HasSuffix(path, "/evaluate"):
@@ -66,7 +66,7 @@ func (s *HTTPServer) NodeSpecificRequest(resp http.ResponseWriter, req *http.Req
 }
 
 func (s *HTTPServer) nodeForceEvaluate(resp http.ResponseWriter, req *http.Request,
-	nodeID string) (interface{}, error) {
+	nodeID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -84,7 +84,7 @@ func (s *HTTPServer) nodeForceEvaluate(resp http.ResponseWriter, req *http.Reque
 }
 
 func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request,
-	nodeID string) (interface{}, error) {
+	nodeID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -115,7 +115,7 @@ func (s *HTTPServer) nodeAllocations(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request,
-	nodeID string) (interface{}, error) {
+	nodeID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -151,7 +151,7 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 }
 
 func (s *HTTPServer) nodeToggleEligibility(resp http.ResponseWriter, req *http.Request,
-	nodeID string) (interface{}, error) {
+	nodeID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -175,7 +175,7 @@ func (s *HTTPServer) nodeToggleEligibility(resp http.ResponseWriter, req *http.R
 }
 
 func (s *HTTPServer) nodeQuery(resp http.ResponseWriter, req *http.Request,
-	nodeID string) (interface{}, error) {
+	nodeID string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -198,7 +198,7 @@ func (s *HTTPServer) nodeQuery(resp http.ResponseWriter, req *http.Request,
 	return out.Node, nil
 }
 
-func (s *HTTPServer) nodePurge(resp http.ResponseWriter, req *http.Request, nodeID string) (interface{}, error) {
+func (s *HTTPServer) nodePurge(resp http.ResponseWriter, req *http.Request, nodeID string) (any, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}

@@ -5,8 +5,8 @@ package consul
 
 import (
 	"context"
-	"crypto/md5"
 	"encoding/hex"
+	"hash/fnv"
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
@@ -14,25 +14,27 @@ import (
 )
 
 type MockConsulClient struct {
-	tokens map[string]*consulapi.ACLToken
+	tokens   map[string]*consulapi.ACLToken
+	Requests []JWTLoginRequest
 }
 
 func NewMockConsulClient(config *config.ConsulConfig, logger hclog.Logger) (Client, error) {
 	return &MockConsulClient{}, nil
 }
 
-// DeriveTokenWithJWT returns ACLTokens with deterministic values for testing:
-// the request ID for the AccessorID and the md5 checksum of the request ID for
-// the SecretID
+// DeriveTokenWithJWT returns ACLTokens with deterministic values for testing: a
+// hash of the request JWT for the AccessorID and SecretID
 func (mc *MockConsulClient) DeriveTokenWithJWT(req JWTLoginRequest) (*consulapi.ACLToken, error) {
+	mc.Requests = append(mc.Requests, req)
+
 	if t, ok := mc.tokens[req.JWT]; ok {
 		return t, nil
 	}
 
-	hash := md5.Sum([]byte(req.JWT))
+	hash := fnv.New128().Sum([]byte(req.JWT))
 	token := &consulapi.ACLToken{
-		AccessorID: hex.EncodeToString(hash[:]),
-		SecretID:   hex.EncodeToString(hash[:]),
+		AccessorID: hex.EncodeToString(hash),
+		SecretID:   hex.EncodeToString(hash),
 	}
 
 	if mc.tokens == nil {

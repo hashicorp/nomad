@@ -84,17 +84,14 @@ func (l *LazyHandle) refreshHandle() (*DriverHandle, error) {
 // held. It will retry to give the client time to restart the driver and restore
 // the handle.
 func (l *LazyHandle) refreshHandleLocked() (*DriverHandle, error) {
-	for i := 0; i < retrieveFailureLimit; i++ {
+	for i := range retrieveFailureLimit {
 		l.h = l.retrieveHandle()
 		if l.h != nil {
 			return l.h, nil
 		}
 
 		// Calculate the new backoff
-		backoff := (1 << (2 * uint64(i))) * retrieveBackoffBaseline
-		if backoff > retrieveBackoffLimit {
-			backoff = retrieveBackoffLimit
-		}
+		backoff := min((1<<(2*uint64(i)))*retrieveBackoffBaseline, retrieveBackoffLimit)
 
 		l.logger.Debug("failed to retrieve handle", "backoff", backoff)
 

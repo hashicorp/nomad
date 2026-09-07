@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) ScalingPoliciesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ScalingPoliciesRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		return s.scalingPoliciesListRequest(resp, req)
@@ -20,7 +20,7 @@ func (s *HTTPServer) ScalingPoliciesRequest(resp http.ResponseWriter, req *http.
 	}
 }
 
-func (s *HTTPServer) scalingPoliciesListRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) scalingPoliciesListRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	args := structs.ScalingPolicyListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -44,13 +44,13 @@ func (s *HTTPServer) scalingPoliciesListRequest(resp http.ResponseWriter, req *h
 	return out.Policies, nil
 }
 
-func (s *HTTPServer) ScalingPolicySpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) ScalingPolicySpecificRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/scaling/policy/")
 	return s.scalingPolicyCRUD(resp, req, path)
 }
 
 func (s *HTTPServer) scalingPolicyCRUD(resp http.ResponseWriter, req *http.Request,
-	policyID string) (interface{}, error) {
+	policyID string) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		return s.scalingPolicyQuery(resp, req, policyID)
@@ -60,7 +60,7 @@ func (s *HTTPServer) scalingPolicyCRUD(resp http.ResponseWriter, req *http.Reque
 }
 
 func (s *HTTPServer) scalingPolicyQuery(resp http.ResponseWriter, req *http.Request,
-	policyID string) (interface{}, error) {
+	policyID string) (any, error) {
 	args := structs.ScalingPolicySpecificRequest{
 		ID: policyID,
 	}

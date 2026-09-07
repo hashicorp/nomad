@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
-// +build !ent
 
 package nomad
 
@@ -33,7 +32,7 @@ func contextToIndex(ctx structs.Context) string {
 }
 
 // getEnterpriseMatch is a no-op in oss since there are no enterprise objects.
-func getEnterpriseMatch(match interface{}) (id string, ok bool) {
+func getEnterpriseMatch(match any) (id string, ok bool) {
 	return "", false
 }
 

@@ -92,7 +92,7 @@ func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 	}
 
 	sm := raftutil.StateAsMap(state)
-	sm["SnapshotMeta"] = []interface{}{meta}
+	sm["SnapshotMeta"] = []any{meta}
 
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")

@@ -123,8 +123,7 @@ func (c *JobPeriodicForceCommand) Run(args []string) int {
 	jobID, namespace, err := c.jobIDByPrefix(client, jobIDPrefix, "Periodic is not nil",
 		func(j *api.JobListStub) bool { return j.Periodic })
 	if err != nil {
-		var noPrefixErr *NoJobWithPrefixError
-		if errors.As(err, &noPrefixErr) {
+		if _, ok := errors.AsType[*NoJobWithPrefixError](err); ok {
 			err = fmt.Errorf("No periodic job(s) with prefix or ID %q found", jobIDPrefix)
 		}
 		c.Ui.Error(err.Error())

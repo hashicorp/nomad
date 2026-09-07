@@ -21,7 +21,7 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 
 	// create 3 default keys, one of which is active
 	keyIDs := []string{}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		key := structs.NewRootKeyMeta()
 		keyIDs = append(keyIDs, key.KeyID)
 		if i == 0 {

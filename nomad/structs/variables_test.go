@@ -309,7 +309,6 @@ func TestStructs_VariableDecrypted_Validate(t *testing.T) {
 		{path: "nomad/job-templates/whatever", ok: true},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		sv.Path = tc.path
 		err := sv.Validate()
 		if tc.ok {

@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where the client would not remount the secret and private tmpfs after a restart
+```

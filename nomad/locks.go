@@ -96,7 +96,7 @@ func (s *Server) invalidateVariableLock(variable structs.VariableEncrypted) {
 	}
 
 	// Retry with exponential backoff to remove the lock
-	for attempt := 0; attempt < maxAttemptsToRaftApply; attempt++ {
+	for attempt := range maxAttemptsToRaftApply {
 		_, _, err := s.raftApply(structs.VarApplyStateRequestType, args)
 		if err == nil {
 			return

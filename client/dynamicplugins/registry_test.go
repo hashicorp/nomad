@@ -162,7 +162,7 @@ func TestDynamicRegistry_DeregisterPlugin_SendsUpdateEvents(t *testing.T) {
 func TestDynamicRegistry_DispensePlugin_Works(t *testing.T) {
 	ci.Parallel(t)
 
-	dispenseFn := func(i *PluginInfo) (interface{}, error) {
+	dispenseFn := func(i *PluginInfo) (any, error) {
 		return struct{}{}, nil
 	}
 
@@ -218,7 +218,7 @@ func TestDynamicRegistry_IsolatePluginTypes(t *testing.T) {
 func TestDynamicRegistry_StateStore(t *testing.T) {
 	ci.Parallel(t)
 
-	dispenseFn := func(i *PluginInfo) (interface{}, error) {
+	dispenseFn := func(i *PluginInfo) (any, error) {
 		return i, nil
 	}
 
@@ -245,7 +245,7 @@ func TestDynamicRegistry_StateStore(t *testing.T) {
 func TestDynamicRegistry_ConcurrentAllocs(t *testing.T) {
 	ci.Parallel(t)
 
-	dispenseFn := func(i *PluginInfo) (interface{}, error) {
+	dispenseFn := func(i *PluginInfo) (any, error) {
 		return i, nil
 	}
 

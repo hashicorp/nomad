@@ -1,0 +1,3 @@
+```release-note:security
+dynamic host volumes: Fixed a bug where users with `host-volume-delete` in one namespace could delete claims from another namespace
+```

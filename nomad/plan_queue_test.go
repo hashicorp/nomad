@@ -180,7 +180,7 @@ func TestPlanQueue_Dequeue_FIFO(t *testing.T) {
 	pq.SetEnabled(true)
 
 	plans := make([]*structs.Plan, 100)
-	for i := 0; i < len(plans); i++ {
+	for i := range plans {
 		if i%5 == 0 {
 			time.Sleep(10 * time.Millisecond)
 		}

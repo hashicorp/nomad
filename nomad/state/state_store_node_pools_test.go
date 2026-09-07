@@ -20,7 +20,7 @@ func TestStateStore_NodePools(t *testing.T) {
 	// Create test node pools.
 	state := testStateStore(t)
 	pools := make([]*structs.NodePool, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		pools[i] = mock.NodePool()
 	}
 	must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools))
@@ -62,7 +62,7 @@ func TestStateStore_NodePools_Ordering(t *testing.T) {
 	// Create test node pools with stable sortable names.
 	state := testStateStore(t)
 	pools := make([]*structs.NodePool, 10)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		pool := mock.NodePool()
 		pool.Name = fmt.Sprintf("%02d", i+1)
 		pools[i] = pool
@@ -113,7 +113,7 @@ func TestStateStore_NodePool_ByName(t *testing.T) {
 	// Create test node pools.
 	state := testStateStore(t)
 	pools := make([]*structs.NodePool, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		pools[i] = mock.NodePool()
 	}
 	must.NoError(t, state.UpsertNodePools(structs.MsgTypeTestSetup, 1000, pools))
@@ -261,7 +261,7 @@ func TestStateStore_NodePool_Upsert(t *testing.T) {
 	ci.Parallel(t)
 
 	existingPools := make([]*structs.NodePool, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		existingPools[i] = mock.NodePool()
 	}
 
@@ -373,7 +373,7 @@ func TestStateStore_NodePool_Delete(t *testing.T) {
 	ci.Parallel(t)
 
 	pools := make([]*structs.NodePool, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		pools[i] = mock.NodePool()
 	}
 

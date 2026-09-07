@@ -151,6 +151,19 @@ func TestEnvironment_ParseAndReplace_Mixed(t *testing.T) {
 	}
 }
 
+func TestEnvironment_ParseAndReplace_Secrets(t *testing.T) {
+	ci.Parallel(t)
+
+	input := []string{fmt.Sprintf("${%v}", testSecret)}
+	exp := []string{testSecret}
+	env := testEnvBuilder()
+	act := env.Build().ParseAndReplace(input)
+
+	if !reflect.DeepEqual(act, exp) {
+		t.Fatalf("ParseAndReplace(%v) returned %#v; want %#v", input, act, exp)
+	}
+}
+
 func TestEnvironment_ReplaceEnv_Mixed(t *testing.T) {
 	ci.Parallel(t)
 
@@ -692,7 +705,7 @@ func TestEnvironment_AppendHostEnvvars(t *testing.T) {
 	if len(host) < 2 {
 		t.Skip("No host environment variables. Can't test")
 	}
-	skip := strings.Split(host[0], "=")[0]
+	skip, _, _ := strings.Cut(host[0], "=")
 	env := testEnvBuilder().
 		SetHostEnvvars([]string{skip}).
 		Build()

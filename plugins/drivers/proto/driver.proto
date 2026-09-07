@@ -15,6 +15,10 @@ import "plugins/shared/structs/proto/attribute.proto";
 // Some rpcs may not be implemented by the driver based on it's capabilities.
 service Driver {
 
+    // Init is used to allow a driver plugin to perform any initialization
+    // after the configuration has been set.
+    rpc Init(InitRequest) returns (InitResponse) {}
+  
     // TaskConfigSchema returns the schema for parsing the driver
     // configuration of a task.
     rpc TaskConfigSchema(TaskConfigSchemaRequest) returns (TaskConfigSchemaResponse) {}
@@ -67,6 +71,11 @@ service Driver {
       // buf:lint:ignore RPC_RESPONSE_STANDARD_NAME
       DriverTaskEvent) {}
 
+    // Shutdown notifies the driver of an impending shutdown allowing
+    // it to prepare to exit. A best effort is made but there is no
+    // guarantee that this will be called before a driver is terminated.
+    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) {}
+  
     // The following RPCs are only implemented if the driver sets the
     // corresponding capability.
 
@@ -89,6 +98,10 @@ service Driver {
     // implemented if the driver needs to manage network namespace creation.
     rpc DestroyNetwork(DestroyNetworkRequest) returns (DestroyNetworkResponse) {}
 }
+
+message InitRequest {}
+
+message InitResponse {}
 
 message TaskConfigSchemaRequest {}
 
@@ -789,3 +802,7 @@ message DriverTaskEvent {
     // Annotations allows for additional key/value data to be sent along with the event
     map<string,string> annotations = 6;
 }
+
+message ShutdownRequest {}
+
+message ShutdownResponse {}

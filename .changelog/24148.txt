@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where `nomad operator root keyring remove` would not accept an abbreviated key ID
+```

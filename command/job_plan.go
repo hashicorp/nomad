@@ -104,6 +104,13 @@ Plan Options:
 
   -verbose
     Increase diff verbosity.
+
+  -json-output
+    Output the plan result in JSON format. This is separate from -json, which
+    controls input job file parsing.
+
+  -t
+    Format and display the plan result using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -119,10 +126,12 @@ func (c *JobPlanCommand) AutocompleteFlags() complete.Flags {
 			"-policy-override": complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
 			"-json":            complete.PredictNothing,
+			"-json-output":     complete.PredictNothing,
 			"-hcl2-strict":     complete.PredictNothing,
 			"-vault-namespace": complete.PredictAnything,
 			"-var":             complete.PredictAnything,
 			"-var-file":        complete.PredictFiles("*.var"),
+			"-t":               complete.PredictAnything,
 		})
 }
 
@@ -136,8 +145,8 @@ func (c *JobPlanCommand) AutocompleteArgs() complete.Predictor {
 
 func (c *JobPlanCommand) Name() string { return "job plan" }
 func (c *JobPlanCommand) Run(args []string) int {
-	var diff, policyOverride, verbose bool
-	var vaultNamespace string
+	var diff, policyOverride, verbose, jsonOutput bool
+	var vaultNamespace, tmpl string
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
@@ -145,12 +154,21 @@ func (c *JobPlanCommand) Run(args []string) int {
 	flagSet.BoolVar(&policyOverride, "policy-override", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
+	flagSet.BoolVar(&jsonOutput, "json-output", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
+	flagSet.StringVar(&tmpl, "t", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 
 	if err := flagSet.Parse(args); err != nil {
+		return 255
+	}
+
+	// -json already means "parse the job file as JSON", so output uses a
+	// separate flag. -json-output and -t are mutually exclusive.
+	if jsonOutput && len(tmpl) > 0 {
+		c.Ui.Error("Both -json-output and -t formatting are not allowed")
 		return 255
 	}
 
@@ -207,7 +225,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	}
 
 	if job.IsMultiregion() {
-		return c.multiregionPlan(client, job, opts, diff, verbose)
+		return c.multiregionPlan(client, job, opts, diff, verbose, jsonOutput, tmpl)
 	}
 
 	// Submit the job
@@ -215,6 +233,19 @@ func (c *JobPlanCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during plan: %s", err))
 		return 255
+	}
+
+	// Machine-readable formats skip the human plan text and check-index help.
+	// JobModifyIndex and the rest of the plan response are available in the
+	// structured payload (or via -t).
+	if jsonOutput || len(tmpl) > 0 {
+		out, err := Format(jsonOutput, tmpl, resp)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 255
+		}
+		c.Ui.Output(out)
+		return getExitCode(resp)
 	}
 
 	runArgs := strings.Builder{}
@@ -242,7 +273,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 	return exitCode
 }
 
-func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts *api.PlanOptions, diff, verbose bool) int {
+func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts *api.PlanOptions, diff, verbose, jsonOutput bool, tmpl string) int {
 
 	var exitCode int
 	plans := map[string]*api.JobPlanResponse{}
@@ -262,6 +293,23 @@ func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts 
 	}
 
 	if exitCode > 0 {
+		return exitCode
+	}
+
+	// Format the full region -> plan map when structured output is requested.
+	if jsonOutput || len(tmpl) > 0 {
+		out, err := Format(jsonOutput, tmpl, plans)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 255
+		}
+		c.Ui.Output(out)
+		for _, resp := range plans {
+			regionExitCode := getExitCode(resp)
+			if regionExitCode > exitCode {
+				exitCode = regionExitCode
+			}
+		}
 		return exitCode
 	}
 
@@ -446,7 +494,8 @@ func formatDryRun(resp *api.JobPlanResponse, job *api.Job, colorize *colorstring
 // set, added or deleted task groups and tasks are expanded.
 func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	marker, _ := getDiffString(job.Type)
-	out := fmt.Sprintf("%s[bold]Job: %q\n", marker, job.ID)
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("%s[bold]Job: %q\n", marker, job.ID))
 
 	// Determine the longest markers and fields so that the output can be
 	// properly aligned.
@@ -461,9 +510,9 @@ func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	// verbose mode is set.
 	if job.Type == "Edited" || verbose {
 		fo := alignedFieldAndObjects(job.Fields, job.Objects, 0, longestField, longestMarker)
-		out += fo
+		out.WriteString(fo)
 		if len(fo) > 0 {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
@@ -471,10 +520,10 @@ func formatJobDiff(job *api.JobDiff, verbose bool) string {
 	for _, tg := range job.TaskGroups {
 		_, mLength := getDiffString(tg.Type)
 		kPrefix := longestMarker - mLength
-		out += fmt.Sprintf("%s\n", formatTaskGroupDiff(tg, kPrefix, verbose))
+		out.WriteString(fmt.Sprintf("%s\n", formatTaskGroupDiff(tg, kPrefix, verbose)))
 	}
 
-	return out
+	return out.String()
 }
 
 // formatTaskGroupDiff produces an annotated diff of a task group. If the
@@ -483,7 +532,8 @@ func formatJobDiff(job *api.JobDiff, verbose bool) string {
 // the output of the task group.
 func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) string {
 	marker, _ := getDiffString(tg.Type)
-	out := fmt.Sprintf("%s%s[bold]Task Group: %q[reset]", marker, strings.Repeat(" ", tgPrefix), tg.Name)
+	var out strings.Builder
+	out.WriteString(fmt.Sprintf("%s%s[bold]Task Group: %q[reset]", marker, strings.Repeat(" ", tgPrefix), tg.Name))
 
 	// Append the updates and colorize them
 	if l := len(tg.Updates); l > 0 {
@@ -514,9 +564,9 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 			}
 			updates = append(updates, fmt.Sprintf("[reset]%s%d %s", color, count, updateType))
 		}
-		out += fmt.Sprintf(" (%s[reset])\n", strings.Join(updates, ", "))
+		out.WriteString(fmt.Sprintf(" (%s[reset])\n", strings.Join(updates, ", ")))
 	} else {
-		out += "[reset]\n"
+		out.WriteString("[reset]\n")
 	}
 
 	// Determine the longest field and markers so the output is properly
@@ -533,9 +583,9 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 	subStartPrefix := tgPrefix + 2
 	if tg.Type == "Edited" || verbose {
 		fo := alignedFieldAndObjects(tg.Fields, tg.Objects, subStartPrefix, longestField, longestMarker)
-		out += fo
+		out.WriteString(fo)
 		if len(fo) > 0 {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
@@ -543,10 +593,10 @@ func formatTaskGroupDiff(tg *api.TaskGroupDiff, tgPrefix int, verbose bool) stri
 	for _, task := range tg.Tasks {
 		_, mLength := getDiffString(task.Type)
 		prefix := longestMarker - mLength
-		out += fmt.Sprintf("%s\n", formatTaskDiff(task, subStartPrefix, prefix, verbose))
+		out.WriteString(fmt.Sprintf("%s\n", formatTaskDiff(task, subStartPrefix, prefix, verbose)))
 	}
 
-	return out
+	return out.String()
 }
 
 // formatTaskDiff produces an annotated diff of a task. If the verbose field is
@@ -631,7 +681,7 @@ func formatFieldDiff(diff *api.FieldDiff, startPrefix, keyPrefix, valuePrefix in
 func alignedFieldAndObjects(fields []*api.FieldDiff, objects []*api.ObjectDiff,
 	startPrefix, longestField, longestMarker int) string {
 
-	var out string
+	var out strings.Builder
 	numFields := len(fields)
 	numObjects := len(objects)
 	haveObjects := numObjects != 0
@@ -639,26 +689,26 @@ func alignedFieldAndObjects(fields []*api.FieldDiff, objects []*api.ObjectDiff,
 		_, mLength := getDiffString(field.Type)
 		kPrefix := longestMarker - mLength
 		vPrefix := longestField - len(field.Name)
-		out += formatFieldDiff(field, startPrefix, kPrefix, vPrefix)
+		out.WriteString(formatFieldDiff(field, startPrefix, kPrefix, vPrefix))
 
 		// Avoid a dangling new line
 		if i+1 != numFields || haveObjects {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
 	for i, object := range objects {
 		_, mLength := getDiffString(object.Type)
 		kPrefix := longestMarker - mLength
-		out += formatObjectDiff(object, startPrefix, kPrefix)
+		out.WriteString(formatObjectDiff(object, startPrefix, kPrefix))
 
 		// Avoid a dangling new line
 		if i+1 != numObjects {
-			out += "\n"
+			out.WriteString("\n")
 		}
 	}
 
-	return out
+	return out.String()
 }
 
 // getLongestPrefixes takes a list  of fields and objects and determines the

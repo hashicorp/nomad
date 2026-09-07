@@ -101,7 +101,7 @@ type Event struct {
 	Index uint64
 
 	// Payload is the Event itself see state/events.go for a list of events
-	Payload interface{}
+	Payload any
 }
 
 // Events is a wrapper that contains a set of events for a given index.

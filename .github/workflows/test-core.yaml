@@ -102,6 +102,25 @@ jobs:
           make generate-all
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad-module
+  tests-jobspec2:
+    needs: [checks]
+    runs-on: custom-linux-xl-nomad-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          cache: true
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
+      - name: Run jobspec2 tests
+        env:
+          GOTEST_MOD: jobspec2
+        run: |
+          make bootstrap
+          make generate-all
+          sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
+          sudo -E env "PATH=$PATH" make test-nomad-module
   tests-groups:
     needs: [checks]
     timeout-minutes: 30

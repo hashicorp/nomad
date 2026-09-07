@@ -5,6 +5,7 @@ package version
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"fmt"
 	"time"
 )
@@ -19,7 +20,7 @@ var (
 	GitDescribe string
 
 	// The main version number that is being run at the moment.
-	Version = "2.0.3"
+	Version = "2.0.6"
 
 	// A pre-release marker for the version. If this is "" (empty string)
 	// then it means that it is a final release. Otherwise, this is a pre-release
@@ -52,6 +53,14 @@ func GetVersion() *VersionInfo {
 	ver := Version
 	rel := VersionPrerelease
 	md := VersionMetadata
+	if fips140.Enabled() {
+		if md == "" {
+			md = "fips1403"
+		} else {
+			md = md + ".fips1403"
+		}
+	}
+
 	if GitDescribe != "" {
 		ver = GitDescribe
 	}

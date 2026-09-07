@@ -1,0 +1,3 @@
+```release-note:improvement
+build: Updated Go to v1.27.1
+```

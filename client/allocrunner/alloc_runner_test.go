@@ -79,7 +79,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task.Name = "task1"
 	task.Driver = "mock_driver"
 	task.KillTimeout = 10 * time.Millisecond
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -87,7 +87,7 @@ func TestAllocRunner_TaskLeader_KillTG(t *testing.T) {
 	task2.Name = "task2"
 	task2.Driver = "mock_driver"
 	task2.Leader = true
-	task2.Config = map[string]interface{}{
+	task2.Config = map[string]any{
 		"run_for": "1s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
@@ -274,7 +274,7 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		Sidecar: true,
 	}
 
-	prestart.Config = map[string]interface{}{
+	prestart.Config = map[string]any{
 		"run_for": "100s",
 	}
 
@@ -287,7 +287,7 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 		Sidecar: true,
 	}
 
-	poststart.Config = map[string]interface{}{
+	poststart.Config = map[string]any{
 		"run_for": "100s",
 	}
 
@@ -295,14 +295,14 @@ func TestAllocRunner_TaskMain_KillTG(t *testing.T) {
 	main1 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	main1.Name = "task2"
 	main1.Driver = "mock_driver"
-	main1.Config = map[string]interface{}{
+	main1.Config = map[string]any{
 		"run_for": "1s",
 	}
 
 	main2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	main2.Name = "task2"
 	main2.Driver = "mock_driver"
-	main2.Config = map[string]interface{}{
+	main2.Config = map[string]any{
 		"run_for": "2s",
 	}
 
@@ -505,7 +505,7 @@ func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
 	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
 
 	alloc.Job.Type = structs.JobTypeBatch
-	maxRunDuration := 50 * time.Millisecond
+	maxRunDuration := 1 * time.Second
 	alloc.Job.TaskGroups[0].MaxRunDuration = &maxRunDuration
 
 	mainTask := alloc.Job.TaskGroups[0].Tasks[0]
@@ -535,56 +535,59 @@ func TestAllocRunner_MaxRunDuration_SkipsPoststopTasks(t *testing.T) {
 
 	upd := conf.StateUpdater.(*MockStateUpdater)
 
-	testutil.WaitForResult(func() (bool, error) {
-		last := upd.Last()
-		if last == nil {
-			return false, fmt.Errorf("no updates")
-		}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last == nil {
+				return fmt.Errorf("no updates")
+			}
+			if last.ClientStatus != structs.AllocClientStatusRunning {
+				return fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
+				return fmt.Errorf("expected main task to be running not %s", s)
+			}
+			if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
+				return fmt.Errorf("expected poststop task to be pending not %s", s)
+			}
+			return nil
+		}),
+		wait.Timeout(200*time.Millisecond), // max_run_duration is 1s
+		wait.Gap(5*time.Millisecond),
+	))
 
-		if last.ClientStatus != structs.AllocClientStatusRunning {
-			return false, fmt.Errorf("expected alloc to be running not %s", last.ClientStatus)
-		}
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			last := upd.Last()
+			if last.ClientStatus != structs.AllocClientStatusComplete {
+				return fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
+			}
+			if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
+				return fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
+			}
+			if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
+				return fmt.Errorf("expected main task to be dead not %s", s)
+			}
 
-		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateRunning {
-			return false, fmt.Errorf("expected main task to be running not %s", s)
-		}
-
-		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
-			return false, fmt.Errorf("expected poststop task to be pending not %s", s)
-		}
-
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("error waiting for initial state:\n%v", err)
-	})
-
-	testutil.WaitForResult(func() (bool, error) {
-		last := upd.Last()
-		if last == nil {
-			return false, fmt.Errorf("no updates")
-		}
-
-		if last.ClientStatus != structs.AllocClientStatusComplete {
-			return false, fmt.Errorf("expected alloc to be complete not %s", last.ClientStatus)
-		}
-
-		if last.ClientDescription != structs.AllocTimeoutReasonMaxRunDuration {
-			return false, fmt.Errorf("expected alloc description %q not %q", structs.AllocTimeoutReasonMaxRunDuration, last.ClientDescription)
-		}
-
-		if s := last.TaskStates[mainTask.Name].State; s != structs.TaskStateDead {
-			return false, fmt.Errorf("expected main task to be dead not %s", s)
-		}
-
-		if s := last.TaskStates[poststopTask.Name].State; s != structs.TaskStatePending {
-			return false, fmt.Errorf("expected poststop task to remain pending not %s", s)
-		}
-
-		return true, nil
-	}, func(err error) {
-		last := upd.Last()
-		t.Fatalf("error waiting for max_run_duration state:\n%v\nlast=%#v", err, last)
-	})
+			// poststop task would run for 10s if not for max_run_duration of
+			// 1s; all tasks should be dead by now and poststop tasks should
+			// never have run
+			poststopState := last.TaskStates[poststopTask.Name]
+			if poststopState.State != structs.TaskStateDead {
+				return fmt.Errorf("expected poststop task to be dead not %s", poststopState.State)
+			}
+			events := poststopState.Events
+			if len(events) != 2 {
+				return fmt.Errorf("expected poststop task to have event for max_run_duration: %+v", events)
+			}
+			if events[1].DisplayMessage != "allocation exceeded max_run_duration" {
+				return fmt.Errorf("expected poststop task to be dead because of max_run_duration")
+			}
+			return nil
+		}),
+		wait.Timeout(2000*time.Millisecond),
+		wait.Gap(5*time.Millisecond),
+	))
 }
 
 func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
@@ -903,7 +906,6 @@ func TestAllocRunner_Lifecycle_Restart(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 
@@ -1066,7 +1068,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Name = "follower1"
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -1074,7 +1076,7 @@ func TestAllocRunner_TaskGroup_ShutdownDelay(t *testing.T) {
 	task2.Name = "leader"
 	task2.Driver = "mock_driver"
 	task2.Leader = true
-	task2.Config = map[string]interface{}{
+	task2.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -1188,7 +1190,7 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Name = "follower1"
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -1196,14 +1198,14 @@ func TestAllocRunner_TaskLeader_StopTG(t *testing.T) {
 	task2.Name = "leader"
 	task2.Driver = "mock_driver"
 	task2.Leader = true
-	task2.Config = map[string]interface{}{
+	task2.Config = map[string]any{
 		"run_for": "10s",
 	}
 
 	task3 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	task3.Name = "follower2"
 	task3.Driver = "mock_driver"
-	task3.Config = map[string]interface{}{
+	task3.Config = map[string]any{
 		"run_for": "10s",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2, task3)
@@ -1288,7 +1290,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	task.Name = "follower1"
 	task.Driver = "mock_driver"
 	task.KillTimeout = 10 * time.Second
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -1297,7 +1299,7 @@ func TestAllocRunner_TaskLeader_StopRestoredTG(t *testing.T) {
 	task2.Driver = "mock_driver"
 	task2.Leader = true
 	task2.KillTimeout = 10 * time.Millisecond
-	task2.Config = map[string]interface{}{
+	task2.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -1519,7 +1521,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_Migration(t *testing.T) {
 
 	task := tg.Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "30s",
 	}
 
@@ -1558,7 +1560,7 @@ func TestAllocRunner_DeploymentHealth_Healthy_NoChecks(t *testing.T) {
 
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -1620,7 +1622,7 @@ func TestAllocRunner_DeploymentHealth_Unhealthy_Checks(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 
@@ -2078,7 +2080,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	task.Name = "task1"
 	task.Driver = "mock_driver"
 	task.KillTimeout = 10 * time.Millisecond
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 	// Set a service with check
@@ -2102,7 +2104,7 @@ func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
 	task2.Name = "task 2"
 	task2.Driver = "mock_driver"
-	task2.Config = map[string]interface{}{
+	task2.Config = map[string]any{
 		"start_error": "fail task please",
 	}
 	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
@@ -2708,7 +2710,7 @@ func TestAllocRunner_PreKill_RunOnDone(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{"run_for": "2ms"}
+	task.Config = map[string]any{"run_for": "2ms"}
 	alloc.DesiredStatus = "stop"
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())
@@ -2739,7 +2741,7 @@ func TestAllocRunner_GetUpdatePriority(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{"run_for": "2ms"}
+	task.Config = map[string]any{"run_for": "2ms"}
 	alloc.DesiredStatus = "stop"
 
 	conf, cleanup := testAllocRunnerConfig(t, alloc.Copy())
@@ -2802,7 +2804,7 @@ func TestAllocRunner_MaxRunDuration_StopsExpiredAlloc(t *testing.T) {
 	alloc.CreateTime = time.Now().UnixNano()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 	task.KillTimeout = 10 * time.Millisecond
@@ -2847,7 +2849,7 @@ func TestAllocRunner_MaxRunDuration_UpdateExtendsRunningAlloc(t *testing.T) {
 	alloc.CreateTime = time.Now().UnixNano()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 	task.KillTimeout = 10 * time.Millisecond

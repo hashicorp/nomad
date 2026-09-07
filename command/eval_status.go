@@ -293,13 +293,19 @@ func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs 
 			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):",
 				tg, metrics.CoalescedFailures+1, noun))
 			c.Ui.Output(formatAllocMetrics(metrics, c.Colorize(), false, "  "))
-			c.Ui.Output("")
 		}
 
 		if eval.BlockedEval != "" {
 			c.Ui.Output(fmt.Sprintf(
-				"Evaluation %q waiting for additional capacity to place remainder",
+				"\nEvaluation %q waiting for additional capacity to place remainder",
 				limit(eval.BlockedEval, length)))
+		}
+
+		if len(eval.MissingNonNodeResources) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Missing Resources[reset]"))
+			for _, resource := range eval.MissingNonNodeResources {
+				c.Ui.Output("  " + resource)
+			}
 		}
 	}
 }

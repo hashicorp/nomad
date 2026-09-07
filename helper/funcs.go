@@ -269,7 +269,7 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 // UnusedKeys returns a pretty-printed error if any `hcl:",unusedKeys"` is not empty
 func UnusedKeys(obj interface{}) error {
 	val := reflect.ValueOf(obj)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = reflect.Indirect(val)
 	}
 	return unusedKeysImpl([]string{}, val)
@@ -284,7 +284,7 @@ func unusedKeysImpl(path []string, val reflect.Value) error {
 		name := tags[0]
 		tags = tags[1:]
 
-		if fval.Kind() == reflect.Ptr {
+		if fval.Kind() == reflect.Pointer {
 			fval = reflect.Indirect(fval)
 		}
 

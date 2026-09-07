@@ -42,7 +42,7 @@ func TestNodeMeta_Apply(t *testing.T) {
 		NodeID: node.ID,
 		Meta: map[string]*string{
 			staticKey: nil,
-			"foo":     pointerOf("bar"),
+			"foo":     new("bar"),
 		},
 	}
 

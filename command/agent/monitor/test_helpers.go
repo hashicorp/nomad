@@ -26,7 +26,7 @@ type StreamingClient interface {
 	StreamingRpcHandler(string) (structs.StreamingRpcHandler, error)
 }
 
-var writeLine = []byte(fmt.Sprintf("[INFO] log log log made of wood you are heavy but so good, %v\n", time.Now()))
+var writeLine = fmt.Appendf(nil, "[INFO] log log log made of wood you are heavy but so good, %v\n", time.Now())
 
 func PrepFile(t *testing.T) *os.File {
 	const loopCount = 100

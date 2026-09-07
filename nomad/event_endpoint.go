@@ -222,7 +222,7 @@ OUTER:
 
 }
 
-func (e *Event) forwardStreamingRPC(region string, method string, args interface{}, in io.ReadWriteCloser) error {
+func (e *Event) forwardStreamingRPC(region string, method string, args any, in io.ReadWriteCloser) error {
 	server, err := e.srv.findRegionServer(region)
 	if err != nil {
 		return err
@@ -231,7 +231,7 @@ func (e *Event) forwardStreamingRPC(region string, method string, args interface
 	return e.forwardStreamingRPCToServer(server, method, args, in)
 }
 
-func (e *Event) forwardStreamingRPCToServer(server *peers.Parts, method string, args interface{}, in io.ReadWriteCloser) error {
+func (e *Event) forwardStreamingRPCToServer(server *peers.Parts, method string, args any, in io.ReadWriteCloser) error {
 	srvConn, err := e.srv.streamingRpc(server, method)
 	if err != nil {
 		return err

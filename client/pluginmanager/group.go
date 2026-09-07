@@ -6,6 +6,7 @@ package pluginmanager
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	log "github.com/hashicorp/go-hclog"
@@ -64,9 +65,7 @@ func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struc
 			continue
 		}
 		logger := m.logger.With("plugin-type", manager.PluginType())
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			logger.Debug("waiting on plugin manager initial fingerprint")
 
 			select {
@@ -75,7 +74,7 @@ func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struc
 			case <-ctx.Done():
 				logger.Warn("timeout waiting for plugin manager to be ready")
 			}
-		}()
+		})
 	}
 
 	ret := make(chan struct{})
@@ -91,10 +90,10 @@ func (m *PluginGroup) WaitForFirstFingerprint(ctx context.Context) (<-chan struc
 func (m *PluginGroup) Shutdown() {
 	m.mLock.Lock()
 	defer m.mLock.Unlock()
-	for i := len(m.managers) - 1; i >= 0; i-- {
-		m.logger.Info("shutting down plugin manager", "plugin-type", m.managers[i].PluginType())
-		m.managers[i].Shutdown()
-		m.logger.Info("plugin manager finished", "plugin-type", m.managers[i].PluginType())
+	for _, v := range slices.Backward(m.managers) {
+		m.logger.Info("shutting down plugin manager", "plugin-type", v.PluginType())
+		v.Shutdown()
+		m.logger.Info("plugin manager finished", "plugin-type", v.PluginType())
 	}
 	m.shutdown = true
 }

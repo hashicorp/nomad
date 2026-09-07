@@ -321,7 +321,6 @@ module('Acceptance | job status panel', function (hooks) {
     assert
       .dom('.ungrouped-allocs .represented-allocation.failed')
       .doesNotExist();
-
   });
 
   test('Status Panel groups allocations when they get past a threshold', async function (assert) {
@@ -402,7 +401,6 @@ module('Acceptance | job status panel', function (hooks) {
         `+${groupAllocCount - desiredUngroupedAllocCount}`,
         'Summary block has the correct number of grouped allocs',
       );
-
   });
 
   test('Status Panel groups allocations when they get past a threshold, multiple statuses', async function (assert) {
@@ -500,7 +498,6 @@ module('Acceptance | job status panel', function (hooks) {
     // At 1100px, only running and failed allocations have some ungrouped allocs
     find('.page-body').style.width = '1100px';
     await triggerEvent(window, 'resize');
-
 
     assert
       .dom('.ungrouped-allocs .represented-allocation.running')
@@ -890,6 +887,31 @@ module('Acceptance | job status panel', function (hooks) {
           '1 Restarted',
           'Restarted cell updates when a task event with type "Restarting" is added',
         );
+    });
+
+    test('Zero-allocation system and sysbatch jobs are Scaled Down', async function (assert) {
+      const jobTypes = ['system', 'sysbatch'];
+
+      for (const type of jobTypes) {
+        let job = this.server.create('job', {
+          status: 'running',
+          datacenters: ['*'],
+          type,
+          createAllocations: false,
+          noActiveDeployment: true,
+          shallow: true,
+          version: 0,
+        });
+
+        await visit(`/jobs/${job.id}`);
+
+        assert
+          .dom('.job-status-panel h2')
+          .hasTextContaining(
+            'Status: Scaled Down',
+            `${type} jobs with no allocations are shown as scaled down`,
+          );
+      }
     });
 
     test('System jobs do not have a sense of Desired/Total allocs', async function (assert) {

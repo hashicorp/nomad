@@ -738,6 +738,44 @@ func TestJob_Warnings(t *testing.T) {
 			Expected: []string{},
 			Job:      connectSidecarServiceJob(new(time.Second)),
 		},
+		{
+			Name: "Unlimited reschedule policy and low delay warning",
+			Expected: []string{
+				"Reschedule policy has unlimited attempts enabled and a low delay; reschedule thrashing possible",
+			},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "web",
+						ReschedulePolicy: &ReschedulePolicy{
+							Unlimited:     true,
+							DelayFunction: "exponential",
+							Delay:         1 * time.Second,
+							MaxDelay:      1 * time.Hour,
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:     "Unlimited reschedule and high delay no warning",
+			Expected: []string{},
+			Job: &Job{
+				Type: JobTypeService,
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "web",
+						ReschedulePolicy: &ReschedulePolicy{
+							Attempts:      3,
+							Interval:      30 * time.Minute,
+							Delay:         20 * time.Second,
+							DelayFunction: "constant",
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -885,7 +923,7 @@ func testJob() *Job {
 					{
 						Name:   "web",
 						Driver: "exec",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"command": "/bin/date",
 						},
 						Env: map[string]string{
@@ -1962,6 +2000,32 @@ func TestTaskGroup_Validate(t *testing.T) {
 			},
 			jobType: JobTypeService,
 		},
+		{
+			name: "task group with only a poststart lifecycle task and no main task",
+			tg: &TaskGroup{
+				Name:             "group-a",
+				RestartPolicy:    NewRestartPolicy(JobTypeService),
+				ReschedulePolicy: NewReschedulePolicy(JobTypeService),
+				Migrate:          DefaultMigrateStrategy(),
+				EphemeralDisk:    DefaultEphemeralDisk(),
+				Tasks: []*Task{
+					{
+						Name:      "poststart-task",
+						Driver:    "mock_driver",
+						Resources: DefaultResources(),
+						LogConfig: DefaultLogConfig(),
+						Lifecycle: &TaskLifecycleConfig{
+							Hook:    TaskLifecycleHookPoststart,
+							Sidecar: false,
+						},
+					},
+				},
+			},
+			expErr: []string{
+				"Task group group-a must have at least one main task",
+			},
+			jobType: JobTypeService,
+		},
 	}
 
 	for _, tc := range tests {
@@ -2490,6 +2554,14 @@ func TestTask_Validate_Resources(t *testing.T) {
 			err: "minimum CPU value is 1",
 		},
 		{
+			name: "negative cores",
+			res: &Resources{
+				Cores:    -1,
+				MemoryMB: 200,
+			},
+			err: "cores value (-1) cannot be negative",
+		},
+		{
 			name: "too little memory",
 			res: &Resources{
 				CPU:      100,
@@ -2580,7 +2652,7 @@ func TestTask_Canonicalize(t *testing.T) {
 		},
 		{
 			task: &Task{
-				Config:          map[string]interface{}{},
+				Config:          map[string]any{},
 				Env:             map[string]string{},
 				Services:        []*Service{},
 				Templates:       []*Template{},
@@ -3180,7 +3252,6 @@ func TestTask_Validate_Service_Check_AddressMode(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		task, tg := getTask(tc.Service)
 		t.Run(tc.Service.Name, func(t *testing.T) {
 			err := validateServices(task, tg.Networks)
@@ -3335,7 +3406,6 @@ func TestTask_Validate_ConnectProxyKind(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		task := getTask(tc.Kind, tc.Leader)
 		if tc.Service != nil {
 			task.Services = []*Service{tc.Service}
@@ -5173,6 +5243,27 @@ func TestReschedulePolicy_Validate(t *testing.T) {
 				MaxDelay:      1 * time.Hour,
 			},
 		},
+		{
+			desc: "Valid minimum delay of 1 second",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      15 * time.Second,
+				Delay:         1 * time.Second,
+				DelayFunction: "constant",
+			},
+		},
+		{
+			desc: "Invalid delay below 1 second",
+			ReschedulePolicy: &ReschedulePolicy{
+				Attempts:      1,
+				Interval:      15 * time.Second,
+				Delay:         500 * time.Millisecond,
+				DelayFunction: "constant",
+			},
+			errors: []error{
+				fmt.Errorf("Delay cannot be less than %v (got %v)", ReschedulePolicyMinDelay, 500*time.Millisecond),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -5487,7 +5578,7 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			&TaskArtifact{
 				GetterSource: "foo.com",
 				GetterOptions: map[string]string{
-					"checksum": "md5:toosmall",
+					"checksum": "sha256:toosmall",
 				},
 			},
 			true,
@@ -5505,7 +5596,29 @@ func TestTaskArtifact_Validate_Checksum(t *testing.T) {
 			&TaskArtifact{
 				GetterSource: "foo.com",
 				GetterOptions: map[string]string{
-					"checksum": "md5:${ARTIFACT_CHECKSUM}",
+					"checksum": "sha256:${ARTIFACT_CHECKSUM}",
+				},
+			},
+			false,
+		},
+		{
+			// A file:<url> checksum tells go-getter to read the checksum
+			// from a remote file; the value is a URL, not a hex digest.
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "file:http://example.com/checksums.sha256",
+				},
+			},
+			false,
+		},
+		{
+			// The checksum URL may contain a port (multiple colons); it must
+			// not be split into extra "type:value" segments.
+			&TaskArtifact{
+				GetterSource: "foo.com",
+				GetterOptions: map[string]string{
+					"checksum": "file:http://example.com:9086/path.md5",
 				},
 			},
 			false,
@@ -5527,10 +5640,10 @@ func TestMsgPackTags(t *testing.T) {
 		name   string
 		typeOf reflect.Type
 	}{
-		{"Allocation", reflect.TypeOf(Allocation{})},
-		{"Evaluation", reflect.TypeOf(Evaluation{})},
-		{"NetworkResource", reflect.TypeOf(NetworkResource{})},
-		{"Plan", reflect.TypeOf(Plan{})},
+		{"Allocation", reflect.TypeFor[Allocation]()},
+		{"Evaluation", reflect.TypeFor[Evaluation]()},
+		{"NetworkResource", reflect.TypeFor[NetworkResource]()},
+		{"Plan", reflect.TypeFor[Plan]()},
 	}
 
 	for _, tc := range cases {
@@ -5912,7 +6025,7 @@ func TestScalingPolicy_Validate(t *testing.T) {
 		{
 			name: "full horizontal policy",
 			input: &ScalingPolicy{
-				Policy: map[string]interface{}{
+				Policy: map[string]any{
 					"key": "value",
 				},
 				Type:    ScalingPolicyTypeHorizontal,
@@ -7333,10 +7446,11 @@ func TestChangeScript_Equal(t *testing.T) {
 	must.NotEqual[*ChangeScript](t, nil, new(ChangeScript))
 
 	must.StructEqual(t, &ChangeScript{
-		Command:     "/bin/sleep",
-		Args:        []string{"infinity"},
-		Timeout:     1 * time.Second,
-		FailOnError: true,
+		Command:          "/bin/sleep",
+		Args:             []string{"infinity"},
+		Timeout:          1 * time.Second,
+		FailOnError:      true,
+		RunOnFirstRender: true,
 	}, []must.Tweak[*ChangeScript]{{
 		Field: "Command",
 		Apply: func(c *ChangeScript) { c.Command = "/bin/false" },
@@ -7349,6 +7463,9 @@ func TestChangeScript_Equal(t *testing.T) {
 	}, {
 		Field: "FailOnError",
 		Apply: func(c *ChangeScript) { c.FailOnError = false },
+	}, {
+		Field: "RunOnFirstRender",
+		Apply: func(c *ChangeScript) { c.RunOnFirstRender = false },
 	}})
 }
 

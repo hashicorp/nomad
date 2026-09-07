@@ -52,7 +52,7 @@ func (s *SetStatusError) Error() string {
 // making at the cost of quality.
 type GenericScheduler struct {
 	logger   log.Logger
-	eventsCh chan<- interface{}
+	eventsCh chan<- any
 	state    sstructs.State
 	planner  sstructs.Planner
 	batch    bool
@@ -77,7 +77,7 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("service_sched"),
 		eventsCh: eventsCh,
@@ -89,7 +89,7 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state s
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("batch_sched"),
 		eventsCh: eventsCh,
@@ -166,6 +166,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 		newEval.EscapedComputedClass = e.HasEscaped()
 		newEval.ClassEligibility = e.GetClasses()
 		newEval.QuotaLimitReached = e.QuotaLimitReached()
+		newEval.MissingNonNodeResources = e.MissingResources()
 		return s.planner.ReblockEval(newEval)
 	}
 
@@ -187,7 +188,7 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 		classEligibility = e.GetClasses()
 	}
 
-	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
+	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs, e.MissingResources())
 	if planFailure {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalMaxPlan
@@ -298,21 +299,25 @@ func (s *GenericScheduler) process() (bool, error) {
 	// number of allocations successfully placed
 	adjustQueuedAllocations(s.logger, result, s.queuedAllocs)
 
-	// If we got a state refresh, try again since we have stale data
+	// If we got a state refresh, try again since we have stale data.
+	//
+	// Clear the in-memory deployment because the plan was rejected and nothing
+	// was persisted; the next process() iteration will reload from state or
+	// generate a new deployment if needed.
 	if newState != nil {
 		s.logger.Debug("refresh forced")
 		s.state = newState
+		s.deployment = nil
 		return false, nil
 	}
 
-	// Try again if the plan was not fully committed, potential conflict
+	// Try again if the plan was not fully committed, potential conflict. The
+	// above conditional means that we are always missing a state refresh after
+	// a partial commit.
 	fullCommit, expected, actual := result.FullCommit(s.plan)
 	if !fullCommit {
 		s.logger.Debug("plan didn't fully commit", "attempted", expected, "placed", actual)
-		if newState == nil {
-			return false, fmt.Errorf("missing state refresh after partial commit")
-		}
-		return false, nil
+		return false, fmt.Errorf("missing state refresh after partial commit")
 	}
 
 	// Success!
@@ -533,8 +538,10 @@ func (s *GenericScheduler) computePlacements(
 				}
 			}
 
+			hasPerAlloc := tg.HasPerAllocVolumes
+
 			// Check if this task group has already failed
-			if metric, ok := s.failedTGAllocs[tg.Name]; ok {
+			if metric, ok := s.failedTGAllocs[tg.Name]; ok && !hasPerAlloc { // skip only when no per alloc in volume
 				metric.CoalescedFailures += 1
 				metric.ExhaustResources(tg)
 				continue
@@ -690,8 +697,36 @@ func (s *GenericScheduler) computePlacements(
 				// Update metrics with the resources requested by the task group.
 				s.ctx.Metrics().ExhaustResources(tg)
 
-				// Track the fact that we didn't find a placement
-				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
+				prevMetrics, ok := s.failedTGAllocs[tg.Name]
+				currentMetrics := s.ctx.Metrics()
+
+				// Only the first failure for a task group short-circuits into
+				// the fast path (metric = current, no merge): either this is
+				// the group's first failure this eval (!ok), or the group has
+				// no per_alloc volume so every alloc's failure reason is
+				// interchangeable (!hasPerAlloc). A later failure in a
+				// per_alloc group (ok && hasPerAlloc) falls through to the
+				// merge branch below, since each alloc's per-alloc volume can
+				// fail for a distinct reason that must be preserved.
+				if !ok || !hasPerAlloc {
+					s.failedTGAllocs[tg.Name] = currentMetrics
+				} else {
+					reporting, dropping := prevMetrics, currentMetrics
+					if currentMetrics.NodesExhausted > prevMetrics.NodesExhausted {
+						reporting, dropping = currentMetrics, prevMetrics
+					}
+
+					if reporting.ConstraintFiltered == nil {
+						reporting.ConstraintFiltered = make(map[string]int)
+					}
+
+					for reason, count := range dropping.ConstraintFiltered {
+						reporting.ConstraintFiltered[reason] += count
+					}
+
+					// Track the fact that we didn't find a placement
+					s.failedTGAllocs[tg.Name] = reporting
+				}
 
 				// If we weren't able to find a placement for the allocation, back
 				// out the fact that we asked to stop the allocation.

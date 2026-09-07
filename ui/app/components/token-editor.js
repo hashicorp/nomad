@@ -148,10 +148,14 @@ export default class TokenEditorComponent extends Component {
         this.activeToken.roles = [];
       }
 
-      if (this.tokenRegion === 'global') {
-        this.activeToken.global = true;
-      } else {
-        this.activeToken.global = false;
+      // Only set global property for new tokens
+      // Existing tokens cannot toggle global mode
+      if (this.activeToken.isNew) {
+        if (this.tokenRegion === 'global') {
+          this.activeToken.global = true;
+        } else {
+          this.activeToken.global = false;
+        }
       }
 
       // Sets to "never" for auto-selecting the radio button;

@@ -703,7 +703,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 					return err
 				}
 
-				iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+				iter = memdb.NewFilterIterator(iter, func(raw any) bool {
 					if eval := raw.(*structs.Evaluation); eval != nil {
 						return args.ShouldBeFiltered(eval)
 					}
@@ -807,7 +807,7 @@ func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountRes
 
 			count := 0
 
-			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+			iter = memdb.NewFilterIterator(iter, func(raw any) bool {
 				if raw == nil {
 					return true
 				}

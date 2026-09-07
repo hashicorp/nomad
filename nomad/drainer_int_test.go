@@ -123,8 +123,8 @@ func getNodeAllocs(ctx context.Context, store *state.StateStore, nodeID string, 
 	return resp.([]*structs.Allocation), index, nil
 }
 
-func getNodeAllocsImpl(nodeID string) func(ws memdb.WatchSet, store *state.StateStore) (interface{}, uint64, error) {
-	return func(ws memdb.WatchSet, store *state.StateStore) (interface{}, uint64, error) {
+func getNodeAllocsImpl(nodeID string) func(ws memdb.WatchSet, store *state.StateStore) (any, uint64, error) {
+	return func(ws memdb.WatchSet, store *state.StateStore) (any, uint64, error) {
 		// Capture all the allocations
 		allocs, err := store.AllocsByNode(ws, nodeID)
 		if err != nil {
@@ -200,8 +200,7 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 
 	// Setup client simulator
 	errCh := make(chan error, 2)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
@@ -391,8 +390,7 @@ func TestDrainer_AllTypes_Deadline_NoGCNode(t *testing.T) {
 
 	// Setup client simulator
 	errCh := make(chan error, 2)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
@@ -500,8 +498,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 
 	// Setup client simulator
 	errCh := make(chan error, 2)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
@@ -651,8 +648,7 @@ func TestDrainer_AllTypes_Deadline_GCNode(t *testing.T) {
 
 	// Setup client simulator
 	errCh := make(chan error, 2)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
@@ -741,8 +737,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 
 	// Setup client simulator
 	errCh := make(chan error, 2)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
@@ -820,8 +815,7 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 
 			// Setup client simulator
 			errCh := make(chan error, 1)
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 			go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 
 			// Make sure the batch job isn't affected

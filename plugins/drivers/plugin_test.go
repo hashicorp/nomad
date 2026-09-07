@@ -13,13 +13,14 @@ import (
 	"github.com/hashicorp/go-hclog"
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
-	//	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/shoenig/test/must"
 )
@@ -973,5 +974,122 @@ func TestDriverPlugin_ExecTask(t *testing.T) {
 		impl := makeTestPlugin(t, mock)
 		_, err := impl.ExecTask(taskID, []string{}, 0)
 		must.ErrorContains(t, err, err.Error())
+	})
+}
+
+func TestDriverPlugin_Shutdown(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("not implemented", func(t *testing.T) {
+		mock := &MockDriverPlugin{}
+		impl := makeTestPlugin(t, mock)
+		shutdowner, ok := impl.(DriverShutdowner)
+		must.True(t, ok, must.Sprint("plugin should implement DriverShutdowner interface"))
+		must.NoError(t, shutdowner.Shutdown(t.Context()))
+	})
+
+	// This test covers when the plugin is built from an earlier version of
+	// nomad and does not include support for the Shutdowner interface, which
+	// results in an Unimplmented error being returned.
+	t.Run("not implemented server", func(t *testing.T) {
+		mock := &MockDriverShutdownerPlugin{
+			ShutdownFn: func(context.Context) error {
+				return status.Error(codes.Unimplemented, "not implemented")
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		shutdowner, ok := impl.(DriverShutdowner)
+		must.True(t, ok, must.Sprint("plugin should implement DriverShutdowner interface"))
+		err := shutdowner.Shutdown(t.Context())
+		must.NoError(t, err)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		expectedValue := "test-value"
+		var testValue string
+
+		mock := &MockDriverShutdownerPlugin{
+			ShutdownFn: func(context.Context) error {
+				testValue = expectedValue
+				return nil
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		shutdowner, ok := impl.(DriverShutdowner)
+		must.True(t, ok, must.Sprint("plugin should implement DriverShutdowner interface"))
+		must.NoError(t, shutdowner.Shutdown(t.Context()))
+		must.Eq(t, expectedValue, testValue, must.Sprint("shutdown function not executed correctly"))
+	})
+
+	t.Run("error", func(t *testing.T) {
+		testErr := errors.New("test-error")
+		mock := &MockDriverShutdownerPlugin{
+			ShutdownFn: func(context.Context) error {
+				return testErr
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		shutdowner, ok := impl.(DriverShutdowner)
+		must.True(t, ok, must.Sprint("plugin should implement DriverShutdowner interface"))
+		err := shutdowner.Shutdown(t.Context())
+		must.ErrorContains(t, err, testErr.Error())
+	})
+}
+
+func TestDriverPlugin_Init(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("not implemented", func(t *testing.T) {
+		mock := &MockDriverPlugin{}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		must.NoError(t, initer.Init(t.Context()))
+	})
+
+	// This test covers when the plugin is built from an earlier version of
+	// nomad and does not include support for the Initer interface, which
+	// results in an Unimplmented error being returned.
+	t.Run("not implemented server", func(t *testing.T) {
+		mock := &MockDriverIniterPlugin{
+			InitFn: func(context.Context) error {
+				return status.Error(codes.Unimplemented, "not implemented")
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		err := initer.Init(t.Context())
+		must.NoError(t, err)
+	})
+
+	t.Run("ok", func(t *testing.T) {
+		expectedValue := "test-value"
+		var testValue string
+		mock := &MockDriverIniterPlugin{
+			InitFn: func(context.Context) error {
+				testValue = expectedValue
+				return nil
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		must.NoError(t, initer.Init(t.Context()))
+		must.Eq(t, expectedValue, testValue)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		testErr := errors.New("test-error")
+		mock := &MockDriverIniterPlugin{
+			InitFn: func(context.Context) error {
+				return testErr
+			},
+		}
+		impl := makeTestPlugin(t, mock)
+		initer, ok := impl.(DriverIniter)
+		must.True(t, ok, must.Sprint("plugin should implement DriverIniter interface"))
+		err := initer.Init(t.Context())
+		must.ErrorContains(t, err, testErr.Error())
 	})
 }

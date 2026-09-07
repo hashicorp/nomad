@@ -6,6 +6,7 @@ package widmgr
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -301,9 +302,7 @@ func (m *WIDMgr) getInitialIdentities() error {
 	}
 
 	// Store default identity tokens
-	for id, token := range defaultTokens {
-		m.lastToken[id] = token
-	}
+	maps.Copy(m.lastToken, defaultTokens)
 
 	// Index initial workload identities by name
 	for _, swid := range signedWIDs {

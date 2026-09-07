@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where tasks could execute outside of their assigned cpuset range
+```

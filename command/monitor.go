@@ -259,7 +259,7 @@ func (m *monitor) monitor(evalID string) int {
 					m.ui.Output(fmt.Sprintf("%s: Task Group %q (failed to place %d %s):",
 						formatTime(time.Now()), tg, metrics.CoalescedFailures+1, noun))
 					metrics := formatAllocMetrics(metrics, m.colorize, false, "  ")
-					for _, line := range strings.Split(metrics, "\n") {
+					for line := range strings.SplitSeq(metrics, "\n") {
 						m.ui.Output(line)
 					}
 				}

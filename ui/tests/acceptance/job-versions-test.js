@@ -43,10 +43,12 @@ module('Acceptance | job versions', function (hooks) {
     // Create some versions
     this.server.create('job-version', {
       job: job,
+      namespace: namespace.id,
       version: 0,
     });
     this.server.create('job-version', {
       job: job,
+      namespace: namespace.id,
       version: 1,
       versionTag: {
         Name: 'test-tag',
@@ -219,7 +221,6 @@ module('Acceptance | job versions', function (hooks) {
     assert
       .dom('[data-test-tagged-version="false"] .tag-description')
       .hasText('', 'Tag description is empty');
-
   });
 
   test('existing version tags can be edited', async function (assert) {
@@ -313,7 +314,6 @@ module('Acceptance | job versions', function (hooks) {
     assert
       .dom('.flash-message.alert.alert-success')
       .exists('Shows a success toast notification on edit.');
-
   });
 });
 
@@ -337,12 +337,14 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     // remove auto-created versions and create 3 of them, one with a tag
     this.server.db.jobVersions.remove();
     this.server.create('job-version', {
-      job,
+      job: job,
+      namespace: namespace.id,
       version: 99,
       submitTime: 1731101785761339000,
     });
     this.server.create('job-version', {
       job,
+      namespace: namespace.id,
       version: 98,
       submitTime: 1731101685761339000,
       versionTag: {
@@ -352,6 +354,7 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     });
     this.server.create('job-version', {
       job,
+      namespace: namespace.id,
       version: 0,
       submitTime: 1731101585761339000,
     });
@@ -421,7 +424,6 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
       `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=job-spec`,
       'Taken to the definition page in edit mode',
     );
-
   });
 
   test('Clone as new version when version is 0', async function (assert) {
@@ -449,7 +451,6 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     );
 
     assert.dom('[data-test-json-warning]').exists();
-
   });
 
   test('Clone as a new job', async function (assert) {
@@ -504,10 +505,12 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     // Create some versions
     this.server.create('job-version', {
       job: job,
+      namespace: namespace.id,
       version: 0,
     });
     this.server.create('job-version', {
       job: job,
+      namespace: namespace.id,
       version: 1,
       versionTag: {
         Name: 'test-tag',
@@ -526,10 +529,12 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     // Create job2 versions
     this.server.create('job-version', {
       job: job2,
+      namespace: namespace2.id,
       version: 0,
     });
     this.server.create('job-version', {
       job: job2,
+      namespace: namespace2.id,
       version: 1,
       versionTag: {
         Name: 'test-tag',
@@ -548,10 +553,12 @@ module('Acceptance | job versions (with client token)', function (hooks) {
     // Create job3 versions
     this.server.create('job-version', {
       job: job3,
+      namespace: namespace3.id,
       version: 0,
     });
     this.server.create('job-version', {
       job: job3,
+      namespace: namespace3.id,
       version: 1,
       versionTag: {
         Name: 'test-tag',

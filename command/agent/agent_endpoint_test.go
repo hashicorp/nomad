@@ -147,33 +147,23 @@ func TestHTTP_AgentSelf_ACL(t *testing.T) {
 
 func TestHTTP_AgentJoin(t *testing.T) {
 	ci.Parallel(t)
-	httpTest(t, nil, func(s *TestAgent) {
+	httpACLTest(t, nil, func(s *TestAgent) {
 		// Determine the join address
 		member := s.Agent.Server().LocalMember()
 		addr := net.JoinHostPort(member.Addr.String(), strconv.Itoa(int(member.Port)))
 
-		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodPut,
 			fmt.Sprintf("/v1/agent/join?address=%s&address=%s", addr, addr), nil)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 		respW := httptest.NewRecorder()
 
-		// Make the request
 		obj, err := s.Server.AgentJoinRequest(respW, req)
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
+		must.NoError(t, err)
 
-		// Check the job
 		join := obj.(joinResult)
-		if join.NumJoined != 2 {
-			t.Fatalf("bad: %#v", join)
-		}
-		if join.Error != "" {
-			t.Fatalf("bad: %#v", join)
-		}
+		must.Eq(t, 2, join.NumJoined)
+		must.Eq(t, "", join.Error)
+		must.Eq(t, "anonymous server join is deprecated and will be removed in a future version of Nomad", join.Warning)
 	})
 }
 
@@ -1694,7 +1684,7 @@ type schedulerWorkerAPITest_testRequest struct {
 
 type schedulerWorkerAPITest_testExpect struct {
 	statusCode int
-	response   interface{}
+	response   any
 	err        error
 	isError    bool
 }
@@ -1878,7 +1868,7 @@ type schedulerWorkerConfigTest_testRequest struct {
 }
 type schedulerWorkerConfigTest_testExpect struct {
 	expectedResponseCode int
-	expectedResponse     interface{}
+	expectedResponse     any
 }
 
 // These test cases are run for both the ACL and Non-ACL enabled servers. When
@@ -2183,7 +2173,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_ACL(t *testing.T) {
 	httpACLTest(t, configFn, tests)
 }
 
-func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI interface{}, err error) {
+func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI any, err error) {
 	require.NoError(t, err)
 	require.NotNil(t, workersI)
 
@@ -2207,7 +2197,7 @@ func schedulerWorkerTest_parseSuccess(t *testing.T, isACLEnabled bool, tc schedu
 // schedulerWorkerTest_parseError parses the error response given
 // from the API call to make sure that it's a coded error and is the
 // expected value from the test case
-func schedulerWorkerTest_parseError(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI interface{}, err error) {
+func schedulerWorkerTest_parseError(t *testing.T, isACLEnabled bool, tc scheduleWorkerConfigTest_workerRequestTest, workersI any, err error) {
 	require.Error(t, err)
 	require.Nil(t, workersI)
 

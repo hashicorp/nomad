@@ -82,7 +82,7 @@ func (h *Harness) Snapshot() sstructs.State {
 // a snapshot of current state using the harness for planning.
 func (h *Harness) Scheduler(factory sstructs.Factory) sstructs.Scheduler {
 	logger := testlog.HCLogger(h.t)
-	eventsCh := make(chan interface{})
+	eventsCh := make(chan any)
 
 	// Listen for and log events from the scheduler.
 	go func() {

@@ -83,7 +83,6 @@ func TestWriterUI_OutputWriter(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 			tc.initFn(&tc)
@@ -161,7 +160,6 @@ func TestWriterUI_Output(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 			tc.initFn(&tc)
@@ -243,7 +241,6 @@ func TestWriterUI_Info(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 			tc.initFn(&tc)
@@ -325,7 +322,6 @@ func TestWriterUI_Warn(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 			tc.initFn(&tc)
@@ -409,7 +405,6 @@ func TestWriterUI_Error(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 			tc.initFn(&tc)
@@ -463,7 +458,6 @@ func TestWriterUI_Ask(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 

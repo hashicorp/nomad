@@ -91,7 +91,7 @@ func ConnectIngressGatewayJob(mode string, inject bool) *structs.Job {
 			Name:          fmt.Sprintf("%s-%s", structs.ConnectIngressPrefix, "my-ingress-service"),
 			Kind:          structs.NewTaskKind(structs.ConnectIngressPrefix, "my-ingress-service"),
 			Driver:        "docker",
-			Config:        make(map[string]interface{}),
+			Config:        make(map[string]any),
 			ShutdownDelay: 5 * time.Second,
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      2,
@@ -142,7 +142,7 @@ func ConnectTerminatingGatewayJob(mode string, inject bool) *structs.Job {
 			Name:          fmt.Sprintf("%s-%s", structs.ConnectTerminatingPrefix, "my-terminating-service"),
 			Kind:          structs.NewTaskKind(structs.ConnectTerminatingPrefix, "my-terminating-service"),
 			Driver:        "docker",
-			Config:        make(map[string]interface{}),
+			Config:        make(map[string]any),
 			ShutdownDelay: 5 * time.Second,
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      2,
@@ -187,7 +187,7 @@ func ConnectMeshGatewayJob(mode string, inject bool) *structs.Job {
 			Name:          fmt.Sprintf("%s-%s", structs.ConnectMeshPrefix, "my-mesh-service"),
 			Kind:          structs.NewTaskKind(structs.ConnectMeshPrefix, "my-mesh-service"),
 			Driver:        "docker",
-			Config:        make(map[string]interface{}),
+			Config:        make(map[string]any),
 			ShutdownDelay: 5 * time.Second,
 			LogConfig: &structs.LogConfig{
 				MaxFiles:      2,
@@ -219,7 +219,7 @@ func BatchConnectJob() *structs.Job {
 				Name:   "connect-proxy-testconnect",
 				Kind:   "connect-proxy:testconnect",
 				Driver: "mock_driver",
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"run_for": "500ms",
 				},
 				LogConfig: structs.DefaultLogConfig(),
@@ -252,7 +252,7 @@ func ConnectSidecarTask() *structs.Task {
 		Name:   "mysidecar-sidecar-task",
 		Driver: "docker",
 		User:   "nobody",
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"image": envoy.SidecarConfigVar,
 		},
 		Env: nil,

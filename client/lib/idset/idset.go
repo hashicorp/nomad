@@ -89,8 +89,8 @@ func Parse[T ID](list string) *Set[T] {
 		}
 	}
 
-	pieces := strings.Split(list, ",")
-	for _, piece := range pieces {
+	pieces := strings.SplitSeq(list, ",")
+	for piece := range pieces {
 		add(piece)
 	}
 

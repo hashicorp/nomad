@@ -72,7 +72,7 @@ func TestSysBatch_JobRegister(t *testing.T) {
 	allocNames := helper.ConvertSlice(out,
 		func(alloc *structs.Allocation) string { return alloc.Name })
 	expectAllocNames := []string{}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.pinger[0]", job.Name))
 	}
 	must.SliceContainsAll(t, expectAllocNames, allocNames)
@@ -278,7 +278,7 @@ func TestSysBatch_JobModify(t *testing.T) {
 
 	// Add a few terminal status allocations, these should be reinstated
 	var terminal []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.SysBatchAlloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -860,7 +860,7 @@ func TestSysBatch_Queued_With_Constraints_PartialMatch(t *testing.T) {
 
 	// linux machines
 	linux := createNodes(t, h, 3)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		node := mock.Node()
 		node.Attributes["kernel.name"] = "darwin"
 		node.ComputeClass()
@@ -1359,7 +1359,7 @@ func TestSysBatch_ChainedAlloc(t *testing.T) {
 	must.NoError(t, h1.State.UpsertJob(structs.MsgTypeTestSetup, h1.NextIndex(), nil, job1))
 
 	// Insert two more nodes
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -1553,7 +1553,7 @@ func TestSysBatch_Preemption(t *testing.T) {
 
 	// Create nodes
 	nodes := make([]*structs.Node, 0)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		node := mock.Node()
 		node.NodeResources = &structs.NodeResources{
 			Processors: processorResources,

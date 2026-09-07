@@ -15,7 +15,7 @@ func Test_IndexFromTimeQuery(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		inputArg            interface{}
+		inputArg            any
 		expectedOutputBytes []byte
 		expectedOutputError error
 		name                string

@@ -647,7 +647,7 @@ func TestPeriodicHeap_Order(t *testing.T) {
 
 	exp := []string{"j2", "j3", "j1"}
 	var act []string
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		pJob := h.Pop()
 		act = append(act, lookup[pJob.job])
 	}

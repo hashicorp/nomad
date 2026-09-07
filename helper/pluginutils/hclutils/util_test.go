@@ -13,16 +13,16 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	"github.com/kr/pretty"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func TestParseHclInterface_Hcl(t *testing.T) {
 	dockerDriver := new(docker.Driver)
 	dockerSpec, err := dockerDriver.TaskConfigSchema()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	dockerDecSpec, diags := hclspecutils.Convert(dockerSpec)
-	require.False(t, diags.HasErrors())
+	must.False(t, diags.HasErrors())
 
 	vars := map[string]cty.Value{
 		"NOMAD_ALLOC_INDEX": cty.NumberIntVal(2),
@@ -401,12 +401,12 @@ func TestParseHclInterface_Hcl(t *testing.T) {
 
 			// Test encoding
 			taskConfig := &drivers.TaskConfig{}
-			require.NoError(t, taskConfig.EncodeDriverConfig(ctyValue))
+			must.NoError(t, taskConfig.EncodeDriverConfig(ctyValue))
 
 			// Test decoding
-			require.NoError(t, taskConfig.DecodeDriverConfig(c.expectedType))
+			must.NoError(t, taskConfig.DecodeDriverConfig(c.expectedType))
 
-			require.EqualValues(t, c.expected, c.expectedType)
+			must.Eq(t, c.expected, c.expectedType)
 
 		})
 	}
@@ -487,7 +487,7 @@ func TestParseNullFields(t *testing.T) {
 			var tc TaskConfig
 			parser.ParseJson(t, c.json, &tc)
 
-			require.EqualValues(t, c.expected, tc)
+			must.Eq(t, c.expected, tc)
 		})
 	}
 }
@@ -500,7 +500,7 @@ func TestParseUnknown(t *testing.T) {
 		"map_list_field": hclspec.NewAttr("map_list_field", "list(map(string))", false),
 	})
 	cSpec, diags := hclspecutils.Convert(spec)
-	require.False(t, diags.HasErrors())
+	must.False(t, diags.HasErrors())
 
 	cases := []struct {
 		name string
@@ -533,9 +533,9 @@ func TestParseUnknown(t *testing.T) {
 			ctyValue, diag, errs := hclutils.ParseHclInterface(inter, cSpec, vars)
 			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
 
-			require.NotNil(t, errs)
-			require.True(t, diag.HasErrors())
-			require.Contains(t, errs[0].Error(), "no variable named")
+			must.NotNil(t, errs)
+			must.True(t, diag.HasErrors())
+			must.StrContains(t, errs[0].Error(), "no variable named")
 		})
 	}
 }
@@ -543,9 +543,9 @@ func TestParseUnknown(t *testing.T) {
 func TestParseInvalid(t *testing.T) {
 	dockerDriver := new(docker.Driver)
 	dockerSpec, err := dockerDriver.TaskConfigSchema()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	spec, diags := hclspecutils.Convert(dockerSpec)
-	require.False(t, diags.HasErrors())
+	must.False(t, diags.HasErrors())
 
 	cases := []struct {
 		name string
@@ -566,9 +566,80 @@ func TestParseInvalid(t *testing.T) {
 			ctyValue, diag, errs := hclutils.ParseHclInterface(inter, spec, vars)
 			t.Logf("parsed: %# v", pretty.Formatter(ctyValue))
 
-			require.NotNil(t, errs)
-			require.True(t, diag.HasErrors())
-			require.Contains(t, errs[0].Error(), "Invalid label")
+			must.NotNil(t, errs)
+			must.True(t, diag.HasErrors())
+			must.StrContains(t, errs[0].Error(), "Invalid label")
 		})
 	}
+}
+
+func TestCtyValueToMapInterface(t *testing.T) {
+	spec := hclspec.NewObject(map[string]*hclspec.Spec{
+		"a": hclspec.NewAttr("a", "string", false),
+		"b": hclspec.NewAttr("b", "number", false),
+		"c": hclspec.NewAttr("c", "list(string)", false),
+		"d": hclspec.NewBlock("d", false, hclspec.NewObject(map[string]*hclspec.Spec{
+			"x": hclspec.NewAttr("x", "bool", false),
+		})),
+	})
+
+	decSpec, diags := hclspecutils.Convert(spec)
+	must.False(t, diags.HasErrors())
+
+	config := hclutils.HclConfigToInterface(t, `
+	config {
+		a = "hello"
+		b = 42
+		c = ["one", "two"]
+		d {
+			x = true
+		}
+	}`)
+
+	v, diag, errs := hclutils.ParseHclInterface(config, decSpec, nil)
+	must.False(t, diag.HasErrors())
+	must.Nil(t, errs)
+
+	m, err := hclutils.CtyValueToMapInterface(v)
+	must.NoError(t, err)
+	must.Eq(t, map[string]interface{}{
+		"a": "hello",
+		"b": 42,
+		"c": []interface{}{"one", "two"},
+		"d": map[string]interface{}{"x": true},
+	}, m)
+}
+
+func TestCtyValueToMapInterface_MapInput(t *testing.T) {
+	v := cty.MapVal(map[string]cty.Value{
+		"first":  cty.StringVal("value"),
+		"second": cty.StringVal("another"),
+	})
+
+	m, err := hclutils.CtyValueToMapInterface(v)
+	must.NoError(t, err)
+	must.Eq(t, map[string]interface{}{
+		"first":  "value",
+		"second": "another",
+	}, m)
+}
+
+func TestCtyValueToMapInterface_Null(t *testing.T) {
+	m, err := hclutils.CtyValueToMapInterface(cty.NullVal(cty.DynamicPseudoType))
+	must.NoError(t, err)
+	must.Nil(t, m)
+}
+
+func TestCtyValueToMapInterface_InvalidType(t *testing.T) {
+	_, err := hclutils.CtyValueToMapInterface(cty.StringVal("nope"))
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "expected map/object cty value")
+}
+
+func TestCtyValueToMapInterface_Unknown(t *testing.T) {
+	_, err := hclutils.CtyValueToMapInterface(cty.UnknownVal(cty.Object(map[string]cty.Type{
+		"a": cty.String,
+	})))
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "value is not known")
 }

@@ -237,14 +237,14 @@ func (m *Meta) Colorize() *colorstring.Colorize {
 		}
 
 		v := reflect.ValueOf(ui)
-		if v.Kind() == reflect.Ptr {
+		if v.Kind() == reflect.Pointer {
 			v = v.Elem()
 		}
-		for i := 0; i < v.NumField(); i++ {
-			if !v.Field(i).CanInterface() {
+		for _, field := range v.Fields() {
+			if !field.CanInterface() {
 				continue
 			}
-			ui, _ = v.Field(i).Interface().(cli.Ui)
+			ui, _ = reflect.TypeAssert[cli.Ui](field)
 			if ui != nil {
 				break
 			}

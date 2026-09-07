@@ -225,7 +225,7 @@ func TestStreamFramer_Order(t *testing.T) {
 	shards := 10
 	each := len(b) / shards
 	for _, f := range files {
-		for i := 0; i < shards; i++ {
+		for i := range shards {
 			l, r := each*i, each*(i+1)
 			if i == shards-1 {
 				r = len(b)

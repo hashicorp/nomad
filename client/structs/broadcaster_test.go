@@ -99,7 +99,7 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 
 	errs := make(chan error, 10)
 	listeners := make([]*AllocListener, 10)
-	for i := 0; i < len(listeners); i++ {
+	for i := range listeners {
 		l := b.Listen()
 		defer l.Close()
 
@@ -121,7 +121,7 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 		}(alloc.AllocModifyIndex, l)
 	}
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		alloc.AllocModifyIndex++
 		require.NoError(t, b.Send(alloc.Copy()))
 	}
@@ -134,7 +134,7 @@ func TestAllocBroadcaster_Concurrency(t *testing.T) {
 	listeners[0].Close()
 	listeners[1].Close()
 
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		alloc.AllocModifyIndex++
 		require.NoError(t, b.Send(alloc.Copy()))
 	}

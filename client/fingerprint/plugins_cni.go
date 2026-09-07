@@ -117,8 +117,8 @@ func (f *PluginsCNIFingerprint) detectOnePlugin(pluginPath string, entry os.DirE
 	//  /opt/cni/bin/bridge <no args>
 	//  CNI bridge plugin v1.0.0
 	//  (and optionally another line that contains the supported CNI protocol versions)
-	tokens := strings.Fields(string(output))
-	for _, token := range tokens {
+	tokens := strings.FieldsSeq(string(output))
+	for token := range tokens {
 		if _, parseErr := version.NewSemver(token); parseErr == nil {
 			return token, true
 		}

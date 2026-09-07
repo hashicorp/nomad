@@ -35,7 +35,7 @@ func TestEventBufferFuzz(t *testing.T) {
 		// 100.
 		z := rand.NewZipf(rand.New(rand.NewSource(seed)), 1.5, 1.5, 50)
 
-		for i := 0; i < nMessages; i++ {
+		for i := range nMessages {
 			// Event content is arbitrary and not valid for our use of buffers in
 			// streaming - here we only care about the semantics of the buffer.
 			e := structs.Event{
@@ -55,7 +55,7 @@ func TestEventBufferFuzz(t *testing.T) {
 	// not run until several appends have already happened.
 	head := b.Head()
 
-	for i := 0; i < nReaders; i++ {
+	for i := range nReaders {
 		go func(i int) {
 			expect := uint64(0)
 			item := head
@@ -83,7 +83,7 @@ func TestEventBufferFuzz(t *testing.T) {
 	}
 
 	// Wait for all readers to finish one way or other
-	for i := 0; i < nReaders; i++ {
+	for range nReaders {
 		err := <-errCh
 		assert.NoError(t, err)
 	}
@@ -127,7 +127,7 @@ func TestEventBuffer_Size(t *testing.T) {
 
 	b := newEventBuffer(100)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
@@ -143,7 +143,7 @@ func TestEventBuffer_MaxSize(t *testing.T) {
 	b := newEventBuffer(10)
 
 	var events []structs.Event
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		events = append(events, structs.Event{})
 	}
 
@@ -159,7 +159,7 @@ func TestEventBuffer_Emptying_Buffer(t *testing.T) {
 
 	b := newEventBuffer(10)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		e := structs.Event{
 			Index: uint64(i), // Indexes should be contiguous
 		}
@@ -170,7 +170,7 @@ func TestEventBuffer_Emptying_Buffer(t *testing.T) {
 
 	// empty the buffer, which will bring the event buffer down
 	// to a single sentinel value
-	for i := 0; i < 16; i++ {
+	for range 16 {
 		b.advanceHead()
 	}
 

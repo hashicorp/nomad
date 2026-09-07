@@ -1,0 +1,3 @@
+```release-note:bug
+auth: Fixed a bug where nodes could not sync allocations placed on them after being moved to a different node pool
+```

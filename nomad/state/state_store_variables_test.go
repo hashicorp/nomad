@@ -517,7 +517,7 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 
 	// Generate some test variables and upsert them.
 	svs := []*structs.VariableEncrypted{}
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		sv := mock.VariableEncrypted()
 		svs = append(svs, sv)
 	}
@@ -690,7 +690,7 @@ func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 
 	// Generate some test variables and upsert them.
 	svs := []*structs.VariableEncrypted{}
-	for i := 0; i < 7; i++ {
+	for range 7 {
 		sv := mock.VariableEncrypted()
 		sv.Path = uuid.Generate()
 		svs = append(svs, sv)
@@ -699,7 +699,7 @@ func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 	keyID := uuid.Generate()
 
 	expectedForKey := []string{}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		svs[i].KeyID = keyID
 		expectedForKey = append(expectedForKey, svs[i].Path)
 		sort.Strings(expectedForKey)

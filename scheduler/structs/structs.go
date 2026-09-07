@@ -163,6 +163,7 @@ func (p *PlanBuilder) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State
 		Deployment:        plan.Deployment,
 		DeploymentUpdates: plan.DeploymentUpdates,
 		EvalID:            plan.EvalID,
+		UpdatedAt:         now,
 	}
 
 	if p.noSubmit {

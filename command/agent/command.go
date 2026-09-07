@@ -4,6 +4,8 @@
 package agent
 
 import (
+	"context"
+	"crypto/fips140"
 	"flag"
 	"fmt"
 	"io"
@@ -916,10 +918,12 @@ func (c *Command) Run(args []string) int {
 	info["bind addrs"] = c.getBindAddrSynopsis()
 	info["advertise addrs"] = c.getAdvertiseAddrSynopsis()
 	if config.Server.Enabled {
-		serverConfig, err := c.agent.serverConfig()
-		if err == nil {
-			info["node id"] = serverConfig.NodeID
-		}
+		info["node id"] = c.agent.server.GetConfig().NodeID
+	}
+	if fips140.Enforced() {
+		info["fips mode"] = fmt.Sprintf("FIPS-140-3 enforced (version: %s)", fips140.Version())
+	} else if fips140.Enabled() {
+		info["fips mode"] = fmt.Sprintf("FIPS-140-3 enabled (version: %s)", fips140.Version())
 	}
 
 	// Sort the keys for output
@@ -1351,6 +1355,7 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 		if err != nil {
 			return inm, err
 		}
+		promSink.RunBackgroundCleanup(context.Background())
 		fanout = append(fanout, promSink)
 	}
 

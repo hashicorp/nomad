@@ -128,7 +128,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	// 2 jobs with count 10, max parallel 3
 	jnss := make([]structs.NamespacedID, 2)
 	jobs := make([]*structs.Job, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		job := mock.Job()
 		jobs[i] = job
 		jnss[i] = structs.NamespacedID{Namespace: job.Namespace, ID: job.ID}
@@ -138,7 +138,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		index++
 
 		var allocs []*structs.Allocation
-		for i := 0; i < count; i++ {
+		for range count {
 			a := newAlloc(drainingNode, job)
 			a.DeploymentStatus = &structs.AllocDeploymentStatus{
 				Healthy: new(true),
@@ -605,7 +605,6 @@ func TestDrainingJobWatcher_HandleTaskGroup(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			ci.Parallel(t)
 
@@ -627,7 +626,7 @@ func TestDrainingJobWatcher_HandleTaskGroup(t *testing.T) {
 			must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 102, nil, job))
 
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				a := mock.Alloc()
 				if tc.batch {
 					a = mock.BatchAlloc()
@@ -680,7 +679,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 
 	// Create 10 done allocs
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		a := mock.Alloc()
 		a.Job = job
 		a.TaskGroup = job.TaskGroups[0].Name
@@ -750,7 +749,7 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 
 	// Create 10 done allocs
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		a := mock.Alloc()
 		a.Job = job
 		a.TaskGroup = job.TaskGroups[0].Name

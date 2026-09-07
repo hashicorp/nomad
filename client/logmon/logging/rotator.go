@@ -201,8 +201,8 @@ func (f *FileRotator) lastFile() error {
 		if fi.IsDir() {
 			continue
 		}
-		if strings.HasPrefix(fi.Name(), prefix) {
-			fileIdx := strings.TrimPrefix(fi.Name(), prefix)
+		if after, ok := strings.CutPrefix(fi.Name(), prefix); ok {
+			fileIdx := after
 			n, err := strconv.Atoi(fileIdx)
 			if err != nil {
 				continue

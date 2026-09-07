@@ -184,7 +184,7 @@ module('Acceptance | client detail', function (hooks) {
     const maxRunDuration = 10 * 60 * 1000000000;
     const startedAt = new Date('2025-01-02T03:04:05Z');
     const expectedDeadline = new Date(
-      startedAt.getTime() + maxRunDuration / 1000000
+      startedAt.getTime() + maxRunDuration / 1000000,
     );
 
     const batchJob = this.server.create('job', {
@@ -216,7 +216,7 @@ module('Acceptance | client detail', function (hooks) {
     assert.equal(
       ClientDetail.allocationFor(allocation.id).maxRunDeadlineTooltip,
       moment(expectedDeadline).format("MMM DD, 'YY HH:mm:ss ZZ"),
-      'The client allocations table shows the computed max run deadline'
+      'The client allocations table shows the computed max run deadline',
     );
   });
 

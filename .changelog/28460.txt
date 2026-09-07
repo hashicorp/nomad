@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Updated the Go module to require at least 1.26.0
+```

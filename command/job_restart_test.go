@@ -624,7 +624,6 @@ func TestJobRestartCommand_Run(t *testing.T) {
 
 	for _, job := range []*api.Job{batchJob, serviceJob} {
 		for _, tc := range testCases {
-			tc := tc
 			t.Run(fmt.Sprintf("%s/%s", *job.Type, tc.name), func(t *testing.T) {
 				// Run each test case in parallel because they are fairly slow.
 				ci.Parallel(t)

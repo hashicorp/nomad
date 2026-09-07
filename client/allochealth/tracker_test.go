@@ -4,7 +4,6 @@
 package allochealth
 
 import (
-	"context"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -175,8 +174,7 @@ func TestTracker_ConsulChecks_Interpolation(t *testing.T) {
 		}, nil
 	}
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
@@ -234,10 +232,10 @@ func TestTracker_ConsulChecks_Healthy(t *testing.T) {
 	defer b.Close()
 
 	// Don't reply on the first call
-	var called uint64
+	var called atomic.Uint64
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
-		if atomic.AddUint64(&called, 1) == 1 {
+		if called.Add(1) == 1 {
 			return nil, nil
 		}
 
@@ -248,8 +246,7 @@ func TestTracker_ConsulChecks_Healthy(t *testing.T) {
 		return reg, nil
 	}
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
@@ -278,8 +275,7 @@ func TestTracker_NomadChecks_Healthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Synthesize running alloc and tasks
 	alloc.ClientStatus = structs.AllocClientStatusRunning
@@ -347,8 +343,7 @@ func TestTracker_NomadChecks_Unhealthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Synthesize running alloc and tasks
 	alloc.ClientStatus = structs.AllocClientStatusRunning
@@ -398,7 +393,7 @@ func TestTracker_NomadChecks_Unhealthy(t *testing.T) {
 	}()
 
 	// make sure we are always unhealthy across 4 check intervals
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		<-time.After(checkInterval)
 		select {
 		case <-tracker.HealthyCh():
@@ -431,8 +426,7 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 	defer b.Close()
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
@@ -474,8 +468,7 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 	defer b.Close()
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
@@ -541,10 +534,10 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 	defer b.Close()
 
 	// Don't reply on the first call
-	var called uint64
+	var called atomic.Uint64
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
-		if atomic.AddUint64(&called, 1) == 1 {
+		if called.Add(1) == 1 {
 			return nil, nil
 		}
 
@@ -555,8 +548,7 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 		return reg, nil
 	}
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
@@ -567,7 +559,7 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 	tracker.Start()
 
 	testutil.WaitForResult(func() (bool, error) {
-		lookup := atomic.LoadUint64(&called)
+		lookup := called.Load()
 		return lookup < 4, fmt.Errorf("wait to get more task registration lookups: %v", lookup)
 	}, func(err error) {
 		require.NoError(t, err)
@@ -634,8 +626,7 @@ func TestTracker_ConsulChecks_HealthyToUnhealthy(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
@@ -726,8 +717,7 @@ func TestTracker_ConsulChecks_SlowCheckRegistration(t *testing.T) {
 	b := cstructs.NewAllocBroadcaster(logger)
 	defer b.Close()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
@@ -782,8 +772,7 @@ func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
 	alloc := mock.Alloc()
 	logger := testlog.HCLogger(t)
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 	tracker := NewTracker(ctx, logger, alloc, nil, env, nil, nil, time.Millisecond, true)
@@ -876,10 +865,10 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 	defer b.Close()
 
 	// Don't reply on the first call
-	var called uint64
+	var called atomic.Uint64
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
-		if atomic.AddUint64(&called, 1) == 1 {
+		if called.Add(1) == 1 {
 			return nil, nil
 		}
 
@@ -890,8 +879,7 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 		return reg, nil
 	}
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
@@ -1023,10 +1011,10 @@ func TestTracker_ConsulChecks_OnUpdate(t *testing.T) {
 			defer b.Close()
 
 			// Don't reply on the first call
-			var called uint64
+			var called atomic.Uint64
 			consul := regmock.NewServiceRegistrationHandler(logger)
 			consul.AllocRegistrationsFn = func(string) (*serviceregistration.AllocRegistration, error) {
-				if atomic.AddUint64(&called, 1) == 1 {
+				if called.Add(1) == 1 {
 					return nil, nil
 				}
 
@@ -1037,8 +1025,7 @@ func TestTracker_ConsulChecks_OnUpdate(t *testing.T) {
 				return reg, nil
 			}
 
-			ctx, cancelFn := context.WithCancel(context.Background())
-			defer cancelFn()
+			ctx := t.Context()
 
 			checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 			checkInterval := 10 * time.Millisecond
@@ -1157,8 +1144,7 @@ func TestTracker_NomadChecks_OnUpdate(t *testing.T) {
 				}))
 			}()
 
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := t.Context()
 
 			consul := regmock.NewServiceRegistrationHandler(logger)
 			minHealthyTime := 1 * time.Millisecond

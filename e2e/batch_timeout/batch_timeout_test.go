@@ -4,6 +4,7 @@
 package batch_timeout
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 // testTimeout is the upper bound we allow for each sub-test. It must be long
@@ -99,13 +101,26 @@ func testBatchJobTimeoutSkipsPoststop(t *testing.T) {
 		must.Sprint("timed-out allocation must carry the max_run_duration description"))
 
 	// The poststop task must NOT have been started.
-	poststopState, ok := alloc.TaskStates["poststop"]
-	must.True(t, ok,
-		must.Sprint("poststop task state must be present in the allocation"))
-	must.Eq(t, structs.TaskStatePending, poststopState.State,
-		must.Sprint("poststop task must remain 'pending' — it must not be started when max_run_duration is exceeded"))
-	must.True(t, poststopState.StartedAt.IsZero(),
-		must.Sprint("poststop task StartedAt must be zero — it was never started"))
+	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+		poststopState, ok := alloc.TaskStates["poststop"]
+		if !ok {
+			return fmt.Errorf("poststop task state must be present in the allocation")
+		}
+		if poststopState.State != structs.TaskStateDead {
+			return fmt.Errorf("poststop task must be marked 'dead': %+v",
+				poststopState)
+		}
+		if !poststopState.StartedAt.IsZero() {
+			return fmt.Errorf(
+				"poststop task StartedAt must be zero — it was never started: %+v",
+				poststopState)
+		}
+		return nil
+	}),
+		wait.Timeout(2*time.Second),
+		wait.Gap(10*time.Millisecond),
+	))
+
 }
 
 // testSysbatchJobTimesOut verifies that max_run_duration also works for

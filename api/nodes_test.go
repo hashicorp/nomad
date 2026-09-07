@@ -189,7 +189,7 @@ func TestNodes_NoSecretID(t *testing.T) {
 	// perform a raw http call and make sure that:
 	// - "ID" to make sure that raw decoding is working correctly
 	// - "SecretID" to make sure it's not present
-	resp := make(map[string]interface{})
+	resp := make(map[string]any)
 	_, err := c.query("/v1/node/"+nodeID, &resp, nil)
 	must.NoError(t, err)
 	must.Eq(t, nodeID, resp["ID"].(string))
@@ -231,8 +231,7 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	assertWriteMeta(t, &drainOut.WriteMeta)
 
 	// Drain may have completed before we can check, use event stream
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	streamCh, err := c.EventStream().Stream(ctx, map[Topic][]string{
 		TopicNode: {nodeID},
@@ -566,15 +565,15 @@ func TestNodeStatValueFormatting(t *testing.T) {
 	}{
 		{
 			"true",
-			StatValue{BoolVal: pointerOf(true)},
+			StatValue{BoolVal: new(true)},
 		},
 		{
 			"false",
-			StatValue{BoolVal: pointerOf(false)},
+			StatValue{BoolVal: new(false)},
 		},
 		{
 			"myvalue",
-			StatValue{StringVal: pointerOf("myvalue")},
+			StatValue{StringVal: new("myvalue")},
 		},
 		{
 			"2.718",
@@ -607,28 +606,28 @@ func TestNodeStatValueFormatting(t *testing.T) {
 		{
 			"2",
 			StatValue{
-				IntNumeratorVal: pointerOf(int64(2)),
+				IntNumeratorVal: new(int64(2)),
 			},
 		},
 		{
 			"2 / 3",
 			StatValue{
-				IntNumeratorVal:   pointerOf(int64(2)),
-				IntDenominatorVal: pointerOf(int64(3)),
+				IntNumeratorVal:   new(int64(2)),
+				IntDenominatorVal: new(int64(3)),
 			},
 		},
 		{
 			"2 MHz",
 			StatValue{
-				IntNumeratorVal: pointerOf(int64(2)),
+				IntNumeratorVal: new(int64(2)),
 				Unit:            "MHz",
 			},
 		},
 		{
 			"2 / 3 MHz",
 			StatValue{
-				IntNumeratorVal:   pointerOf(int64(2)),
-				IntDenominatorVal: pointerOf(int64(3)),
+				IntNumeratorVal:   new(int64(2)),
+				IntDenominatorVal: new(int64(3)),
 				Unit:              "MHz",
 			},
 		},

@@ -621,7 +621,6 @@ module('Acceptance | job run', function (hooks) {
         .dom('[data-test-template-card]')
         .exists({ count: NUMBER_OF_DEFAULT_TEMPLATES });
 
-
       await click('[data-test-template-card="Hello world"]');
       await click('[data-test-apply]');
 

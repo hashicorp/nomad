@@ -345,9 +345,9 @@ var basicConfig = &Config{
 		{
 			Name: "docker",
 			Args: []string{"foo", "bar"},
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"foo": "bar",
-				"nested": []map[string]interface{}{
+				"nested": []map[string]any{
 					{
 						"bam": 2,
 					},
@@ -356,7 +356,7 @@ var basicConfig = &Config{
 		},
 		{
 			Name: "exec",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"foo": true,
 			},
 		},
@@ -446,13 +446,13 @@ var pluginConfig = &Config{
 	Plugins: []*config.PluginConfig{
 		{
 			Name: "docker",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"allow_privileged": true,
 			},
 		},
 		{
 			Name: "raw_exec",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"enabled": true,
 			},
 		},
@@ -1045,7 +1045,7 @@ func permutations(arr []string) [][]string {
 			copy(tmp, arr)
 			res = append(res, tmp)
 		} else {
-			for i := 0; i < n; i++ {
+			for i := range n {
 				helper(arr, n-1)
 				if n%2 == 1 {
 					tmp := arr[i]
@@ -1221,6 +1221,7 @@ func TestConfig_Template(t *testing.T) {
 			must.Eq(t, new(550*time.Millisecond), cfg.Client.TemplateConfig.ConsulRetry.Backoff)
 			must.Eq(t, new(10*time.Minute), cfg.Client.TemplateConfig.ConsulRetry.MaxBackoff)
 
+			must.NotNil(t, cfg.Client.TemplateConfig.VaultDefaultLeaseDuration)
 			must.NotNil(t, cfg.Client.TemplateConfig.VaultRetry)
 			must.Eq(t, 6, *cfg.Client.TemplateConfig.VaultRetry.Attempts)
 			must.Eq(t, new(550*time.Millisecond), cfg.Client.TemplateConfig.VaultRetry.Backoff)

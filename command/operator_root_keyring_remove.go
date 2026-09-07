@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
 )
 
@@ -72,18 +73,48 @@ func (c *OperatorRootKeyringRemoveCommand) Run(args []string) int {
 	}
 
 	args = flags.Args()
-	if len(args) != 1 {
+	if len(args) != 1 || args[0] == "" {
 		c.Ui.Error("This command requires one argument: <key ID>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	removeKey := args[0]
+	removeKey := strings.ToLower(args[0])
 
 	client, err := c.Meta.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating nomad cli client: %s", err))
 		return 1
 	}
+
+	// Resolve an abbreviated key ID to the full ID
+	if !helper.IsUUID(removeKey) {
+		keys, _, err := client.Keyring().List(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("error: %s", err))
+			return 1
+		}
+
+		var matches []*api.RootKeyMeta
+		for _, k := range keys {
+			if strings.HasPrefix(k.KeyID, removeKey) {
+				matches = append(matches, k)
+			}
+		}
+
+		if len(matches) == 0 {
+			c.Ui.Error(fmt.Sprintf("No encryption key(s) with prefix or ID %q found", removeKey))
+			return 1
+		}
+
+		if len(matches) > 1 {
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple keys\n\n%s",
+				renderVariablesKeysResponse(matches, true)))
+			return 1
+		}
+
+		removeKey = matches[0].KeyID
+	}
+
 	_, err = client.Keyring().Delete(&api.KeyringDeleteOptions{
 		KeyID: removeKey,
 		Force: force,

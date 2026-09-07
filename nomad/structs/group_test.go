@@ -204,7 +204,7 @@ func TestJob_Validate_DisconnectRescheduleLost(t *testing.T) {
 					{
 						Name:   "redis",
 						Driver: "docker",
-						Config: map[string]interface{}{
+						Config: map[string]any{
 							"image": "redis:7",
 						},
 						LogConfig: DefaultLogConfig(),

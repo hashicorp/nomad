@@ -1,0 +1,7 @@
+```release-note:bug
+scheduler: Fixed a bug where setting `sticky` on a static host volume could fail the evaluation instead of being rejected during feasibility checking
+```
+
+```release-note:bug
+scheduler: Fixed a bug where a node could be marked feasible for a task group requesting multiple host volumes when a satisfied sticky volume request short-circuited the checks for the remaining requests
+```

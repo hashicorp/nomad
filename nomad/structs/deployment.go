@@ -6,6 +6,7 @@ package structs
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -231,11 +232,12 @@ func (d *Deployment) HasAutoPromote() bool {
 }
 
 func (d *Deployment) GoString() string {
-	base := fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription)
+	var base strings.Builder
+	base.WriteString(fmt.Sprintf("Deployment ID %q for job %q has status %q (%v):", d.ID, d.JobID, d.Status, d.StatusDescription))
 	for group, state := range d.TaskGroups {
-		base += fmt.Sprintf("\nTask Group %q has state:\n%#v", group, state)
+		base.WriteString(fmt.Sprintf("\nTask Group %q has state:\n%#v", group, state))
 	}
-	return base
+	return base.String()
 }
 
 // GetNamespace implements the NamespaceGetter interface, required for pagination.

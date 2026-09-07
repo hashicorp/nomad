@@ -92,7 +92,6 @@ func TestHTTP_OperatorRaftTransferLeadership(t *testing.T) {
 			http.MethodTrace,
 		}
 		for _, tc := range badMethods {
-			tc := tc
 			t.Run(tc+" method errors", func(t *testing.T) {
 				req, err := http.NewRequest(tc, "/v1/operator/raft/transfer-leadership?address=nope", body)
 				must.NoError(t, err)
@@ -153,7 +152,6 @@ func TestHTTP_OperatorRaftTransferLeadership(t *testing.T) {
 			},
 		}
 		for _, tc := range apiErrTCs {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				req, err := http.NewRequest(
 					http.MethodPut,
@@ -190,7 +188,6 @@ func TestHTTP_OperatorRaftTransferLeadership(t *testing.T) {
 		},
 	}
 	for _, tc := range apiOkTCs {
-		tc := tc
 		t.Run(tc.name+" can roundtrip", func(t *testing.T) {
 			httpTest(t, configCB, func(s *TestAgent) {
 				body := bytes.NewBuffer(nil)

@@ -638,7 +638,7 @@ func TestACLEndpoint_GetListPolicies_WorkloadIdentity(t *testing.T) {
 			WorkloadIdentifier: "t",
 			WorkloadType:       structs.WorkloadTypeTask,
 		},
-		task.Identity).
+		task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now().Add(-10 * time.Minute))
 	jwtToken, _, err := srv.encrypter.SignClaims(claims)
@@ -2086,7 +2086,7 @@ func TestACLEndpoint_WhoAmI(t *testing.T) {
 	task := alloc.LookupTask("web")
 	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
 		wiHandle, // see encrypter_test.go
-		task.Identity).
+		task.Identity, mock.Namespace()).
 		WithTask(task).
 		Build(time.Now().Add(-10 * time.Minute))
 	jwtToken, _, err := s1.encrypter.SignClaims(claims)
@@ -3919,7 +3919,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetCustomClaims(map[string]interface{}{
+	oidcTestProvider.SetCustomClaims(map[string]any{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
@@ -4157,12 +4157,12 @@ func TestACL_OIDCCompleteAuth_IssEnforcedProvider(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetCustomClaims(map[string]interface{}{
+	oidcTestProvider.SetCustomClaims(map[string]any{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
 	})
-	oidcTestProvider.SetAdditionalConfiguration(map[string]interface{}{
+	oidcTestProvider.SetAdditionalConfiguration(map[string]any{
 		"authorization_response_iss_parameter_supported": true,
 	})
 

@@ -12,7 +12,7 @@ case $(arch) in
     aarch64) ARCH="arm64" ;;
 esac
 
-VERSION="1.15.1"
+VERSION="2.0.3"
 DOWNLOAD=https://releases.hashicorp.com/consul/${VERSION}/consul_${VERSION}_linux_${ARCH}.zip
 
 function install_consul() {
@@ -24,7 +24,7 @@ function install_consul() {
 
 	curl -sSL --fail -o /tmp/consul.zip ${DOWNLOAD}
 
-	unzip -d /tmp /tmp/consul.zip
+	unzip -o -d /tmp /tmp/consul.zip
 	mv /tmp/consul /usr/bin/consul
 	chmod +x /usr/bin/consul
 }

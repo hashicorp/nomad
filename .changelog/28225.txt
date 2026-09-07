@@ -1,0 +1,3 @@
+```release-note:bug
+deployments: Fix garbage collection to respect threshold
+```

@@ -157,7 +157,7 @@ rules:
             return structs.ErrPermissionDenied
           }
           ...
-          if err := $A.$B.AuthorizeClientAllocation(aclObj, ..., ...); err != nil {
+          if err := $A.$B.AuthorizeClientAllocation(..., aclObj, ..., ...); err != nil {
             return err
           }
           ...

@@ -190,7 +190,7 @@ func TestServers_RebalanceServers(t *testing.T) {
 
 	// Make a huge list of nodes.
 	var srvs []*servers.Server
-	for i := 0; i < maxServers; i++ {
+	for i := range maxServers {
 		nodeName := fmt.Sprintf("s%02d", i)
 		srvs = append(srvs, &servers.Server{Addr: &fauxAddr{nodeName}})
 	}
@@ -198,11 +198,11 @@ func TestServers_RebalanceServers(t *testing.T) {
 
 	// Keep track of how many unique shuffles we get.
 	uniques := make(map[string]struct{}, maxServers)
-	for i := 0; i < numShuffleTests; i++ {
+	for range numShuffleTests {
 		m.RebalanceServers()
 
 		var names []string
-		for j := 0; j < maxServers; j++ {
+		for range maxServers {
 			server := m.FindServer()
 			m.NotifyFailedServer(server)
 			names = append(names, server.String())

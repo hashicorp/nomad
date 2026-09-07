@@ -4,7 +4,6 @@
 package monitor
 
 import (
-	"context"
 	"io"
 	"os"
 	"strings"
@@ -74,13 +73,9 @@ func TestClientStreamReader_StreamFixed(t *testing.T) {
 			errCh := make(chan error, 1)
 			framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, frameSize)
 			streamReader := NewStreamReader(streamMsg, framer, int64(frameSize))
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx := t.Context()
 
-			defer cancel()
-			wg.Add(1) //block until streamReader completes
-
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				defer streamReader.Destroy()
 				if !tc.expectErr {
 					streamReader.Run()
@@ -94,7 +89,7 @@ func TestClientStreamReader_StreamFixed(t *testing.T) {
 					must.EqError(t, err, tc.errString)
 				}
 
-			}()
+			})
 			wg.Wait()
 			// Parse and validate the contents of the frames channel
 			var streamErr error

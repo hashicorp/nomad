@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where task groups with `per_alloc` volumes could skip real feasibility checks for allocs after the first placement failure in the same task group
+```

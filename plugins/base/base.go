@@ -135,9 +135,9 @@ func nomadTopologyDistancesFromProto(pb *proto.ClientTopologySLIT) numalib.SLIT 
 	}
 	size := int(pb.Dimension)
 	slit := make(numalib.SLIT, size)
-	for row := 0; row < size; row++ {
+	for row := range size {
 		slit[row] = make([]numalib.Cost, size)
-		for col := 0; col < size; col++ {
+		for col := range size {
 			index := row*size + col
 			slit[row][col] = numalib.Cost(pb.Values[index])
 		}
@@ -179,8 +179,8 @@ func nomadTopologyToProto(top *numalib.Topology) *proto.ClientTopology {
 func nomadTopologyDistancesToProto(slit numalib.SLIT) *proto.ClientTopologySLIT {
 	dimension := len(slit)
 	values := make([]uint32, 0, dimension)
-	for row := 0; row < dimension; row++ {
-		for col := 0; col < dimension; col++ {
+	for row := range dimension {
+		for col := range dimension {
 			values = append(values, uint32(slit[row][col]))
 		}
 	}

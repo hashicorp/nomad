@@ -7,9 +7,9 @@ import "github.com/mitchellh/copystructure"
 
 // PluginConfig is used to configure a plugin explicitly
 type PluginConfig struct {
-	Name   string                 `hcl:",key"`
-	Args   []string               `hcl:"args"`
-	Config map[string]interface{} `hcl:"config"`
+	Name   string         `hcl:",key"`
+	Args   []string       `hcl:"args"`
+	Config map[string]any `hcl:"config"`
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -35,7 +35,7 @@ func (p *PluginConfig) Copy() *PluginConfig {
 	if i, err := copystructure.Copy(p.Config); err != nil {
 		panic(err.Error())
 	} else {
-		c.Config = i.(map[string]interface{})
+		c.Config = i.(map[string]any)
 	}
 	return &c
 }

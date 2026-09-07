@@ -197,7 +197,7 @@ func inspect(file io.Reader) (*raft.SnapshotMeta, *SnapshotInfo, error) {
 			stat.Name = name
 		}
 
-		var val interface{}
+		var val any
 		err := dec.Decode(&val)
 		if err != nil {
 			return fmt.Errorf("failed to decode snapshot %q: %v", snapType, err)

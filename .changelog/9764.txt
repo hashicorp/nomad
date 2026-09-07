@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where an artifact `checksum` of the form `file:<url>` (fetching the checksum from a remote file) was rejected during job validation
+```

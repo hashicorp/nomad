@@ -57,7 +57,7 @@ export default class TokenAdapter extends ApplicationAdapter {
     const response = await this.ajax(
       `${this.buildURL()}/token/self`,
       'GET',
-      options
+      options,
     );
     const normalized = this.store.normalize('token', response);
     const tokenRecord = this.store.push(normalized);

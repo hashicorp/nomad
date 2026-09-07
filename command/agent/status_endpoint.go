@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *HTTPServer) StatusLeaderRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) StatusLeaderRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
@@ -26,7 +26,7 @@ func (s *HTTPServer) StatusLeaderRequest(resp http.ResponseWriter, req *http.Req
 	return leader, nil
 }
 
-func (s *HTTPServer) StatusPeersRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) StatusPeersRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}

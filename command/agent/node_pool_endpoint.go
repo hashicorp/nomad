@@ -127,7 +127,7 @@ func (s *HTTPServer) nodePoolDelete(resp http.ResponseWriter, req *http.Request,
 	return nil, nil
 }
 
-func (s *HTTPServer) nodePoolNodesList(resp http.ResponseWriter, req *http.Request, poolName string) (interface{}, error) {
+func (s *HTTPServer) nodePoolNodesList(resp http.ResponseWriter, req *http.Request, poolName string) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}

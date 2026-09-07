@@ -10,6 +10,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -415,17 +416,19 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 func TestPlanApply_signAllocIdentities(t *testing.T) {
 	// note: this is mutated by the method under test
 	alloc := mockAlloc()
-	job := alloc.Job
-	taskName := job.TaskGroups[0].Tasks[0].Name // "web"
-	allocs := []*structs.Allocation{alloc}
 
 	signErr := errors.New("could not sign the thing")
 
 	cases := []struct {
-		name      string
-		signer    *mockSigner
-		expectErr error
-		callNum   int
+		name             string
+		signer           *mockSigner
+		expectErr        error
+		callNum          int
+		alloc            *structs.Allocation
+		ns               *structs.Namespace
+		expectedToken    string
+		expectedKeyID    string
+		additionalChecks func(*testing.T, *structs.IdentityClaims)
 	}{
 		{
 			name: "signer error",
@@ -434,6 +437,8 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 			},
 			expectErr: signErr,
 			callNum:   1,
+			alloc:     alloc,
+			ns:        mock.Namespace(),
 		},
 		{
 			name: "first signing",
@@ -441,7 +446,11 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 				nextToken: "first-token",
 				nextKeyID: "first-key",
 			},
-			callNum: 1,
+			callNum:       1,
+			alloc:         alloc,
+			ns:            mock.Namespace(),
+			expectedToken: "first-token",
+			expectedKeyID: "first-key",
 		},
 		{
 			name: "second signing",
@@ -449,14 +458,57 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 				nextToken: "dont-sign-token",
 				nextKeyID: "dont-sign-key",
 			},
-			callNum: 0,
+			callNum:       0,
+			alloc:         alloc,
+			ns:            mock.Namespace(),
+			expectedToken: "first-token",
+			expectedKeyID: "first-key",
+		},
+		{
+			name: "signing with additional claims",
+			signer: &mockSigner{
+				nextToken: "signed-this-token",
+				nextKeyID: "signed-this-key",
+			},
+			callNum: 1,
+			alloc: func() *structs.Allocation {
+				alloc := mockAlloc()
+				job := alloc.Job
+				job.Meta = map[string]string{"customer": "important"}
+				job.TaskGroups[0].Tasks[0].Identity = &structs.WorkloadIdentity{
+					Name: structs.WorkloadIdentityDefaultName,
+					ExtraClaims: []string{
+						"customer_claim",
+					},
+				}
+				return alloc
+			}(),
+			ns: &structs.Namespace{
+				Name: "default",
+				RequiredExtraClaims: map[string]string{
+					"required_claim": "${job.namespace}",
+				},
+				OptionalExtraClaims: map[string]string{
+					"customer_claim": "acct-${job.meta.customer}",
+				},
+			},
+			expectedToken: "signed-this-token",
+			expectedKeyID: "signed-this-key",
+			expectErr:     nil,
+			additionalChecks: func(t *testing.T, idClaims *structs.IdentityClaims) {
+				must.Eq(t, "default", idClaims.ExtraClaims["required_claim"])
+				must.Eq(t, "acct-important", idClaims.ExtraClaims["customer_claim"])
+			},
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			err := signAllocIdentities(tc.signer, job, allocs, time.Now())
+			job := tc.alloc.Job
+			taskName := job.TaskGroups[0].Tasks[0].Name
+
+			err := signAllocIdentities(tc.signer, job, []*structs.Allocation{tc.alloc}, tc.ns, time.Now())
 
 			if tc.expectErr != nil {
 				must.Error(t, err)
@@ -464,22 +516,24 @@ func TestPlanApply_signAllocIdentities(t *testing.T) {
 			} else {
 				must.NoError(t, err)
 				// assert mutations happened
-				must.MapLen(t, 1, allocs[0].SignedIdentities)
+				must.MapLen(t, 1, tc.alloc.SignedIdentities)
 				// we should always keep the first signing
-				must.Eq(t, "first-token", allocs[0].SignedIdentities[taskName])
-				must.Eq(t, "first-key", allocs[0].SigningKeyID)
+				must.Eq(t, tc.expectedToken, tc.alloc.SignedIdentities[taskName])
+				must.Eq(t, tc.expectedKeyID, tc.alloc.SigningKeyID)
 			}
 
 			must.Len(t, tc.callNum, tc.signer.calls, must.Sprint("unexpected call count"))
 			if tc.callNum > 0 {
 				call := tc.signer.calls[tc.callNum-1]
 				must.NotNil(t, call)
-				must.Eq(t, call.AllocationID, alloc.ID)
-				must.Eq(t, call.Namespace, alloc.Namespace)
+				must.Eq(t, call.AllocationID, tc.alloc.ID)
+				must.Eq(t, call.Namespace, tc.alloc.Namespace)
 				must.Eq(t, call.JobID, job.ID)
 				must.Eq(t, call.TaskName, taskName)
+				if tc.additionalChecks != nil {
+					tc.additionalChecks(t, call)
+				}
 			}
-
 		})
 	}
 }
@@ -1302,4 +1356,162 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 			require.Equal(t, tc.expectedReason, reason)
 		})
 	}
+}
+
+// TestPlanApply_PipelinedPlans tests that multiple plans can be in-flight
+// simultaneously
+func TestPlanApply_PipelinedPlans(t *testing.T) {
+	ci.Parallel(t)
+
+	// Set up sink to capture batching metrics
+	sink := metrics.NewInmemSink(10*time.Second, time.Minute)
+	cfg := metrics.DefaultConfig("nomad")
+	cfg.EnableHostname = false
+	metrics.NewGlobal(cfg, sink)
+
+	// Configure Raft to increase batching window
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.PlanApplyPipeline = 16
+		c.RaftConfig.CommitTimeout = 100 * time.Millisecond
+		c.RaftConfig.MaxAppendEntries = 64
+	})
+	defer cleanup()
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	node := mock.Node()
+	testRegisterNode(t, srv, node)
+
+	job := mock.Job()
+	job.TaskGroups[0].Networks = nil
+	for _, task := range job.TaskGroups[0].Tasks {
+		task.Resources.Networks = nil
+	}
+	store := srv.State()
+	index, _ := store.LatestIndex()
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	index++
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, index, []*structs.Evaluation{eval}))
+
+	// Submit plans and wait for them to complete
+	numPlans := 20
+	futures := make([]PlanFuture, numPlans)
+
+	for i := range numPlans {
+		alloc := mock.MinAllocForJob(job)
+		alloc.NodeID = node.ID
+		alloc.EvalID = eval.ID
+
+		plan := &structs.Plan{
+			Job: job,
+			JobInfo: &structs.PlanJobTuple{
+				Namespace: job.Namespace,
+				ID:        job.ID,
+			},
+			EvalID:         eval.ID,
+			NodeAllocation: map[string][]*structs.Allocation{node.ID: {alloc}},
+		}
+
+		future, err := srv.planQueue.Enqueue(plan)
+		must.NoError(t, err)
+		futures[i] = future
+	}
+	for i, future := range futures {
+		result, err := future.Wait()
+		must.NoError(t, err)
+		must.NotNil(t, result, must.Sprintf("plan %d result is nil", i))
+	}
+	allocs, err := store.AllocsByNode(nil, node.ID)
+	must.NoError(t, err)
+	must.Len(t, numPlans, allocs, must.Sprintf("expected %d allocations", numPlans))
+
+	// Verify that pipelining occurred by checking the batching metrics.
+	// Max > 0 means at least one plan observed another plan already in-flight,
+	// proving that pipelining occurred (multiple plans in the Raft pipeline
+	// simultaneously)
+
+	data := sink.Data()
+	must.NotEq(t, 0, len(data), must.Sprint("no metrics data collected"))
+
+	var maxInFlight float64
+	for _, interval := range data {
+		if sample, ok := interval.Samples["nomad.nomad.plan.outstanding_apply"]; ok {
+			if sample.Max > maxInFlight {
+				maxInFlight = sample.Max
+			}
+		}
+	}
+	must.Greater(t, 0.0, maxInFlight, must.Sprint("expected pipelined plans"))
+}
+
+func TestPlanApply_applyPlan_StaleSnapshotMissingEval(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, nil)
+	defer cleanup()
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+
+	// Register node
+	node := mock.Node()
+	testRegisterNode(t, srv, node)
+
+	// Seed the job needed by the allocation and plan
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	setupIndex := srv.raft.AppliedIndex()
+	must.NoError(t, srv.State().UpsertJobSummary(setupIndex, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, srv.State().UpsertJob(structs.MsgTypeTestSetup, setupIndex, nil, alloc.Job))
+
+	// Take the planner's optimistic snapshot before registering the eval
+	snap, err := srv.State().Snapshot()
+	must.NoError(t, err)
+
+	// Register eval - canonical state now contains the evaluation, but the older
+	// optimistic snapshot does not
+	eval := mock.Eval()
+	eval.JobID = alloc.JobID
+	eval.Namespace = alloc.Namespace
+	alloc.EvalID = eval.ID
+	must.NoError(t, srv.State().UpsertEvals(
+		structs.MsgTypeTestSetup,
+		setupIndex,
+		[]*structs.Evaluation{eval},
+	))
+
+	// Verify the snapshot reproduces the missing evaluation condition
+	snapshotEval, err := snap.EvalByID(nil, eval.ID)
+	must.NoError(t, err)
+	must.Nil(t, snapshotEval)
+
+	plan := &structs.Plan{
+		Job:    alloc.Job,
+		EvalID: eval.ID,
+	}
+	result := &structs.PlanResult{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+	}
+
+	// Applying the plan must succeed despite the evaluation being absent from the
+	// optimistic snapshot
+	future, err := srv.applyPlan(plan, result, snap)
+	must.NoError(t, err)
+	must.NoError(t, future.Error())
+	must.Nil(t, future.Response())
+
+	// Verify the rest of the plan was applied to the optimistic snapshot
+	optimisticAlloc, err := snap.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.NotNil(t, optimisticAlloc)
+
+	// Verify the Raft request retained EvalID and advanced the eval's ModifyIndex
+	// in canonical state
+	canonicalEval, err := srv.State().EvalByID(nil, eval.ID)
+	must.NoError(t, err)
+	must.NotNil(t, canonicalEval)
+	must.Eq(t, future.Index(), canonicalEval.ModifyIndex)
 }

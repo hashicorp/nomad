@@ -1,0 +1,41 @@
+# Copyright IBM Corp. 2015, 2026
+# SPDX-License-Identifier: BUSL-1.1
+
+rules:
+  - id: "no-insecure-hashes"
+    message: |
+      Insecure hashes like md5 or sha1 should not be used even for
+      non-cryptographic purposes, because these are forbidden by the Go
+      Cryptographic Module in FIPS-mode builds.
+
+      If this usage is intentional and properly gated by a fips140.Enabled() check,
+      ensure the check causes an early return before the hash function is called.
+    languages:
+      - "go"
+    severity: "WARNING"
+
+    patterns:
+      # Match any usage of insecure hash functions
+      - pattern-either:
+          - pattern: sha1.New()
+          - pattern: sha1.Sum(...)
+          - pattern: md5.New()
+          - pattern: md5.Sum(...)
+
+      # exclude if we only use hash if FIPS is not enabled
+      - pattern-not-inside: |
+          if !fips140.Enabled() {
+            ...
+          }
+
+      # exclude if we return early before hash if FIPS is enabled
+      - pattern-not-inside: |
+          if fips140.Enabled() {
+            return ...
+          }
+          ...
+      - pattern-not-inside: |
+          if fips140.Enabled() {
+            return ..., ...
+          }
+          ...

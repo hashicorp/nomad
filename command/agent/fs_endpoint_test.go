@@ -28,11 +28,11 @@ const (
 )
 
 var (
-	defaultLoggerMockDriver = map[string]interface{}{
+	defaultLoggerMockDriver = map[string]any{
 		"run_for":       "2s",
 		"stdout_string": defaultLoggerMockDriverStdout,
 	}
-	xssLoggerMockDriver = map[string]interface{}{
+	xssLoggerMockDriver = map[string]any{
 		"run_for":       "2s",
 		"stdout_string": xssLoggerMockDriverStdout,
 	}
@@ -101,7 +101,7 @@ func addAllocToClient(agent *TestAgent, alloc *structs.Allocation, wait clientAl
 
 // mockFSAlloc returns a suitable mock alloc for testing the fs system. If
 // config isn't provided, the defaultLoggerMockDriver config is used.
-func mockFSAlloc(nodeID string, config map[string]interface{}) *structs.Allocation {
+func mockFSAlloc(nodeID string, config map[string]any) *structs.Allocation {
 	a := mock.Alloc()
 	a.NodeID = nodeID
 	a.Job.Type = structs.JobTypeBatch

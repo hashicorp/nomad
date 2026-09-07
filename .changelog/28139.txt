@@ -1,0 +1,3 @@
+```release-note:bug
+api: allow using WI tokens on plan endpoint
+```

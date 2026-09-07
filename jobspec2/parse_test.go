@@ -5,13 +5,14 @@ package jobspec2
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParse_ConnectJob(t *testing.T) {
@@ -48,11 +49,11 @@ job "example" {
 		ArgVars: []string{"region_var=aug"},
 		AllowFS: true,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.Equal(t, []string{"DC1", "DC2"}, out.Datacenters)
-	require.NotNil(t, out.Region)
-	require.Equal(t, "aug", *out.Region)
+	must.Eq(t, []string{"DC1", "DC2"}, out.Datacenters)
+	must.NotNil(t, out.Region)
+	must.Eq(t, "aug", *out.Region)
 }
 
 func TestParse_VariablesDefaultsAndSet(t *testing.T) {
@@ -79,11 +80,11 @@ job "example" {
 			Body:    []byte(hcl),
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"default_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "default_region", *out.Region)
+		must.Eq(t, []string{"default_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "default_region", *out.Region)
 	})
 
 	t.Run("set via -var args", func(t *testing.T) {
@@ -93,11 +94,11 @@ job "example" {
 			ArgVars: []string{"dc_var=set_dc", "region_var=set_region"},
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"set_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region", *out.Region)
+		must.Eq(t, []string{"set_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region", *out.Region)
 	})
 
 	t.Run("set via envvars", func(t *testing.T) {
@@ -110,22 +111,22 @@ job "example" {
 			},
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"set_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region", *out.Region)
+		must.Eq(t, []string{"set_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region", *out.Region)
 	})
 
 	t.Run("set via var-files", func(t *testing.T) {
 		varFile, err := os.CreateTemp("", "")
-		require.NoError(t, err)
+		must.NoError(t, err)
 		defer os.Remove(varFile.Name())
 
 		content := `dc_var = "set_dc"
 	region_var = "set_region"`
 		_, err = varFile.WriteString(content)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		out, err := ParseWithConfig(&ParseConfig{
 			Path:     "input.hcl",
@@ -133,11 +134,11 @@ job "example" {
 			VarFiles: []string{varFile.Name()},
 			AllowFS:  true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"set_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region", *out.Region)
+		must.Eq(t, []string{"set_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region", *out.Region)
 	})
 
 	t.Run("var-file does not exist", func(t *testing.T) {
@@ -148,8 +149,8 @@ job "example" {
 			VarFiles: []string{"does-not-exist.hcl"},
 			AllowFS:  true,
 		})
-		require.Error(t, err)
-		require.Nil(t, out)
+		must.Error(t, err)
+		must.Nil(t, out)
 	})
 }
 
@@ -177,14 +178,14 @@ job "example" {
 		ArgVars: []string{"region_var=aug"},
 		AllowFS: true,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	meta := map[string]string{
 		"known_var":   "aug",
 		"unknown_var": "${UNKNOWN}",
 	}
 
-	require.Equal(t, meta, out.Meta)
+	must.Eq(t, meta, out.Meta)
 }
 
 // TestParse_UnsetVariables asserts that variables that have neither types nor
@@ -207,8 +208,8 @@ job "example" {
 		AllowFS: true,
 	})
 
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Unset variable")
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Unset variable")
 }
 
 func TestParse_Locals(t *testing.T) {
@@ -238,11 +239,11 @@ job "example" {
 			Body:    []byte(hcl),
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"local_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "default_region.example", *out.Region)
+		must.Eq(t, []string{"local_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "default_region.example", *out.Region)
 	})
 
 	t.Run("set via -var argments", func(t *testing.T) {
@@ -252,11 +253,11 @@ job "example" {
 			ArgVars: []string{"region_var=set_region"},
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, []string{"local_dc"}, out.Datacenters)
-		require.NotNil(t, out.Region)
-		require.Equal(t, "set_region.example", *out.Region)
+		must.Eq(t, []string{"local_dc"}, out.Datacenters)
+		must.NotNil(t, out.Region)
+		must.Eq(t, "set_region.example", *out.Region)
 	})
 }
 
@@ -276,13 +277,13 @@ job "example" {
 			ArgVars: nil,
 			AllowFS: true,
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		expected, err := os.ReadFile("parse_test.go")
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.NotNil(t, out.Region)
-		require.Equal(t, string(expected), *out.Region)
+		must.NotNil(t, out.Region)
+		must.Eq(t, string(expected), *out.Region)
 	})
 
 	t.Run("disabled", func(t *testing.T) {
@@ -292,8 +293,8 @@ job "example" {
 			ArgVars: nil,
 			AllowFS: false,
 		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "filesystem function disabled")
+		must.Error(t, err)
+		must.ErrorContains(t, err, "filesystem function disabled")
 	})
 }
 
@@ -343,21 +344,21 @@ job "example" {
 		ArgVars: nil,
 		AllowFS: false,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.Len(t, out.TaskGroups, 3)
-	require.Equal(t, "groupA", *out.TaskGroups[0].Name)
-	require.Equal(t, "groupB", *out.TaskGroups[1].Name)
-	require.Equal(t, "groupC", *out.TaskGroups[2].Name)
-	require.Equal(t, 1, *out.TaskGroups[0].Tasks[0].Resources.CPU)
-	require.Equal(t, "groupA", out.TaskGroups[0].Services[0].PortLabel)
+	must.Len(t, 3, out.TaskGroups)
+	must.Eq(t, "groupA", *out.TaskGroups[0].Name)
+	must.Eq(t, "groupB", *out.TaskGroups[1].Name)
+	must.Eq(t, "groupC", *out.TaskGroups[2].Name)
+	must.Eq(t, 1, *out.TaskGroups[0].Tasks[0].Resources.CPU)
+	must.Eq(t, "groupA", out.TaskGroups[0].Services[0].PortLabel)
 
 	// interpolation inside maps
-	require.Equal(t, "groupA", out.TaskGroups[0].Tasks[0].Config["command"])
-	require.Equal(t, "1", out.TaskGroups[0].Tasks[0].Meta["VERSION"])
-	require.Equal(t, "id:1", out.TaskGroups[0].Tasks[0].Env["ID"])
-	require.Equal(t, "id:2", out.TaskGroups[1].Tasks[0].Env["ID"])
-	require.Equal(t, "3", out.TaskGroups[2].Tasks[0].Meta["VERSION"])
+	must.Eq(t, "groupA", out.TaskGroups[0].Tasks[0].Config["command"])
+	must.Eq(t, "1", out.TaskGroups[0].Tasks[0].Meta["VERSION"])
+	must.Eq(t, "id:1", out.TaskGroups[0].Tasks[0].Env["ID"])
+	must.Eq(t, "id:2", out.TaskGroups[1].Tasks[0].Env["ID"])
+	must.Eq(t, "3", out.TaskGroups[2].Tasks[0].Meta["VERSION"])
 }
 
 func TestParse_InvalidHCL(t *testing.T) {
@@ -372,17 +373,17 @@ func TestParse_InvalidHCL(t *testing.T) {
 			ArgVars: []string{},
 			AllowFS: true,
 		})
-		require.Error(t, err)
+		must.Error(t, err)
 	})
 
 	t.Run("invalid vars file", func(t *testing.T) {
 		tmp, err := os.CreateTemp("", "nomad-jobspec2-")
-		require.NoError(t, err)
+		must.NoError(t, err)
 		defer os.Remove(tmp.Name())
 
 		vars := `invalid{hcl`
 		_, err = tmp.Write([]byte(vars))
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		hcl := `
 variables {
@@ -401,7 +402,7 @@ job "example" {
 			ArgVars:  []string{},
 			AllowFS:  true,
 		})
-		require.Error(t, err)
+		must.Error(t, err)
 	})
 }
 
@@ -562,10 +563,10 @@ job "example" {
 				AllowFS: false,
 			})
 			if c.expectedErr == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), c.expectedErr)
+				must.Error(t, err)
+				must.ErrorContains(t, err, c.expectedErr)
 			}
 		})
 	}
@@ -611,22 +612,22 @@ job "job-webserver" {
 		{
 			"prod",
 			&api.Job{
-				ID:          pointerOf("job-webserver"),
-				Name:        pointerOf("job-webserver"),
+				ID:          new("job-webserver"),
+				Name:        new("job-webserver"),
 				Datacenters: []string{"prod-dc1", "prod-dc2"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  pointerOf("group-webserver"),
-						Count: pointerOf(20),
+						Name:  new("group-webserver"),
+						Count: new(20),
 
 						Tasks: []*api.Task{
 							{
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from prod"},
+									"args":  []any{"-text", "Hello from prod"},
 								},
 							},
 						},
@@ -637,22 +638,22 @@ job "job-webserver" {
 		{
 			"staging",
 			&api.Job{
-				ID:          pointerOf("job-webserver"),
-				Name:        pointerOf("job-webserver"),
+				ID:          new("job-webserver"),
+				Name:        new("job-webserver"),
 				Datacenters: []string{"dc1"},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  pointerOf("group-webserver"),
-						Count: pointerOf(3),
+						Name:  new("group-webserver"),
+						Count: new(3),
 
 						Tasks: []*api.Task{
 							{
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from staging"},
+									"args":  []any{"-text", "Hello from staging"},
 								},
 							},
 						},
@@ -663,22 +664,22 @@ job "job-webserver" {
 		{
 			"unknown",
 			&api.Job{
-				ID:          pointerOf("job-webserver"),
-				Name:        pointerOf("job-webserver"),
+				ID:          new("job-webserver"),
+				Name:        new("job-webserver"),
 				Datacenters: []string{},
 				TaskGroups: []*api.TaskGroup{
 					{
-						Name:  pointerOf("group-webserver"),
-						Count: pointerOf(0),
+						Name:  new("group-webserver"),
+						Count: new(0),
 
 						Tasks: []*api.Task{
 							{
 								Name:   "server",
 								Driver: "docker",
 
-								Config: map[string]interface{}{
+								Config: map[string]any{
 									"image": "hashicorp/http-echo",
-									"args":  []interface{}{"-text", "Hello from unknown"},
+									"args":  []any{"-text", "Hello from unknown"},
 								},
 							},
 						},
@@ -696,8 +697,8 @@ job "job-webserver" {
 				AllowFS: false,
 				ArgVars: []string{"env=" + c.env},
 			})
-			require.NoError(t, err)
-			require.Equal(t, c.expectedJob, found)
+			must.NoError(t, err)
+			must.Eq(t, c.expectedJob, found)
 		})
 	}
 }
@@ -770,9 +771,9 @@ job "example" {
 				Path: "input.hcl",
 				Body: []byte(hcl),
 			})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			require.Equal(t, c.expected, out.TaskGroups[0].Tasks[0].Env)
+			must.Eq(t, c.expected, out.TaskGroups[0].Tasks[0].Env)
 		})
 	}
 }
@@ -799,8 +800,8 @@ job "example" {
 		Path: "input.hcl",
 		Body: []byte(hcl),
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "Duplicate env block")
+	must.Error(t, err)
+	must.ErrorContains(t, err, "Duplicate env block")
 }
 
 func Test_TaskEnvs_Invalid(t *testing.T) {
@@ -847,8 +848,8 @@ job "example" {
 				Path: "input.hcl",
 				Body: []byte(hcl),
 			})
-			require.Error(t, err)
-			require.Contains(t, err.Error(), c.expectedErr)
+			must.Error(t, err)
+			must.ErrorContains(t, err, c.expectedErr)
 		})
 	}
 }
@@ -883,21 +884,21 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 		Path: "input.hcl",
 		Body: []byte(hcl),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	hclAsAttr := strings.ReplaceAll(hcl, "meta {", "meta = {")
-	require.Equal(t, 3, strings.Count(hclAsAttr, "meta = {"))
+	must.Eq(t, 3, strings.Count(hclAsAttr, "meta = {"))
 
 	asAttr, err := ParseWithConfig(&ParseConfig{
 		Path: "input.hcl",
 		Body: []byte(hclAsAttr),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.Equal(t, asBlock, asAttr)
-	require.Equal(t, map[string]string{"source": "job"}, asBlock.Meta)
-	require.Equal(t, map[string]string{"source": "group"}, asBlock.TaskGroups[0].Meta)
-	require.Equal(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
+	must.Eq(t, asBlock, asAttr)
+	must.Eq(t, map[string]string{"source": "job"}, asBlock.Meta)
+	must.Eq(t, map[string]string{"source": "group"}, asBlock.TaskGroups[0].Meta)
+	must.Eq(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
 
 }
 
@@ -1025,9 +1026,9 @@ func TestParse_UndefinedVariables(t *testing.T) {
 				Path: "input.hcl",
 				Body: []byte(hcl),
 			})
-			require.NoError(t, err)
+			must.NoError(t, err)
 
-			require.Equal(t, c, *job.Region)
+			must.Eq(t, c, *job.Region)
 		})
 	}
 
@@ -1040,9 +1041,9 @@ func TestParse_UndefinedVariables(t *testing.T) {
 			Path: "input.hcl",
 			Body: []byte(hcl),
 		})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		require.Equal(t, "${meta.mytest}", *job.Region)
+		must.Eq(t, "${meta.mytest}", *job.Region)
 
 	})
 }
@@ -1069,14 +1070,14 @@ func TestParseServiceCheck(t *testing.T) {
 		Path: "input.hcl",
 		Body: []byte(hcl),
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	expectedJob := &api.Job{
-		ID:   pointerOf("group_service_check_script"),
-		Name: pointerOf("group_service_check_script"),
+		ID:   new("group_service_check_script"),
+		Name: new("group_service_check_script"),
 		TaskGroups: []*api.TaskGroup{
 			{
-				Name: pointerOf("group"),
+				Name: new("group"),
 				Services: []*api.Service{
 					{
 						Name:      "foo-service",
@@ -1095,14 +1096,14 @@ func TestParseServiceCheck(t *testing.T) {
 		},
 	}
 
-	require.Equal(t, expectedJob, parsedJob)
+	must.Eq(t, expectedJob, parsedJob)
 }
 
 func TestWaitConfig(t *testing.T) {
 	t.Parallel()
 
 	hclBytes, err := os.ReadFile("test-fixtures/template-wait-config.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	job, err := ParseWithConfig(&ParseConfig{
 		Path:    "test-fixtures/template-wait-config.hcl",
@@ -1110,47 +1111,47 @@ func TestWaitConfig(t *testing.T) {
 		AllowFS: false,
 	})
 
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
-	require.NotNil(t, tmpl)
-	require.NotNil(t, tmpl.Wait)
-	require.Equal(t, 5*time.Second, *tmpl.Wait.Min)
-	require.Equal(t, 60*time.Second, *tmpl.Wait.Max)
+	must.NotNil(t, tmpl)
+	must.NotNil(t, tmpl.Wait)
+	must.Eq(t, 5*time.Second, *tmpl.Wait.Min)
+	must.Eq(t, 60*time.Second, *tmpl.Wait.Max)
 }
 
 func TestErrMissingKey(t *testing.T) {
 	t.Parallel()
 	hclBytes, err := os.ReadFile("test-fixtures/template-err-missing-key.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	job, err := ParseWithConfig(&ParseConfig{
 		Path:    "test-fixtures/template-err-missing-key.hcl",
 		Body:    hclBytes,
 		AllowFS: false,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	tmpl := job.TaskGroups[0].Tasks[0].Templates[0]
-	require.NotNil(t, tmpl)
-	require.NotNil(t, tmpl.ErrMissingKey)
-	require.True(t, *tmpl.ErrMissingKey)
+	must.NotNil(t, tmpl)
+	must.NotNil(t, tmpl.ErrMissingKey)
+	must.True(t, *tmpl.ErrMissingKey)
 }
 
 func TestRestartRenderTemplates(t *testing.T) {
 	t.Parallel()
 	hclBytes, err := os.ReadFile("test-fixtures/restart-render-templates.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	job, err := ParseWithConfig(&ParseConfig{
 		Path:    "test-fixtures/restart-render-templates.hcl",
 		Body:    hclBytes,
 		AllowFS: false,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 	tg := job.TaskGroups[0]
-	require.NotNil(t, tg.RestartPolicy)
-	require.True(t, *tg.RestartPolicy.RenderTemplates)
+	must.NotNil(t, tg.RestartPolicy)
+	must.True(t, *tg.RestartPolicy.RenderTemplates)
 
-	require.Nil(t, tg.Tasks[0].RestartPolicy)
-	require.False(t, *tg.Tasks[1].RestartPolicy.RenderTemplates)
+	must.Nil(t, tg.Tasks[0].RestartPolicy)
+	must.False(t, *tg.Tasks[1].RestartPolicy.RenderTemplates)
 }
 
 // TestIdentity asserts that the default identity will be moved from the
@@ -1179,4 +1180,229 @@ func TestIdentity(t *testing.T) {
 	must.Eq(t, "signal", altID.ChangeMode)
 	must.Eq(t, "sighup", altID.ChangeSignal)
 	must.Eq(t, 2*time.Hour, altID.TTL)
+}
+
+func TestParse_VariablesSubmission(t *testing.T) {
+	t.Parallel()
+
+	hcl := `
+# will come from -var args, overriding env
+variable "region" {
+  type = string
+}
+
+# will come from env
+variable "pool" {
+  type = string
+}
+
+# will come from var content
+variable "datacenters" {
+  type = list(string)
+}
+
+# will come from var file
+variable "ns" {
+  type = string
+}
+
+job "example" {
+  datacenters = var.datacenters
+  region      = var.region
+  node_pool   = var.pool
+  namespace   = var.ns
+}
+`
+
+	tmpDir := t.TempDir()
+	varFile := filepath.Join(tmpDir, "vars.hcl")
+	must.NoError(t, os.WriteFile(varFile, []byte(`ns = "infra"`), 0666))
+
+	out, err := ParseWithConfigEx(&ParseConfig{
+		Path:       "input.hcl",
+		Body:       []byte(hcl),
+		ArgVars:    []string{"region=philly", "pool=prod"}, // overrides env
+		VarContent: `datacenters = ["dc1", "dc2"]`,
+		VarFiles:   []string{varFile},
+		Envs:       []string{"NOMAD_VAR_region=seattle"},
+		Strict:     false,
+	})
+	must.NoError(t, err)
+
+	must.NotNil(t, out.Job.Namespace)
+	must.Eq(t, "infra", *out.Job.Namespace)
+
+	must.NotNil(t, out.Job.NodePool)
+	must.Eq(t, "prod", *out.Job.NodePool)
+
+	must.Eq(t, []string{"dc1", "dc2"}, out.Job.Datacenters)
+
+	must.NotNil(t, out.Job.Region)
+	must.Eq(t, "philly", *out.Job.Region)
+
+	must.Eq(t, `ns = "infra"
+
+datacenters = ["dc1", "dc2"]`, out.Submission.Variables)
+
+	must.MapEq(t, map[string]string{"region": "philly", "pool": "prod"}, out.Submission.VariableFlags)
+}
+
+func Test_extractVarFiles(t *testing.T) {
+	t.Parallel()
+
+	t.Run("none", func(t *testing.T) {
+		result, err := extractVarFiles(nil)
+		must.NoError(t, err)
+		must.Eq(t, "", result)
+	})
+
+	t.Run("files", func(t *testing.T) {
+		d := t.TempDir()
+		fileOne := filepath.Join(d, "one.hcl")
+		fileTwo := filepath.Join(d, "two.hcl")
+
+		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o644))
+		must.NoError(t, os.WriteFile(fileTwo, []byte(`baz = 42`), 0o644))
+
+		result, err := extractVarFiles([]string{fileOne, fileTwo})
+		must.NoError(t, err)
+		must.Eq(t, "foo = \"bar\"\nbaz = 42\n", result)
+	})
+
+	t.Run("unreadable", func(t *testing.T) {
+		if syscall.Geteuid() == 0 {
+			t.Skip("Test requires non-root")
+		}
+		d := t.TempDir()
+		fileOne := filepath.Join(d, "one.hcl")
+
+		must.NoError(t, os.WriteFile(fileOne, []byte(`foo = "bar"`), 0o200))
+
+		_, err := extractVarFiles([]string{fileOne})
+		must.ErrorContains(t, err, "permission denied")
+	})
+}
+
+func Test_extractVarFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		result := extractVarFlags(nil)
+		must.MapEmpty(t, result)
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		result := extractVarFlags([]string{"one=1", "two=2", "three"})
+		must.Eq(t, map[string]string{
+			"one":   "1",
+			"two":   "2",
+			"three": "",
+		}, result)
+	})
+}
+
+func Test_extractJobSpecEnvVars(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil", func(t *testing.T) {
+		must.MapEmpty(t, extractJobSpecEnvVars(nil))
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=13",
+			"GOPATH=/Users/jrasell/go",
+			"NOMAD_VAR_image=redis:7",
+		})
+		must.Eq(t, map[string]string{
+			"count": "13",
+			"image": "redis:7",
+		}, result)
+	})
+
+	t.Run("whitespace", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count = 13",
+			"GOPATH = /Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{
+			"count ": " 13",
+		}, result)
+	})
+
+	t.Run("empty key", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_=13",
+			"=/Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{}, result)
+	})
+
+	t.Run("empty value", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=",
+			"GOPATH=",
+		})
+		must.Eq(t, map[string]string{
+			"count": "",
+		}, result)
+	})
+}
+
+func TestParse_VariableValidationErrorMessage(t *testing.T) {
+	t.Parallel()
+
+	jobWith := func(errMsg string) []byte {
+		return []byte(`
+variable "build_id" {
+  type    = string
+  default = "12345"
+  validation {
+    condition     = var.build_id != ""
+    error_message = "` + errMsg + `"
+  }
+}
+
+job "example" {
+  datacenters = ["dc1"]
+}
+`)
+	}
+
+	t.Run("non-English message is accepted", func(t *testing.T) {
+		// Japanese for "Please check the build number"; see issue #15075.
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith("ビルド番号を確認してください"),
+			AllowFS: true,
+		})
+		must.NoError(t, err)
+	})
+
+	t.Run("message without a trailing period is accepted", func(t *testing.T) {
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith("build id is required"),
+			AllowFS: true,
+		})
+		must.NoError(t, err)
+	})
+
+	t.Run("empty message is rejected", func(t *testing.T) {
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith(""),
+			AllowFS: true,
+		})
+		must.ErrorContains(t, err, "Invalid validation error message")
+	})
+
+	t.Run("blank message is rejected", func(t *testing.T) {
+		_, err := ParseWithConfig(&ParseConfig{
+			Path:    "input.hcl",
+			Body:    jobWith("   "),
+			AllowFS: true,
+		})
+		must.ErrorContains(t, err, "Invalid validation error message")
+	})
 }

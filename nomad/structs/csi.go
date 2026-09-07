@@ -536,15 +536,9 @@ func (v *CSIVolume) Copy() *CSIVolume {
 	if v.MountOptions != nil {
 		*out.MountOptions = *v.MountOptions
 	}
-	for k, v := range v.Secrets {
-		out.Secrets[k] = v
-	}
-	for k, v := range v.Parameters {
-		out.Parameters[k] = v
-	}
-	for k, v := range v.Context {
-		out.Context[k] = v
-	}
+	maps.Copy(out.Secrets, v.Secrets)
+	maps.Copy(out.Parameters, v.Parameters)
+	maps.Copy(out.Context, v.Context)
 
 	for k, alloc := range v.ReadAllocs {
 		out.ReadAllocs[k] = alloc.Copy()
@@ -732,13 +726,7 @@ func (v *CSIVolume) Equal(o *CSIVolume) bool {
 		// Setwise equality of topologies
 		var ok bool
 		for _, t := range v.Topologies {
-			ok = false
-			for _, u := range o.Topologies {
-				if t.Equal(u) {
-					ok = true
-					break
-				}
-			}
+			ok = slices.ContainsFunc(o.Topologies, t.Equal)
 			if !ok {
 				return false
 			}
@@ -1544,9 +1532,7 @@ type JobNamespacedDescriptions map[string]JobDescription
 
 func (j JobNamespacedDescriptions) Copy() JobNamespacedDescriptions {
 	copy := JobNamespacedDescriptions{}
-	for k, v := range j {
-		copy[k] = v
-	}
+	maps.Copy(copy, j)
 	return copy
 }
 

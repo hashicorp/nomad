@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/nomad/scheduler/tests"
@@ -102,7 +103,7 @@ func TestServiceSched_JobRegister(t *testing.T) {
 	allocNames := helper.ConvertSlice(out,
 		func(alloc *structs.Allocation) string { return alloc.Name })
 	expectAllocNames := []string{}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		expectAllocNames = append(expectAllocNames, fmt.Sprintf("%s.web[%d]", job.ID, i))
 	}
 	must.SliceContainsAll(t, expectAllocNames, allocNames)
@@ -476,6 +477,57 @@ func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {
 	must.SliceLen(t, 10, newPlanned)
 }
 
+func TestServiceSched_JobRegister_StickyStaticHostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	// A node with a static host volume (its ID is empty).
+	node := mock.Node()
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {Name: "foo"}}
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// A job that requests the static volume with sticky, which is only valid for
+	// dynamic host volumes.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:   "host",
+			Source: "foo",
+			Sticky: true,
+		},
+	}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// Nothing is placed, so the scheduler submits no plan.
+	must.SliceLen(t, 0, h.Plans)
+
+	// The unplaced allocation spawns a blocked eval, and the node is filtered
+	// out for the host volume constraint.
+	must.SliceLen(t, 1, h.CreateEvals)
+	must.Eq(t, structs.EvalStatusBlocked, h.CreateEvals[0].Status)
+
+	must.SliceLen(t, 1, h.Evals)
+	outEval := h.Evals[0]
+	must.MapLen(t, 1, outEval.FailedTGAllocs)
+	metrics := outEval.FailedTGAllocs[job.TaskGroups[0].Name]
+	must.NotNil(t, metrics)
+	must.MapContainsKey(t, metrics.ConstraintFiltered, feasible.FilterConstraintHostVolumes)
+}
+
 func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 	ci.Parallel(t)
 
@@ -558,7 +610,7 @@ func TestServiceSched_JobRegister_DistinctHosts(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -642,7 +694,7 @@ func TestServiceSched_JobRegister_DistinctProperty(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		node := mock.Node()
 		rack := "rack2"
 		if i < 5 {
@@ -741,7 +793,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		node := mock.Node()
 		node.Meta["ssd"] = "true"
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -833,7 +885,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -841,7 +893,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 
 	// Create some allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -905,7 +957,7 @@ func TestServiceSched_Spread(t *testing.T) {
 	start := uint8(100)
 	step := uint8(10)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		name := fmt.Sprintf("%d%% in dc1", start)
 		t.Run(name, func(t *testing.T) {
 			h := tests.NewHarness(t)
@@ -933,7 +985,7 @@ func TestServiceSched_Spread(t *testing.T) {
 			// Create some nodes, half in dc2
 			var nodes []*structs.Node
 			nodeMap := make(map[string]*structs.Node)
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				node := mock.Node()
 				if i%2 == 0 {
 					node.Datacenter = "dc2"
@@ -1015,7 +1067,7 @@ func TestServiceSched_Spread_NodeLimitForFeasibilityChecks(t *testing.T) {
 		&structs.Spread{Attribute: "${node.datacenter}", Weight: 100})
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), mock.Node()))
 	}
 
@@ -1311,7 +1363,7 @@ func TestServiceSched_EvenSpread(t *testing.T) {
 	// Create some nodes, half in dc2
 	var nodes []*structs.Node
 	nodeMap := make(map[string]*structs.Node)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		node := mock.Node()
 		if i%2 == 0 {
 			node.Datacenter = "dc2"
@@ -1373,7 +1425,7 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -1453,7 +1505,7 @@ func TestServiceSched_JobRegister_CountZero(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -1841,7 +1893,7 @@ func TestServiceSched_JobRegister_SchedulerAlgorithm(t *testing.T) {
 
 				// Create two test nodes. Use two to prevent flakiness due to
 				// the scheduler shuffling nodes.
-				for i := 0; i < 2; i++ {
+				for range 2 {
 					node := mock.Node()
 					node.NodePool = tc.nodePool
 					must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -2089,7 +2141,7 @@ func TestServiceSched_EvaluateBlockedEval_Finished(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -2177,7 +2229,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -2188,7 +2240,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2200,7 +2252,7 @@ func TestServiceSched_JobModify(t *testing.T) {
 
 	// Add a few terminal status allocations, these should be ignored
 	var terminal []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2282,7 +2334,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndex(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
@@ -2295,7 +2347,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndex(t *testing.T) {
 	// Generate some allocations which will represent our pre-existing
 	// allocations. These have aggressive duplicate names.
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = mockJob
 		alloc.JobID = mockJob.ID
@@ -2359,7 +2411,7 @@ func TestServiceSched_JobModify_ProposedDuplicateAllocIndex(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
@@ -2377,7 +2429,7 @@ func TestServiceSched_JobModify_ProposedDuplicateAllocIndex(t *testing.T) {
 	// Generate some allocations which will represent our pre-existing
 	// allocations.
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.MinAlloc()
 		alloc.Namespace = structs.DefaultNamespace
 		alloc.Job = mockJob
@@ -2491,7 +2543,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndexNonDestructive(t *tes
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
@@ -2508,7 +2560,7 @@ func TestServiceSched_JobModify_ExistingDuplicateAllocIndexNonDestructive(t *tes
 		allocs   []*structs.Allocation
 		allocIDs []string
 	)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.MinAlloc()
 		alloc.Namespace = structs.DefaultNamespace
 		alloc.Job = mockJob
@@ -2595,7 +2647,7 @@ func TestServiceSched_JobModify_Datacenters(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2846,7 +2898,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -2857,7 +2909,7 @@ func TestServiceSched_JobModify_Rolling(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3076,7 +3128,7 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -3087,7 +3139,7 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3200,7 +3252,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -3229,7 +3281,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 
 	// Create allocs that are part of the old deployment
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.AllocForNode(nodes[i])
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3516,7 +3568,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		node := mock.Node()
 		node.Meta["rack"] = fmt.Sprintf("rack%d", i)
 		nodes = append(nodes, node)
@@ -3540,7 +3592,7 @@ func TestServiceSched_JobModify_DistinctProperty(t *testing.T) {
 
 	// Place 4 of 10
 	var allocs []*structs.Allocation
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		alloc := mock.Alloc()
 		alloc.Job = oldJob
 		alloc.JobID = job.ID
@@ -3630,7 +3682,7 @@ func TestServiceSched_JobModify_NodeReschedulePenalty(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -3652,7 +3704,7 @@ func TestServiceSched_JobModify_NodeReschedulePenalty(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3760,7 +3812,7 @@ func TestServiceSched_JobDeregister_Purged(t *testing.T) {
 	job := mock.Job()
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3831,7 +3883,7 @@ func TestServiceSched_JobDeregister_Stopped(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job.Copy()))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4209,7 +4261,7 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4221,7 +4273,7 @@ func TestServiceSched_NodeUpdate(t *testing.T) {
 
 	// Mark some allocs as running
 	ws := memdb.NewWatchSet()
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		out, _ := h.State.AllocByID(ws, allocs[i].ID)
 		out.ClientStatus = structs.AllocClientStatusRunning
 
@@ -4266,7 +4318,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -4276,7 +4328,7 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4354,7 +4406,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4366,7 +4418,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 
 	// Set the desired state of the allocs to stop
 	var stop []*structs.Allocation
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		newAlloc := allocs[i].Copy()
 		newAlloc.ClientStatus = structs.AllocDesiredStatusStop
 		newAlloc.DesiredTransition.Migrate = new(true)
@@ -4448,7 +4500,7 @@ func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	sort.Strings(lostAllocs)
 
 	var expectedLostAllocs []string
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		expectedLostAllocs = append(expectedLostAllocs, allocs[i].ID)
 	}
 	sort.Strings(expectedLostAllocs)
@@ -4590,7 +4642,7 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4635,7 +4687,7 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	h.Planner = &tests.RejectPlan{h}
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -4680,6 +4732,53 @@ func TestServiceSched_RetryLimit(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusFailed)
 }
 
+// TestServiceSched_RetryLimit_DeploymentIDCleared ensures that when all plan
+// submissions are rejected (e.g. due to quota exhaustion), the final eval does
+// not carry a deployment ID referencing a deployment that was never persisted
+// to state.
+func TestServiceSched_RetryLimit_DeploymentIDCleared(t *testing.T) {
+	ci.Parallel(t)
+
+	// Setup a harness with a planner that rejects all plans, so that the
+	// scheduler will hit the retry limit.
+	h := tests.NewHarness(t)
+	h.Planner = &tests.RejectPlan{Harness: h}
+
+	// Create nodes so that placement is actually attempted.
+	for range 10 {
+		node := mock.Node()
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Use a job with an update strategy so that the reconciler creates a
+	// deployment object in memory during scheduling.
+	job := mock.Job()
+	update := *structs.DefaultUpdateStrategy
+	job.Update = update
+	job.TaskGroups[0].Update = &update
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// The eval should have been marked failed as it would have hit the retry
+	// limit after all plan submissions were rejected.
+	h.AssertEvalStatus(t, structs.EvalStatusFailed)
+
+	// The final eval must not reference a deployment that was never persisted.
+	must.Len(t, 1, h.Evals)
+	must.StrEqFold(t, "", h.Evals[0].DeploymentID)
+}
+
 func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	ci.Parallel(t)
 
@@ -4687,7 +4786,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -4709,7 +4808,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4799,7 +4898,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 	h := tests.NewHarness(t)
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -4822,7 +4921,7 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4889,7 +4988,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -4911,7 +5010,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.ClientStatus = structs.AllocClientStatusRunning
 		alloc.Job = job
@@ -4945,7 +5044,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	failedAllocId := allocs[1].ID
 	failedNodeID := allocs[1].NodeID
 
-	for i := 0; i < maxRestartAttempts; i++ {
+	for range maxRestartAttempts {
 		// Process the evaluation
 		err := h.Process(NewServiceScheduler, eval)
 		must.NoError(t, err)
@@ -5325,7 +5424,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -5343,7 +5442,7 @@ func TestServiceSched_Reschedule_PruneEvents(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5458,7 +5557,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 			h := tests.NewHarness(t)
 			// Create some nodes
 			var nodes []*structs.Node
-			for i := 0; i < 10; i++ {
+			for range 10 {
 				node := mock.Node()
 				nodes = append(nodes, node)
 				must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -5485,7 +5584,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 			must.NoError(t, h.State.UpsertDeployment(h.NextIndex(), deployment))
 
 			var allocs []*structs.Allocation
-			for i := 0; i < 2; i++ {
+			for i := range 2 {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
@@ -5893,7 +5992,7 @@ func TestBatchSched_JobModify_InPlace_Terminal(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -5905,7 +6004,7 @@ func TestBatchSched_JobModify_InPlace_Terminal(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5947,7 +6046,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 
 	// Create some nodes
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		nodes = append(nodes, node)
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
@@ -5959,7 +6058,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5979,7 +6078,7 @@ func TestBatchSched_JobModify_Destructive_Terminal(t *testing.T) {
 	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	allocs = nil
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job2
 		alloc.JobID = job2.ID
@@ -6194,7 +6293,7 @@ func TestBatchSched_ScaleDown_SameName(t *testing.T) {
 	}
 	// Create a few running alloc
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		alloc := mock.AllocForNodeWithoutReservedPort(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -6423,7 +6522,7 @@ func TestGenericSched_ChainedAlloc(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		node := mock.Node()
 		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
@@ -7216,7 +7315,7 @@ func TestServiceSched_Migrate_CanaryStatus(t *testing.T) {
 	must.NoError(t, h.State.UpsertDeployment(h.NextIndex(), deployment))
 
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.AllocForNodeWithoutReservedPort(node1)
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -7547,7 +7646,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 	h := tests.NewHarness(t)
 
 	// Create some nodes, each running the CSI plugin
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		node := mock.Node()
 		node.CSINodePlugins = map[string]*structs.CSIInfo{
 			"test-plugin": {
@@ -7666,7 +7765,7 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 		must.Sprint("expected a blocked eval to be spawned"))
 	must.Eq(t, 2, h.Evals[1].QueuedAllocations["web"], must.Sprint("expected 2 queued allocs"))
 	must.Eq(t, 5, h.Evals[1].FailedTGAllocs["web"].
-		ConstraintFiltered["missing CSI Volume volume-unique[3]"])
+		ConstraintFiltered["missing CSI volume(s) volume-unique[3]"])
 
 	// Upsert 2 more per-alloc volumes
 	vol4 := vol0.Copy()
@@ -7709,6 +7808,93 @@ func TestServiceSched_CSIVolumesPerAlloc(t *testing.T) {
 
 }
 
+// Tests that when more than one alloc in a per_alloc-volume task group
+// fails placement in the same eval, FailedTGAllocs reflects all of the
+// distinct failures, not just whichever alloc was evaluated last.
+func TestServiceSched_CSIVolumesPerAlloc_MergedFailures(t *testing.T) {
+	ci.Parallel(t)
+
+	h := tests.NewHarness(t)
+
+	// Create nodes running the CSI plugin, capped so that placement fails
+	// only because the per-alloc volumes are missing, not because of
+	// unrelated resource exhaustion.
+	for range 5 {
+		node := mock.Node()
+		node.CSINodePlugins = map[string]*structs.CSIInfo{
+			"test-plugin": {
+				PluginID: "test-plugin",
+				Healthy:  true,
+				NodeInfo: &structs.CSINodeInfo{MaxVolumes: 2},
+			},
+		}
+		must.NoError(t, h.State.UpsertNode(
+			structs.MsgTypeTestSetup, h.NextIndex(), node))
+	}
+
+	// Only volume-unique[0] exists. A 3-count job needs indices 0, 1, and 2,
+	// so allocs for index 1 and index 2 will both fail to place, each for a
+	// different missing volume.
+	vol0 := structs.NewCSIVolume("volume-unique[0]", 0)
+	vol0.PluginID = "test-plugin"
+	vol0.Namespace = structs.DefaultNamespace
+	vol0.AccessMode = structs.CSIVolumeAccessModeSingleNodeWriter
+	vol0.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
+
+	must.NoError(t, h.State.UpsertCSIVolume(
+		h.NextIndex(), []*structs.CSIVolume{vol0}))
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"unique": {
+			Type:     "csi",
+			Name:     "unique",
+			Source:   "volume-unique",
+			PerAlloc: true,
+		},
+	}
+	// Volumes were added after mock.Job() already canonicalized the job, so
+	// HasPerAllocVolumes must be recomputed here to match what real job
+	// registration does (Job.Register always canonicalizes on the way in).
+	job.Canonicalize()
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	err := h.Process(NewServiceScheduler, eval)
+	must.NoError(t, err)
+	must.Len(t, 1, h.Evals, must.Sprint("expected one eval"))
+
+	// Only one alloc (index 0) should have placed.
+	out, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 1, out, must.Sprint("expected 1 placed allocation"))
+
+	// Expect a blocked eval, since 2 allocs are still queued.
+	must.NotEq(t, "", h.Evals[0].BlockedEval,
+		must.Sprint("expected a blocked eval to be spawned"))
+	must.Eq(t, 2, h.Evals[0].QueuedAllocations["web"],
+		must.Sprint("expected 2 queued allocs"))
+
+	// Both missing-volume failures should be present in the merged metric.
+	metric := h.Evals[0].FailedTGAllocs["web"]
+	must.NotNil(t, metric, must.Sprint("expected a failed TG alloc metric for \"web\""))
+	must.Eq(t, 5, metric.ConstraintFiltered["missing CSI volume(s) volume-unique[1]"],
+		must.Sprint("expected the index 1 volume failure to be present in the merged metric"))
+	must.Eq(t, 5, metric.ConstraintFiltered["missing CSI volume(s) volume-unique[2]"],
+		must.Sprint("expected the index 2 volume failure to be present in the merged metric"))
+}
+
 func TestServiceSched_CSITopology(t *testing.T) {
 	ci.Parallel(t)
 	h := tests.NewHarness(t)
@@ -7717,7 +7903,7 @@ func TestServiceSched_CSITopology(t *testing.T) {
 
 	// Create some nodes, each running a CSI plugin with topology for
 	// a different "zone"
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		node := mock.Node()
 		node.Datacenter = zones[i%4]
 		node.CSINodePlugins = map[string]*structs.CSIInfo{
@@ -7910,7 +8096,7 @@ func TestServiceSched_ReservedCores_InPlace(t *testing.T) {
 
 	// Create running allocations on existing cores
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.AllocForNodeWithoutReservedPort(node)
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -8013,4 +8199,201 @@ func initNodeAndAllocs(t *testing.T, h *tests.Harness, job *structs.Job,
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 	return node, job, allocs
 
+}
+
+// TestReconciler_RescheduleBadStates is a regression test designed to catch bad
+// behavior in the scheduler when faced with states that should be impossible.
+func TestReconciler_RescheduleBadStates(t *testing.T) {
+	ci.Parallel(t)
+
+	// 2 healthy nodes and a job with a disconnect block
+	node0 := mock.Node()
+	node1 := mock.Node()
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: time.Hour,
+		Replace:   new(true),
+	}
+
+	eval0 := mock.Eval()
+	eval0.TriggeredBy = structs.EvalTriggerNodeUpdate
+	eval0.JobID = job.ID
+
+	alloc0 := mock.MinAllocForJob(job)
+	alloc1 := mock.MinAllocForJob(job)
+
+	alloc0.NodeID = node0.ID
+	alloc0.FollowupEvalID = eval0.ID
+	alloc0.NextAllocation = alloc1.ID
+
+	alloc1.NodeID = node1.ID
+	alloc1.PreviousAllocation = alloc0.ID
+
+	// helper for flattening placements/stops
+	unpackPlan := func(plan *structs.Plan) (place, stop []string) {
+		for _, allocs := range plan.NodeAllocation {
+			for _, alloc := range allocs {
+				place = append(place, alloc.ID[:8])
+			}
+		}
+		for _, allocs := range plan.NodeUpdate {
+			for _, alloc := range allocs {
+				stop = append(stop, alloc.ID[:8])
+			}
+		}
+		return
+	}
+
+	testCases := []struct {
+		name        string
+		setupFn     func(*structs.Allocation)
+		expectPlace int
+		expectStop  int
+	}{
+		{
+			// this state is a baseline "normal state"
+			name: "0 unknown with next allocation set",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: "unknown",
+					Time:  time.Now(),
+				}}
+			},
+			expectPlace: 0,
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "1 unknown with weird alloc states",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.AllocStates = []*structs.AllocState{
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "unknown",
+						Time:  time.Now(),
+					},
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "",
+						Time:  time.Now(),
+					},
+				}
+			},
+			expectPlace: 0,
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "2 impossible unknown with force reschedule",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.DesiredTransition.ForceReschedule = new(true)
+				a0.AllocStates = []*structs.AllocState{{
+					Field: structs.AllocStateFieldClientStatus,
+					Value: "unknown",
+					Time:  time.Now(),
+				}}
+			},
+			expectPlace: 0, // should not replace because we already have 1
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "3 impossible running with force reschedule",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusRunning
+				a0.DesiredTransition.ForceReschedule = new(true)
+				a0.RescheduleTracker = &structs.RescheduleTracker{
+					Events:         []*structs.RescheduleEvent{{}},
+					LastReschedule: "ok",
+				}
+			},
+			expectPlace: 0, // should not replace because we already have 1
+			expectStop:  1, // stop 1 because we've reconnected
+		},
+
+		{
+			name: "4 impossible unknown with force reschedule and weird alloc states",
+			setupFn: func(a0 *structs.Allocation) {
+				a0.ClientStatus = structs.AllocClientStatusUnknown
+				a0.DesiredTransition.ForceReschedule = new(true)
+				a0.AllocStates = []*structs.AllocState{
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "unknown",
+						Time:  time.Now(),
+					},
+					{
+						Field: structs.AllocStateFieldClientStatus,
+						Value: "",
+						Time:  time.Now(),
+					},
+				}
+			},
+			expectPlace: 0,
+			expectStop:  1, // stop 1 because we have 1 running
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := tests.NewHarness(t)
+			must.NoError(t, h.State.UpsertNode(
+				structs.MsgTypeTestSetup, h.NextIndex(), node0))
+			must.NoError(t, h.State.UpsertNode(
+				structs.MsgTypeTestSetup, h.NextIndex(), node1))
+			must.NoError(t, h.State.UpsertJob(
+				structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+			must.NoError(t, h.State.UpsertJobSummary(
+				h.NextIndex(), mock.JobSummary(job.ID)))
+
+			alloc0 := alloc0.Copy()
+			alloc1 := alloc1.Copy()
+			tc.setupFn(alloc0)
+
+			t.Logf("alloc0=%s", alloc0.ID[:8])
+			t.Logf("alloc1=%s", alloc1.ID[:8])
+
+			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+				h.NextIndex(), []*structs.Allocation{alloc0, alloc1}))
+
+			eval := eval0.Copy()
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+				h.NextIndex(), []*structs.Evaluation{eval}))
+
+			// first plan
+			must.NoError(t, h.Process(NewServiceScheduler, eval))
+			must.Len(t, 1, h.Plans, must.Sprint("expected a plan"))
+			place, stop := unpackPlan(h.Plans[0])
+			test.Len(t, tc.expectPlace, place, test.Sprint("wrong place count"))
+			test.Len(t, tc.expectStop, stop, test.Sprint("wrong stop count"))
+
+			// continue to run more evals to demonstrate extra plans and excess
+			// allocations
+			var lastPlanCount int
+			for {
+				lastPlanCount = len(h.Plans)
+				eval := mock.Eval()
+				eval.TriggeredBy = structs.EvalTriggerNodeUpdate
+				eval.JobID = job.ID
+				must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+					h.NextIndex(), []*structs.Evaluation{eval}))
+				must.NoError(t, h.Process(NewServiceScheduler, eval))
+				if len(h.Plans) > 5 || len(h.Plans) == lastPlanCount {
+					break // no new plan, or enough to show runaway
+				}
+			}
+			for i, plan := range h.Plans {
+				place, stop := unpackPlan(plan)
+				t.Logf("plan[%d] place=%v stop=%v", i, place, stop)
+			}
+			if lastPlanCount > 1 {
+				t.Fatal("expected at most one plan")
+			}
+		})
+	}
 }

@@ -30,6 +30,10 @@ concurrency:
 jobs:
   scan:
     runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-22.04' }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     # The first check ensures this doesn't run on community-contributed PRs, who
     # won't have the permissions to run this job.
     if: ${{ (github.repository != 'hashicorp/nomad' || (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name))
@@ -66,7 +70,7 @@ jobs:
           jq . < results.sarif
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@8fd294e26a0e458834582b0fe4988d79966c7c0a # codeql-bundle-v2.18.4
+        uses: github/codeql-action/upload-sarif@c35d1b164463ee62a100735382aaaa525c5d3496 # codeql-bundle-v2.25.6
         with:
           sarif_file: results.sarif
 

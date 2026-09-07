@@ -1,0 +1,3 @@
+```release-note:bug
+quota (Enterprise): Fixed a bug where disabling the use of cores in a quota would block the ability to use either cores or CPU in a job
+```

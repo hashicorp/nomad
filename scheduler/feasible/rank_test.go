@@ -27,7 +27,7 @@ var testSchedulerConfig = &structs.SchedulerConfiguration{
 func TestFeasibleRankIterator(t *testing.T) {
 	_, ctx := MockContext(t)
 	var nodes []*structs.Node
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		nodes = append(nodes, mock.Node())
 	}
 	static := NewStaticIterator(ctx, nodes)
@@ -144,6 +144,70 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 	}
 	if out[1].FinalScore < 0.50 || out[1].FinalScore > 0.60 {
 		t.Fatalf("Bad Score: %v", out[1].FinalScore)
+	}
+}
+
+// TestBinPackIterator_memoryMax asserts that the memory_max value of a task is
+// propagated to the allocated task resources when memory oversubscription is
+// enabled, including the -1 sentinel that indicates there is no hard memory
+// limit.
+func TestBinPackIterator_memoryMax(t *testing.T) {
+	ci.Parallel(t)
+
+	legacyCpuResources, processorResources := tests.CpuResources(4096)
+
+	cases := []struct {
+		name        string
+		memoryMaxMB int
+		expected    int64
+	}{
+		{name: "no max", memoryMaxMB: 0, expected: 0},
+		{name: "explicit max", memoryMaxMB: 2048, expected: 2048},
+		{name: "no limit", memoryMaxMB: structs.MemoryNoLimit, expected: structs.MemoryNoLimit},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, ctx := MockContext(t)
+
+			nodes := []*RankedNode{
+				{
+					Node: &structs.Node{
+						NodeResources: &structs.NodeResources{
+							Processors: processorResources,
+							Cpu:        legacyCpuResources,
+							Memory: structs.NodeMemoryResources{
+								MemoryMB: 4096,
+							},
+						},
+					},
+				},
+			}
+			static := NewStaticRankIterator(ctx, nodes)
+
+			taskGroup := &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks: []*structs.Task{
+					{
+						Name: "web",
+						Resources: &structs.Resources{
+							CPU:         1024,
+							MemoryMB:    1024,
+							MemoryMaxMB: tc.memoryMaxMB,
+						},
+					},
+				},
+			}
+
+			binp := NewBinPackIterator(ctx, static, false, 0)
+			binp.SetTaskGroup(taskGroup)
+			binp.SetSchedulerConfiguration(testSchedulerConfig)
+
+			out := binp.Next()
+			must.NotNil(t, out)
+			must.MapContainsKey(t, out.TaskResources, "web")
+			must.Eq(t, tc.expected, out.TaskResources["web"].Memory.MemoryMaxMB)
+		})
 	}
 }
 
@@ -507,7 +571,7 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 
 func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 	_, ctx := MockContext(t)
-	eventsCh := make(chan interface{})
+	eventsCh := make(chan any)
 	ctx.eventsCh = eventsCh
 
 	// Host networks can have overlapping addresses in which case their
@@ -594,7 +658,7 @@ func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 // caught by validation or caused by bugs in serverside Node handling.
 func TestBinPackIterator_Network_NodeError(t *testing.T) {
 	_, ctx := MockContext(t)
-	eventsCh := make(chan interface{})
+	eventsCh := make(chan any)
 	ctx.eventsCh = eventsCh
 
 	nodes := []*RankedNode{
@@ -681,7 +745,7 @@ func TestBinPackIterator_Network_NodeError(t *testing.T) {
 
 func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 	state, ctx := MockContext(t)
-	eventsCh := make(chan interface{})
+	eventsCh := make(chan any)
 	ctx.eventsCh = eventsCh
 
 	nodes := []*RankedNode{

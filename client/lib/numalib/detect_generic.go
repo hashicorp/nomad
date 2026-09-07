@@ -40,7 +40,7 @@ func scanGeneric(top *Topology) {
 		return
 	}
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		info := infos[0]
 		speed := hw.KHz(hw.MHz(info.Mhz) * 1000)
 		top.insert(genericNodeID, genericSocketID, hw.CoreID(i), Performance, genericMaxSpeed, speed)

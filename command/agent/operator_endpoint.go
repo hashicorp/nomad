@@ -23,7 +23,7 @@ import (
 
 // OperatorRequest is used route operator/raft API requests to the implementing
 // functions.
-func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	path := strings.TrimPrefix(req.URL.Path, "/v1/operator/raft/")
 	switch {
 	case strings.HasPrefix(path, "configuration"):
@@ -39,7 +39,7 @@ func (s *HTTPServer) OperatorRequest(resp http.ResponseWriter, req *http.Request
 
 // OperatorRaftConfiguration is used to inspect the current Raft configuration.
 // This supports the stale query mode in case the cluster doesn't have a leader.
-func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		resp.WriteHeader(http.StatusMethodNotAllowed)
 		return nil, nil
@@ -59,7 +59,7 @@ func (s *HTTPServer) OperatorRaftConfiguration(resp http.ResponseWriter, req *ht
 }
 
 // OperatorRaftPeer supports actions on Raft peers.
-func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodDelete {
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
@@ -88,7 +88,7 @@ func (s *HTTPServer) OperatorRaftPeer(resp http.ResponseWriter, req *http.Reques
 }
 
 // OperatorRaftTransferLeadership supports actions on Raft peers.
-func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodPost && req.Method != http.MethodPut {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
@@ -140,7 +140,7 @@ func (s *HTTPServer) OperatorRaftTransferLeadership(resp http.ResponseWriter, re
 
 // OperatorAutopilotConfiguration is used to inspect the current Autopilot configuration.
 // This supports the stale query mode in case the cluster doesn't have a leader.
-func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Switch on the method
 	switch req.Method {
 	case http.MethodGet:
@@ -217,7 +217,7 @@ func (s *HTTPServer) OperatorAutopilotConfiguration(resp http.ResponseWriter, re
 }
 
 // OperatorServerHealth is used to get the health of the servers in the given Region.
-func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(404, ErrInvalidMethod)
 	}
@@ -268,7 +268,7 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 
 // OperatorSchedulerConfiguration is used to inspect the current Scheduler configuration.
 // This supports the stale query mode in case the cluster doesn't have a leader.
-func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Switch on the method
 	switch req.Method {
 	case http.MethodGet:
@@ -282,7 +282,7 @@ func (s *HTTPServer) OperatorSchedulerConfiguration(resp http.ResponseWriter, re
 	}
 }
 
-func (s *HTTPServer) schedulerGetConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) schedulerGetConfig(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var args structs.GenericRequest
 	if done := s.parse(resp, req, &args.Region, &args.QueryOptions); done {
 		return nil, nil
@@ -297,7 +297,7 @@ func (s *HTTPServer) schedulerGetConfig(resp http.ResponseWriter, req *http.Requ
 	return reply, nil
 }
 
-func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.Request) (any, error) {
 	var args structs.SchedulerSetConfigRequest
 	s.parseWriteRequest(req, &args.WriteRequest)
 
@@ -343,7 +343,7 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 	return reply, nil
 }
 
-func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	switch req.Method {
 	case http.MethodGet:
 		return s.snapshotSaveRequest(resp, req)
@@ -355,7 +355,7 @@ func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request
 
 }
 
-func (s *HTTPServer) snapshotSaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) snapshotSaveRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	args := &structs.SnapshotSaveRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -430,7 +430,7 @@ func (s *HTTPServer) snapshotSaveRequest(resp http.ResponseWriter, req *http.Req
 	return nil, codedErr
 }
 
-func (s *HTTPServer) snapshotRestoreRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) snapshotRestoreRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	args := &structs.SnapshotRestoreRequest{}
 	s.parseWriteRequest(req, &args.WriteRequest)
 

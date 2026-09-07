@@ -1,0 +1,3 @@
+```release-note:improvement
+consul: Allow service, template, and connect blocks to fallback to the Nomad client agent's Consul token if workload identity is unavailable
+```

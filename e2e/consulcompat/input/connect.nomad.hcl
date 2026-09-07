@@ -64,6 +64,7 @@ job "countdash" {
         auth_soft_fail = true
       }
 
+      consul {}
 
       # this template can't be used for the COUNTING_SERVICE_URL because it
       # needs the Nomad-assigned upstream address here and not the Consul

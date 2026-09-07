@@ -27,7 +27,7 @@ type StreamingRPC interface {
 type StreamingRPCErrorTestCase struct {
 	Name   string
 	RPC    string
-	Req    interface{}
+	Req    any
 	Assert func(error) bool
 }
 

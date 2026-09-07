@@ -10,6 +10,7 @@ import (
 	"math"
 	"net"
 	"os"
+	"slices"
 	"time"
 
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
@@ -608,15 +609,10 @@ NEXT_CAP:
 		}
 
 		for _, expectedFlag := range expectedMount.MountFlags {
-			var ok bool
-			for _, flag := range capMount.MountFlags {
-				if expectedFlag == flag {
-					ok = true
-					break
-				}
-			}
-			if !ok {
-				// mount flags can contain sensitive data, so we can't log details
+
+			// The mount flags can contain sensitive data, so we can't log exact
+			// details.
+			if !slices.Contains(capMount.MountFlags, expectedFlag) {
 				multierror.Append(&err, fmt.Errorf(
 					"requested mount flags did not match available capabilities"))
 				continue NEXT_CAP

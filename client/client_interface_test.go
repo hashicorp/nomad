@@ -42,7 +42,7 @@ func TestEmptyAllocRunner(t *testing.T) {
 	job.TaskGroups[0].Count = 1
 	task := job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10s",
 	}
 	task.Services = nil

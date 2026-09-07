@@ -323,11 +323,11 @@ type testVarListTestCase struct {
 }
 
 type testVarListJSONTest struct {
-	jsonDest  interface{}
+	jsonDest  any
 	expectFns []testVarListJSONTestExpectFn
 }
 
-type testVarListJSONTestExpectFn func(*testing.T, interface{})
+type testVarListJSONTestExpectFn func(*testing.T, any)
 
 type testSVNamespacePath struct {
 	Namespace string

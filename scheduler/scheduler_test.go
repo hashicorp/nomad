@@ -125,7 +125,7 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 				h.State.UpsertNodePools(structs.MsgTypeTestSetup, h.NextIndex(), nodePools)
 
 				// Create some nodes.
-				for i := 0; i < 3; i++ {
+				for range 3 {
 					node := mock.Node()
 					node.NodePool = c.nodePool
 					must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))

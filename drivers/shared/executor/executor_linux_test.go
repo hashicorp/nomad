@@ -29,8 +29,8 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	tu "github.com/hashicorp/nomad/testutil"
+	"github.com/opencontainers/cgroups/devices/config"
 	lconfigs "github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -561,7 +561,7 @@ func TestExecutor_DoesNotInheritOomScoreAdj(t *testing.T) {
 	_, err = executor.Launch(execCmd)
 	require.NoError(t, err)
 
-	ch := make(chan interface{})
+	ch := make(chan any)
 	go func() {
 		executor.Wait(context.Background())
 		close(ch)
@@ -655,7 +655,7 @@ CapAmb: 0000000000000400`,
 			_, err := executor.Launch(execCmd)
 			require.NoError(t, err)
 
-			ch := make(chan interface{})
+			ch := make(chan any)
 			go func() {
 				executor.Wait(context.Background())
 				close(ch)
@@ -713,7 +713,7 @@ func TestExecutor_ClientCleanup(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	require.NoError(executor.Shutdown("SIGINT", 100*time.Millisecond))
 
-	ch := make(chan interface{})
+	ch := make(chan any)
 	go func() {
 		executor.Wait(context.Background())
 		close(ch)
@@ -743,8 +743,8 @@ func TestExecutor_cmdDevices(t *testing.T) {
 		},
 	}
 
-	expected := &devices.Device{
-		Rule: devices.Rule{
+	expected := &config.Device{
+		Rule: config.Rule{
 			Type:        99,
 			Major:       1,
 			Minor:       3,
@@ -1095,7 +1095,7 @@ func TestCgroupDeviceRules(t *testing.T) {
 	cfg, err := executor.newLibcontainerConfig(command)
 	must.NoError(t, err)
 
-	must.SliceContains(t, cfg.Cgroups.Devices, &devices.Rule{
+	must.SliceContains(t, cfg.Cgroups.Devices, &config.Rule{
 		Type:        'c',
 		Major:       0x0a,
 		Minor:       0xe5,

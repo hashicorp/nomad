@@ -15,14 +15,14 @@ esac
 
 # Minimal effort to support amd64 and arm64 installs.
 ARCH=""
-case $(arch) in 
+case $(arch) in
     x86_64) ARCH="amd64" ;;
     aarch64) ARCH="arm64" ;;
 esac
 
 function install_go() {
-	local go_version="1.26.3"
-	local download="https://storage.googleapis.com/golang/go${go_version}.linux-${ARCH}.tar.gz"
+	local go_version="1.27.1"
+	local download="https://dl.google.com/go/go${go_version}.linux-${ARCH}.tar.gz"
 
 	if go version 2>&1 | grep -q "${go_version}"; then
 		return

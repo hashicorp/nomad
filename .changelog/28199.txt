@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Add tunable for Vault default lease duration on templates for paths without leases.
+```

@@ -281,7 +281,7 @@ func (cfs *consulState) dc(info agentconsul.Self) (string, bool) {
 }
 
 func (cfs *consulState) segment(info agentconsul.Self) (string, bool) {
-	tags, tagsOK := info["Member"]["Tags"].(map[string]interface{})
+	tags, tagsOK := info["Member"]["Tags"].(map[string]any)
 	if !tagsOK {
 		return "", false
 	}

@@ -295,7 +295,7 @@ func assertResults(t *testing.T, r *ReconcileResults, exp *resultExpectation) {
 func buildAllocations(job *structs.Job, count int, clientStatus, desiredStatus string, nodeScore float64) []*structs.Allocation {
 	allocs := make([]*structs.Allocation, 0)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -324,7 +324,7 @@ func buildAllocations(job *structs.Job, count int, clientStatus, desiredStatus s
 
 func buildDisconnectedNodes(allocs []*structs.Allocation, count int) map[string]*structs.Node {
 	tainted := make(map[string]*structs.Node, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
 		n.Status = structs.NodeStatusDisconnected
@@ -389,7 +389,7 @@ func TestReconciler_Place_Existing(t *testing.T) {
 
 	// Create 3 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -440,7 +440,7 @@ func TestReconciler_ScaleDown_Partial(t *testing.T) {
 
 	// Create 20 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -493,7 +493,7 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 
 	// Create 20 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -545,7 +545,7 @@ func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
 	// Create 20 existing allocations
 	var allocs []*structs.Allocation
 	var expectedStopped []int
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -594,7 +594,7 @@ func TestReconciler_Inplace(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -645,7 +645,7 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -698,7 +698,7 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -758,7 +758,7 @@ func TestReconciler_Inplace_Rollback(t *testing.T) {
 
 	// Create 3 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -830,7 +830,7 @@ func TestReconciler_Destructive(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -876,7 +876,7 @@ func TestReconciler_DestructiveMaxParallel(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -925,7 +925,7 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -977,7 +977,7 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1026,7 +1026,7 @@ func TestReconciler_LostNode(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1037,7 +1037,7 @@ func TestReconciler_LostNode(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
 		n.Status = structs.NodeStatusDown
@@ -1089,7 +1089,7 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1100,7 +1100,7 @@ func TestReconciler_LostNode_ScaleUp(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
 		n.Status = structs.NodeStatusDown
@@ -1152,7 +1152,7 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1163,7 +1163,7 @@ func TestReconciler_LostNode_ScaleDown(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		n := mock.Node()
 		n.ID = allocs[i].NodeID
 		n.Status = structs.NodeStatusDown
@@ -1210,7 +1210,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1221,7 +1221,7 @@ func TestReconciler_DrainNode(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = new(true)
@@ -1274,7 +1274,7 @@ func TestReconciler_MigrateBatchAllocs(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.BatchAlloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1284,7 +1284,7 @@ func TestReconciler_MigrateBatchAllocs(t *testing.T) {
 	}
 
 	// Flag two allocations to migrate
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		allocs[i].DesiredTransition.Migrate = new(true)
 	}
 
@@ -1333,7 +1333,7 @@ func TestReconciler_MigrateDisablePlacementBatchAllocs(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.BatchAlloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1343,7 +1343,7 @@ func TestReconciler_MigrateDisablePlacementBatchAllocs(t *testing.T) {
 	}
 
 	// Flag two allocations to migrate
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		allocs[i].DesiredTransition.Migrate = new(true)
 		allocs[i].DesiredTransition.MigrateDisablePlacement = new(true)
 	}
@@ -1381,6 +1381,72 @@ func TestReconciler_MigrateDisablePlacementBatchAllocs(t *testing.T) {
 	assertPlacementsAreRescheduled(t, 0, r.Place)
 }
 
+// Tests that the reconciler does not place a replacement when a follow-up
+// evaluation runs for a batch allocation that is still draining. The first
+// drain eval flips DesiredStatus to stop and sets the migrate transition
+// flags; while the client is still finishing the allocation, a subsequent
+// eval (for example the node-update eval triggered when an operator makes
+// the draining node eligible again before the drain completes) must keep
+// counting the still-running allocation toward the desired total instead of
+// scheduling a replacement.
+func TestReconciler_MigrateDisablePlacementBatchAllocs_StillRunningAfterStop(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.BatchJob()
+
+	// Create 10 existing allocations.
+	var allocs []*structs.Allocation
+	for i := range 10 {
+		alloc := mock.BatchAlloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		allocs = append(allocs, alloc)
+	}
+
+	// Simulate the state of two allocations after the first drain eval has
+	// been applied: the server has marked them stopped and set the migrate +
+	// disable-placement transition flags, but the client has not yet finished
+	// shutting them down.
+	for i := range 2 {
+		allocs[i].DesiredStatus = structs.AllocDesiredStatusStop
+		allocs[i].ClientStatus = structs.AllocClientStatusRunning
+		allocs[i].DesiredTransition.Migrate = new(true)
+		allocs[i].DesiredTransition.MigrateDisablePlacement = new(true)
+	}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        true,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			Now: time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	// No replacement should be placed; no allocation should be re-stopped.
+	// All allocations (the 8 still running normally plus the 2 draining) must
+	// remain counted toward the desired total, so they end up in Ignore.
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		inplace:           0,
+		stop:              0,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 10,
+			},
+		},
+	})
+}
+
 // Tests that the reconciler properly handles batch job allocations that
 // are flagged as should migrate and should reschedule. This behavior is
 // used when stopping a batch allocation using the `alloc stop` command.
@@ -1397,7 +1463,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 
 		// Create 10 existing allocations
 		var allocs []*structs.Allocation
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			alloc := mock.BatchAlloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
@@ -1407,7 +1473,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 		}
 
 		// Flag two allocations to migrate and reschedule
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			allocs[i].DesiredTransition.Migrate = new(true)
 			allocs[i].DesiredTransition.Reschedule = new(true)
 		}
@@ -1452,7 +1518,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 
 		// Create 10 existing allocations
 		var allocs []*structs.Allocation
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			alloc := mock.BatchAlloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
@@ -1462,7 +1528,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 		}
 
 		// Flag two allocations to migrate and reschedule
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			allocs[i].DesiredTransition.Migrate = new(true)
 			allocs[i].DesiredTransition.Reschedule = new(true)
 		}
@@ -1504,7 +1570,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 
 		// Create 10 existing allocations
 		var allocs []*structs.Allocation
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			alloc := mock.BatchAlloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
@@ -1514,7 +1580,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 		}
 
 		// Flag two allocations to migrate and reschedule
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			allocs[i].DesiredTransition.Migrate = new(true)
 			allocs[i].DesiredTransition.Reschedule = new(true)
 		}
@@ -1559,7 +1625,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 
 		// Create 10 existing allocations
 		var allocs []*structs.Allocation
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			alloc := mock.BatchAlloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
@@ -1570,7 +1636,7 @@ func TestReconciler_MigrateRescheduleBatchAllocs(t *testing.T) {
 		}
 
 		// Flag two allocations to migrate and reschedule
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			allocs[i].DesiredTransition.Migrate = new(true)
 			allocs[i].DesiredTransition.Reschedule = new(true)
 		}
@@ -1620,7 +1686,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1631,7 +1697,7 @@ func TestReconciler_DrainNode_ScaleUp(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = new(true)
@@ -1686,7 +1752,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1697,7 +1763,7 @@ func TestReconciler_DrainNode_ScaleDown(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		n := mock.DrainNode()
 		n.ID = allocs[i].NodeID
 		allocs[i].DesiredTransition.Migrate = new(true)
@@ -1749,7 +1815,7 @@ func TestReconciler_RemovedTG(t *testing.T) {
 
 	// Create 10 allocations for a tg that no longer exists
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -1910,7 +1976,7 @@ func TestReconciler_JobStopped_TerminalAllocs(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			// Create 10 terminal allocations
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				alloc := mock.Alloc()
 				alloc.Job = c.job
 				alloc.JobID = c.jobID
@@ -1966,7 +2032,7 @@ func TestReconciler_MultiTG(t *testing.T) {
 
 	// Create 2 existing allocations for the first tg
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2023,8 +2089,8 @@ func TestReconciler_MultiTG_SingleUpdateBlock(t *testing.T) {
 
 	// Create all the allocs
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
-		for j := 0; j < 10; j++ {
+	for i := range 2 {
+		for j := range 10 {
 			alloc := mock.Alloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
@@ -2088,7 +2154,7 @@ func TestReconciler_RescheduleLater_Batch(t *testing.T) {
 
 	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
 	var allocs []*structs.Allocation
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2194,7 +2260,7 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 
 	// Create 10 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2205,7 +2271,7 @@ func TestReconciler_RescheduleLaterWithBatchedEvals_Batch(t *testing.T) {
 	}
 
 	// Mark 5 as failed with fail times very close together
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		allocs[i].ClientStatus = structs.AllocClientStatusFailed
 		allocs[i].TaskStates = map[string]*structs.TaskState{tgName: {State: "start",
 			StartedAt:  now.Add(-1 * time.Hour),
@@ -2290,7 +2356,7 @@ func TestReconciler_RescheduleNow_Batch(t *testing.T) {
 	tgName := job.TaskGroups[0].Name
 	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
 	var allocs []*structs.Allocation
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2385,7 +2451,7 @@ func TestReconciler_RescheduleLater_Service(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2483,7 +2549,7 @@ func TestReconciler_Service_ClientStatusComplete(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2550,7 +2616,7 @@ func TestReconciler_Service_DesiredStop_ClientStatusComplete(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2625,7 +2691,7 @@ func TestReconciler_RescheduleNow_Service(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2716,7 +2782,7 @@ func TestReconciler_RescheduleNow_WithinAllowedTimeWindow(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2805,7 +2871,7 @@ func TestReconciler_RescheduleNow_EvalIDMatch(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2909,7 +2975,7 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -2938,7 +3004,7 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 	allocs[4].ClientStatus = structs.AllocClientStatusFailed
 
 	// Create 2 canary allocations
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3026,7 +3092,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3037,7 +3103,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 	}
 
 	// Create 2 healthy canary allocations
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3072,7 +3138,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 	allocs[6].DesiredTransition.Reschedule = new(true)
 
 	// Create 4 unhealthy canary allocations that have already been replaced
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3163,7 +3229,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3174,7 +3240,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 	}
 
 	// Create 2 healthy canary allocations
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3209,7 +3275,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 	allocs[6].DesiredTransition.Reschedule = new(true)
 
 	// Create 4 unhealthy canary allocations that have already been replaced
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3278,7 +3344,7 @@ func TestReconciler_DontReschedule_PreviouslyRescheduled(t *testing.T) {
 
 	// Create 7 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3392,7 +3458,7 @@ func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			// Create 10 allocations
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				alloc := mock.Alloc()
 				alloc.Job = c.job
 				alloc.JobID = c.jobID
@@ -3482,7 +3548,7 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			// Create 10 allocations
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
@@ -3544,7 +3610,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3602,7 +3668,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = jobOld
 		alloc.JobID = job.ID
@@ -3659,7 +3725,7 @@ func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
 
 	// Create 5 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = jobOld
 		alloc.JobID = jobOld.ID
@@ -3718,7 +3784,7 @@ func TestReconciler_DontCreateDeployment_NoChanges(t *testing.T) {
 
 	// Create 10 allocations from the job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -3797,7 +3863,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 
 			// Create 10 allocations for the original job
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
@@ -3887,7 +3953,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
 
 			// Create 10 allocations for the new job
 			var allocs []*structs.Allocation
-			for i := 0; i < 10; i++ {
+			for i := range 10 {
 				alloc := mock.Alloc()
 				alloc.Job = job
 				alloc.JobID = job.ID
@@ -4034,7 +4100,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4048,7 +4114,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 	// Create two canaries for the new job
 	handled := make(map[string]AllocUpdateType)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		// Create one canary
 		canary := mock.Alloc()
 		canary.Job = job
@@ -4122,7 +4188,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4134,7 +4200,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 
 	// Create two canaries for the new job
 	handled := make(map[string]AllocUpdateType)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		// Create one canary
 		canary := mock.Alloc()
 		canary.Job = job
@@ -4211,7 +4277,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4222,7 +4288,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 	}
 
 	// Create canaries
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		// Create one canary
 		canary := mock.Alloc()
 		canary.Job = job
@@ -4293,7 +4359,7 @@ func TestReconciler_NewCanaries(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4420,8 +4486,8 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 
 	// Create 10 allocations from the old job for each tg
 	var allocs []*structs.Allocation
-	for j := 0; j < 2; j++ {
-		for i := 0; i < 10; i++ {
+	for j := range 2 {
+		for i := range 10 {
 			alloc := mock.Alloc()
 			alloc.Job = job
 			alloc.JobID = job.ID
@@ -4490,7 +4556,7 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4553,7 +4619,7 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4631,7 +4697,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4707,7 +4773,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4719,7 +4785,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 
 	// Create the canaries
 	handled := make(map[string]AllocUpdateType)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		// Create one canary
 		canary := mock.Alloc()
 		canary.Job = job
@@ -4794,7 +4860,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 
 	// Create 2 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4806,7 +4872,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 
 	// Create the canaries
 	handled := make(map[string]AllocUpdateType)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		// Create one canary
 		canary := mock.Alloc()
 		canary.Job = job
@@ -4918,7 +4984,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 
 			// Create the new allocs
 			handled := make(map[string]AllocUpdateType)
-			for i := 0; i < 4; i++ {
+			for i := range 4 {
 				newAlloc := mock.Alloc()
 				newAlloc.Job = job
 				newAlloc.JobID = job.ID
@@ -5000,7 +5066,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 
 	// Create the healthy replacements
 	handled := make(map[string]AllocUpdateType)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		newAlloc := mock.Alloc()
 		newAlloc.Job = job
 		newAlloc.JobID = job.ID
@@ -5017,7 +5083,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		n := mock.Node()
 		n.ID = allocs[2+i].NodeID
 		if i == 0 {
@@ -5098,7 +5164,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 
 	// Create the healthy replacements
 	handled := make(map[string]AllocUpdateType)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		newAlloc := mock.Alloc()
 		newAlloc.Job = job
 		newAlloc.JobID = job.ID
@@ -5115,7 +5181,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 
 	// Build a map of tainted nodes
 	tainted := make(map[string]*structs.Node, 2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		n := mock.Node()
 		n.ID = allocs[6+i].NodeID
 		if i == 0 {
@@ -5183,7 +5249,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 
 	// Create allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5244,7 +5310,7 @@ func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
 
 	// Create 10 healthy allocs and 10 allocs that are failed
 	var allocs []*structs.Allocation
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5437,7 +5503,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 	}
 
 	// Create the healthy replacements
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		newAlloc := mock.Alloc()
 		newAlloc.Job = job
 		newAlloc.JobID = job.ID
@@ -5509,7 +5575,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 
 	// Create allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5580,7 +5646,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 
 	// Create 10 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5643,7 +5709,7 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 
 	// Create 7 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5774,7 +5840,7 @@ func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
 
 	// Create 4 allocations and mark two as failed
 	var allocs []*structs.Allocation
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5844,7 +5910,7 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 
 	// Create 10 allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -5860,7 +5926,7 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 	}
 
 	// Mark half of them as reschedulable
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		allocs[i].DesiredTransition.Reschedule = new(true)
 	}
 
@@ -5931,7 +5997,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 
 	// Create the original
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		newAlloc := mock.Alloc()
 		newAlloc.Job = jobv2
 		newAlloc.JobID = job.ID
@@ -5946,7 +6012,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 		allocs = append(allocs, newAlloc)
 
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		newAlloc := mock.Alloc()
 		newAlloc.Job = jobv1
 		newAlloc.JobID = jobv1.ID
@@ -6022,7 +6088,7 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 
 	// Create 10 allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -6090,7 +6156,7 @@ func TestReconciler_ForceReschedule_Service(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -6177,7 +6243,7 @@ func TestReconciler_RescheduleNot_Service(t *testing.T) {
 
 	// Create 5 existing allocations
 	var allocs []*structs.Allocation
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -6683,7 +6749,7 @@ func TestReconciler_RescheduleNot_Batch(t *testing.T) {
 	tgName := job.TaskGroups[0].Name
 	// Create 6 existing allocations - 2 running, 1 complete and 3 failed
 	var allocs []*structs.Allocation
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -7376,5 +7442,188 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 
 			must.Eq(t, tc.expected, reconciler.jobState.DeploymentPaused)
 		})
+	}
+}
+
+// Tests the reconciler properly counts batch client-terminal (but not
+// server-terminal) allocs against the total count when scaling down
+func TestReconciler_ScaleDown_ClientTerminal_Batch(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 5
+
+	var allocs []*structs.Allocation
+	for i := range 7 {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	allocs[5].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[5].ClientStatus = structs.AllocClientStatusComplete
+	allocs[5].TaskStates = map[string]*structs.TaskState{"web": {
+		State: "dead",
+	}}
+	allocs[6].DesiredStatus = structs.AllocDesiredStatusStop
+	allocs[6].ClientStatus = structs.AllocClientStatusComplete
+	allocs[6].TaskStates = map[string]*structs.TaskState{"web": {
+		State: "dead",
+	}}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        true,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes: nil,
+			Now:          time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	// Assert the correct results
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		stop:              1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 6,
+				Stop:   1,
+			},
+		},
+	})
+
+	assertNamesHaveIndexes(t, []int{5}, stopResultsToNames(r.Stop))
+}
+
+// Tests the reconciler properly counts service client-terminal (but not
+// server-terminal) allocs against the total count when scaling down
+func TestReconciler_ScaleDown_ClientTerminal_Service(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 5
+
+	var allocs []*structs.Allocation
+	for i := range 6 {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+
+	allocs[3].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[3].ClientStatus = structs.AllocClientStatusFailed
+	allocs[3].TaskStates = map[string]*structs.TaskState{"web": {
+		State:  "dead",
+		Failed: true,
+	}}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        false,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: nil,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes: nil,
+			Now:          time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	assertNamesHaveIndexes(t, []int{3}, stopResultsToNames(r.Stop))
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             1,
+		stop:              1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 5,
+				Place:  1, // this is because we're eligible for reschedule
+				Stop:   1,
+			},
+		},
+	})
+}
+
+// Tests the reconciler does not stop a healthy service alloc when scaling down
+// with an active deployment and a failed terminal alloc that is not marked
+// reschedulable.
+func TestReconciler_ScaleDown_ClientTerminal_Service_ActiveDeployment(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 2
+
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	d.Status = structs.DeploymentStatusRunning
+	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
+		DesiredTotal:  3,
+		PlacedAllocs:  3,
+		HealthyAllocs: 0,
+	}
+
+	var allocs []*structs.Allocation
+	for i := range 3 {
+		alloc := mock.Alloc()
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		alloc.DeploymentID = d.ID
+		allocs = append(allocs, alloc)
+	}
+
+	allocs[2].DesiredStatus = structs.AllocDesiredStatusRun
+	allocs[2].ClientStatus = structs.AllocClientStatusFailed
+	allocs[2].TaskStates = map[string]*structs.TaskState{"web": {
+		State:  "dead",
+		Failed: true,
+	}}
+
+	reconciler := NewAllocReconciler(
+		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+			JobIsBatch:        false,
+			JobID:             job.ID,
+			Job:               job,
+			DeploymentCurrent: d,
+			ExistingAllocs:    allocs,
+			EvalPriority:      50,
+		}, ClusterState{
+			TaintedNodes: nil,
+			Now:          time.Now().UTC(),
+		})
+	r := reconciler.Compute()
+
+	assertResults(t, r, &resultExpectation{
+		createDeployment:  nil,
+		deploymentUpdates: nil,
+		place:             0,
+		stop:              1,
+		desiredTGUpdates: map[string]*structs.DesiredUpdates{
+			job.TaskGroups[0].Name: {
+				Ignore: 2,
+				Stop:   1,
+			},
+		},
+	})
+
+	must.Eq(t, len(r.Stop), 1)
+	for _, stop := range r.Stop {
+		must.Eq(t, stop.Alloc.ID, allocs[2].ID)
 	}
 }

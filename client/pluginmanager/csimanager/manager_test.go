@@ -46,10 +46,10 @@ func setupRegistry(reg *MemDB) dynamicplugins.Registry {
 	return dynamicplugins.NewRegistry(
 		reg,
 		map[string]dynamicplugins.PluginDispenser{
-			"csi-controller": func(i *dynamicplugins.PluginInfo) (interface{}, error) {
+			"csi-controller": func(i *dynamicplugins.PluginInfo) (any, error) {
 				return i, nil
 			},
-			"csi-node": func(i *dynamicplugins.PluginInfo) (interface{}, error) {
+			"csi-node": func(i *dynamicplugins.PluginInfo) (any, error) {
 				return i, nil
 			},
 		})

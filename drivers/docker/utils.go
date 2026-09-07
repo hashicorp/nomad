@@ -287,13 +287,6 @@ func expandPath(base, dir string) string {
 	return filepath.Clean(filepath.Join(base, dir))
 }
 
-// isParentPath returns true if path is a child or a descendant of parent path.
-// Both inputs need to be absolute paths.
-func isParentPath(parent, path string) bool {
-	rel, err := filepath.Rel(parent, path)
-	return err == nil && !strings.HasPrefix(rel, "..")
-}
-
 func parseVolumeSpec(volBind, os string) (hostPath string, containerPath string, mode string, err error) {
 	if os == "windows" {
 		return parseVolumeSpecWindows(volBind)
@@ -376,10 +369,10 @@ func registryGetAuthConfigKey(index *registrytypes.IndexInfo) string {
 
 func registryConvertToHostname(rawURL string) string {
 	stripped := rawURL
-	if strings.HasPrefix(stripped, "http://") {
-		stripped = strings.TrimPrefix(stripped, "http://")
-	} else if strings.HasPrefix(stripped, "https://") {
-		stripped = strings.TrimPrefix(stripped, "https://")
+	if after, ok := strings.CutPrefix(stripped, "http://"); ok {
+		stripped = after
+	} else if after, ok := strings.CutPrefix(stripped, "https://"); ok {
+		stripped = after
 	}
 	stripped, _, _ = strings.Cut(stripped, "/")
 	return stripped

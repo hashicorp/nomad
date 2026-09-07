@@ -395,11 +395,11 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	}
 
 	tr := &TaskRunner{
-		alloc:                   config.Alloc,
+		alloc:                   config.Alloc.Copy(),
 		allocID:                 config.Alloc.ID,
 		clientConfig:            config.ClientConfig,
 		clientBaseLabels:        config.ClientBaseLabels,
-		task:                    config.Task,
+		task:                    config.Task.Copy(),
 		taskDir:                 config.TaskDir,
 		taskName:                config.Task.Name,
 		taskLeader:              config.Task.Leader,
@@ -445,21 +445,15 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 	tr.setHookStatsHandler(config.Alloc.Namespace)
 
 	// Pull out the task's resources
-	ares := tr.alloc.AllocatedResources
-	if ares == nil {
+	if tr.alloc.AllocatedResources == nil {
 		return nil, fmt.Errorf("no task resources found on allocation")
 	}
 
-	tres, ok := ares.Tasks[tr.taskName]
-	if !ok {
+	if _, ok := tr.alloc.AllocatedResources.Tasks[tr.taskName]; !ok {
 		return nil, fmt.Errorf("no task resources found on allocation")
 	}
 
-	// we had to allocate the tmpfs with the memory to get correct scheduling
-	// and tracking on the node, but now that we're creating the task driver
-	// config we only care about the memory without the secrets.
-	tres.Memory.MemoryMB -= int64(tr.task.Resources.SecretsMB)
-	tr.taskResources = tres
+	tr.taskResources = tr.alloc.AllocatedResources.Tasks[tr.taskName].Copy()
 
 	// Build the restart tracker.
 	rp := config.Task.RestartPolicy
@@ -1135,17 +1129,14 @@ func (tr *TaskRunner) handleKill(resultCh <-chan *drivers.ExitResult) *drivers.E
 func (tr *TaskRunner) killTask(handle *DriverHandle, resultCh <-chan *drivers.ExitResult) (*drivers.ExitResult, error) {
 	// Cap the number of times we attempt to kill the task.
 	var err error
-	for i := 0; i < killFailureLimit; i++ {
+	for i := range killFailureLimit {
 		if err = handle.Kill(); err != nil {
 			if err == drivers.ErrTaskNotFound {
 				tr.logger.Warn("couldn't find task to kill", "task_id", handle.ID())
 				return nil, nil
 			}
 			// Calculate the new backoff
-			backoff := (1 << (2 * uint64(i))) * killBackoffBaseline
-			if backoff > killBackoffLimit {
-				backoff = killBackoffLimit
-			}
+			backoff := min((1<<(2*uint64(i)))*killBackoffBaseline, killBackoffLimit)
 
 			tr.logger.Error("failed to kill task", "backoff", backoff, "error", err)
 			select {
