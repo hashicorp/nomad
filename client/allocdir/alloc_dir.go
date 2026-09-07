@@ -381,14 +381,12 @@ func (a *AllocDir) Build() error {
 
 // List returns the list of files at a path relative to the alloc dir
 func (a *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
-	if escapes, err := escapingfs.PathEscapesAllocDir(a.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
-	} else if escapes {
-		return nil, fmt.Errorf("Path escapes the alloc directory")
+	sanitizedPath, err := a.sanitizePath(path)
+	if err != nil {
+		return nil, err
 	}
 
-	p := filepath.Join(a.AllocDir, path)
-	finfos, err := os.ReadDir(p)
+	finfos, err := os.ReadDir(sanitizedPath)
 	if err != nil {
 		return []*cstructs.AllocFileInfo{}, err
 	}
@@ -409,21 +407,59 @@ func (a *AllocDir) List(path string) ([]*cstructs.AllocFileInfo, error) {
 	return files, err
 }
 
-// Stat returns information about the file at a path relative to the alloc dir
-func (a *AllocDir) Stat(path string) (*cstructs.AllocFileInfo, error) {
-	if escapes, err := escapingfs.PathEscapesAllocDir(a.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
-	} else if escapes {
-		return nil, fmt.Errorf("Path escapes the alloc directory")
+// sanitizePath checks that the path does not escape the alloc directory,
+// does not read into the secrets or private directories and returns an absolute
+// path of the provided path.
+func (a *AllocDir) sanitizePath(path string) (string, error) {
+	// In some non linux systmes, directories like /var and /tmp resolve to
+	// /private/var and /private/tmp.
+	resolvedAllocDir, err := filepath.EvalSymlinks(a.AllocDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve alloc directory: %w", err)
 	}
 
-	p := filepath.Join(a.AllocDir, path)
-	info, err := os.Stat(p)
+	requestedPath, err := filepath.Abs(filepath.Join(resolvedAllocDir, path))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve requested path: %w", err)
+	}
+
+	if err := escapingfs.ChildEscapesParentDir(resolvedAllocDir, requestedPath); err != nil {
+		return "", fmt.Errorf("path escapes the alloc directory")
+	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	// Check it does not access the secrets or private directories
+	for _, taskDir := range a.TaskDirs {
+		rps := strings.ReplaceAll(requestedPath, "/Secrets", "/secrets")
+		if err := escapingfs.ChildEscapesParentDir(taskDir.SecretsDir, rps); err == nil {
+			return "", fmt.Errorf("Reading secret file prohibited: %s", path)
+		}
+
+		rpp := strings.ReplaceAll(requestedPath, "/Private", "/private")
+		if err := escapingfs.ChildEscapesParentDir(taskDir.PrivateDir, rpp); err == nil {
+			return "", fmt.Errorf("Reading secret file prohibited: %s", path)
+		}
+	}
+
+	return requestedPath, nil
+}
+
+// Stat returns information about the file at a path relative to the alloc dir
+func (a *AllocDir) Stat(path string) (*cstructs.AllocFileInfo, error) {
+
+	sanitizedPath, err := a.sanitizePath(path)
 	if err != nil {
 		return nil, err
 	}
 
-	contentType := detectContentType(info, p)
+	info, err := os.Stat(sanitizedPath)
+	if err != nil {
+		return nil, err
+	}
+
+	contentType := detectContentType(info, sanitizedPath)
 
 	return &cstructs.AllocFileInfo{
 		Size:        info.Size(),
@@ -461,29 +497,12 @@ func detectContentType(fileInfo os.FileInfo, path string) string {
 
 // ReadAt returns a reader for a file at the path relative to the alloc dir
 func (a *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
-	if escapes, err := escapingfs.PathEscapesAllocDir(a.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
-	} else if escapes {
-		return nil, fmt.Errorf("Path escapes the alloc directory")
+	sanitizedPath, err := a.sanitizePath(path)
+	if err != nil {
+		return nil, err
 	}
 
-	p := filepath.Join(a.AllocDir, path)
-
-	// Check if it is trying to read into a secret directory
-	a.mu.RLock()
-	for _, dir := range a.TaskDirs {
-		if caseInsensitiveHasPrefix(p, dir.SecretsDir) {
-			a.mu.RUnlock()
-			return nil, fmt.Errorf("Reading secret file prohibited: %s", path)
-		}
-		if caseInsensitiveHasPrefix(p, dir.PrivateDir) {
-			a.mu.RUnlock()
-			return nil, fmt.Errorf("Reading private file prohibited: %s", path)
-		}
-	}
-	a.mu.RUnlock()
-
-	f, err := os.Open(p)
+	f, err := os.Open(sanitizedPath)
 	if err != nil {
 		return nil, err
 	}
@@ -493,23 +512,16 @@ func (a *AllocDir) ReadAt(path string, offset int64) (io.ReadCloser, error) {
 	return f, nil
 }
 
-// CaseInsensitiveHasPrefix checks if the prefix is a case-insensitive prefix.
-func caseInsensitiveHasPrefix(s, prefix string) bool {
-	return strings.HasPrefix(strings.ToLower(s), strings.ToLower(prefix))
-}
-
 // BlockUntilExists blocks until the passed file relative the allocation
 // directory exists. The block can be cancelled with the passed context.
 func (a *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan error, error) {
-	if escapes, err := escapingfs.PathEscapesAllocDir(a.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
-	} else if escapes {
-		return nil, fmt.Errorf("Path escapes the alloc directory")
+	sanitizedPath, err := a.sanitizePath(path)
+	if err != nil {
+		return nil, err
 	}
 
 	// Get the path relative to the alloc directory
-	p := filepath.Join(a.AllocDir, path)
-	watcher := getFileWatcher(p)
+	watcher := getFileWatcher(sanitizedPath)
 	returnCh := make(chan error, 1)
 	t := &tomb.Tomb{}
 	go func() {
@@ -527,12 +539,10 @@ func (a *AllocDir) BlockUntilExists(ctx context.Context, path string) (chan erro
 // allocation directory. The offset should be the last read offset. The context is
 // used to clean up the watch.
 func (a *AllocDir) ChangeEvents(ctx context.Context, path string, curOffset int64) (*watch.FileChanges, error) {
-	if escapes, err := escapingfs.PathEscapesAllocDir(a.AllocDir, "", path); err != nil {
-		return nil, fmt.Errorf("Failed to check if path escapes alloc directory: %w", err)
-	} else if escapes {
-		return nil, fmt.Errorf("Path escapes the alloc directory")
+	sanitizedPath, err := a.sanitizePath(path)
+	if err != nil {
+		return nil, err
 	}
-
 	t := &tomb.Tomb{}
 	go func() {
 		<-ctx.Done()
@@ -540,8 +550,7 @@ func (a *AllocDir) ChangeEvents(ctx context.Context, path string, curOffset int6
 	}()
 
 	// Get the path relative to the alloc directory
-	p := filepath.Join(a.AllocDir, path)
-	watcher := getFileWatcher(p)
+	watcher := getFileWatcher(sanitizedPath)
 	return watcher.ChangeEvents(t, curOffset)
 }
 
