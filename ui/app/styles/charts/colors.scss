@@ -110,6 +110,7 @@ $canceled: $dark;
 
   &.reserved {
     $reserved-base: lighten($orange, 20%);
+    
     background: repeating-linear-gradient(
       -45deg,
       $reserved-base,
