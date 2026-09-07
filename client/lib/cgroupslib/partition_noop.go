@@ -14,12 +14,12 @@ func NoopPartition() Partition {
 
 type noop struct{}
 
-func (p *noop) Reserve(*idset.Set[hw.CoreID]) error {
+func (p *noop) Reserve(string, *idset.Set[hw.CoreID]) error {
 	return nil
 }
 
-func (p *noop) Release(*idset.Set[hw.CoreID]) error {
+func (p *noop) Release(string) error {
 	return nil
 }
 
-func (p *noop) Restore(*idset.Set[hw.CoreID]) {}
+func (p *noop) Restore(string, *idset.Set[hw.CoreID]) {}
