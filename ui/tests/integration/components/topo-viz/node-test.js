@@ -451,14 +451,14 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);
 
     assert.ok(
       TopoVizNode.reservedMemoryRect,
-      'reserved memory segment is rendered'
+      'reserved memory segment is rendered',
     );
     assert.ok(TopoVizNode.reservedCpuRect, 'reserved cpu segment is rendered');
   });
@@ -472,7 +472,7 @@ module('Integration | Component | TopoViz::Node', function (hooks) {
           ...node,
           allocations: [allocGen(node, 100, 100)],
         },
-      })
+      }),
     );
 
     await render(commonTemplate);

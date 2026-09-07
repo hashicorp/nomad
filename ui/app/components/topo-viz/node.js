@@ -112,7 +112,7 @@ export default class TopoVizNode extends Component {
           cpu: this.args.node.node?.reserved?.cpu,
           memory: this.args.node.node?.reserved?.memory,
         },
-        target
+        target,
       );
   }
 
@@ -207,7 +207,7 @@ export default class TopoVizNode extends Component {
       x: memoryOffset * width + 0.5,
       width: Math.max(
         (1 - memoryReservedPercent) * width - memoryOffset * width,
-        0
+        0,
       ),
     };
 
