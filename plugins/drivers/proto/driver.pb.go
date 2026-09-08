@@ -4204,1211 +4204,683 @@ func (x *ExecTaskStreamingRequest_Setup) Reset() {
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
-func (m *ShutdownResponse) XXX_Size() int {
-	return xxx_messageInfo_ShutdownResponse.Size(m)
-}
-func (m *ShutdownResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ShutdownResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ShutdownResponse proto.InternalMessageInfo
-
-func init() {
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.TaskState", TaskState_name, TaskState_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.FingerprintResponse_HealthState", FingerprintResponse_HealthState_name, FingerprintResponse_HealthState_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.StartTaskResponse_Result", StartTaskResponse_Result_name, StartTaskResponse_Result_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.DriverCapabilities_FSIsolation", DriverCapabilities_FSIsolation_name, DriverCapabilities_FSIsolation_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.DriverCapabilities_MountConfigs", DriverCapabilities_MountConfigs_name, DriverCapabilities_MountConfigs_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec_NetworkIsolationMode", NetworkIsolationSpec_NetworkIsolationMode_name, NetworkIsolationSpec_NetworkIsolationMode_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.CPUUsage_Fields", CPUUsage_Fields_name, CPUUsage_Fields_value)
-	proto.RegisterEnum("hashicorp.nomad.plugins.drivers.proto.MemoryUsage_Fields", MemoryUsage_Fields_name, MemoryUsage_Fields_value)
-	proto.RegisterType((*InitRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.InitRequest")
-	proto.RegisterType((*InitResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.InitResponse")
-	proto.RegisterType((*TaskConfigSchemaRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaRequest")
-	proto.RegisterType((*TaskConfigSchemaResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaResponse")
-	proto.RegisterType((*CapabilitiesRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.CapabilitiesRequest")
-	proto.RegisterType((*CapabilitiesResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.CapabilitiesResponse")
-	proto.RegisterType((*FingerprintRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.FingerprintRequest")
-	proto.RegisterType((*FingerprintResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.FingerprintResponse")
-	proto.RegisterMapType((map[string]*proto1.Attribute)(nil), "hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.AttributesEntry")
-	proto.RegisterType((*RecoverTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.RecoverTaskRequest")
-	proto.RegisterType((*RecoverTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.RecoverTaskResponse")
-	proto.RegisterType((*StartTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.StartTaskRequest")
-	proto.RegisterType((*StartTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.StartTaskResponse")
-	proto.RegisterType((*WaitTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.WaitTaskRequest")
-	proto.RegisterType((*WaitTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.WaitTaskResponse")
-	proto.RegisterType((*StopTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.StopTaskRequest")
-	proto.RegisterType((*StopTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.StopTaskResponse")
-	proto.RegisterType((*DestroyTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.DestroyTaskRequest")
-	proto.RegisterType((*DestroyTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.DestroyTaskResponse")
-	proto.RegisterType((*InspectTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.InspectTaskRequest")
-	proto.RegisterType((*InspectTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.InspectTaskResponse")
-	proto.RegisterType((*TaskStatsRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskStatsRequest")
-	proto.RegisterType((*TaskStatsResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskStatsResponse")
-	proto.RegisterType((*TaskEventsRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskEventsRequest")
-	proto.RegisterType((*SignalTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.SignalTaskRequest")
-	proto.RegisterType((*SignalTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.SignalTaskResponse")
-	proto.RegisterType((*ExecTaskRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.ExecTaskRequest")
-	proto.RegisterType((*ExecTaskResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.ExecTaskResponse")
-	proto.RegisterType((*ExecTaskStreamingIOOperation)(nil), "hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperation")
-	proto.RegisterType((*ExecTaskStreamingRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest")
-	proto.RegisterType((*ExecTaskStreamingRequest_Setup)(nil), "hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.Setup")
-	proto.RegisterType((*ExecTaskStreamingRequest_TerminalSize)(nil), "hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.TerminalSize")
-	proto.RegisterType((*ExecTaskStreamingResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse")
-	proto.RegisterType((*CreateNetworkRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.CreateNetworkRequest")
-	proto.RegisterType((*CreateNetworkResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.CreateNetworkResponse")
-	proto.RegisterType((*DestroyNetworkRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.DestroyNetworkRequest")
-	proto.RegisterType((*DestroyNetworkResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.DestroyNetworkResponse")
-	proto.RegisterType((*DriverCapabilities)(nil), "hashicorp.nomad.plugins.drivers.proto.DriverCapabilities")
-	proto.RegisterType((*NetworkIsolationSpec)(nil), "hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec")
-	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.LabelsEntry")
-	proto.RegisterType((*HostsConfig)(nil), "hashicorp.nomad.plugins.drivers.proto.HostsConfig")
-	proto.RegisterType((*DNSConfig)(nil), "hashicorp.nomad.plugins.drivers.proto.DNSConfig")
-	proto.RegisterType((*TaskConfig)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskConfig")
-	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskConfig.DeviceEnvEntry")
-	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskConfig.EnvEntry")
-	proto.RegisterType((*Resources)(nil), "hashicorp.nomad.plugins.drivers.proto.Resources")
-	proto.RegisterType((*AllocatedTaskResources)(nil), "hashicorp.nomad.plugins.drivers.proto.AllocatedTaskResources")
-	proto.RegisterType((*AllocatedCpuResources)(nil), "hashicorp.nomad.plugins.drivers.proto.AllocatedCpuResources")
-	proto.RegisterType((*AllocatedMemoryResources)(nil), "hashicorp.nomad.plugins.drivers.proto.AllocatedMemoryResources")
-	proto.RegisterType((*NetworkResource)(nil), "hashicorp.nomad.plugins.drivers.proto.NetworkResource")
-	proto.RegisterType((*NetworkPort)(nil), "hashicorp.nomad.plugins.drivers.proto.NetworkPort")
-	proto.RegisterType((*PortMapping)(nil), "hashicorp.nomad.plugins.drivers.proto.PortMapping")
-	proto.RegisterType((*LinuxResources)(nil), "hashicorp.nomad.plugins.drivers.proto.LinuxResources")
-	proto.RegisterType((*Mount)(nil), "hashicorp.nomad.plugins.drivers.proto.Mount")
-	proto.RegisterType((*Device)(nil), "hashicorp.nomad.plugins.drivers.proto.Device")
-	proto.RegisterType((*TaskHandle)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskHandle")
-	proto.RegisterType((*NetworkOverride)(nil), "hashicorp.nomad.plugins.drivers.proto.NetworkOverride")
-	proto.RegisterMapType((map[string]int32)(nil), "hashicorp.nomad.plugins.drivers.proto.NetworkOverride.PortMapEntry")
-	proto.RegisterType((*ExitResult)(nil), "hashicorp.nomad.plugins.drivers.proto.ExitResult")
-	proto.RegisterType((*TaskStatus)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskStatus")
-	proto.RegisterType((*TaskDriverStatus)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus")
-	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus.AttributesEntry")
-	proto.RegisterType((*TaskStats)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskStats")
-	proto.RegisterMapType((map[string]*TaskResourceUsage)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskStats.ResourceUsageByPidEntry")
-	proto.RegisterType((*TaskResourceUsage)(nil), "hashicorp.nomad.plugins.drivers.proto.TaskResourceUsage")
-	proto.RegisterType((*CPUUsage)(nil), "hashicorp.nomad.plugins.drivers.proto.CPUUsage")
-	proto.RegisterType((*MemoryUsage)(nil), "hashicorp.nomad.plugins.drivers.proto.MemoryUsage")
-	proto.RegisterType((*DriverTaskEvent)(nil), "hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent")
-	proto.RegisterMapType((map[string]string)(nil), "hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent.AnnotationsEntry")
-	proto.RegisterType((*ShutdownRequest)(nil), "hashicorp.nomad.plugins.drivers.proto.ShutdownRequest")
-	proto.RegisterType((*ShutdownResponse)(nil), "hashicorp.nomad.plugins.drivers.proto.ShutdownResponse")
-}
-
-func init() {
-	proto.RegisterFile("plugins/drivers/proto/driver.proto", fileDescriptor_4a8f45747846a74d)
-}
-
-var fileDescriptor_4a8f45747846a74d = []byte{
-	// 4029 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x5a, 0x4f, 0x73, 0x23, 0x49,
-	0x56, 0x77, 0xe9, 0x9f, 0xa5, 0x27, 0x59, 0x2e, 0xa7, 0xed, 0x1e, 0xb5, 0x66, 0x61, 0x7a, 0x6a,
-	0x63, 0x08, 0xb3, 0x3b, 0xa3, 0x9e, 0xf5, 0xc0, 0xf4, 0x74, 0x6f, 0xcf, 0xf6, 0x68, 0x64, 0x75,
-	0x5b, 0xdd, 0xb6, 0x6c, 0x52, 0x32, 0xbd, 0x4d, 0xc3, 0x14, 0xe5, 0xaa, 0x6c, 0xb9, 0xda, 0x52,
-	0x55, 0x75, 0x65, 0xc9, 0x6d, 0x2f, 0x41, 0x40, 0x2c, 0x11, 0xc4, 0x12, 0x01, 0x01, 0x07, 0x86,
-	0xbd, 0x70, 0x22, 0x82, 0x13, 0x5f, 0x80, 0x58, 0x82, 0x13, 0x07, 0x8e, 0xf0, 0x01, 0x38, 0xc0,
-	0x8d, 0x2b, 0x9f, 0x80, 0x8d, 0xfc, 0x53, 0xa5, 0x2a, 0x49, 0xbd, 0x5d, 0x92, 0xfb, 0x24, 0xbd,
-	0x97, 0x99, 0xbf, 0x7c, 0xf5, 0xf2, 0xe5, 0x7b, 0x2f, 0x33, 0x1f, 0x68, 0xde, 0x70, 0x3c, 0xb0,
-	0x1d, 0x7a, 0xdb, 0xf2, 0xed, 0x0b, 0xe2, 0xd3, 0xdb, 0x9e, 0xef, 0x06, 0xae, 0xa4, 0x1a, 0x9c,
-	0x40, 0x1f, 0x9d, 0x19, 0xf4, 0xcc, 0x36, 0x5d, 0xdf, 0x6b, 0x38, 0xee, 0xc8, 0xb0, 0x1a, 0x72,
-	0x4c, 0x43, 0x8e, 0x11, 0xdd, 0xea, 0xbf, 0x3e, 0x70, 0xdd, 0xc1, 0x90, 0x08, 0x84, 0xd3, 0xf1,
-	0x8b, 0xdb, 0xd6, 0xd8, 0x37, 0x02, 0xdb, 0x75, 0x64, 0xfb, 0x07, 0xd3, 0xed, 0x81, 0x3d, 0x22,
-	0x34, 0x30, 0x46, 0x9e, 0xec, 0xf0, 0x51, 0x28, 0x0b, 0x3d, 0x33, 0x7c, 0x62, 0xdd, 0x3e, 0x33,
-	0x87, 0xd4, 0x23, 0x26, 0xfb, 0xd5, 0xd9, 0x1f, 0xd9, 0xed, 0xe3, 0xa9, 0x6e, 0x34, 0xf0, 0xc7,
-	0x66, 0x10, 0x4a, 0x6e, 0x04, 0x81, 0x6f, 0x9f, 0x8e, 0x03, 0x22, 0x7a, 0x6b, 0x6b, 0x50, 0xee,
-	0x38, 0x76, 0x80, 0xc9, 0xab, 0x31, 0xa1, 0x81, 0x56, 0x85, 0x8a, 0x20, 0xa9, 0xe7, 0x3a, 0x94,
-	0x68, 0x37, 0xe1, 0xbd, 0xbe, 0x41, 0xcf, 0x5b, 0xae, 0xf3, 0xc2, 0x1e, 0xf4, 0xcc, 0x33, 0x32,
-	0x32, 0xc2, 0xae, 0xbf, 0x0f, 0xb5, 0xd9, 0x26, 0x31, 0x0c, 0x7d, 0x05, 0x39, 0x26, 0x51, 0x4d,
-	0xb9, 0xa5, 0xec, 0x94, 0x77, 0x3f, 0x6e, 0xbc, 0x49, 0x43, 0x42, 0xc4, 0x86, 0xfc, 0x92, 0x46,
-	0xcf, 0x23, 0x26, 0xe6, 0x23, 0xb5, 0x6d, 0xd8, 0x6c, 0x19, 0x9e, 0x71, 0x6a, 0x0f, 0xed, 0xc0,
-	0x26, 0x34, 0x9c, 0x74, 0x0c, 0x5b, 0x49, 0xb6, 0x9c, 0xf0, 0x0f, 0xa0, 0x62, 0xc6, 0xf8, 0x72,
-	0xe2, 0xbb, 0x8d, 0x54, 0x4b, 0xd3, 0xd8, 0xe3, 0x54, 0x02, 0x38, 0x01, 0xa7, 0x6d, 0x01, 0x7a,
-	0x68, 0x3b, 0x03, 0xe2, 0x7b, 0xbe, 0xed, 0x44, 0xca, 0xfa, 0x8f, 0x2c, 0x6c, 0x26, 0xd8, 0x52,
-	0x98, 0x97, 0x00, 0x91, 0x9a, 0x99, 0x28, 0xd9, 0x9d, 0xf2, 0xee, 0xe3, 0x94, 0xa2, 0xcc, 0xc1,
-	0x6b, 0x34, 0x23, 0xb0, 0xb6, 0x13, 0xf8, 0x57, 0x38, 0x86, 0x8e, 0xbe, 0x81, 0xc2, 0x19, 0x31,
-	0x86, 0xc1, 0x59, 0x2d, 0x73, 0x4b, 0xd9, 0xa9, 0xee, 0x3e, 0xbc, 0xc6, 0x3c, 0xfb, 0x1c, 0xa8,
-	0x17, 0x18, 0x01, 0xc1, 0x12, 0x15, 0x7d, 0x02, 0x48, 0xfc, 0xd3, 0x2d, 0x42, 0x4d, 0xdf, 0xf6,
-	0x98, 0xc5, 0xd6, 0xb2, 0xb7, 0x94, 0x9d, 0x12, 0xde, 0x10, 0x2d, 0x7b, 0x93, 0x06, 0xa4, 0x42,
-	0x96, 0xf8, 0x7e, 0x2d, 0xc7, 0xdb, 0xd9, 0xdf, 0xba, 0x07, 0xeb, 0x53, 0xf2, 0xb3, 0x4e, 0xe7,
-	0xe4, 0x8a, 0xaf, 0x51, 0x09, 0xb3, 0xbf, 0xe8, 0x11, 0xe4, 0x2f, 0x8c, 0xe1, 0x98, 0xf0, 0x8f,
-	0x28, 0xef, 0xfe, 0xe0, 0x6d, 0x06, 0x23, 0x6d, 0x7a, 0xa2, 0x19, 0x2c, 0xc6, 0xdf, 0xcb, 0x7c,
-	0xa1, 0x68, 0x77, 0xa1, 0x1c, 0xfb, 0x12, 0x54, 0x05, 0x38, 0xe9, 0xee, 0xb5, 0xfb, 0xed, 0x56,
-	0xbf, 0xbd, 0xa7, 0xae, 0xa0, 0x35, 0x28, 0x9d, 0x74, 0xf7, 0xdb, 0xcd, 0x83, 0xfe, 0xfe, 0x33,
-	0x55, 0x41, 0x65, 0x58, 0x0d, 0x89, 0x8c, 0x76, 0x09, 0x08, 0x13, 0xd3, 0xbd, 0x20, 0x3e, 0x33,
-	0x6d, 0xb9, 0xce, 0xe8, 0x3d, 0x58, 0x0d, 0x0c, 0x7a, 0xae, 0xdb, 0x96, 0x94, 0xb9, 0xc0, 0xc8,
-	0x8e, 0x85, 0x3a, 0x50, 0x38, 0x33, 0x1c, 0x6b, 0xf8, 0x76, 0xb9, 0x93, 0xca, 0x67, 0xe0, 0xfb,
-	0x7c, 0x20, 0x96, 0x00, 0xcc, 0xde, 0x13, 0x33, 0xcb, 0xfd, 0xf7, 0x0c, 0xd4, 0x5e, 0x60, 0xf8,
-	0x41, 0x5c, 0x9c, 0x36, 0xe4, 0xd8, 0xfc, 0xd2, 0xc6, 0x17, 0x99, 0x53, 0xec, 0x55, 0xcc, 0x87,
-	0x6b, 0xff, 0x97, 0x81, 0x8d, 0x18, 0xb6, 0xb4, 0xdd, 0xa7, 0x50, 0xf0, 0x09, 0x1d, 0x0f, 0x03,
-	0x0e, 0x5f, 0xdd, 0x7d, 0x90, 0x12, 0x7e, 0x06, 0xa9, 0x81, 0x39, 0x0c, 0x96, 0x70, 0x68, 0x07,
-	0x54, 0x31, 0x42, 0x27, 0xbe, 0xef, 0xfa, 0xfa, 0x88, 0x0e, 0xb8, 0xd6, 0x4a, 0xb8, 0x2a, 0xf8,
-	0x6d, 0xc6, 0x3e, 0xa4, 0x83, 0x98, 0x56, 0xb3, 0xd7, 0xd4, 0x2a, 0x32, 0x40, 0x75, 0x48, 0xf0,
-	0xda, 0xf5, 0xcf, 0x75, 0xa6, 0x5a, 0xdf, 0xb6, 0x08, 0xb7, 0xcd, 0xf2, 0xee, 0xe7, 0x29, 0x41,
-	0xbb, 0x62, 0xf8, 0x91, 0x1c, 0x8d, 0xd7, 0x9d, 0x24, 0x43, 0xfb, 0x3e, 0x14, 0xc4, 0x97, 0x32,
-	0x4b, 0xea, 0x9d, 0xb4, 0x5a, 0xed, 0x5e, 0x4f, 0x5d, 0x41, 0x25, 0xc8, 0xe3, 0x76, 0x1f, 0x33,
-	0x0b, 0x2b, 0x41, 0xfe, 0x61, 0xb3, 0xdf, 0x3c, 0x50, 0x33, 0xda, 0xf7, 0x60, 0xfd, 0xa9, 0x61,
-	0x07, 0x69, 0x8c, 0x4b, 0x73, 0x41, 0x9d, 0xf4, 0x95, 0xab, 0xd3, 0x49, 0xac, 0x4e, 0x7a, 0xd5,
-	0xb4, 0x2f, 0xb9, 0x4f, 0x8f, 0xaf, 0x87, 0xdc, 0xa9, 0x99, 0x68, 0xa7, 0x6a, 0xaf, 0x61, 0xbd,
-	0x17, 0xb8, 0x5e, 0x2a, 0xcb, 0xff, 0x0c, 0x56, 0x59, 0x78, 0x72, 0xc7, 0x81, 0x34, 0xfd, 0x9b,
-	0x0d, 0x11, 0xbe, 0x1a, 0x61, 0xf8, 0x6a, 0xec, 0xc9, 0xf0, 0x86, 0xc3, 0x9e, 0xe8, 0x06, 0x14,
-	0xa8, 0x3d, 0x70, 0x8c, 0xa1, 0xf4, 0x1f, 0x92, 0xd2, 0x10, 0x33, 0xf2, 0x70, 0x62, 0x69, 0xf8,
-	0x2d, 0x40, 0x7b, 0x84, 0x06, 0xbe, 0x7b, 0x95, 0x4a, 0x9e, 0x2d, 0xc8, 0xbf, 0x70, 0x7d, 0x53,
-	0x6c, 0xc4, 0x22, 0x16, 0x04, 0xdb, 0x54, 0x09, 0x10, 0x89, 0xfd, 0x09, 0xa0, 0x8e, 0xc3, 0xa2,
-	0x4c, 0xba, 0x85, 0xf8, 0x9b, 0x0c, 0x6c, 0x26, 0xfa, 0xcb, 0xc5, 0x58, 0x7e, 0x1f, 0x32, 0xc7,
-	0x34, 0xa6, 0x62, 0x1f, 0xa2, 0x23, 0x28, 0x88, 0x1e, 0x52, 0x93, 0x77, 0x16, 0x00, 0x12, 0x81,
-	0x4b, 0xc2, 0x49, 0x98, 0xb9, 0x46, 0x9f, 0x7d, 0xb7, 0x46, 0xff, 0x1a, 0xd4, 0xf0, 0x3b, 0xe8,
-	0x5b, 0xd7, 0xe6, 0x31, 0x6c, 0x9a, 0xee, 0x70, 0x48, 0x4c, 0x66, 0x0d, 0xba, 0xed, 0x04, 0xc4,
-	0xbf, 0x30, 0x86, 0x6f, 0xb7, 0x1b, 0x34, 0x19, 0xd5, 0x91, 0x83, 0xb4, 0xe7, 0xb0, 0x11, 0x9b,
-	0x58, 0x2e, 0xc4, 0x43, 0xc8, 0x53, 0xc6, 0x90, 0x2b, 0xf1, 0xe9, 0x82, 0x2b, 0x41, 0xb1, 0x18,
-	0xae, 0x6d, 0x0a, 0xf0, 0xf6, 0x05, 0x71, 0xa2, 0xcf, 0xd2, 0xf6, 0x60, 0xa3, 0xc7, 0xcd, 0x34,
-	0x95, 0x1d, 0x4e, 0x4c, 0x3c, 0x93, 0x30, 0xf1, 0x2d, 0x40, 0x71, 0x14, 0x69, 0x88, 0x57, 0xb0,
-	0xde, 0xbe, 0x24, 0x66, 0x2a, 0xe4, 0x1a, 0xac, 0x9a, 0xee, 0x68, 0x64, 0x38, 0x56, 0x2d, 0x73,
-	0x2b, 0xbb, 0x53, 0xc2, 0x21, 0x19, 0xdf, 0x8b, 0xd9, 0xb4, 0x7b, 0x51, 0xfb, 0x2b, 0x05, 0xd4,
-	0xc9, 0xdc, 0x52, 0x91, 0x4c, 0xfa, 0xc0, 0x62, 0x40, 0x6c, 0xee, 0x0a, 0x96, 0x94, 0xe4, 0x87,
-	0xee, 0x42, 0xf0, 0x89, 0xef, 0xc7, 0xdc, 0x51, 0xf6, 0x9a, 0xee, 0x48, 0xdb, 0x87, 0xef, 0x84,
-	0xe2, 0xf4, 0x02, 0x9f, 0x18, 0x23, 0xdb, 0x19, 0x74, 0x8e, 0x8e, 0x3c, 0x22, 0x04, 0x47, 0x08,
-	0x72, 0x96, 0x11, 0x18, 0x52, 0x30, 0xfe, 0x9f, 0x6d, 0x7a, 0x73, 0xe8, 0xd2, 0x68, 0xd3, 0x73,
-	0x42, 0xfb, 0xf7, 0x2c, 0xd4, 0x66, 0xa0, 0x42, 0xf5, 0x3e, 0x87, 0x3c, 0x25, 0xc1, 0xd8, 0x93,
-	0xa6, 0xd2, 0x4e, 0x2d, 0xf0, 0x7c, 0xbc, 0x46, 0x8f, 0x81, 0x61, 0x81, 0x89, 0x06, 0x50, 0x0c,
-	0x82, 0x2b, 0x9d, 0xda, 0x3f, 0x09, 0x13, 0x82, 0x83, 0xeb, 0xe2, 0xf7, 0x89, 0x3f, 0xb2, 0x1d,
-	0x63, 0xd8, 0xb3, 0x7f, 0x42, 0xf0, 0x6a, 0x10, 0x5c, 0xb1, 0x3f, 0xe8, 0x19, 0x33, 0x78, 0xcb,
-	0x76, 0xa4, 0xda, 0x5b, 0xcb, 0xce, 0x12, 0x53, 0x30, 0x16, 0x88, 0xf5, 0x03, 0xc8, 0xf3, 0x6f,
-	0x5a, 0xc6, 0x10, 0x55, 0xc8, 0x06, 0xc1, 0x15, 0x17, 0xaa, 0x88, 0xd9, 0xdf, 0xfa, 0x7d, 0xa8,
-	0xc4, 0xbf, 0x80, 0x19, 0xd2, 0x19, 0xb1, 0x07, 0x67, 0xc2, 0xc0, 0xf2, 0x58, 0x52, 0x6c, 0x25,
-	0x5f, 0xdb, 0x96, 0x4c, 0x62, 0xf3, 0x58, 0x10, 0xda, 0x3f, 0x67, 0xe0, 0xe6, 0x1c, 0xcd, 0x48,
-	0x63, 0x7d, 0x9e, 0x30, 0xd6, 0x77, 0xa4, 0x85, 0xd0, 0xe2, 0x9f, 0x27, 0x2c, 0xfe, 0x1d, 0x82,
-	0xb3, 0x6d, 0x73, 0x03, 0x0a, 0xe4, 0xd2, 0x0e, 0x88, 0x25, 0x55, 0x25, 0xa9, 0xd8, 0x76, 0xca,
-	0x5d, 0x77, 0x3b, 0x1d, 0xc2, 0x56, 0xcb, 0x27, 0x46, 0x40, 0xa4, 0x2b, 0x0f, 0xed, 0xff, 0x26,
-	0x14, 0x8d, 0xe1, 0xd0, 0x35, 0x27, 0xcb, 0xba, 0xca, 0xe9, 0x8e, 0x85, 0xea, 0x50, 0x3c, 0x73,
-	0x69, 0xe0, 0x18, 0x23, 0x22, 0x9d, 0x57, 0x44, 0x6b, 0xdf, 0x2a, 0xb0, 0x3d, 0x85, 0x27, 0x57,
-	0xe1, 0x14, 0xaa, 0x36, 0x75, 0x87, 0xfc, 0x03, 0xf5, 0xd8, 0x99, 0xef, 0x87, 0x8b, 0x85, 0x9a,
-	0x4e, 0x88, 0xc1, 0x8f, 0x80, 0x6b, 0x76, 0x9c, 0xe4, 0x16, 0xc7, 0x27, 0xb7, 0xe4, 0x4e, 0x0f,
-	0x49, 0xed, 0xef, 0x14, 0xd8, 0x96, 0x11, 0x3e, 0xfd, 0x87, 0xce, 0x8a, 0x9c, 0x79, 0xd7, 0x22,
-	0x6b, 0x35, 0xb8, 0x31, 0x2d, 0x97, 0xf4, 0xf9, 0xff, 0x9d, 0x07, 0x34, 0x7b, 0xde, 0x44, 0x1f,
-	0x42, 0x85, 0x12, 0xc7, 0xd2, 0x45, 0xbc, 0x10, 0xa1, 0xac, 0x88, 0xcb, 0x8c, 0x27, 0x02, 0x07,
-	0x65, 0x2e, 0x90, 0x5c, 0x4a, 0x69, 0x8b, 0x98, 0xff, 0x47, 0x67, 0x50, 0x79, 0x41, 0xf5, 0x68,
-	0x6e, 0x6e, 0x50, 0xd5, 0xd4, 0x6e, 0x6d, 0x56, 0x8e, 0xc6, 0xc3, 0x5e, 0xf4, 0x5d, 0xb8, 0xfc,
-	0x82, 0x46, 0x04, 0xfa, 0x99, 0x02, 0xef, 0x85, 0x69, 0xc5, 0x44, 0x7d, 0x23, 0xd7, 0x22, 0xb4,
-	0x96, 0xbb, 0x95, 0xdd, 0xa9, 0xee, 0x1e, 0x5f, 0x43, 0x7f, 0x33, 0xcc, 0x43, 0xd7, 0x22, 0x78,
-	0xdb, 0x99, 0xc3, 0xa5, 0xa8, 0x01, 0x9b, 0xa3, 0x31, 0x0d, 0x74, 0x61, 0x05, 0xba, 0xec, 0x54,
-	0xcb, 0x73, 0xbd, 0x6c, 0xb0, 0xa6, 0x84, 0xad, 0xa2, 0x73, 0x58, 0x1b, 0xb9, 0x63, 0x27, 0xd0,
-	0x4d, 0x7e, 0xfe, 0xa1, 0xb5, 0xc2, 0x42, 0x47, 0xe5, 0x39, 0x5a, 0x3a, 0x64, 0x70, 0xe2, 0x34,
-	0x45, 0x71, 0x65, 0x14, 0xa3, 0xd0, 0x6f, 0xc1, 0x0d, 0xcb, 0xa6, 0xc6, 0xe9, 0x90, 0xe8, 0x43,
-	0x77, 0xa0, 0x4f, 0x72, 0x98, 0x5a, 0x91, 0xcb, 0xb7, 0x25, 0x5b, 0x0f, 0xdc, 0x41, 0x2b, 0x6a,
-	0xe3, 0xa3, 0xae, 0x1c, 0x63, 0x64, 0x9b, 0x3a, 0x13, 0x79, 0xe8, 0x1a, 0x96, 0x3e, 0xa6, 0xc4,
-	0xa7, 0xb5, 0x92, 0x1c, 0x25, 0x5a, 0x9f, 0xca, 0xc6, 0x13, 0xd6, 0xa6, 0xdd, 0x83, 0x72, 0x6c,
-	0xbd, 0x50, 0x11, 0x72, 0xdd, 0xa3, 0x6e, 0x5b, 0x5d, 0x41, 0x00, 0x85, 0xd6, 0x3e, 0x3e, 0x3a,
-	0xea, 0x8b, 0xe3, 0x47, 0xe7, 0xb0, 0xf9, 0xa8, 0xad, 0x66, 0x18, 0xfb, 0xa4, 0xfb, 0xbb, 0xed,
-	0xce, 0x81, 0x9a, 0xd5, 0xda, 0x50, 0x89, 0x7f, 0x05, 0x42, 0x50, 0x3d, 0xe9, 0x3e, 0xe9, 0x1e,
-	0x3d, 0xed, 0xea, 0x87, 0x47, 0x27, 0xdd, 0x3e, 0x3b, 0xc4, 0x54, 0x01, 0x9a, 0xdd, 0x67, 0x13,
-	0x7a, 0x0d, 0x4a, 0xdd, 0xa3, 0x90, 0x54, 0xea, 0x19, 0x55, 0x79, 0x9c, 0x2b, 0xae, 0xaa, 0x45,
-	0x5c, 0xf1, 0xc9, 0xc8, 0x0d, 0x88, 0xce, 0x42, 0x04, 0xd5, 0xfe, 0x2d, 0x0b, 0x5b, 0xf3, 0x16,
-	0x19, 0x59, 0x90, 0x63, 0x06, 0x23, 0x8f, 0x96, 0xef, 0xde, 0x5e, 0x38, 0x3a, 0xdb, 0x27, 0x9e,
-	0x21, 0x63, 0x49, 0x09, 0xf3, 0xff, 0x48, 0x87, 0xc2, 0xd0, 0x38, 0x25, 0x43, 0x5a, 0xcb, 0xf2,
-	0xeb, 0x98, 0x47, 0xd7, 0x99, 0xfb, 0x80, 0x23, 0x89, 0xbb, 0x18, 0x09, 0x8b, 0xfa, 0x50, 0x66,
-	0xde, 0x92, 0x0a, 0x75, 0x4a, 0x07, 0xbe, 0x9b, 0x72, 0x96, 0xfd, 0xc9, 0x48, 0x1c, 0x87, 0xa9,
-	0xdf, 0x85, 0x72, 0x6c, 0xb2, 0x39, 0x17, 0x27, 0x5b, 0xf1, 0x8b, 0x93, 0x52, 0xfc, 0x16, 0xe4,
-	0xc1, 0xec, 0x1a, 0x30, 0x1d, 0x31, 0x23, 0xd9, 0x3f, 0xea, 0xf5, 0xc5, 0x11, 0xf5, 0x11, 0x3e,
-	0x3a, 0x39, 0x56, 0x15, 0xc6, 0xec, 0x37, 0x7b, 0x4f, 0xd4, 0x4c, 0x64, 0x43, 0x59, 0xad, 0x05,
-	0xe5, 0x98, 0x5c, 0x89, 0xf0, 0xa0, 0x24, 0xc3, 0x03, 0x73, 0xd0, 0x86, 0x65, 0xf9, 0x84, 0x52,
-	0x29, 0x47, 0x48, 0x6a, 0xcf, 0xa1, 0xb4, 0xd7, 0xed, 0x49, 0x88, 0x1a, 0xac, 0x52, 0xe2, 0xb3,
-	0xef, 0xe6, 0x97, 0x62, 0x25, 0x1c, 0x92, 0x0c, 0x9c, 0x12, 0xc3, 0x37, 0xcf, 0x08, 0x95, 0x49,
-	0x45, 0x44, 0xb3, 0x51, 0x2e, 0xbf, 0x5c, 0x12, 0x6b, 0x57, 0xc2, 0x21, 0xa9, 0xfd, 0x7f, 0x11,
-	0x60, 0x72, 0xad, 0x81, 0xaa, 0x90, 0x89, 0x9c, 0x7d, 0xc6, 0xb6, 0x98, 0x1d, 0xc4, 0x82, 0x19,
-	0xff, 0x8f, 0x76, 0x61, 0x7b, 0x44, 0x07, 0x9e, 0x61, 0x9e, 0xeb, 0xf2, 0x36, 0x42, 0xf8, 0x04,
-	0xee, 0x38, 0x2b, 0x78, 0x53, 0x36, 0xca, 0x2d, 0x2f, 0x70, 0x0f, 0x20, 0x4b, 0x9c, 0x0b, 0xee,
-	0xe4, 0xca, 0xbb, 0xf7, 0x16, 0xbe, 0x6e, 0x69, 0xb4, 0x9d, 0x0b, 0x61, 0x2b, 0x0c, 0x06, 0xe9,
-	0x00, 0x16, 0xb9, 0xb0, 0x4d, 0xa2, 0x33, 0xd0, 0x3c, 0x07, 0xfd, 0x6a, 0x71, 0xd0, 0x3d, 0x8e,
-	0x11, 0x41, 0x97, 0xac, 0x90, 0x46, 0x5d, 0x28, 0xf9, 0x84, 0xba, 0x63, 0xdf, 0x24, 0xc2, 0xd3,
-	0xa5, 0x3f, 0x11, 0xe1, 0x70, 0x1c, 0x9e, 0x40, 0xa0, 0x3d, 0x28, 0x70, 0x07, 0x47, 0x6b, 0xab,
-	0x5c, 0xd8, 0x8f, 0x53, 0x82, 0x71, 0xef, 0x82, 0xe5, 0x58, 0xf4, 0x08, 0x56, 0x85, 0x88, 0xb4,
-	0x56, 0xe4, 0x30, 0x9f, 0xa4, 0xf5, 0xbe, 0x7c, 0x14, 0x0e, 0x47, 0xb3, 0x55, 0x65, 0x8e, 0x91,
-	0xfb, 0xc5, 0x12, 0xe6, 0xff, 0xd1, 0xfb, 0x50, 0x12, 0xc1, 0xde, 0xb2, 0xfd, 0x1a, 0x08, 0xe3,
-	0xe4, 0x8c, 0x3d, 0xdb, 0x47, 0x1f, 0x40, 0x59, 0x24, 0x75, 0x3a, 0xf7, 0x0a, 0x65, 0xde, 0x0c,
-	0x82, 0x75, 0xcc, 0x7c, 0x83, 0xe8, 0x40, 0x7c, 0x5f, 0x74, 0xa8, 0x44, 0x1d, 0x88, 0xef, 0xf3,
-	0x0e, 0xbf, 0x01, 0xeb, 0x3c, 0x15, 0x1e, 0xf8, 0xee, 0xd8, 0xd3, 0xb9, 0x4d, 0xad, 0xf1, 0x4e,
-	0x6b, 0x8c, 0xfd, 0x88, 0x71, 0xbb, 0xcc, 0xb8, 0x6e, 0x42, 0xf1, 0xa5, 0x7b, 0x2a, 0x3a, 0x54,
-	0xc5, 0x3e, 0x78, 0xe9, 0x9e, 0x86, 0x4d, 0x51, 0x3a, 0xb2, 0x9e, 0x4c, 0x47, 0x5e, 0xc1, 0x8d,
-	0xd9, 0xb8, 0xca, 0xd3, 0x12, 0xf5, 0xfa, 0x69, 0xc9, 0x96, 0x33, 0xcf, 0x0f, 0x7f, 0x0d, 0x59,
-	0xcb, 0xa1, 0xb5, 0x8d, 0x85, 0x8c, 0x23, 0xda, 0xc7, 0x98, 0x0d, 0x46, 0xdb, 0x50, 0x60, 0x1f,
-	0x6b, 0x5b, 0x35, 0x24, 0x5c, 0xcf, 0x4b, 0xf7, 0xb4, 0x63, 0xa1, 0xef, 0x40, 0x89, 0x7d, 0x3f,
-	0xf5, 0x0c, 0x93, 0xd4, 0x36, 0x79, 0xcb, 0x84, 0xc1, 0x16, 0xca, 0x71, 0x2d, 0x22, 0x54, 0xb4,
-	0x25, 0x16, 0x8a, 0x31, 0xb8, 0x8e, 0xde, 0x83, 0x55, 0xde, 0x68, 0x5b, 0xb5, 0x6d, 0x71, 0xe2,
-	0x60, 0x64, 0xc7, 0x42, 0x1a, 0xac, 0x79, 0x86, 0x4f, 0x9c, 0x40, 0x97, 0x33, 0xde, 0xe0, 0xcd,
-	0x65, 0xc1, 0x7c, 0xcc, 0xe6, 0xad, 0x7f, 0x0e, 0xc5, 0x70, 0x33, 0x2c, 0xe2, 0x26, 0xeb, 0xf7,
-	0xa1, 0x9a, 0xdc, 0x4a, 0x0b, 0x39, 0xd9, 0x7f, 0xcc, 0x40, 0x29, 0xda, 0x34, 0xc8, 0x81, 0x4d,
-	0xbe, 0xa8, 0x2c, 0x35, 0xd5, 0x27, 0x7b, 0x50, 0x24, 0xc4, 0x5f, 0xa6, 0x54, 0x73, 0x33, 0x44,
-	0x90, 0x27, 0x73, 0xb9, 0x21, 0x51, 0x84, 0x3c, 0x99, 0xef, 0x1b, 0x58, 0x1f, 0xda, 0xce, 0xf8,
-	0x32, 0x36, 0x97, 0xc8, 0x64, 0x7f, 0x3b, 0xe5, 0x5c, 0x07, 0x6c, 0xf4, 0x64, 0x8e, 0xea, 0x30,
-	0x41, 0xa3, 0x7d, 0xc8, 0x7b, 0xae, 0x1f, 0x84, 0x31, 0x33, 0x6d, 0x34, 0x3b, 0x76, 0xfd, 0xe0,
-	0xd0, 0xf0, 0x3c, 0x76, 0x58, 0x13, 0x00, 0xda, 0xb7, 0x19, 0xb8, 0x31, 0xff, 0xc3, 0x50, 0x17,
-	0xb2, 0xa6, 0x37, 0x96, 0x4a, 0xba, 0xbf, 0xa8, 0x92, 0x5a, 0xde, 0x78, 0x22, 0x3f, 0x03, 0x42,
-	0x4f, 0xa1, 0x30, 0x22, 0x23, 0xd7, 0xbf, 0x92, 0xba, 0x78, 0xb0, 0x28, 0xe4, 0x21, 0x1f, 0x3d,
-	0x41, 0x95, 0x70, 0x08, 0x43, 0x51, 0x6e, 0x26, 0x2a, 0xdd, 0xf6, 0x82, 0xd7, 0x69, 0x21, 0x24,
-	0x8e, 0x70, 0xb4, 0xcf, 0x61, 0x7b, 0xee, 0xa7, 0xa0, 0x5f, 0x03, 0x30, 0xbd, 0xb1, 0xce, 0x9f,
-	0x3b, 0x84, 0x05, 0x65, 0x71, 0xc9, 0xf4, 0xc6, 0x3d, 0xce, 0xd0, 0x9e, 0x43, 0xed, 0x4d, 0xf2,
-	0xb2, 0x3d, 0x26, 0x24, 0xd6, 0x47, 0xa7, 0x5c, 0x07, 0x59, 0x5c, 0x14, 0x8c, 0xc3, 0x53, 0xb6,
-	0x95, 0xc2, 0x46, 0xe3, 0x92, 0x75, 0xc8, 0xf2, 0x0e, 0x65, 0xd9, 0xc1, 0xb8, 0x3c, 0x3c, 0xd5,
-	0x7e, 0x9e, 0x81, 0xf5, 0x29, 0x91, 0xd9, 0x91, 0x55, 0x38, 0xe0, 0xf0, 0x32, 0x40, 0x50, 0xcc,
-	0x1b, 0x9b, 0xb6, 0x15, 0x5e, 0x23, 0xf3, 0xff, 0x3c, 0x0e, 0x7b, 0xf2, 0x8a, 0x37, 0x63, 0x7b,
-	0x6c, 0xfb, 0x8c, 0x4e, 0xed, 0x80, 0xf2, 0xa4, 0x28, 0x8f, 0x05, 0x81, 0x9e, 0x41, 0xd5, 0x27,
-	0x3c, 0xfe, 0x5b, 0xba, 0xb0, 0xb2, 0xfc, 0x42, 0x56, 0x26, 0x25, 0x64, 0xc6, 0x86, 0xd7, 0x42,
-	0x24, 0x46, 0x51, 0xf4, 0x14, 0xd6, 0xc2, 0x64, 0x5a, 0x20, 0x17, 0x96, 0x46, 0xae, 0x48, 0x20,
-	0x0e, 0xac, 0xdd, 0x85, 0x72, 0xac, 0x91, 0x7d, 0x18, 0xcf, 0xfe, 0xa4, 0x4e, 0x04, 0x91, 0xf4,
-	0x16, 0x79, 0xe9, 0x2d, 0xb4, 0x53, 0x28, 0xc7, 0xf6, 0xc5, 0x22, 0x43, 0x99, 0x3e, 0x03, 0x97,
-	0xeb, 0x33, 0x8f, 0x33, 0x81, 0xcb, 0xfc, 0x24, 0xcb, 0xbc, 0x74, 0xdb, 0x93, 0xef, 0x6c, 0x05,
-	0x46, 0x76, 0x3c, 0xed, 0x17, 0x19, 0xa8, 0x26, 0xb7, 0x74, 0x68, 0x47, 0x1e, 0xf1, 0x6d, 0xd7,
-	0x8a, 0xd9, 0xd1, 0x31, 0x67, 0x30, 0x5b, 0x61, 0xcd, 0xaf, 0xc6, 0x6e, 0x60, 0x84, 0xb6, 0x62,
-	0x7a, 0xe3, 0xdf, 0x61, 0xf4, 0x94, 0x0d, 0x66, 0xa7, 0x6c, 0x10, 0x7d, 0x0c, 0x48, 0x9a, 0xd2,
-	0xd0, 0x1e, 0xd9, 0x81, 0x7e, 0x7a, 0x15, 0x10, 0xb1, 0xc6, 0x59, 0xac, 0x8a, 0x96, 0x03, 0xd6,
-	0xf0, 0x35, 0xe3, 0x33, 0xc3, 0x73, 0xdd, 0x91, 0x4e, 0x4d, 0xd7, 0x27, 0xba, 0x61, 0xbd, 0xe4,
-	0xa7, 0xb5, 0x2c, 0x2e, 0xbb, 0xee, 0xa8, 0xc7, 0x78, 0x4d, 0xeb, 0x25, 0x0b, 0xc4, 0xa6, 0x37,
-	0xa6, 0x24, 0xd0, 0xd9, 0x0f, 0xcf, 0x5d, 0x4a, 0x18, 0x04, 0xab, 0xe5, 0x8d, 0x29, 0xfa, 0x2e,
-	0xac, 0x85, 0x1d, 0x78, 0x2c, 0x96, 0x49, 0x40, 0x45, 0x76, 0xe1, 0x3c, 0xa4, 0x41, 0xe5, 0x98,
-	0xf8, 0x26, 0x71, 0x82, 0xbe, 0x6d, 0x9e, 0x53, 0x7e, 0xec, 0x52, 0x70, 0x82, 0x27, 0x4f, 0x2d,
-	0xe1, 0x6c, 0x23, 0x32, 0xa2, 0xda, 0x7f, 0x2a, 0x90, 0xe7, 0x29, 0x0b, 0x53, 0x0a, 0x0f, 0xf7,
-	0x3c, 0x1b, 0x90, 0xa9, 0x2e, 0x63, 0xf0, 0x5c, 0xe0, 0x7d, 0x28, 0x71, 0xe5, 0xc7, 0x4e, 0x18,
-	0x3c, 0x0f, 0xe6, 0x8d, 0x75, 0x28, 0xfa, 0xc4, 0xb0, 0x5c, 0x67, 0x18, 0xde, 0x82, 0x45, 0x34,
-	0xfa, 0x4d, 0x50, 0x3d, 0xdf, 0xf5, 0x8c, 0xc1, 0xe4, 0xe0, 0x2c, 0x97, 0x6f, 0x3d, 0xc6, 0xe7,
-	0x29, 0xfa, 0x77, 0x61, 0x8d, 0x12, 0xe1, 0xd9, 0x85, 0x91, 0xe4, 0xc5, 0x67, 0x4a, 0x26, 0x3f,
-	0x11, 0xa0, 0x0f, 0xa1, 0xe2, 0x8b, 0xbb, 0x0e, 0x11, 0x4d, 0x85, 0xb6, 0xca, 0x92, 0xc7, 0x02,
-	0xaa, 0xf6, 0x0a, 0x0a, 0x22, 0xb6, 0x5d, 0xe3, 0x93, 0x3e, 0x01, 0x24, 0x74, 0xcd, 0x6c, 0x68,
-	0x64, 0x53, 0x2a, 0x13, 0x71, 0xfe, 0xfe, 0x2b, 0x5a, 0x8e, 0x27, 0x0d, 0xda, 0x7f, 0x29, 0x22,
-	0x25, 0x17, 0xef, 0x70, 0x2c, 0x77, 0x67, 0x1b, 0x8b, 0x9d, 0x7e, 0xc5, 0x85, 0x5f, 0x48, 0xa2,
-	0x0e, 0x14, 0x64, 0xe6, 0x9d, 0x59, 0xf6, 0x19, 0x53, 0x02, 0x84, 0xd7, 0xff, 0x44, 0x5e, 0x7e,
-	0x2c, 0x7a, 0xfd, 0x4f, 0xc4, 0xf5, 0x3f, 0x61, 0x1a, 0x95, 0x67, 0x02, 0x01, 0x97, 0xe3, 0x47,
-	0x82, 0xb2, 0x15, 0xbd, 0xb1, 0x10, 0xed, 0x7f, 0x95, 0xc8, 0x35, 0x86, 0x6f, 0x21, 0xe8, 0x1b,
-	0x28, 0x32, 0x2f, 0xa3, 0x8f, 0x0c, 0x4f, 0xbe, 0xf5, 0xb7, 0x96, 0x7b, 0x66, 0x09, 0x03, 0xa7,
-	0xc8, 0xe8, 0x57, 0x3d, 0x41, 0x31, 0x17, 0xcb, 0x4e, 0x53, 0xa1, 0x8b, 0x65, 0xff, 0xd1, 0x47,
-	0x50, 0x35, 0xc6, 0x81, 0xab, 0x1b, 0xd6, 0x05, 0xf1, 0x03, 0x9b, 0x12, 0x69, 0x6e, 0x6b, 0x8c,
-	0xdb, 0x0c, 0x99, 0xf5, 0x7b, 0x50, 0x89, 0x63, 0xbe, 0x2d, 0xb5, 0xc9, 0xc7, 0x53, 0x9b, 0x3f,
-	0x04, 0x98, 0xdc, 0x2b, 0x32, 0x1b, 0x21, 0x97, 0x76, 0xa0, 0x9b, 0xe1, 0xf1, 0x3d, 0x8f, 0x8b,
-	0x8c, 0xd1, 0x62, 0xf6, 0x9a, 0x7c, 0xf4, 0xc8, 0x87, 0x8f, 0x1e, 0xcc, 0x81, 0xb0, 0x3d, 0x7f,
-	0x6e, 0x0f, 0x87, 0xd1, 0x5d, 0x67, 0xc9, 0x75, 0x47, 0x4f, 0x38, 0x43, 0xfb, 0xd7, 0x8c, 0xb0,
-	0x15, 0xf1, 0x7c, 0x95, 0xea, 0xf8, 0xf6, 0xae, 0x96, 0xfa, 0x2e, 0x00, 0x0d, 0x0c, 0x9f, 0xe5,
-	0x69, 0x46, 0x78, 0xdb, 0x5a, 0x9f, 0x79, 0x35, 0xe9, 0x87, 0x05, 0x38, 0xb8, 0x24, 0x7b, 0x37,
-	0x03, 0xf4, 0x25, 0x54, 0x4c, 0x77, 0xe4, 0x0d, 0x89, 0x1c, 0x9c, 0x7f, 0xeb, 0xe0, 0x72, 0xd4,
-	0xbf, 0x19, 0xc4, 0xee, 0x78, 0x0b, 0xd7, 0xbd, 0xe3, 0xfd, 0x85, 0x22, 0x5e, 0xe1, 0xe2, 0x8f,
-	0x80, 0x68, 0x30, 0xa7, 0xf6, 0xe4, 0xd1, 0x92, 0x2f, 0x8a, 0xbf, 0xaa, 0xf0, 0xa4, 0xfe, 0x65,
-	0x9a, 0xba, 0x8e, 0x37, 0x67, 0xce, 0xff, 0x92, 0x85, 0x52, 0xf4, 0x00, 0x37, 0xb3, 0xf6, 0x5f,
-	0x40, 0x29, 0xaa, 0x7e, 0x92, 0x0e, 0xe2, 0x57, 0x2e, 0x4f, 0xd4, 0x19, 0xbd, 0x00, 0x64, 0x0c,
-	0x06, 0x51, 0x46, 0xac, 0x8f, 0xa9, 0x31, 0x08, 0x9f, 0x3f, 0xbf, 0x58, 0x40, 0x0f, 0x61, 0x08,
-	0x3d, 0x61, 0xe3, 0xb1, 0x6a, 0x0c, 0x06, 0x09, 0x0e, 0xfa, 0x23, 0xd8, 0x4e, 0xce, 0xa1, 0x9f,
-	0x5e, 0xe9, 0x9e, 0x6d, 0xc9, 0x6b, 0x82, 0xfd, 0x45, 0xdf, 0x20, 0x1b, 0x09, 0xf8, 0xaf, 0xaf,
-	0x8e, 0x6d, 0x4b, 0xe8, 0x1c, 0xf9, 0x33, 0x0d, 0xf5, 0x3f, 0x81, 0xf7, 0xde, 0xd0, 0x7d, 0xce,
-	0x1a, 0x74, 0x93, 0xb5, 0x35, 0xcb, 0x2b, 0x21, 0xb6, 0x7a, 0xff, 0xa0, 0x88, 0xa7, 0xd2, 0xa4,
-	0x4e, 0x9a, 0xf1, 0x54, 0xfe, 0x76, 0xca, 0x79, 0x5a, 0xc7, 0x27, 0x02, 0x9e, 0x67, 0xef, 0x8f,
-	0xa7, 0xb2, 0xf7, 0xb4, 0x39, 0x9b, 0x48, 0x82, 0x05, 0x90, 0x44, 0xd0, 0xfe, 0x29, 0x0b, 0xc5,
-	0x10, 0x9d, 0x1f, 0xf2, 0xaf, 0x68, 0x40, 0x46, 0x7a, 0x74, 0x03, 0xa9, 0x60, 0x10, 0x2c, 0x1e,
-	0x74, 0xdf, 0x87, 0xd2, 0x98, 0x12, 0x5f, 0x34, 0x67, 0x78, 0x73, 0x91, 0x31, 0x78, 0xe3, 0x07,
-	0x50, 0x0e, 0xdc, 0xc0, 0x18, 0xea, 0x01, 0x4f, 0x29, 0xb2, 0x62, 0x34, 0x67, 0xf1, 0x84, 0x02,
-	0x7d, 0x1f, 0x36, 0x82, 0x33, 0xdf, 0x0d, 0x82, 0x21, 0x4b, 0x67, 0x79, 0x72, 0x25, 0x72, 0xa1,
-	0x1c, 0x56, 0xa3, 0x06, 0x91, 0x74, 0x51, 0xe6, 0xbd, 0x27, 0x9d, 0x99, 0xe9, 0x72, 0x27, 0x92,
-	0xc3, 0x6b, 0x11, 0x97, 0x99, 0x36, 0x0b, 0x9e, 0x9e, 0x48, 0x5a, 0xb8, 0xaf, 0x50, 0x70, 0x48,
-	0x22, 0x1d, 0xd6, 0x47, 0xc4, 0xa0, 0x63, 0x9f, 0x58, 0xfa, 0x0b, 0x9b, 0x0c, 0x2d, 0x71, 0x37,
-	0x53, 0x4d, 0x7d, 0x22, 0x09, 0xd5, 0xd2, 0x78, 0xc8, 0x47, 0xe3, 0x6a, 0x08, 0x27, 0x68, 0x96,
-	0x39, 0x88, 0x7f, 0x68, 0x1d, 0xca, 0xbd, 0x67, 0xbd, 0x7e, 0xfb, 0x50, 0x3f, 0x3c, 0xda, 0x6b,
-	0xcb, 0xf2, 0xa9, 0x5e, 0x1b, 0x0b, 0x52, 0x61, 0xed, 0xfd, 0xa3, 0x7e, 0xf3, 0x40, 0xef, 0x77,
-	0x5a, 0x4f, 0x7a, 0x6a, 0x06, 0x6d, 0xc3, 0x46, 0x7f, 0x1f, 0x1f, 0xf5, 0xfb, 0x07, 0xed, 0x3d,
-	0xfd, 0xb8, 0x8d, 0x3b, 0x47, 0x7b, 0x3d, 0x35, 0x8b, 0x10, 0x54, 0x27, 0xec, 0x7e, 0xe7, 0xb0,
-	0xad, 0xe6, 0x50, 0x19, 0x56, 0x8f, 0xdb, 0xb8, 0xd5, 0xee, 0xf6, 0xd5, 0xbc, 0xf6, 0xf3, 0x2c,
-	0x94, 0x63, 0xab, 0xc8, 0x0c, 0xd9, 0xa7, 0xe2, 0xe8, 0x93, 0xc3, 0xec, 0x2f, 0x7f, 0xee, 0x35,
-	0xcc, 0x33, 0xb1, 0x3a, 0x39, 0x2c, 0x08, 0x7e, 0xdc, 0x31, 0x2e, 0x63, 0xfb, 0x3c, 0x87, 0x8b,
-	0x23, 0xe3, 0x52, 0x80, 0x7c, 0x08, 0x95, 0x73, 0xe2, 0x3b, 0x64, 0x28, 0xdb, 0xc5, 0x8a, 0x94,
-	0x05, 0x4f, 0x74, 0xd9, 0x01, 0x55, 0x76, 0x99, 0xc0, 0x88, 0xe5, 0xa8, 0x0a, 0xfe, 0x61, 0x08,
-	0xb6, 0x05, 0x79, 0xd1, 0xbc, 0x2a, 0xe6, 0xe7, 0x04, 0x0b, 0x53, 0xf4, 0xb5, 0xe1, 0xf1, 0x34,
-	0x33, 0x87, 0xf9, 0x7f, 0x74, 0x3a, 0xbb, 0x3e, 0x05, 0xbe, 0x3e, 0x77, 0x17, 0x37, 0xe7, 0x37,
-	0x2d, 0xd1, 0x59, 0xb4, 0x44, 0xab, 0x90, 0xc5, 0x61, 0xcd, 0x51, 0xab, 0xd9, 0xda, 0x67, 0xcb,
-	0xb2, 0x06, 0xa5, 0xc3, 0xe6, 0x8f, 0xf5, 0x93, 0x9e, 0xb8, 0xf8, 0x57, 0xa1, 0xf2, 0xa4, 0x8d,
-	0xbb, 0xed, 0x03, 0xc9, 0xc9, 0xa2, 0x2d, 0x50, 0x25, 0x67, 0xd2, 0x2f, 0xc7, 0x10, 0xc4, 0xdf,
-	0x3c, 0x2a, 0x42, 0xae, 0xf7, 0xb4, 0x79, 0xac, 0x16, 0xb4, 0xff, 0xc9, 0xc0, 0xba, 0x08, 0x0b,
-	0x51, 0x75, 0xc4, 0x9b, 0x5f, 0x87, 0xe3, 0x17, 0x5d, 0x99, 0xe4, 0x45, 0x57, 0x98, 0x84, 0xf2,
-	0xa8, 0x9e, 0x9d, 0x24, 0xa1, 0xfc, 0xf2, 0x27, 0xe1, 0xf1, 0x73, 0x8b, 0x78, 0xfc, 0x1a, 0xac,
-	0x8e, 0x08, 0x8d, 0xd6, 0xad, 0x84, 0x43, 0x12, 0xd9, 0x50, 0x36, 0x1c, 0xc7, 0x0d, 0x0c, 0x71,
-	0x7b, 0x5c, 0x58, 0x28, 0x18, 0x4e, 0x7d, 0x71, 0xa3, 0x39, 0x41, 0x12, 0x8e, 0x39, 0x8e, 0x5d,
-	0xff, 0x11, 0xa8, 0xd3, 0x1d, 0x16, 0x0a, 0x87, 0x1b, 0xb0, 0xde, 0x3b, 0x1b, 0x07, 0x96, 0xfb,
-	0xda, 0x09, 0x0b, 0x4f, 0x10, 0xa8, 0x13, 0x96, 0x78, 0x3c, 0xfc, 0xde, 0x0f, 0x26, 0x41, 0x93,
-	0xb0, 0xed, 0x23, 0x5f, 0x6c, 0xd4, 0x15, 0x46, 0xe0, 0x93, 0x6e, 0xb7, 0xd3, 0x7d, 0xa4, 0x2a,
-	0x08, 0xa0, 0xd0, 0xfe, 0x71, 0xa7, 0xdf, 0xde, 0x53, 0x33, 0xbb, 0x7f, 0xbb, 0x09, 0x05, 0xf1,
-	0x2d, 0xe8, 0x15, 0xe4, 0x3a, 0x8e, 0x1d, 0xa0, 0xb4, 0x4e, 0x35, 0x56, 0x18, 0x5c, 0xff, 0x6c,
-	0xa1, 0x31, 0xf2, 0xad, 0x73, 0x05, 0x7d, 0x2b, 0x73, 0x94, 0x78, 0x95, 0x30, 0xfa, 0xd1, 0xc2,
-	0xb9, 0x7e, 0xa2, 0xf2, 0xb8, 0xfe, 0x60, 0xe9, 0xf1, 0x91, 0x5c, 0x7f, 0xa1, 0x40, 0x25, 0xf1,
-	0xfe, 0x9a, 0xf6, 0x5e, 0x7f, 0x4e, 0x51, 0x72, 0xfd, 0x87, 0x4b, 0x8d, 0x8d, 0x64, 0xf9, 0x99,
-	0x02, 0xe5, 0x58, 0x39, 0x2e, 0xba, 0xbb, 0x4c, 0x09, 0xaf, 0x90, 0xe4, 0xde, 0xf2, 0xd5, 0xbf,
-	0xda, 0xca, 0xa7, 0x0a, 0xfa, 0x73, 0x05, 0xca, 0xb1, 0x32, 0xd4, 0xd4, 0xa2, 0xcc, 0x16, 0xcd,
-	0xa6, 0x16, 0x65, 0x5e, 0xd5, 0xeb, 0x0a, 0xfa, 0x53, 0x05, 0x4a, 0x51, 0x49, 0x29, 0xba, 0xb3,
-	0x78, 0x11, 0xaa, 0x10, 0xe2, 0x8b, 0x65, 0xab, 0x57, 0xb5, 0x15, 0xf4, 0xc7, 0x50, 0x0c, 0xeb,
-	0x2f, 0x51, 0xda, 0xb8, 0x3a, 0x55, 0xdc, 0x59, 0xbf, 0xb3, 0xf0, 0xb8, 0xf8, 0xf4, 0x61, 0x51,
-	0x64, 0xea, 0xe9, 0xa7, 0xca, 0x37, 0xeb, 0x77, 0x16, 0x1e, 0x17, 0x4d, 0xcf, 0x2c, 0x21, 0x56,
-	0x3b, 0x99, 0xda, 0x12, 0x66, 0x8b, 0x36, 0x53, 0x5b, 0xc2, 0xbc, 0x52, 0x4d, 0x21, 0x48, 0xac,
-	0xfa, 0x32, 0xb5, 0x20, 0xb3, 0x15, 0x9e, 0xa9, 0x05, 0x99, 0x53, 0xec, 0xa9, 0xad, 0xa0, 0x9f,
-	0x2a, 0xf1, 0x13, 0xcb, 0x9d, 0x85, 0x8b, 0x0c, 0x17, 0x34, 0xc9, 0x99, 0x32, 0x47, 0xbe, 0x41,
-	0x7f, 0x2a, 0xef, 0x57, 0x44, 0x8d, 0x22, 0x5a, 0x04, 0x2c, 0x51, 0xd6, 0x58, 0xff, 0x7c, 0xb9,
-	0x30, 0xc8, 0x85, 0x60, 0xa6, 0x29, 0x23, 0x53, 0x7a, 0xd3, 0x4c, 0x46, 0xb7, 0xf4, 0xa6, 0x39,
-	0x15, 0x02, 0xb5, 0x15, 0xf4, 0x67, 0x0a, 0xc0, 0xa4, 0x98, 0x32, 0xb5, 0x0e, 0x66, 0xaa, 0x38,
-	0xeb, 0x77, 0x97, 0x18, 0x19, 0xdf, 0x9f, 0x61, 0xb1, 0x57, 0x6a, 0x25, 0x4c, 0x15, 0x7b, 0xa6,
-	0x56, 0xc2, 0x74, 0xa1, 0xa6, 0xb6, 0x82, 0xfe, 0x5e, 0x81, 0x8d, 0x99, 0x62, 0x33, 0xf4, 0xe0,
-	0x9a, 0xf5, 0x86, 0xf5, 0xaf, 0x96, 0x07, 0x08, 0x45, 0xdb, 0x51, 0x3e, 0x55, 0xd0, 0x5f, 0x2a,
-	0xb0, 0x96, 0x2c, 0xc2, 0x49, 0x1d, 0x24, 0xe7, 0x94, 0xad, 0xd5, 0xef, 0x2f, 0x37, 0x38, 0xd2,
-	0xd6, 0x5f, 0x2b, 0x50, 0x4d, 0xd6, 0x63, 0xa1, 0xfb, 0x8b, 0x79, 0xa5, 0x29, 0x81, 0xbe, 0x5c,
-	0x72, 0x74, 0x28, 0xd1, 0xd7, 0xab, 0xbf, 0x97, 0x17, 0x69, 0x6d, 0x81, 0xff, 0x7c, 0xf6, 0xcb,
-	0x00, 0x00, 0x00, 0xff, 0xff, 0x8e, 0x41, 0x82, 0x3a, 0x6a, 0x36, 0x00, 0x00,
-}
-
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConnInterface
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
-
-// DriverClient is the client API for Driver service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type DriverClient interface {
-	// Init is used to allow a driver plugin to perform any initialization
-	// after the configuration has been set.
-	Init(ctx context.Context, in *InitRequest, opts ...grpc.CallOption) (*InitResponse, error)
-	// TaskConfigSchema returns the schema for parsing the driver
-	// configuration of a task.
-	TaskConfigSchema(ctx context.Context, in *TaskConfigSchemaRequest, opts ...grpc.CallOption) (*TaskConfigSchemaResponse, error)
-	// Capabilities returns a set of features which the driver implements. Some
-	// RPCs are not possible to implement on some runtimes, this allows the
-	// driver to indicate if it doesn't support these RPCs and features.
-	Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error)
-	// Fingerprint starts a stream which emits information about the driver
-	// including whether the driver healthy and able to function in the
-	// existing environment.
-	//
-	// The driver should immediately stream a FingerprintResponse when the RPC
-	// is initially called, then send any additional responses if there is a
-	// change in the driver's state.
-	Fingerprint(ctx context.Context, in *FingerprintRequest, opts ...grpc.CallOption) (Driver_FingerprintClient, error)
-	// RecoverTask is used when a task has been started but the driver may not
-	// know about it. Such is the case if the driver restarts or is upgraded.
-	RecoverTask(ctx context.Context, in *RecoverTaskRequest, opts ...grpc.CallOption) (*RecoverTaskResponse, error)
-	// StartTask starts and tracks the task on the implemented runtime
-	StartTask(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskResponse, error)
-	// WaitTask blocks until the given task exits, returning the result of the
-	// task. It may be called after the task has exited, but before the task is
-	// destroyed.
-	WaitTask(ctx context.Context, in *WaitTaskRequest, opts ...grpc.CallOption) (*WaitTaskResponse, error)
-	// StopTask stops a given task by sending the desired signal to the process.
-	// If the task does not exit on its own within the given timeout, it will be
-	// forcefully killed.
-	StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskResponse, error)
-	// DestroyTask removes the task from the driver's internal state and cleans
-	// up any additional resources created by the driver. It cannot be called
-	// on a running task, unless force is set to true.
-	DestroyTask(ctx context.Context, in *DestroyTaskRequest, opts ...grpc.CallOption) (*DestroyTaskResponse, error)
-	// InspectTask returns detailed information for the given task
-	InspectTask(ctx context.Context, in *InspectTaskRequest, opts ...grpc.CallOption) (*InspectTaskResponse, error)
-	// TaskStats collects and returns runtime metrics for the given task
-	TaskStats(ctx context.Context, in *TaskStatsRequest, opts ...grpc.CallOption) (Driver_TaskStatsClient, error)
-	// TaskEvents starts a streaming RPC where all task events emitted by the
-	// driver are streamed to the caller.
-	TaskEvents(ctx context.Context, in *TaskEventsRequest, opts ...grpc.CallOption) (Driver_TaskEventsClient, error)
-	// Shutdown notifies the driver of an impending shutdown allowing
-	// it to prepare to exit. A best effort is made but there is no
-	// guarantee that this will be called before a driver is terminated.
-	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
-	// SignalTask sends a signal to the task
-	SignalTask(ctx context.Context, in *SignalTaskRequest, opts ...grpc.CallOption) (*SignalTaskResponse, error)
-	// ExecTask executes a command inside the tasks execution context
-	ExecTask(ctx context.Context, in *ExecTaskRequest, opts ...grpc.CallOption) (*ExecTaskResponse, error)
-	// ExecTaskStreaming executes a command inside the tasks execution context
-	// and streams back results
-	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
-	ExecTaskStreaming(ctx context.Context, opts ...grpc.CallOption) (Driver_ExecTaskStreamingClient, error)
-	// CreateNetwork is implemented when the driver needs to create the network
-	// namespace instead of allowing the Nomad client to do.
-	CreateNetwork(ctx context.Context, in *CreateNetworkRequest, opts ...grpc.CallOption) (*CreateNetworkResponse, error)
-	// DestroyNetwork destroys a previously created network. This rpc is only
-	// implemented if the driver needs to manage network namespace creation.
-	DestroyNetwork(ctx context.Context, in *DestroyNetworkRequest, opts ...grpc.CallOption) (*DestroyNetworkResponse, error)
-}
-
-type driverClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewDriverClient(cc grpc.ClientConnInterface) DriverClient {
-	return &driverClient{cc}
-}
-
-func (c *driverClient) Init(ctx context.Context, in *InitRequest, opts ...grpc.CallOption) (*InitResponse, error) {
-	out := new(InitResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/Init", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) TaskConfigSchema(ctx context.Context, in *TaskConfigSchemaRequest, opts ...grpc.CallOption) (*TaskConfigSchemaResponse, error) {
-	out := new(TaskConfigSchemaResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/TaskConfigSchema", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) Capabilities(ctx context.Context, in *CapabilitiesRequest, opts ...grpc.CallOption) (*CapabilitiesResponse, error) {
-	out := new(CapabilitiesResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/Capabilities", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) Fingerprint(ctx context.Context, in *FingerprintRequest, opts ...grpc.CallOption) (Driver_FingerprintClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Driver_serviceDesc.Streams[0], "/hashicorp.nomad.plugins.drivers.proto.Driver/Fingerprint", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &driverFingerprintClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Driver_FingerprintClient interface {
-	Recv() (*FingerprintResponse, error)
-	grpc.ClientStream
-}
-
-type driverFingerprintClient struct {
-	grpc.ClientStream
-}
-
-func (x *driverFingerprintClient) Recv() (*FingerprintResponse, error) {
-	m := new(FingerprintResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *driverClient) RecoverTask(ctx context.Context, in *RecoverTaskRequest, opts ...grpc.CallOption) (*RecoverTaskResponse, error) {
-	out := new(RecoverTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/RecoverTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) StartTask(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskResponse, error) {
-	out := new(StartTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/StartTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) WaitTask(ctx context.Context, in *WaitTaskRequest, opts ...grpc.CallOption) (*WaitTaskResponse, error) {
-	out := new(WaitTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/WaitTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskResponse, error) {
-	out := new(StopTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/StopTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) DestroyTask(ctx context.Context, in *DestroyTaskRequest, opts ...grpc.CallOption) (*DestroyTaskResponse, error) {
-	out := new(DestroyTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/DestroyTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) InspectTask(ctx context.Context, in *InspectTaskRequest, opts ...grpc.CallOption) (*InspectTaskResponse, error) {
-	out := new(InspectTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/InspectTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) TaskStats(ctx context.Context, in *TaskStatsRequest, opts ...grpc.CallOption) (Driver_TaskStatsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Driver_serviceDesc.Streams[1], "/hashicorp.nomad.plugins.drivers.proto.Driver/TaskStats", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &driverTaskStatsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Driver_TaskStatsClient interface {
-	Recv() (*TaskStatsResponse, error)
-	grpc.ClientStream
-}
-
-type driverTaskStatsClient struct {
-	grpc.ClientStream
-}
-
-func (x *driverTaskStatsClient) Recv() (*TaskStatsResponse, error) {
-	m := new(TaskStatsResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *driverClient) TaskEvents(ctx context.Context, in *TaskEventsRequest, opts ...grpc.CallOption) (Driver_TaskEventsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Driver_serviceDesc.Streams[2], "/hashicorp.nomad.plugins.drivers.proto.Driver/TaskEvents", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &driverTaskEventsClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Driver_TaskEventsClient interface {
-	Recv() (*DriverTaskEvent, error)
-	grpc.ClientStream
-}
-
-type driverTaskEventsClient struct {
-	grpc.ClientStream
-}
-
-func (x *driverTaskEventsClient) Recv() (*DriverTaskEvent, error) {
-	m := new(DriverTaskEvent)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *driverClient) Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error) {
-	out := new(ShutdownResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/Shutdown", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) SignalTask(ctx context.Context, in *SignalTaskRequest, opts ...grpc.CallOption) (*SignalTaskResponse, error) {
-	out := new(SignalTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/SignalTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) ExecTask(ctx context.Context, in *ExecTaskRequest, opts ...grpc.CallOption) (*ExecTaskResponse, error) {
-	out := new(ExecTaskResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/ExecTask", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) ExecTaskStreaming(ctx context.Context, opts ...grpc.CallOption) (Driver_ExecTaskStreamingClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Driver_serviceDesc.Streams[3], "/hashicorp.nomad.plugins.drivers.proto.Driver/ExecTaskStreaming", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &driverExecTaskStreamingClient{stream}
-	return x, nil
-}
-
-type Driver_ExecTaskStreamingClient interface {
-	Send(*ExecTaskStreamingRequest) error
-	Recv() (*ExecTaskStreamingResponse, error)
-	grpc.ClientStream
-}
-
-type driverExecTaskStreamingClient struct {
-	grpc.ClientStream
-}
-
-func (x *driverExecTaskStreamingClient) Send(m *ExecTaskStreamingRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *driverExecTaskStreamingClient) Recv() (*ExecTaskStreamingResponse, error) {
-	m := new(ExecTaskStreamingResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *driverClient) CreateNetwork(ctx context.Context, in *CreateNetworkRequest, opts ...grpc.CallOption) (*CreateNetworkResponse, error) {
-	out := new(CreateNetworkResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/CreateNetwork", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *driverClient) DestroyNetwork(ctx context.Context, in *DestroyNetworkRequest, opts ...grpc.CallOption) (*DestroyNetworkResponse, error) {
-	out := new(DestroyNetworkResponse)
-	err := c.cc.Invoke(ctx, "/hashicorp.nomad.plugins.drivers.proto.Driver/DestroyNetwork", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// DriverServer is the server API for Driver service.
-type DriverServer interface {
-	// Init is used to allow a driver plugin to perform any initialization
-	// after the configuration has been set.
-	Init(context.Context, *InitRequest) (*InitResponse, error)
-	// TaskConfigSchema returns the schema for parsing the driver
-	// configuration of a task.
-	TaskConfigSchema(context.Context, *TaskConfigSchemaRequest) (*TaskConfigSchemaResponse, error)
-	// Capabilities returns a set of features which the driver implements. Some
-	// RPCs are not possible to implement on some runtimes, this allows the
-	// driver to indicate if it doesn't support these RPCs and features.
-	Capabilities(context.Context, *CapabilitiesRequest) (*CapabilitiesResponse, error)
-	// Fingerprint starts a stream which emits information about the driver
-	// including whether the driver healthy and able to function in the
-	// existing environment.
-	//
-	// The driver should immediately stream a FingerprintResponse when the RPC
-	// is initially called, then send any additional responses if there is a
-	// change in the driver's state.
-	Fingerprint(*FingerprintRequest, Driver_FingerprintServer) error
-	// RecoverTask is used when a task has been started but the driver may not
-	// know about it. Such is the case if the driver restarts or is upgraded.
-	RecoverTask(context.Context, *RecoverTaskRequest) (*RecoverTaskResponse, error)
-	// StartTask starts and tracks the task on the implemented runtime
-	StartTask(context.Context, *StartTaskRequest) (*StartTaskResponse, error)
-	// WaitTask blocks until the given task exits, returning the result of the
-	// task. It may be called after the task has exited, but before the task is
-	// destroyed.
-	WaitTask(context.Context, *WaitTaskRequest) (*WaitTaskResponse, error)
-	// StopTask stops a given task by sending the desired signal to the process.
-	// If the task does not exit on its own within the given timeout, it will be
-	// forcefully killed.
-	StopTask(context.Context, *StopTaskRequest) (*StopTaskResponse, error)
-	// DestroyTask removes the task from the driver's internal state and cleans
-	// up any additional resources created by the driver. It cannot be called
-	// on a running task, unless force is set to true.
-	DestroyTask(context.Context, *DestroyTaskRequest) (*DestroyTaskResponse, error)
-	// InspectTask returns detailed information for the given task
-	InspectTask(context.Context, *InspectTaskRequest) (*InspectTaskResponse, error)
-	// TaskStats collects and returns runtime metrics for the given task
-	TaskStats(*TaskStatsRequest, Driver_TaskStatsServer) error
-	// TaskEvents starts a streaming RPC where all task events emitted by the
-	// driver are streamed to the caller.
-	TaskEvents(*TaskEventsRequest, Driver_TaskEventsServer) error
-	// Shutdown notifies the driver of an impending shutdown allowing
-	// it to prepare to exit. A best effort is made but there is no
-	// guarantee that this will be called before a driver is terminated.
-	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
-	// SignalTask sends a signal to the task
-	SignalTask(context.Context, *SignalTaskRequest) (*SignalTaskResponse, error)
-	// ExecTask executes a command inside the tasks execution context
-	ExecTask(context.Context, *ExecTaskRequest) (*ExecTaskResponse, error)
-	// ExecTaskStreaming executes a command inside the tasks execution context
-	// and streams back results
-	// buf:lint:ignore RPC_REQUEST_RESPONSE_UNIQUE
-	ExecTaskStreaming(Driver_ExecTaskStreamingServer) error
-	// CreateNetwork is implemented when the driver needs to create the network
-	// namespace instead of allowing the Nomad client to do.
-	CreateNetwork(context.Context, *CreateNetworkRequest) (*CreateNetworkResponse, error)
-	// DestroyNetwork destroys a previously created network. This rpc is only
-	// implemented if the driver needs to manage network namespace creation.
-	DestroyNetwork(context.Context, *DestroyNetworkRequest) (*DestroyNetworkResponse, error)
-}
-
-// UnimplementedDriverServer can be embedded to have forward compatible implementations.
-type UnimplementedDriverServer struct {
-}
-
-func (*UnimplementedDriverServer) Init(ctx context.Context, req *InitRequest) (*InitResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Init not implemented")
-}
-func (*UnimplementedDriverServer) TaskConfigSchema(ctx context.Context, req *TaskConfigSchemaRequest) (*TaskConfigSchemaResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method TaskConfigSchema not implemented")
-}
-func (*UnimplementedDriverServer) Capabilities(ctx context.Context, req *CapabilitiesRequest) (*CapabilitiesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Capabilities not implemented")
-}
-func (*UnimplementedDriverServer) Fingerprint(req *FingerprintRequest, srv Driver_FingerprintServer) error {
-	return status.Errorf(codes.Unimplemented, "method Fingerprint not implemented")
-}
-func (*UnimplementedDriverServer) RecoverTask(ctx context.Context, req *RecoverTaskRequest) (*RecoverTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RecoverTask not implemented")
-}
-func (*UnimplementedDriverServer) StartTask(ctx context.Context, req *StartTaskRequest) (*StartTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StartTask not implemented")
-}
-func (*UnimplementedDriverServer) WaitTask(ctx context.Context, req *WaitTaskRequest) (*WaitTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WaitTask not implemented")
-}
-func (*UnimplementedDriverServer) StopTask(ctx context.Context, req *StopTaskRequest) (*StopTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StopTask not implemented")
-}
-func (*UnimplementedDriverServer) DestroyTask(ctx context.Context, req *DestroyTaskRequest) (*DestroyTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DestroyTask not implemented")
-}
-func (*UnimplementedDriverServer) InspectTask(ctx context.Context, req *InspectTaskRequest) (*InspectTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method InspectTask not implemented")
-}
-func (*UnimplementedDriverServer) TaskStats(req *TaskStatsRequest, srv Driver_TaskStatsServer) error {
-	return status.Errorf(codes.Unimplemented, "method TaskStats not implemented")
-}
-func (*UnimplementedDriverServer) TaskEvents(req *TaskEventsRequest, srv Driver_TaskEventsServer) error {
-	return status.Errorf(codes.Unimplemented, "method TaskEvents not implemented")
-}
-func (*UnimplementedDriverServer) Shutdown(ctx context.Context, req *ShutdownRequest) (*ShutdownResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
-}
-func (*UnimplementedDriverServer) SignalTask(ctx context.Context, req *SignalTaskRequest) (*SignalTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SignalTask not implemented")
-}
-func (*UnimplementedDriverServer) ExecTask(ctx context.Context, req *ExecTaskRequest) (*ExecTaskResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ExecTask not implemented")
-}
-func (*UnimplementedDriverServer) ExecTaskStreaming(srv Driver_ExecTaskStreamingServer) error {
-	return status.Errorf(codes.Unimplemented, "method ExecTaskStreaming not implemented")
-}
-func (*UnimplementedDriverServer) CreateNetwork(ctx context.Context, req *CreateNetworkRequest) (*CreateNetworkResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateNetwork not implemented")
-}
-func (*UnimplementedDriverServer) DestroyNetwork(ctx context.Context, req *DestroyNetworkRequest) (*DestroyNetworkResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DestroyNetwork not implemented")
-}
-
-func RegisterDriverServer(s *grpc.Server, srv DriverServer) {
-	s.RegisterService(&_Driver_serviceDesc, srv)
-}
-
-func _Driver_Init_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).Init(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/Init",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).Init(ctx, req.(*InitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_TaskConfigSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TaskConfigSchemaRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).TaskConfigSchema(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/TaskConfigSchema",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).TaskConfigSchema(ctx, req.(*TaskConfigSchemaRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_Capabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CapabilitiesRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).Capabilities(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/Capabilities",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).Capabilities(ctx, req.(*CapabilitiesRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_Fingerprint_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(FingerprintRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(DriverServer).Fingerprint(m, &driverFingerprintServer{stream})
-}
-
-type Driver_FingerprintServer interface {
-	Send(*FingerprintResponse) error
-	grpc.ServerStream
-}
-
-type driverFingerprintServer struct {
-	grpc.ServerStream
-}
-
-func (x *driverFingerprintServer) Send(m *FingerprintResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Driver_RecoverTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RecoverTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).RecoverTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/RecoverTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).RecoverTask(ctx, req.(*RecoverTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_StartTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).StartTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/StartTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).StartTask(ctx, req.(*StartTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_WaitTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WaitTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).WaitTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/WaitTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).WaitTask(ctx, req.(*WaitTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
 
-func _Driver_StopTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StopTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).StopTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/StopTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).StopTask(ctx, req.(*StopTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_DestroyTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DestroyTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).DestroyTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/DestroyTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).DestroyTask(ctx, req.(*DestroyTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_InspectTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InspectTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).InspectTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/InspectTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).InspectTask(ctx, req.(*InspectTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_TaskStats_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(TaskStatsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(DriverServer).TaskStats(m, &driverTaskStatsServer{stream})
-}
-
-type Driver_TaskStatsServer interface {
-	Send(*TaskStatsResponse) error
-	grpc.ServerStream
-}
-
-type driverTaskStatsServer struct {
-	grpc.ServerStream
-}
-
-func (x *driverTaskStatsServer) Send(m *TaskStatsResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Driver_TaskEvents_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(TaskEventsRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(DriverServer).TaskEvents(m, &driverTaskEventsServer{stream})
-}
-
-type Driver_TaskEventsServer interface {
-	Send(*DriverTaskEvent) error
-	grpc.ServerStream
+func (x *ExecTaskStreamingRequest_Setup) String() string {
+	return protoimpl.X.MessageStringOf(x)
 }
 
-type driverTaskEventsServer struct {
-	grpc.ServerStream
-}
-
-func (x *driverTaskEventsServer) Send(m *DriverTaskEvent) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Driver_Shutdown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ShutdownRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).Shutdown(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/Shutdown",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).Shutdown(ctx, req.(*ShutdownRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_SignalTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SignalTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).SignalTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/SignalTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).SignalTask(ctx, req.(*SignalTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
+func (*ExecTaskStreamingRequest_Setup) ProtoMessage() {}
 
-func _Driver_ExecTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExecTaskRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func (x *ExecTaskStreamingRequest_Setup) ProtoReflect() protoreflect.Message {
+	mi := &file_plugins_drivers_proto_driver_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	if interceptor == nil {
-		return srv.(DriverServer).ExecTask(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/ExecTask",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).ExecTask(ctx, req.(*ExecTaskRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Driver_ExecTaskStreaming_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(DriverServer).ExecTaskStreaming(&driverExecTaskStreamingServer{stream})
-}
-
-type Driver_ExecTaskStreamingServer interface {
-	Send(*ExecTaskStreamingResponse) error
-	Recv() (*ExecTaskStreamingRequest, error)
-	grpc.ServerStream
+	return mi.MessageOf(x)
 }
 
-type driverExecTaskStreamingServer struct {
-	grpc.ServerStream
+// Deprecated: Use ExecTaskStreamingRequest_Setup.ProtoReflect.Descriptor instead.
+func (*ExecTaskStreamingRequest_Setup) Descriptor() ([]byte, []int) {
+	return file_plugins_drivers_proto_driver_proto_rawDescGZIP(), []int{28, 0}
 }
 
-func (x *driverExecTaskStreamingServer) Send(m *ExecTaskStreamingResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *driverExecTaskStreamingServer) Recv() (*ExecTaskStreamingRequest, error) {
-	m := new(ExecTaskStreamingRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
+func (x *ExecTaskStreamingRequest_Setup) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
 	}
-	return m, nil
+	return ""
 }
 
-func _Driver_CreateNetwork_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateNetworkRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).CreateNetwork(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/CreateNetwork",
+func (x *ExecTaskStreamingRequest_Setup) GetCommand() []string {
+	if x != nil {
+		return x.Command
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).CreateNetwork(ctx, req.(*CreateNetworkRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return nil
 }
 
-func _Driver_DestroyNetwork_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DestroyNetworkRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DriverServer).DestroyNetwork(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/hashicorp.nomad.plugins.drivers.proto.Driver/DestroyNetwork",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DriverServer).DestroyNetwork(ctx, req.(*DestroyNetworkRequest))
+func (x *ExecTaskStreamingRequest_Setup) GetTty() bool {
+	if x != nil {
+		return x.Tty
 	}
-	return interceptor(ctx, in, info, handler)
+	return false
 }
 
-var _Driver_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "hashicorp.nomad.plugins.drivers.proto.Driver",
-	HandlerType: (*DriverServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Init",
-			Handler:    _Driver_Init_Handler,
-		},
-		{
-			MethodName: "TaskConfigSchema",
-			Handler:    _Driver_TaskConfigSchema_Handler,
-		},
-		{
-			MethodName: "Capabilities",
-			Handler:    _Driver_Capabilities_Handler,
-		},
-		{
-			MethodName: "RecoverTask",
-			Handler:    _Driver_RecoverTask_Handler,
-		},
-		{
-			MethodName: "StartTask",
-			Handler:    _Driver_StartTask_Handler,
-		},
-		{
-			MethodName: "WaitTask",
-			Handler:    _Driver_WaitTask_Handler,
-		},
-		{
-			MethodName: "StopTask",
-			Handler:    _Driver_StopTask_Handler,
-		},
-		{
-			MethodName: "DestroyTask",
-			Handler:    _Driver_DestroyTask_Handler,
-		},
-		{
-			MethodName: "InspectTask",
-			Handler:    _Driver_InspectTask_Handler,
-		},
-		{
-			MethodName: "Shutdown",
-			Handler:    _Driver_Shutdown_Handler,
-		},
-		{
-			MethodName: "SignalTask",
-			Handler:    _Driver_SignalTask_Handler,
-		},
-		{
-			MethodName: "ExecTask",
-			Handler:    _Driver_ExecTask_Handler,
+type ExecTaskStreamingRequest_TerminalSize struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Height        int32                  `protobuf:"varint,1,opt,name=height,proto3" json:"height,omitempty"`
+	Width         int32                  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecTaskStreamingRequest_TerminalSize) Reset() {
+	*x = ExecTaskStreamingRequest_TerminalSize{}
+	mi := &file_plugins_drivers_proto_driver_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecTaskStreamingRequest_TerminalSize) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecTaskStreamingRequest_TerminalSize) ProtoMessage() {}
+
+func (x *ExecTaskStreamingRequest_TerminalSize) ProtoReflect() protoreflect.Message {
+	mi := &file_plugins_drivers_proto_driver_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecTaskStreamingRequest_TerminalSize.ProtoReflect.Descriptor instead.
+func (*ExecTaskStreamingRequest_TerminalSize) Descriptor() ([]byte, []int) {
+	return file_plugins_drivers_proto_driver_proto_rawDescGZIP(), []int{28, 1}
+}
+
+func (x *ExecTaskStreamingRequest_TerminalSize) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *ExecTaskStreamingRequest_TerminalSize) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+var File_plugins_drivers_proto_driver_proto protoreflect.FileDescriptor
+
+const file_plugins_drivers_proto_driver_proto_rawDesc = "" +
+	"\n" +
+	"\"plugins/drivers/proto/driver.proto\x12%hashicorp.nomad.plugins.drivers.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%plugins/shared/hclspec/hcl_spec.proto\x1a,plugins/shared/structs/proto/attribute.proto\"\r\n" +
+	"\vInitRequest\"\x0e\n" +
+	"\fInitResponse\"\x19\n" +
+	"\x17TaskConfigSchemaRequest\"\\\n" +
+	"\x18TaskConfigSchemaResponse\x12@\n" +
+	"\x04spec\x18\x01 \x01(\v2,.hashicorp.nomad.plugins.shared.hclspec.SpecR\x04spec\"\x15\n" +
+	"\x13CapabilitiesRequest\"u\n" +
+	"\x14CapabilitiesResponse\x12]\n" +
+	"\fcapabilities\x18\x01 \x01(\v29.hashicorp.nomad.plugins.drivers.proto.DriverCapabilitiesR\fcapabilities\"\x14\n" +
+	"\x12FingerprintRequest\"\xcf\x03\n" +
+	"\x13FingerprintResponse\x12j\n" +
+	"\n" +
+	"attributes\x18\x01 \x03(\v2J.hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.AttributesEntryR\n" +
+	"attributes\x12^\n" +
+	"\x06health\x18\x02 \x01(\x0e2F.hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.HealthStateR\x06health\x12-\n" +
+	"\x12health_description\x18\x03 \x01(\tR\x11healthDescription\x12\x10\n" +
+	"\x03err\x18\x04 \x01(\tR\x03err\x1ap\n" +
+	"\x0fAttributesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12G\n" +
+	"\x05value\x18\x02 \x01(\v21.hashicorp.nomad.plugins.shared.structs.AttributeR\x05value:\x028\x01\"9\n" +
+	"\vHealthState\x12\x0e\n" +
+	"\n" +
+	"UNDETECTED\x10\x00\x12\r\n" +
+	"\tUNHEALTHY\x10\x01\x12\v\n" +
+	"\aHEALTHY\x10\x02\"x\n" +
+	"\x12RecoverTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12I\n" +
+	"\x06handle\x18\x02 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.TaskHandleR\x06handle\"\x15\n" +
+	"\x13RecoverTaskResponse\"Y\n" +
+	"\x10StartTaskRequest\x12E\n" +
+	"\x04task\x18\x01 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.TaskConfigR\x04task\"\xf1\x02\n" +
+	"\x11StartTaskResponse\x12W\n" +
+	"\x06result\x18\x01 \x01(\x0e2?.hashicorp.nomad.plugins.drivers.proto.StartTaskResponse.ResultR\x06result\x12(\n" +
+	"\x10driver_error_msg\x18\x02 \x01(\tR\x0edriverErrorMsg\x12I\n" +
+	"\x06handle\x18\x03 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.TaskHandleR\x06handle\x12a\n" +
+	"\x10network_override\x18\x04 \x01(\v26.hashicorp.nomad.plugins.drivers.proto.NetworkOverrideR\x0fnetworkOverride\"+\n" +
+	"\x06Result\x12\v\n" +
+	"\aSUCCESS\x10\x00\x12\t\n" +
+	"\x05RETRY\x10\x01\x12\t\n" +
+	"\x05FATAL\x10\x02\"*\n" +
+	"\x0fWaitTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"o\n" +
+	"\x10WaitTaskResponse\x12I\n" +
+	"\x06result\x18\x01 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.ExitResultR\x06result\x12\x10\n" +
+	"\x03err\x18\x02 \x01(\tR\x03err\"w\n" +
+	"\x0fStopTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x123\n" +
+	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12\x16\n" +
+	"\x06signal\x18\x03 \x01(\tR\x06signal\"\x12\n" +
+	"\x10StopTaskResponse\"C\n" +
+	"\x12DestroyTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\"\x15\n" +
+	"\x13DestroyTaskResponse\"-\n" +
+	"\x12InspectTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"\x90\x02\n" +
+	"\x13InspectTaskResponse\x12E\n" +
+	"\x04task\x18\x01 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.TaskStatusR\x04task\x12O\n" +
+	"\x06driver\x18\x02 \x01(\v27.hashicorp.nomad.plugins.drivers.proto.TaskDriverStatusR\x06driver\x12a\n" +
+	"\x10network_override\x18\x03 \x01(\v26.hashicorp.nomad.plugins.drivers.proto.NetworkOverrideR\x0fnetworkOverride\"w\n" +
+	"\x10TaskStatsRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12J\n" +
+	"\x13collection_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x12collectionInterval\"[\n" +
+	"\x11TaskStatsResponse\x12F\n" +
+	"\x05stats\x18\x01 \x01(\v20.hashicorp.nomad.plugins.drivers.proto.TaskStatsR\x05stats\"\x13\n" +
+	"\x11TaskEventsRequest\"D\n" +
+	"\x11SignalTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x16\n" +
+	"\x06signal\x18\x02 \x01(\tR\x06signal\"\x14\n" +
+	"\x12SignalTaskResponse\"y\n" +
+	"\x0fExecTaskRequest\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x18\n" +
+	"\acommand\x18\x02 \x03(\tR\acommand\x123\n" +
+	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\x8d\x01\n" +
+	"\x10ExecTaskResponse\x12\x16\n" +
+	"\x06stdout\x18\x01 \x01(\fR\x06stdout\x12\x16\n" +
+	"\x06stderr\x18\x02 \x01(\fR\x06stderr\x12I\n" +
+	"\x06result\x18\x03 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.ExitResultR\x06result\"H\n" +
+	"\x1cExecTaskStreamingIOOperation\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x14\n" +
+	"\x05close\x18\x02 \x01(\bR\x05close\"\xc7\x03\n" +
+	"\x18ExecTaskStreamingRequest\x12[\n" +
+	"\x05setup\x18\x01 \x01(\v2E.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.SetupR\x05setup\x12g\n" +
+	"\btty_size\x18\x02 \x01(\v2L.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.TerminalSizeR\attySize\x12Y\n" +
+	"\x05stdin\x18\x03 \x01(\v2C.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperationR\x05stdin\x1aL\n" +
+	"\x05Setup\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x18\n" +
+	"\acommand\x18\x02 \x03(\tR\acommand\x12\x10\n" +
+	"\x03tty\x18\x03 \x01(\bR\x03tty\x1a<\n" +
+	"\fTerminalSize\x12\x16\n" +
+	"\x06height\x18\x01 \x01(\x05R\x06height\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\x05R\x05width\"\xb8\x02\n" +
+	"\x19ExecTaskStreamingResponse\x12[\n" +
+	"\x06stdout\x18\x01 \x01(\v2C.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperationR\x06stdout\x12[\n" +
+	"\x06stderr\x18\x02 \x01(\v2C.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperationR\x06stderr\x12\x16\n" +
+	"\x06exited\x18\x03 \x01(\bR\x06exited\x12I\n" +
+	"\x06result\x18\x04 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.ExitResultR\x06result\"M\n" +
+	"\x14CreateNetworkRequest\x12\x19\n" +
+	"\balloc_id\x18\x01 \x01(\tR\aallocId\x12\x1a\n" +
+	"\bhostname\x18\x02 \x01(\tR\bhostname\"\x95\x01\n" +
+	"\x15CreateNetworkResponse\x12b\n" +
+	"\x0eisolation_spec\x18\x01 \x01(\v2;.hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpecR\risolationSpec\x12\x18\n" +
+	"\acreated\x18\x02 \x01(\bR\acreated\"\x96\x01\n" +
+	"\x15DestroyNetworkRequest\x12\x19\n" +
+	"\balloc_id\x18\x01 \x01(\tR\aallocId\x12b\n" +
+	"\x0eisolation_spec\x18\x02 \x01(\v2;.hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpecR\risolationSpec\"\x18\n" +
+	"\x16DestroyNetworkResponse\"\xe0\x05\n" +
+	"\x12DriverCapabilities\x12!\n" +
+	"\fsend_signals\x18\x01 \x01(\bR\vsendSignals\x12\x12\n" +
+	"\x04exec\x18\x02 \x01(\bR\x04exec\x12h\n" +
+	"\ffs_isolation\x18\x03 \x01(\x0e2E.hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.FSIsolationR\vfsIsolation\x12\x88\x01\n" +
+	"\x17network_isolation_modes\x18\x04 \x03(\x0e2P.hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.NetworkIsolationModeR\x15networkIsolationModes\x12.\n" +
+	"\x13must_create_network\x18\x05 \x01(\bR\x11mustCreateNetwork\x12k\n" +
+	"\rmount_configs\x18\x06 \x01(\x0e2F.hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.MountConfigsR\fmountConfigs\x124\n" +
+	"\x16disable_log_collection\x18\b \x01(\bR\x14disableLogCollection\x124\n" +
+	"\x16dynamic_workload_users\x18\t \x01(\bR\x14dynamicWorkloadUsers\":\n" +
+	"\vFSIsolation\x12\b\n" +
+	"\x04NONE\x10\x00\x12\n" +
+	"\n" +
+	"\x06CHROOT\x10\x01\x12\t\n" +
+	"\x05IMAGE\x10\x02\x12\n" +
+	"\n" +
+	"\x06UNVEIL\x10\x03\"E\n" +
+	"\fMountConfigs\x12\x12\n" +
+	"\x0eUNKNOWN_MOUNTS\x10\x00\x12\x0e\n" +
+	"\n" +
+	"ANY_MOUNTS\x10\x00\x12\r\n" +
+	"\tNO_MOUNTS\x10\x01\x1a\x02\x10\x01J\x04\b\a\x10\bR\fremote_tasks\"\xc3\x03\n" +
+	"\x14NetworkIsolationSpec\x12d\n" +
+	"\x04mode\x18\x01 \x01(\x0e2P.hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.NetworkIsolationModeR\x04mode\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12_\n" +
+	"\x06labels\x18\x03 \x03(\v2G.hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.LabelsEntryR\x06labels\x12T\n" +
+	"\vhostsConfig\x18\x04 \x01(\v22.hashicorp.nomad.plugins.drivers.proto.HostsConfigR\vhostsConfig\x1a9\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"?\n" +
+	"\x14NetworkIsolationMode\x12\b\n" +
+	"\x04HOST\x10\x00\x12\t\n" +
+	"\x05GROUP\x10\x01\x12\b\n" +
+	"\x04TASK\x10\x02\x12\b\n" +
+	"\x04NONE\x10\x03\"C\n" +
+	"\vHostsConfig\x12\x1a\n" +
+	"\bhostname\x18\x01 \x01(\tR\bhostname\x12\x18\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\"[\n" +
+	"\tDNSConfig\x12\x18\n" +
+	"\aservers\x18\x01 \x03(\tR\aservers\x12\x1a\n" +
+	"\bsearches\x18\x02 \x03(\tR\bsearches\x12\x18\n" +
+	"\aoptions\x18\x03 \x03(\tR\aoptions\"\xff\b\n" +
+	"\n" +
+	"TaskConfig\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
+	"\x15msgpack_driver_config\x18\x03 \x01(\fR\x13msgpackDriverConfig\x12L\n" +
+	"\x03env\x18\x04 \x03(\v2:.hashicorp.nomad.plugins.drivers.proto.TaskConfig.EnvEntryR\x03env\x12_\n" +
+	"\n" +
+	"device_env\x18\x05 \x03(\v2@.hashicorp.nomad.plugins.drivers.proto.TaskConfig.DeviceEnvEntryR\tdeviceEnv\x12N\n" +
+	"\tresources\x18\x06 \x01(\v20.hashicorp.nomad.plugins.drivers.proto.ResourcesR\tresources\x12D\n" +
+	"\x06mounts\x18\a \x03(\v2,.hashicorp.nomad.plugins.drivers.proto.MountR\x06mounts\x12G\n" +
+	"\adevices\x18\b \x03(\v2-.hashicorp.nomad.plugins.drivers.proto.DeviceR\adevices\x12\x12\n" +
+	"\x04user\x18\t \x01(\tR\x04user\x12\x1b\n" +
+	"\talloc_dir\x18\n" +
+	" \x01(\tR\ballocDir\x12\x1f\n" +
+	"\vstdout_path\x18\v \x01(\tR\n" +
+	"stdoutPath\x12\x1f\n" +
+	"\vstderr_path\x18\f \x01(\tR\n" +
+	"stderrPath\x12&\n" +
+	"\x0ftask_group_name\x18\r \x01(\tR\rtaskGroupName\x12\x19\n" +
+	"\bjob_name\x18\x0e \x01(\tR\ajobName\x12\x19\n" +
+	"\balloc_id\x18\x0f \x01(\tR\aallocId\x12q\n" +
+	"\x16network_isolation_spec\x18\x10 \x01(\v2;.hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpecR\x14networkIsolationSpec\x12B\n" +
+	"\x03dns\x18\x11 \x01(\v20.hashicorp.nomad.plugins.drivers.proto.DNSConfigR\x03dns\x12\x15\n" +
+	"\x06job_id\x18\x12 \x01(\tR\x05jobId\x12\x1c\n" +
+	"\tnamespace\x18\x13 \x01(\tR\tnamespace\x12\x1b\n" +
+	"\tnode_name\x18\x14 \x01(\tR\bnodeName\x12\x17\n" +
+	"\anode_id\x18\x15 \x01(\tR\x06nodeId\x12\"\n" +
+	"\rparent_job_id\x18\x16 \x01(\tR\vparentJobId\x1a6\n" +
+	"\bEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a<\n" +
+	"\x0eDeviceEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa5\x02\n" +
+	"\tResources\x12n\n" +
+	"\x13allocated_resources\x18\x01 \x01(\v2=.hashicorp.nomad.plugins.drivers.proto.AllocatedTaskResourcesR\x12allocatedResources\x12^\n" +
+	"\x0flinux_resources\x18\x02 \x01(\v25.hashicorp.nomad.plugins.drivers.proto.LinuxResourcesR\x0elinuxResources\x12H\n" +
+	"\x05ports\x18\x03 \x03(\v22.hashicorp.nomad.plugins.drivers.proto.PortMappingR\x05ports\"\x95\x02\n" +
+	"\x16AllocatedTaskResources\x12N\n" +
+	"\x03cpu\x18\x01 \x01(\v2<.hashicorp.nomad.plugins.drivers.proto.AllocatedCpuResourcesR\x03cpu\x12W\n" +
+	"\x06memory\x18\x02 \x01(\v2?.hashicorp.nomad.plugins.drivers.proto.AllocatedMemoryResourcesR\x06memory\x12R\n" +
+	"\bnetworks\x18\x05 \x03(\v26.hashicorp.nomad.plugins.drivers.proto.NetworkResourceR\bnetworks\"6\n" +
+	"\x15AllocatedCpuResources\x12\x1d\n" +
+	"\n" +
+	"cpu_shares\x18\x01 \x01(\x03R\tcpuShares\"[\n" +
+	"\x18AllocatedMemoryResources\x12\x1b\n" +
+	"\tmemory_mb\x18\x02 \x01(\x03R\bmemoryMb\x12\"\n" +
+	"\rmemory_max_mb\x18\x03 \x01(\x03R\vmemoryMaxMb\"\x97\x02\n" +
+	"\x0fNetworkResource\x12\x16\n" +
+	"\x06device\x18\x01 \x01(\tR\x06device\x12\x12\n" +
+	"\x04cidr\x18\x02 \x01(\tR\x04cidr\x12\x0e\n" +
+	"\x02ip\x18\x03 \x01(\tR\x02ip\x12\x14\n" +
+	"\x05mbits\x18\x04 \x01(\x05R\x05mbits\x12Y\n" +
+	"\x0ereserved_ports\x18\x05 \x03(\v22.hashicorp.nomad.plugins.drivers.proto.NetworkPortR\rreservedPorts\x12W\n" +
+	"\rdynamic_ports\x18\x06 \x03(\v22.hashicorp.nomad.plugins.drivers.proto.NetworkPortR\fdynamicPorts\"9\n" +
+	"\vNetworkPort\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value\"b\n" +
+	"\vPortMapping\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value\x12\x0e\n" +
+	"\x02to\x18\x03 \x01(\x05R\x02to\x12\x17\n" +
+	"\ahost_ip\x18\x04 \x01(\tR\x06hostIp\"\xba\x02\n" +
+	"\x0eLinuxResources\x12\x1d\n" +
+	"\n" +
+	"cpu_period\x18\x01 \x01(\x03R\tcpuPeriod\x12\x1b\n" +
+	"\tcpu_quota\x18\x02 \x01(\x03R\bcpuQuota\x12\x1d\n" +
+	"\n" +
+	"cpu_shares\x18\x03 \x01(\x03R\tcpuShares\x12,\n" +
+	"\x12memory_limit_bytes\x18\x04 \x01(\x03R\x10memoryLimitBytes\x12\"\n" +
+	"\room_score_adj\x18\x05 \x01(\x03R\voomScoreAdj\x12\x1f\n" +
+	"\vcpuset_cpus\x18\x06 \x01(\tR\n" +
+	"cpusetCpus\x12#\n" +
+	"\rcpuset_cgroup\x18\t \x01(\tR\fcpusetCgroup\x12\"\n" +
+	"\fPercentTicks\x18\b \x01(\x01R\fPercentTicksJ\x04\b\a\x10\bR\vcpuset_mems\"\xd0\x01\n" +
+	"\x05Mount\x12\x1b\n" +
+	"\ttask_path\x18\x01 \x01(\tR\btaskPath\x12\x1b\n" +
+	"\thost_path\x18\x02 \x01(\tR\bhostPath\x12\x1a\n" +
+	"\breadonly\x18\x03 \x01(\bR\breadonly\x12)\n" +
+	"\x10propagation_mode\x18\x04 \x01(\tR\x0fpropagationMode\x12#\n" +
+	"\rselinux_label\x18\x05 \x01(\tR\fselinuxLabel\x12!\n" +
+	"\frequest_name\x18\x06 \x01(\tR\vrequestName\"q\n" +
+	"\x06Device\x12\x1b\n" +
+	"\ttask_path\x18\x01 \x01(\tR\btaskPath\x12\x1b\n" +
+	"\thost_path\x18\x02 \x01(\tR\bhostPath\x12-\n" +
+	"\x12cgroup_permissions\x18\x03 \x01(\tR\x11cgroupPermissions\"\xdc\x01\n" +
+	"\n" +
+	"TaskHandle\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x05R\aversion\x12I\n" +
+	"\x06config\x18\x02 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.TaskConfigR\x06config\x12F\n" +
+	"\x05state\x18\x03 \x01(\x0e20.hashicorp.nomad.plugins.drivers.proto.TaskStateR\x05state\x12!\n" +
+	"\fdriver_state\x18\x04 \x01(\fR\vdriverState\"\xe8\x01\n" +
+	"\x0fNetworkOverride\x12^\n" +
+	"\bport_map\x18\x01 \x03(\v2C.hashicorp.nomad.plugins.drivers.proto.NetworkOverride.PortMapEntryR\aportMap\x12\x12\n" +
+	"\x04addr\x18\x02 \x01(\tR\x04addr\x12%\n" +
+	"\x0eauto_advertise\x18\x03 \x01(\bR\rautoAdvertise\x1a:\n" +
+	"\fPortMapEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"`\n" +
+	"\n" +
+	"ExitResult\x12\x1b\n" +
+	"\texit_code\x18\x01 \x01(\x05R\bexitCode\x12\x16\n" +
+	"\x06signal\x18\x02 \x01(\x05R\x06signal\x12\x1d\n" +
+	"\n" +
+	"oom_killed\x18\x03 \x01(\bR\toomKilled\"\xbd\x02\n" +
+	"\n" +
+	"TaskStatus\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12F\n" +
+	"\x05state\x18\x03 \x01(\x0e20.hashicorp.nomad.plugins.drivers.proto.TaskStateR\x05state\x129\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
+	"\fcompleted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12I\n" +
+	"\x06result\x18\x06 \x01(\v21.hashicorp.nomad.plugins.drivers.proto.ExitResultR\x06result\"\xba\x01\n" +
+	"\x10TaskDriverStatus\x12g\n" +
+	"\n" +
+	"attributes\x18\x01 \x03(\v2G.hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus.AttributesEntryR\n" +
+	"attributes\x1a=\n" +
+	"\x0fAttributesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbb\x03\n" +
+	"\tTaskStats\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x128\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12f\n" +
+	"\x12agg_resource_usage\x18\x03 \x01(\v28.hashicorp.nomad.plugins.drivers.proto.TaskResourceUsageR\x10aggResourceUsage\x12{\n" +
+	"\x15resource_usage_by_pid\x18\x04 \x03(\v2H.hashicorp.nomad.plugins.drivers.proto.TaskStats.ResourceUsageByPidEntryR\x12resourceUsageByPid\x1a\x7f\n" +
+	"\x17ResourceUsageByPidEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12N\n" +
+	"\x05value\x18\x02 \x01(\v28.hashicorp.nomad.plugins.drivers.proto.TaskResourceUsageR\x05value:\x028\x01\"\xa2\x01\n" +
+	"\x11TaskResourceUsage\x12A\n" +
+	"\x03cpu\x18\x01 \x01(\v2/.hashicorp.nomad.plugins.drivers.proto.CPUUsageR\x03cpu\x12J\n" +
+	"\x06memory\x18\x02 \x01(\v22.hashicorp.nomad.plugins.drivers.proto.MemoryUsageR\x06memory\"\xab\x03\n" +
+	"\bCPUUsage\x12\x1f\n" +
+	"\vsystem_mode\x18\x01 \x01(\x01R\n" +
+	"systemMode\x12\x1b\n" +
+	"\tuser_mode\x18\x02 \x01(\x01R\buserMode\x12\x1f\n" +
+	"\vtotal_ticks\x18\x03 \x01(\x01R\n" +
+	"totalTicks\x12+\n" +
+	"\x11throttled_periods\x18\x04 \x01(\x04R\x10throttledPeriods\x12%\n" +
+	"\x0ethrottled_time\x18\x05 \x01(\x04R\rthrottledTime\x12\x18\n" +
+	"\apercent\x18\x06 \x01(\x01R\apercent\x12_\n" +
+	"\x0fmeasured_fields\x18\a \x03(\x0e26.hashicorp.nomad.plugins.drivers.proto.CPUUsage.FieldsR\x0emeasuredFields\"q\n" +
+	"\x06Fields\x12\x0f\n" +
+	"\vSYSTEM_MODE\x10\x00\x12\r\n" +
+	"\tUSER_MODE\x10\x01\x12\x0f\n" +
+	"\vTOTAL_TICKS\x10\x02\x12\x15\n" +
+	"\x11THROTTLED_PERIODS\x10\x03\x12\x12\n" +
+	"\x0eTHROTTLED_TIME\x10\x04\x12\v\n" +
+	"\aPERCENT\x10\x05\"\x97\x03\n" +
+	"\vMemoryUsage\x12\x10\n" +
+	"\x03rss\x18\x01 \x01(\x04R\x03rss\x12\x14\n" +
+	"\x05cache\x18\x02 \x01(\x04R\x05cache\x12\x1b\n" +
+	"\tmax_usage\x18\x03 \x01(\x04R\bmaxUsage\x12!\n" +
+	"\fkernel_usage\x18\x04 \x01(\x04R\vkernelUsage\x12(\n" +
+	"\x10kernel_max_usage\x18\x05 \x01(\x04R\x0ekernelMaxUsage\x12\x14\n" +
+	"\x05usage\x18\a \x01(\x04R\x05usage\x12\x12\n" +
+	"\x04swap\x18\b \x01(\x04R\x04swap\x12b\n" +
+	"\x0fmeasured_fields\x18\x06 \x03(\x0e29.hashicorp.nomad.plugins.drivers.proto.MemoryUsage.FieldsR\x0emeasuredFields\"h\n" +
+	"\x06Fields\x12\a\n" +
+	"\x03RSS\x10\x00\x12\t\n" +
+	"\x05CACHE\x10\x01\x12\r\n" +
+	"\tMAX_USAGE\x10\x02\x12\x10\n" +
+	"\fKERNEL_USAGE\x10\x03\x12\x14\n" +
+	"\x10KERNEL_MAX_USAGE\x10\x04\x12\t\n" +
+	"\x05USAGE\x10\x05\x12\b\n" +
+	"\x04SWAP\x10\x06\"\xe1\x02\n" +
+	"\x0fDriverTaskEvent\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x19\n" +
+	"\balloc_id\x18\x02 \x01(\tR\aallocId\x12\x1b\n" +
+	"\ttask_name\x18\x03 \x01(\tR\btaskName\x128\n" +
+	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\x12i\n" +
+	"\vannotations\x18\x06 \x03(\v2G.hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent.AnnotationsEntryR\vannotations\x1a>\n" +
+	"\x10AnnotationsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x11\n" +
+	"\x0fShutdownRequest\"\x12\n" +
+	"\x10ShutdownResponse*1\n" +
+	"\tTaskState\x12\v\n" +
+	"\aUNKNOWN\x10\x00\x12\v\n" +
+	"\aRUNNING\x10\x01\x12\n" +
+	"\n" +
+	"\x06EXITED\x10\x022\x94\x13\n" +
+	"\x06Driver\x12q\n" +
+	"\x04Init\x122.hashicorp.nomad.plugins.drivers.proto.InitRequest\x1a3.hashicorp.nomad.plugins.drivers.proto.InitResponse\"\x00\x12\x95\x01\n" +
+	"\x10TaskConfigSchema\x12>.hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaRequest\x1a?.hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaResponse\"\x00\x12\x89\x01\n" +
+	"\fCapabilities\x12:.hashicorp.nomad.plugins.drivers.proto.CapabilitiesRequest\x1a;.hashicorp.nomad.plugins.drivers.proto.CapabilitiesResponse\"\x00\x12\x88\x01\n" +
+	"\vFingerprint\x129.hashicorp.nomad.plugins.drivers.proto.FingerprintRequest\x1a:.hashicorp.nomad.plugins.drivers.proto.FingerprintResponse\"\x000\x01\x12\x86\x01\n" +
+	"\vRecoverTask\x129.hashicorp.nomad.plugins.drivers.proto.RecoverTaskRequest\x1a:.hashicorp.nomad.plugins.drivers.proto.RecoverTaskResponse\"\x00\x12\x80\x01\n" +
+	"\tStartTask\x127.hashicorp.nomad.plugins.drivers.proto.StartTaskRequest\x1a8.hashicorp.nomad.plugins.drivers.proto.StartTaskResponse\"\x00\x12}\n" +
+	"\bWaitTask\x126.hashicorp.nomad.plugins.drivers.proto.WaitTaskRequest\x1a7.hashicorp.nomad.plugins.drivers.proto.WaitTaskResponse\"\x00\x12}\n" +
+	"\bStopTask\x126.hashicorp.nomad.plugins.drivers.proto.StopTaskRequest\x1a7.hashicorp.nomad.plugins.drivers.proto.StopTaskResponse\"\x00\x12\x86\x01\n" +
+	"\vDestroyTask\x129.hashicorp.nomad.plugins.drivers.proto.DestroyTaskRequest\x1a:.hashicorp.nomad.plugins.drivers.proto.DestroyTaskResponse\"\x00\x12\x86\x01\n" +
+	"\vInspectTask\x129.hashicorp.nomad.plugins.drivers.proto.InspectTaskRequest\x1a:.hashicorp.nomad.plugins.drivers.proto.InspectTaskResponse\"\x00\x12\x82\x01\n" +
+	"\tTaskStats\x127.hashicorp.nomad.plugins.drivers.proto.TaskStatsRequest\x1a8.hashicorp.nomad.plugins.drivers.proto.TaskStatsResponse\"\x000\x01\x12\x82\x01\n" +
+	"\n" +
+	"TaskEvents\x128.hashicorp.nomad.plugins.drivers.proto.TaskEventsRequest\x1a6.hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent\"\x000\x01\x12}\n" +
+	"\bShutdown\x126.hashicorp.nomad.plugins.drivers.proto.ShutdownRequest\x1a7.hashicorp.nomad.plugins.drivers.proto.ShutdownResponse\"\x00\x12\x83\x01\n" +
+	"\n" +
+	"SignalTask\x128.hashicorp.nomad.plugins.drivers.proto.SignalTaskRequest\x1a9.hashicorp.nomad.plugins.drivers.proto.SignalTaskResponse\"\x00\x12}\n" +
+	"\bExecTask\x126.hashicorp.nomad.plugins.drivers.proto.ExecTaskRequest\x1a7.hashicorp.nomad.plugins.drivers.proto.ExecTaskResponse\"\x00\x12\x9c\x01\n" +
+	"\x11ExecTaskStreaming\x12?.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest\x1a@.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse\"\x00(\x010\x01\x12\x8c\x01\n" +
+	"\rCreateNetwork\x12;.hashicorp.nomad.plugins.drivers.proto.CreateNetworkRequest\x1a<.hashicorp.nomad.plugins.drivers.proto.CreateNetworkResponse\"\x00\x12\x8f\x01\n" +
+	"\x0eDestroyNetwork\x12<.hashicorp.nomad.plugins.drivers.proto.DestroyNetworkRequest\x1a=.hashicorp.nomad.plugins.drivers.proto.DestroyNetworkResponse\"\x00B8Z6github.com/hashicorp/nomad/plugins/drivers/proto;protob\x06proto3"
+
+var (
+	file_plugins_drivers_proto_driver_proto_rawDescOnce sync.Once
+	file_plugins_drivers_proto_driver_proto_rawDescData []byte
+)
+
+func file_plugins_drivers_proto_driver_proto_rawDescGZIP() []byte {
+	file_plugins_drivers_proto_driver_proto_rawDescOnce.Do(func() {
+		file_plugins_drivers_proto_driver_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_plugins_drivers_proto_driver_proto_rawDesc), len(file_plugins_drivers_proto_driver_proto_rawDesc)))
+	})
+	return file_plugins_drivers_proto_driver_proto_rawDescData
+}
+
+var file_plugins_drivers_proto_driver_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_plugins_drivers_proto_driver_proto_msgTypes = make([]protoimpl.MessageInfo, 71)
+var file_plugins_drivers_proto_driver_proto_goTypes = []any{
+	(TaskState)(0),                                 // 0: hashicorp.nomad.plugins.drivers.proto.TaskState
+	(FingerprintResponse_HealthState)(0),           // 1: hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.HealthState
+	(StartTaskResponse_Result)(0),                  // 2: hashicorp.nomad.plugins.drivers.proto.StartTaskResponse.Result
+	(DriverCapabilities_FSIsolation)(0),            // 3: hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.FSIsolation
+	(DriverCapabilities_MountConfigs)(0),           // 4: hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.MountConfigs
+	(NetworkIsolationSpec_NetworkIsolationMode)(0), // 5: hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.NetworkIsolationMode
+	(CPUUsage_Fields)(0),                           // 6: hashicorp.nomad.plugins.drivers.proto.CPUUsage.Fields
+	(MemoryUsage_Fields)(0),                        // 7: hashicorp.nomad.plugins.drivers.proto.MemoryUsage.Fields
+	(*InitRequest)(nil),                            // 8: hashicorp.nomad.plugins.drivers.proto.InitRequest
+	(*InitResponse)(nil),                           // 9: hashicorp.nomad.plugins.drivers.proto.InitResponse
+	(*TaskConfigSchemaRequest)(nil),                // 10: hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaRequest
+	(*TaskConfigSchemaResponse)(nil),               // 11: hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaResponse
+	(*CapabilitiesRequest)(nil),                    // 12: hashicorp.nomad.plugins.drivers.proto.CapabilitiesRequest
+	(*CapabilitiesResponse)(nil),                   // 13: hashicorp.nomad.plugins.drivers.proto.CapabilitiesResponse
+	(*FingerprintRequest)(nil),                     // 14: hashicorp.nomad.plugins.drivers.proto.FingerprintRequest
+	(*FingerprintResponse)(nil),                    // 15: hashicorp.nomad.plugins.drivers.proto.FingerprintResponse
+	(*RecoverTaskRequest)(nil),                     // 16: hashicorp.nomad.plugins.drivers.proto.RecoverTaskRequest
+	(*RecoverTaskResponse)(nil),                    // 17: hashicorp.nomad.plugins.drivers.proto.RecoverTaskResponse
+	(*StartTaskRequest)(nil),                       // 18: hashicorp.nomad.plugins.drivers.proto.StartTaskRequest
+	(*StartTaskResponse)(nil),                      // 19: hashicorp.nomad.plugins.drivers.proto.StartTaskResponse
+	(*WaitTaskRequest)(nil),                        // 20: hashicorp.nomad.plugins.drivers.proto.WaitTaskRequest
+	(*WaitTaskResponse)(nil),                       // 21: hashicorp.nomad.plugins.drivers.proto.WaitTaskResponse
+	(*StopTaskRequest)(nil),                        // 22: hashicorp.nomad.plugins.drivers.proto.StopTaskRequest
+	(*StopTaskResponse)(nil),                       // 23: hashicorp.nomad.plugins.drivers.proto.StopTaskResponse
+	(*DestroyTaskRequest)(nil),                     // 24: hashicorp.nomad.plugins.drivers.proto.DestroyTaskRequest
+	(*DestroyTaskResponse)(nil),                    // 25: hashicorp.nomad.plugins.drivers.proto.DestroyTaskResponse
+	(*InspectTaskRequest)(nil),                     // 26: hashicorp.nomad.plugins.drivers.proto.InspectTaskRequest
+	(*InspectTaskResponse)(nil),                    // 27: hashicorp.nomad.plugins.drivers.proto.InspectTaskResponse
+	(*TaskStatsRequest)(nil),                       // 28: hashicorp.nomad.plugins.drivers.proto.TaskStatsRequest
+	(*TaskStatsResponse)(nil),                      // 29: hashicorp.nomad.plugins.drivers.proto.TaskStatsResponse
+	(*TaskEventsRequest)(nil),                      // 30: hashicorp.nomad.plugins.drivers.proto.TaskEventsRequest
+	(*SignalTaskRequest)(nil),                      // 31: hashicorp.nomad.plugins.drivers.proto.SignalTaskRequest
+	(*SignalTaskResponse)(nil),                     // 32: hashicorp.nomad.plugins.drivers.proto.SignalTaskResponse
+	(*ExecTaskRequest)(nil),                        // 33: hashicorp.nomad.plugins.drivers.proto.ExecTaskRequest
+	(*ExecTaskResponse)(nil),                       // 34: hashicorp.nomad.plugins.drivers.proto.ExecTaskResponse
+	(*ExecTaskStreamingIOOperation)(nil),           // 35: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperation
+	(*ExecTaskStreamingRequest)(nil),               // 36: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest
+	(*ExecTaskStreamingResponse)(nil),              // 37: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse
+	(*CreateNetworkRequest)(nil),                   // 38: hashicorp.nomad.plugins.drivers.proto.CreateNetworkRequest
+	(*CreateNetworkResponse)(nil),                  // 39: hashicorp.nomad.plugins.drivers.proto.CreateNetworkResponse
+	(*DestroyNetworkRequest)(nil),                  // 40: hashicorp.nomad.plugins.drivers.proto.DestroyNetworkRequest
+	(*DestroyNetworkResponse)(nil),                 // 41: hashicorp.nomad.plugins.drivers.proto.DestroyNetworkResponse
+	(*DriverCapabilities)(nil),                     // 42: hashicorp.nomad.plugins.drivers.proto.DriverCapabilities
+	(*NetworkIsolationSpec)(nil),                   // 43: hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec
+	(*HostsConfig)(nil),                            // 44: hashicorp.nomad.plugins.drivers.proto.HostsConfig
+	(*DNSConfig)(nil),                              // 45: hashicorp.nomad.plugins.drivers.proto.DNSConfig
+	(*TaskConfig)(nil),                             // 46: hashicorp.nomad.plugins.drivers.proto.TaskConfig
+	(*Resources)(nil),                              // 47: hashicorp.nomad.plugins.drivers.proto.Resources
+	(*AllocatedTaskResources)(nil),                 // 48: hashicorp.nomad.plugins.drivers.proto.AllocatedTaskResources
+	(*AllocatedCpuResources)(nil),                  // 49: hashicorp.nomad.plugins.drivers.proto.AllocatedCpuResources
+	(*AllocatedMemoryResources)(nil),               // 50: hashicorp.nomad.plugins.drivers.proto.AllocatedMemoryResources
+	(*NetworkResource)(nil),                        // 51: hashicorp.nomad.plugins.drivers.proto.NetworkResource
+	(*NetworkPort)(nil),                            // 52: hashicorp.nomad.plugins.drivers.proto.NetworkPort
+	(*PortMapping)(nil),                            // 53: hashicorp.nomad.plugins.drivers.proto.PortMapping
+	(*LinuxResources)(nil),                         // 54: hashicorp.nomad.plugins.drivers.proto.LinuxResources
+	(*Mount)(nil),                                  // 55: hashicorp.nomad.plugins.drivers.proto.Mount
+	(*Device)(nil),                                 // 56: hashicorp.nomad.plugins.drivers.proto.Device
+	(*TaskHandle)(nil),                             // 57: hashicorp.nomad.plugins.drivers.proto.TaskHandle
+	(*NetworkOverride)(nil),                        // 58: hashicorp.nomad.plugins.drivers.proto.NetworkOverride
+	(*ExitResult)(nil),                             // 59: hashicorp.nomad.plugins.drivers.proto.ExitResult
+	(*TaskStatus)(nil),                             // 60: hashicorp.nomad.plugins.drivers.proto.TaskStatus
+	(*TaskDriverStatus)(nil),                       // 61: hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus
+	(*TaskStats)(nil),                              // 62: hashicorp.nomad.plugins.drivers.proto.TaskStats
+	(*TaskResourceUsage)(nil),                      // 63: hashicorp.nomad.plugins.drivers.proto.TaskResourceUsage
+	(*CPUUsage)(nil),                               // 64: hashicorp.nomad.plugins.drivers.proto.CPUUsage
+	(*MemoryUsage)(nil),                            // 65: hashicorp.nomad.plugins.drivers.proto.MemoryUsage
+	(*DriverTaskEvent)(nil),                        // 66: hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent
+	(*ShutdownRequest)(nil),                        // 67: hashicorp.nomad.plugins.drivers.proto.ShutdownRequest
+	(*ShutdownResponse)(nil),                       // 68: hashicorp.nomad.plugins.drivers.proto.ShutdownResponse
+	nil,                                            // 69: hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.AttributesEntry
+	(*ExecTaskStreamingRequest_Setup)(nil),         // 70: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.Setup
+	(*ExecTaskStreamingRequest_TerminalSize)(nil),  // 71: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.TerminalSize
+	nil,                           // 72: hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.LabelsEntry
+	nil,                           // 73: hashicorp.nomad.plugins.drivers.proto.TaskConfig.EnvEntry
+	nil,                           // 74: hashicorp.nomad.plugins.drivers.proto.TaskConfig.DeviceEnvEntry
+	nil,                           // 75: hashicorp.nomad.plugins.drivers.proto.NetworkOverride.PortMapEntry
+	nil,                           // 76: hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus.AttributesEntry
+	nil,                           // 77: hashicorp.nomad.plugins.drivers.proto.TaskStats.ResourceUsageByPidEntry
+	nil,                           // 78: hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent.AnnotationsEntry
+	(*hclspec.Spec)(nil),          // 79: hashicorp.nomad.plugins.shared.hclspec.Spec
+	(*durationpb.Duration)(nil),   // 80: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil), // 81: google.protobuf.Timestamp
+	(*proto.Attribute)(nil),       // 82: hashicorp.nomad.plugins.shared.structs.Attribute
+}
+var file_plugins_drivers_proto_driver_proto_depIdxs = []int32{
+	79, // 0: hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaResponse.spec:type_name -> hashicorp.nomad.plugins.shared.hclspec.Spec
+	42, // 1: hashicorp.nomad.plugins.drivers.proto.CapabilitiesResponse.capabilities:type_name -> hashicorp.nomad.plugins.drivers.proto.DriverCapabilities
+	69, // 2: hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.attributes:type_name -> hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.AttributesEntry
+	1,  // 3: hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.health:type_name -> hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.HealthState
+	57, // 4: hashicorp.nomad.plugins.drivers.proto.RecoverTaskRequest.handle:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskHandle
+	46, // 5: hashicorp.nomad.plugins.drivers.proto.StartTaskRequest.task:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskConfig
+	2,  // 6: hashicorp.nomad.plugins.drivers.proto.StartTaskResponse.result:type_name -> hashicorp.nomad.plugins.drivers.proto.StartTaskResponse.Result
+	57, // 7: hashicorp.nomad.plugins.drivers.proto.StartTaskResponse.handle:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskHandle
+	58, // 8: hashicorp.nomad.plugins.drivers.proto.StartTaskResponse.network_override:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkOverride
+	59, // 9: hashicorp.nomad.plugins.drivers.proto.WaitTaskResponse.result:type_name -> hashicorp.nomad.plugins.drivers.proto.ExitResult
+	80, // 10: hashicorp.nomad.plugins.drivers.proto.StopTaskRequest.timeout:type_name -> google.protobuf.Duration
+	60, // 11: hashicorp.nomad.plugins.drivers.proto.InspectTaskResponse.task:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskStatus
+	61, // 12: hashicorp.nomad.plugins.drivers.proto.InspectTaskResponse.driver:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus
+	58, // 13: hashicorp.nomad.plugins.drivers.proto.InspectTaskResponse.network_override:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkOverride
+	80, // 14: hashicorp.nomad.plugins.drivers.proto.TaskStatsRequest.collection_interval:type_name -> google.protobuf.Duration
+	62, // 15: hashicorp.nomad.plugins.drivers.proto.TaskStatsResponse.stats:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskStats
+	80, // 16: hashicorp.nomad.plugins.drivers.proto.ExecTaskRequest.timeout:type_name -> google.protobuf.Duration
+	59, // 17: hashicorp.nomad.plugins.drivers.proto.ExecTaskResponse.result:type_name -> hashicorp.nomad.plugins.drivers.proto.ExitResult
+	70, // 18: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.setup:type_name -> hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.Setup
+	71, // 19: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.tty_size:type_name -> hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.TerminalSize
+	35, // 20: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest.stdin:type_name -> hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperation
+	35, // 21: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse.stdout:type_name -> hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperation
+	35, // 22: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse.stderr:type_name -> hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingIOOperation
+	59, // 23: hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse.result:type_name -> hashicorp.nomad.plugins.drivers.proto.ExitResult
+	43, // 24: hashicorp.nomad.plugins.drivers.proto.CreateNetworkResponse.isolation_spec:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec
+	43, // 25: hashicorp.nomad.plugins.drivers.proto.DestroyNetworkRequest.isolation_spec:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec
+	3,  // 26: hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.fs_isolation:type_name -> hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.FSIsolation
+	5,  // 27: hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.network_isolation_modes:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.NetworkIsolationMode
+	4,  // 28: hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.mount_configs:type_name -> hashicorp.nomad.plugins.drivers.proto.DriverCapabilities.MountConfigs
+	5,  // 29: hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.mode:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.NetworkIsolationMode
+	72, // 30: hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.labels:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.LabelsEntry
+	44, // 31: hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec.hostsConfig:type_name -> hashicorp.nomad.plugins.drivers.proto.HostsConfig
+	73, // 32: hashicorp.nomad.plugins.drivers.proto.TaskConfig.env:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskConfig.EnvEntry
+	74, // 33: hashicorp.nomad.plugins.drivers.proto.TaskConfig.device_env:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskConfig.DeviceEnvEntry
+	47, // 34: hashicorp.nomad.plugins.drivers.proto.TaskConfig.resources:type_name -> hashicorp.nomad.plugins.drivers.proto.Resources
+	55, // 35: hashicorp.nomad.plugins.drivers.proto.TaskConfig.mounts:type_name -> hashicorp.nomad.plugins.drivers.proto.Mount
+	56, // 36: hashicorp.nomad.plugins.drivers.proto.TaskConfig.devices:type_name -> hashicorp.nomad.plugins.drivers.proto.Device
+	43, // 37: hashicorp.nomad.plugins.drivers.proto.TaskConfig.network_isolation_spec:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkIsolationSpec
+	45, // 38: hashicorp.nomad.plugins.drivers.proto.TaskConfig.dns:type_name -> hashicorp.nomad.plugins.drivers.proto.DNSConfig
+	48, // 39: hashicorp.nomad.plugins.drivers.proto.Resources.allocated_resources:type_name -> hashicorp.nomad.plugins.drivers.proto.AllocatedTaskResources
+	54, // 40: hashicorp.nomad.plugins.drivers.proto.Resources.linux_resources:type_name -> hashicorp.nomad.plugins.drivers.proto.LinuxResources
+	53, // 41: hashicorp.nomad.plugins.drivers.proto.Resources.ports:type_name -> hashicorp.nomad.plugins.drivers.proto.PortMapping
+	49, // 42: hashicorp.nomad.plugins.drivers.proto.AllocatedTaskResources.cpu:type_name -> hashicorp.nomad.plugins.drivers.proto.AllocatedCpuResources
+	50, // 43: hashicorp.nomad.plugins.drivers.proto.AllocatedTaskResources.memory:type_name -> hashicorp.nomad.plugins.drivers.proto.AllocatedMemoryResources
+	51, // 44: hashicorp.nomad.plugins.drivers.proto.AllocatedTaskResources.networks:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkResource
+	52, // 45: hashicorp.nomad.plugins.drivers.proto.NetworkResource.reserved_ports:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkPort
+	52, // 46: hashicorp.nomad.plugins.drivers.proto.NetworkResource.dynamic_ports:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkPort
+	46, // 47: hashicorp.nomad.plugins.drivers.proto.TaskHandle.config:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskConfig
+	0,  // 48: hashicorp.nomad.plugins.drivers.proto.TaskHandle.state:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskState
+	75, // 49: hashicorp.nomad.plugins.drivers.proto.NetworkOverride.port_map:type_name -> hashicorp.nomad.plugins.drivers.proto.NetworkOverride.PortMapEntry
+	0,  // 50: hashicorp.nomad.plugins.drivers.proto.TaskStatus.state:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskState
+	81, // 51: hashicorp.nomad.plugins.drivers.proto.TaskStatus.started_at:type_name -> google.protobuf.Timestamp
+	81, // 52: hashicorp.nomad.plugins.drivers.proto.TaskStatus.completed_at:type_name -> google.protobuf.Timestamp
+	59, // 53: hashicorp.nomad.plugins.drivers.proto.TaskStatus.result:type_name -> hashicorp.nomad.plugins.drivers.proto.ExitResult
+	76, // 54: hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus.attributes:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskDriverStatus.AttributesEntry
+	81, // 55: hashicorp.nomad.plugins.drivers.proto.TaskStats.timestamp:type_name -> google.protobuf.Timestamp
+	63, // 56: hashicorp.nomad.plugins.drivers.proto.TaskStats.agg_resource_usage:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskResourceUsage
+	77, // 57: hashicorp.nomad.plugins.drivers.proto.TaskStats.resource_usage_by_pid:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskStats.ResourceUsageByPidEntry
+	64, // 58: hashicorp.nomad.plugins.drivers.proto.TaskResourceUsage.cpu:type_name -> hashicorp.nomad.plugins.drivers.proto.CPUUsage
+	65, // 59: hashicorp.nomad.plugins.drivers.proto.TaskResourceUsage.memory:type_name -> hashicorp.nomad.plugins.drivers.proto.MemoryUsage
+	6,  // 60: hashicorp.nomad.plugins.drivers.proto.CPUUsage.measured_fields:type_name -> hashicorp.nomad.plugins.drivers.proto.CPUUsage.Fields
+	7,  // 61: hashicorp.nomad.plugins.drivers.proto.MemoryUsage.measured_fields:type_name -> hashicorp.nomad.plugins.drivers.proto.MemoryUsage.Fields
+	81, // 62: hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent.timestamp:type_name -> google.protobuf.Timestamp
+	78, // 63: hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent.annotations:type_name -> hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent.AnnotationsEntry
+	82, // 64: hashicorp.nomad.plugins.drivers.proto.FingerprintResponse.AttributesEntry.value:type_name -> hashicorp.nomad.plugins.shared.structs.Attribute
+	63, // 65: hashicorp.nomad.plugins.drivers.proto.TaskStats.ResourceUsageByPidEntry.value:type_name -> hashicorp.nomad.plugins.drivers.proto.TaskResourceUsage
+	8,  // 66: hashicorp.nomad.plugins.drivers.proto.Driver.Init:input_type -> hashicorp.nomad.plugins.drivers.proto.InitRequest
+	10, // 67: hashicorp.nomad.plugins.drivers.proto.Driver.TaskConfigSchema:input_type -> hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaRequest
+	12, // 68: hashicorp.nomad.plugins.drivers.proto.Driver.Capabilities:input_type -> hashicorp.nomad.plugins.drivers.proto.CapabilitiesRequest
+	14, // 69: hashicorp.nomad.plugins.drivers.proto.Driver.Fingerprint:input_type -> hashicorp.nomad.plugins.drivers.proto.FingerprintRequest
+	16, // 70: hashicorp.nomad.plugins.drivers.proto.Driver.RecoverTask:input_type -> hashicorp.nomad.plugins.drivers.proto.RecoverTaskRequest
+	18, // 71: hashicorp.nomad.plugins.drivers.proto.Driver.StartTask:input_type -> hashicorp.nomad.plugins.drivers.proto.StartTaskRequest
+	20, // 72: hashicorp.nomad.plugins.drivers.proto.Driver.WaitTask:input_type -> hashicorp.nomad.plugins.drivers.proto.WaitTaskRequest
+	22, // 73: hashicorp.nomad.plugins.drivers.proto.Driver.StopTask:input_type -> hashicorp.nomad.plugins.drivers.proto.StopTaskRequest
+	24, // 74: hashicorp.nomad.plugins.drivers.proto.Driver.DestroyTask:input_type -> hashicorp.nomad.plugins.drivers.proto.DestroyTaskRequest
+	26, // 75: hashicorp.nomad.plugins.drivers.proto.Driver.InspectTask:input_type -> hashicorp.nomad.plugins.drivers.proto.InspectTaskRequest
+	28, // 76: hashicorp.nomad.plugins.drivers.proto.Driver.TaskStats:input_type -> hashicorp.nomad.plugins.drivers.proto.TaskStatsRequest
+	30, // 77: hashicorp.nomad.plugins.drivers.proto.Driver.TaskEvents:input_type -> hashicorp.nomad.plugins.drivers.proto.TaskEventsRequest
+	67, // 78: hashicorp.nomad.plugins.drivers.proto.Driver.Shutdown:input_type -> hashicorp.nomad.plugins.drivers.proto.ShutdownRequest
+	31, // 79: hashicorp.nomad.plugins.drivers.proto.Driver.SignalTask:input_type -> hashicorp.nomad.plugins.drivers.proto.SignalTaskRequest
+	33, // 80: hashicorp.nomad.plugins.drivers.proto.Driver.ExecTask:input_type -> hashicorp.nomad.plugins.drivers.proto.ExecTaskRequest
+	36, // 81: hashicorp.nomad.plugins.drivers.proto.Driver.ExecTaskStreaming:input_type -> hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest
+	38, // 82: hashicorp.nomad.plugins.drivers.proto.Driver.CreateNetwork:input_type -> hashicorp.nomad.plugins.drivers.proto.CreateNetworkRequest
+	40, // 83: hashicorp.nomad.plugins.drivers.proto.Driver.DestroyNetwork:input_type -> hashicorp.nomad.plugins.drivers.proto.DestroyNetworkRequest
+	9,  // 84: hashicorp.nomad.plugins.drivers.proto.Driver.Init:output_type -> hashicorp.nomad.plugins.drivers.proto.InitResponse
+	11, // 85: hashicorp.nomad.plugins.drivers.proto.Driver.TaskConfigSchema:output_type -> hashicorp.nomad.plugins.drivers.proto.TaskConfigSchemaResponse
+	13, // 86: hashicorp.nomad.plugins.drivers.proto.Driver.Capabilities:output_type -> hashicorp.nomad.plugins.drivers.proto.CapabilitiesResponse
+	15, // 87: hashicorp.nomad.plugins.drivers.proto.Driver.Fingerprint:output_type -> hashicorp.nomad.plugins.drivers.proto.FingerprintResponse
+	17, // 88: hashicorp.nomad.plugins.drivers.proto.Driver.RecoverTask:output_type -> hashicorp.nomad.plugins.drivers.proto.RecoverTaskResponse
+	19, // 89: hashicorp.nomad.plugins.drivers.proto.Driver.StartTask:output_type -> hashicorp.nomad.plugins.drivers.proto.StartTaskResponse
+	21, // 90: hashicorp.nomad.plugins.drivers.proto.Driver.WaitTask:output_type -> hashicorp.nomad.plugins.drivers.proto.WaitTaskResponse
+	23, // 91: hashicorp.nomad.plugins.drivers.proto.Driver.StopTask:output_type -> hashicorp.nomad.plugins.drivers.proto.StopTaskResponse
+	25, // 92: hashicorp.nomad.plugins.drivers.proto.Driver.DestroyTask:output_type -> hashicorp.nomad.plugins.drivers.proto.DestroyTaskResponse
+	27, // 93: hashicorp.nomad.plugins.drivers.proto.Driver.InspectTask:output_type -> hashicorp.nomad.plugins.drivers.proto.InspectTaskResponse
+	29, // 94: hashicorp.nomad.plugins.drivers.proto.Driver.TaskStats:output_type -> hashicorp.nomad.plugins.drivers.proto.TaskStatsResponse
+	66, // 95: hashicorp.nomad.plugins.drivers.proto.Driver.TaskEvents:output_type -> hashicorp.nomad.plugins.drivers.proto.DriverTaskEvent
+	68, // 96: hashicorp.nomad.plugins.drivers.proto.Driver.Shutdown:output_type -> hashicorp.nomad.plugins.drivers.proto.ShutdownResponse
+	32, // 97: hashicorp.nomad.plugins.drivers.proto.Driver.SignalTask:output_type -> hashicorp.nomad.plugins.drivers.proto.SignalTaskResponse
+	34, // 98: hashicorp.nomad.plugins.drivers.proto.Driver.ExecTask:output_type -> hashicorp.nomad.plugins.drivers.proto.ExecTaskResponse
+	37, // 99: hashicorp.nomad.plugins.drivers.proto.Driver.ExecTaskStreaming:output_type -> hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse
+	39, // 100: hashicorp.nomad.plugins.drivers.proto.Driver.CreateNetwork:output_type -> hashicorp.nomad.plugins.drivers.proto.CreateNetworkResponse
+	41, // 101: hashicorp.nomad.plugins.drivers.proto.Driver.DestroyNetwork:output_type -> hashicorp.nomad.plugins.drivers.proto.DestroyNetworkResponse
+	84, // [84:102] is the sub-list for method output_type
+	66, // [66:84] is the sub-list for method input_type
+	66, // [66:66] is the sub-list for extension type_name
+	66, // [66:66] is the sub-list for extension extendee
+	0,  // [0:66] is the sub-list for field type_name
+}
+
+func init() { file_plugins_drivers_proto_driver_proto_init() }
+func file_plugins_drivers_proto_driver_proto_init() {
+	if File_plugins_drivers_proto_driver_proto != nil {
+		return
+	}
+	type x struct{}
+	out := protoimpl.TypeBuilder{
+		File: protoimpl.DescBuilder{
+			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plugins_drivers_proto_driver_proto_rawDesc), len(file_plugins_drivers_proto_driver_proto_rawDesc)),
+			NumEnums:      8,
+			NumMessages:   71,
+			NumExtensions: 0,
+			NumServices:   1,
 		},
 		GoTypes:           file_plugins_drivers_proto_driver_proto_goTypes,
 		DependencyIndexes: file_plugins_drivers_proto_driver_proto_depIdxs,

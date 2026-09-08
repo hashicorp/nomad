@@ -79,6 +79,7 @@ const (
 type Spec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Block:
+	//
 	//	*Spec_Object
 	//	*Spec_Array
 	//	*Spec_Attr
