@@ -829,7 +829,7 @@ const file_plugins_base_proto_base_proto_rawDesc = "" +
 	"\n" +
 	"PluginInfo\x125.hashicorp.nomad.plugins.base.proto.PluginInfoRequest\x1a6.hashicorp.nomad.plugins.base.proto.PluginInfoResponse\"\x00\x12\x83\x01\n" +
 	"\fConfigSchema\x127.hashicorp.nomad.plugins.base.proto.ConfigSchemaRequest\x1a8.hashicorp.nomad.plugins.base.proto.ConfigSchemaResponse\"\x00\x12z\n" +
-	"\tSetConfig\x124.hashicorp.nomad.plugins.base.proto.SetConfigRequest\x1a5.hashicorp.nomad.plugins.base.proto.SetConfigResponse\"\x00B5Z3github.com/hashicorp/nomad/plugins/base/proto;protob\x06proto3"
+	"\tSetConfig\x124.hashicorp.nomad.plugins.base.proto.SetConfigRequest\x1a5.hashicorp.nomad.plugins.base.proto.SetConfigResponse\"\x00B/Z-github.com/hashicorp/nomad/plugins/base/protob\x06proto3"
 
 var (
 	file_plugins_base_proto_base_proto_rawDescOnce sync.Once

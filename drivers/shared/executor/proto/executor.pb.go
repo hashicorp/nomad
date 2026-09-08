@@ -1057,7 +1057,7 @@ const file_drivers_shared_executor_proto_executor_proto_rawDesc = "" +
 	"\x05Stats\x124.hashicorp.nomad.plugins.executor.proto.StatsRequest\x1a5.hashicorp.nomad.plugins.executor.proto.StatsResponse\"\x000\x01\x12y\n" +
 	"\x06Signal\x125.hashicorp.nomad.plugins.executor.proto.SignalRequest\x1a6.hashicorp.nomad.plugins.executor.proto.SignalResponse\"\x00\x12s\n" +
 	"\x04Exec\x123.hashicorp.nomad.plugins.executor.proto.ExecRequest\x1a4.hashicorp.nomad.plugins.executor.proto.ExecResponse\"\x00\x12\x98\x01\n" +
-	"\rExecStreaming\x12?.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest\x1a@.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse\"\x00(\x010\x01B@Z>github.com/hashicorp/nomad/drivers/shared/executor/proto;protob\x06proto3"
+	"\rExecStreaming\x12?.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest\x1a@.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse\"\x00(\x010\x01B:Z8github.com/hashicorp/nomad/drivers/shared/executor/protob\x06proto3"
 
 var (
 	file_drivers_shared_executor_proto_executor_proto_rawDescOnce sync.Once

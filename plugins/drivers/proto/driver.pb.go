@@ -4656,7 +4656,7 @@ const file_plugins_drivers_proto_driver_proto_rawDesc = "" +
 	"\bExecTask\x126.hashicorp.nomad.plugins.drivers.proto.ExecTaskRequest\x1a7.hashicorp.nomad.plugins.drivers.proto.ExecTaskResponse\"\x00\x12\x9c\x01\n" +
 	"\x11ExecTaskStreaming\x12?.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingRequest\x1a@.hashicorp.nomad.plugins.drivers.proto.ExecTaskStreamingResponse\"\x00(\x010\x01\x12\x8c\x01\n" +
 	"\rCreateNetwork\x12;.hashicorp.nomad.plugins.drivers.proto.CreateNetworkRequest\x1a<.hashicorp.nomad.plugins.drivers.proto.CreateNetworkResponse\"\x00\x12\x8f\x01\n" +
-	"\x0eDestroyNetwork\x12<.hashicorp.nomad.plugins.drivers.proto.DestroyNetworkRequest\x1a=.hashicorp.nomad.plugins.drivers.proto.DestroyNetworkResponse\"\x00B8Z6github.com/hashicorp/nomad/plugins/drivers/proto;protob\x06proto3"
+	"\x0eDestroyNetwork\x12<.hashicorp.nomad.plugins.drivers.proto.DestroyNetworkRequest\x1a=.hashicorp.nomad.plugins.drivers.proto.DestroyNetworkResponse\"\x00B2Z0github.com/hashicorp/nomad/plugins/drivers/protob\x06proto3"
 
 var (
 	file_plugins_drivers_proto_driver_proto_rawDescOnce sync.Once

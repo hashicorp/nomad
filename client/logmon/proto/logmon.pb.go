@@ -244,7 +244,7 @@ const file_client_logmon_proto_logmon_proto_rawDesc = "" +
 	"\fStopResponse2\xe9\x01\n" +
 	"\x06LogMon\x12p\n" +
 	"\x05Start\x121.hashicorp.nomad.client.logmon.proto.StartRequest\x1a2.hashicorp.nomad.client.logmon.proto.StartResponse\"\x00\x12m\n" +
-	"\x04Stop\x120.hashicorp.nomad.client.logmon.proto.StopRequest\x1a1.hashicorp.nomad.client.logmon.proto.StopResponse\"\x00B6Z4github.com/hashicorp/nomad/client/logmon/proto;protob\x06proto3"
+	"\x04Stop\x120.hashicorp.nomad.client.logmon.proto.StopRequest\x1a1.hashicorp.nomad.client.logmon.proto.StopResponse\"\x00B0Z.github.com/hashicorp/nomad/client/logmon/protob\x06proto3"
 
 var (
 	file_client_logmon_proto_logmon_proto_rawDescOnce sync.Once
