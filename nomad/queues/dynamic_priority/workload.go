@@ -59,3 +59,21 @@ func (w *dynamicPriorityWorkload) SetStatus(s, description string) {
 	w.status = s
 	w.description = description
 }
+
+func (w *dynamicPriorityWorkload) toStruct(position int) *structs.DynamicPriorityWorkload {
+	return &structs.DynamicPriorityWorkload{
+		JobID:            w.eval.JobID,
+		Tenant:           string(w.tid),
+		Namespace:        w.eval.Namespace,
+		Position:         position,
+		Status:           w.GetStatus(),
+		AdjustedPriority: w.priority,
+		BasePriority:     w.eval.Priority,
+		UsageAdjustment:  w.usageAdjustment,
+		AgeAdjustment:    w.ageAdjustment,
+		CpuAdjustment:    w.cpuAdjustment,
+		MemoryAdjustment: w.memAdjustment,
+		CreatedAt:        w.eval.CreateTime,
+		CreateIndex:      w.eval.CreateIndex,
+	}
+}

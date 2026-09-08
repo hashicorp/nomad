@@ -20,8 +20,9 @@ type fifoWorkload struct {
 
 func newFifoWorkload(e *structs.Evaluation) *fifoWorkload {
 	return &fifoWorkload{
-		id:   e.ID,
-		eval: e,
+		id:     e.ID,
+		eval:   e,
+		status: "queued",
 	}
 }
 
