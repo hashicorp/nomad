@@ -203,7 +203,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
 	// The *maximum* we'll return is the number requested.
-	allocs := make([]*structs.Allocation, len(args.AllocIDs))
+	allocs := make([]*structs.Allocation, 0, len(args.AllocIDs))
 
 	// Setup the blocking query. We wait for at least one of the requested
 	// allocations to be above the min query index. This guarantees that the
@@ -215,7 +215,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 			// Lookup the allocation
 			thresholdMet := false
 			maxIndex := uint64(0)
-			for i, alloc := range args.AllocIDs {
+			for _, alloc := range args.AllocIDs {
 				out, err := state.AllocByID(ws, alloc)
 				if err != nil {
 					return err
@@ -239,7 +239,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 				}
 
 				// Store the pointer
-				allocs[i] = out
+				allocs = append(allocs, out)
 
 				// Check if we have passed the minimum index
 				if out.ModifyIndex > args.QueryOptions.MinQueryIndex {

@@ -289,6 +289,10 @@ func (a *Allocation) CopySkipJob() *Allocation {
 // Allocations or receiving Allocations from Nomad agents potentially on an
 // older version of Nomad.
 func (a *Allocation) Canonicalize() {
+	if a == nil {
+		return
+	}
+
 	if a.AllocatedResources == nil && a.TaskResources != nil {
 		ar := AllocatedResources{}
 
