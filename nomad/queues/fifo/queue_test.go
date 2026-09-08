@@ -156,11 +156,10 @@ func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 
 	must.NoError(t, q.Start(ctx))
 
-	job1 := mock.Job()
 	eval1 := mock.Eval()
 	eval1.Type = structs.JobTypeBatch
 	eval1.Status = structs.EvalStatusComplete
-	job2 := mock.Job()
+
 	eval2 := mock.Eval()
 	eval2.Type = structs.JobTypeBatch
 	eval2.Status = structs.EvalStatusComplete
@@ -201,10 +200,8 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 		eval1.CreateIndex = 1
 		eval2.CreateIndex = 2
 
-		q.qMux.Lock()
 		q.queue.Push(newFifoWorkload(eval1))
 		q.queue.Push(newFifoWorkload(eval2))
-		q.qMux.Unlock()
 
 		// Get jobs
 		iter := q.Jobs(structs.SortByPriority)
@@ -243,9 +240,7 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 		w3 := newFifoWorkload(eval3)
 
 		// Add one to queue
-		q.qMux.Lock()
 		q.queue.Push(w3)
-		q.qMux.Unlock()
 
 		// Track two as in-progress
 		q.watcher.TrackPlacement(w1)
@@ -269,10 +264,11 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 		placingCount := 0
 		queuedCount := 0
 		for _, wl := range workloads {
-			if wl.Status == "placing" {
+			switch wl.Status {
+			case "placing":
 				placingCount++
 				must.Eq(t, 0, wl.Position)
-			} else if wl.Status == "queued" {
+			case "queued":
 				queuedCount++
 				must.True(t, wl.Position > 0)
 			}

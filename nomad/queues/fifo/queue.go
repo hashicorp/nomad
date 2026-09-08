@@ -195,6 +195,20 @@ func (f *FifoQueue) Type() structs.BatchQueueType {
 func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	pos := 0
 	workloads := []structs.QueueWorkload{}
+
+	for _, workload := range f.watcher.GetInProgressWorkloads() {
+		w := workload.(*fifoWorkload)
+		eval := w.GetEval()
+		workloads = append(workloads, &structs.Workload{
+			JobID:       eval.JobID,
+			Namespace:   eval.Namespace,
+			Position:    0,
+			Status:      w.status,
+			CreatedAt:   eval.CreateTime,
+			CreateIndex: eval.CreateIndex,
+		})
+	}
+
 	f.queue.Iterate(func(workload queue.Workload) {
 		w := workload.(*fifoWorkload)
 		// waitOnRestore does not count towards position in queue
@@ -207,8 +221,8 @@ func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 		workloads = append(workloads, &structs.Workload{
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
-			Position:    pos + 1,
-			Status:      "queued",
+			Position:    pos,
+			Status:      w.status,
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
 		})

@@ -491,6 +491,11 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 	pos := 0
 	workloads := []structs.QueueWorkload{}
 
+	for _, workload := range d.watcher.GetInProgressWorkloads() {
+		w := workload.(*dynamicPriorityWorkload)
+		workloads = append(workloads, w.toStruct(0))
+	}
+
 	d.queue.Iterate(func(workload queue.Workload) {
 		w := workload.(*dynamicPriorityWorkload)
 		// waitOnRestore does not count towards position in queue
@@ -499,21 +504,7 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 		}
 		pos++
 
-		workloads = append(workloads, &structs.DynamicPriorityWorkload{
-			JobID:            w.eval.JobID,
-			Tenant:           string(w.tid),
-			Namespace:        w.eval.Namespace,
-			Position:         pos,
-			Status:           w.GetStatus(),
-			AdjustedPriority: w.priority,
-			BasePriority:     w.eval.Priority,
-			UsageAdjustment:  w.usageAdjustment,
-			AgeAdjustment:    w.ageAdjustment,
-			CpuAdjustment:    w.cpuAdjustment,
-			MemoryAdjustment: w.memAdjustment,
-			CreatedAt:        w.eval.CreateTime,
-			CreateIndex:      w.eval.CreateIndex,
-		})
+		workloads = append(workloads, w.toStruct(pos))
 	})
 
 	iter := queue.NewWorkloadIter(workloads)
