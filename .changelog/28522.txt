@@ -1,0 +1,3 @@
+```release-note:bug
+client: fixes possible nil pointer dereference when getting client allocations
+```
