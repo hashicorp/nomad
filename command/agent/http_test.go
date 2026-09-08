@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/api"
@@ -91,6 +92,140 @@ func TestMultipleInterfaces(t *testing.T) {
 
 		assert.Nil(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
+	}
+}
+
+func TestHTTP2(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name       string
+		config     func(*Config)
+		status     int
+		protoMajor int
+		errMsg     string
+	}{
+		{
+			name:       "enabled by default",
+			status:     200,
+			protoMajor: 2,
+		},
+		{
+			name: "disabled by config",
+			config: func(c *Config) {
+				c.HTTPDisableHTTP2 = true
+			},
+			errMsg: "frame too large",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := makeHTTPServer(t, tc.config)
+			t.Cleanup(s.Shutdown)
+
+			// Create a custom transport with HTTP2 only. Note that we are
+			// using unencrypted since we don't have all the TLS stuff setup.
+			transpo := http.DefaultTransport.(*http.Transport).Clone()
+			transpo.Protocols = new(http.Protocols)
+			transpo.Protocols.SetUnencryptedHTTP2(true)
+
+			client := &http.Client{Transport: transpo}
+			resp, err := client.Get(fmt.Sprintf("http://%s/", s.Agent.config.AdvertiseAddrs.HTTP))
+			if err != nil {
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.errMsg)
+				return
+			}
+
+			must.Eq(t, tc.status, resp.StatusCode, must.Sprintf("expecting %d status code", tc.status))
+			must.Eq(t, tc.protoMajor, resp.ProtoMajor, must.Sprintf("expecting HTTP%d protocol", resp.ProtoMajor))
+		})
+	}
+}
+
+func TestWebSocket(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name        string
+		config      func(*Config)
+		headers     http.Header
+		origin      string
+		msgContains string
+		err         error
+	}{
+		{
+			name: "ok",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(false)
+			},
+		},
+		{
+			name: "bad origin",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(false)
+			},
+			origin: "http://bad-host",
+			err:    websocket.ErrBadHandshake,
+		},
+		{
+			name: "origin check disabled",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(true)
+			},
+		},
+		{
+			name: "origin check disabled with bad origin",
+			config: func(c *Config) {
+				c.HTTPDisableWebSocketOriginCheck = new(true)
+			},
+			origin: "http://bad-host",
+		},
+		{
+			name:        "receives message with payload",
+			msgContains: `"payload":`,
+		},
+		{
+			name:        "receives message with headers",
+			msgContains: `"headers":`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := makeHTTPServer(t, tc.config)
+			t.Cleanup(s.Shutdown)
+			httpAddr := s.Agent.config.AdvertiseAddrs.HTTP
+			headers := tc.headers
+			if headers == nil {
+				headers = make(http.Header)
+			}
+			if tc.origin == "" {
+				headers.Add("Origin", fmt.Sprintf("http://%s", httpAddr))
+			} else {
+				headers.Add("Origin", tc.origin)
+			}
+			// Use path that has registered handler supporting websocket upgrade.
+			url := fmt.Sprintf("ws://%s/v1/jobs", httpAddr)
+
+			conn, _, err := websocket.DefaultDialer.DialContext(t.Context(), url, headers)
+			if tc.err != nil {
+				must.ErrorIs(t, err, tc.err)
+				return
+			}
+			must.NoError(t, err, must.Sprintf("bad origin at %v", httpAddr))
+
+			if tc.msgContains == "" {
+				return
+			}
+
+			_, r, err := conn.NextReader()
+			must.NoError(t, err)
+			body, err := io.ReadAll(r)
+			must.NoError(t, err)
+			must.StrContains(t, string(body), tc.msgContains)
+		})
 	}
 }
 

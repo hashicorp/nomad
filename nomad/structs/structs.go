@@ -6598,7 +6598,7 @@ func NewRestartPolicy(jobType string) *RestartPolicy {
 }
 
 const ReschedulePolicyMinInterval = 15 * time.Second
-const ReschedulePolicyMinDelay = 5 * time.Second
+const ReschedulePolicyMinDelay = 1 * time.Second
 
 var RescheduleDelayFunctions = [...]string{"constant", "exponential", "fibonacci"}
 
@@ -6641,7 +6641,7 @@ func (r *ReschedulePolicy) Enabled() bool {
 }
 
 // Validate uses different criteria to validate the reschedule policy
-// Delay must be a minimum of 5 seconds
+// Delay must be a minimum of 1 second
 // Delay Ceiling is ignored if Delay Function is "constant"
 // Number of possible attempts is validated, given the interval, delay and delay function
 func (r *ReschedulePolicy) Validate() error {
@@ -7659,6 +7659,19 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 
 	if tg.PreventRescheduleOnLost {
 		mErr.Errors = append(mErr.Errors, errors.New("PreventRescheduleOnLost is deprecated and ignored in favor of Disconnect.Replace"))
+	}
+
+	// Warn about unbounded rescheduling which may cause thrashing if tasks have
+	// unlimited attempts and a low delay.
+	//
+	// The 5 second gate on the delay is used as this was the previous minimum
+	// value which did not produce a warning. It therefore feels like the right
+	// gate to use.
+	if rp := tg.ReschedulePolicy; rp != nil && rp.Unlimited && rp.Delay < 5*time.Second {
+		mErr.Errors = append(
+			mErr.Errors,
+			errors.New("Reschedule policy has unlimited attempts enabled and a low delay; reschedule thrashing possible"),
+		)
 	}
 
 	// Check for mbits network field

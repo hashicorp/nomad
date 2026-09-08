@@ -113,7 +113,7 @@ func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
 	coordinator := newDockerCoordinator(config)
 
 	id, _, _ := coordinator.PullImage(image, nil, uuid.Generate(), nil, 5*time.Minute, 2*time.Minute)
-	for i := 0; i < 9; i++ {
+	for range 9 {
 		go func() {
 			coordinator.PullImage(image, nil, uuid.Generate(), nil, 5*time.Minute, 2*time.Minute)
 		}()
@@ -166,7 +166,7 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 
 	id := ""
 	callerIDs := make([]string, 10, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		callerIDs[i] = uuid.Generate()
 		id, _, _ = coordinator.PullImage(image, nil, callerIDs[i], nil, 5*time.Minute, 2*time.Minute)
 	}
@@ -177,7 +177,7 @@ func TestDockerCoordinator_Pull_Remove(t *testing.T) {
 	}
 
 	// Remove some
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		coordinator.RemoveImage(id, callerIDs[i])
 	}
 

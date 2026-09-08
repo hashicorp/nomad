@@ -91,9 +91,12 @@ type vaultHook struct {
 	// logger is used to log
 	logger log.Logger
 
-	// The taskRunner's context. This is stored on the vaulHook because it
-	// cuurently is not injected via Prestart.
+	// The hook's context, derived from the taskrunner's killCtx. This is stored
+	// on the vaulHook because it is not injected via Prestart.
 	taskCtx context.Context
+
+	// The hooks cancel func to exit the token renewal loop.
+	taskCancel context.CancelFunc
 
 	// privateDirTokenPath is the path inside the task's private directory where
 	// the Vault token is read and written.
@@ -120,6 +123,7 @@ type vaultHook struct {
 }
 
 func newVaultHook(config *vaultHookConfig) *vaultHook {
+	hookCtx, hookCancel := context.WithCancel(config.taskCtx)
 	h := &vaultHook{
 		vaultBlock:           config.vaultBlock,
 		vaultConfigsFunc:     config.vaultConfigsFunc,
@@ -128,7 +132,8 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		lifecycle:            config.lifecycle,
 		updater:              config.updater,
 		task:                 config.task,
-		taskCtx:              config.taskCtx,
+		taskCtx:              hookCtx,
+		taskCancel:           hookCancel,
 		firstRun:             true,
 		widmgr:               config.widmgr,
 		widName:              config.task.Vault.IdentityName(),
@@ -215,10 +220,13 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 }
 
 func (h *vaultHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
+	h.taskCancel()
 	return nil
 }
 
-func (h *vaultHook) Shutdown() {}
+func (h *vaultHook) Shutdown() {
+	h.taskCancel()
+}
 
 func (h *vaultHook) run(ctx context.Context, token string, lease time.Duration) {
 	var err error

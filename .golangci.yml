@@ -68,7 +68,7 @@ linters:
         text: assignOp
       - path: (.+)\.go$
         text: unlambda
-      - path-except: (^client/|^command/|^jobspec2/|^plugins/|^nomad/|^scheduler/)
+      - path-except: (^client/|^command/|^drivers/|^jobspec2/|^plugins/|^nomad/|^scheduler/)
         linters:
           - modernize
     paths:

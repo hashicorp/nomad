@@ -48,8 +48,8 @@ var (
 	// PluginConfig is the mock driver factory function registered in the
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewMockDriver(ctx, l) },
+		Config:  map[string]any{},
+		Factory: func(ctx context.Context, l hclog.Logger) any { return NewMockDriver(ctx, l) },
 	}
 
 	// pluginInfo is the response returned for the PluginInfo RPC
@@ -496,7 +496,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		pluginExitAfter: driverConfig.pluginExitAfterDuration,
 		killAfter:       driverConfig.killAfterDuration,
 		logger:          d.logger.With("task_name", cfg.Name),
-		waitCh:          make(chan interface{}),
+		waitCh:          make(chan any),
 		killCh:          killCtx.Done(),
 		kill:            killCancel,
 		startedAt:       time.Now(),
@@ -647,7 +647,7 @@ func (d *Driver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*
 	}
 
 	res := drivers.ExecTaskResult{
-		Stdout:     []byte(fmt.Sprintf("Exec(%q, %q)", h.taskConfig.Name, cmd)),
+		Stdout:     fmt.Appendf(nil, "Exec(%q, %q)", h.taskConfig.Name, cmd),
 		ExitResult: &drivers.ExitResult{},
 	}
 	return &res, nil

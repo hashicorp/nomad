@@ -29,7 +29,6 @@ const (
 type Attribute struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Value:
-	//
 	//	*Attribute_FloatVal
 	//	*Attribute_IntVal
 	//	*Attribute_StringVal

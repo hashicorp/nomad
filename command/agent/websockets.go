@@ -18,6 +18,18 @@ const (
 	ctxKeyWebSocketAuthToken = "ws_auth_token"
 )
 
+const (
+	// The watcher protocol assumes that no reads will be performed
+	// on the websocket.
+	websocketProtocolWatcher = "nomad-watcher"
+)
+
+// wsResponse is the default websocket response format.
+type wsResponse struct {
+	Headers http.Header `json:"headers"`
+	Payload any         `json:"payload"`
+}
+
 // isWebsocketUpgrade checks if the request is a websocket upgrade request.
 func isWebsocketUpgrade(req *http.Request) bool {
 	return websocket.IsWebSocketUpgrade(req)
@@ -29,6 +41,11 @@ func isWebsocketUpgrade(req *http.Request) bool {
 // upgrade the connection, write audit logs, and then hand off the
 // already-upgraded connection to the handler. We pass the connection and the
 // auth token via request context.
+//
+// NOTE: Outside of initial setup/upgrade failures, this handler should not
+// return any value or error after the connection has been upgraded to a
+// websocket. Any value or error should be sent to the websocket connection
+// along with a close message before returning.
 func (s *HTTPServer) wrapWebsocketHandler(handler handlerFn) handlerFn {
 	return func(w http.ResponseWriter, req *http.Request) (any, error) {
 
@@ -39,15 +56,23 @@ func (s *HTTPServer) wrapWebsocketHandler(handler handlerFn) handlerFn {
 		// Upgrade the connection
 		conn, err := s.wsUpgrader.Upgrade(w, req, nil)
 		if err != nil {
-
-			return "", fmt.Errorf("failed to upgrade connection: %v", err)
+			// The upgrade failed so return the error.
+			return nil, fmt.Errorf("failed to upgrade connection: %v", err)
 		}
+
+		// Ensure the underlying websocket connection is closed when we
+		// are done. This does not transmit the close message to the
+		// client, so that must still be done before returning from
+		// this function. Failure to send the close message can cause
+		// the client connection to hang for an extended period of time
+		// before closing.
+		defer conn.Close()
 
 		token, err := s.readWsHandshake(conn.ReadJSON, req)
 		if err != nil {
 			conn.WriteMessage(websocket.CloseMessage,
 				websocket.FormatCloseMessage(toWsCode(400), err.Error()))
-			return "", err
+			return nil, nil
 		}
 
 		// Store connection and token in context for handler to use
@@ -56,16 +81,53 @@ func (s *HTTPServer) wrapWebsocketHandler(handler handlerFn) handlerFn {
 		ctx = context.WithValue(ctx, ctxKeyWebSocketAuthToken, token)
 		*req = *req.WithContext(ctx)
 
+		// Check the websocket subprotocol and perform any required setup
+		switch conn.Subprotocol() {
+		case websocketProtocolWatcher:
+			go s.runWebsocketWatcher(conn)
+		}
+
+		// Run the handler to process the request.
 		obj, err := handler(w, req)
 
+		// If an error was encountered, send the close control message
+		// with error information.
 		if err != nil {
 			code, errMsg := errCodeFromHandler(err)
 			conn.WriteMessage(websocket.CloseMessage,
 				websocket.FormatCloseMessage(toWsCode(code), errMsg))
-			return "", err
+
+			return nil, nil
 		}
 
-		return obj, nil
+		// If the websocket is not configured with a subprotocol and
+		// the handler result is empty, do not write anything to the
+		// websocket. This retains pre-existing behavior.
+		if obj == nil && conn.Subprotocol() == "" {
+			return nil, nil
+		}
+
+		// Construct the result to return.
+		result := wsResponse{
+			Headers: w.Header(),
+			Payload: obj,
+		}
+
+		// Write the result to the websocket.
+		if err := conn.WriteJSON(result); err != nil {
+			s.logger.Error("failed to write result to websocket", "error", err)
+			// Attempt to send a close message with error information.
+			conn.WriteMessage(websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "failed to write response"))
+
+			return nil, nil
+		}
+
+		// Signal to the client that the connection is closing.
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "request complete"))
+
+		return nil, nil
 	}
 }
 
@@ -123,4 +185,17 @@ func (s *HTTPServer) getWebsocketConnection(req *http.Request) (*websocket.Conn,
 	}
 
 	return conn, nil
+}
+
+// runWebsocketWatcher reads messages from a websocket using the watcher
+// protocol. That usage does not read from the websocket, but reads are
+// required to receive control messages so this will continually read
+// the websocket until an error is encountered.
+func (s *HTTPServer) runWebsocketWatcher(conn *websocket.Conn) {
+	for {
+		if _, _, err := conn.ReadMessage(); err != nil {
+			s.logger.Trace("watcher websocket reader encountered error, stopping read", "error", err)
+			return
+		}
+	}
 }

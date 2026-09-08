@@ -54,16 +54,16 @@ var (
 	// PluginConfig is the rawexec factory function registered in the
 	// plugin catalog.
 	PluginConfig = &loader.InternalPluginConfig{
-		Config:  map[string]interface{}{},
-		Factory: func(ctx context.Context, l hclog.Logger) interface{} { return NewRawExecDriver(ctx, l) },
+		Config:  map[string]any{},
+		Factory: func(ctx context.Context, l hclog.Logger) any { return NewRawExecDriver(ctx, l) },
 	}
 
 	errDisabledDriver = fmt.Errorf("raw_exec is disabled")
 )
 
 // PluginLoader maps pre-0.9 client driver options to post-0.9 plugin options.
-func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
-	conf := map[string]interface{}{}
+func PluginLoader(opts map[string]string) (map[string]any, error) {
+	conf := map[string]any{}
 	if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
 		conf["enabled"] = v
 	}

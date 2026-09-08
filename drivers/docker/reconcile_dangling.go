@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"sync"
 	"time"
 
@@ -69,10 +70,7 @@ func (r *containerReconciler) removeDanglingContainersGoroutine() {
 	// The initial period is a grace period for restore allocation
 	// before a driver may kill containers launched by an earlier nomad
 	// process.
-	initialDelay := period
-	if r.config.CreationGrace > initialDelay {
-		initialDelay = r.config.CreationGrace
-	}
+	initialDelay := max(r.config.CreationGrace, period)
 
 	timer := time.NewTimer(initialDelay)
 	for {
@@ -175,11 +173,7 @@ func (r *containerReconciler) untrackedContainers(tracked set.Collection[string]
 // We'll try hitting Docker API on subsequent iteration.
 func (r *containerReconciler) dockerAPIQueryContext() (context.Context, context.CancelFunc) {
 	// use a reasonable floor to avoid very small limit
-	timeout := 30 * time.Second
-
-	if timeout < r.config.period {
-		timeout = r.config.period
-	}
+	timeout := max(30*time.Second, r.config.period)
 
 	return context.WithTimeout(context.Background(), timeout)
 }
@@ -215,12 +209,7 @@ func hasMount(c container.Summary, p string) bool {
 var nomadContainerNamePattern = regexp.MustCompile(`\/.*-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 
 func hasNomadName(c container.Summary) bool {
-	for _, n := range c.Names {
-		if nomadContainerNamePattern.MatchString(n) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(c.Names, nomadContainerNamePattern.MatchString)
 }
 
 // trackedContainers returns the set of container IDs of containers that were

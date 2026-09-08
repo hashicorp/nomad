@@ -4,7 +4,9 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/hashicorp/nomad/api"
@@ -37,9 +39,12 @@ func (s *HTTPServer) JobStatusesRequest(resp http.ResponseWriter, req *http.Requ
 	// on this is more what you'd call "guidelines" than actual rules.
 	if req.Body != nil && req.Body != http.NoBody {
 		var in api.JobStatusesRequest
-		if err := decodeBody(req, &in); err != nil {
+		// HTTP2 requests without a body do not assign NoBody, so check for an
+		// EOF error if an error is returned.
+		if err := decodeBody(req, &in); err != nil && !errors.Is(err, io.EOF) {
 			return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("error decoding request: %v", err))
 		}
+
 		if len(in.Jobs) == 0 {
 			return nil, CodedError(http.StatusBadRequest, "no jobs in request")
 		}

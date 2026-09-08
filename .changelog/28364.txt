@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: prevent stuck requests due to exceeding connection limit, enable HTTP2
+```

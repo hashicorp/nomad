@@ -41,7 +41,6 @@ func TestConfig_ParseHCL(t *testing.T) {
 
 	parser := hclutils.NewConfigParser(taskConfigSpec)
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			var tc *TaskConfig
 
@@ -108,7 +107,6 @@ func TestConfig_ParseJSON(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			var tc TaskConfig
 			hclutils.NewConfigParser(taskConfigSpec).ParseJson(t, c.input, &tc)
@@ -805,7 +803,7 @@ func TestConfig_DriverConfig_AllowRuntimes(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			var tc map[string]interface{}
+			var tc map[string]any
 			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
 
 			dh := dockerDriverHarness(t, tc)

@@ -696,8 +696,8 @@ func TestDockerDriver_Cleanup(t *testing.T) {
 
 	must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 
-	client, driver, handle, cleanup := dockerSetup(t, task, map[string]interface{}{
-		"gc": map[string]interface{}{
+	client, driver, handle, cleanup := dockerSetup(t, task, map[string]any{
+		"gc": map[string]any{
 			"image":       true,
 			"image_delay": "1ms",
 		},

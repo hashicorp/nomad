@@ -180,6 +180,14 @@ type Config struct {
 	// set arbitrary headers on API responses
 	HTTPAPIResponseHeaders map[string]string `hcl:"http_api_response_headers"`
 
+	// HTTPDisableWebSocketOriginCheck is used to disable the origin check when
+	// upgrading HTTP connections to a websocket. This is useful for Nomad
+	// debugging and development.
+	HTTPDisableWebSocketOriginCheck *bool `hcl:"http_disable_websocket_origin_check"`
+
+	// HTTPDisableHTTP2 is used to disable support for the HTTP2 protocol.
+	HTTPDisableHTTP2 bool `hcl:"http_disable_http2"`
+
 	// Sentinel holds sentinel related settings
 	Sentinel *config.SentinelConfig `hcl:"sentinel"`
 
@@ -2169,6 +2177,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.HTTPAPIResponseHeaders = make(map[string]string)
 	}
 	maps.Copy(result.HTTPAPIResponseHeaders, b.HTTPAPIResponseHeaders)
+
+	if b.HTTPDisableHTTP2 {
+		result.HTTPDisableHTTP2 = true
+	}
+
+	if b.HTTPDisableWebSocketOriginCheck != nil {
+		result.HTTPDisableWebSocketOriginCheck = new(*b.HTTPDisableWebSocketOriginCheck)
+	}
 
 	result.Limits = c.Limits.Merge(b.Limits)
 
