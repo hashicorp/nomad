@@ -207,20 +207,9 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 				must.Len(t, expectedAllocCount, allocs)
 				alloc := allocs[0]
 
-				// checking new resources field deprecated Resources fields
 				must.Eq(t, int64(c.cpu), alloc.AllocatedResources.Tasks[task].Cpu.CpuShares)
 				must.Eq(t, int64(c.memory), alloc.AllocatedResources.Tasks[task].Memory.MemoryMB)
 				must.Eq(t, int64(c.expectedTaskMemoryMax), alloc.AllocatedResources.Tasks[task].Memory.MemoryMaxMB)
-
-				// checking old deprecated Resources fields
-				must.Eq(t, c.cpu, alloc.TaskResources[task].CPU)
-				must.Eq(t, c.memory, alloc.TaskResources[task].MemoryMB)
-				must.Eq(t, c.expectedTaskMemoryMax, alloc.TaskResources[task].MemoryMaxMB)
-
-				// check total resource fields - alloc.Resources deprecated field, no modern equivalent
-				must.Eq(t, c.cpu, alloc.Resources.CPU)
-				must.Eq(t, c.memory, alloc.Resources.MemoryMB)
-				must.Eq(t, c.expectedTotalMemoryMax, alloc.Resources.MemoryMaxMB)
 			})
 		}
 	}

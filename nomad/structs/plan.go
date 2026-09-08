@@ -169,9 +169,6 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 	// Normalize the job
 	newAlloc.Job = nil
 
-	// Strip the resources as it can be rebuilt.
-	newAlloc.Resources = nil
-
 	newAlloc.DesiredStatus = AllocDesiredStatusStop
 	newAlloc.DesiredDescription = desiredDesc
 
@@ -206,10 +203,6 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	// after removing preempted allocations
 	if alloc.AllocatedResources != nil {
 		newAlloc.AllocatedResources = alloc.AllocatedResources
-	} else {
-		// COMPAT Remove in version 0.11
-		newAlloc.TaskResources = alloc.TaskResources
-		newAlloc.SharedResources = alloc.SharedResources
 	}
 
 	// Append this alloc to slice for this node
@@ -220,9 +213,6 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 
 // AppendUnknownAlloc marks an allocation as unknown.
 func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
-	// Strip the resources as they can be rebuilt.
-	alloc.Resources = nil
-
 	existing := p.NodeAllocation[alloc.NodeID]
 	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
 }

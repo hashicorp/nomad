@@ -19,17 +19,14 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	clientconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/devicemanager"
-	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	. "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/vaultclient"
-	"github.com/hashicorp/nomad/helper/boltdd"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
@@ -69,71 +66,6 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 		return db
 	}
 
-	pre09files := []string{
-		"testdata/state-0.7.1.db.gz",
-		"testdata/state-0.8.6-empty.db.gz",
-		"testdata/state-0.8.6-no-deploy.db.gz"}
-
-	for _, fn := range pre09files {
-		t.Run(fn, func(t *testing.T) {
-
-			dir := t.TempDir()
-
-			db := dbFromTestFile(t, dir, fn)
-			defer db.Close()
-
-			// Simply opening old files should *not* alter them
-			require.NoError(t, db.DB().View(func(tx *boltdd.Tx) error {
-				b := tx.Bucket([]byte("meta"))
-				if b != nil {
-					return fmt.Errorf("meta bucket found but should not exist yet!")
-				}
-				return nil
-			}))
-
-			to09, to12, err := NeedsUpgrade(db.DB().BoltDB())
-			require.NoError(t, err)
-			require.True(t, to09)
-			require.True(t, to12)
-
-			// Attempt the upgrade
-			require.NoError(t, db.Upgrade())
-
-			to09, to12, err = NeedsUpgrade(db.DB().BoltDB())
-			require.NoError(t, err)
-			require.False(t, to09)
-			require.False(t, to12)
-
-			// Ensure Allocations can be restored and
-			// NewAR/AR.Restore do not error.
-			allocs, errs, err := db.GetAllAllocations()
-			require.NoError(t, err)
-			assert.Len(t, errs, 0)
-
-			for _, alloc := range allocs {
-				checkUpgradedAlloc(t, dir, db, alloc)
-			}
-
-			// Should be nil for all upgrades
-			ps, err := db.GetDevicePluginState()
-			require.NoError(t, err)
-			require.Nil(t, ps)
-
-			ps = &dmstate.PluginState{
-				ReattachConfigs: map[string]*pstructs.ReattachConfig{
-					"test": {Pid: 1},
-				},
-			}
-			require.NoError(t, db.PutDevicePluginState(ps))
-
-			registry, err := db.GetDynamicPluginRegistryState()
-			require.Nil(t, registry)
-
-			require.NoError(t, err)
-			require.NoError(t, db.Close())
-		})
-	}
-
 	t.Run("testdata/state-1.2.6.db.gz", func(t *testing.T) {
 		fn := "testdata/state-1.2.6.db.gz"
 		dir := t.TempDir()
@@ -157,17 +89,15 @@ func TestBoltStateDB_UpgradeOld_Ok(t *testing.T) {
 			return nil
 		})
 
-		to09, to12, err := NeedsUpgrade(db.DB().BoltDB())
+		to12, err := NeedsUpgrade(db.DB().BoltDB())
 		require.NoError(t, err)
-		require.False(t, to09)
 		require.True(t, to12)
 
 		// Attempt the upgrade
 		require.NoError(t, db.Upgrade())
 
-		to09, to12, err = NeedsUpgrade(db.DB().BoltDB())
+		to12, err = NeedsUpgrade(db.DB().BoltDB())
 		require.NoError(t, err)
-		require.False(t, to09)
 		require.False(t, to12)
 
 		registry, err := db.GetDynamicPluginRegistryState()
