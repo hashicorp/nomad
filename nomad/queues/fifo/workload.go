@@ -6,6 +6,7 @@ package fifo
 import (
 	"fmt"
 
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -22,7 +23,7 @@ func newFifoWorkload(e *structs.Evaluation) *fifoWorkload {
 	return &fifoWorkload{
 		id:     e.ID,
 		eval:   e,
-		status: "queued",
+		status: queue.WorkloadStatusQueued,
 	}
 }
 

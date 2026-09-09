@@ -3,6 +3,12 @@
 
 package queue
 
+const (
+	WorkloadStatusQueued  = "queued"
+	WorkloadStatusPlacing = "placing"
+	WorkloadStatusBlocked = "blocked"
+)
+
 func CmpWaitOnRestore(a, b Workload) int {
 	if a.WaitOnRestore() && !b.WaitOnRestore() {
 		return -1
