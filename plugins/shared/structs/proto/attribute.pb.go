@@ -165,7 +165,7 @@ const file_plugins_shared_structs_proto_attribute_proto_rawDesc = "" +
 	"string_val\x18\x03 \x01(\tH\x00R\tstringVal\x12\x1b\n" +
 	"\bbool_val\x18\x04 \x01(\bH\x00R\aboolVal\x12\x12\n" +
 	"\x04unit\x18\x05 \x01(\tR\x04unitB\a\n" +
-	"\x05valueB?Z=github.com/hashicorp/nomad/plugins/shared/structs/proto;protob\x06proto3"
+	"\x05valueB9Z7github.com/hashicorp/nomad/plugins/shared/structs/protob\x06proto3"
 
 var (
 	file_plugins_shared_structs_proto_attribute_proto_rawDescOnce sync.Once

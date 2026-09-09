@@ -220,7 +220,7 @@ const file_plugins_shared_structs_proto_stats_proto_rawDesc = "" +
 	"string_val\x18\x05 \x01(\v2\x1c.google.protobuf.StringValueR\tstringVal\x125\n" +
 	"\bbool_val\x18\x06 \x01(\v2\x1a.google.protobuf.BoolValueR\aboolVal\x12\x12\n" +
 	"\x04unit\x18\a \x01(\tR\x04unit\x12\x12\n" +
-	"\x04desc\x18\b \x01(\tR\x04descB?Z=github.com/hashicorp/nomad/plugins/shared/structs/proto;protob\x06proto3"
+	"\x04desc\x18\b \x01(\tR\x04descB9Z7github.com/hashicorp/nomad/plugins/shared/structs/protob\x06proto3"
 
 var (
 	file_plugins_shared_structs_proto_stats_proto_rawDescOnce sync.Once

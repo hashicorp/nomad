@@ -76,7 +76,7 @@ const file_plugins_shared_structs_proto_recoverable_error_proto_rawDesc = "" +
 	"\n" +
 	"4plugins/shared/structs/proto/recoverable_error.proto\x12&hashicorp.nomad.plugins.shared.structs\"4\n" +
 	"\x10RecoverableError\x12 \n" +
-	"\vrecoverable\x18\x01 \x01(\bR\vrecoverableB?Z=github.com/hashicorp/nomad/plugins/shared/structs/proto;protob\x06proto3"
+	"\vrecoverable\x18\x01 \x01(\bR\vrecoverableB9Z7github.com/hashicorp/nomad/plugins/shared/structs/protob\x06proto3"
 
 var (
 	file_plugins_shared_structs_proto_recoverable_error_proto_rawDescOnce sync.Once

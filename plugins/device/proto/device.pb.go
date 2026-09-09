@@ -910,7 +910,7 @@ const file_plugins_device_proto_device_proto_rawDesc = "" +
 	"\fDevicePlugin\x12z\n" +
 	"\vFingerprint\x122.hashicorp.nomad.plugins.device.FingerprintRequest\x1a3.hashicorp.nomad.plugins.device.FingerprintResponse\"\x000\x01\x12l\n" +
 	"\aReserve\x12..hashicorp.nomad.plugins.device.ReserveRequest\x1a/.hashicorp.nomad.plugins.device.ReserveResponse\"\x00\x12h\n" +
-	"\x05Stats\x12,.hashicorp.nomad.plugins.device.StatsRequest\x1a-.hashicorp.nomad.plugins.device.StatsResponse\"\x000\x01B7Z5github.com/hashicorp/nomad/plugins/device/proto;protob\x06proto3"
+	"\x05Stats\x12,.hashicorp.nomad.plugins.device.StatsRequest\x1a-.hashicorp.nomad.plugins.device.StatsResponse\"\x000\x01B1Z/github.com/hashicorp/nomad/plugins/device/protob\x06proto3"
 
 var (
 	file_plugins_device_proto_device_proto_rawDescOnce sync.Once

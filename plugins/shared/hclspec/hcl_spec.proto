@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/hashicorp/nomad/plugins/shared/hclspec;hclspec";
+option go_package = "github.com/hashicorp/nomad/plugins/shared/hclspec";
 
 /* Spec allows exposing the specification for an HCL body, allowing for parsing and
 validation.

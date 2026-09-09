@@ -253,7 +253,7 @@ const file_drivers_docker_docklog_proto_docker_logger_proto_rawDesc = "" +
 	"\fStopResponse2\x94\x02\n" +
 	"\fDockerLogger\x12\x82\x01\n" +
 	"\x05Start\x12:.hashicorp.nomad.drivers.docker.docklog.proto.StartRequest\x1a;.hashicorp.nomad.drivers.docker.docklog.proto.StartResponse\"\x00\x12\x7f\n" +
-	"\x04Stop\x129.hashicorp.nomad.drivers.docker.docklog.proto.StopRequest\x1a:.hashicorp.nomad.drivers.docker.docklog.proto.StopResponse\"\x00B?Z=github.com/hashicorp/nomad/drivers/docker/docklog/proto;protob\x06proto3"
+	"\x04Stop\x129.hashicorp.nomad.drivers.docker.docklog.proto.StopRequest\x1a:.hashicorp.nomad.drivers.docker.docklog.proto.StopResponse\"\x00B9Z7github.com/hashicorp/nomad/drivers/docker/docklog/protob\x06proto3"
 
 var (
 	file_drivers_docker_docklog_proto_docker_logger_proto_rawDescOnce sync.Once

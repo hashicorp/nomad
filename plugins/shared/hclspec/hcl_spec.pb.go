@@ -1186,7 +1186,7 @@ const file_plugins_shared_hclspec_hcl_spec_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12B\n" +
 	"\x05value\x18\x02 \x01(\v2,.hashicorp.nomad.plugins.shared.hclspec.SpecR\x05value:\x028\x01\"M\n" +
 	"\x05Array\x12D\n" +
-	"\x06values\x18\x01 \x03(\v2,.hashicorp.nomad.plugins.shared.hclspec.SpecR\x06valuesB;Z9github.com/hashicorp/nomad/plugins/shared/hclspec;hclspecb\x06proto3"
+	"\x06values\x18\x01 \x03(\v2,.hashicorp.nomad.plugins.shared.hclspec.SpecR\x06valuesB3Z1github.com/hashicorp/nomad/plugins/shared/hclspecb\x06proto3"
 
 var (
 	file_plugins_shared_hclspec_hcl_spec_proto_rawDescOnce sync.Once
