@@ -1,3 +1,27 @@
+## 1.11.10 Enterprise (September 09, 2026)
+
+SECURITY:
+
+* dependency: Upgrade to the latests go-getter [[GH-28510](https://github.com/hashicorp/nomad/issues/28510)]
+
+IMPROVEMENTS:
+
+* api: Updated the Go module to require at least 1.26.0 [[GH-28460](https://github.com/hashicorp/nomad/issues/28460)]
+* build: Updated Go to v1.27.1 [[GH-28451](https://github.com/hashicorp/nomad/issues/28451)]
+* jobspec2: Decouple from Nomad core with isolated Go module named  [[GH-28419](https://github.com/hashicorp/nomad/issues/28419)]
+* scheduler: Improved robustness of reschedule logic for invalid states [[GH-28445](https://github.com/hashicorp/nomad/issues/28445)]
+* ui: prevent stuck requests due to exceeding connection limit, enable HTTP2 [[GH-28364](https://github.com/hashicorp/nomad/issues/28364)]
+
+BUG FIXES:
+
+* api: Fixed a bug where a job plan diff sorted indexed fields such as  lexically, listing  before  [[GH-4421](https://github.com/hashicorp/nomad/issues/4421)]
+* client: prevent Alloc FS API from accessing secret dir when symlinked into task [[GH-28468](https://github.com/hashicorp/nomad/issues/28468)]
+* core: Fixed a bug where an artifact  of the form  (fetching the checksum from a remote file) was rejected during job validation [[GH-9764](https://github.com/hashicorp/nomad/issues/9764)]
+* jobspec: Fixed a bug where a task group containing only lifecycle tasks and no main task was accepted during job validation [[GH-17570](https://github.com/hashicorp/nomad/issues/17570)]
+* state: Fixed a bug where plans from older versioned followers did not have allocation resource schemas upgraded when written on the leader [[GH-28447](https://github.com/hashicorp/nomad/issues/28447)]
+* vault: Fixed a bug where a task's change_mode was triggered on each Vault token renewal [[GH-28409](https://github.com/hashicorp/nomad/issues/28409)]
+* vault: fixes an issue where dead tasks continued to have their tokens renewed [[GH-28501](https://github.com/hashicorp/nomad/issues/28501)]
+
 ## 1.11.9 Enterprise (August 13, 2026)
 
 BREAKING CHANGES:
