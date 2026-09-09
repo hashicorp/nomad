@@ -262,6 +262,7 @@ type Allocation struct {
 	JobID                 string
 	Job                   *Job
 	TaskGroup             string
+	GroupSelection        *AllocationGroupSelection `json:",omitempty"`
 	Resources             *Resources
 	TaskResources         map[string]*Resources
 	AllocatedResources    *AllocatedResources
@@ -329,6 +330,7 @@ func (a *Allocation) Stub() *AllocationListStub {
 		NodeName:              a.NodeName,
 		JobID:                 a.JobID,
 		TaskGroup:             a.TaskGroup,
+		GroupSelection:        a.GroupSelection.Copy(),
 		DesiredStatus:         a.DesiredStatus,
 		DesiredDescription:    a.DesiredDescription,
 		ClientStatus:          a.ClientStatus,
@@ -389,7 +391,8 @@ type AllocationListStub struct {
 	JobType               string
 	JobVersion            uint64
 	TaskGroup             string
-	AllocatedResources    *AllocatedResources `json:",omitempty"`
+	GroupSelection        *AllocationGroupSelection `json:",omitempty"`
+	AllocatedResources    *AllocatedResources       `json:",omitempty"`
 	DesiredStatus         string
 	DesiredDescription    string
 	ClientStatus          string

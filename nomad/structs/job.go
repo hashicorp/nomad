@@ -96,10 +96,12 @@ type JobStatusesJob struct {
 	ModifyIndex uint64
 	// Allocs contains information about current allocations
 	Allocs []JobStatusesAlloc
-	// GroupCountSum is the sum of all group{count=X} values,
-	// can be compared against number of running allocs to determine
-	// overall health for "service" jobs.
+	// GroupCountSum is the allocation demand from ordinary groups and accepted
+	// group selections. Unresolved selection slots are reported separately.
 	GroupCountSum int
+	// GroupSelectionStatuses contains the current choice and unmet slot demand
+	// for each named group selection.
+	GroupSelectionStatuses map[string]*JobGroupSelectionStatus `json:",omitempty"`
 	// ChildStatuses contains the statuses of child (batch) jobs
 	ChildStatuses []string
 	// ParentID is set on child (batch) jobs, specifying the parent job ID
@@ -115,6 +117,8 @@ type JobStatusesAlloc struct {
 	ID               string
 	Group            string
 	ClientStatus     string
+	DesiredStatus    string
+	GroupSelection   *AllocationGroupSelection `json:",omitempty"`
 	NodeID           string
 	DeploymentStatus JobStatusesDeployment
 	JobVersion       uint64

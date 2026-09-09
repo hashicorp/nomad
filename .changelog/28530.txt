@@ -1,0 +1,3 @@
+```release-note:feature
+scheduler: Select a fixed number of alternative task groups in service jobs, including cross-group canary deployments
+```

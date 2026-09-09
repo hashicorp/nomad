@@ -73,6 +73,29 @@ module('Integration | Component | task group row', function (hooks) {
     <TaskGroupRow @taskGroup={{this.group}} />
   `;
 
+  test('group selection alternatives are labeled independently of their configured count', async function (assert) {
+    makeJob(this.server, { noActiveDeployment: true });
+    const job = await this.store.find('job', jobId);
+    job.set('groupSelectionStatuses', {
+      runtime: {
+        Count: 1,
+        Groups: ['no-scaling', 'scaling'],
+        Slots: { 0: { TaskGroup: 'scaling', Cohort: 'selected' } },
+        Unplaced: 0,
+      },
+    });
+    this.set('group', job.taskGroups.findBy('name', 'no-scaling'));
+    await render(commonTemplate);
+    assert
+      .dom('[data-test-group-selection-state]')
+      .hasText('Inactive alternative');
+
+    this.set('group', job.taskGroups.findBy('name', 'scaling'));
+    await settled();
+    assert.dom('[data-test-group-selection-state]').hasText('Selected');
+    assert.dom('[data-test-task-group-count]').includesText('2');
+  });
+
   test('Task group row conditionally shows scaling buttons based on the presence of the scaling attr on the task group', async function (assert) {
     makeJob(this.server, { noActiveDeployment: true });
     this.token.fetchSelfTokenAndPolicies.perform();

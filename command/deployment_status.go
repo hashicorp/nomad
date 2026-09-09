@@ -582,6 +582,10 @@ func formatDeployment(c *api.Client, d *api.Deployment, uuidLength int) string {
 		}
 	}
 
+	if len(d.GroupSelections) != 0 {
+		base += "\n\n[bold]Group Selections[reset]\n"
+		base += formatDeploymentGroupSelections(d.GroupSelections)
+	}
 	if len(d.TaskGroups) == 0 {
 		return base
 	}

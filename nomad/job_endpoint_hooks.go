@@ -510,6 +510,9 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	if job.Type == structs.JobTypeCore {
 		multierror.Append(validationErrors, fmt.Errorf("job type cannot be core"))
 	}
+	if len(job.GroupSelections) != 0 && !v.isEligibleForGroupSelections(job) {
+		multierror.Append(validationErrors, fmt.Errorf("group selections require all servers in the job's regions to be upgraded to %s or later", minVersionGroupSelections))
+	}
 
 	if len(job.Payload) != 0 {
 		multierror.Append(validationErrors, fmt.Errorf("job can't be submitted with a payload, only dispatched"))
@@ -521,10 +524,7 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 
 	okForIdentity := v.isEligibleForMultiIdentity()
 
-	totalCount := 0
 	for _, tg := range job.TaskGroups {
-		totalCount += tg.Count
-
 		for _, s := range tg.Services {
 			serviceErrs := v.validateServiceIdentity(
 				s, fmt.Sprintf("task group %s", tg.Name), okForIdentity)
@@ -546,7 +546,7 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 			warnings = append(warnings, vaultWarns...)
 		}
 	}
-	if v.srv.config.JobMaxCount > 0 && totalCount > v.srv.config.JobMaxCount {
+	if totalCount := maximumDesiredAllocations(job); v.srv.config.JobMaxCount > 0 && totalCount > v.srv.config.JobMaxCount {
 		err := fmt.Errorf("total count was greater than configured job_max_count: %d > %d", totalCount, v.srv.config.JobMaxCount)
 		multierror.Append(validationErrors, err)
 	}
@@ -560,6 +560,21 @@ func (v *jobValidate) isEligibleForMultiIdentity() bool {
 	}
 	return v.srv.peersCache.ServersMeetMinimumVersion(
 		v.srv.Region(), minVersionMultiIdentities, true)
+}
+
+func (v *jobValidate) isEligibleForGroupSelections(job *structs.Job) bool {
+	if v.srv == nil || v.srv.serf == nil {
+		return true // handle tests without server membership
+	}
+	if job.IsMultiregion() {
+		for _, region := range job.Multiregion.Regions {
+			if region != nil && !v.srv.peersCache.ServersMeetMinimumVersion(region.Name, minVersionGroupSelections, true) {
+				return false
+			}
+		}
+	}
+	return v.srv.peersCache.ServersMeetMinimumVersion(
+		v.srv.Region(), minVersionGroupSelections, true)
 }
 
 func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string, okForIdentity bool) error {

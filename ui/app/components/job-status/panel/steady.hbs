@@ -42,6 +42,7 @@
     {{#if (eq @statusMode "historical")}}
       <JobPage::Parts::SummaryChart @job={{@job}} />
     {{else}}
+      <JobStatus::GroupSelections @job={{@job}} />
       <h3 class="title is-4 running-allocs-title">
         {{#if this.allAllocsComplete}}
           All allocations have completed successfully

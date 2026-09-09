@@ -4456,6 +4456,10 @@ type Job struct {
 	// to run. Each task group is an atomic unit of scheduling and placement.
 	TaskGroups []*TaskGroup
 
+	// GroupSelections makes named sets of task groups alternatives. Groups not
+	// listed in a selection remain required.
+	GroupSelections []*TaskGroupSelection `json:",omitempty" codec:",omitempty"`
+
 	// See agent.ApiJobToStructJob
 	// Update provides defaults for the TaskGroup Update blocks
 	Update UpdateStrategy
@@ -4677,6 +4681,9 @@ func (j *Job) Canonicalize() {
 	if len(j.Spreads) == 0 {
 		j.Spreads = nil
 	}
+	if len(j.GroupSelections) == 0 {
+		j.GroupSelections = nil
+	}
 
 	// Ensure the job is in a namespace.
 	if j.Namespace == "" {
@@ -4718,6 +4725,12 @@ func (j *Job) Copy() *Job {
 	nj.Multiregion = j.Multiregion.Copy()
 	nj.UI = j.UI.Copy()
 	nj.VersionTag = j.VersionTag.Copy()
+	if j.GroupSelections != nil {
+		nj.GroupSelections = make([]*TaskGroupSelection, len(j.GroupSelections))
+		for i, selection := range j.GroupSelections {
+			nj.GroupSelections[i] = selection.Copy()
+		}
+	}
 
 	if j.TaskGroups != nil {
 		tgs := make([]*TaskGroup, len(j.TaskGroups))
@@ -4841,6 +4854,10 @@ func (j *Job) Validate() error {
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
 					tg.Name, tg.Count))
 		}
+	}
+
+	if err := j.validateGroupSelections(); err != nil {
+		mErr.Errors = append(mErr.Errors, err)
 	}
 
 	// Validate the task group

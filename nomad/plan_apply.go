@@ -564,7 +564,27 @@ func evaluatePlan(pool *EvaluatePool, snap *state.StateSnapshot, plan *structs.P
 		return &structs.PlanResult{RefreshIndex: index}, nil
 	}
 
-	return evaluatePlanPlacements(pool, snap, plan, logger)
+	result, err := evaluatePlanPlacements(pool, snap, plan, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	valid, reason, err := evaluatePlanGroupSelections(snap, plan, result)
+	if err != nil {
+		return nil, err
+	}
+	if !valid {
+		// A competing plan may have selected a different group on another
+		// node. This is a job-level conflict, not a failure of either node.
+		index, err := snap.LatestIndex()
+		if err != nil {
+			return nil, err
+		}
+		logger.Debug("group selection plan rejected", "eval_id", plan.EvalID,
+			"reason", reason, "refresh_index", index)
+		return &structs.PlanResult{RefreshIndex: index}, nil
+	}
+	return result, nil
 }
 
 // evaluatePlanPlacements is used to determine what portions of a plan can be

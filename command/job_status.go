@@ -543,6 +543,10 @@ func (c *JobStatusCommand) formatDeployment(client *api.Client, d *api.Deploymen
 		}
 	}
 
+	if len(d.GroupSelections) != 0 {
+		base += "\n\n[bold]Group Selections[reset]\n"
+		base += formatDeploymentGroupSelections(d.GroupSelections)
+	}
 	if len(d.TaskGroups) == 0 {
 		return base
 	}

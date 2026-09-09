@@ -85,6 +85,10 @@ var minNodePoolsVersion = version.Must(version.NewVersion("1.6.0"))
 // automatically added to jobs that need access to Consul or Vault
 var minVersionMultiIdentities = version.Must(version.NewVersion("1.7.0"))
 
+// minVersionGroupSelections is the minimum server version that understands
+// alternative task-group demand and allocation selection ownership.
+var minVersionGroupSelections = version.Must(version.NewVersion("2.0.6"))
+
 // minVersionDynamicHostVolumes is the Nomad version at which the dynamic host
 // volumes feature was introduced. It forms the minimum version all local
 // servers must meet before the feature can be used.

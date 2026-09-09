@@ -1,0 +1,18 @@
+{{!
+  Copyright IBM Corp. 2026
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#each this.selections as |selection|}}
+  <p data-test-group-selection={{selection.name}}>
+    <strong>{{selection.name}}</strong>:
+    {{selection.placed}}/{{selection.count}}
+    task groups selected
+    {{#if selection.unplaced}}
+      <Hds::Badge
+        @text={{concat selection.unplaced " unplaced"}}
+        @color="warning"
+      />
+    {{/if}}
+  </p>
+{{/each}}

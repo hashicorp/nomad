@@ -99,6 +99,9 @@ type Deployment struct {
 	// current deployment status.
 	TaskGroups map[string]*DeploymentState
 
+	// GroupSelections tracks the accepted selection slots for this deployment.
+	GroupSelections map[string]*DeploymentGroupSelection `json:",omitempty" codec:",omitempty"`
+
 	// The status of the deployment
 	Status string
 
@@ -122,6 +125,17 @@ type Deployment struct {
 
 // NewDeployment creates a new deployment given the job.
 func NewDeployment(job *Job, evalPriority int, now int64) *Deployment {
+	var selections map[string]*DeploymentGroupSelection
+	if len(job.GroupSelections) > 0 {
+		selections = make(map[string]*DeploymentGroupSelection, len(job.GroupSelections))
+		for _, selection := range job.GroupSelections {
+			selections[selection.Name] = &DeploymentGroupSelection{
+				Count:             selection.Count,
+				Slots:             make(map[int]*DeploymentGroupSelectionSlot),
+				RequireProgressBy: job.groupSelectionProgressDeadline(selection, now),
+			}
+		}
+	}
 	return &Deployment{
 		ID:                 uuid.Generate(),
 		Namespace:          job.Namespace,
@@ -134,6 +148,7 @@ func NewDeployment(job *Job, evalPriority int, now int64) *Deployment {
 		Status:             DeploymentStatusRunning,
 		StatusDescription:  DeploymentStatusDescriptionRunning,
 		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
+		GroupSelections:    selections,
 		EvalPriority:       evalPriority,
 		CreateTime:         now,
 	}
@@ -146,6 +161,13 @@ func (d *Deployment) Copy() *Deployment {
 
 	c := &Deployment{}
 	*c = *d
+
+	if d.GroupSelections != nil {
+		c.GroupSelections = make(map[string]*DeploymentGroupSelection, len(d.GroupSelections))
+		for name, selection := range d.GroupSelections {
+			c.GroupSelections[name] = selection.Copy()
+		}
+	}
 
 	c.TaskGroups = nil
 	if l := len(d.TaskGroups); d.TaskGroups != nil {

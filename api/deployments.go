@@ -184,6 +184,9 @@ type Deployment struct {
 	// current deployment status.
 	TaskGroups map[string]*DeploymentState
 
+	// GroupSelections tracks the accepted selection slots for this deployment.
+	GroupSelections map[string]*DeploymentGroupSelection `json:",omitempty"`
+
 	// The status of the deployment
 	Status string
 

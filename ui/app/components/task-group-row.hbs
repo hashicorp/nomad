@@ -11,6 +11,13 @@
   >
     {{this.taskGroup.name}}
   </LinkTo>
+  {{#if this.groupSelectionLabel}}
+    <Hds::Badge
+      data-test-group-selection-state
+      @text={{this.groupSelectionLabel}}
+      @color="neutral"
+    />
+  {{/if}}
 </td>
 <td data-test-task-group-count class="nowrap">
   {{this.count}}

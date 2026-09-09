@@ -1115,6 +1115,7 @@ type Job struct {
 	Constraints      []*Constraint           `hcl:"constraint,block"`
 	Affinities       []*Affinity             `hcl:"affinity,block"`
 	TaskGroups       []*TaskGroup            `hcl:"group,block"`
+	GroupSelections  []*TaskGroupSelection   `hcl:"group_selection,block" json:",omitempty"`
 	Update           *UpdateStrategy         `hcl:"update,block"`
 	Multiregion      *Multiregion            `hcl:"multiregion,block"`
 	Spreads          []*Spread               `hcl:"spread,block"`
@@ -1236,6 +1237,9 @@ func (j *Job) Canonicalize() {
 
 	for _, tg := range j.TaskGroups {
 		tg.Canonicalize(j)
+	}
+	for _, selection := range j.GroupSelections {
+		selection.Canonicalize()
 	}
 
 	for _, spread := range j.Spreads {

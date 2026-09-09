@@ -5,7 +5,7 @@
 
 import Component from '@ember/component';
 import { service } from '@ember/service';
-import { action } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { debounce, join } from '@ember/runloop';
 import {
   classNames,
@@ -33,6 +33,38 @@ export default class TaskGroupRow extends Component {
 
   get runningDeployment() {
     return this.taskGroup?.job?.runningDeployment;
+  }
+
+  @computed(
+    'taskGroup.{name,allocations,job.groupSelectionStatuses,job.groupSelections,job.latestDeployment.groupSelections}',
+    'taskGroup.job.allocations.@each.{clientStatus,desiredStatus,groupSelection}',
+  )
+  get groupSelectionLabel() {
+    const job = this.taskGroup?.job;
+    const selections = Object.values(
+      job?.effectiveGroupSelectionStatuses || {},
+    );
+    const selection = selections.find((candidate) =>
+      candidate.Groups.includes(this.taskGroup.name),
+    );
+    if (!selection) return undefined;
+    if (
+      Object.values(selection.Slots).some(
+        (slot) => slot.TaskGroup === this.taskGroup.name,
+      )
+    ) {
+      return 'Selected';
+    }
+    if (
+      this.taskGroup.allocations?.some(
+        (alloc) =>
+          ['running', 'pending'].includes(alloc.clientStatus) &&
+          !['stop', 'evict'].includes(alloc.desiredStatus),
+      )
+    ) {
+      return 'Previous selection';
+    }
+    return 'Inactive alternative';
   }
 
   get namespace() {

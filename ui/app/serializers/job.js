@@ -183,6 +183,10 @@ export default class JobSerializer extends ApplicationSerializer {
             type: 'allocation',
             attributes: {
               clientStatus: alloc.ClientStatus,
+              desiredStatus: alloc.DesiredStatus,
+              taskGroupName: alloc.Group,
+              groupSelection: alloc.GroupSelection,
+              jobVersion: alloc.JobVersion,
               deploymentStatus: {
                 Healthy: alloc.DeploymentStatus.Healthy,
                 Canary: alloc.DeploymentStatus.Canary,

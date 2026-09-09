@@ -68,7 +68,8 @@ type GenericScheduler struct {
 	// before being rescheduled
 	followUpEvals []*structs.Evaluation
 
-	deployment *structs.Deployment
+	deployment            *structs.Deployment
+	groupSelectionTargets map[string]*reconciler.GroupSelectionTarget
 
 	blocked         *structs.Evaluation
 	failedTGAllocs  map[string]*structs.AllocMetric
@@ -216,6 +217,11 @@ func (s *GenericScheduler) process() (bool, error) {
 		numTaskGroups = len(s.job.TaskGroups)
 	}
 	s.queuedAllocs = make(map[string]int, numTaskGroups)
+	if !stopped && len(s.job.GroupSelections) != 0 {
+		for _, tg := range s.job.TaskGroups {
+			s.queuedAllocs[tg.Name] = 0
+		}
+	}
 	s.followUpEvals = nil
 
 	// Create a plan
@@ -346,16 +352,21 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// nodes to lost, but only if the scheduler has already marked them
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
+	allocs, err = s.prepareGroupSelections(allocs, tainted)
+	if err != nil {
+		return err
+	}
 	r := reconciler.NewAllocReconciler(s.logger,
-		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
+		s.groupSelectionAllocUpdateFn(),
 		reconciler.ReconcilerState{
-			Job:               s.job,
-			JobID:             s.eval.JobID,
-			JobIsBatch:        s.batch,
-			DeploymentCurrent: s.deployment,
-			ExistingAllocs:    allocs,
-			EvalID:            s.eval.ID,
-			EvalPriority:      s.eval.Priority,
+			Job:                   s.job,
+			JobID:                 s.eval.JobID,
+			JobIsBatch:            s.batch,
+			DeploymentCurrent:     s.deployment,
+			ExistingAllocs:        allocs,
+			GroupSelectionTargets: s.groupSelectionTargets,
+			EvalID:                s.eval.ID,
+			EvalPriority:          s.eval.Priority,
 		},
 		reconciler.ClusterState{
 			TaintedNodes: tainted,
@@ -447,8 +458,16 @@ func (s *GenericScheduler) computeJobAllocs() error {
 // downgradedJobForPlacement returns the previous stable version of the job for
 // downgrading a placement for non-canaries
 func (s *GenericScheduler) downgradedJobForPlacement(p reconciler.PlacementResult) (string, *structs.Job, error) {
+	// A cross-group canary must recover the serving cohort using its physical
+	// task group and job version, rather than an unused alternative in that job.
+	if previous := p.PreviousAllocation(); previous != nil && previous.GroupSelection != nil {
+		return previous.DeploymentID, previous.Job, nil
+	}
 	ns, jobID := s.job.Namespace, s.job.ID
 	tgName := p.TaskGroup().Name
+	if target := s.groupSelectionTargets[tgName]; target != nil && target.PreviousTaskGroup != "" {
+		tgName = target.PreviousTaskGroup
+	}
 
 	// find deployments and use the latest promoted or canaried version
 	deployments, err := s.state.DeploymentsByJobID(nil, ns, jobID, false)
@@ -517,18 +536,39 @@ func (s *GenericScheduler) computePlacements(
 			taskGroupNameIndex := nameIndex[tg.Name]
 
 			var downgradedJob *structs.Job
-
-			if missing.DowngradeNonCanary() {
+			placementDeploymentID := deploymentID
+			placementName := missing.Name()
+			var source *reconciler.GroupSelectionSource
+			if placement, ok := missing.(interface {
+				GroupSelectionSource() *reconciler.GroupSelectionSource
+			}); ok {
+				source = placement.GroupSelectionSource()
+			}
+			if source != nil {
+				downgradedJob = source.Job
+				tg = source.Job.LookupTaskGroup(tg.Name)
+				taskGroupNameIndex = source.NameIndex
+				placementDeploymentID = missing.PreviousAllocation().DeploymentID
+			} else if missing.DowngradeNonCanary() {
 				jobDeploymentID, job, err := s.downgradedJobForPlacement(missing)
 				if err != nil {
 					return err
 				}
 
+				physicalGroup := tg.Name
+				if previous := missing.PreviousAllocation(); previous != nil && previous.GroupSelection != nil {
+					physicalGroup = previous.TaskGroup
+					placementName = structs.AllocName(s.job.ID, physicalGroup, previous.Index())
+				} else if target := s.groupSelectionTargets[tg.Name]; target != nil && target.PreviousTaskGroup != "" {
+					physicalGroup = target.PreviousTaskGroup
+					index := structs.AllocIndexFromName(placementName, s.job.ID, tg.Name)
+					placementName = structs.AllocName(s.job.ID, physicalGroup, index)
+				}
 				// Defensive check - if there is no appropriate deployment for this job, use the latest
-				if job != nil && job.Version >= missing.MinJobVersion() && job.LookupTaskGroup(tg.Name) != nil {
-					tg = job.LookupTaskGroup(tg.Name)
+				if job != nil && job.Version >= missing.MinJobVersion() && job.LookupTaskGroup(physicalGroup) != nil {
+					tg = job.LookupTaskGroup(physicalGroup)
 					downgradedJob = job
-					deploymentID = jobDeploymentID
+					placementDeploymentID = jobDeploymentID
 				} else {
 					jobVersion := -1
 					if job != nil {
@@ -538,6 +578,12 @@ func (s *GenericScheduler) computePlacements(
 				}
 			}
 
+			if tg.Name != missing.TaskGroup().Name {
+				// Accepted allocations are accounted under their physical group.
+				// A serving-cohort repair must not leave a queued target replica.
+				s.queuedAllocs[missing.TaskGroup().Name]--
+				s.queuedAllocs[tg.Name]++
+			}
 			hasPerAlloc := tg.HasPerAllocVolumes
 
 			// Check if this task group has already failed
@@ -578,7 +624,15 @@ func (s *GenericScheduler) computePlacements(
 
 			// Compute penalty nodes for rescheduled allocs
 			selectOptions := getSelectOptions(prevAllocation, preferredNode)
-			selectOptions.AllocName = missing.Name()
+			selectOptions.AllocName = placementName
+			if target := s.groupSelectionTargets[tg.Name]; target != nil && target.PreferredNodeID != "" {
+				for _, node := range nodes {
+					if node.ID == target.PreferredNodeID {
+						selectOptions.PreferredNodes = []*structs.Node{node}
+						break
+					}
+				}
+			}
 			option := s.selectNextOption(tg, selectOptions)
 
 			// Store the available nodes by datacenter
@@ -619,7 +673,7 @@ func (s *GenericScheduler) computePlacements(
 				// Pull the allocation name as a new variables, so we can alter
 				// this as needed without making changes to the original
 				// object.
-				newAllocName := missing.Name()
+				newAllocName := placementName
 
 				// Identify the index from the name, so we can check this
 				// against the allocation name index tracking for duplicates.
@@ -633,6 +687,10 @@ func (s *GenericScheduler) computePlacements(
 				if taskGroupNameIndex.IsDuplicate(allocIndex) {
 					oldAllocName := newAllocName
 					newAllocName = taskGroupNameIndex.Next(1)[0]
+					if tg.Name != missing.TaskGroup().Name {
+						index := structs.AllocIndexFromName(newAllocName, s.job.ID, missing.TaskGroup().Name)
+						newAllocName = structs.AllocName(s.job.ID, tg.Name, index)
+					}
 					taskGroupNameIndex.UnsetIndex(allocIndex)
 					s.logger.Debug("duplicate alloc index found and changed",
 						"old_alloc_name", oldAllocName, "new_alloc_name", newAllocName)
@@ -649,7 +707,7 @@ func (s *GenericScheduler) computePlacements(
 					Metrics:            s.ctx.Metrics(),
 					NodeID:             option.Node.ID,
 					NodeName:           option.Node.Name,
-					DeploymentID:       deploymentID,
+					DeploymentID:       placementDeploymentID,
 					TaskResources:      resources.OldTaskResources(),
 					AllocatedResources: resources,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
@@ -660,6 +718,22 @@ func (s *GenericScheduler) computePlacements(
 						DiskMB:   tg.EphemeralDisk.SizeMB,
 						Networks: resources.Shared.Networks,
 					},
+				}
+
+				if target := s.groupSelectionTargets[tg.Name]; target != nil {
+					alloc.GroupSelection = target.Selection.Copy()
+				}
+				if missing.DowngradeNonCanary() {
+					if prevAllocation != nil && prevAllocation.GroupSelection != nil {
+						alloc.GroupSelection = prevAllocation.GroupSelection.Copy()
+					} else if target := s.groupSelectionTargets[missing.TaskGroup().Name]; target != nil && target.PreviousCohort != "" {
+						alloc.GroupSelection = target.Selection.Copy()
+						alloc.GroupSelection.Cohort = target.PreviousCohort
+					}
+				}
+
+				if source != nil {
+					alloc.GroupSelection = source.Selection.Copy()
 				}
 
 				// If the new allocation is replacing an older allocation then we

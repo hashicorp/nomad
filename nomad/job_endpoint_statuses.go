@@ -219,7 +219,9 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 	// the GroupCountSum will map to how many allocations we expect to run
 	// (for service jobs)
 	for _, tg := range job.TaskGroups {
-		jsj.GroupCountSum += tg.Count
+		if job.TaskGroupSelection(tg.Name) == nil {
+			jsj.GroupCountSum += tg.Count
+		}
 	}
 
 	// collect the statuses of child jobs
@@ -259,6 +261,8 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 			ID:             a.ID,
 			Group:          a.TaskGroup,
 			ClientStatus:   a.ClientStatus,
+			DesiredStatus:  a.DesiredStatus,
+			GroupSelection: a.GroupSelection.Copy(),
 			NodeID:         a.NodeID,
 			JobVersion:     a.Job.Version,
 			FollowupEvalID: a.FollowupEvalID,
@@ -293,6 +297,12 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 
 		if deploy.ModifyIndex > highestIdx {
 			highestIdx = deploy.ModifyIndex
+		}
+	}
+	jsj.GroupSelectionStatuses = job.GroupSelectionStatuses(allocs, deploy)
+	for _, selection := range jsj.GroupSelectionStatuses {
+		for _, slot := range selection.Slots {
+			jsj.GroupCountSum += job.LookupTaskGroup(slot.TaskGroup).Count
 		}
 	}
 	return jsj, highestIdx, nil

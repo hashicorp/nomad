@@ -43,6 +43,7 @@
     class="boxed-section-body
       {{if @job.latestDeployment.requiresPromotion 'requires-promotion'}}"
   >
+    <JobStatus::GroupSelections @job={{@job}} />
     {{#if @job.latestDeployment.requiresPromotion}}
       <div class="canary-promotion-alert">
         {{#if this.canariesHealthy}}

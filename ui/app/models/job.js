@@ -13,6 +13,11 @@ import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
 import { jobAllocStatuses } from '../utils/allocation-client-statuses';
+import {
+  allocationMatchesGroupSelections,
+  groupSelectionAllocationCount,
+  groupSelectionStatuses,
+} from '../utils/group-selection-status';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
@@ -35,10 +40,41 @@ export default class Job extends Model {
   @attr() ui;
 
   @attr('number') groupCountSum;
+  @attr() groupSelections;
+  @attr() groupSelectionStatuses;
+
+  get effectiveGroupSelectionStatuses() {
+    if (!this.groupSelections?.length) return this.groupSelectionStatuses || {};
+    return groupSelectionStatuses(
+      this,
+      this.allocations.toArray(),
+      this.latestDeployment?.content,
+    );
+  }
+
+  get unplacedGroupSelections() {
+    return Object.values(this.effectiveGroupSelectionStatuses).reduce(
+      (count, selection) => count + selection.Unplaced,
+      0,
+    );
+  }
+
+  get currentSelectionAllocations() {
+    const statuses = this.effectiveGroupSelectionStatuses;
+    return this.allocations.filter((alloc) =>
+      allocationMatchesGroupSelections(alloc, statuses),
+    );
+  }
+
   // if it's a system/sysbatch job, groupCountSum is allocs uniqued by nodeID
   get expectedRunningAllocCount() {
     if (this.type === 'system' || this.type === 'sysbatch') {
       return this.allocations.filterBy('nodeID').uniqBy('nodeID').length;
+    } else if (this.groupSelections?.length) {
+      return groupSelectionAllocationCount(
+        this.taskGroups,
+        this.effectiveGroupSelectionStatuses,
+      );
     } else {
       return this.groupCountSum;
     }
@@ -140,7 +176,7 @@ export default class Job extends Model {
     );
 
     // First accumulate the Running/Pending allocations
-    for (const alloc of this.allocations.filter(
+    for (const alloc of this.currentSelectionAllocations.filter(
       (a) => a.clientStatus === 'running' || a.clientStatus === 'pending',
     )) {
       if (availableSlotsToFill === 0) {
@@ -153,7 +189,7 @@ export default class Job extends Model {
     }
     // TODO: return early here if !availableSlotsToFill
     // Sort all allocs by jobVersion in descending order
-    const sortedAllocs = this.allocations
+    const sortedAllocs = this.currentSelectionAllocations
       .filter(
         (a) => a.clientStatus !== 'running' && a.clientStatus !== 'pending',
       )
@@ -246,6 +282,10 @@ export default class Job extends Model {
         label: 'Stopped',
         state: 'neutral',
       };
+    }
+
+    if (this.unplacedGroupSelections > 0) {
+      return { label: 'Degraded', state: 'warning' };
     }
 
     // If the job is scaled down to 0 desired allocations, we shouldn't call it "failed";

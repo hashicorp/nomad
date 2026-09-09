@@ -401,6 +401,11 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 		}
 		if existing != nil {
 			for tgName, existDstate := range existing.TaskGroups {
+				// Health belongs to the selected cohort, not just its task
+				// group name. A replacement cohort starts its own accounting.
+				if existing.GroupSelectionCohort(tgName) != results.Deployment.GroupSelectionCohort(tgName) {
+					continue
+				}
 				if dstate := results.Deployment.TaskGroups[tgName]; dstate != nil {
 					dstate.MergeClientValues(existDstate)
 				} else {
@@ -578,6 +583,10 @@ func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployme
 }
 
 func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, txn *txn) error {
+	if deployment.Status == structs.DeploymentStatusSuccessful && deployment.HasUnplacedGroupSelections() {
+		return errors.New("deployment has unplaced group selections")
+	}
+
 	// Check if the deployment already exists
 	raw, err := txn.First("deployment", "id", deployment.ID)
 	if err != nil {
@@ -5001,6 +5010,9 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 	} else if !deployment.Active() {
 		return fmt.Errorf("Deployment %q has terminal status %q:", deployment.ID, deployment.Status)
 	}
+	if req.All && deployment.HasUnplacedGroupSelections() {
+		return errors.New("cannot promote all groups while group selections are unplaced")
+	}
 
 	// Retrieve effected allocations
 	iter, err := txn.Get("allocs", "deployment", req.DeploymentID)
@@ -5036,6 +5048,9 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 		}
 
 		alloc := raw.(*structs.Allocation)
+		if !deployment.IsGroupSelectionTarget(alloc.TaskGroup, alloc.GroupSelection) {
+			continue
+		}
 
 		// Check that the alloc is a canary
 		if _, ok := canaryIndex[alloc.ID]; !ok {
@@ -5957,6 +5972,9 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 		return err
 	}
 	if deployment == nil {
+		return nil
+	}
+	if !deployment.IsGroupSelectionTarget(alloc.TaskGroup, alloc.GroupSelection) {
 		return nil
 	}
 

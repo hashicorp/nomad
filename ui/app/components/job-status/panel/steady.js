@@ -6,6 +6,7 @@
 import Component from '@glimmer/component';
 import { alias } from '@ember/object/computed';
 import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
+import { allocationMatchesGroupSelections } from '../../../utils/group-selection-status';
 
 export default class JobStatusPanelSteadyComponent extends Component {
   @alias('args.job') job;
@@ -19,7 +20,16 @@ export default class JobStatusPanelSteadyComponent extends Component {
       return [];
     }
 
-    return ids.map((id) => store.peekRecord('allocation', id)).filter(Boolean);
+    return ids
+      .map((id) => store.peekRecord('allocation', id))
+      .filter(
+        (alloc) =>
+          alloc &&
+          allocationMatchesGroupSelections(
+            alloc,
+            this.job.effectiveGroupSelectionStatuses,
+          ),
+      );
   }
 
   get allocTypes() {
@@ -147,6 +157,9 @@ export default class JobStatusPanelSteadyComponent extends Component {
   }
 
   get totalAllocs() {
+    if (this.job.groupSelections?.length) {
+      return this.job.expectedRunningAllocCount;
+    }
     if (this.args.job.type === 'service' || this.args.job.type === 'batch') {
       return this.args.job.taskGroups.reduce((sum, tg) => sum + tg.count, 0);
     } else if (this.atMostOneAllocPerNode) {
@@ -233,6 +246,10 @@ export default class JobStatusPanelSteadyComponent extends Component {
         label: 'Stopped',
         state: 'neutral',
       };
+    }
+
+    if (this.job.unplacedGroupSelections > 0) {
+      return { label: 'Degraded', state: 'warning' };
     }
 
     if (totalAllocs === 0) {

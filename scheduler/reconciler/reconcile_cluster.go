@@ -57,6 +57,9 @@ type ReconcilerState struct {
 
 	ExistingAllocs []*structs.Allocation
 
+	// GroupSelectionTargets are placement-derived logical reconciliation targets.
+	GroupSelectionTargets map[string]*GroupSelectionTarget
+
 	EvalID       string
 	EvalPriority int
 }
@@ -302,7 +305,12 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 	// check if the deployment is complete and set relevant result fields in the
 	// process
 	var deploymentComplete bool
+	if len(a.jobState.Job.GroupSelections) != 0 {
+		m = a.selectionMatrix(result)
+	}
 	result, deploymentComplete = a.computeDeploymentComplete(result, m)
+	a.reconcilePreviousOnlySelections(result)
+	a.recordGroupSelections(result)
 
 	result.DeploymentUpdates = append(result.DeploymentUpdates, a.setDeploymentStatusAndUpdates(deploymentComplete, result.Deployment)...)
 
@@ -362,7 +370,12 @@ func markDelayed(allocs allocSet, clientStatus, statusDescription string, follow
 // struct and a boolean that indicates whether the deployment is complete.
 func (a *AllocReconciler) computeDeploymentComplete(result *ReconcileResults, m allocMatrix) (*ReconcileResults, bool) {
 	complete := true
-	for group, as := range m {
+	groups := slices.Collect(maps.Keys(m))
+	if len(a.jobState.Job.GroupSelections) != 0 {
+		sort.Strings(groups)
+	}
+	for _, group := range groups {
+		as := m[group]
 		var groupComplete bool
 		var resultForGroup *ReconcileResults
 		resultForGroup, groupComplete = a.computeGroup(group, as)
@@ -488,7 +501,19 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// Stop any unneeded allocations and update the untainted set to not include
 	// stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
-	a.computeStop(tg, nameIndex, &untainted, migrate, lost, canaries,
+	servingGroup := tg
+	if target := a.jobState.GroupSelectionTargets[group]; target != nil && target.PreviousTaskGroup != "" && target.PreviousTaskGroup != group && tg.Update != nil && tg.Update.Canary > 0 && !dstate.Promoted {
+		for _, allocation := range all {
+			if allocation.TaskGroup == target.PreviousTaskGroup && allocation.GroupSelection != nil && allocation.GroupSelection.Cohort == target.PreviousCohort {
+				if previous := allocation.Job.LookupTaskGroup(allocation.TaskGroup); previous != nil {
+					servingGroup = tg.Copy()
+					servingGroup.Count = previous.Count
+					break
+				}
+			}
+		}
+	}
+	a.computeStop(servingGroup, nameIndex, &untainted, migrate, lost, canaries,
 		isCanarying, lostLaterEvals, result)
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
@@ -520,7 +545,14 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// * An alloc was lost
 	var place []AllocPlaceResult
 	if len(lostLater) == 0 {
-		place = computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
+		placementGroup := tg
+		if isCanarying {
+			placementGroup = servingGroup
+		}
+		place = computePlacements(placementGroup, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
+		for index := range place {
+			place[index].taskGroup = tg
+		}
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -542,6 +574,11 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	}
 
 	a.computeMigrations(migrate, isCanarying, tg, result)
+	if !existingDeployment && a.jobState.GroupSelectionTargets[group] != nil {
+		// The serving implementation can have a different replica count.
+		// Deployment health always measures the selected target's demand.
+		dstate.DesiredTotal = tg.Count
+	}
 	result.Deployment = a.createDeployment(
 		tg.Name, tg.Update, existingDeployment, dstate, all, destructive, int(result.DesiredTGUpdates[group].InPlaceUpdate))
 
@@ -551,10 +588,14 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		result.Deployment = a.jobState.DeploymentCurrent
 	}
 
-	// We can never have more placements than the count
-	if len(result.Place) > tg.Count {
-		result.Place = result.Place[:tg.Count]
-		result.DesiredTGUpdates[tg.Name].Place = uint64(tg.Count)
+	// Bound each pass by the required target or serving replica count.
+	placementLimit := tg.Count
+	if isCanarying {
+		placementLimit = max(placementLimit, servingGroup.Count)
+	}
+	if len(result.Place) > placementLimit {
+		result.Place = result.Place[:placementLimit]
+		result.DesiredTGUpdates[tg.Name].Place = uint64(placementLimit)
 	}
 
 	deploymentComplete := a.isDeploymentComplete(group, destructive, inplace,
@@ -841,7 +882,7 @@ func computePlacements(group *structs.TaskGroup,
 	var place []AllocPlaceResult
 	for _, alloc := range reschedule {
 		place = append(place, AllocPlaceResult{
-			name:          alloc.Name,
+			name:          reconciliationName(alloc, group.Name),
 			taskGroup:     group,
 			previousAlloc: alloc,
 			reschedule:    true,
@@ -865,7 +906,7 @@ func computePlacements(group *structs.TaskGroup,
 
 		existing++
 		place = append(place, AllocPlaceResult{
-			name:               alloc.Name,
+			name:               reconciliationName(alloc, group.Name),
 			taskGroup:          group,
 			previousAlloc:      alloc,
 			reschedule:         false,
@@ -987,7 +1028,7 @@ func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 	desiredChanges.Ignore += uint64(len(destructive) - minimum)
 	for _, alloc := range destructive.nameOrder()[:minimum] {
 		destructiveResult = append(destructiveResult, allocDestructiveResult{
-			placeName:             alloc.Name,
+			placeName:             reconciliationName(alloc, tg.Name),
 			placeTaskGroup:        tg,
 			stopAlloc:             alloc,
 			stopStatusDescription: sstructs.StatusAllocUpdating,
@@ -1021,7 +1062,7 @@ func (a *AllocReconciler) computeMigrations(migrate allocSet, isCanarying bool,
 		}
 
 		result.Place = append(result.Place, AllocPlaceResult{
-			name:          alloc.Name,
+			name:          reconciliationName(alloc, tg.Name),
 			canary:        alloc.DeploymentStatus.IsCanary(),
 			taskGroup:     tg,
 			previousAlloc: alloc,
@@ -1147,9 +1188,9 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 	// Prefer stopping any alloc that has the same name as the canaries if we
 	// are promoted
 	if !isCanarying && len(canaries) != 0 {
-		canaryNames := canaries.nameSet()
+		canaryNames := reconciliationNames(canaries, group.Name)
 		for id, alloc := range working.difference(canaries) {
-			if _, match := canaryNames[alloc.Name]; match {
+			if _, match := canaryNames[reconciliationName(alloc, group.Name)]; match {
 				stop[id] = alloc
 				stopAllocResult = append(stopAllocResult, AllocStopResult{
 					Alloc:             alloc,
@@ -1170,7 +1211,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 		migratingNames := newAllocNameIndex(a.jobState.JobID, group.Name, group.Count, migrate)
 		removeNames := migratingNames.Highest(uint(remove))
 		for id, alloc := range migrate {
-			if _, match := removeNames[alloc.Name]; !match {
+			if _, match := removeNames[reconciliationName(alloc, group.Name)]; !match {
 				continue
 			}
 			stopAllocResult = append(stopAllocResult, AllocStopResult{
@@ -1191,7 +1232,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 	// Select the allocs with the highest count to remove
 	removeNames := nameIndex.Highest(uint(remove))
 	for id, alloc := range working {
-		if _, ok := removeNames[alloc.Name]; ok {
+		if _, ok := removeNames[reconciliationName(alloc, group.Name)]; ok {
 			stop[id] = alloc
 			stopAllocResult = append(stopAllocResult, AllocStopResult{
 				Alloc:             alloc,
@@ -1388,7 +1429,10 @@ func (a *AllocReconciler) computeUpdates(
 	destructive = make(allocSet)
 
 	for _, alloc := range untainted {
-		ignoreChange, destructiveChange, inplaceAlloc := a.allocUpdateFn(alloc, a.jobState.Job, group)
+		ignoreChange, destructiveChange, inplaceAlloc := false, true, (*structs.Allocation)(nil)
+		if alloc.TaskGroup == group.Name {
+			ignoreChange, destructiveChange, inplaceAlloc = a.allocUpdateFn(alloc, a.jobState.Job, group)
+		}
 		if ignoreChange {
 			ignore[alloc.ID] = alloc
 		} else if destructiveChange {

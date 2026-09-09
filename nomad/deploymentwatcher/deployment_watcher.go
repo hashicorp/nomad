@@ -282,7 +282,7 @@ func (w *deploymentWatcher) PromoteDeployment(
 // autoPromoteDeployment creates a synthetic promotion request, and upserts it for processing
 func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStub) error {
 	d := w.getDeployment()
-	if !d.HasPlacedCanaries() || !d.RequiresPromotion() {
+	if !d.HasPlacedCanaries() || !d.RequiresPromotion() || d.HasUnplacedGroupSelections() {
 		return nil
 	}
 
@@ -304,7 +304,8 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 		// Find the health status of each canary
 		for _, c := range dstate.PlacedCanaries {
 			for _, a := range allocs {
-				if c == a.ID && a.DeploymentStatus.IsHealthy() {
+				if c == a.ID && a.DeploymentStatus.IsHealthy() &&
+					d.IsGroupSelectionTarget(a.TaskGroup, a.GroupSelection) {
 					healthyCanaries += 1
 				}
 			}
@@ -610,6 +611,9 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 
 	deployment := w.getDeployment()
 	for _, alloc := range allocs {
+		if !deployment.IsGroupSelectionTarget(alloc.TaskGroup, alloc.GroupSelection) {
+			continue
+		}
 		dstate, ok := deployment.TaskGroups[alloc.TaskGroup]
 		if !ok {
 			continue
@@ -670,6 +674,15 @@ func (w *deploymentWatcher) shouldFail() (fail, rollback bool, err error) {
 	fail = false
 	if d.Status == structs.DeploymentStatusPaused {
 		return false, false, nil
+	}
+	for name, selection := range d.GroupSelections {
+		if selection.Placed() >= selection.Count {
+			continue
+		}
+		fail = true
+		if w.unplacedSelectionAutoRevert(name) {
+			return true, true, nil
+		}
 	}
 	for tg, dstate := range d.TaskGroups {
 		// If we are in a canary state we fail if there aren't enough healthy
@@ -743,6 +756,14 @@ func (w *deploymentWatcher) getDeploymentProgressCutoff(d *structs.Deployment) t
 			next = dstate.RequireProgressBy
 		}
 	}
+	for _, selection := range d.GroupSelections {
+		if selection.Placed() >= selection.Count || selection.RequireProgressBy.IsZero() {
+			continue
+		}
+		if next.IsZero() || selection.RequireProgressBy.Before(next) {
+			next = selection.RequireProgressBy
+		}
+	}
 	return next
 }
 
@@ -769,7 +790,8 @@ func (w *deploymentWatcher) doneGroups(d *structs.Deployment) map[string]bool {
 	// Go through the allocs and count up how many healthy allocs we have
 	healthy := make(map[string]int, len(d.TaskGroups))
 	for _, a := range allocs {
-		if a.TerminalStatus() || !a.DeploymentStatus.IsHealthy() {
+		if a.TerminalStatus() || !a.DeploymentStatus.IsHealthy() ||
+			!d.IsGroupSelectionTarget(a.TaskGroup, a.GroupSelection) {
 			continue
 		}
 		healthy[a.TaskGroup]++

@@ -129,6 +129,9 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 		diff.Objects = append(diff.Objects, affinitiesDiff...)
 	}
 
+	// Group selections diff
+	diff.Objects = append(diff.Objects, groupSelectionDiffs(j.GroupSelections, other.GroupSelections, contextual)...)
+
 	// Task groups diff
 	tgs, err := taskGroupDiffs(j.TaskGroups, other.TaskGroups, contextual)
 	if err != nil {

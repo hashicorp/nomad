@@ -64,6 +64,7 @@ type AllocStopResult struct {
 // AllocPlaceResult contains the information required to place a single
 // allocation
 type AllocPlaceResult struct {
+	source        *GroupSelectionSource
 	name          string
 	canary        bool
 	taskGroup     *structs.TaskGroup
@@ -74,6 +75,16 @@ type AllocPlaceResult struct {
 	downgradeNonCanary bool
 	minJobVersion      uint64
 }
+
+// GroupSelectionSource identifies a saved serving cohort repaired while a
+// different target is being canaried. It is scheduler-local, not job state.
+type GroupSelectionSource struct {
+	Job       *structs.Job
+	Selection *structs.AllocationGroupSelection
+	NameIndex *AllocNameIndex
+}
+
+func (a AllocPlaceResult) GroupSelectionSource() *GroupSelectionSource { return a.source }
 
 func (a AllocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
 func (a AllocPlaceResult) Name() string                            { return a.name }
@@ -363,7 +374,7 @@ func (a *AllocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 	next := make([]string, 0, n)
 
 	// Create a name index
-	existingNames := existing.nameSet()
+	existingNames := reconciliationNames(existing, a.taskGroup)
 
 	// First select indexes from the allocations that are undergoing
 	// destructive updates. This way we avoid duplicate names as they will get

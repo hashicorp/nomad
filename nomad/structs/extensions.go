@@ -15,11 +15,13 @@ var (
 	// extendedTypes is a mapping of extended types to their extension function
 	// TODO: the duplicates could be simplified by looking up the base type in the case of a pointer type in ConvertExt
 	extendedTypes = map[reflect.Type]extendFunc{
-		reflect.TypeFor[Node]():              nodeExt,
-		reflect.TypeFor[*Node]():             nodeExt,
-		reflect.TypeFor[CSIVolume]():         csiVolumeExt,
-		reflect.TypeFor[*CSIVolume]():        csiVolumeExt,
-		reflect.TypeFor[*numalib.Topology](): numaTopoExt,
+		reflect.TypeFor[Node]():                      nodeExt,
+		reflect.TypeFor[*Node]():                     nodeExt,
+		reflect.TypeFor[CSIVolume]():                 csiVolumeExt,
+		reflect.TypeFor[*CSIVolume]():                csiVolumeExt,
+		reflect.TypeFor[*numalib.Topology]():         numaTopoExt,
+		reflect.TypeFor[DeploymentGroupSelection]():  deploymentGroupSelectionExt,
+		reflect.TypeFor[*DeploymentGroupSelection](): deploymentGroupSelectionExt,
 	}
 )
 

@@ -75,6 +75,9 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
+	// GroupSelection identifies the selection slot owning this allocation.
+	GroupSelection *AllocationGroupSelection `json:",omitempty" codec:",omitempty"`
+
 	// COMPAT(0.11): Remove in 0.11
 	// Resources is the total set of resources allocated as part
 	// of this allocation of the task group. Dynamic ports will be set by
@@ -325,6 +328,7 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 		na.Job = na.Job.Copy()
 	}
 
+	na.GroupSelection = a.GroupSelection.Copy()
 	na.AllocatedResources = na.AllocatedResources.Copy()
 	na.Resources = na.Resources.Copy()
 	na.SharedResources = na.SharedResources.Copy()
@@ -766,6 +770,7 @@ func (a *Allocation) Stub(fields *AllocStubFields) *AllocListStub {
 		JobType:               a.Job.Type,
 		JobVersion:            a.Job.Version,
 		TaskGroup:             a.TaskGroup,
+		GroupSelection:        a.GroupSelection.Copy(),
 		DesiredStatus:         a.DesiredStatus,
 		DesiredDescription:    a.DesiredDescription,
 		ClientStatus:          a.ClientStatus,
@@ -948,7 +953,8 @@ type AllocListStub struct {
 	JobType               string
 	JobVersion            uint64
 	TaskGroup             string
-	AllocatedResources    *AllocatedResources `json:",omitempty"`
+	GroupSelection        *AllocationGroupSelection `json:",omitempty" codec:",omitempty"`
+	AllocatedResources    *AllocatedResources       `json:",omitempty"`
 	DesiredStatus         string
 	DesiredDescription    string
 	ClientStatus          string

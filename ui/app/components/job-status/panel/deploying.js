@@ -10,6 +10,7 @@ import { tracked } from '@glimmer/tracking';
 import { alias } from '@ember/object/computed';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { jobAllocStatuses } from '../../../utils/allocation-client-statuses';
+import { allocationMatchesGroupSelections } from '../../../utils/group-selection-status';
 
 export default class JobStatusPanelDeployingComponent extends Component {
   @alias('args.job') job;
@@ -52,8 +53,14 @@ export default class JobStatusPanelDeployingComponent extends Component {
    * @returns {boolean}
    */
   get canariesHealthy() {
+    if (this.job.unplacedGroupSelections > 0) return false;
+    const statuses = this.job.effectiveGroupSelectionStatuses;
     const relevantAllocs = this.allocations.filter(
-      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled,
+      (a) =>
+        !a.isOld &&
+        a.isCanary &&
+        !a.hasBeenRescheduled &&
+        allocationMatchesGroupSelections(a, statuses),
     );
     return (
       relevantAllocs.length &&
@@ -62,8 +69,13 @@ export default class JobStatusPanelDeployingComponent extends Component {
   }
 
   get someCanariesHaveFailed() {
+    const statuses = this.job.effectiveGroupSelectionStatuses;
     const relevantAllocs = this.allocations.filter(
-      (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled,
+      (a) =>
+        !a.isOld &&
+        a.isCanary &&
+        !a.hasBeenRescheduled &&
+        allocationMatchesGroupSelections(a, statuses),
     );
     return relevantAllocs.some(
       (a) =>
@@ -121,8 +133,9 @@ export default class JobStatusPanelDeployingComponent extends Component {
 
   get newVersionAllocBlocks() {
     let availableSlotsToFill = this.desiredTotal;
+    const statuses = this.job.effectiveGroupSelectionStatuses;
     let allocationsOfDeploymentVersion = this.allocations.filter(
-      (a) => !a.isOld,
+      (a) => !a.isOld && allocationMatchesGroupSelections(a, statuses),
     );
 
     let allocationCategories = this.allocTypes.reduce((categories, type) => {
@@ -258,6 +271,9 @@ export default class JobStatusPanelDeployingComponent extends Component {
   // TODO: eventually we will want this from a new property on a job.
   // TODO: consolidate w/ the one in steady.js
   get totalAllocs() {
+    if (this.job.groupSelections?.length) {
+      return this.job.expectedRunningAllocCount;
+    }
     // v----- Experimental method: Count all allocs. Good for testing but not a realistic representation of "Desired"
     // return this.allocTypes.reduce((sum, type) => sum + this.args.job[type.property], 0);
 

@@ -45,6 +45,7 @@ export default class Deployment extends Model {
 
   @attr('string') status;
   @attr('string') statusDescription;
+  @attr() groupSelections;
 
   @equal('status', 'running') isRunning;
 
