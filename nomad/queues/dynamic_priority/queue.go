@@ -223,6 +223,14 @@ func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
 	d.enqueueCh <- w
 }
 
+func (d *DynamicPriorityQueue) Dequeue(j *structs.Job) {
+	wl := d.queue.Remove(j)
+
+	if wl != nil {
+		d.evalBroker.Enqueue(wl.GetEval())
+	}
+}
+
 // runProducer pushes workloads onto the queue and notifies the consumer
 // goroutine. It also updates priorities on the configured interval.
 func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {

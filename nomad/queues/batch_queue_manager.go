@@ -91,6 +91,14 @@ func (b *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 	q.Enqueue(e, job)
 }
 
+func (b *BatchQueueManager) Dequeue(job *structs.Job) {
+	q, ok := b.queues[job.NodePool]
+	if !ok {
+		return
+	}
+	q.Dequeue(job)
+}
+
 // SetEnabled is called during leadership transfers and is responsible for starting
 // and stopping queues.
 func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {

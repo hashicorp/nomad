@@ -850,7 +850,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 			ID:          uuid.Generate(),
 			Namespace:   args.RequestNamespace(),
 			Priority:    priority,
-			Type:        structs.JobTypeService,
+			Type:        job.Type,
 			TriggeredBy: structs.EvalTriggerJobDeregister,
 			JobID:       args.JobID,
 			Status:      structs.EvalStatusPending,

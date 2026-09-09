@@ -880,6 +880,19 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
 	}
 
+	// Get the current job and mark it as stopped and re-insert it.
+	ws := memdb.NewWatchSet()
+	current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
+	if err != nil {
+		return fmt.Errorf("JobByID lookup failed: %w", err)
+	}
+
+	if current == nil {
+		return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
+	}
+
+	n.batchQueue.Dequeue(current)
+
 	if noShutdownDelay {
 		ws := memdb.NewWatchSet()
 		allocs, err := n.state.AllocsByJob(ws, namespace, jobID, false)
@@ -909,17 +922,6 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		// doesn't ensure we clean it up properly.
 		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
 		return nil
-	}
-
-	// Get the current job and mark it as stopped and re-insert it.
-	ws := memdb.NewWatchSet()
-	current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
-	if err != nil {
-		return fmt.Errorf("JobByID lookup failed: %w", err)
-	}
-
-	if current == nil {
-		return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
 	}
 
 	stopped := current.Copy()
