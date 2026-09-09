@@ -382,13 +382,16 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 				},
 				NodesExhausted:     0,
 				ClassExhausted:     map[string]int{},
+				NodesAvailable:     map[string]int{"test": 15},
 				DimensionExhausted: map[string]int{},
 				QuotaExhausted:     []string{},
 			},
 		}
 
 		workload := &testWorkload{eval: testEval}
-		must.True(t, watcher.isConstraintFailure(workload))
+		failure, reason := watcher.isConstraintFailure(workload)
+		must.True(t, failure)
+		must.Eq(t, reason, "${attr.kernel.name} == linux")
 	})
 
 	t.Run("does not detect constraint failure with resource exhaustion", func(t *testing.T) {
@@ -402,12 +405,14 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 					"${attr.kernel.name} == linux": 5,
 				},
 				NodesExhausted: 10,
+				NodesAvailable: map[string]int{"test": 5},
 				ClassExhausted: map[string]int{"compute": 5},
 			},
 		}
 
 		workload := &testWorkload{eval: testEval}
-		must.False(t, watcher.isConstraintFailure(workload))
+		failure, _ := watcher.isConstraintFailure(workload)
+		must.False(t, failure)
 	})
 
 	t.Run("detects pure resource exhaustion as not constraint failure", func(t *testing.T) {
@@ -419,12 +424,14 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 			"web": {
 				ConstraintFiltered: map[string]int{},
 				NodesExhausted:     15,
+				NodesAvailable:     map[string]int{"test": 15},
 				DimensionExhausted: map[string]int{"cpu": 10, "memory": 5},
 			},
 		}
 
 		workload := &testWorkload{eval: testEval}
-		must.False(t, watcher.isConstraintFailure(workload))
+		failure, _ := watcher.isConstraintFailure(workload)
+		must.False(t, failure)
 	})
 
 	t.Run("handles nil FailedTGAllocs", func(t *testing.T) {
@@ -435,7 +442,8 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 		testEval.FailedTGAllocs = nil
 
 		workload := &testWorkload{eval: testEval}
-		must.False(t, watcher.isConstraintFailure(workload))
+		failure, _ := watcher.isConstraintFailure(workload)
+		must.False(t, failure)
 	})
 
 	t.Run("handles quota exhaustion as resource issue", func(t *testing.T) {
@@ -449,11 +457,13 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 					"${attr.kernel.name} == linux": 5,
 				},
 				QuotaExhausted: []string{"default"},
+				NodesAvailable: map[string]int{"test": 15},
 			},
 		}
 
 		workload := &testWorkload{eval: testEval}
-		must.False(t, watcher.isConstraintFailure(workload))
+		failure, _ := watcher.isConstraintFailure(workload)
+		must.False(t, failure)
 	})
 }
 

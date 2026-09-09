@@ -151,7 +151,6 @@ func (w *WorkloadWatcher) isConstraintFailure(workload Workload) (bool, string) 
 		if len(metric.NodesAvailable) == 0 {
 			return true, "no nodes available"
 		}
-
 		// If there are constraint filters but no resource exhaustion, it's a constraint failure
 		hasConstraintFilters := len(metric.ConstraintFiltered) > 0
 		hasResourceExhaustion := metric.NodesExhausted > 0 ||
@@ -175,6 +174,7 @@ func (w *WorkloadWatcher) isConstraintFailure(workload Workload) (bool, string) 
 
 			return true, reason
 		}
+
 	}
 
 	return false, ""
