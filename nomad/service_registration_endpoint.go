@@ -209,9 +209,8 @@ func (s *ServiceRegistration) List(
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
-
-			// Perform the state query to get an iterator.
-			iter, err := stateStore.GetServiceRegistrationsByNamespace(ws, args.RequestNamespace())
+			ns := args.RequestNamespace()
+			iter, err := stateStore.GetServiceRegistrationsByNamespace(ws, ns)
 			if err != nil {
 				return err
 			}
@@ -239,7 +238,7 @@ func (s *ServiceRegistration) List(
 			if len(serviceList) > 0 {
 				reply.Services = []*structs.ServiceRegistrationListStub{
 					{
-						Namespace: args.RequestNamespace(),
+						Namespace: ns,
 						Services:  serviceList,
 					},
 				}
@@ -266,11 +265,9 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 	if err != nil {
 		return err
 	}
-
-	// allowFunc checks whether the caller has the read-job capability on the
-	// passed namespace.
+	isWorkload := args.GetIdentity().Claims != nil
 	allowFunc := func(ns string) bool {
-		return aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
+		return aclObj.AllowServiceRegistrationReadList(ns, isWorkload)
 	}
 
 	// Set up and return the blocking query.
