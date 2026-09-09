@@ -1,3 +1,31 @@
+## 2.0.6 (September 09, 2026)
+
+SECURITY:
+
+* dependency: Upgrade to the latests go-getter [[GH-28510](https://github.com/hashicorp/nomad/issues/28510)]
+
+IMPROVEMENTS:
+
+* api: Updated the Go module to require at least 1.26.0 [[GH-28460](https://github.com/hashicorp/nomad/issues/28460)]
+* build: Updated Go to v1.27.1 [[GH-28451](https://github.com/hashicorp/nomad/issues/28451)]
+* client: Added the `unique.host_id` node attribute to the host fingerprint, when available [[GH-28406](https://github.com/hashicorp/nomad/issues/28406)]
+* job: Allow setting `reschedule.delay` to values as low as 1s [[GH-28477](https://github.com/hashicorp/nomad/issues/28477)]
+* jobspec2: Decouple from Nomad core with isolated Go module named `github.com/hashicorp/nomad/jobspec2` [[GH-28419](https://github.com/hashicorp/nomad/issues/28419)]
+* scheduler: Improved robustness of reschedule logic for invalid states [[GH-28445](https://github.com/hashicorp/nomad/issues/28445)]
+* ui: prevent stuck requests due to exceeding connection limit, enable HTTP2 [[GH-28364](https://github.com/hashicorp/nomad/issues/28364)]
+
+BUG FIXES:
+
+* api: Fixed a bug where a job plan diff sorted indexed fields such as `args` lexically, listing `args[10]` before `args[2]` [[GH-4421](https://github.com/hashicorp/nomad/issues/4421)]
+* client: prevent Alloc FS API from accessing secret dir when symlinked into task [[GH-28468](https://github.com/hashicorp/nomad/issues/28468)]
+* core: Fixed a bug where an artifact `checksum` of the form `file:<url>` (fetching the checksum from a remote file) was rejected during job validation [[GH-9764](https://github.com/hashicorp/nomad/issues/9764)]
+* jobspec: Fixed a bug where a task group containing only lifecycle tasks and no main task was accepted during job validation [[GH-17570](https://github.com/hashicorp/nomad/issues/17570)]
+* planner: Fixed a bug where valid evaluations could be unnecessarily retried, delaying workload placement under load [[GH-28452](https://github.com/hashicorp/nomad/issues/28452)]
+* scheduler: Fixed a bug where task groups with `per_alloc` volumes could skip real feasibility checks for allocs after the first placement failure in the same task group [[GH-28422](https://github.com/hashicorp/nomad/issues/28422)]
+* state: Fixed a bug where plans from older versioned followers did not have allocation resource schemas upgraded when written on the leader [[GH-28447](https://github.com/hashicorp/nomad/issues/28447)]
+* vault: Fixed a bug where a task's change_mode was triggered on each Vault token renewal [[GH-28409](https://github.com/hashicorp/nomad/issues/28409)]
+* vault: fixes an issue where dead tasks continued to have their tokens renewed [[GH-28501](https://github.com/hashicorp/nomad/issues/28501)]
+
 ## 2.0.5 (August 12, 2026)
 
 BREAKING CHANGES:
@@ -189,6 +217,30 @@ BUG FIXES:
 * identity: fix bug where client identity failed to renew after server upgrade to >=1.11.0 [[GH-27773](https://github.com/hashicorp/nomad/issues/27773)]
 * oidc: Fixed a bug where the request cache could be corrupted by concurrent requests with the same nonce [[GH-27747](https://github.com/hashicorp/nomad/issues/27747)]
 * tls: fix parsing of combined key files when creating tls expiry metric [[GH-27667](https://github.com/hashicorp/nomad/issues/27667)]
+
+## 1.11.10 Enterprise (September 09, 2026)
+
+SECURITY:
+
+* dependency: Upgrade to the latests go-getter [[GH-28510](https://github.com/hashicorp/nomad/issues/28510)]
+
+IMPROVEMENTS:
+
+* api: Updated the Go module to require at least 1.26.0 [[GH-28460](https://github.com/hashicorp/nomad/issues/28460)]
+* build: Updated Go to v1.27.1 [[GH-28451](https://github.com/hashicorp/nomad/issues/28451)]
+* jobspec2: Decouple from Nomad core with isolated Go module named `github.com/hashicorp/nomad/jobspec2` [[GH-28419](https://github.com/hashicorp/nomad/issues/28419)]
+* scheduler: Improved robustness of reschedule logic for invalid states [[GH-28445](https://github.com/hashicorp/nomad/issues/28445)]
+* ui: prevent stuck requests due to exceeding connection limit, enable HTTP2 [[GH-28364](https://github.com/hashicorp/nomad/issues/28364)]
+
+BUG FIXES:
+
+* api: Fixed a bug where a job plan diff sorted indexed fields such as `args` lexically, listing `args[10]` before `args[2]` [[GH-4421](https://github.com/hashicorp/nomad/issues/4421)]
+* client: prevent Alloc FS API from accessing secret dir when symlinked into task [[GH-28468](https://github.com/hashicorp/nomad/issues/28468)]
+* core: Fixed a bug where an artifact `checksum` of the form `file:<url>` (fetching the checksum from a remote file) was rejected during job validation [[GH-9764](https://github.com/hashicorp/nomad/issues/9764)]
+* jobspec: Fixed a bug where a task group containing only lifecycle tasks and no main task was accepted during job validation [[GH-17570](https://github.com/hashicorp/nomad/issues/17570)]
+* state: Fixed a bug where plans from older versioned followers did not have allocation resource schemas upgraded when written on the leader [[GH-28447](https://github.com/hashicorp/nomad/issues/28447)]
+* vault: Fixed a bug where a task's change_mode was triggered on each Vault token renewal [[GH-28409](https://github.com/hashicorp/nomad/issues/28409)]
+* vault: fixes an issue where dead tasks continued to have their tokens renewed [[GH-28501](https://github.com/hashicorp/nomad/issues/28501)]
 
 ## 1.11.9 Enterprise (August 12, 2026)
 
@@ -546,6 +598,30 @@ BUG FIXES:
 * state: Fixed a bug where the server could panic when attempting to remove unneeded evals from the eval broker [[GH-26872](https://github.com/hashicorp/nomad/issues/26872)]
 * ui: Fixed a bug where action fly-outs would fail to open due to a missing module [[GH-26833](https://github.com/hashicorp/nomad/issues/26833)]
 * windows: Fixed a bug where agents would not gracefully shut down on Ctrl-C [[GH-26780](https://github.com/hashicorp/nomad/issues/26780)]
+
+## 1.10.16 Enterprise (September 09, 2026)
+
+SECURITY:
+
+* dependency: Upgrade to the latests go-getter [[GH-28510](https://github.com/hashicorp/nomad/issues/28510)]
+
+IMPROVEMENTS:
+
+* api: Updated the Go module to require at least 1.26.0 [[GH-28460](https://github.com/hashicorp/nomad/issues/28460)]
+* build: Updated Go to v1.27.1 [[GH-28451](https://github.com/hashicorp/nomad/issues/28451)]
+* jobspec2: Decouple from Nomad core with isolated Go module named `github.com/hashicorp/nomad/jobspec2` [[GH-28419](https://github.com/hashicorp/nomad/issues/28419)]
+* ui: prevent stuck requests due to exceeding connection limit, enable HTTP2 [[GH-28364](https://github.com/hashicorp/nomad/issues/28364)]
+
+BUG FIXES:
+
+* api: Fixed a bug where a job plan diff sorted indexed fields such as `args` lexically, listing `args[10]` before `args[2]` [[GH-4421](https://github.com/hashicorp/nomad/issues/4421)]
+* client: prevent Alloc FS API from accessing secret dir when symlinked into task [[GH-28468](https://github.com/hashicorp/nomad/issues/28468)]
+* core: Fixed a bug where an artifact `checksum` of the form `file:<url>` (fetching the checksum from a remote file) was rejected during job validation [[GH-9764](https://github.com/hashicorp/nomad/issues/9764)]
+* jobspec: Fixed a bug where a task group containing only lifecycle tasks and no main task was accepted during job validation [[GH-17570](https://github.com/hashicorp/nomad/issues/17570)]
+* scheduler: Fixed a bug where task groups with `per_alloc` volumes could skip real feasibility checks for allocs after the first placement failure in the same task group [[GH-28422](https://github.com/hashicorp/nomad/issues/28422)]
+* state: Fixed a bug where plans from older versioned followers did not have allocation resource schemas upgraded when written on the leader [[GH-28447](https://github.com/hashicorp/nomad/issues/28447)]
+* vault: Fixed a bug where a task's change_mode was triggered on each Vault token renewal [[GH-28409](https://github.com/hashicorp/nomad/issues/28409)]
+* vault: fixes an issue where dead tasks continued to have their tokens renewed [[GH-28501](https://github.com/hashicorp/nomad/issues/28501)]
 
 ## 1.10.15 Enterprise (August 12, 2026)
 
