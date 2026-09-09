@@ -36,7 +36,7 @@ func NewWorkloadWatcher(s Snapshotter, logger hclog.Logger, config *structs.Batc
 // TrackPlacement increments the currentPlacements counter, sets the workload
 // status, and adds a workload to the in-progress tracking map.
 func (w *WorkloadWatcher) TrackPlacement(workload Workload) {
-	workload.SetStatus("placing", "")
+	workload.SetStatus(WorkloadStatusPlacing, "")
 	w.inProgressWorkloads[workload.GetEval().ID] = workload
 }
 
@@ -118,8 +118,8 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload, ws memdb.
 			continue
 		}
 
-		if w.isConstraintFailure(workload) {
-			workload.SetStatus("constrained", w.ConstraintDescription(workload))
+		if failure, reason := w.isConstraintFailure(workload); failure {
+			workload.SetStatus(WorkloadStatusBlocked, reason)
 		}
 
 		// Wait for eval update or context cancellation
@@ -138,15 +138,19 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload, ws memdb.
 // isConstraintFailure checks if the evaluation failed due to non-resource constraints
 // (e.g., constraint filters) rather than resource exhaustion.
 // Returns true if the failure is constraint-related (and unlikely to resolve with time)
-func (w *WorkloadWatcher) isConstraintFailure(workload Workload) bool {
+func (w *WorkloadWatcher) isConstraintFailure(workload Workload) (bool, string) {
 	eval := workload.GetEval()
 	if eval == nil || eval.FailedTGAllocs == nil {
-		return false
+		return false, ""
 	}
 
 	for _, metric := range eval.FailedTGAllocs {
 		if metric == nil {
 			continue
+		}
+
+		if len(metric.NodesAvailable) == 0 {
+			return true, "no nodes available"
 		}
 
 		// If there are constraint filters but no resource exhaustion, it's a constraint failure
@@ -160,33 +164,21 @@ func (w *WorkloadWatcher) isConstraintFailure(workload Workload) bool {
 			w.logger.Debug("constraint failure",
 				"eval_id", eval.ID,
 				"constraint_filtered", metric.ConstraintFiltered)
-			return true
-		}
-	}
 
-	return false
-}
-
-// ConstraintDescription returns the constraint filtered causing the workload to not be placed.
-func (w *WorkloadWatcher) ConstraintDescription(workload Workload) string {
-	eval := workload.GetEval()
-
-	var s string
-	for _, metric := range eval.FailedTGAllocs {
-		if metric == nil {
-			continue
-		}
-
-		for constraint := range metric.ConstraintFiltered {
-			if s != "" {
-				s = fmt.Sprintf("%s, %s", s, constraint)
-			} else {
-				s = constraint
+			reason := ""
+			for constraint := range metric.ConstraintFiltered {
+				if reason == "" {
+					reason = constraint
+				} else {
+					reason = fmt.Sprintf("%s, %s", reason, constraint)
+				}
 			}
+
+			return true, reason
 		}
 	}
 
-	return s
+	return false, ""
 }
 
 // IsSchedulingComplete detects whether a workload was actually placed by following the

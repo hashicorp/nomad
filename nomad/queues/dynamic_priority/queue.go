@@ -234,9 +234,9 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case w := <-d.enqueueCh:
-			// use createTime so that workloads have consistent age
-			// priority calculations after restoring from state.
-			d.setWorkloadPriority(time.Unix(0, w.eval.CreateTime), w)
+			// use time.Now() so that workloads have the most
+			// up to date age calculation
+			d.setWorkloadPriority(time.Now(), w)
 			d.queue.Push(w)
 
 			// Notify Workload consumer of new workload
@@ -322,7 +322,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *stru
 		tid:                tid,
 		priority:           0,
 		eval:               e,
-		status:             "queued",
+		status:             queue.WorkloadStatusQueued,
 		requestedResources: requestedResources,
 		waitOnRestore:      false,
 	}
