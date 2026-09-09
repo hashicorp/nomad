@@ -1,0 +1,3 @@
+```release-note:improvement
+services: the default workload identity policy now allows using wildcard namespace queries for Nomad native services
+```
