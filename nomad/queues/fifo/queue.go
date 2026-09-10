@@ -39,9 +39,11 @@ type FifoQueue struct {
 
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	watcher *queue.WorkloadWatcher
 }
 
-func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger) *FifoQueue {
+func NewFifoQueue(ss *state.StateStore, broker queue.Broker, conf *structs.BatchQueue, logger hclog.Logger) *FifoQueue {
 	return &FifoQueue{
 		queue:      queue.NewWorkloadQueue(workloadSortFn()),
 		enqueueCh:  make(chan *fifoWorkload, 8192),
@@ -49,6 +51,7 @@ func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger
 		evalBroker: broker,
 		state:      ss,
 		logger:     logger.Named("Fifo Queue"),
+		watcher:    queue.NewWorkloadWatcher(ss, logger, conf),
 	}
 }
 
@@ -122,6 +125,7 @@ func (f *FifoQueue) runProducer(ctx context.Context) {
 }
 
 func (f *FifoQueue) runConsumer(ctx context.Context) {
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -129,9 +133,11 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 		case <-f.qNotify:
 			w := f.queue.Pop()
 
-			f.evalBroker.Enqueue(w.GetEval())
+			if !w.WaitOnRestore() {
+				f.evalBroker.Enqueue(w.GetEval())
+			}
 
-			err := queue.WaitForPlacement(ctx, w, f.state, memdb.NewWatchSet())
+			err := f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 			if err != nil {
 				f.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID)
 			}
@@ -178,7 +184,7 @@ func (f *FifoQueue) restore(snap *state.StateSnapshot) error {
 
 		w := newFifoWorkload(eval)
 
-		placed, err := queue.IsSchedulingComplete(w, f.state)
+		placed, err := f.watcher.IsSchedulingComplete(w)
 		if err != nil {
 			f.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		}
@@ -199,6 +205,20 @@ func (f *FifoQueue) Type() structs.BatchQueueType {
 func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	pos := 0
 	workloads := []structs.QueueWorkload{}
+
+	for _, workload := range f.watcher.GetInProgressWorkloads() {
+		w := workload.(*fifoWorkload)
+		eval := w.GetEval()
+		workloads = append(workloads, &structs.Workload{
+			JobID:       eval.JobID,
+			Namespace:   eval.Namespace,
+			Position:    0,
+			Status:      w.status,
+			CreatedAt:   eval.CreateTime,
+			CreateIndex: eval.CreateIndex,
+		})
+	}
+
 	f.queue.Iterate(func(workload queue.Workload) {
 		w := workload.(*fifoWorkload)
 		// waitOnRestore does not count towards position in queue
@@ -211,7 +231,8 @@ func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 		workloads = append(workloads, &structs.Workload{
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
-			Position:    pos + 1,
+			Position:    pos,
+			Status:      w.status,
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
 		})
