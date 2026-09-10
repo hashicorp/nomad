@@ -4,6 +4,8 @@
 package agent
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -234,4 +236,50 @@ func TestHTTPServer_NodeIdentityRenewRequest(t *testing.T) {
 			must.True(t, ok)
 		})
 	})
+
+	t.Run("200 ok no body", func(t *testing.T) {
+
+		// Enable the client, so we have something to renew.
+		configFn := func(c *Config) { c.Client.Enabled = true }
+
+		httpTest(t, configFn, func(s *TestAgent) {
+
+			testutil.WaitForClient(t, s.RPC, s.client.NodeID(), s.config().Region)
+
+			respW := httptest.NewRecorder()
+
+			req, err := http.NewRequest(http.MethodPost, "/v1/client/identity/renew", http.NoBody)
+			must.NoError(t, err)
+
+			obj, err := s.Server.NodeIdentityRenewRequest(respW, req)
+			must.NoError(t, err)
+
+			_, ok := obj.(structs.NodeIdentityRenewResp)
+			must.True(t, ok)
+		})
+	})
+
+	t.Run("200 ok no body http2", func(t *testing.T) {
+
+		// Enable the client, so we have something to renew.
+		configFn := func(c *Config) { c.Client.Enabled = true }
+
+		httpTest(t, configFn, func(s *TestAgent) {
+
+			testutil.WaitForClient(t, s.RPC, s.client.NodeID(), s.config().Region)
+
+			respW := httptest.NewRecorder()
+
+			req, err := http.NewRequest(http.MethodPost, "/v1/client/identity/renew", http.NoBody)
+			must.NoError(t, err)
+			req.Body = io.NopCloser(bytes.NewReader([]byte{}))
+
+			obj, err := s.Server.NodeIdentityRenewRequest(respW, req)
+			must.NoError(t, err)
+
+			_, ok := obj.(structs.NodeIdentityRenewResp)
+			must.True(t, ok)
+		})
+	})
+
 }

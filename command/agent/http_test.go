@@ -1689,8 +1689,18 @@ func Test_decodeBody(t *testing.T) {
 	}{
 		{
 			inputReq:      &http.Request{Body: http.NoBody},
-			expectedError: errors.New("Request body is empty"),
+			expectedError: errNoBody,
 			name:          "empty input request body",
+		},
+		{
+			inputReq:      &http.Request{Body: io.NopCloser(strings.NewReader(""))},
+			expectedError: errNoBody,
+			name:          "empty input request body - http2", // uses an empty reader instead of http.NoBody
+		},
+		{
+			inputReq:      &http.Request{},
+			expectedError: errNoBody,
+			name:          "nil input request body",
 		},
 		{
 			inputReq: &http.Request{Body: io.NopCloser(strings.NewReader(`{"foo":"bar"}`))},
@@ -1703,13 +1713,24 @@ func Test_decodeBody(t *testing.T) {
 			expectedError: nil,
 			name:          "populated request body and correct out",
 		},
+		{
+			inputReq: &http.Request{Body: io.NopCloser(strings.NewReader(`{"foo":"bar`))},
+			inputOut: &struct {
+				Foo string `json:"foo"`
+			}{},
+			expectedError: io.ErrUnexpectedEOF,
+			name:          "invalid JSON body content",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualError := decodeBody(tc.inputReq, tc.inputOut)
-			assert.Equal(t, tc.expectedError, actualError, tc.name)
-			assert.Equal(t, tc.expectedOut, tc.inputOut, tc.name)
+			if tc.expectedError != nil {
+				must.ErrorIs(t, tc.expectedError, actualError)
+				return
+			}
+			must.Eq(t, tc.expectedOut, tc.inputOut)
 		})
 	}
 }
