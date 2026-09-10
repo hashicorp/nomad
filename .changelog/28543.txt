@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where image_pull_timeout was not respected if more than 5min
+```

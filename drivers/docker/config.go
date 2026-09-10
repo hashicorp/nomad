@@ -39,8 +39,9 @@ const (
 	// fingerprintPeriod is the interval at which the driver will send fingerprint responses
 	fingerprintPeriod = 30 * time.Second
 
-	// dockerTimeout is the length of time a request can be outstanding before
-	// it is timed out.
+	// dockerTimeout is set on the HTTP client and is the maximum length of time
+	// a request can be outstanding before it is timed out, regardless of
+	// context
 	dockerTimeout = 5 * time.Minute
 
 	// dockerAuthHelperPrefix is the prefix to attach to the credential helper
@@ -841,7 +842,10 @@ func (d *Driver) SetConfig(c *base.Config) error {
 		d.clientConfig = c.AgentConfig.Driver
 	}
 
-	dockerClient, err := d.getDockerClient()
+	// the coordinator needs to be able to pull very large images, so we don't
+	// want the default HTTP client timeout to apply and we'll only use the
+	// context from pull timeout
+	dockerClient, err := d.getInfinityClient()
 	if err != nil {
 		return fmt.Errorf("failed to get docker client: %v", err)
 	}
