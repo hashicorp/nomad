@@ -41,14 +41,14 @@ type FifoQueue struct {
 	wg     sync.WaitGroup
 }
 
-func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger) *FifoQueue {
+func NewFifoQueue(logger hclog.Logger, ss *state.StateStore, broker queue.Broker) *FifoQueue {
 	return &FifoQueue{
 		queue:      queue.NewWorkloadQueue(workloadSortFn()),
 		enqueueCh:  make(chan *fifoWorkload, 8192),
 		qNotify:    make(chan struct{}, 1),
 		evalBroker: broker,
 		state:      ss,
-		logger:     logger.Named("Fifo Queue"),
+		logger:     logger.Named("fifo_queue"),
 	}
 }
 

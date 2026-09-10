@@ -74,7 +74,7 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 			mockQueue.On("Stop")
 			s.batchQueueMgr = queues.NewBatchQueueMgr(
 				t.Context(),
-				structs.BatchQueue{},
+				structs.BatchQueueConfig{},
 				nil,
 				nil,
 				queues.WithQueue("default", mockQueue),
@@ -161,7 +161,7 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 			resp := structs.QueueJobsResponse{}
 			s1.batchQueueMgr = queues.NewBatchQueueMgr(
 				t.Context(),
-				structs.BatchQueue{},
+				structs.BatchQueueConfig{},
 				nil,
 				nil,
 				queues.WithQueue("default", mockQueue),
@@ -201,7 +201,7 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 
 	s.batchQueueMgr = queues.NewBatchQueueMgr(
 		t.Context(),
-		structs.BatchQueue{},
+		structs.BatchQueueConfig{},
 		nil,
 		nil,
 		queues.WithQueue("default", mockQueue),
@@ -261,7 +261,7 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 
 			s1.batchQueueMgr = queues.NewBatchQueueMgr(
 				t.Context(),
-				structs.BatchQueue{},
+				structs.BatchQueueConfig{},
 				nil,
 				nil,
 				queues.WithQueue("default", mockQueue),

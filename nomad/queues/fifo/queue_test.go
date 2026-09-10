@@ -70,7 +70,7 @@ func TestFifoQueue_workloadSortFn(t *testing.T) {
 func TestFifoQueue_restore(t *testing.T) {
 	t.Run("unplaced workload is enqueued", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewFifoQueue(ss, nil, hclog.New(hclog.DefaultOptions))
+		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
 
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
@@ -101,7 +101,7 @@ func TestFifoQueue_restore(t *testing.T) {
 
 	t.Run("skips pending non-batch and non-register evals", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewFifoQueue(ss, nil, hclog.New(hclog.DefaultOptions))
+		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
 
 		batchJob := mock.Job()
 		batchJob.Type = structs.JobTypeBatch
@@ -150,7 +150,7 @@ func TestFifoQueue_restore(t *testing.T) {
 func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	ss := state.TestStateStore(t)
 	broker := newTestBroker()
-	q := NewFifoQueue(ss, broker, hclog.New(hclog.DefaultOptions))
+	q := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
 
 	ctx := t.Context()
 

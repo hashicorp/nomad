@@ -25,7 +25,6 @@ type QueueData struct {
 
 type BatchQueueManager struct {
 	queues      map[string]*QueueData
-	defaultConf structs.BatchQueue
 	broker      queue.Broker
 	state       *state.StateStore
 	enabled     atomic.Bool
@@ -43,10 +42,9 @@ func WithQueue(pool string, q queue.Queue) QueueMgrOpt {
 	}
 }
 
-func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueue, broker queue.Broker, logger hclog.Logger, opt ...QueueMgrOpt) *BatchQueueManager {
+func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueueConfig, broker queue.Broker, logger hclog.Logger, opt ...QueueMgrOpt) *BatchQueueManager {
 	mgr := &BatchQueueManager{
 		queues:      make(map[string]*QueueData),
-		defaultConf: defaultConf,
 		broker:      broker,
 		shutdownCtx: ctx,
 		mux:         sync.Mutex{},
@@ -316,10 +314,7 @@ func (b *BatchQueueManager) startQueue(np *structs.NodePool) error {
 	if err != nil {
 		return err
 	}
-	queue, err := NewQueue(b.state, conf, b.broker, b.logger)
-	if err != nil {
-		return err
-	}
+	queue := NewQueue(b.logger, b.state, conf, b.broker)
 
 	if err := queue.Start(b.shutdownCtx); err != nil {
 		return err

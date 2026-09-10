@@ -63,21 +63,19 @@ type DynamicPriorityQueue struct {
 	logger hclog.Logger
 }
 
-func NewDynamicPriorityQueue(ss *state.StateStore, broker queue.Broker, qconf *structs.BatchQueue, conf *structs.DynamicQueueConfig, logger hclog.Logger) *DynamicPriorityQueue {
+func NewDynamicPriorityQueue(logger hclog.Logger, ss *state.StateStore, broker queue.Broker, conf *structs.DynamicQueueConfig) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
-		queue:       queue.NewWorkloadQueue(workloadSortFn()),
-		evalBroker:  broker,
-		tMux:        sync.Mutex{},
-		tenants:     make(map[TenantID]*Tenant),
-		enqueueCh:   make(chan *dynamicPriorityWorkload, 8192),
-		qNotify:     make(chan struct{}, 1),
-		tenantType:  qconf.TenantType,
-		metadataKey: qconf.MetadataKey,
-		conf:        conf,
-		totalUsage:  &ResourceUsage{},
-		wg:          sync.WaitGroup{},
-		state:       ss,
-		logger:      logger.Named("Dynamic Priority Queue"),
+		queue:      queue.NewWorkloadQueue(workloadSortFn()),
+		evalBroker: broker,
+		tMux:       sync.Mutex{},
+		tenants:    make(map[TenantID]*Tenant),
+		enqueueCh:  make(chan *dynamicPriorityWorkload, 8192),
+		qNotify:    make(chan struct{}, 1),
+		conf:       conf,
+		totalUsage: &ResourceUsage{},
+		wg:         sync.WaitGroup{},
+		state:      ss,
+		logger:     logger.Named("dynamic_priority_queue"),
 	}
 }
 
