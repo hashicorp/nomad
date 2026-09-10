@@ -38,8 +38,10 @@ func (m *MockQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
 	m.Called(e, j)
 }
 
-func (m *MockQueue) Dequeue(j *structs.Job) {
-	m.Called(j)
+func (m *MockQueue) Dequeue(j *structs.Job) *structs.Evaluation {
+	args := m.Called(j)
+
+	return args.Get(0).(*structs.Evaluation)
 }
 
 func (m *MockQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
