@@ -4,6 +4,7 @@
 package consultemplate
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -233,14 +234,23 @@ func TestTemplatePathInterpolation_Ok(t *testing.T) {
 	t.Cleanup(cleanupJob)
 	allocID := submission.AllocID("template-paths")
 
-	mustWaitTemplateRender(t, allocID, "task/secrets/foo/dst",
-		func(out string) error {
-			if len(out) == 0 {
-				return fmt.Errorf("expected file to have contents")
+	// Ensure we are not able to read the secrets file from the alloc FS
+	// command.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			_, err := e2eutil.Command("nomad", "alloc", "fs", allocID, "task/secrets/foo/dst")
+			if err == nil {
+				return errors.New("expected an error, got nil")
 			}
-			return nil
-		},
-		time.Second*10)
+
+			if strings.Contains(err.Error(), "Reading secret file prohibited") {
+				return nil
+			}
+			return fmt.Errorf("unexpected error: %v", err)
+		}),
+		wait.Gap(time.Millisecond*500),
+		wait.Timeout(5*time.Second),
+	))
 
 	mustWaitTemplateRender(t, allocID, "alloc/shared.txt",
 		func(out string) error {
