@@ -143,6 +143,21 @@ func (qm *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 	qm.Queue(job.NodePool).Enqueue(e, job)
 }
 
+func (qm *BatchQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
+	if job == nil {
+		return nil
+	}
+
+	if !qm.enabled.Load() {
+		return nil
+	}
+
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	return qm.Queue(job.NodePool).Dequeue(job)
+}
+
 // Queue returns a pointer to a queue. This is used by RPC handlers
 // to get the jobs or tenants in a queue.
 func (qm *BatchQueueManager) Queue(pool string) queue.Queue {

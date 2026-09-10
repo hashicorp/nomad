@@ -7,19 +7,34 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 // A WorkloadQueue implements heap.Interface and holds *Workload.
 type WorkloadQueue struct {
+	// sortFn is the function used to compare workloads in the treeset. It is stored
+	// in order to easily create a new treeset during UpdateAll.
 	sortFn func(i, j Workload) int
-	ts     *set.TreeSet[Workload]
-	mux    *sync.Mutex
+
+	// ts is the underlying datastructure for storing workloads.
+	ts *set.TreeSet[Workload]
+
+	// wl is a k/v store of workloads used to remove or check or existence
+	// of a workload via it's namespaced JobID
+	//
+	// TODO: Golang maps never shrink capacity, maybe need to recreate this
+	// when the queue shrinks
+	wl map[structs.NamespacedID]Workload
+
+	// mux is the lock for the queue, making it safe for concurrent access.
+	mux *sync.Mutex
 }
 
 func NewWorkloadQueue(sortFn func(i, j Workload) int) WorkloadQueue {
 	return WorkloadQueue{
 		sortFn: sortFn,
 		ts:     set.NewTreeSet(sortFn),
+		wl:     map[structs.NamespacedID]Workload{},
 		mux:    &sync.Mutex{},
 	}
 }
@@ -34,6 +49,10 @@ func (pq WorkloadQueue) Len() int {
 func (pq *WorkloadQueue) Push(w Workload) {
 	pq.mux.Lock()
 	defer pq.mux.Unlock()
+
+	e := w.GetEval()
+
+	pq.wl[structs.NewNamespacedID(e.JobID, e.Namespace)] = w
 
 	pq.ts.Insert(w)
 }
@@ -73,4 +92,17 @@ func (pq *WorkloadQueue) Iterate(fn func(Workload)) {
 	for w := range pq.ts.Items() {
 		fn(w)
 	}
+}
+
+func (pq *WorkloadQueue) Remove(j *structs.Job) Workload {
+	pq.mux.Lock()
+	defer pq.mux.Unlock()
+
+	if wl, ok := pq.wl[j.NamespacedID()]; ok {
+		pq.ts.Remove(wl)
+		delete(pq.wl, j.NamespacedID())
+		return wl
+	}
+
+	return nil
 }

@@ -14,6 +14,7 @@ type Queue interface {
 	Stop()
 	Enqueue(*structs.Evaluation, *structs.Job)
 	Restore(*structs.Evaluation, *structs.Job) error
+	Dequeue(*structs.Job) *structs.Evaluation
 	Jobs(structs.SortOrder) *WorkloadIter
 	Tenants() structs.QueueTenantsResponse
 	Type() structs.BatchQueueType

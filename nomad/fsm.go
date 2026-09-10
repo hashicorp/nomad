@@ -911,7 +911,7 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		return nil
 	}
 
-	// Get the current job and mark it as stopped and re-insert it.
+	// Get the current job
 	ws := memdb.NewWatchSet()
 	current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
 	if err != nil {
