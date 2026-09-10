@@ -223,12 +223,14 @@ func (d *DynamicPriorityQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
 	d.enqueueCh <- w
 }
 
-func (d *DynamicPriorityQueue) Dequeue(j *structs.Job) {
+func (d *DynamicPriorityQueue) Dequeue(j *structs.Job) *structs.Evaluation {
 	wl := d.queue.Remove(j)
 
 	if wl != nil {
-		d.evalBroker.Enqueue(wl.GetEval())
+		return wl.GetEval()
 	}
+
+	return nil
 }
 
 // runProducer pushes workloads onto the queue and notifies the consumer
