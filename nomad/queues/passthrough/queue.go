@@ -33,6 +33,8 @@ func (p *PassthroughQueue) Stop() {}
 
 func (p *PassthroughQueue) Enqueue(e *structs.Evaluation, _ *structs.Job) { p.evalBroker.Enqueue(e) }
 
+func (p *PassthroughQueue) Dequeue(*structs.Job) *structs.Evaluation { return nil }
+
 func (p *PassthroughQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
 	return &queue.WorkloadIter{}
 }

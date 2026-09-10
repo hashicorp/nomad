@@ -67,6 +67,16 @@ func (f *FifoQueue) Enqueue(e *structs.Evaluation, _ *structs.Job) {
 	f.enqueueCh <- newFifoWorkload(e)
 }
 
+func (f *FifoQueue) Dequeue(j *structs.Job) *structs.Evaluation {
+	wl := f.queue.Remove(j)
+
+	if wl != nil {
+		return wl.GetEval()
+	}
+
+	return nil
+}
+
 func (f *FifoQueue) Start(ctx context.Context) error {
 	rCtx, cancel := context.WithCancel(ctx)
 	f.cancel = cancel
