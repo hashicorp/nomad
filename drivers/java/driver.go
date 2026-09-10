@@ -429,6 +429,13 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func taskUser(configuredUser string, canSetUser bool) string {
+	if configuredUser == "" && canSetUser {
+		return "nobody"
+	}
+	return configuredUser
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (handle *drivers.TaskHandle, network *drivers.DriverNetwork, err error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
@@ -467,10 +474,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (handle *drivers.TaskHandle,
 		Compute:     d.nomadConfig.Topology.Compute(),
 	}
 
-	user := cfg.User
-	if user == "" && runtime.GOOS != "windows" {
-		user = "nobody"
-	}
+	user := taskUser(cfg.User, utils.IsUnixRoot())
 
 	if cfg.DNS != nil {
 		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
