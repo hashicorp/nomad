@@ -9,7 +9,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/raft"
 )
@@ -225,10 +224,6 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig `hcl:"preemption_config"`
 
-	// BatchQueue specifies the batch queue for this scheduler configuration
-	// which defines the behavior for scheduling batch job evaluations.
-	BatchQueue BatchQueue `hcl:"batch_queue"`
-
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool `hcl:"memory_oversubscription_enabled"`
 
@@ -292,10 +287,6 @@ func (s *SchedulerConfiguration) WithNodePool(pool *NodePool) *SchedulerConfigur
 		schedConfig.SchedulerAlgorithm = poolConfig.SchedulerAlgorithm
 	}
 
-	if poolConfig.BatchQueue.Type != "" {
-		schedConfig.BatchQueue = poolConfig.BatchQueue
-	}
-
 	if poolConfig.MemoryOversubscriptionEnabled != nil {
 		schedConfig.MemoryOversubscriptionEnabled = *poolConfig.MemoryOversubscriptionEnabled
 	}
@@ -310,7 +301,6 @@ func (s *SchedulerConfiguration) Canonicalize() {
 	if s.SchedulerAlgorithm == "" {
 		s.SchedulerAlgorithm = SchedulerAlgorithmBinpack
 	}
-	s.BatchQueue.Canonicalize()
 }
 
 func (s *SchedulerConfiguration) Validate() error {
@@ -322,10 +312,6 @@ func (s *SchedulerConfiguration) Validate() error {
 	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
 	default:
 		return fmt.Errorf("invalid scheduler algorithm: %v", s.SchedulerAlgorithm)
-	}
-
-	if err := s.BatchQueue.Validate(); err != nil {
-		return err
 	}
 
 	return nil
@@ -362,125 +348,6 @@ type PreemptionConfig struct {
 
 	// ServiceSchedulerEnabled specifies if preemption is enabled for service jobs
 	ServiceSchedulerEnabled bool `hcl:"service_scheduler_enabled"`
-}
-
-type (
-	BatchQueueType   string
-	BatchQueueTenant string
-)
-
-const (
-	BatchQueueTypeDynamic     BatchQueueType = "dynamic_priority"
-	BatchQueueTypeFifo        BatchQueueType = "fifo"
-	BatchQueueTypePassthrough BatchQueueType = "unset"
-
-	TenantTypeMetadata  BatchQueueTenant = "metadata"
-	TenantTypeNamespace BatchQueueTenant = "namespace"
-
-	DynamicCalcInterval = "calc_interval"
-	DynamicMaxAge       = "max_age"
-	DynamicHalfLife     = "half_life"
-
-	BatchQueueObjectTenants = "tenants"
-)
-
-type BatchQueue struct {
-	Type        BatchQueueType   `hcl:"type"`
-	TenantType  BatchQueueTenant `hcl:"tenant_type"`
-	MetadataKey string           `hcl:"metadata_key"`
-	Config      map[string]any   `hcl:"config"`
-}
-
-type DynamicQueueConfig struct {
-	CalcInterval time.Duration `mapstructure:"calc_interval" json:"calc_interval"`
-	MaxAge       time.Duration `mapstructure:"max_age" json:"max_age"`
-	HalfLife     time.Duration `mapstructure:"half_life" json:"half_life"`
-	MaxSize      int           `mapstructure:"max_size" json:"max_size"`
-	AgeWeight    int           `mapstructure:"age_weight" json:"age_weight"`
-	UsageWeight  int           `mapstructure:"usage_weight" json:"usage_weight"`
-	SizeWeight   int           `mapstructure:"size_weight" json:"size_weight"`
-}
-
-func (d *DynamicQueueConfig) Validate() error {
-	if d.CalcInterval <= 0 {
-		return errors.New("calc_interval must be greater than zero")
-	}
-	if d.HalfLife <= 0 {
-		return errors.New("half_life must be greater than zero")
-	}
-	return nil
-}
-
-func DecodeBatchQueueConf[T any](in map[string]any, out *T) error {
-	rootName := func(v any) string {
-		switch v.(type) {
-		case *DynamicQueueConfig:
-			return "Dynamic Priority Config"
-		}
-		return ""
-	}
-
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		RootName:   rootName(out),
-		Result:     out,
-		DecodeHook: mapstructure.StringToTimeDurationHookFunc(),
-		ErrorUnset: true,
-	})
-	if err != nil {
-		return fmt.Errorf("unable to create config decoder, %w", err)
-	}
-
-	if err := decoder.Decode(in); err != nil {
-		return fmt.Errorf("unable to decode config, %w", err)
-	}
-
-	return nil
-}
-
-func (b *BatchQueue) Validate() error {
-	if b.Type == "" {
-		switch {
-		case b.TenantType != "", b.MetadataKey != "", b.Config != nil:
-			return errors.New("batch queue configuration found but no type specified")
-		}
-
-		return nil
-	}
-
-	switch b.Type {
-	case BatchQueueTypeDynamic:
-		conf := DynamicQueueConfig{}
-		if err := DecodeBatchQueueConf(b.Config, &conf); err != nil {
-			return err
-		}
-		if err := conf.Validate(); err != nil {
-			return err
-		}
-	case BatchQueueTypeFifo:
-		return nil
-	default:
-		return fmt.Errorf("unsupported batch queue type: %q", b.Type)
-	}
-
-	switch b.TenantType {
-	case TenantTypeNamespace:
-	case TenantTypeMetadata:
-		if b.MetadataKey == "" {
-			return fmt.Errorf("metadata key must be specified if using metadata tenency")
-		}
-	default:
-		return fmt.Errorf("unsupported tenant type: %q", b.TenantType)
-	}
-
-	return nil
-}
-
-func (b *BatchQueue) Canonicalize() {
-	if b.Type == BatchQueueTypeFifo {
-		b.TenantType = ""
-		b.MetadataKey = ""
-		b.Config = map[string]any{}
-	}
 }
 
 // SchedulerSetConfigRequest is used by the Operator endpoint to update the

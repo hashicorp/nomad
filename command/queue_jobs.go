@@ -25,7 +25,7 @@ Usage: nomad queue status [options]
   View the current status of workloads queued in a batch job queue.
 
   When ACLs are enabled, this command requires a token with the 'list-jobs' capability. If multiple jobs in the queue are in different namespaces, the output will be filtered to only include jobs in namespaces the token has permissions for.
-  
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
@@ -44,7 +44,7 @@ Jobs Options:
   -json
     Display output as json
 
-  -p 
+  -p
     Sort output by priority instead of creation time
 `
 	return strings.TrimSpace(helpText)
@@ -111,7 +111,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	}
 
 	// Submit the request
-	resp, qm, err := client.BatchJobQueue().Jobs(qo)
+	resp, qm, err := client.BatchQueue().Jobs(qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
@@ -122,12 +122,12 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	}
 
 	switch resp.Type {
-	case api.BatchJobQueueTypeDynamic:
+	case api.BatchQueueTypeDynamic:
 		c.printDynamicQueue(resp, qm, jsonOut)
-	case api.BatchJobQueueTypeFifo:
+	case api.BatchQueueTypeFifo:
 		c.printQueue(resp, qm, jsonOut)
-	case "unset":
-		c.Ui.Output("No batch job queue configured")
+	case api.BatchQueueTypePassthrough:
+		c.Ui.Output("No batch job queue configured for node pool: " + nodePool)
 	default:
 		c.Ui.Error(fmt.Sprintf("Unknown queue type: %s", resp.Type))
 		return 255

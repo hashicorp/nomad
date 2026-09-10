@@ -122,6 +122,7 @@ type NodePool struct {
 	Meta                   map[string]string               `hcl:"meta,block"`
 	NodeIdentityTTL        time.Duration                   `hcl:"node_identity_ttl,optional"`
 	SchedulerConfiguration *NodePoolSchedulerConfiguration `hcl:"scheduler_config,block"`
+	BatchQueueConfig       *BatchQueueConfig               `hcl:"batch_queue,block"`
 	CreateIndex            uint64
 	ModifyIndex            uint64
 }
