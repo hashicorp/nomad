@@ -1,0 +1,3 @@
+```release-note:bug
+gc: don't remove evals for batch jobs that dont yet have allocations
+```
