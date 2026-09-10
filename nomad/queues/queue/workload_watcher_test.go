@@ -19,9 +19,9 @@ import (
 )
 
 type testWorkload struct {
-	eval *structs.Evaluation
-	wait bool
-	s    string
+	eval   *structs.Evaluation
+	wait   bool
+	status string
 }
 
 func (w *testWorkload) GetEval() *structs.Evaluation {
@@ -31,10 +31,10 @@ func (w *testWorkload) SetEval(e *structs.Evaluation) {
 	w.eval = e
 }
 func (w *testWorkload) GetStatus() string {
-	return w.s
+	return w.status
 }
 func (w *testWorkload) SetStatus(s, d string) {
-	w.s = fmt.Sprintf("%s %s", s, d)
+	w.status = fmt.Sprintf("%s %s", s, d)
 
 }
 func (w *testWorkload) WaitOnRestore() bool {
@@ -196,6 +196,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 					"${attr.kernel.name} == linux": 5,
 				},
 				NodesExhausted: 0,
+				NodesAvailable: map[string]int{"test": 5},
 			},
 		}
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
@@ -233,7 +234,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		// before continuing, which is indicated by the length of the watchset being >0.
 		must.Wait(t, wait.InitialSuccess(
 			wait.BoolFunc(func() bool {
-				return strings.Contains(workload.s, "constrained")
+				return strings.Contains(workload.status, "blocked")
 			}),
 			wait.Timeout(5*time.Second),
 			wait.Gap(100*time.Millisecond),
@@ -243,7 +244,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		must.Eq(t, 1, len(inProgress))
 		must.NotNil(t, inProgress[testEval.ID])
 		workingWorkload := inProgress[testEval.ID]
-		must.Eq(t, workingWorkload.GetStatus(), "constrained ${attr.kernel.name} == linux")
+		must.Eq(t, workingWorkload.GetStatus(), "blocked ${attr.kernel.name} == linux")
 
 		// Complete the eval
 		testEval.Status = structs.EvalStatusComplete
