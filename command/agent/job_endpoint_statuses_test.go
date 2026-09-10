@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -55,16 +56,30 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 					WriteRequest: structs.WriteRequest{Region: "global"},
 				}, &structs.GenericResponse{}))
 		}
-		buildRequest := func(t *testing.T, method, url, body string) *http.Request {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			t.Cleanup(cancel)
-			var reqBody io.Reader = http.NoBody
-			if body != "" {
-				reqBody = bytes.NewReader([]byte(body))
+		buildRequest := func(t *testing.T, method, url, body string) []*http.Request {
+			// Always create the body even if it is empty to test HTTP/2 parsed requests.
+			bodies := []io.ReadCloser{io.NopCloser(bytes.NewReader([]byte(body)))}
+			if body == "" {
+				// If the body is empty, add an http.NoBody to test HTTP/1
+				bodies = append(bodies, http.NoBody)
 			}
-			req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
-			must.NoError(t, err)
-			return req
+
+			reqs := make([]*http.Request, len(bodies))
+			for i, reqBody := range bodies {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				t.Cleanup(cancel)
+				req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
+				must.NoError(t, err)
+				// When building the request, if the content length is 0 the body will
+				// be set to http.NoBody. Because HTTP/2 does not do this, check if
+				// the original body was an http.NoBody. If it wasn't, set it to the
+				// original.
+				if body == "" && reqBody != http.NoBody {
+					req.Body = reqBody
+				}
+				reqs[i] = req
+			}
+			return reqs
 		}
 
 		// note: this api will return jobs ordered by ModifyIndex,
@@ -198,48 +213,54 @@ func TestJobEndpoint_Statuses(t *testing.T) {
 					tc.expectCode = 200
 				}
 
-				req := buildRequest(t, tc.method, apiPath+tc.params, tc.body)
-				recorder := httptest.NewRecorder()
+				reqs := buildRequest(t, tc.method, apiPath+tc.params, tc.body)
 
-				// method under test!
-				raw, err := s.Server.JobStatusesRequest(recorder, req)
+				for i, req := range reqs {
+					t.Run(fmt.Sprintf("req#%d", i), func(t *testing.T) {
 
-				// sad path
-				if tc.expectErr != "" {
-					must.ErrorContains(t, err, tc.expectErr)
-					var coded *codedError
-					must.True(t, errors.As(err, &coded))
-					must.Eq(t, tc.expectCode, coded.code)
+						recorder := httptest.NewRecorder()
 
-					must.Nil(t, raw)
-					return
-				}
+						// method under test!
+						raw, err := s.Server.JobStatusesRequest(recorder, req)
 
-				// happy path
-				must.NoError(t, err)
-				result := recorder.Result()
-				must.Eq(t, tc.expectCode, result.StatusCode)
+						// sad path
+						if tc.expectErr != "" {
+							must.ErrorContains(t, err, tc.expectErr)
+							var coded *codedError
+							must.True(t, errors.As(err, &coded))
+							must.Eq(t, tc.expectCode, coded.code)
 
-				// check response body
-				jobs := raw.([]structs.JobStatusesJob)
-				gotIDs := make([]string, len(jobs))
-				for i, j := range jobs {
-					gotIDs[i] = j.ID
-				}
-				must.Eq(t, tc.expectIDs, gotIDs)
+							must.Nil(t, raw)
+							return
+						}
 
-				// check headers
-				expectHeaders := append(
-					[]string{
-						"X-Nomad-Index",
-						"X-Nomad-Lastcontact",
-						"X-Nomad-Knownleader",
-					},
-					tc.expectHeaders...,
-				)
-				for _, h := range expectHeaders {
-					test.NotEq(t, "", result.Header.Get(h),
-						test.Sprintf("expect '%s' header", h))
+						// happy path
+						must.NoError(t, err)
+						result := recorder.Result()
+						must.Eq(t, tc.expectCode, result.StatusCode)
+
+						// check response body
+						jobs := raw.([]structs.JobStatusesJob)
+						gotIDs := make([]string, len(jobs))
+						for i, j := range jobs {
+							gotIDs[i] = j.ID
+						}
+						must.Eq(t, tc.expectIDs, gotIDs)
+
+						// check headers
+						expectHeaders := append(
+							[]string{
+								"X-Nomad-Index",
+								"X-Nomad-Lastcontact",
+								"X-Nomad-Knownleader",
+							},
+							tc.expectHeaders...,
+						)
+						for _, h := range expectHeaders {
+							test.NotEq(t, "", result.Header.Get(h),
+								test.Sprintf("expect '%s' header", h))
+						}
+					})
 				}
 			})
 		}
