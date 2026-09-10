@@ -1,0 +1,3 @@
+```release-note:improvement
+jobspec2: support optional() object type attributes in variables
+```
