@@ -376,7 +376,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, a
 		collect := job == nil || job.Status == structs.JobStatusDead && (job.Stop || allowBatch)
 		if !collect {
 			oldAllocs := olderVersionTerminalAllocs(allocs, job, cutoffTime)
-			gcEval := (len(oldAllocs) == len(allocs))
+			gcEval := len(allocs) > 0 && (len(oldAllocs) == len(allocs))
 			return gcEval, oldAllocs, nil
 		}
 	}
