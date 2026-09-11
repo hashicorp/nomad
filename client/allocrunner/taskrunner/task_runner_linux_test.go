@@ -55,6 +55,7 @@ import (
 	"github.com/kr/pretty"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	tmock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -1103,6 +1104,53 @@ WAIT:
 			killDur, task.ShutdownDelay,
 		)
 	}
+}
+
+// TestTaskRunner_Restart_ShutdownDelay asserts services are removed from Consul
+// ${shutdown_delay} seconds before restarting the process (issue #25289).
+func TestTaskRunner_Restart_ShutdownDelay(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Services[0].Tags = []string{"tag1"}
+	task.Services = task.Services[:1] // only need 1 for this test
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{
+		"run_for": "1000s",
+	}
+
+	// No shutdown escape hatch for this delay, so don't set it too high
+	task.ShutdownDelay = 1000 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
+
+	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	t.Cleanup(cleanup)
+
+	mockConsul := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
+
+	// Wait for the task to start
+	testWaitForTaskToStart(t, tr)
+
+	must.Wait(t, wait.InitialSuccess(wait.BoolFunc(func() bool {
+		ops := mockConsul.GetOps()
+		return len(ops) == 1 && ops[0].Op == "add"
+	}), wait.Gap(time.Millisecond*10),
+	), must.Sprint("expected consul registration"))
+
+	// Restart the running task and measure how long the kill takes.
+	restartSent := time.Now()
+	test.NoError(t, tr.Restart(context.Background(), structs.NewTaskEvent(structs.TaskRestartSignal), false))
+	killDur := time.Now().Sub(restartSent)
+	if killDur < task.ShutdownDelay {
+		t.Fatalf("task killed before shutdown_delay (killed_after: %s; shutdown_delay: %s",
+			killDur, task.ShutdownDelay,
+		)
+	}
+
+	must.SliceContainsFunc(t,
+		tr.TaskState().Events,
+		&structs.TaskEvent{Type: structs.TaskWaitingShuttingDownDelay},
+		func(ev, want *structs.TaskEvent) bool { return ev.Type == want.Type })
 }
 
 // TestTaskRunner_NoShutdownDelay asserts services are removed from
