@@ -27,14 +27,6 @@
 			"foo",
 			"bar"
 		],
-		"start_join": [
-			"foo",
-			"bar"
-		],
-		"retry_join": [
-			"foo",
-			"bar"
-		],
 		"server_join": {
 			"start_join": ["foo", "bar"],
 			"retry_join": ["foo", "bar"]

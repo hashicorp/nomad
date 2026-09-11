@@ -670,29 +670,6 @@ type ServerConfig struct {
 	FailoverHeartbeatTTL    time.Duration
 	FailoverHeartbeatTTLHCL string `hcl:"failover_heartbeat_ttl" json:"-"`
 
-	// StartJoin is a list of addresses to attempt to join when the
-	// agent starts. If Serf is unable to communicate with any of these
-	// addresses, then the agent will error and exit.
-	// Deprecated in Nomad 0.10
-	StartJoin []string `hcl:"start_join"`
-
-	// RetryJoin is a list of addresses to join with retry enabled.
-	// Deprecated in Nomad 0.10
-	RetryJoin []string `hcl:"retry_join"`
-
-	// RetryMaxAttempts specifies the maximum number of times to retry joining a
-	// host on startup. This is useful for cases where we know the node will be
-	// online eventually.
-	// Deprecated in Nomad 0.10
-	RetryMaxAttempts int `hcl:"retry_max"`
-
-	// RetryInterval specifies the amount of time to wait in between join
-	// attempts on agent start. The minimum allowed value is 1 second and
-	// the default is 30s.
-	// Deprecated in Nomad 0.10
-	RetryInterval    time.Duration
-	RetryIntervalHCL string `hcl:"retry_interval" json:"-"`
-
 	// RejoinAfterLeave controls our interaction with the cluster after leave.
 	// When set to false (default), a leave causes Nomad to not rejoin
 	// the cluster until an explicit join is received. If this is set to
@@ -834,8 +811,6 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	ns.RaftMultiplier = pointer.Copy(s.RaftMultiplier)
 	ns.NumSchedulers = pointer.Copy(s.NumSchedulers)
 	ns.EnabledSchedulers = slices.Clone(s.EnabledSchedulers)
-	ns.StartJoin = slices.Clone(s.StartJoin)
-	ns.RetryJoin = slices.Clone(s.RetryJoin)
 	ns.ServerJoin = s.ServerJoin.Copy()
 	ns.DefaultSchedulerConfig = s.DefaultSchedulerConfig.Copy()
 	ns.PlanRejectionTracker = s.PlanRejectionTracker.Copy()
@@ -1890,7 +1865,6 @@ func DefaultConfig() *Config {
 			EnableEventBroker: new(true),
 			EventBufferSize:   new(100),
 			RaftProtocol:      3,
-			StartJoin:         []string{},
 			PlanRejectionTracker: &PlanRejectionTracker{
 				Enabled:       new(false),
 				NodeThreshold: 100,
@@ -2732,15 +2706,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 	if b.FailoverHeartbeatTTLHCL != "" {
 		result.FailoverHeartbeatTTLHCL = b.FailoverHeartbeatTTLHCL
 	}
-	if b.RetryMaxAttempts != 0 {
-		result.RetryMaxAttempts = b.RetryMaxAttempts
-	}
-	if b.RetryInterval != 0 {
-		result.RetryInterval = b.RetryInterval
-	}
-	if b.RetryIntervalHCL != "" {
-		result.RetryIntervalHCL = b.RetryIntervalHCL
-	}
 	if b.RejoinAfterLeave {
 		result.RejoinAfterLeave = true
 	}
@@ -2845,16 +2810,6 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
-
-	// Copy the start join addresses
-	result.StartJoin = make([]string, 0, len(s.StartJoin)+len(b.StartJoin))
-	result.StartJoin = append(result.StartJoin, s.StartJoin...)
-	result.StartJoin = append(result.StartJoin, b.StartJoin...)
-
-	// Copy the retry join addresses
-	result.RetryJoin = make([]string, 0, len(s.RetryJoin)+len(b.RetryJoin))
-	result.RetryJoin = append(result.RetryJoin, s.RetryJoin...)
-	result.RetryJoin = append(result.RetryJoin, b.RetryJoin...)
 
 	return &result
 }
