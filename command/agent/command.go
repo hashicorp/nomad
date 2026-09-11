@@ -969,31 +969,6 @@ func (c *Command) Run(args []string) int {
 func (c *Command) handleRetryJoin(config *Config) error {
 	c.retryJoinErrCh = make(chan struct{})
 
-	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
-
-		joiner := retryJoiner{}
-
-		if err := joiner.Validate(config); err != nil {
-			return err
-		}
-
-		// Remove the duplicate fields
-		if len(config.Server.RetryJoin) != 0 {
-			config.Server.ServerJoin.RetryJoin = config.Server.RetryJoin
-			config.Server.RetryJoin = nil
-		}
-		if config.Server.RetryMaxAttempts != 0 {
-			config.Server.ServerJoin.RetryMaxAttempts = config.Server.RetryMaxAttempts
-			config.Server.RetryMaxAttempts = 0
-		}
-		if config.Server.RetryInterval != 0 {
-			config.Server.ServerJoin.RetryInterval = config.Server.RetryInterval
-			config.Server.RetryInterval = 0
-		}
-
-		c.agent.logger.Warn("using deprecated retry_join fields. Upgrade configuration to use server_join")
-	}
-
 	if config.Server.Enabled &&
 		config.Server.ServerJoin != nil &&
 		len(config.Server.ServerJoin.RetryJoin) != 0 {
@@ -1423,30 +1398,12 @@ func (c *Command) startupJoin(config *Config) error {
 	if !config.Server.Enabled {
 		return nil
 	}
-
-	// Validate both old and new aren't being set
-	old := len(config.Server.StartJoin)
-	var new int
-	if config.Server.ServerJoin != nil {
-		new = len(config.Server.ServerJoin.StartJoin)
-	}
-	if old != 0 && new != 0 {
-		return fmt.Errorf("server_join and start_join cannot both be defined; prefer setting the server_join block")
-	}
-
-	// Nothing to do
-	if old+new == 0 {
+	if config.Server.ServerJoin == nil || len(config.Server.ServerJoin.StartJoin) == 0 {
 		return nil
 	}
 
-	// Combine the lists and join
-	joining := config.Server.StartJoin
-	if new != 0 {
-		joining = append(joining, config.Server.ServerJoin.StartJoin...)
-	}
-
 	c.Ui.Output("Joining cluster...")
-	n, err := c.agent.server.Join(joining)
+	n, err := c.agent.server.Join(config.Server.ServerJoin.StartJoin)
 	if err != nil {
 		return err
 	}
