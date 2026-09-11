@@ -11,6 +11,7 @@ import (
 )
 
 type logmonServer struct {
+	proto.UnimplementedLogMonServer
 	broker *plugin.GRPCBroker
 	impl   LogMon
 }

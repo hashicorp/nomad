@@ -22,6 +22,7 @@ import (
 )
 
 type driverPluginServer struct {
+	proto.UnimplementedDriverServer
 	broker *plugin.GRPCBroker
 	impl   DriverPlugin
 }
