@@ -685,6 +685,7 @@ func TestNodeDeployments(t *testing.T) {
 		newDeployment                         bool
 		expectedNewDeploymentStatus           string
 		expectedDeploymenStatusUpdateContains string
+		expectedDeploymentOld                 bool
 	}{
 		{
 			name:           "existing successful deployment for the current job version should not return a deployment",
@@ -700,6 +701,7 @@ func TestNodeDeployments(t *testing.T) {
 			newDeployment:                         false,
 			expectedNewDeploymentStatus:           "",
 			expectedDeploymenStatusUpdateContains: "",
+			expectedDeploymentOld:                 true,
 		},
 		{
 			name:           "existing running deployment should remain untouched",
@@ -776,6 +778,22 @@ func TestNodeDeployments(t *testing.T) {
 			expectedNewDeploymentStatus:           "",
 			expectedDeploymenStatusUpdateContains: "",
 		},
+		{
+			name:           "deployments for older job version should be canceled",
+			job:            newJobWithNoAllocs,
+			liveAllocs:     nil,
+			terminalAllocs: nil,
+			nodes:          nodes[0:1],
+			existingDeployment: &structs.Deployment{
+				JobCreateIndex: job.CreateIndex,
+				JobVersion:     job.Version,
+				Status:         structs.DeploymentStatusSuccessful,
+			},
+			newDeployment:                         false,
+			expectedNewDeploymentStatus:           "",
+			expectedDeploymenStatusUpdateContains: "",
+			expectedDeploymentOld:                 true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -792,6 +810,13 @@ func TestNodeDeployments(t *testing.T) {
 						return a.StatusDescription == status
 					},
 				)
+			}
+			if tc.expectedDeploymentOld {
+				must.NotNil(t, nr.DeploymentOld)
+				if tc.newDeployment {
+					must.NotEq(t, nr.DeploymentOld, nr.DeploymentCurrent)
+					must.Eq(t, tc.job.Version, nr.DeploymentCurrent.JobVersion)
+				}
 			}
 		})
 	}
