@@ -13,6 +13,7 @@ import (
 
 // dockerLoggerServer is the server side translation between the protobuf and native interfaces
 type dockerLoggerServer struct {
+	proto.UnimplementedDockerLoggerServer
 	broker *plugin.GRPCBroker
 	impl   DockerLogger
 }
