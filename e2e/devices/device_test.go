@@ -24,7 +24,7 @@ const (
 	deviceName = "nomad/file/mock"
 )
 
-// hasDevicePlugin validates the device plugin is available or skips the test
+// hasDevicePlugin validates the device plugin is available
 func hasDevicePlugin(t *testing.T, client *api.Client, deviceName string) bool {
 	t.Helper()
 

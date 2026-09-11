@@ -404,7 +404,6 @@ device-plugin: GOOS=$(shell go env GOOS)
 device-plugin: GOARCH=$(shell go env GOARCH)
 device-plugin: PLUGIN_DIR="$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugins"
 device-plugin: # Build the example device plugin for e2e device tests
-#	@export	PLUGIN_DIR=$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugins
 	@echo "==> Removing old plugin development build from ---"$(PLUGIN_DIR)"..."
 	@rm -f "$(PLUGIN_DIR)/nomad-device-example"
 	@echo "==> Building $@..."
