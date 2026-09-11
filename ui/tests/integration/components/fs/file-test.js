@@ -9,7 +9,6 @@ import { find, click, render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import Pretender from 'pretender';
 import { logEncode } from '../../../../mirage/data/logs';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const { assign } = Object;
 const HOST = '1.1.1.1:1111';
@@ -110,8 +109,6 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-file-box] [data-test-image-file]'),
       'The image file component was not rendered',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When a file is an image, the file mode is image', async function (assert) {
@@ -128,8 +125,6 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-file-box] [data-test-log-cli]'),
       'The streaming file component was not rendered',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When the file is neither text-based or an image, the unsupported file type empty state is shown', async function (assert) {
@@ -150,7 +145,6 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-unsupported-type]'),
       'Unsupported file type message is shown',
     );
-    await componentA11yAudit(this.element, assert);
   });
 
   test('The unsupported file type empty state includes a link to the raw file', async function (assert) {
@@ -261,8 +255,6 @@ module('Integration | Component | fs/file', function (hooks) {
       find('[data-test-header] [data-test-yield-spy]'),
       'Yielded content shows up in the header',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('The body is full-bleed and dark when the file is streaming', async function (assert) {

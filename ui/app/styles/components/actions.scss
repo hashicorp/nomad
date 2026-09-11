@@ -31,7 +31,7 @@
     width: auto;
 
     .hds-reveal__toggle-button {
-      color: black;
+      color: var(--token-color-foreground-primary);
       flex-direction: row-reverse;
       width: 100%;
       text-align: left;
@@ -112,7 +112,7 @@
       display: grid;
       gap: 1rem;
       grid-template-rows: auto 1fr auto;
-      border-bottom: 1px solid $grey-blue;
+      border-bottom: 1px solid var(--token-color-border-primary);
       padding: 1rem 0 2rem;
 
       &:last-of-type {
@@ -126,7 +126,7 @@
           .job-name {
             opacity: 0.5;
             font-size: 1rem;
-            color: black;
+            color: var(--token-color-foreground-primary);
           }
         }
       }
@@ -136,8 +136,8 @@
         overflow: hidden;
 
         code {
-          background-color: #0a0a0a;
-          color: whitesmoke;
+          background-color: var(--token-color-palette-neutral-700);
+          color: var(--token-color-foreground-high-contrast);
           display: block;
           overflow: auto;
           height: 200px;

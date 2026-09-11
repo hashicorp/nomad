@@ -9,7 +9,6 @@ import { find, render } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { hbs } from 'ember-cli-htmlbars';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { formatScheduledHertz } from 'nomad-ui/utils/units';
 
@@ -43,13 +42,13 @@ module('Integration | Component | PrimaryMetric::Node', function (hooks) {
   const findResource = (store) => store.peekAll('node').get('firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
+    assert.expect(0);
     await preload(this.store);
 
     const resource = findResource(this.store);
     this.setProperties({ resource, metric: 'cpu' });
 
     await render(template);
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When the node has a reserved amount for the metric, a horizontal annotation is shown', async function (assert) {

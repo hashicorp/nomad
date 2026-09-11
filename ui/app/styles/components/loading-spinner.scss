@@ -6,8 +6,8 @@
 $duration: 5s;
 $side-length: 50px;
 $cube-length: $side-length * 5;
-$lighter-side: $grey-blue;
-$darker-side: darken($lighter-side, 15%);
+$lighter-side: var(--token-color-border-primary);
+$darker-side: var(--token-color-border-strong);
 
 .loading-spinner {
   width: 100%;
