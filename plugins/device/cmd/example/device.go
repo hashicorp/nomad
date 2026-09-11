@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -271,9 +270,7 @@ func (d *FsDevice) fingerprint(ctx context.Context, devices chan *device.Fingerp
 			ticker.Reset(d.listPeriod)
 		}
 
-		d.logger.Warn("scanning for changes")
-
-		files, err := ioutil.ReadDir(d.deviceDir)
+		files, err := os.ReadDir(d.deviceDir)
 		if err != nil {
 			d.logger.Error("failed to list device directory", "error", err)
 			devices <- device.NewFingerprintError(err)
@@ -324,7 +321,7 @@ func (d *FsDevice) fingerprintStatic(ctx context.Context, devices chan *device.F
 	}
 }
 
-func (d *FsDevice) diffFiles(files []os.FileInfo) []*device.Device {
+func (d *FsDevice) diffFiles(files []os.DirEntry) []*device.Device {
 	d.deviceLock.Lock()
 	defer d.deviceLock.Unlock()
 
@@ -334,19 +331,23 @@ func (d *FsDevice) diffFiles(files []os.FileInfo) []*device.Device {
 	var changes bool
 	fnames := make(map[string]struct{})
 	for _, f := range files {
-		name := f.Name()
+		info, err := f.Info()
+		if err != nil {
+			d.logger.Error("could not retrieve file info,", "error", err.Error())
+		}
+		name := info.Name()
 		fnames[name] = struct{}{}
-		if f.IsDir() {
+		if info.IsDir() {
 			d.logger.Trace("skipping directory", "directory", name)
 			continue
 		}
 
 		// Determine the health
-		perms := f.Mode().Perm().String()
+		perms := info.Mode().Perm().String()
 		healthy := perms != d.unhealthyPerm
 		d.logger.Trace("checking health", "file perm", perms, "unhealthy perms", d.unhealthyPerm, "healthy", healthy)
 
-		// See if we alreay have the device
+		// See if we already have the device
 		oldHealth, ok := d.devices[name]
 		if ok && oldHealth == healthy {
 			continue
