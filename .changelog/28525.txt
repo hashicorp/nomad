@@ -1,0 +1,3 @@
+```release-note:improvement
+dependency: Upgrade to the latest buf (1.72.0), protoc-gen-go (1.36.6), and protoc-gen-go-grpc (1.5.1)
+```
