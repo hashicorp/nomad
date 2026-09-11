@@ -158,12 +158,17 @@ func TestHTTP_AgentJoin(t *testing.T) {
 		respW := httptest.NewRecorder()
 
 		obj, err := s.Server.AgentJoinRequest(respW, req)
-		must.NoError(t, err)
+		must.EqError(t, err, "Permission denied")
+		must.Nil(t, obj)
 
+		token := mock.CreatePolicyAndToken(t, s.server.State(), 1001, "invalid",
+			mock.AgentPolicy(acl.PolicyWrite))
+		setToken(req, token)
+
+		obj, err = s.Server.AgentJoinRequest(respW, req)
+		must.NoError(t, err)
 		join := obj.(joinResult)
 		must.Eq(t, 2, join.NumJoined)
-		must.Eq(t, "", join.Error)
-		must.Eq(t, "anonymous server join is deprecated and will be removed in a future version of Nomad", join.Warning)
 	})
 }
 
