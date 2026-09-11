@@ -50,6 +50,7 @@ module('Acceptance | exec', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await Exec.visitJob({ job: this.job.id });
+    await Exec.taskGroups[0].click();
     await a11yAudit({
       include: [['#ember-testing-container']],
       exclude: [['[disabled]']],
