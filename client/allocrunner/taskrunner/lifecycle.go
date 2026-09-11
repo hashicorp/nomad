@@ -117,8 +117,7 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 	}
 
 	// Wait for ShutdownDelay after prekill hooks so services have time to
-	// drain before the task is signalled. This matches handleKill; restart
-	// previously skipped the delay (issue #25289).
+	// drain before the task is signalled.
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
 		var ev *structs.TaskEvent
 		if tr.alloc.DesiredTransition.ShouldIgnoreShutdownDelay() {
@@ -138,7 +137,7 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 			case <-tr.shutdownDelayCtx.Done():
 			case <-time.After(delay):
 			case <-ctx.Done():
-				return ctx.Err()
+				return nil
 			}
 		}
 	}

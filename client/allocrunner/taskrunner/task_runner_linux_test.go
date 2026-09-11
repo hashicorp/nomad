@@ -55,6 +55,7 @@ import (
 	"github.com/kr/pretty"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 	tmock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -1123,26 +1124,22 @@ func TestTaskRunner_Restart_ShutdownDelay(t *testing.T) {
 	task.ShutdownDelay = 1000 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
 
 	tr, conf, cleanup := runTestTaskRunner(t, alloc, task.Name)
-	defer cleanup()
+	t.Cleanup(cleanup)
 
 	mockConsul := conf.ConsulServices.(*regMock.ServiceRegistrationHandler)
 
 	// Wait for the task to start
 	testWaitForTaskToStart(t, tr)
 
-	testutil.WaitForResult(func() (bool, error) {
+	must.Wait(t, wait.InitialSuccess(wait.BoolFunc(func() bool {
 		ops := mockConsul.GetOps()
-		if n := len(ops); n != 1 {
-			return false, fmt.Errorf("expected 1 consul operation. Found %d", n)
-		}
-		return ops[0].Op == "add", fmt.Errorf("consul operation was not a registration: %#v", ops[0])
-	}, func(err error) {
-		t.Fatalf("err: %v", err)
-	})
+		return len(ops) == 1 && ops[0].Op == "add"
+	}), wait.Gap(time.Millisecond*10),
+	), must.Sprint("expected consul registration"))
 
 	// Restart the running task and measure how long the kill takes.
 	restartSent := time.Now()
-	assert.NoError(t, tr.Restart(context.Background(), structs.NewTaskEvent(structs.TaskRestartSignal), false))
+	test.NoError(t, tr.Restart(context.Background(), structs.NewTaskEvent(structs.TaskRestartSignal), false))
 	killDur := time.Now().Sub(restartSent)
 	if killDur < task.ShutdownDelay {
 		t.Fatalf("task killed before shutdown_delay (killed_after: %s; shutdown_delay: %s",
@@ -1150,14 +1147,10 @@ func TestTaskRunner_Restart_ShutdownDelay(t *testing.T) {
 		)
 	}
 
-	hasDelayEvent := false
-	for _, ev := range tr.TaskState().Events {
-		if ev.Type == structs.TaskWaitingShuttingDownDelay {
-			hasDelayEvent = true
-			break
-		}
-	}
-	must.True(t, hasDelayEvent)
+	must.SliceContainsFunc(t,
+		tr.TaskState().Events,
+		&structs.TaskEvent{Type: structs.TaskWaitingShuttingDownDelay},
+		func(ev, want *structs.TaskEvent) bool { return ev.Type == want.Type })
 }
 
 // TestTaskRunner_NoShutdownDelay asserts services are removed from
