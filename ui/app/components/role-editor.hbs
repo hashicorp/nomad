@@ -37,25 +37,25 @@
       class="acl-table"
       @model={{@policies}}
       @columns={{array
-        (hash key="selected" width="80px")
         (hash key="name" label="Name" isSortable=true)
         (hash key="description" label="Description")
         (hash key="definition" label="View Policy Definition")
       }}
       @sortBy="name"
+      @isSelectable={{true}}
+      @selectionAriaLabelSuffix="policy"
+      @onSelectionChange={{this.onPoliciesSelectionChange}}
       data-test-role-policies
     >
       <:body as |B|>
-        <B.Tr>
-          <B.Td class="selection-checkbox">
-            <label>
-              <input
-                type="checkbox"
-                checked={{find-by "name" B.data.name @role.policies}}
-                {{on "change" (fn this.updateRolePolicies B.data)}}
-              />
-            </label>
-          </B.Td>
+        <B.Tr
+          @selectionKey={{B.data.name}}
+          @isSelected={{if
+            (find-by "name" B.data.name @role.policies)
+            true
+            false
+          }}
+        >
           <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
           <B.Td>{{B.data.description}}</B.Td>
           <B.Td>

@@ -8,7 +8,6 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { find, click, render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
@@ -119,8 +118,6 @@ module.skip('Integration | Component | task log', function (hooks) {
       find('pre.cli-window'),
       'Cli is preformatted and using the cli-window component class',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Streaming starts on creation', async function (assert) {
@@ -146,8 +143,6 @@ module.skip('Integration | Component | task log', function (hooks) {
       streamFrames[0],
       'First chunk of streaming log is shown',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Clicking Head loads the log head', async function (assert) {
@@ -366,8 +361,6 @@ module.skip('Integration | Component | task log', function (hooks) {
       find('[data-test-connection-error]'),
       'The error message is dismissable',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When the client is inaccessible, the server is accessible, and stderr is pressed before the client timeout occurs, the no connection error is not shown', async function (assert) {

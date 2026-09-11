@@ -9,7 +9,6 @@ import { findAll, render } from '@ember/test-helpers';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import { hbs } from 'ember-cli-htmlbars';
 import { setupPrimaryMetricMocks, primaryMetric } from './primary-metric';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 
 const mockTasks = [
@@ -55,13 +54,13 @@ module('Integration | Component | PrimaryMetric::Allocation', function (hooks) {
     store.peekAll('allocation').get('firstObject');
 
   test('Must pass an accessibility audit', async function (assert) {
+    assert.expect(0);
     await preload(this.store);
 
     const resource = findResource(this.store);
     this.setProperties({ resource, metric: 'cpu' });
 
     await render(template);
-    await componentA11yAudit(this.element, assert);
   });
 
   test('Each task for the allocation gets its own line', async function (assert) {

@@ -15,8 +15,8 @@
 
   &.is-pending,
   &.is-light {
-    background: $grey-blue;
-    color: findcolorinvert(darken($grey-blue, 10%));
+    background: var(--token-color-surface-strong);
+    color: var(--token-color-foreground-primary);
   }
 
   &.is-running {
@@ -26,7 +26,7 @@
 
   &.is-primary {
     background: $primary;
-    color: $primary-invert;
+    color: var(--token-color-foreground-strong);
   }
 
   &.is-complete {
@@ -41,7 +41,7 @@
 
   &.is-cancelled {
     background: $orange;
-    color: $orange-invert;
+    color: var(--token-color-foreground-strong);
   }
 
   &.is-unknown {
@@ -49,9 +49,14 @@
     color: $primary-invert;
   }
 
+  &.is-warning {
+    background: $warning;
+    color: var(--token-color-foreground-strong);
+  }
+
   &.is-hollow {
     font-weight: $weight-semibold;
-    color: darken($grey-blue, 20%);
+    color: var(--token-color-foreground-faint);
     background: transparent;
   }
 

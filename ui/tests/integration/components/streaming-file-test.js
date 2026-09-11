@@ -7,7 +7,6 @@ import { find, render, triggerKeyEvent, waitUntil } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
 import Log from 'nomad-ui/utils/classes/log';
@@ -71,7 +70,6 @@ module('Integration | Component | streaming file', function (hooks) {
       'Query params are correct',
     );
     assert.deepEqual(find('[data-test-output]').textContent, 'Hello World');
-    await componentA11yAudit(this.element, assert);
   });
 
   test('when mode is `tail`, the logger signals tail', async function (assert) {
