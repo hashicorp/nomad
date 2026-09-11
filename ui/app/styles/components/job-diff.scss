@@ -76,4 +76,12 @@
       text-indent: 1ch;
     }
   }
+
+  .diff-line-added {
+    color: $nomad-green;
+  }
+
+  .diff-line-removed {
+    color: $red;
+  }
 }
