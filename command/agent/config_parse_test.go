@@ -133,12 +133,7 @@ var basicConfig = &Config{
 		MaxHeartbeatsPerSecond:    11.0,
 		FailoverHeartbeatTTL:      330 * time.Second,
 		FailoverHeartbeatTTLHCL:   "330s",
-		RetryJoin:                 []string{"1.1.1.1", "2.2.2.2"},
-		StartJoin:                 []string{"1.1.1.1", "2.2.2.2"},
-		RetryInterval:             15 * time.Second,
-		RetryIntervalHCL:          "15s",
 		RejoinAfterLeave:          true,
-		RetryMaxAttempts:          3,
 		NonVotingServer:           true,
 		RedundancyZone:            "foo",
 		UpgradeVersion:            "0.8.0",
@@ -696,8 +691,6 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 	must.Eq(t, env, c.Client.ChrootEnv)
 	must.Eq(t, srv, c.Client.Servers)
 	must.Eq(t, srv, c.Server.EnabledSchedulers)
-	must.Eq(t, srv, c.Server.StartJoin)
-	must.Eq(t, srv, c.Server.RetryJoin)
 
 	// the alt format is also accepted by hcl as valid config data
 	c, err = ParseConfigFile("./testdata/config-slices-alt.json")
@@ -708,8 +701,6 @@ func TestConfig_ParseSliceExtra(t *testing.T) {
 	must.Eq(t, env, c.Client.ChrootEnv)
 	must.Eq(t, srv, c.Client.Servers)
 	must.Eq(t, srv, c.Server.EnabledSchedulers)
-	must.Eq(t, srv, c.Server.StartJoin)
-	must.Eq(t, srv, c.Server.RetryJoin)
 
 	// small files keep more extra keys than large ones
 	_, err = ParseConfigFile("./testdata/obj-len-one-server.json")
@@ -734,9 +725,10 @@ var sample0 = &Config{
 	Server: &ServerConfig{
 		Enabled:         true,
 		BootstrapExpect: 3,
-		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
-		ServerJoin:      &ServerJoin{},
+		ServerJoin: &ServerJoin{
+			RetryJoin: []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
+		},
 		PlanRejectionTracker: &PlanRejectionTracker{
 			NodeThreshold: 100,
 			NodeWindow:    31 * time.Minute,
@@ -844,9 +836,10 @@ var sample1 = &Config{
 	Server: &ServerConfig{
 		Enabled:         true,
 		BootstrapExpect: 3,
-		RetryJoin:       []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
 		EncryptKey:      "sHck3WL6cxuhuY7Mso9BHA==",
-		ServerJoin:      &ServerJoin{},
+		ServerJoin: &ServerJoin{
+			RetryJoin: []string{"10.0.0.101", "10.0.0.102", "10.0.0.103"},
+		},
 		PlanRejectionTracker: &PlanRejectionTracker{
 			NodeThreshold: 100,
 			NodeWindow:    31 * time.Minute,
@@ -979,8 +972,6 @@ func TestConfig_ParseDir(t *testing.T) {
 	c.Client.Meta = nil
 	must.Zero(t, len(c.Client.ChrootEnv))
 	c.Client.ChrootEnv = nil
-	must.Zero(t, len(c.Server.StartJoin))
-	c.Server.StartJoin = nil
 	must.Zero(t, len(c.HTTPAPIResponseHeaders))
 	c.HTTPAPIResponseHeaders = nil
 

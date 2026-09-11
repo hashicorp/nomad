@@ -44,10 +44,6 @@
 				"foo",
 				"bar"
 			],
-			"retry_join": [
-				"foo",
-				"bar"
-			],
 			"server_join": [
 				{
 					"retry_join": [
@@ -60,10 +56,6 @@
 					]
 				}
 			],
-			"start_join": [
-				"foo",
-				"bar"
-			]
 		}
 	],
 	"consul": [
