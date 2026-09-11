@@ -276,8 +276,18 @@ export default class IndexRoute extends Route.extend(
   setupController(controller, model) {
     super.setupController(controller, model);
 
-    if (!this.hasBeenInitialized) {
+    const firstLoad = !this.hasBeenInitialized;
+    if (firstLoad) {
       controller.parseFilter();
+      // A cold load from a deep-linked/shared URL can land on any page, so the
+      // first/previous disabled state can't be assumed. Probe once to set it;
+      // later navigation maintains the flag itself. Without a cursor we are on
+      // the first page and the default flag already holds.
+      if (controller.cursorAt) {
+        controller.reachedStart(controller.cursorAt).then((atStart) => {
+          controller.set('onFirstPage', atStart);
+        });
+      }
     }
     this.hasBeenInitialized = true;
 
