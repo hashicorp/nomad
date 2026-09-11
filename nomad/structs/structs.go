@@ -5278,6 +5278,7 @@ func (j *Job) SpecChanged(new *Job) bool {
 	c.ModifyIndex = j.ModifyIndex
 	c.JobModifyIndex = j.JobModifyIndex
 	c.SubmitTime = j.SubmitTime
+	c.NomadTokenID = j.NomadTokenID
 
 	// cgbaker: FINISH: probably need some consideration of scaling policy ID here
 
