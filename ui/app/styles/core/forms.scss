@@ -6,8 +6,8 @@
 @mixin input {
   @include control;
 
-  background-color: #fff;
-  border-color: $grey-blue;
+  background-color: var(--token-color-palette-neutral-0);
+  border-color: var(--token-color-border-primary);
   color: $text;
 
   &:hover,
@@ -16,12 +16,12 @@
   &.is-active,
   &:focus,
   &.is-focused {
-    border-color: darken($grey-blue, 5%);
+    border-color: var(--token-color-border-strong);
   }
 
   &[disabled] {
-    background-color: $grey-blue;
-    border-color: darken($grey-blue, 5%);
+    background-color: var(--token-color-surface-strong);
+    border-color: var(--token-color-border-strong);
   }
 }
 
@@ -34,7 +34,7 @@
   height: auto;
 
   &::placeholder {
-    color: $grey-blue;
+    color: var(--token-color-foreground-disabled);
   }
 
   &.is-compact {
@@ -177,8 +177,8 @@
     gap: 0.5rem;
 
     button {
-      background-color: #444;
-      color: white;
+      background-color: var(--token-color-palette-neutral-600);
+      color: var(--token-color-foreground-high-contrast);
 
       &.error {
         background-color: darkred;

@@ -7,19 +7,19 @@
   font-weight: $weight-semibold;
 
   &.node-ready {
-    color: $nomad-green-dark;
+    color: $nomad-green-darker;
   }
 
   &.node-disconnected {
-    color: $yellow;
+    color: $warning-dark;
   }
 
   &.node-down {
-    color: $danger;
+    color: $danger-dark;
   }
 
   &.node-initializing {
-    color: $grey;
+    color: var(--token-color-foreground-primary);
   }
 
   @each $name, $pair in $colors {

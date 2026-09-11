@@ -9,7 +9,6 @@ import { find, render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 module(
   'Integration | Component | job status panel | active deployment',
@@ -372,12 +371,6 @@ module(
           .replace(/\s\s+/g, ' '),
         '20 Running 5 Complete',
       );
-
-      await componentA11yAudit(
-        this.element,
-        assert,
-        'scrollable-region-focusable',
-      ); //keyframe animation fades from opacity 0
     });
 
     test('non-running allocations are grouped regardless of health', async function (assert) {

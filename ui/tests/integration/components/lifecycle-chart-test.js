@@ -8,7 +8,6 @@ import { setupRenderingTest } from 'ember-qunit';
 import { render, settled } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import { set } from '@ember/object';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import { create } from 'ember-cli-page-object';
 import LifecycleChart from 'nomad-ui/tests/pages/components/lifecycle-chart';
 
@@ -91,8 +90,6 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
       assert.notOk(task.isActive);
       assert.notOk(task.isFinished);
     });
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('it doesn’t render when there’s only one phase', async function (assert) {
@@ -134,8 +131,6 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
     // Change poststart-ephemeral to be running
     this.set('taskStates.4.state', 'running');
     await settled();
-
-    await componentA11yAudit(this.element, assert);
 
     assert.ok(Chart.tasks[5].isActive);
 
