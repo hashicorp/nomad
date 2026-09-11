@@ -24,10 +24,7 @@ func Backoff(backoffBase time.Duration, backoffLimit time.Duration, attempt uint
 	}
 
 	// Compute deadline and clamp it to backoffLimit
-	deadline := 1 << attempt * backoffBase
-	if deadline > backoffLimit {
-		deadline = backoffLimit
-	}
+	deadline := min(1<<attempt*backoffBase, backoffLimit)
 
 	return deadline
 }
@@ -53,10 +50,7 @@ func WithBackoffFunc(ctx context.Context, minBackoff, maxBackoff time.Duration, 
 		}
 
 		if backoff < maxBackoff {
-			backoff = backoff*2 + RandomStagger(minBackoff/10)
-			if backoff > maxBackoff {
-				backoff = maxBackoff
-			}
+			backoff = min(backoff*2+RandomStagger(minBackoff/10), maxBackoff)
 		}
 
 		t.Reset(backoff)

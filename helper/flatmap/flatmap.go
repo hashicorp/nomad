@@ -11,7 +11,7 @@ import (
 // Flatten takes an object and returns a flat map of the object. The keys of the
 // map is the path of the field names until a primitive field is reached and the
 // value is a string representation of the terminal field.
-func Flatten(obj interface{}, filter []string, primitiveOnly bool) map[string]string {
+func Flatten(obj any, filter []string, primitiveOnly bool) map[string]string {
 	flat := make(map[string]string)
 	v := reflect.ValueOf(obj)
 	if !v.IsValid() {

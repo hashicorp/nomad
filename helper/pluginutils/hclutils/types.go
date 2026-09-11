@@ -4,6 +4,8 @@
 package hclutils
 
 import (
+	"maps"
+
 	"github.com/hashicorp/go-msgpack/v2/codec"
 )
 
@@ -23,9 +25,7 @@ func (s *MapStrInt) CodecDecodeSelf(dec *codec.Decoder) {
 
 	r := map[string]int{}
 	for _, m := range ms {
-		for k, v := range m {
-			r[k] = v
-		}
+		maps.Copy(r, m)
 	}
 	*s = r
 }
@@ -46,9 +46,7 @@ func (s *MapStrStr) CodecDecodeSelf(dec *codec.Decoder) {
 
 	r := map[string]string{}
 	for _, m := range ms {
-		for k, v := range m {
-			r[k] = v
-		}
+		maps.Copy(r, m)
 	}
 	*s = r
 }

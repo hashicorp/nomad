@@ -56,7 +56,7 @@ func (tc *ParameterizedTest) TestParameterizedDispatch_Basic(f *framework.F) {
 	// force dispatch
 	dispatched := 4
 
-	for i := 0; i < dispatched; i++ {
+	for i := range dispatched {
 		require.NoError(t, e2eutil.Dispatch(jobID, map[string]string{"i": fmt.Sprintf("%v", i)}, ""))
 	}
 

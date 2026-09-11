@@ -26,7 +26,7 @@ type Registration struct {
 // ConfigFromOptions is used to retrieve a plugin config when passed a node's
 // option map. This allows upgrade pathing from the old configuration format to
 // the new config format.
-type ConfigFromOptions func(options map[string]string) (config map[string]interface{}, err error)
+type ConfigFromOptions func(options map[string]string) (config map[string]any, err error)
 
 // Register is used to register an internal plugin.
 func Register(id loader.PluginID, config *loader.InternalPluginConfig) {

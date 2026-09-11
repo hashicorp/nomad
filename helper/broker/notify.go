@@ -16,12 +16,12 @@ type GenericNotifier struct {
 
 	// publishCh is the channel used to receive the update which will be sent
 	// to all subscribers.
-	publishCh chan interface{}
+	publishCh chan any
 
 	// subscribeCh and unsubscribeCh are the channels used to modify the
 	// subscription membership mapping.
-	subscribeCh   chan chan interface{}
-	unsubscribeCh chan chan interface{}
+	subscribeCh   chan chan any
+	unsubscribeCh chan chan any
 
 	ctx context.Context
 }
@@ -30,9 +30,9 @@ type GenericNotifier struct {
 // to notify many subscribers when a specific update is triggered.
 func NewGenericNotifier(ctx context.Context) *GenericNotifier {
 	return &GenericNotifier{
-		publishCh:     make(chan interface{}, 1),
-		subscribeCh:   make(chan chan interface{}, 1),
-		unsubscribeCh: make(chan chan interface{}, 1),
+		publishCh:     make(chan any, 1),
+		subscribeCh:   make(chan chan any, 1),
+		unsubscribeCh: make(chan chan any, 1),
 		ctx:           ctx,
 	}
 }
@@ -40,7 +40,7 @@ func NewGenericNotifier(ctx context.Context) *GenericNotifier {
 // Notify allows the implementer to notify all subscribers with a specific
 // update. There is no guarantee the order in which subscribers receive the
 // message which is sent linearly.
-func (g *GenericNotifier) Notify(msg interface{}) {
+func (g *GenericNotifier) Notify(msg any) {
 	select {
 	case g.publishCh <- msg:
 	default:
@@ -55,7 +55,7 @@ func (g *GenericNotifier) Run() {
 	// Store our subscribers inline with a map. This map can only be accessed
 	// via a single channel update at a time, meaning we can manage without
 	// using a lock.
-	subscribers := map[chan interface{}]struct{}{}
+	subscribers := map[chan any]struct{}{}
 
 	for {
 		select {
@@ -82,11 +82,11 @@ func (g *GenericNotifier) Run() {
 // WaitForChange allows a subscriber to wait until there is a notification
 // change, or the timeout is reached. The function will block until one
 // condition is met.
-func (g *GenericNotifier) WaitForChange(timeout time.Duration) interface{} {
+func (g *GenericNotifier) WaitForChange(timeout time.Duration) any {
 
 	// Create a channel and subscribe to any update. This channel is buffered
 	// to ensure we do not block the main broker process.
-	updateCh := make(chan interface{}, 1)
+	updateCh := make(chan any, 1)
 	select {
 	case <-g.ctx.Done():
 		return "shutting down"

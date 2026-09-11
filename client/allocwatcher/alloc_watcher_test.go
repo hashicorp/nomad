@@ -70,7 +70,7 @@ type countingRPCer struct {
 	calls int
 }
 
-func (c *countingRPCer) RPC(method string, args interface{}, reply interface{}) error {
+func (c *countingRPCer) RPC(method string, args any, reply any) error {
 	c.calls++
 	return c.err
 }

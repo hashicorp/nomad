@@ -312,7 +312,7 @@ func TestPluginLoader_External_Config(t *testing.T) {
 				Name: plugins[0],
 				Args: []string{"-plugin", "-name", plugins[0],
 					"-type", base.PluginTypeDevice, "-version", pluginVersions[0], "-api-version", device.ApiVersion010},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": "1",
 					"bar": "2",
 				},
@@ -321,7 +321,7 @@ func TestPluginLoader_External_Config(t *testing.T) {
 				Name: plugins[1],
 				Args: []string{"-plugin", "-name", plugins[1],
 					"-type", base.PluginTypeDevice, "-version", pluginVersions[1], "-api-version", device.ApiVersion010},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": "3",
 					"bar": "4",
 				},
@@ -378,7 +378,7 @@ func TestPluginLoader_External_Config_Bad(t *testing.T) {
 				Name: plugins[0],
 				Args: []string{"-plugin", "-name", plugins[0],
 					"-type", base.PluginTypeDevice, "-version", pluginVersions[0], "-api-version", device.ApiVersion010},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo":          "1",
 					"bar":          "2",
 					"non-existent": "3",
@@ -638,7 +638,7 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 				PluginType: base.PluginTypeDevice,
 			}: {
 				Factory: mockFactory(plugins[0], base.PluginTypeDevice, pluginVersions[0], pluginApiVersions, true),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": "1",
 					"bar": "2",
 				},
@@ -648,7 +648,7 @@ func TestPluginLoader_Internal_Config(t *testing.T) {
 				PluginType: base.PluginTypeDevice,
 			}: {
 				Factory: mockFactory(plugins[1], base.PluginTypeDevice, pluginVersions[1], pluginApiVersions, true),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": "3",
 					"bar": "4",
 				},
@@ -700,7 +700,7 @@ func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
 		Name:       plugin,
 		PluginType: base.PluginTypeDevice,
 	}
-	expectedConfig := map[string]interface{}{
+	expectedConfig := map[string]any{
 		"foo": "2",
 		"bar": "3",
 	}
@@ -714,7 +714,7 @@ func TestPluginLoader_Internal_ExternalConfig(t *testing.T) {
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			id: {
 				Factory: mockFactory(plugin, base.PluginTypeDevice, pluginVersion, pluginApiVersions, true),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo": "1",
 					"bar": "2",
 				},
@@ -778,7 +778,7 @@ func TestPluginLoader_Internal_Config_Bad(t *testing.T) {
 				PluginType: base.PluginTypeDevice,
 			}: {
 				Factory: mockFactory(plugins[0], base.PluginTypeDevice, pluginVersions[0], pluginApiVersions, true),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"foo":          "1",
 					"bar":          "2",
 					"non-existent": "3",
@@ -926,7 +926,7 @@ func TestPluginLoader_Dispense_External(t *testing.T) {
 				Name: plugin,
 				Args: []string{"-plugin", "-name", plugin,
 					"-type", base.PluginTypeDevice, "-version", pluginVersion, "-api-version", device.ApiVersion010},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"res_key": expKey,
 				},
 			},
@@ -979,7 +979,7 @@ func TestPluginLoader_Dispense_Internal(t *testing.T) {
 				PluginType: base.PluginTypeDevice,
 			}: {
 				Factory: mockFactory(plugin, base.PluginTypeDevice, pluginVersion, pluginApiVersions, true),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"res_key": expKey,
 				},
 			},
@@ -1030,7 +1030,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_External(t *testing.T) {
 				Name: plugin,
 				Args: []string{"-plugin", "-config-schema=false", "-name", plugin,
 					"-type", base.PluginTypeDevice, "-version", pluginVersion, "-api-version", device.ApiVersion010},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"res_key": expKey,
 				},
 			},
@@ -1080,7 +1080,7 @@ func TestPluginLoader_Dispense_NoConfigSchema_Internal(t *testing.T) {
 		InternalPlugins: map[PluginID]*InternalPluginConfig{
 			pid: {
 				Factory: mockFactory(plugin, base.PluginTypeDevice, pluginVersion, pluginApiVersions, false),
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"res_key": expKey,
 				},
 			},
@@ -1127,7 +1127,7 @@ func TestPluginLoader_Reattach_External(t *testing.T) {
 				Name: plugin,
 				Args: []string{"-plugin", "-name", plugin,
 					"-type", base.PluginTypeDevice, "-version", pluginVersion, "-api-version", device.ApiVersion010},
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"res_key": expKey,
 				},
 			},

@@ -259,7 +259,7 @@ func GenerateCert(opts CertOpts) (string, string, error) {
 }
 
 // KeyId returns a x509 KeyId from the given signing key.
-func keyID(raw interface{}) ([]byte, error) {
+func keyID(raw any) ([]byte, error) {
 	switch raw.(type) {
 	case *ecdsa.PublicKey:
 	case *rsa.PublicKey:

@@ -777,7 +777,7 @@ func TestCNI_setupTproxyArgs(t *testing.T) {
 		LocalServicePort:    0,
 		Upstreams:           []structs.ConsulUpstream{},
 		Expose:              &structs.ConsulExposeConfig{},
-		Config:              map[string]interface{}{},
+		Config:              map[string]any{},
 	}
 
 	spec := &drivers.NetworkIsolationSpec{

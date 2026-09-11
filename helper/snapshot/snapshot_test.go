@@ -39,7 +39,7 @@ type MockSnapshot struct {
 }
 
 // See raft.FSM.
-func (m *MockFSM) Apply(log *raft.Log) interface{} {
+func (m *MockFSM) Apply(log *raft.Log) any {
 	m.Lock()
 	defer m.Unlock()
 	m.logs = append(m.logs, log.Data)
@@ -139,7 +139,7 @@ func TestSnapshot(t *testing.T) {
 	entries := 64 * 1024
 	before, _ := makeRaft(t, filepath.Join(dir, "before"))
 	defer before.Shutdown()
-	for i := 0; i < entries; i++ {
+	for range entries {
 		var log bytes.Buffer
 		var copy bytes.Buffer
 		both := io.MultiWriter(&log, &copy)
@@ -184,7 +184,7 @@ func TestSnapshot(t *testing.T) {
 	defer after.Shutdown()
 
 	// Put some initial data in there that the snapshot should overwrite.
-	for i := 0; i < 16; i++ {
+	for range 16 {
 		var log bytes.Buffer
 		if _, err := io.CopyN(&log, rand.Reader, 256); err != nil {
 			t.Fatalf("err: %v", err)
@@ -248,7 +248,7 @@ func TestSnapshot_TruncatedVerify(t *testing.T) {
 	entries := 64 * 1024
 	before, _ := makeRaft(t, filepath.Join(dir, "before"))
 	defer before.Shutdown()
-	for i := 0; i < entries; i++ {
+	for range entries {
 		var log bytes.Buffer
 		var copy bytes.Buffer
 		both := io.MultiWriter(&log, &copy)
@@ -293,7 +293,7 @@ func TestSnapshot_BadRestore(t *testing.T) {
 	// Make a Raft and populate it with some data.
 	before, _ := makeRaft(t, filepath.Join(dir, "before"))
 	defer before.Shutdown()
-	for i := 0; i < 16*1024; i++ {
+	for range 16 * 1024 {
 		var log bytes.Buffer
 		if _, err := io.CopyN(&log, rand.Reader, 256); err != nil {
 			t.Fatalf("err: %v", err)
@@ -318,7 +318,7 @@ func TestSnapshot_BadRestore(t *testing.T) {
 	// Put some initial data in there that should not be harmed by the
 	// failed restore attempt.
 	var expected []bytes.Buffer
-	for i := 0; i < 16; i++ {
+	for range 16 {
 		var log bytes.Buffer
 		var copy bytes.Buffer
 		both := io.MultiWriter(&log, &copy)
@@ -363,7 +363,7 @@ func TestSnapshot_FromFSM(t *testing.T) {
 	entries := 64 * 1024
 	before, fsm := makeRaft(t, filepath.Join(dir, "before"))
 	defer before.Shutdown()
-	for i := 0; i < entries; i++ {
+	for range entries {
 		var log bytes.Buffer
 		var copy bytes.Buffer
 		both := io.MultiWriter(&log, &copy)
@@ -399,7 +399,7 @@ func TestSnapshot_FromFSM(t *testing.T) {
 	defer after.Shutdown()
 
 	// Put some initial data in there that the snapshot should overwrite.
-	for i := 0; i < 16; i++ {
+	for range 16 {
 		var log bytes.Buffer
 		_, err := io.CopyN(&log, rand.Reader, 256)
 		must.NoError(t, err)

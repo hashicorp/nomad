@@ -105,7 +105,7 @@ func toStructsResource(t *testing.T, in *api.Resources) structs.Resources {
 	return out
 }
 
-func toStructs(t *testing.T, out, in interface{}) {
+func toStructs(t *testing.T, out, in any) {
 	bytes, err := json.Marshal(in)
 	require.NoError(t, err)
 

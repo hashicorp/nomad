@@ -8,8 +8,9 @@ run:
   # Modules download mode (do not modify go.mod)
   modules-download-mode: readonly
 
-  # Exclude test files
-  tests: false
+  # Enable linting for tests, so modernize can run on them. All other linters
+  # are suppressed on tests at the moment via the exclusions section below.
+  tests: true
 
 output:
   formats:
@@ -68,9 +69,26 @@ linters:
         text: assignOp
       - path: (.+)\.go$
         text: unlambda
-      - path-except: (^client/|^command/|^drivers/|^jobspec2/|^plugins/|^nomad/|^scheduler/)
+      # Suppress all linters except modernize on test files for now. The goal
+      # is to have them run on all files.
+      - path: _test\.go
         linters:
-          - modernize
+          - asasalint
+          - asciicheck
+          - bidichk
+          - bodyclose
+          - copyloopvar
+          - dogsled
+          - durationcheck
+          - gocritic
+          - gofmt
+          - goimports
+          - govet
+          - ineffassign
+          - misspell
+          - staticcheck
+          - unconvert
+          - usestdlibvars
     paths:
       - ".*\\.generated\\.go$"
       - ".*bindata_assetfs\\.go$"

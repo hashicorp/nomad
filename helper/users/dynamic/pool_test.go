@@ -72,7 +72,7 @@ func TestPool_Acquire_random(t *testing.T) {
 	p2 := New(testPoolConfig)
 
 	// acquire all 10 UGIDs and record the order of each
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		v1, err1 := p1.Acquire()
 		must.NoError(t, err1)
 

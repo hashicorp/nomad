@@ -121,7 +121,7 @@ func TestACLOIDC_CompleteAuth(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fpSPuaodKevKfDU3IeXb")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetCustomClaims(map[string]interface{}{
+	oidcTestProvider.SetCustomClaims(map[string]any{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},

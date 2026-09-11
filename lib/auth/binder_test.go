@@ -184,7 +184,7 @@ func Test_doesSelectorMatch(t *testing.T) {
 	tests := []struct {
 		name           string
 		selector       string
-		selectableVars interface{}
+		selectableVars any
 		want           bool
 	}{
 		{

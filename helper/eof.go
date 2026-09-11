@@ -33,8 +33,7 @@ func IsErrEOF(err error) bool {
 		return true
 	}
 
-	var serverError rpc.ServerError
-	if errors.As(err, &serverError) {
+	if _, ok := errors.AsType[rpc.ServerError](err); ok {
 		return strings.HasSuffix(err.Error(), fmt.Sprintf(": %s", io.EOF.Error()))
 	}
 

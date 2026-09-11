@@ -230,7 +230,7 @@ func TestTaskRunner_BuildTaskConfig_CPU_Memory(t *testing.T) {
 			alloc.Job.TaskGroups[0].Count = 1
 			task := alloc.Job.TaskGroups[0].Tasks[0]
 			task.Driver = "mock_driver"
-			task.Config = map[string]interface{}{
+			task.Config = map[string]any{
 				"run_for": "2s",
 			}
 			res := alloc.AllocatedResources.Tasks[task.Name]
@@ -267,7 +267,7 @@ func TestTaskRunner_Stop_ExitCode(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.KillSignal = "SIGTERM"
 	task.Driver = "raw_exec"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"command": "/bin/sleep",
 		"args":    []string{"1000"},
 	}
@@ -322,7 +322,7 @@ func TestTaskRunner_Restore_Running(t *testing.T) {
 	alloc.Job.TaskGroups[0].Count = 1
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "2s",
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
@@ -376,7 +376,7 @@ func TestTaskRunner_Restore_Dead(t *testing.T) {
 	alloc.Job.TaskGroups[0].Count = 1
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "2s",
 	}
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
@@ -454,7 +454,7 @@ func TestTaskRunner_Restore_Dead(t *testing.T) {
 func setupRestoreFailureTest(t *testing.T, alloc *structs.Allocation) (*TaskRunner, *Config, func()) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "raw_exec"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"command": "sleep",
 		"args":    []string{"30"},
 	}
@@ -607,7 +607,7 @@ func TestTaskRunner_Restore_System(t *testing.T) {
 	alloc.Job.Type = structs.JobTypeSystem
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "raw_exec"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"command": "sleep",
 		"args":    []string{"30"},
 	}
@@ -747,7 +747,7 @@ func TestTaskRunner_TaskEnv_Interpolated(t *testing.T) {
 	}
 
 	// Use interpolation from both node attributes and meta vars
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for":       "1ms",
 		"stdout_string": `${node.region} ${NOMAD_META_foo} ${NOMAD_META_common_user}`,
 	}
@@ -778,7 +778,7 @@ func TestTaskRunner_TaskEnv_None(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "raw_exec"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"command": "sh",
 		"args": []string{"-c", "echo $NOMAD_ALLOC_DIR; " +
 			"echo $NOMAD_TASK_DIR; " +
@@ -829,7 +829,7 @@ func TestTaskRunner_DevicePropogation(t *testing.T) {
 	alloc.Job.TaskGroups[0].Count = 1
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "100ms",
 	}
 	tRes := alloc.AllocatedResources.Tasks[task.Name]
@@ -960,7 +960,7 @@ func TestTaskRunner_RecoverFromDriverExiting(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"plugin_exit_after": "1s",
 		"run_for":           "5s",
 	}
@@ -1032,7 +1032,7 @@ func TestTaskRunner_ShutdownDelay(t *testing.T) {
 	task.Services[0].Tags = []string{"tag1"}
 	task.Services = task.Services[:1] // only need 1 for this test
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "1000s",
 	}
 
@@ -1122,7 +1122,7 @@ func TestTaskRunner_NoShutdownDelay(t *testing.T) {
 	task.Services[0].Tags = []string{"tag1"}
 	task.Services = task.Services[:1] // only need 1 for this test
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "1000s",
 	}
 	task.ShutdownDelay = maxTestDuration
@@ -1199,7 +1199,7 @@ func TestTaskRunner_Dispatch_Payload(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "1s",
 	}
 
@@ -1246,7 +1246,7 @@ func TestTaskRunner_SignalFailure(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
 	errMsg := "test forcing failure"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for":      "10m",
 		"signal_error": errMsg,
 	}
@@ -1267,7 +1267,7 @@ func TestTaskRunner_RestartTask(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10m",
 	}
 
@@ -1327,7 +1327,7 @@ func TestTaskRunner_CheckWatcher_Restart(t *testing.T) {
 
 	task := tg.Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "10m",
 	}
 
@@ -1443,7 +1443,7 @@ func TestTaskRunner_Download_RawExec(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.RestartPolicy = &structs.RestartPolicy{}
 	task.Driver = "raw_exec"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"command": "noop.sh",
 	}
 	task.Env = map[string]string{
@@ -1565,7 +1565,7 @@ func TestTaskRunner_DriverNetwork(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for":         "100s",
 		"driver_ip":       "10.1.2.3",
 		"driver_port_map": "http:80",
@@ -1704,7 +1704,7 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "0s",
 	}
 
@@ -1784,7 +1784,7 @@ func TestTaskRunner_Run_RecoverableStartError(t *testing.T) {
 
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"start_error":             "driver failure",
 		"start_error_recoverable": true,
 	}
@@ -2017,7 +2017,7 @@ func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
 	alloc.Job.TaskGroups[0].Count = 1
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "2s",
 	}
 	task.Consul = &structs.Consul{
@@ -2098,7 +2098,7 @@ func TestTaskRunner_UnregisterConsul_Retries(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.RestartPolicy = rp
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"exit_code": "1",
 		"run_for":   "1ns",
 	}
@@ -2163,7 +2163,7 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 	alloc.Namespace = "not-default"
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "raw_exec"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"command": "whoami",
 	}
 
@@ -2195,7 +2195,7 @@ func TestTaskRunner_BaseLabels_IncludesAllocMetadata(t *testing.T) {
 	job.Meta = map[string]string{"owner": "HashiCorp", "my-key": "my-value", "some_dynamic_value": "now()"}
 	task := job.TaskGroups[0].Tasks[0]
 	task.Driver = "raw_exec"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"command": "whoami",
 	}
 
@@ -2304,7 +2304,7 @@ func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{"run_for": "2s"}
+	task.Config = map[string]any{"run_for": "2s"}
 
 	groupNetworks := []*structs.NetworkResource{{
 		Device: "eth0",

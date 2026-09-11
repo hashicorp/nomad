@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !windows
-// +build !windows
 
 package allocdir
 
@@ -32,7 +31,7 @@ func isMount(path string) (int, error) {
 	defer file.Close()
 	reader := bufio.NewReaderSize(file, 64*1024)
 	const max = 100000
-	for i := 0; i < max; i++ {
+	for range max {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {

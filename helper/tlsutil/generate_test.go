@@ -53,7 +53,7 @@ func TestGeneratePrivateKey(t *testing.T) {
 }
 
 type TestSigner struct {
-	public interface{}
+	public any
 }
 
 func (s *TestSigner) Public() crypto.PublicKey {

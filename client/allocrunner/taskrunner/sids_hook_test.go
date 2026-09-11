@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build linux
-// +build linux
 
 // todo(shoenig): Once Connect is supported on Windows, we'll need to make this
 //  set of tests work there too.

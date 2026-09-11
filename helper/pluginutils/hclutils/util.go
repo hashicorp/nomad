@@ -25,7 +25,7 @@ import (
 // ParseHclInterface is used to convert an interface value representing a hcl2
 // body and return the interpolated value. Vars may be nil if there are no
 // variables to interpolate.
-func ParseHclInterface(val interface{}, spec hcldec.Spec, vars map[string]cty.Value) (cty.Value, hcl.Diagnostics, []error) {
+func ParseHclInterface(val any, spec hcldec.Spec, vars map[string]cty.Value) (cty.Value, hcl.Diagnostics, []error) {
 	evalCtx := &hcl.EvalContext{
 		Variables: vars,
 		Functions: GetStdlibFuncs(),
@@ -95,7 +95,7 @@ func CtyValueToMapInterface(val cty.Value) (map[string]any, error) {
 	return m, nil
 }
 
-func ctyValueToInterface(val cty.Value) (interface{}, error) {
+func ctyValueToInterface(val cty.Value) (any, error) {
 	t := val.Type()
 
 	if val.IsNull() {
@@ -126,7 +126,7 @@ func ctyValueToInterface(val cty.Value) (interface{}, error) {
 		}
 
 	case t.IsListType(), t.IsSetType(), t.IsTupleType():
-		result := []interface{}{}
+		result := []any{}
 
 		it := val.ElementIterator()
 		for it.Next() {
@@ -140,7 +140,7 @@ func ctyValueToInterface(val cty.Value) (interface{}, error) {
 		return result, nil
 
 	case t.IsMapType():
-		result := map[string]interface{}{}
+		result := map[string]any{}
 
 		it := val.ElementIterator()
 		for it.Next() {
@@ -156,7 +156,7 @@ func ctyValueToInterface(val cty.Value) (interface{}, error) {
 		return result, nil
 
 	case t.IsObjectType():
-		result := map[string]interface{}{}
+		result := map[string]any{}
 
 		for k := range t.AttributeTypes() {
 			av := val.GetAttr(k)
@@ -177,7 +177,7 @@ func ctyValueToInterface(val cty.Value) (interface{}, error) {
 	}
 }
 
-func smallestNumber(b *big.Float) interface{} {
+func smallestNumber(b *big.Float) any {
 	if v, acc := b.Int64(); acc == big.Exact {
 		if int64(int(v)) == v {
 			return int(v)

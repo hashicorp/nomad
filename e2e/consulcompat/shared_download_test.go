@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 
@@ -71,12 +72,7 @@ func getMinimumVersion(t *testing.T) *version.Version {
 }
 
 func skipVersion(v *version.Version) bool {
-	for _, sv := range skippedVersions {
-		if v.Equal(sv) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(skippedVersions, v.Equal)
 }
 
 type build struct {

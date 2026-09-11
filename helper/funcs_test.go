@@ -112,7 +112,6 @@ func TestCompareSliceSetString(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		tc := tc
 		t.Run(fmt.Sprintf("case-%da", i), func(t *testing.T) {
 			if res := SliceSetEq(tc.A, tc.B); res != tc.Result {
 				t.Fatalf("expected %t but CompareSliceSetString(%v, %v) -> %t",

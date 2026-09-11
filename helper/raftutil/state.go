@@ -102,13 +102,13 @@ func raftStateInfoWAL(p string) (store RaftStore, firstIdx uint64, lastIdx uint6
 // the path `p`, and returns a channel of logs, and a channel of
 // warnings. If opening the raft state returns an error, both channels
 // will be nil.
-func LogEntries(p string) (<-chan interface{}, <-chan error, error) {
+func LogEntries(p string) (<-chan any, <-chan error, error) {
 	store, firstIdx, lastIdx, err := RaftStateInfo(p)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open raft logs: %v", err)
 	}
 
-	entries := make(chan interface{})
+	entries := make(chan any)
 	warnings := make(chan error)
 
 	go func() {
@@ -143,9 +143,9 @@ type logMessage struct {
 	Term    uint64
 	Index   uint64
 
-	CommandType           string      `json:",omitempty"`
-	IgnoreUnknownTypeFlag bool        `json:",omitempty"`
-	Body                  interface{} `json:",omitempty"`
+	CommandType           string `json:",omitempty"`
+	IgnoreUnknownTypeFlag bool   `json:",omitempty"`
+	Body                  any    `json:",omitempty"`
 }
 
 func decode(e *raft.Log) (*logMessage, error) {
@@ -178,14 +178,14 @@ func decode(e *raft.Log) (*logMessage, error) {
 	if len(data) != 0 {
 		decoder := codec.NewDecoder(bytes.NewReader(data), structs.MsgpackHandle)
 
-		var v interface{}
+		var v any
 		var err error
 		if m.CommandType == commandName(structs.JobBatchDeregisterRequestType) {
 			var vr structs.JobBatchDeregisterRequest
 			err = decoder.Decode(&vr)
 			v = jsonifyJobBatchDeregisterRequest(&vr)
 		} else {
-			var vr interface{}
+			var vr any
 			err = decoder.Decode(&vr)
 			v = vr
 		}
@@ -203,7 +203,7 @@ func decode(e *raft.Log) (*logMessage, error) {
 
 // jsonifyJobBatchDeregisterRequest special case JsonBatchDeregisterRequest object
 // as the actual type is not json friendly.
-func jsonifyJobBatchDeregisterRequest(v *structs.JobBatchDeregisterRequest) interface{} {
+func jsonifyJobBatchDeregisterRequest(v *structs.JobBatchDeregisterRequest) any {
 	var data struct {
 		Jobs  map[string]*structs.JobDeregisterOptions
 		Evals []*structs.Evaluation

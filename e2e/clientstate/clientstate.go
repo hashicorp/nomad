@@ -177,7 +177,7 @@ func (tc *ClientStateTC) TestClientState_Kill(f *framework.F) {
 
 	// Kill and restart a few times
 	tries := 10
-	for i := 0; i < tries; i++ {
+	for i := range tries {
 		t.Logf("TEST RUN %d/%d", i+1, tries)
 
 		// Kill -9 the Agent

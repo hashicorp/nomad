@@ -169,9 +169,7 @@ func MergeMapStringString(m map[string]string, n map[string]string) map[string]s
 
 	result := maps.Clone(m)
 
-	for k, v := range n {
-		result[k] = v
-	}
+	maps.Copy(result, n)
 
 	return result
 }
@@ -267,7 +265,7 @@ func CheckHCLKeys(node ast.Node, valid []string) error {
 }
 
 // UnusedKeys returns a pretty-printed error if any `hcl:",unusedKeys"` is not empty
-func UnusedKeys(obj interface{}) error {
+func UnusedKeys(obj any) error {
 	val := reflect.ValueOf(obj)
 	if val.Kind() == reflect.Pointer {
 		val = reflect.Indirect(val)
@@ -298,16 +296,10 @@ func unusedKeysImpl(path []string, val reflect.Value) error {
 		}
 
 		// Search the hcl tags for "unusedKeys"
-		unusedKeys := false
-		for _, p := range tags {
-			if p == "unusedKeys" {
-				unusedKeys = true
-				break
-			}
-		}
+		unusedKeys := slices.Contains(tags, "unusedKeys")
 
 		if unusedKeys {
-			ks, ok := fval.Interface().([]string)
+			ks, ok := reflect.TypeAssert[[]string](fval)
 			if ok && len(ks) != 0 {
 				ps := ""
 				if len(path) > 0 {
