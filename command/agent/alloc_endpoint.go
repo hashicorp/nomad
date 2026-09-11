@@ -295,8 +295,7 @@ func (s *HTTPServer) allocRestart(allocID string, resp http.ResponseWriter, req 
 		TaskName string
 		AllTasks bool
 	}
-	err := json.NewDecoder(req.Body).Decode(&reqBody)
-	if err != nil && err != io.EOF {
+	if err := decodeBody(req, &reqBody); err != nil && !errors.Is(err, errNoBody) {
 		return nil, err
 	}
 	if reqBody.TaskName != "" {
@@ -459,8 +458,7 @@ func (s *HTTPServer) allocPauseSet(allocID string, resp http.ResponseWriter, req
 		Task          string
 		ScheduleState string
 	}
-	err := json.NewDecoder(req.Body).Decode(&reqBody)
-	if err != nil && err != io.EOF {
+	if err := decodeBody(req, &reqBody); err != nil && !errors.Is(err, errNoBody) {
 		return nil, err
 	}
 	args.Task = reqBody.Task
