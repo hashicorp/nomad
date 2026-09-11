@@ -526,8 +526,9 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 func (s *Server) replicateNamespaces(stopCh chan struct{}) {
 	req := structs.NamespaceListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:     s.config.AuthoritativeRegion,
-			AllowStale: true,
+			Region:        s.config.AuthoritativeRegion,
+			AllowStale:    true,
+			MinQueryIndex: 1,
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
@@ -632,6 +633,9 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 	// Construct a set of the local and remote namespaces
 	local := make(map[string][]byte)
 	remote := make(map[string]struct{})
+	if len(remoteList) == 0 {
+		return // prevent auth issues from wiping local state
+	}
 
 	// Add all the local namespaces
 	iter, err := state.Namespaces(nil)
@@ -676,8 +680,9 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 func (s *Server) replicateNodePools(stopCh chan struct{}) {
 	req := structs.NodePoolListRequest{
 		QueryOptions: structs.QueryOptions{
-			Region:     s.config.AuthoritativeRegion,
-			AllowStale: true,
+			Region:        s.config.AuthoritativeRegion,
+			AllowStale:    true,
+			MinQueryIndex: 1,
 		},
 	}
 	limiter := rate.NewLimiter(replicationRateLimit, int(replicationRateLimit))
@@ -768,9 +773,13 @@ func (s *Server) replicateNodePools(stopCh chan struct{}) {
 // and the remote node pools to determine which node pools need to be deleted or
 // updated.
 func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*structs.NodePool) (delete []string, update []*structs.NodePool) {
+
 	// Construct a set of the local and remote node pools
 	local := make(map[string][]byte)
 	remote := make(map[string]struct{})
+	if len(remoteList) == 0 {
+		return // prevent auth issues from wiping local state
+	}
 
 	// Add all the local node pools
 	iter, err := store.NodePools(nil, state.SortDefault)
