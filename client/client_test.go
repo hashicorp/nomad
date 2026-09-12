@@ -1980,29 +1980,18 @@ func TestClient_getAllocatedResources(t *testing.T) {
 		require.NoError(err)
 	})
 
-	result := client.getAllocatedResources(client.config.Node)
-
 	// Ignore comparing networks for now
-	result.Flattened.Networks = nil
+	base, _ := client.getAllocatedResources(client.config.Node)
 
-	expected := structs.ComparableResources{
-		Flattened: structs.AllocatedTaskResources{
-			Cpu: structs.AllocatedCpuResources{
-				CpuShares:     768,
-				ReservedCores: []uint16{},
-			},
-			Memory: structs.AllocatedMemoryResources{
-				MemoryMB:    768,
-				MemoryMaxMB: 768,
-			},
-			Networks: nil,
-		},
-		Shared: structs.AllocatedSharedResources{
-			DiskMB: 768,
-		},
-	}
+	expected := structs.BaseComparableResource{}
+	expected.AllocatedCpuResources.CpuShares = 768
+	expected.AllocatedCpuResources.ReservedCores = []uint16{}
+	expected.AllocatedMemoryResources.MemoryMB = 768
+	expected.AllocatedMemoryResources.MemoryMaxMB = 768
+	expected.DiskMB = 768
 
-	assert.EqualValues(t, expected, *result)
+	assert.EqualValues(t, expected, *base)
+	must.Eq(t, expected, *base)
 }
 
 func TestClient_updateNodeFromDriverUpdatesAll(t *testing.T) {

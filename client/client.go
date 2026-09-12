@@ -3310,15 +3310,15 @@ func (c *Client) setGaugeForAllocationStats(baseLabels []metrics.Label) {
 	node := c.GetConfig().Node
 	total := node.NodeResources
 	res := node.ReservedResources
-	allocated := c.getAllocatedResources(node)
+	allocated, networks := c.getAllocatedResources(node)
 
 	// Emit allocated
-	metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.Flattened.Memory.MemoryMB), baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocated", "max_memory"}, float32(allocated.Flattened.Memory.MemoryMaxMB), baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.Shared.DiskMB), baseLabels)
-	metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.Flattened.Cpu.CpuShares), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "memory"}, float32(allocated.MemoryMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "max_memory"}, float32(allocated.MemoryMaxMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "disk"}, float32(allocated.DiskMB), baseLabels)
+	metrics.SetGaugeWithLabels([]string{"client", "allocated", "cpu"}, float32(allocated.CpuShares), baseLabels)
 
-	for _, n := range allocated.Flattened.Networks {
+	for _, n := range networks.FlattenedNetworks {
 		labels := append(baseLabels, metrics.Label{ //nolint:gocritic
 			Name:  "device",
 			Value: n.Device,
@@ -3327,25 +3327,25 @@ func (c *Client) setGaugeForAllocationStats(baseLabels []metrics.Label) {
 	}
 
 	// Emit unallocated
-	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.Flattened.Memory.MemoryMB
-	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.Shared.DiskMB
+	unallocatedMem := total.Memory.MemoryMB - res.Memory.MemoryMB - allocated.MemoryMB
+	unallocatedDisk := total.Disk.DiskMB - res.Disk.DiskMB - allocated.DiskMB
 
 	// The UsableCompute function call already subtracts and accounts for any
 	// reserved CPU within the client configuration. Therefore, we do not need
 	// to subtract that here.
-	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - allocated.Flattened.Cpu.CpuShares
+	unallocatedCpu := int64(total.Processors.Topology.UsableCompute()) - allocated.CpuShares
 
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "memory"}, float32(unallocatedMem), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "disk"}, float32(unallocatedDisk), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "unallocated", "cpu"}, float32(unallocatedCpu), baseLabels)
 
-	totalComparable := total.Comparable()
-	for _, n := range totalComparable.Flattened.Networks {
+	totalComparable := total.ComparableNetworks()
+	for _, n := range totalComparable.FlattenedNetworks {
 		// Determined the used resources
 		var usedMbits int
-		totalIdx := allocated.Flattened.Networks.NetIndex(n)
+		totalIdx := networks.FlattenedNetworks.NetIndex(n)
 		if totalIdx != -1 {
-			usedMbits = allocated.Flattened.Networks[totalIdx].MBits
+			usedMbits = networks.FlattenedNetworks[totalIdx].MBits
 		}
 
 		unallocatedMbits := n.MBits - usedMbits
@@ -3434,7 +3434,7 @@ func (c *Client) labels() []metrics.Label {
 	)
 }
 
-func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.ComparableResources {
+func (c *Client) getAllocatedResources(selfNode *structs.Node) (*structs.BaseComparableResource, *structs.ComparableNetworks) {
 	// Unfortunately the allocs only have IP so we need to match them to the
 	// device
 	cidrToDevice := make(map[*net.IPNet]string, len(selfNode.NodeResources.Networks))
@@ -3447,7 +3447,7 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 	}
 
 	// Sum the allocated resources
-	var allocated structs.ComparableResources
+	var allocated structs.BaseComparableResource
 	allocatedDeviceMbits := make(map[string]int)
 	for _, ar := range c.getAllocRunners() {
 		alloc := ar.Alloc()
@@ -3456,7 +3456,7 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 		}
 
 		// Add the resources
-		allocated.Add(alloc.AllocatedResources.Comparable())
+		allocated.Add(alloc.AllocatedResources.BaseComparable())
 
 		// Add the used network
 		if alloc.AllocatedResources != nil {
@@ -3484,17 +3484,17 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 		}
 	}
 
-	// Clear the networks
-	allocated.Flattened.Networks = nil
+	// create comaparableNetworks from the allocatedDeviceMbits
+	networks := &structs.ComparableNetworks{}
 	for dev, speed := range allocatedDeviceMbits {
 		net := &structs.NetworkResource{
 			Device: dev,
 			MBits:  speed,
 		}
-		allocated.Flattened.Networks = append(allocated.Flattened.Networks, net)
+		networks.FlattenedNetworks = append(networks.FlattenedNetworks, net)
 	}
 
-	return &allocated
+	return &allocated, networks
 }
 
 // GetTaskEventHandler returns an event handler for the given allocID and task name
