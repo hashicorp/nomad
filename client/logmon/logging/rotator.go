@@ -57,6 +57,7 @@ type FileRotator struct {
 	logger      hclog.Logger
 	purgeCh     chan struct{}
 	doneCh      chan struct{}
+	manifest    *OffsetManifest
 }
 
 // NewFileRotator returns a new file rotator
@@ -75,6 +76,12 @@ func NewFileRotator(path string, baseFile string, maxFiles int,
 		purgeCh:     make(chan struct{}, 1),
 		doneCh:      make(chan struct{}),
 	}
+
+	manifest, err := loadOffsetManifest(path, baseFile)
+	if err != nil {
+		return nil, err
+	}
+	rotator.manifest = manifest
 
 	if err := rotator.lastFile(); err != nil {
 		return nil, err
@@ -144,7 +151,7 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 		n += nw
 
 		// Increment the total number of bytes in the file
-		f.currentWr += int64(n)
+		f.currentWr += int64(nw)
 		if err != nil {
 			f.logger.Error("error writing to file", "error", err)
 
@@ -162,6 +169,10 @@ func (f *FileRotator) Write(p []byte) (n int, err error) {
 // nextFile opens the next file and purges older files if the number of rotated
 // files is larger than the maximum files configured by the user
 func (f *FileRotator) nextFile() error {
+	if err := f.updateManifestFile(f.logFileIdx, f.currentWr); err != nil {
+		f.logger.Error("error updating log offset manifest", "error", err)
+	}
+
 	nextFileIdx := f.logFileIdx
 	for {
 		nextFileIdx += 1
@@ -232,8 +243,37 @@ func (f *FileRotator) createFile() error {
 		return err
 	}
 	f.currentWr = fi.Size()
+	if err := f.ensureManifestFile(int64(f.logFileIdx), f.currentWr); err != nil {
+		return err
+	}
 	f.createOrResetBuffer()
 	return nil
+}
+
+func (f *FileRotator) ensureManifestFile(idx int64, size int64) error {
+	if f.manifest == nil {
+		f.manifest = newOffsetManifest(f.baseFileName)
+	}
+
+	key := strconv.FormatInt(idx, 10)
+	if file, ok := f.manifest.Files[key]; ok {
+		file.Size = size
+		f.manifest.Files[key] = file
+		return saveOffsetManifest(f.path, f.baseFileName, f.manifest)
+	}
+
+	var base int64
+	for _, file := range f.manifest.Files {
+		if file.Index < idx && file.Base+file.Size > base {
+			base = file.Base + file.Size
+		}
+	}
+	f.manifest.Files[key] = OffsetManifestLog{Index: idx, Base: base, Size: size}
+	return saveOffsetManifest(f.path, f.baseFileName, f.manifest)
+}
+
+func (f *FileRotator) updateManifestFile(idx int, size int64) error {
+	return f.ensureManifestFile(int64(idx), size)
 }
 
 // flushPeriodically flushes the buffered writer every 100ms to the underlying
