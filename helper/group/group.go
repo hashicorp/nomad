@@ -16,11 +16,9 @@ type Group struct {
 
 // Go starts f in a goroutine and must be called before Wait.
 func (g *Group) Go(f func()) {
-	g.wg.Add(1)
-	go func() {
-		defer g.wg.Done()
+	g.wg.Go(func() {
 		f()
-	}()
+	})
 }
 
 func (g *Group) AddCh(ch <-chan struct{}) {

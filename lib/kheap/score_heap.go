@@ -9,8 +9,8 @@ import (
 
 // HeapItem is an interface type implemented by objects stored in the ScoreHeap
 type HeapItem interface {
-	Data() interface{} // The data object
-	Score() float64    // Score to use as the sort criteria
+	Data() any      // The data object
+	Score() float64 // Score to use as the sort criteria
 }
 
 // A ScoreHeap implements heap.Interface and is a min heap
@@ -37,7 +37,7 @@ func (pq ScoreHeap) Swap(i, j int) {
 
 // Push implements heap.Interface and only stores
 // the top K elements by Score
-func (pq *ScoreHeap) Push(x interface{}) {
+func (pq *ScoreHeap) Push(x any) {
 	item := x.(HeapItem)
 	if len(pq.items) < pq.capacity {
 		pq.items = append(pq.items, item)
@@ -57,7 +57,7 @@ func (pq *ScoreHeap) Push(x interface{}) {
 // Pop implements heap.Interface and returns the top K scoring elements in
 // increasing order of Score. Callers must reverse the order of returned
 // elements to get the top K scoring elements in descending order.
-func (pq *ScoreHeap) Pop() interface{} {
+func (pq *ScoreHeap) Pop() any {
 	old := pq.items
 	n := len(old)
 	item := old[n-1]
@@ -67,8 +67,8 @@ func (pq *ScoreHeap) Pop() interface{} {
 
 // GetItemsReverse returns the items in this min heap in reverse order
 // sorted by score descending
-func (pq *ScoreHeap) GetItemsReverse() []interface{} {
-	ret := make([]interface{}, pq.Len())
+func (pq *ScoreHeap) GetItemsReverse() []any {
+	ret := make([]any, pq.Len())
 	i := pq.Len() - 1
 	for pq.Len() > 0 {
 		item := heap.Pop(pq)

@@ -20,7 +20,7 @@ type DelayHeap struct {
 
 // HeapNode is an interface type implemented by objects stored in the DelayHeap
 type HeapNode interface {
-	Data() interface{} // The data object
+	Data() any         // The data object
 	ID() string        // ID of the object, used in conjunction with namespace for deduplication
 	Namespace() string // Namespace of the object, can be empty
 }
@@ -65,14 +65,14 @@ func (h delayedHeapImp) Swap(i, j int) {
 	h[j].index = j
 }
 
-func (h *delayedHeapImp) Push(x interface{}) {
+func (h *delayedHeapImp) Push(x any) {
 	node := x.(*delayHeapNode)
 	n := len(*h)
 	node.index = n
 	*h = append(*h, node)
 }
 
-func (h *delayedHeapImp) Pop() interface{} {
+func (h *delayedHeapImp) Pop() any {
 	old := *h
 	n := len(old)
 	node := old[n-1]

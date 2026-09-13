@@ -55,11 +55,15 @@ func testJob() *api.Job {
 // added here to avoid linter warning
 
 // int64ToPtr returns the pointer to an int
+//
+//go:fix inline
 func int64ToPtr(i int64) *int64 {
-	return &i
+	return new(i)
 }
 
 // float64ToPtr returns the pointer to an float64
+//
+//go:fix inline
 func float64ToPtr(f float64) *float64 {
-	return &f
+	return new(f)
 }

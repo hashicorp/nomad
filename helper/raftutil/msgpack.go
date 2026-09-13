@@ -14,9 +14,9 @@ import (
 )
 
 // fixTime converts any suspected time.Time binary string representation to time.Time
-func fixTime(v interface{}) {
+func fixTime(v any) {
 	switch v2 := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		for ek, ev := range v2 {
 			if s, ok := ev.(string); ok {
 				t, err := maybeDecodeTime(s)
@@ -27,7 +27,7 @@ func fixTime(v interface{}) {
 				fixTime(ev)
 			}
 		}
-	case []interface{}:
+	case []any:
 		for _, e := range v2 {
 			fixTime(e)
 		}

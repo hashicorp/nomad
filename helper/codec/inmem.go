@@ -12,8 +12,8 @@ import (
 // InmemCodec is used to do an RPC call without going over a network
 type InmemCodec struct {
 	Method string
-	Args   interface{}
-	Reply  interface{}
+	Args   any
+	Reply  any
 	Err    error
 }
 
@@ -22,7 +22,7 @@ func (i *InmemCodec) ReadRequestHeader(req *rpc.Request) error {
 	return nil
 }
 
-func (i *InmemCodec) ReadRequestBody(args interface{}) error {
+func (i *InmemCodec) ReadRequestBody(args any) error {
 	if args == nil {
 		return nil
 	}
@@ -32,7 +32,7 @@ func (i *InmemCodec) ReadRequestBody(args interface{}) error {
 	return nil
 }
 
-func (i *InmemCodec) WriteResponse(resp *rpc.Response, reply interface{}) error {
+func (i *InmemCodec) WriteResponse(resp *rpc.Response, reply any) error {
 	if resp.Error != "" {
 		i.Err = errors.New(resp.Error)
 		return nil
