@@ -4,11 +4,20 @@
 package command
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net"
+	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/hashicorp/cap/util"
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 	"golang.org/x/text/cases"
@@ -40,6 +49,9 @@ UI Options
 
   -authenticate: Exchange your Nomad ACL token for a one-time token in the
     web UI, if ACLs are enabled.
+
+  -proxy: Starts a proxy from localhost to the target Nomad cluster. Useful for
+    accessing mTLS protected clusters.
 
   -show-url: Show the Nomad UI URL instead of opening with the default browser.
 `
@@ -89,11 +101,13 @@ func (c *UiCommand) Name() string { return "ui" }
 
 func (c *UiCommand) Run(args []string) int {
 	var authenticate bool
+	var startProxy bool
 	var showUrl bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&authenticate, "authenticate", false, "")
+	flags.BoolVar(&startProxy, "proxy", false, "")
 	flags.BoolVar(&showUrl, "show-url", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -108,8 +122,16 @@ func (c *UiCommand) Run(args []string) int {
 		return 1
 	}
 
+	// -show-url + -proxy together make no sense
+	if showUrl && startProxy {
+		c.Ui.Error("Use either -show-url or -proxy.")
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+
 	// Get the HTTP client
-	client, err := c.Meta.Client()
+	clientConf := c.clientConfig()
+	client, err := api.NewClient(clientConf)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
@@ -213,10 +235,53 @@ func (c *UiCommand) Run(args []string) int {
 		return 0
 	}
 
+	proxyChan := make(chan error, 1)
+	if startProxy {
+		httpClient := api.DefaultHttpClient()
+		if err := api.ConfigureTLS(httpClient, clientConf.TLSConfig); err != nil {
+			c.Ui.Error(fmt.Sprintf("Error configuring mTLS: %v", err))
+			return 1
+		}
+		proxy := httputil.NewSingleHostReverseProxy(url.Clone())
+		proxy.Transport = httpClient.Transport
+		proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, err error) {
+			if !errors.Is(err, context.Canceled) {
+				c.Ui.Error(fmt.Sprintf("Proxy error: %v", err))
+			}
+			http.Error(w, "Nomad upstream unavailable", http.StatusBadGateway)
+		}
+
+		listener, err := net.Listen("tcp", "localhost:0")
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error starting proxy: %v", err))
+			return 1
+		}
+
+		c.Ui.Output(fmt.Sprintf("Proxying http://%s to %s", listener.Addr(), url.Redacted()))
+		go func() {
+			proxyChan <- http.Serve(listener, proxy)
+		}()
+
+		// Rewrite url before open is called
+		url.Scheme = "http"
+		url.Host = listener.Addr().String()
+	}
+
 	c.Ui.Output(output)
 	if err := util.OpenURL(url.String()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error opening URL: %s", err))
 		return 1
+	}
+
+	if startProxy {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		select {
+		case <-sigChan:
+		case err := <-proxyChan:
+			c.Ui.Error(fmt.Sprintf("Error proxying: %v", err))
+			return 1
+		}
 	}
 	return 0
 }

@@ -306,7 +306,7 @@ func defaultUDSClient(config *Config) *http.Client {
 	return defaultClient(httpClient)
 }
 
-func defaultHttpClient() *http.Client {
+func DefaultHttpClient() *http.Client {
 	httpClient := cleanhttp.DefaultPooledClient()
 	return defaultClient(httpClient)
 }
@@ -523,7 +523,7 @@ func NewClient(config *Config) (*Client, error) {
 		case config.url.Scheme == "unix":
 			httpClient = defaultUDSClient(config) // mutates config
 		default:
-			httpClient = defaultHttpClient()
+			httpClient = DefaultHttpClient()
 		}
 
 		if err := ConfigureTLS(httpClient, config.TLSConfig); err != nil {
