@@ -169,6 +169,9 @@ func (s *StateStore) fetchOrCreateNodePoolTxn(txn *txn, index uint64, name strin
 		if err != nil {
 			return nil, err
 		}
+		if err := txn.Insert("index", &IndexEntry{TableNodePools, index}); err != nil {
+			return nil, fmt.Errorf("index update failed: %w", err)
+		}
 	}
 
 	return pool, nil
