@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/device"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
@@ -35,9 +37,24 @@ const (
 
 	// deviceName is the name of the devices being exposed
 	deviceName = "mock"
+
+	// fileMode indicates the plugin builds fingerprints based on filepermissions
+	fileMode = "file"
+
+	// DynamicMode indicates the plugin builds fingerprints from static config
+	dynamicMode = "dynamic"
+
+	staticMode = "static"
+
+	dynamicFileTTL = 120
 )
 
 var (
+
+	//disallowedDirs lists filepaths that are not allowed in
+	// the `dir` when running in dynamic mode.
+	disallowedSegments = []string{"..", "bin", "boot", "dev", "etc", "lib", "sbin", "srv", "proc", "Windows"}
+
 	// pluginInfo describes the plugin
 	pluginInfo = &base.PluginInfoResponse{
 		Type:              base.PluginTypeDevice,
@@ -48,7 +65,11 @@ var (
 
 	// configSpec is the specification of the plugin's configuration
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"dir": hclspec.NewAttr("dir", "string", false),
+		"plugin_mode": hclspec.NewAttr("plugin_mode", "string", false),
+		"dir": hclspec.NewDefault(
+			hclspec.NewAttr("dir", "string", false),
+			hclspec.NewLiteral("\".\""),
+		),
 		"list_period": hclspec.NewDefault(
 			hclspec.NewAttr("list_period", "string", false),
 			hclspec.NewLiteral("\"5s\""),
@@ -91,9 +112,17 @@ type AttributeConfig struct {
 type Config struct {
 	Dir             string             `codec:"dir"`
 	ListPeriod      string             `codec:"list_period"`
+	PluginMode      string             `codec:"plugin_mode"`
 	UnhealthyPerm   string             `codec:"unhealthy_perm"`
 	AttributeConfig []*AttributeConfig `codec:"attribute_config"`
 	DeviceConfig    []*StaticDevice    `codec:"device_config"`
+}
+
+// FileInfo is a struct for holding all the information
+// the plugin needs to clean up files after tasks have launched
+type FileInfo struct {
+	DeviceFiles map[string]time.Time
+	FileLock    sync.RWMutex
 }
 
 // FsDevice is an example device plugin. The device plugin exposes files as
@@ -113,15 +142,25 @@ type FsDevice struct {
 	// devices
 	listPeriod time.Duration
 
-	// StaticDevices holds devices defined in static configuration
-	StaticDevices []*device.Device
+	// pluginMode indicates how devices are modeled. In file mode the plugin reads
+	// files from the device directory and reports their health based on file
+	// permissions.In static mode the plugin models the devices from the
+	// `device_config` configuration object. In dynamic mode the plugin models
+	// the devices from `device_config` and creates files during device
+	// reservation and attempts to clean them up after 2 minutes in collectDynamicStats.
+	pluginMode string
 
-	// DefaultAttributes are those defined in configuration
-	DefaultAttributes map[string]*structs.Attribute
+	// defaultAttributes are those defined in configuration. If defined the attributes will be
+	// applied to all devices
+	defaultAttributes map[string]*structs.Attribute
 
 	// devices is the set of detected devices and maps whether they are healthy
 	devices    map[string]bool
 	deviceLock sync.RWMutex
+
+	// dynamicFileInfo holds a map of file names dynamically created during device reservation
+	// and their creation times. Files older than 90 seconds are deleted during fingerprinting
+	dynamicFileInfo FileInfo
 }
 
 // NewExampleDevice returns a new example device plugin.
@@ -183,58 +222,88 @@ func (d *FsDevice) SetConfig(c *base.Config) error {
 	if err := base.MsgPackDecode(c.PluginConfig, &config); err != nil {
 		return err
 	}
-
-	if config.Dir != "" && len(config.DeviceConfig) != 0 {
-		errText := fmt.Sprintf("both dir and device_config should not be set:\n dir:%s DeviceConfig: %v", config.Dir, config.DeviceConfig)
-		return errors.New(errText)
+	switch config.PluginMode {
+	case fileMode:
+		d.pluginMode = config.PluginMode
+	case staticMode:
+		d.pluginMode = config.PluginMode
+	case dynamicMode:
+		d.pluginMode = config.PluginMode
+	default:
+		return errors.New("plugin_mode must be set and must be one of `dynamic`, `static` or `file")
 	}
 
-	// Set the default file directory if neither is set. This replaces
-	// the hcl level default that was removed with the introduction of static config
-	if config.Dir == "" && len(config.DeviceConfig) == 0 {
-		config.Dir = "."
+	if d.pluginMode != fileMode && len(config.DeviceConfig) == 0 {
+		return errors.New("device_config must be provided when plugin_mode set to dynamic` or `static`")
+	}
+	if d.pluginMode == fileMode && len(config.DeviceConfig) != 0 {
+		return errors.New("plugin_mode set to `file`, unexpected device_config provided")
 	}
 
 	period, err := time.ParseDuration(config.ListPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to parse list period %q: %v", config.ListPeriod, err)
 	}
+
+	d.deviceDir = config.Dir
+	d.unhealthyPerm = config.UnhealthyPerm
 	d.listPeriod = period
 
 	if config.AttributeConfig != nil {
-		d.DefaultAttributes = make(map[string]*structs.Attribute, len(config.AttributeConfig))
+		d.defaultAttributes = make(map[string]*structs.Attribute, len(config.AttributeConfig))
 		for _, a := range config.AttributeConfig {
 			attr, err := d.configToAttribute(a)
 			if err != nil {
 				return err
 			}
 
-			d.DefaultAttributes[(strings.ToLower(a.AttributeName))] = attr
+			d.defaultAttributes[(strings.ToLower(a.AttributeName))] = attr
 		}
 	}
+	// load device_config devices and set up dynamicDevices, if needed
 	if len(config.DeviceConfig) != 0 {
-		d.StaticDevices = make([]*device.Device, 0)
-
 		for _, v := range config.DeviceConfig {
-			unhealthyDesc := "Device was designated unhealthy"
-			var desc string
-			if v.Unhealthy {
-				desc = unhealthyDesc
-			}
-			d.StaticDevices = append(d.StaticDevices, &device.Device{
-				ID:         v.ID,
-				Healthy:    !v.Unhealthy,
-				HealthDesc: desc,
-			})
+			// device map holds 'healthy' & config holds 'unhealthy', so flip bool
 			d.devices[v.ID] = !v.Unhealthy
 		}
-
+		if d.pluginMode == dynamicMode {
+			// check deviceDir before
+			err = sanitizeDir(d.deviceDir)
+			if err != nil {
+				return err
+			}
+			d.dynamicFileInfo = FileInfo{
+				DeviceFiles: make(map[string]time.Time, len(config.DeviceConfig)),
+			}
+		}
 	}
+	return nil
+}
 
-	if config.Dir != "" {
-		// Save the device directory and the unhealthy permissions
-		d.deviceDir = config.Dir
-		d.unhealthyPerm = config.UnhealthyPerm
+// sanitizeDir checks the user provided dir to ensure it is not a relative
+// path or a path in a sensitive directory
+func sanitizeDir(dirPath string) error {
+	// allow default value
+	if dirPath == "." {
+		return nil
+	}
+	var segments []string
+	segments = strings.Split(dirPath, "/")
+	if len(segments) == 1 {
+		segments = strings.Split(dirPath, "\\")
+	}
+	if len(segments) == 1 {
+		return errors.New("could not split path")
+	}
+	for _, segment := range segments {
+		if slices.Contains(disallowedSegments, segment) {
+			return fmt.Errorf("%s is not allowed in dir when running in dynamic mode", segment)
+		}
+		// only disallow "." if the segment is less than 2 characters to avoid
+		// disallowing hidden directories
+		if len(segment) < 32 && strings.Contains(segment, ".") {
+			return fmt.Errorf("%s is not allowed in dir when running in dynamic mode", segment)
+		}
 	}
 	return nil
 }
@@ -242,21 +311,17 @@ func (d *FsDevice) SetConfig(c *base.Config) error {
 // Fingerprint streams detected devices. If device changes are detected or the
 // devices health changes, messages will be emitted.
 func (d *FsDevice) Fingerprint(ctx context.Context) (<-chan *device.FingerprintResponse, error) {
-	if d.deviceDir == "" && len(d.StaticDevices) == 0 {
-		return nil, status.New(codes.Internal, "neither device directory nor static device list set in config").Err()
-	}
-
 	outCh := make(chan *device.FingerprintResponse)
-	if len(d.StaticDevices) == 0 {
+	if d.pluginMode != fileMode {
 		go d.fingerprint(ctx, outCh)
 	} else {
-		go d.fingerprintStatic(ctx, outCh)
+		go d.fingerprintFiles(ctx, outCh)
 	}
 	return outCh, nil
 }
 
 // fingerprint is the long running goroutine that detects hardware
-func (d *FsDevice) fingerprint(ctx context.Context, devices chan *device.FingerprintResponse) {
+func (d *FsDevice) fingerprintFiles(ctx context.Context, devices chan *device.FingerprintResponse) {
 	defer close(devices)
 
 	// Create a timer that will fire immediately for the first detection
@@ -281,20 +346,14 @@ func (d *FsDevice) fingerprint(ctx context.Context, devices chan *device.Fingerp
 		if len(detected) == 0 {
 			continue
 		}
-		group, err := d.getDeviceGroup(detected)
-		if err != nil {
-			d.logger.Error("failed to get device group", "error", err)
-			if !strings.Contains(err.Error(), "failed to parse attribute") {
-				return
-			}
-		}
+		group := d.getDeviceGroup(detected)
 		devices <- device.NewFingerprint(group)
 
 	}
 }
 
 // fingerprint is the long running goroutine that detects hardware
-func (d *FsDevice) fingerprintStatic(ctx context.Context, devices chan *device.FingerprintResponse) {
+func (d *FsDevice) fingerprint(ctx context.Context, devices chan *device.FingerprintResponse) {
 	defer close(devices)
 	// Create a timer that will fire immediately for the first detection
 	ticker := time.NewTimer(0)
@@ -307,18 +366,24 @@ func (d *FsDevice) fingerprintStatic(ctx context.Context, devices chan *device.F
 			ticker.Reset(d.listPeriod)
 		}
 
-		d.logger.Trace("compiling static fingerprints")
-
-		group, err := d.getDeviceGroup(d.StaticDevices)
-		if err != nil {
-			d.logger.Error("failed to get device group", "error", err)
-			if !strings.Contains(err.Error(), "failed to parse attribute") {
-				return
+		var dynamicDevices []*device.Device
+		for id, healthy := range d.devices {
+			unhealthyDesc := "Device was designated unhealthy"
+			var desc string
+			if !healthy {
+				desc = unhealthyDesc
 			}
+			dynamicDevices = append(dynamicDevices, &device.Device{
+				ID:         id,
+				Healthy:    healthy,
+				HealthDesc: desc,
+			})
 		}
+		group := d.getDeviceGroup(dynamicDevices)
 		devices <- device.NewFingerprint(group)
 
 	}
+
 }
 
 func (d *FsDevice) diffFiles(files []os.DirEntry) []*device.Device {
@@ -389,8 +454,8 @@ func (d *FsDevice) diffFiles(files []os.DirEntry) []*device.Device {
 }
 
 // getDeviceGroup is a helper to build the DeviceGroup given a set of devices.
-func (d *FsDevice) getDeviceGroup(devices []*device.Device) (*device.DeviceGroup, error) {
-	if len(d.DefaultAttributes) == 0 {
+func (d *FsDevice) getDeviceGroup(devices []*device.Device) *device.DeviceGroup {
+	if len(d.defaultAttributes) == 0 {
 		return &device.DeviceGroup{
 			Vendor:  vendor,
 			Type:    deviceType,
@@ -401,7 +466,7 @@ func (d *FsDevice) getDeviceGroup(devices []*device.Device) (*device.DeviceGroup
 					String: new("attribute-wearing-sunglasses"),
 				},
 			},
-		}, nil
+		}
 	}
 
 	return &device.DeviceGroup{
@@ -409,8 +474,8 @@ func (d *FsDevice) getDeviceGroup(devices []*device.Device) (*device.DeviceGroup
 		Type:       deviceType,
 		Name:       deviceName,
 		Devices:    devices,
-		Attributes: d.DefaultAttributes,
-	}, nil
+		Attributes: d.defaultAttributes,
+	}
 
 }
 
@@ -420,12 +485,52 @@ func (d *FsDevice) Reserve(deviceIDs []string) (*device.ContainerReservation, er
 		return nil, status.New(codes.InvalidArgument, "no device ids given").Err()
 	}
 
+	resp := &device.ContainerReservation{}
+	// create device files in dynamic mode only
+	if d.pluginMode == dynamicMode {
+		d.dynamicFileInfo.FileLock.Lock()
+		defer d.dynamicFileInfo.FileLock.Unlock()
+
+		root, err := os.OpenRoot(d.deviceDir)
+		if err != nil {
+			return nil, err
+		}
+		defer root.Close()
+
+		for _, v := range deviceIDs {
+			if healthy, ok := d.devices[v]; !ok {
+				d.logger.Error("requested device unhealthy or not in device list", "device", v, "healthy", healthy, "ok", ok)
+				continue
+			}
+
+			fileName := filepath.Join(d.deviceDir, v)
+			f, err := root.Create(v)
+			if err != nil {
+				d.logger.Error(fmt.Sprintf("failed to create device file for %s", fileName), "error", err.Error())
+				continue
+			}
+
+			_, err = f.Stat()
+			if err != nil {
+				d.logger.Error(fmt.Sprintf("device file may not exist, could not read stats for :%s", fileName), "error", err.Error())
+			}
+			// Track dynamic file after validating with stats read
+			d.dynamicFileInfo.DeviceFiles[v] = time.Now()
+
+			// Add a mount
+			resp.Mounts = append(resp.Mounts, &device.Mount{
+				TaskPath: fmt.Sprintf("/tmp/task-mounts/%s", v),
+				HostPath: filepath.Join(d.deviceDir, v),
+				ReadOnly: false,
+			})
+		}
+		return resp, nil
+	}
+
 	deviceDir, err := filepath.Abs(d.deviceDir)
 	if err != nil {
 		return nil, status.Newf(codes.Internal, "failed to load device dir abs path").Err()
 	}
-
-	resp := &device.ContainerReservation{}
 
 	for _, id := range deviceIDs {
 		// Check if the device is known
@@ -454,6 +559,16 @@ func (d *FsDevice) Stats(ctx context.Context, interval time.Duration) (<-chan *d
 // stats is the long running goroutine that streams device statistics
 func (d *FsDevice) stats(ctx context.Context, stats chan *device.StatsResponse, interval time.Duration) {
 	defer close(stats)
+	var statsFunc func() (*device.DeviceGroupStats, error)
+
+	switch d.pluginMode {
+	case fileMode:
+		statsFunc = d.collectFileStats
+	case staticMode:
+		statsFunc = d.collectStaticStats
+	case dynamicMode:
+		statsFunc = d.collectDynamicStats
+	}
 
 	// Create a timer that will fire immediately for the first detection
 	ticker := time.NewTimer(0)
@@ -466,7 +581,7 @@ func (d *FsDevice) stats(ctx context.Context, stats chan *device.StatsResponse, 
 			ticker.Reset(interval)
 		}
 
-		deviceStats, err := d.collectStats()
+		deviceStats, err := statsFunc()
 		if err != nil {
 			stats <- &device.StatsResponse{
 				Error: err,
@@ -483,7 +598,110 @@ func (d *FsDevice) stats(ctx context.Context, stats chan *device.StatsResponse, 
 	}
 }
 
-func (d *FsDevice) collectStats() (*device.DeviceGroupStats, error) {
+// collectDynamicStats returns the size, modify_time, and time at which the dynamic
+// device file is eligible for deletion
+func (d *FsDevice) collectDynamicStats() (*device.DeviceGroupStats, error) {
+	l := len(d.devices)
+	group := &device.DeviceGroupStats{
+		Vendor:        vendor,
+		Type:          deviceType,
+		Name:          deviceName,
+		InstanceStats: make(map[string]*device.DeviceStats, l),
+	}
+	now := time.Now()
+	var (
+		failedFiles []string
+		errs        multierror.Error
+	)
+	for name, createTime := range d.dynamicFileInfo.DeviceFiles {
+		p := filepath.Join(d.deviceDir, name)
+		deletionTime := createTime.Add(time.Second * dynamicFileTTL)
+
+		f, err := os.Stat(p)
+		if err != nil {
+			return nil, fmt.Errorf("failed to stat %q: %v", p, err)
+		}
+
+		s := &device.DeviceStats{
+			Summary: &structs.StatValue{
+				IntNumeratorVal: new(f.Size()),
+				Unit:            "bytes",
+				Desc:            "Filesize in bytes",
+			},
+			Stats: &structs.StatObject{
+				Attributes: map[string]*structs.StatValue{
+					"size": {
+						IntNumeratorVal: new(f.Size()),
+						Unit:            "bytes",
+						Desc:            "Filesize in bytes",
+					},
+					"modify_time": {
+						StringVal: new(f.ModTime().String()),
+						Desc:      "Last modified",
+					},
+					"file_ttl": {
+						StringVal: new(deletionTime.GoString()),
+						Desc:      "Time after which dynamic file will be removed",
+					},
+				},
+			},
+			Timestamp: now,
+		}
+
+		group.InstanceStats[name] = s
+
+		now := time.Now()
+		if now.After(deletionTime) {
+			d.dynamicFileInfo.FileLock.Lock()
+			defer d.dynamicFileInfo.FileLock.Unlock()
+
+			root, err := os.OpenRoot(d.deviceDir)
+			if err != nil {
+				d.logger.Error("deletion failed", "error", err.Error())
+				continue
+			}
+
+			err = root.Remove(name)
+			if err != nil {
+				errs = *multierror.Append(&errs, err)
+				failedFiles = append(failedFiles, p)
+			} else {
+				delete(d.dynamicFileInfo.DeviceFiles, name)
+				d.logger.Trace("successfully removed device", "device name", p)
+			}
+		}
+	}
+
+	collectedErrs := errs.ErrorOrNil()
+	if collectedErrs != nil {
+		d.logger.Error("dynamic file deletion failed, manual deletion required", "undeleted files", strings.Join(failedFiles, ", "), "error", collectedErrs.Error())
+
+	}
+	return group, collectedErrs
+}
+
+// collectStaticStats returns a single stat that lists the number of devices available
+func (d *FsDevice) collectStaticStats() (*device.DeviceGroupStats, error) {
+	l := len(d.devices)
+	return &device.DeviceGroupStats{
+		Vendor: vendor,
+		Type:   deviceType,
+		Name:   deviceName,
+		InstanceStats: map[string]*device.DeviceStats{
+			"static": {
+				Summary: &structs.StatValue{
+					IntNumeratorVal: new(int64(l)),
+					Unit:            "devices",
+					Desc:            "Number of static devices available",
+				},
+			},
+		},
+	}, nil
+
+}
+
+// colelctFileStats returns the size, modify_time, and mode for device files
+func (d *FsDevice) collectFileStats() (*device.DeviceGroupStats, error) {
 	d.deviceLock.RLock()
 	defer d.deviceLock.RUnlock()
 	l := len(d.devices)

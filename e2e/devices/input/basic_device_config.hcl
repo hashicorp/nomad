@@ -1,10 +1,11 @@
 # Copyright IBM Corp. 2015, 2026
 # SPDX-License-Identifier: BUSL-1.1
 
-log_level = "WARN"
+log_level = "ERROR"
 
 plugin "nomad-device-example" {
   "config" {
+    "plugin_mode" = "static"
     "list_period" = "15s"
     "attribute_config" = [
       {
@@ -43,11 +44,11 @@ plugin "nomad-device-example" {
         id = "P1"
       },
       {
-        id        = "T100"
+        id        = "T101"
         unhealthy = true
       },
       {
-        id        = "P1"
+        id        = "P2"
         unhealthy = true
       },
     ]
