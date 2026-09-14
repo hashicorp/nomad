@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where `job plan` returned exit code 0 instead of 1 when an unchanged job still required allocations to be placed or destroyed
+```
