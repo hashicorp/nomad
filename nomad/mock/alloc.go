@@ -152,7 +152,16 @@ func AllocForNode(n *structs.Node) *structs.Allocation {
 
 }
 
-func AllocForNodeWithoutReservedPort(n *structs.Node) *structs.Allocation {
+type AllocOption func(a *structs.Allocation)
+
+func WithDynamicPort(port int) AllocOption {
+	return func(a *structs.Allocation) {
+		a.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: port}}
+		a.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: port}}
+	}
+}
+
+func AllocForNodeWithoutReservedPort(n *structs.Node, opt ...AllocOption) *structs.Allocation {
 	nodeIP := n.NodeResources.NodeNetworks[0].Addresses[0].Address
 
 	dynamicPortRange := structs.DefaultMaxDynamicPort - structs.DefaultMinDynamicPort
@@ -169,6 +178,10 @@ func AllocForNodeWithoutReservedPort(n *structs.Node) *structs.Allocation {
 	// Set dynamic port to a random value.
 	alloc.TaskResources["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
 	alloc.AllocatedResources.Tasks["web"].Networks[0].DynamicPorts = []structs.Port{{Label: "http", Value: randomDynamicPort}}
+
+	for _, o := range opt {
+		o(alloc)
+	}
 
 	return alloc
 }
