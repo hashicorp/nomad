@@ -1,0 +1,19 @@
+```release-note:bug
+node pools: Fixed a bug where node pools could stop replicating between federated regions
+```
+
+```release-note:bug
+node pools: Fixed a bug where an invalid replication token could delete node pools in a federated follower region
+```
+
+```release-note:bug
+node pools: Fixed a bug where blocking queries would not unblock if a node pool was added automatically by registering a node
+```
+
+```release-note:bug
+namespaces: Fixed a bug where namespaces could stop replicating between federated regions
+```
+
+```release-note:bug
+namespaces: Fixed a bug where an invalid replication token could delete namespaces in a federated follower region
+```
