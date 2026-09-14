@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fix job statuses error when request body is empty using HTTP2
+```

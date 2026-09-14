@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -86,6 +87,9 @@ var (
 			AllowCredentials: true,
 		})
 	}
+
+	// errNoBody is used during decoding when a request body is empty.
+	errNoBody = errors.New("Request body is empty")
 )
 
 type handlerFn func(resp http.ResponseWriter, req *http.Request) (any, error)
@@ -905,15 +909,34 @@ func isAPIClientError(code int) bool {
 	return 400 <= code && code <= 499
 }
 
-// decodeBody is used to decode a JSON request body
+// decodeBody is used to decode a JSON request body. If
+// the request does not contain a body, errNoBody will
+// be returned.
 func decodeBody(req *http.Request, out any) error {
-
-	if req.Body == http.NoBody {
-		return errors.New("Request body is empty")
+	// For HTTP/1 requests, an empty body can be set
+	// to the http.NoBody value, so check for that.
+	if req.Body == nil || req.Body == http.NoBody {
+		return errNoBody
 	}
 
 	dec := json.NewDecoder(req.Body)
-	return dec.Decode(&out)
+	err := dec.Decode(&out)
+
+	// If the decoding was successful, just return.
+	if err == nil {
+		return nil
+	}
+
+	// If the body was empty (either 0 bytes read or
+	// only whitespace read) then an EOF error will
+	// be returned. This will be the case for HTTP/2
+	// requests which set an empty reader.
+	if errors.Is(err, io.EOF) {
+		return errNoBody
+	}
+
+	// Return the actual decoding error encountered.
+	return err
 }
 
 // setIndex is used to set the index response header
