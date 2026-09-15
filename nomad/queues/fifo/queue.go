@@ -41,14 +41,14 @@ type FifoQueue struct {
 	wg     sync.WaitGroup
 }
 
-func NewFifoQueue(ss *state.StateStore, broker queue.Broker, logger hclog.Logger) *FifoQueue {
+func NewFifoQueue(logger hclog.Logger, ss *state.StateStore, broker queue.Broker) *FifoQueue {
 	return &FifoQueue{
 		queue:      queue.NewWorkloadQueue(workloadSortFn()),
 		enqueueCh:  make(chan *fifoWorkload, 8192),
 		qNotify:    make(chan struct{}, 1),
 		evalBroker: broker,
 		state:      ss,
-		logger:     logger.Named("Fifo Queue"),
+		logger:     logger.Named("fifo_queue"),
 	}
 }
 
@@ -80,16 +80,6 @@ func (f *FifoQueue) Dequeue(j *structs.Job) *structs.Evaluation {
 func (f *FifoQueue) Start(ctx context.Context) error {
 	rCtx, cancel := context.WithCancel(ctx)
 	f.cancel = cancel
-
-	snap, err := f.state.Snapshot()
-	if err != nil {
-		f.logger.Error("failed to get state snapshot", "err", err)
-		return err
-	}
-
-	if err := f.restore(snap); err != nil {
-		return err
-	}
 
 	f.wg.Go(func() {
 		f.runProducer(rCtx)
@@ -148,48 +138,19 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 	}
 }
 
-func (f *FifoQueue) restore(snap *state.StateSnapshot) error {
-	ws := memdb.NewWatchSet()
-	iter, err := snap.Evals(ws, state.SortDefault)
+func (f *FifoQueue) Restore(eval *structs.Evaluation, _ *structs.Job) error {
+	w := newFifoWorkload(eval)
+
+	placed, err := queue.IsSchedulingComplete(w, f.state)
 	if err != nil {
-		f.logger.Error("failed to get evals while enabling queue", "err", err)
+		// f.logger.Error("failed to wait for placement while enabling queue", "err", err)
 		return err
 	}
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		eval, ok := raw.(*structs.Evaluation)
-		if !ok {
-			f.logger.Error("object from eval table not an eval")
-			continue
-		}
-
-		// Skip non batch jobs
-		if eval.Type != structs.JobTypeBatch {
-			continue
-		}
-		// If the eval was not a job register, skip it
-		if eval.TriggeredBy != structs.EvalTriggerJobRegister {
-			continue
-		}
-		// Pending evals will be enqueued later in leadership transfer
-		if eval.Status == structs.EvalStatusPending {
-			continue
-		}
-
-		w := newFifoWorkload(eval)
-
-		placed, err := queue.IsSchedulingComplete(w, f.state)
-		if err != nil {
-			f.logger.Error("failed to wait for placement while enabling queue", "err", err)
-		}
-		if !placed {
-			w.waitOnRestore = true
-			f.enqueueCh <- w
-		}
+	if !placed {
+		w.waitOnRestore = true
+		f.enqueueCh <- w
 	}
-
 	return nil
-
 }
 
 func (f *FifoQueue) Type() structs.BatchQueueType {

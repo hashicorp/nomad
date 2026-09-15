@@ -13,17 +13,18 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func NewQueue(ss *state.StateStore, sconf *structs.BatchQueue, broker queue.Broker, logger hclog.Logger) (queue.Queue, error) {
-	switch sconf.Type {
-	case structs.BatchQueueTypeDynamic:
-		qconf := &structs.DynamicQueueConfig{}
-		if err := structs.DecodeBatchQueueConf(sconf.Config, qconf); err != nil {
-			return nil, err
-		}
-		return dynamic.NewDynamicPriorityQueue(ss, broker, sconf, qconf, logger), nil
-	case structs.BatchQueueTypeFifo:
-		return fifo.NewFifoQueue(ss, broker, logger), nil
-	default:
-		return passthrough.NewPassthroughQueue(broker), nil
+func NewQueue(logger hclog.Logger, ss *state.StateStore, conf *structs.BatchQueueConfig, broker queue.Broker) queue.Queue {
+	qType := structs.BatchQueueTypePassthrough
+	if conf != nil {
+		qType = conf.Type()
 	}
+
+	switch qType {
+	case structs.BatchQueueTypeDynamic:
+		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf.DynamicPriority)
+	case structs.BatchQueueTypeFifo:
+		return fifo.NewFifoQueue(logger, ss, broker)
+	}
+
+	return passthrough.NewPassthroughQueue(broker)
 }

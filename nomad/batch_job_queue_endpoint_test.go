@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/queues"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
@@ -74,8 +75,7 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 			mockQueue.On("Stop")
 			s.batchQueueMgr = queues.NewBatchQueueMgr(
 				t.Context(),
-				structs.BatchQueue{},
-				nil,
+				testlog.HCLogger(t),
 				nil,
 				queues.WithQueue("default", mockQueue),
 			)
@@ -161,8 +161,7 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 			resp := structs.QueueJobsResponse{}
 			s1.batchQueueMgr = queues.NewBatchQueueMgr(
 				t.Context(),
-				structs.BatchQueue{},
-				nil,
+				testlog.HCLogger(t),
 				nil,
 				queues.WithQueue("default", mockQueue),
 			)
@@ -201,8 +200,7 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 
 	s.batchQueueMgr = queues.NewBatchQueueMgr(
 		t.Context(),
-		structs.BatchQueue{},
-		nil,
+		testlog.HCLogger(t),
 		nil,
 		queues.WithQueue("default", mockQueue),
 	)
@@ -261,8 +259,7 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 
 			s1.batchQueueMgr = queues.NewBatchQueueMgr(
 				t.Context(),
-				structs.BatchQueue{},
-				nil,
+				testlog.HCLogger(t),
 				nil,
 				queues.WithQueue("default", mockQueue),
 			)

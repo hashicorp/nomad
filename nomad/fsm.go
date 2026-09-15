@@ -977,7 +977,7 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 	}
 
 	if eval.ShouldEnqueue() {
-		if eval.Type == structs.JobTypeBatch && eval.TriggeredBy == structs.EvalTriggerJobRegister {
+		if eval.IsBatchQueue() {
 			n.batchQueue.Enqueue(eval)
 		} else {
 			n.evalBroker.Enqueue(eval)

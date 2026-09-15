@@ -489,9 +489,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	s.batchQueueMgr = queues.NewBatchQueueMgr(
 		s.shutdownCtx,
-		s.config.DefaultSchedulerConfig.BatchQueue,
-		s.evalBroker,
 		logger,
+		s.evalBroker,
 	)
 	if err != nil {
 		s.Shutdown()
