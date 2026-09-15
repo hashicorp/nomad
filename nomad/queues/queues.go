@@ -21,7 +21,7 @@ func NewQueue(logger hclog.Logger, ss *state.StateStore, conf *structs.BatchQueu
 
 	switch qType {
 	case structs.BatchQueueTypeDynamic:
-		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf)
+		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf.DynamicPriority)
 	case structs.BatchQueueTypeFifo:
 		return fifo.NewFifoQueue(logger, ss, broker)
 	}

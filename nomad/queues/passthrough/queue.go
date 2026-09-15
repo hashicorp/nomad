@@ -26,6 +26,9 @@ func (p *PassthroughQueue) Type() structs.BatchQueueType {
 	return structs.BatchQueueTypePassthrough
 }
 
+// Restore is no-op here, because the eval broker will already have done it for non-pending evals
+func (p *PassthroughQueue) Restore(_ *structs.Evaluation, _ *structs.Job) error { return nil }
+
 // Start is a noop for the passthrough implementation
 func (p *PassthroughQueue) Start(context.Context) error { return nil }
 

@@ -24,7 +24,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 
 	t.Run("returns if eval complete", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{})
 
 		testEval := mock.Eval()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
@@ -47,7 +47,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 
 	t.Run("continues watching blocked evals", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{})
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -93,7 +93,7 @@ func TestDynamicPriorityQueue_waitForPlacement(t *testing.T) {
 
 	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{})
 
 		testEval := mock.Eval()
 		next := mock.Eval()
@@ -330,18 +330,15 @@ func TestDynamicPriorityQueue_decayUsage(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				queue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, &structs.DynamicQueueConfig{
+				queue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
 					HalfLife: tc.halfLife,
-				}, hclog.New(hclog.DefaultOptions))
+				})
 
 				for _, tenant := range tc.tenants {
 					queue.tenants[tenant.tid] = tenant
 				}
 
-				snapshot, err := ss.Snapshot()
-				must.NoError(t, err)
-
-				queue.decayUsage(now, snapshot)
+				queue.decayUsage(now)
 
 				for _, tenant := range tc.tenants {
 					must.Eq(t, tenant.totalUsage, tc.expectedTenantUsage[tenant.tid], must.Cmp(cmpopts.EquateApprox(0, 1e-9)))
@@ -394,7 +391,7 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			q := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, tc.conf, hclog.New(hclog.DefaultOptions))
+			q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, tc.conf)
 
 			lowUsageWorkload := &dynamicPriorityWorkload{tid: tc.lowUsageTenant.tid, eval: &structs.Evaluation{Priority: 5}}
 			highUsageWorkload := &dynamicPriorityWorkload{tid: tc.highUsageTenant.tid, eval: &structs.Evaluation{Priority: 5}}
@@ -886,7 +883,7 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 	t.Run("pending eval results in false", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{})
 
 		testEval := mock.Eval()
 		testEval.Status = structs.EvalStatusPending
@@ -905,7 +902,7 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 
 	t.Run("eval with pending blockedEval results in false", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{})
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -929,7 +926,7 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 
 	t.Run("eval with complete blockedEval results in true", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{})
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -955,9 +952,9 @@ func TestDynamicPriorityQueue_isSchedulingComplete(t *testing.T) {
 func TestDynamicPriorityQueue_restore(t *testing.T) {
 	t.Run("unplaced workload is enqueued", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{
-			TenantType: "namespace",
-		}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
+			TenantType: structs.TenantTypeNamespace,
+		})
 
 		// Set the state store before calling restore
 		testQueue.state = ss
@@ -978,10 +975,7 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 		testEval.CreateTime = now.UnixNano()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
-		snap, err := ss.Snapshot()
-		must.NoError(t, err)
-
-		err = testQueue.restore(snap, now)
+		err := testQueue.Restore(testEval, job)
 		must.NoError(t, err)
 
 		// Verify the workload was enqueued
@@ -995,66 +989,12 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 		}
 	})
 
-	t.Run("skips pending/non-batch/non-register evals", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{
-			TenantType: "namespace",
-		}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
-
-		// Set the state store before calling restore
-		testQueue.state = ss
-
-		// Create jobs for different eval types
-		batchJob := mock.Job()
-		batchJob.Type = structs.JobTypeBatch
-		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, batchJob)
-
-		serviceJob := mock.Job()
-		serviceJob.Type = structs.JobTypeService
-		ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, serviceJob)
-
-		// Create various evals that should be skipped
-		pendingEval := mock.Eval()
-		pendingEval.JobID = batchJob.ID
-		pendingEval.Namespace = batchJob.Namespace
-		pendingEval.Type = structs.JobTypeBatch
-		pendingEval.TriggeredBy = structs.EvalTriggerJobRegister
-		pendingEval.Status = structs.EvalStatusPending
-
-		serviceEval := mock.Eval()
-		serviceEval.JobID = serviceJob.ID
-		serviceEval.Type = structs.JobTypeService
-
-		nonRegisterEval := mock.Eval()
-		nonRegisterEval.JobID = batchJob.ID
-		nonRegisterEval.Namespace = batchJob.Namespace
-		nonRegisterEval.Type = structs.JobTypeBatch
-		nonRegisterEval.TriggeredBy = structs.EvalTriggerNodeUpdate
-		nonRegisterEval.Status = structs.EvalStatusComplete
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{
-			pendingEval,
-			serviceEval,
-			nonRegisterEval,
-		})
-
-		snap, err := ss.Snapshot()
-		must.NoError(t, err)
-
-		err = testQueue.restore(snap, time.Now())
-		must.NoError(t, err)
-
-		// Verify no tenants were created (all evals should be skipped)
-		must.Eq(t, 0, len(testQueue.tenants))
-	})
-
 	t.Run("restores usage correctly", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{
-			TenantType: "namespace",
-		}, &structs.DynamicQueueConfig{
-			HalfLife: 10 * time.Second,
-		}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
+			TenantType: structs.TenantTypeNamespace,
+			HalfLife:   10 * time.Second,
+		})
 
 		// Set the state store before calling restore
 		testQueue.state = ss
@@ -1084,10 +1024,7 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 		testEval.ModifyTime = now.UnixNano()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
-		snap, err := ss.Snapshot()
-		must.NoError(t, err)
-
-		err = testQueue.restore(snap, now)
+		err := testQueue.Restore(testEval, job)
 		must.NoError(t, err)
 
 		// Verify tenant was created and usage was tracked
@@ -1113,11 +1050,10 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 	t.Run("decays usage properly", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		halfLife := 10 * time.Second
-		testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueueConfig{
-			TenantType: "namespace",
-		}, &structs.DynamicQueueConfig{
-			HalfLife: halfLife,
-		}, hclog.New(hclog.DefaultOptions))
+		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
+			TenantType: structs.TenantTypeNamespace,
+			HalfLife:   halfLife,
+		})
 
 		// Set the state store before calling restore
 		testQueue.state = ss
@@ -1149,11 +1085,12 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 		testEval.ModifyTime = evalCreateTime.UnixNano()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
-		snap, err := ss.Snapshot()
+		err := testQueue.Restore(testEval, job)
 		must.NoError(t, err)
 
-		err = testQueue.restore(snap, now)
-		must.NoError(t, err)
+		// Restore records usage starting at eval.ModifyTime; decay is applied
+		// separately during queue startup and periodic recalculation.
+		testQueue.decayUsage(now)
 
 		// Verify tenant was created and usage was tracked
 		tenant, ok := testQueue.tenants[TenantID(job.Namespace)]
