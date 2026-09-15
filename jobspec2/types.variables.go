@@ -60,6 +60,14 @@ type Variable struct {
 	// declaration, the type of the default variable will be used. This will
 	// allow to ensure that users set this variable correctly.
 	Type cty.Type
+
+	// TypeDefaults holds the default values declared through optional()
+	// attribute modifiers within the variable's type constraint, if any. It is
+	// nil when the type constraint declares no such defaults. These defaults
+	// must be applied to a value before it is converted to Type so that any
+	// omitted optional attributes are populated with their declared defaults.
+	TypeDefaults *typeexpr.Defaults
+	
 	// Common name of the variable
 	Name string
 	// Description of the variable
@@ -76,6 +84,18 @@ func (v *Variable) GoString() string {
 	}
 	fmt.Fprintf(b, "}")
 	return b.String()
+}
+
+// applyTypeDefaults applies the default values declared through optional()
+// attribute modifiers in the variable's type constraint. It is a no-op when the
+// type declares no such defaults or when the value is null. Defaults must be
+// applied before converting a value to the variable's type so that omitted
+// optional attributes are populated with their declared defaults.
+func (v *Variable) applyTypeDefaults(val cty.Value) cty.Value {
+	if v.TypeDefaults == nil || val.IsNull() {
+		return val
+	}
+	return v.TypeDefaults.Apply(val)
 }
 
 // validateValue ensures that all of the configured custom validations for a
@@ -288,13 +308,14 @@ func (variables *Variables) decodeVariableBlock(block *hcl.Block, ectx *hcl.Eval
 	}
 
 	if t, ok := content.Attributes["type"]; ok {
-		tp, moreDiags := typeexpr.Type(t.Expr)
+		tp, typeDefaults, moreDiags := typeexpr.TypeConstraintWithDefaults(t.Expr)
 		diags = append(diags, moreDiags...)
 		if moreDiags.HasErrors() {
 			return diags
 		}
 
 		v.Type = tp
+		v.TypeDefaults = typeDefaults
 	}
 
 	if def, ok := content.Attributes["default"]; ok {
@@ -306,6 +327,7 @@ func (variables *Variables) decodeVariableBlock(block *hcl.Block, ectx *hcl.Eval
 
 		if v.Type != cty.NilType {
 			var err error
+			defaultValue = v.applyTypeDefaults(defaultValue)
 			defaultValue, err = convert.Convert(defaultValue, v.Type)
 			if err != nil {
 				diags = append(diags, &hcl.Diagnostic{
@@ -485,6 +507,7 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 		diags = append(diags, valDiags...)
 		if variable.Type != cty.NilType {
 			var err error
+			val = variable.applyTypeDefaults(val)
 			val, err = convert.Convert(val, variable.Type)
 			if err != nil {
 				diags = append(diags, &hcl.Diagnostic{
@@ -574,6 +597,7 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 
 			if variable.Type != cty.NilType {
 				var err error
+				val = variable.applyTypeDefaults(val)
 				val, err = convert.Convert(val, variable.Type)
 				if err != nil {
 					diags = append(diags, &hcl.Diagnostic{
@@ -622,6 +646,7 @@ func (c *jobConfig) collectInputVariableValues(env []string, files []*hcl.File, 
 
 		if variable.Type != cty.NilType {
 			var err error
+			val = variable.applyTypeDefaults(val)
 			val, err = convert.Convert(val, variable.Type)
 			if err != nil {
 				diags = append(diags, &hcl.Diagnostic{
