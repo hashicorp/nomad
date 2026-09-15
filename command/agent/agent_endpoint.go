@@ -116,12 +116,8 @@ func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Reques
 	var secret string
 	s.parseToken(req, &secret)
 
-	// COMPAT(2.1.0): this will return an error in Nomad 2.1
-	// ref https://hashicorp.atlassian.net/browse/NMD-1507
-	var warning string
 	if err := aclPermissionCheckHelper(srv, secret, func(aclObj *acl.ACL) bool { return aclObj.AllowAgentWrite() }); err != nil {
-		warning = "anonymous server join is deprecated and will be removed in a future version of Nomad"
-		s.logger.Warn(warning)
+		return nil, err
 	}
 
 	// Get the join addresses
@@ -140,7 +136,6 @@ func (s *HTTPServer) AgentJoinRequest(resp http.ResponseWriter, req *http.Reques
 	return joinResult{
 		NumJoined: num,
 		Error:     errStr,
-		Warning:   warning,
 	}, nil
 }
 
