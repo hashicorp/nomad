@@ -53,7 +53,7 @@ var (
 
 	//disallowedDirs lists filepaths that are not allowed in
 	// the `dir` when running in dynamic mode.
-	disallowedSegments = []string{"..", "bin", "boot", "dev", "etc", "lib", "sbin", "srv", "proc", "Windows"}
+	disallowedSegments = []string{"..", "bin", "boot", "dev", "etc", "lib", "sbin", "srv", "proc", "windows"}
 
 	// pluginInfo describes the plugin
 	pluginInfo = &base.PluginInfoResponse{
@@ -270,6 +270,7 @@ func (d *FsDevice) SetConfig(c *base.Config) error {
 			// check deviceDir before
 			err = sanitizeDir(d.deviceDir)
 			if err != nil {
+				d.logger.Error("invalid config", "dir", d.deviceDir)
 				return err
 			}
 			d.dynamicFileInfo = FileInfo{
@@ -296,12 +297,12 @@ func sanitizeDir(dirPath string) error {
 		return errors.New("could not split path")
 	}
 	for _, segment := range segments {
-		if slices.Contains(disallowedSegments, segment) {
+		if slices.Contains(disallowedSegments, strings.ToLower(segment)) {
 			return fmt.Errorf("%s is not allowed in dir when running in dynamic mode", segment)
 		}
 		// only disallow "." if the segment is less than 2 characters to avoid
 		// disallowing hidden directories
-		if len(segment) < 32 && strings.Contains(segment, ".") {
+		if len(segment) < 3 && strings.Contains(segment, ".") {
 			return fmt.Errorf("%s is not allowed in dir when running in dynamic mode", segment)
 		}
 	}
