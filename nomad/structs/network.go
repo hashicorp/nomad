@@ -346,18 +346,6 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason s
 					}
 				}
 			}
-		} else {
-			// COMPAT(0.11): Remove in 0.11
-			for task, resources := range alloc.TaskResources {
-				if len(resources.Networks) == 0 {
-					continue
-				}
-				n := resources.Networks[0]
-				if c, r := idx.AddReserved(n); c {
-					collide = true
-					reason = fmt.Sprintf("(deprecated) collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
-				}
-			}
 		}
 	}
 	return

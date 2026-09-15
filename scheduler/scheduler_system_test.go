@@ -766,8 +766,8 @@ func TestSystemSched_JobModify_InPlace(t *testing.T) {
 	// Verify the network did not change
 	rp := structs.Port{Label: "admin", Value: 5000}
 	for _, alloc := range out {
-		for _, resources := range alloc.TaskResources {
-			must.Eq(t, rp, resources.Networks[0].ReservedPorts[0])
+		for _, network := range alloc.AllocatedResources.Shared.Networks {
+			must.Eq(t, rp, network.ReservedPorts[0])
 		}
 	}
 }
@@ -4024,7 +4024,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					} else {
 						// make sure alloc matches tg1.Networks
 						alloc = mock.AllocForNode(nodes[nodeIdx])
-						alloc.TaskResources["web"].Networks = nil
+						alloc.AllocatedResources.Shared.Networks = nil
 					}
 					alloc.Job = oldJob
 					alloc.JobID = oldJob.ID
@@ -4041,7 +4041,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					} else {
 						// make sure alloc matches tg1.Networks
 						alloc = mock.AllocForNode(nodes[nodeIdx])
-						alloc.TaskResources["web"].Networks = nil
+						alloc.AllocatedResources.Shared.Networks = nil
 					}
 					alloc.Job = job
 					alloc.JobID = job.ID
@@ -4070,7 +4070,7 @@ func TestSystemSched_UpdateBlock(t *testing.T) {
 					} else {
 						// make sure alloc matches tg1.Networks
 						alloc = mock.AllocForNode(nodes[nodeIdx])
-						alloc.TaskResources["web"].Networks = nil
+						alloc.AllocatedResources.Shared.Networks = nil
 					}
 					alloc.Job = job
 					alloc.JobID = job.ID

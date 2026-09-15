@@ -1617,7 +1617,6 @@ func TestFSM_ApplyPlanResults(t *testing.T) {
 	fsm.evalBroker.SetEnabled(true)
 	// Create the request and create a deployment
 	alloc := mock.Alloc()
-	alloc.Resources = &structs.Resources{} // COMPAT(0.11): Remove in 0.11, used to bypass resource creation in state store
 	job := alloc.Job
 	alloc.Job = nil
 
@@ -2453,9 +2452,6 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 	state := fsm.State()
 	alloc := mock.Alloc()
 
-	// remove old versions to force migration path
-	alloc.AllocatedResources = nil
-
 	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID)))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
@@ -2465,13 +2461,13 @@ func TestFSM_SnapshotRestore_Allocs_Canonicalize(t *testing.T) {
 	state2 := fsm2.State()
 	ws := memdb.NewWatchSet()
 	out, err := state2.AllocByID(ws, alloc.ID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.NotNil(t, out.AllocatedResources)
-	require.Contains(t, out.AllocatedResources.Tasks, "web")
+	must.NotNil(t, out.AllocatedResources)
+	must.MapContainsKey(t, out.AllocatedResources.Tasks, "web")
 
 	alloc.Canonicalize()
-	require.Equal(t, alloc, out)
+	must.Eq(t, alloc, out)
 }
 
 func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
