@@ -5,171 +5,225 @@ package queues
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/queues/passthrough"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-const DefaultQueue = structs.NodePoolDefault
-
-type QueueData struct {
-	queue.Queue
-	isDefaultQueue bool
-}
-
 type BatchQueueManager struct {
-	queues      map[string]*QueueData
-	broker      queue.Broker
-	state       *state.StateStore
-	enabled     atomic.Bool
+	// qk keeps track of the queues for each node pool.
+	qk *queueKeeper
+	// broker is passed to queues to forward to when ready.
+	broker queue.Broker
+	// passthrough is a fallback queue that passes evals straight to the broker.
+	passthrough queue.Queue
+
+	// enabled and state are set when the server runs SetEnabled(true)
+	enabled atomic.Bool
+	state   *state.StateStore
+
+	// newQueueFn is called to create a new queue, to be overridden in tests.
+	newQueueFn newQueueFn
+
 	shutdownCtx context.Context
-	mux         sync.Mutex
 	logger      hclog.Logger
+
+	// coarse lock mainly to prevent concurrent enqueue/update calls.
+	mut sync.Mutex
 }
+
+// newQueueFn matches the signature of NewQueue
+type newQueueFn func(hclog.Logger, *state.StateStore, *structs.BatchQueueConfig, queue.Broker) queue.Queue
 
 type QueueMgrOpt func(*BatchQueueManager)
 
-// WithQueue allows passing in a queue in the constructor
-func WithQueue(pool string, q queue.Queue) QueueMgrOpt {
-	return func(b *BatchQueueManager) {
-		b.queues[pool] = &QueueData{q, true}
-	}
-}
+// NewBatchQueueMgr returns a BatchQueueManager. It must be enabled via
+// SetEnabled(true) before it will start processing jobs.
+func NewBatchQueueMgr(ctx context.Context, logger hclog.Logger,
+	broker queue.Broker, opt ...QueueMgrOpt) *BatchQueueManager {
 
-func NewBatchQueueMgr(ctx context.Context, defaultConf structs.BatchQueueConfig, broker queue.Broker, logger hclog.Logger, opt ...QueueMgrOpt) *BatchQueueManager {
-	mgr := &BatchQueueManager{
-		queues:      make(map[string]*QueueData),
+	qm := &BatchQueueManager{
+		qk:          newQueueKeeper(),
 		broker:      broker,
+		passthrough: passthrough.NewPassthroughQueue(broker),
+		newQueueFn:  NewQueue,
 		shutdownCtx: ctx,
-		mux:         sync.Mutex{},
-		logger:      logger,
+		logger:      logger.Named("batch_queue"),
 	}
-
 	for _, fn := range opt {
-		fn(mgr)
+		fn(qm)
 	}
-
-	return mgr
+	return qm
 }
 
-// Enqueue takes an evaluation and passes it to the respective queue.
-// Happens in Raft
-func (b *BatchQueueManager) Enqueue(e *structs.Evaluation) {
-	b.mux.Lock()
-	defer b.mux.Unlock()
-
-	if !b.enabled.Load() {
+// SetEnabled is called during leadership transfers to start and stop queues.
+func (qm *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
+	if qm.enabled.Load() == enabled {
 		return
 	}
 
-	// If an enqueue happens before SetEnabled = true, throw it away,
-	// it will be processed during eval restore
-	if b.state == nil {
+	// prevent concurrent calls to other methods.
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	if enabled {
+		if err := qm.enable(state); err != nil {
+			qm.logger.Warn("failed to enable batch queues, batch jobs will be processed normally", "err", err)
+			qm.qk.Wipe()
+			return
+		}
+	} else {
+		// eval broker will be shutting down, too, so no need to flush queues.
+		// we're just reclaiming some memory here.
+		qm.qk.Wipe()
+	}
+
+	qm.enabled.Store(enabled)
+}
+
+// enable creates, restores, and starts all queues. caller should hold a lock.
+func (qm *BatchQueueManager) enable(store *state.StateStore) error {
+	if store == nil {
+		return errors.New("empty state (this is a bug)")
+	}
+	qm.state = store
+
+	// set up queues for each node pool.
+	if err := qm.initQueues(); err != nil {
+		qm.qk.Wipe()
+		return fmt.Errorf("init queue error: %w", err)
+	}
+
+	// now that the queues are set up, restore evals into them.
+	if err := qm.restoreAllQueues(); err != nil {
+		qm.qk.Wipe()
+		return fmt.Errorf("restore queue error: %w", err)
+	}
+
+	for _, q := range qm.qk.Iter() {
+		q.Start(qm.shutdownCtx)
+	}
+	return nil
+}
+
+// Enqueue takes a pending evaluation, finds its job, and passes them to the
+// appropriate queue for the job's node pool.
+func (qm *BatchQueueManager) Enqueue(e *structs.Evaluation) {
+	// If an enqueue somehow happens before SetEnabled = true, throw it away;
+	// it will be processed during eval restore.
+	if e == nil || !qm.enabled.Load() {
 		return
 	}
 
-	job, err := b.state.JobByID(nil, e.Namespace, e.JobID)
+	// lock prevents evals being somehow dropped during queue changes
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	job, err := qm.state.JobByID(nil, e.Namespace, e.JobID)
+	// the eval broker probably can't do anything if the job can't be found,
+	// but we send the eval anyway out of an abundance of caution.
 	if err != nil {
+		qm.logger.Error("couldn't get job to enqueue, passing to eval broker", "eval_id", e.ID)
+		qm.broker.Enqueue(e)
+		return
+	}
+	if job == nil {
+		qm.logger.Error("job for eval not found to enqueue, passing to eval broker", "eval_id", e.ID)
+		qm.broker.Enqueue(e)
 		return
 	}
 
-	q, ok := b.queues[job.NodePool]
-	if !ok {
-		// If there was an error creating a queue and it does not
-		// exist, just pass the job to the eval broker for.
-		b.broker.Enqueue(e)
-		return
-	}
-	q.Enqueue(e, job)
+	qm.Queue(job.NodePool).Enqueue(e, job)
 }
 
-func (b *BatchQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
+func (qm *BatchQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
 	if job == nil {
 		return nil
 	}
 
-	if !b.enabled.Load() {
+	if !qm.enabled.Load() {
 		return nil
 	}
 
-	q, ok := b.queues[job.NodePool]
-	if !ok {
-		return nil
-	}
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
 
-	return q.Dequeue(job)
-}
-
-// SetEnabled is called during leadership transfers and is responsible for starting
-// and stopping queues.
-func (b *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
-	b.mux.Lock()
-	defer b.mux.Unlock()
-
-	if enabled {
-		// already enabled is a noop
-		if b.enabled.Load() {
-			return
-		}
-
-		if b.state == nil {
-			b.state = state
-		}
-		if err := b.startQueues(); err != nil {
-			b.logger.Error("failed to start batch queues, batch jobs will be processed normally", "err", err)
-		}
-	} else {
-		// stop default queue
-		for p := range b.queues {
-			b.stopQueue(p)
-		}
-		b.queues = make(map[string]*QueueData)
-	}
-
-	b.enabled.Store(enabled)
+	return qm.Queue(job.NodePool).Dequeue(job)
 }
 
 // Queue returns a pointer to a queue. This is used by RPC handlers
 // to get the jobs or tenants in a queue.
-func (b *BatchQueueManager) Queue(pool string) queue.Queue {
-	b.mux.Lock()
-	defer b.mux.Unlock()
-
-	// if the queue is currently nil of some update
-	// just return the default passthrough queue. This
-	// is unlikely to happen, but guards against a nil
-	// value being returned
-	if b.queues == nil || b.queues[pool] == nil {
-		return &passthrough.PassthroughQueue{}
+func (qm *BatchQueueManager) Queue(pool string) queue.Queue {
+	if q, ok := qm.qk.Get(pool); ok {
+		return q
 	}
-
-	return b.queues[pool]
+	// If a queue does not exist, pass through to eval broker.
+	// This can happen with jobs that specify node_pool = "all"
+	return qm.passthrough
 }
 
-// UpdateDefaultQueues updates all queues to use the new default_scheduler_config.batch_queue config.
-func (b *BatchQueueManager) UpdateDefaultQueues() error {
-	b.mux.Lock()
-	defer b.mux.Unlock()
-
-	if !b.enabled.Load() {
+// UpdateQueue updates an individual queue to use the provided config
+// TODO: make sure this gets called on node register, and (flush and) delete the Q on node pool delete
+func (qm *BatchQueueManager) UpdateQueue(pool *structs.NodePool) error {
+	if !qm.enabled.Load() {
 		return nil
 	}
 
-	// If a pool has the default_scheduler.batch_queue config, we should restart it
-	for p, q := range b.queues {
-		if q.isDefaultQueue {
-			b.stopQueue(p)
-		}
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	conf := configForPool(pool)
+
+	// TODO: special handling for the "all" pool, become a "global" default config.
+	// TODO: only restart queue if there's a change. (use Hash()?)
+
+	// stop the queue with the old config to send evals straight to the broker.
+	qm.qk.Stop(pool.Name)
+
+	// drop the queue if the config has been removed from the node pool.
+	if conf == nil || !conf.IsEnabled() {
+		qm.qk.Delete(pool.Name)
+		return nil
 	}
 
-	ws := memdb.NewWatchSet()
-	pools, err := b.state.NodePools(ws, state.SortDefault)
+	// make a new one
+	queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker)
+	qm.qk.Set(pool.Name, queue, false)
+
+	// restore from state
+	if err := qm.restoreQueue(pool.Name); err != nil {
+		qm.qk.Stop(pool.Name)
+		qm.qk.Delete(pool.Name)
+		return err
+	}
+
+	queue.Start(qm.shutdownCtx)
+
+	return nil
+}
+
+func configForPool(p *structs.NodePool) *structs.BatchQueueConfig {
+	if p.BatchQueueConfig != nil {
+		return p.BatchQueueConfig
+	}
+	// TODO: fallback to all/global queue config, if set.
+	return nil
+}
+
+// initQueues makes a new queue per node pool and store them in the queue keeper
+func (qm *BatchQueueManager) initQueues() error {
+	snap, err := qm.state.Snapshot()
+	if err != nil {
+		return err
+	}
+	pools, err := snap.NodePools(nil, state.SortDefault)
 	if err != nil {
 		return err
 	}
@@ -177,150 +231,91 @@ func (b *BatchQueueManager) UpdateDefaultQueues() error {
 	for raw := pools.Next(); raw != nil; raw = pools.Next() {
 		pool := raw.(*structs.NodePool)
 
-		// Don't create a queue for "all" node pool
+		// never create a queue for the special "all" node pool. later,
+		// if we enqueue a job with the "all" pool, we won't find a queue,
+		// and therefore send it straight to the eval broker.
 		if pool.Name == structs.NodePoolAll {
 			continue
 		}
 
-		_, isDefault, err := b.configForPool(pool)
-		if err != nil {
-			return err
-		}
-
-		if !isDefault {
+		conf := configForPool(pool)
+		if conf == nil {
 			continue
 		}
-		if err := b.startQueue(pool); err != nil {
-			return err
-		}
+
+		queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker)
+		qm.qk.Set(pool.Name, queue, false)
 	}
 
-	return b.enqueuePending(withDefaultQueueFilter())
+	return nil
 }
 
-// UpdateQueue updates an individual queue to use the provided config
-func (b *BatchQueueManager) UpdateQueue(conf *structs.NodePool) error {
-	b.mux.Lock()
-	defer b.mux.Unlock()
-
-	if !b.enabled.Load() {
+// restoreQueues restores all queues from state.
+func (qm *BatchQueueManager) restoreAllQueues() error {
+	// we should only do this on initial startup.
+	if qm.enabled.Load() {
 		return nil
 	}
-
-	// stop previously running queue
-	b.stopQueue(conf.Name)
-
-	// restart queue with new config
-	if err := b.startQueue(conf); err != nil {
-		return err
-	}
-
-	// enqueue any previously pending evaluations
-	return b.enqueuePending(withNodePoolFilter(conf.Name))
+	return qm.restoreQueue("")
 }
 
-type filter func(name string, qdata *QueueData) bool
+// restoreQueue runs Enqueue on pending evals and Restore on non-pending evals
+// for a given pool's queue. If pool is empty, it will restore all queues.
+func (qm *BatchQueueManager) restoreQueue(pool string) error {
 
-func withNodePoolFilter(pool string) filter {
-	return func(name string, qdata *QueueData) bool {
-		return pool == name
-	}
+	// TODO: iter jobs instead of evals, because we can't depend on the register-job eval existing in the state store.
+
+	return qm.iterEvals(func(eval *structs.Evaluation, job *structs.Job) error {
+
+		// skip evals on other pools.
+		if pool != "" && job.NodePool != pool {
+			return nil
+		}
+
+		q := qm.Queue(job.NodePool) // per-pool queue, or passthrough
+
+		if eval.Status == structs.EvalStatusPending {
+			q.Enqueue(eval, job)
+		} else {
+			// non-pending evals get "restored" (count resource usage, resume watching)
+			if err := q.Restore(eval, job); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
-func withDefaultQueueFilter() filter {
-	return func(name string, qdata *QueueData) bool {
-		return qdata.isDefaultQueue
-	}
-}
-
-// enqueuePending takes any pending evaluations and enqueues them on the proper
-// queue. When a queue is updates, it's state will be wiped. Queues can rebuild
-// their internal state but do not currently rebuild their previously pending evals.
-//
-// This happens in leader.go during leadership transfer but queue updates are not
-// related to leadership transfers, so the batch queue manager must do it.
-func (b *BatchQueueManager) enqueuePending(filterFn filter) error {
-	ws := memdb.NewWatchSet()
-	iter, err := b.state.Evals(ws, state.SortDefault)
+// iterEvals executes fn for each batch queue evaluation in the state store.
+func (qm *BatchQueueManager) iterEvals(fn func(*structs.Evaluation, *structs.Job) error) error {
+	snap, err := qm.state.Snapshot()
 	if err != nil {
 		return err
 	}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		eval, ok := raw.(*structs.Evaluation)
-		if !ok {
-			continue
-		}
+	evals, err := snap.Evals(nil, state.SortDefault)
+	if err != nil {
+		return err
+	}
 
-		// Skip non batch jobs
+	for raw := evals.Next(); raw != nil; raw = evals.Next() {
+		eval := raw.(*structs.Evaluation)
+
 		if !eval.IsBatchQueue() {
 			continue
 		}
 
-		job, err := b.state.JobByID(nil, eval.Namespace, eval.JobID)
+		job, err := snap.JobByID(nil, eval.Namespace, eval.JobID)
 		if err != nil {
 			return err
 		}
-
-		q, ok := b.queues[job.NodePool]
-		if !ok {
-			b.broker.Enqueue(eval)
-		}
-		if !filterFn(job.NodePool, q) {
+		if job == nil { // job may be nil if it was purged
 			continue
 		}
 
-		q.Enqueue(eval, job)
-	}
-	return nil
-}
-
-// startQueues encapsulates all the logic for starting every
-// queue in the cluster.
-func (b *BatchQueueManager) startQueues() error {
-	ws := memdb.NewWatchSet()
-	pools, err := b.state.NodePools(ws, state.SortDefault)
-	if err != nil {
-		return err
-	}
-
-	for raw := pools.Next(); raw != nil; raw = pools.Next() {
-		pool := raw.(*structs.NodePool)
-
-		// Don't create a queue for "all" node pool
-		if pool.Name == structs.NodePoolAll {
-			continue
-		}
-
-		if err = b.startQueue(pool); err != nil {
+		if err := fn(eval, job); err != nil {
 			return err
 		}
 	}
-	return nil
-}
-
-// stopQueue is a helper for stopping a queue if it exists,
-// and removing it from the queue map
-func (b *BatchQueueManager) stopQueue(pool string) {
-	if q, ok := b.queues[pool]; ok {
-		q.Stop()
-		delete(b.queues, pool)
-	}
-}
-
-// startQueue is a helper for starting a queue for a given nodepool,
-// and adding it to the queue map.
-func (b *BatchQueueManager) startQueue(np *structs.NodePool) error {
-	conf, isDefault, err := b.configForPool(np)
-	if err != nil {
-		return err
-	}
-	queue := NewQueue(b.logger, b.state, conf, b.broker)
-
-	if err := queue.Start(b.shutdownCtx); err != nil {
-		return err
-	}
-
-	b.queues[np.Name] = &QueueData{queue, isDefault}
-
 	return nil
 }

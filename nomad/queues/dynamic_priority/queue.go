@@ -42,10 +42,6 @@ type DynamicPriorityQueue struct {
 	// totalUsage is the sum of all tenant usages
 	totalUsage *ResourceUsage
 
-	tenantType structs.BatchQueueTenant
-
-	metadataKey string
-
 	// conf contains user configurations for tuning the behavior of the queue
 	conf *structs.DynamicQueueConfig
 
@@ -108,19 +104,14 @@ func workloadSortFn() func(i, j queue.Workload) int {
 	}
 }
 
+// Start assumes that the queue is ready to get going (i.e. restore has completed)
 func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
 	rCtx, cancel := context.WithCancel(ctx)
 	d.cancel = cancel
 
-	snap, err := d.state.Snapshot()
-	if err != nil {
-		d.logger.Error("failed to get state snapshot", "err", err)
-		return err
-	}
-
-	if err := d.restore(snap, time.Now()); err != nil {
-		return err
-	}
+	// the queue manager may have restored older evals into this queue,
+	// so decay usage as appropriate.
+	d.decayUsage(time.Now())
 
 	d.wg.Go(func() {
 		d.runProducer(rCtx)
@@ -137,71 +128,26 @@ func (d *DynamicPriorityQueue) Stop() {
 	d.wg.Wait()
 }
 
-// restore scans all evaluations and restores the usage state of the queue by
-// detecting which evals were already placed by a previous server
-func (d *DynamicPriorityQueue) restore(ss *state.StateSnapshot, now time.Time) error {
-	// The DPQ needs to rebuild it's internal usage state when enabled.
-	// The actual queue will be rebuilt when establishing leadership
-	// via pending eval enqueuing
+func (d *DynamicPriorityQueue) Restore(eval *structs.Evaluation, j *structs.Job) error {
+	w := d.generateWorkload(eval, j)
 
-	ws := memdb.NewWatchSet()
-	iter, err := ss.Evals(ws, state.SortDefault)
+	// TODO: count allocs for the *right* version of the job?
+
+	// generate the tenant if it doesn't exist
+	d.ensureTenant(w.tid)
+
+	placed, err := queue.IsSchedulingComplete(w, d.state)
 	if err != nil {
-		d.logger.Error("failed to get evals while enabling queue", "err", err)
 		return err
 	}
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		eval, ok := raw.(*structs.Evaluation)
-		if !ok {
-			d.logger.Error("object from eval table not an eval")
-			continue
-		}
-
-		// Skip non batch jobs
-		if eval.Type != structs.JobTypeBatch {
-			continue
-		}
-		// If the eval was not a job register, skip it
-		if eval.TriggeredBy != structs.EvalTriggerJobRegister {
-			continue
-		}
-		// Pending evals will be enqueued later in leadership transfer
-		if eval.Status == structs.EvalStatusPending {
-			continue
-		}
-
-		job, err := d.state.JobByID(nil, eval.Namespace, eval.JobID)
-		if err != nil {
-			return err
-		}
-
-		w := d.generateWorkload(eval, job)
-
-		// generate the tenant if it doesn't exist
-		d.ensureTenant(w.tid)
-
-		// When checking for workload placements, we never want to actually block
-		// in SetEnabled, but it's also entirely possible a queue eval is blocked and
-		// waiting to be completed from a previous DPQ placement. If that happens
-		// we should enqueue it and push it to the front of the queue.
-		complete, err := queue.IsSchedulingComplete(w, d.state)
-		if err != nil {
-			d.logger.Error("failed to wait for placement while enabling queue", "err", err)
-		}
-
-		if complete && evalHasPlacement(w.GetEval()) {
-			d.updateUsage(w)
-		}
-
-		if !complete {
-			w.waitOnRestore = true
-			d.enqueueCh <- w
-		}
+	if placed && evalHasPlacement(w.GetEval()) {
+		d.updateUsage(w)
 	}
 
-	d.decayUsage(now, ss)
-
+	if !placed {
+		w.waitOnRestore = true
+		d.enqueueCh <- w
+	}
 	return nil
 }
 
@@ -300,11 +246,11 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 // generateWorkload is used to create an initial workload from a given evaluation
 func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *structs.Job) *dynamicPriorityWorkload {
 	var tid TenantID
-	switch d.tenantType {
+	switch d.conf.TenantType {
 	case "namespace":
 		tid = TenantID(job.Namespace)
 	case "metadata":
-		tenantID, ok := job.Meta[d.metadataKey]
+		tenantID, ok := job.Meta[d.conf.MetadataKey]
 		if !ok {
 			return nil
 		}
@@ -351,14 +297,9 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 // their priorities based on tenant usage, which is decayed according to the
 // configured half-life, and usage weight.
 func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
-	state, err := d.state.Snapshot()
-	if err != nil {
-		d.logger.Error("failed to take state snapshot", "error", err)
-		return
-	}
 	// Decay tenant workload usages first, because a workload's
 	// priority relies on its tenant's usage.
-	d.decayUsage(now, state)
+	d.decayUsage(now)
 
 	// Now that we have accurate tenant usage, calculate
 	// each workloads new priority and update the queue
@@ -404,18 +345,24 @@ func (d *DynamicPriorityQueue) usageAdjustment(w *dynamicPriorityWorkload) int {
 // the time elapsed since (roughly) when the eval was placed, and the configured
 // half-life. If the eval no longer exists in the state store, its workload's
 // usage is removed from the calculation.
-func (d *DynamicPriorityQueue) decayUsage(now time.Time, state *state.StateSnapshot) {
+func (d *DynamicPriorityQueue) decayUsage(now time.Time) {
 	d.tMux.Lock()
 	defer d.tMux.Unlock()
 
 	totalUsage := &ResourceUsage{}
+
+	snap, err := d.state.Snapshot()
+	if err != nil {
+		d.logger.Error("failed to take state snapshot", "error", err)
+		return
+	}
 
 	for _, tenant := range d.tenants {
 		newWorkloadUsageByID := make(map[string]*dynamicPriorityWorkload)
 		tenantTotalUsage := &ResourceUsage{}
 
 		for evalId, workload := range tenant.placedWorkloadById {
-			eval, err := state.EvalByID(nil, evalId)
+			eval, err := snap.EvalByID(nil, evalId)
 			if err != nil || eval == nil {
 				continue
 			}

@@ -11,8 +11,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockQueue struct {
-	mock.Mock
+// WithQueue allows passing in a queue in the constructor (for testing)
+func WithQueue(pool string, q queue.Queue) QueueMgrOpt {
+	return func(b *BatchQueueManager) {
+		b.qk.Set(pool, q, false)
+	}
 }
 
 type MockBroker struct {
@@ -20,22 +23,40 @@ type MockBroker struct {
 }
 
 func (m *MockBroker) Enqueue(e *structs.Evaluation) {
-	m.Called(e)
+	m.Called(e.JobID) // concrete type for cleaner assertions
+}
+
+type MockQueue struct {
+	mock.Mock
+
+	name string
 }
 
 func (m *MockQueue) Type() structs.BatchQueueType {
+	if m.name != "" {
+		return structs.BatchQueueType(m.name)
+	}
 	return "test"
 }
 
-// Start is a noop for the passthrough implementation
-func (m *MockQueue) Start(context.Context) error { return nil }
+func (m *MockQueue) Start(context.Context) error {
+	m.Called()
+	return nil
+}
 
 func (m *MockQueue) Stop() {
 	m.Called()
 }
 
+func (m *MockQueue) Restore(e *structs.Evaluation, j *structs.Job) error {
+	// mock-call IDs for cleaner error outputs
+	m.Called(e.ID, j.ID)
+	return nil
+}
+
 func (m *MockQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
-	m.Called(e, j)
+	// mock-call IDs for cleaner error outputs
+	m.Called(e.ID, j.ID)
 }
 
 func (m *MockQueue) Dequeue(j *structs.Job) *structs.Evaluation {

@@ -68,7 +68,7 @@ func TestFifoQueue_workloadSortFn(t *testing.T) {
 }
 
 func TestFifoQueue_restore(t *testing.T) {
-	t.Run("unplaced workload is enqueued", func(t *testing.T) {
+	t.Run("restore enqueues unplaced workload", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
 
@@ -84,73 +84,53 @@ func TestFifoQueue_restore(t *testing.T) {
 		testEval.Status = structs.EvalStatusBlocked
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
-		snap, err := ss.Snapshot()
-		must.NoError(t, err)
-
-		err = testQueue.restore(snap)
+		err := testQueue.Restore(testEval, job)
 		must.NoError(t, err)
 
 		select {
 		case w := <-testQueue.enqueueCh:
 			must.Eq(t, testEval.ID, w.id)
+			must.Eq(t, testEval.ID, w.eval.ID)
 			must.True(t, w.waitOnRestore)
 		default:
 			t.Fatal("expected workload in enqueueCh channel")
 		}
 	})
 
-	t.Run("skips pending non-batch and non-register evals", func(t *testing.T) {
+	t.Run("restore does not enqueue placed workload", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
 
-		batchJob := mock.Job()
-		batchJob.Type = structs.JobTypeBatch
-		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, batchJob)
+		// NOTE: eval type/status filtering is handled by the BatchQueueManager
+		// restore path; FifoQueue.Restore only decides whether a workload is
+		// already placed and should be skipped.
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
 
-		serviceJob := mock.Job()
-		serviceJob.Type = structs.JobTypeService
-		ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, serviceJob)
+		testEval := mock.Eval()
+		testEval.JobID = job.ID
+		testEval.Namespace = job.Namespace
+		testEval.Type = structs.JobTypeBatch
+		testEval.TriggeredBy = structs.EvalTriggerJobRegister
+		testEval.Status = structs.EvalStatusComplete
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
-		pendingEval := mock.Eval()
-		pendingEval.JobID = batchJob.ID
-		pendingEval.Namespace = batchJob.Namespace
-		pendingEval.Type = structs.JobTypeBatch
-		pendingEval.TriggeredBy = structs.EvalTriggerJobRegister
-		pendingEval.Status = structs.EvalStatusPending
-
-		nonBatchEval := mock.Eval()
-		nonBatchEval.JobID = serviceJob.ID
-		nonBatchEval.Namespace = serviceJob.Namespace
-		nonBatchEval.Type = structs.JobTypeService
-		nonBatchEval.TriggeredBy = structs.EvalTriggerJobRegister
-		nonBatchEval.Status = structs.EvalStatusBlocked
-
-		nonRegisterEval := mock.Eval()
-		nonRegisterEval.JobID = batchJob.ID
-		nonRegisterEval.Namespace = batchJob.Namespace
-		nonRegisterEval.Type = structs.JobTypeBatch
-		nonRegisterEval.TriggeredBy = structs.EvalTriggerNodeUpdate
-		nonRegisterEval.Status = structs.EvalStatusBlocked
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{
-			pendingEval,
-			nonBatchEval,
-			nonRegisterEval,
-		})
-
-		snap, err := ss.Snapshot()
+		err := testQueue.Restore(testEval, job)
 		must.NoError(t, err)
 
-		err = testQueue.restore(snap)
-		must.NoError(t, err)
-		must.Eq(t, 0, len(testQueue.enqueueCh))
+		select {
+		case w := <-testQueue.enqueueCh:
+			t.Fatalf("expected no workload in enqueueCh, got eval %q", w.id)
+		default:
+		}
 	})
 }
 
 func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	ss := state.TestStateStore(t)
 	broker := newTestBroker()
-	q := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
+	q := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, broker)
 
 	ctx := t.Context()
 
