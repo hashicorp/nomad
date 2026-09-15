@@ -354,3 +354,79 @@ func TestPlanCommand_TemplateOutput(t *testing.T) {
 	out := strings.TrimSpace(ui.OutputWriter.String())
 	must.Eq(t, "job1", out, must.Sprintf("expected job ID 'job1', got: %s", out))
 }
+
+func TestPlanCommand_getExitCode(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name string
+		job  *api.Job
+		resp *api.JobPlanResponse
+		want int
+	}{
+		{
+			name: "regular job unchanged with no placements",
+			job:  &api.Job{},
+			resp: &api.JobPlanResponse{
+				Diff: &api.JobDiff{Type: "None"},
+				Annotations: &api.PlanAnnotations{
+					DesiredTGUpdates: map[string]*api.DesiredUpdates{
+						"group": {Ignore: 3},
+					},
+				},
+			},
+			want: 0,
+		},
+		{
+			// #20502: a job whose spec is unchanged (diff "None") can still
+			// require a placement, e.g. a system job with an allocation stopped
+			// individually. `job run` places it, so `job plan` must exit 1.
+			name: "regular job unchanged but placement required",
+			job:  &api.Job{},
+			resp: &api.JobPlanResponse{
+				Diff: &api.JobDiff{Type: "None"},
+				Annotations: &api.PlanAnnotations{
+					DesiredTGUpdates: map[string]*api.DesiredUpdates{
+						"group": {Place: 1, Ignore: 2},
+					},
+				},
+			},
+			want: 1,
+		},
+		{
+			// #2012: an unchanged periodic parent's dry-run always reports a
+			// hypothetical child placement, so its exit code must reflect only
+			// whether the spec changed.
+			name: "periodic job unchanged with spurious placement",
+			job:  &api.Job{Periodic: &api.PeriodicConfig{}},
+			resp: &api.JobPlanResponse{
+				Diff: &api.JobDiff{Type: "None"},
+				Annotations: &api.PlanAnnotations{
+					DesiredTGUpdates: map[string]*api.DesiredUpdates{
+						"group": {Place: 1},
+					},
+				},
+			},
+			want: 0,
+		},
+		{
+			name: "regular job edited with destructive update",
+			job:  &api.Job{},
+			resp: &api.JobPlanResponse{
+				Diff: &api.JobDiff{Type: "Edited"},
+				Annotations: &api.PlanAnnotations{
+					DesiredTGUpdates: map[string]*api.DesiredUpdates{
+						"group": {DestructiveUpdate: 1},
+					},
+				},
+			},
+			want: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.want, getExitCode(tc.job, tc.resp))
+		})
+	}
+}
