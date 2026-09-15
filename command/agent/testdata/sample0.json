@@ -24,9 +24,15 @@
       {
         "default": [
           {
-            "endpoints": ["/v1/metrics"],
-            "operations": ["*"],
-            "stages": ["*"],
+            "endpoints": [
+              "/v1/metrics"
+            ],
+            "operations": [
+              "*"
+            ],
+            "stages": [
+              "*"
+            ],
             "type": "HTTPEvent"
           }
         ]
@@ -70,11 +76,13 @@
       "node_threshold": 100,
       "node_window": "31m"
     },
-    "retry_join": [
-      "10.0.0.101",
-      "10.0.0.102",
-      "10.0.0.103"
-    ]
+	"server_join": {
+      "retry_join": [
+		"10.0.0.101",
+		"10.0.0.102",
+		"10.0.0.103"
+      ]
+	},
   },
   "syslog_facility": "LOCAL0",
   "telemetry": {
