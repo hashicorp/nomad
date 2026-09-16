@@ -1,3 +1,6 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
 package structs
 
 import (
@@ -43,11 +46,11 @@ func (bq *BatchQueueConfig) Type() BatchQueueType {
 	return BatchQueueTypeUnset
 }
 
-func (b *BatchQueueConfig) Validate() error {
-	switch b.Type() {
+func (bq *BatchQueueConfig) Validate() error {
+	switch bq.Type() {
 
 	case BatchQueueTypeDynamic:
-		return b.DynamicPriority.Validate()
+		return bq.DynamicPriority.Validate()
 
 	case BatchQueueTypeFifo:
 	case BatchQueueTypePassthrough:
@@ -55,7 +58,7 @@ func (b *BatchQueueConfig) Validate() error {
 	case BatchQueueTypeUnset:
 		return errors.New("missing batch queue type (dynamic_priority or fifo)")
 	default:
-		return fmt.Errorf("unsupported batch queue type: %q", b.Type())
+		return fmt.Errorf("unsupported batch queue type: %q", bq.Type())
 	}
 
 	return nil
