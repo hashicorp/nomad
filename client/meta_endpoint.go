@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 

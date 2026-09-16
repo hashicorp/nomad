@@ -13,7 +13,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/nomad/client/allocdir"
