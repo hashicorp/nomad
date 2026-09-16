@@ -313,7 +313,7 @@ func (o *DeviceOption) Canonicalize() {
 		return
 	}
 	if o.Count == nil {
-		o.Count = pointerOf(uint64(1))
+		o.Count = new(uint64(1))
 	}
 }
 
