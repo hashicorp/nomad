@@ -42,14 +42,10 @@ type BatchQueueManager struct {
 // newQueueFn matches the signature of NewQueue
 type newQueueFn func(hclog.Logger, *state.StateStore, *structs.BatchQueueConfig, queue.Broker) queue.Queue
 
-type QueueMgrOpt func(*BatchQueueManager)
-
 // NewBatchQueueMgr returns a BatchQueueManager. It must be enabled via
 // SetEnabled(true) before it will start processing jobs.
-func NewBatchQueueMgr(ctx context.Context, logger hclog.Logger,
-	broker queue.Broker, opt ...QueueMgrOpt) *BatchQueueManager {
-
-	qm := &BatchQueueManager{
+func NewBatchQueueMgr(ctx context.Context, logger hclog.Logger, broker queue.Broker) *BatchQueueManager {
+	return &BatchQueueManager{
 		qk:          newQueueKeeper(),
 		broker:      broker,
 		passthrough: passthrough.NewPassthroughQueue(broker),
@@ -57,10 +53,6 @@ func NewBatchQueueMgr(ctx context.Context, logger hclog.Logger,
 		shutdownCtx: ctx,
 		logger:      logger.Named("batch_queue"),
 	}
-	for _, fn := range opt {
-		fn(qm)
-	}
-	return qm
 }
 
 // SetEnabled is called during leadership transfers to start and stop queues.

@@ -217,7 +217,7 @@ type Server struct {
 
 	// batchQueueMgr is responsible for enqueuing job
 	// register evaluations on a queue implementation
-	batchQueueMgr *queues.BatchQueueManager
+	batchQueueMgr queues.QueueManager
 
 	// brokerLock is used to synchronise the alteration of the blockedEvals and
 	// evalBroker enabled state. These two subsystems change state when

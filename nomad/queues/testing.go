@@ -7,15 +7,44 @@ import (
 	"context"
 
 	"github.com/hashicorp/nomad/nomad/queues/queue"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/mock"
 )
 
-// WithQueue allows passing in a queue in the constructor (for testing)
-func WithQueue(pool string, q queue.Queue) QueueMgrOpt {
-	return func(b *BatchQueueManager) {
-		b.qk.Set(pool, q, false)
+type QueueManager interface {
+	SetEnabled(bool, *state.StateStore)
+	Enqueue(*structs.Evaluation)
+	Dequeue(*structs.Job) *structs.Evaluation
+	Queue(string) queue.Queue
+	UpdateQueue(*structs.NodePool) error
+}
+
+type MockQueueManager struct {
+	mock.Mock
+}
+
+func (m *MockQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
+	m.Called(enabled, state)
+}
+func (m *MockQueueManager) Enqueue(e *structs.Evaluation) {
+	m.Called(e)
+}
+func (m *MockQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
+	if args := m.Called(job); args.Get(0) != nil {
+		return args.Get(0).(*structs.Evaluation)
 	}
+	return nil
+}
+func (m *MockQueueManager) Queue(pool string) queue.Queue {
+	// Queue on the real manager should never return nil
+	return m.Called(pool).Get(0).(queue.Queue)
+}
+func (m *MockQueueManager) UpdateQueue(pool *structs.NodePool) error {
+	if args := m.Called(pool); args.Get(0) != nil {
+		return args.Get(0).(error)
+	}
+	return nil
 }
 
 type MockBroker struct {
