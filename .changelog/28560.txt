@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Show invalid regular expression errors on the jobs search page
+```

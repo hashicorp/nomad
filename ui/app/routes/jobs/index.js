@@ -213,11 +213,14 @@ export default class IndexRoute extends Route.extend(
     const errorDetails = /** @type {any} */ (error).errors;
     const errors = errorDetails?.toArray?.() || errorDetails || [];
     let err = errors[0];
-    // if it's an innocuous-enough seeming "You mistyped something while searching" error,
-    // handle it with a notification and don't throw. Otherwise, throw.
+    const detail = typeof err?.detail === 'string' ? err.detail : '';
+    // Recoverable search/filter errors (mistyped keys, invalid expressions, or
+    // regexes the backend cannot compile) stay on the jobs page. Other failures
+    // still throw so the existing error page is shown.
     if (
-      err?.detail.includes("couldn't find key") ||
-      err?.detail.includes('failed to read filter expression')
+      detail.includes("couldn't find key") ||
+      detail.includes('failed to read filter expression') ||
+      detail.includes('failed to compile regular expression')
     ) {
       this.watchList.jobsIndexDetailsController.abort();
       this.watchList.jobsIndexIDsController.abort();
@@ -230,7 +233,7 @@ export default class IndexRoute extends Route.extend(
 
       this.controllerFor('jobs.index').watchJobIDs.cancelAll();
 
-      let humanized = err.detail || '';
+      let humanized = detail;
 
       // Two ways we can help users here:
       // 1. They slightly mis-typed a key, so we should offer a correction

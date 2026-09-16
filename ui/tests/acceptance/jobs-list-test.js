@@ -254,6 +254,21 @@ module('Acceptance | jobs list', function (hooks) {
     assert.deepEqual(currentURL(), '/settings/tokens');
   });
 
+  test('a generic result-page error still shows the server error page', async function (assert) {
+    this.server.pretender.get('/v1/jobs/statuses', () => [
+      500,
+      {},
+      'failed to read result page: unexpected iterator error',
+    ]);
+
+    await JobsList.visit();
+
+    assert.ok(JobsList.error.isPresent, 'An error is shown');
+    assert.deepEqual(JobsList.error.title, 'Server Error');
+    assert.dom('[data-test-empty-jobs-list]').doesNotExist();
+    assert.dom('[data-test-jobs-search]').doesNotExist();
+  });
+
   test('when a gateway timeout error occurs, appropriate options are shown', async function (assert) {
     // Initial request is fine
     await JobsList.visit();
@@ -1600,6 +1615,191 @@ module('Acceptance | jobs list', function (hooks) {
         assert.dom('[data-test-filter-random-suggestion]').exists();
 
         localStorage.removeItem('nomadPageSize');
+      });
+
+      ['*', '+'].forEach((invalidInput) => {
+        test(`searching with "${invalidInput}" keeps the jobs page and shows the backend regex error`, async function (assert) {
+          this.server.create('job', {
+            name: 'example-job',
+            id: 'example-job',
+            modifyIndex: 1,
+            createAllocations: false,
+            shallow: true,
+          });
+
+          await JobsList.visit();
+          assert.dom('[data-test-job-row="example-job"]').exists();
+
+          const errorBody = `failed to read result page: failed to compile regular expression: error parsing regexp: missing argument to repetition operator: \`${invalidInput}\``;
+          this.server.pretender.get('/v1/jobs/statuses', () => [
+            500,
+            {},
+            errorBody,
+          ]);
+
+          await JobsList.search.fillIn(invalidInput);
+
+          assert.ok(
+            this.server.pretender.handledRequests.find((req) =>
+              decodeURIComponent(req.url).includes(
+                `filter=Name matches "(?i)${invalidInput}"`,
+              ),
+            ),
+            `A request was made with a Name matches filter for ${invalidInput}`,
+          );
+          assert.ok(
+            currentURL().startsWith('/jobs'),
+            'The jobs page URL is retained',
+          );
+          assert.dom('[data-test-error]').doesNotExist();
+          assert
+            .dom('[data-test-jobs-search]')
+            .exists('The jobs search remains editable');
+          assert.dom('[data-test-jobs-search]').isNotDisabled();
+          assert.dom('.job-row').doesNotExist('Stale job rows are cleared');
+          assert
+            .dom('[data-test-empty-jobs-list]')
+            .includesText('failed to compile regular expression');
+          assert
+            .dom('[data-test-empty-jobs-list]')
+            .includesText('missing argument to repetition operator');
+          assert
+            .dom('[data-test-empty-jobs-list]')
+            .includesText(
+              `No jobs match your current filter selection: Name matches "(?i)${invalidInput}"`,
+            );
+        });
+      });
+
+      test('correcting a regex search error restores matching jobs without leaving the page', async function (assert) {
+        this.server.create('job', {
+          name: 'example-job',
+          id: 'example-job',
+          modifyIndex: 2,
+          createAllocations: false,
+          shallow: true,
+        });
+        this.server.create('job', {
+          name: 'other-job',
+          id: 'other-job',
+          modifyIndex: 1,
+          createAllocations: false,
+          shallow: true,
+        });
+
+        await JobsList.visit();
+        assert.dom('.job-row').exists({ count: 2 });
+
+        const regexErrorBody =
+          'failed to read result page: failed to compile regular expression: error parsing regexp: missing argument to repetition operator: `*`';
+        const server = this.server;
+        this.server.pretender.get('/v1/jobs/statuses', function (request) {
+          const filter = request.queryParams.filter || '';
+          if (filter.includes('Name matches "(?i)*"')) {
+            return [500, {}, regexErrorBody];
+          }
+
+          let jobs = server.db.jobs.filter((job) => !job.parentId);
+          const nameMatch = /Name matches "\(\?i\)([^"]*)"/.exec(filter);
+          if (nameMatch && nameMatch[1]) {
+            const needle = nameMatch[1].toLowerCase();
+            jobs = jobs.filter((job) =>
+              String(job.name || '')
+                .toLowerCase()
+                .includes(needle),
+            );
+          }
+
+          return [
+            200,
+            { 'content-type': 'application/json' },
+            JSON.stringify(
+              jobs.map((job) => ({
+                ID: job.id,
+                Name: job.name,
+                Namespace: job.namespaceId || 'default',
+                Type: job.type,
+                Status: job.status,
+                NodePool: job.nodePool,
+                ModifyIndex: job.modifyIndex,
+                Allocs: [],
+              })),
+            ),
+          ];
+        });
+
+        await JobsList.search.fillIn('*');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText('failed to compile regular expression');
+        assert.dom('.job-row').doesNotExist();
+
+        await JobsList.search.fillIn('example-job');
+        assert.ok(
+          currentURL().startsWith('/jobs'),
+          'Correcting the search does not navigate away',
+        );
+        assert.dom('[data-test-error]').doesNotExist();
+        assert.dom('[data-test-empty-jobs-list]').doesNotExist();
+        assert.dom('[data-test-job-row="example-job"]').exists();
+        assert.dom('[data-test-job-row="other-job"]').doesNotExist();
+        assert.dom('.job-row').exists({ count: 1 });
+
+        await JobsList.search.fillIn('');
+        assert.ok(
+          currentURL().startsWith('/jobs'),
+          'Clearing the search stays on the jobs page',
+        );
+        assert.dom('[data-test-empty-jobs-list]').doesNotExist();
+        assert.dom('[data-test-job-row="example-job"]').exists();
+        assert.dom('[data-test-job-row="other-job"]').exists();
+        assert.dom('.job-row').exists({ count: 2 });
+      });
+
+      test('visiting a URL with an invalid Name matches filter uses the recoverable regex error UI', async function (assert) {
+        this.server.create('job', {
+          name: 'example-job',
+          id: 'example-job',
+          modifyIndex: 1,
+          createAllocations: false,
+          shallow: true,
+        });
+
+        const errorBody =
+          'failed to read result page: failed to compile regular expression: error parsing regexp: missing closing ]: `[`';
+        this.server.pretender.get('/v1/jobs/statuses', () => [
+          500,
+          {},
+          errorBody,
+        ]);
+
+        await JobsList.visit({ filter: 'Name matches "[unclosed"' });
+
+        assert.ok(
+          this.server.pretender.handledRequests.find((req) =>
+            decodeURIComponent(req.url).includes(
+              'filter=Name matches "[unclosed"',
+            ),
+          ),
+          'Initial model loading requested the explicit Name matches filter',
+        );
+        assert.ok(currentURL().startsWith('/jobs'), 'Still on the jobs page');
+        assert.dom('[data-test-error]').doesNotExist();
+        assert
+          .dom('[data-test-jobs-search]')
+          .exists('The jobs search remains editable');
+        assert.dom('.job-row').doesNotExist();
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText('failed to compile regular expression');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText('missing closing ]');
+        assert
+          .dom('[data-test-empty-jobs-list]')
+          .includesText(
+            'No jobs match your current filter selection: Name matches "[unclosed"',
+          );
       });
     });
     module('Filtering', function () {
