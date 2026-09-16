@@ -624,32 +624,24 @@ func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 
 	allocs := []*Allocation{
 		{
-			TaskResources: map[string]*Resources{
-				"web": {
-					Networks: []*NetworkResource{
-						{
-							Device:        "eth0",
-							IP:            "192.168.0.100",
-							MBits:         20,
-							ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
-						},
+			AllocatedResources: &AllocatedResources{Tasks: map[string]*AllocatedTaskResources{
+				"web": {Networks: []*NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						MBits:         20,
+						ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
 					},
-				},
-			},
-		},
-		{
-			TaskResources: map[string]*Resources{
-				"api": {
-					Networks: []*NetworkResource{
-						{
-							Device:        "eth0",
-							IP:            "192.168.0.100",
-							MBits:         50,
-							ReservedPorts: []Port{{Label: "main", Value: 10000}},
-						},
+				}},
+				"api": {Networks: []*NetworkResource{
+					{
+						Device:        "eth0",
+						IP:            "192.168.0.100",
+						MBits:         50,
+						ReservedPorts: []Port{{Label: "main", Value: 10000}},
 					},
-				},
-			},
+				}},
+			}},
 		},
 	}
 	idx.AddAllocs(allocs)

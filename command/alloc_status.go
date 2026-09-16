@@ -602,8 +602,8 @@ func buildDisplayMessage(event *api.TaskEvent) string {
 // outputTaskResources prints the task resources for the passed task and if
 // displayStats is set, verbose resource usage statistics
 func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task string, stats *api.AllocResourceUsage, displayStats bool) {
-	resource, ok := alloc.TaskResources[task]
-	if !ok {
+	resource, ok := alloc.AllocatedResources.Tasks[task]
+	if !ok || resource == nil {
 		return
 	}
 
@@ -618,8 +618,8 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 
 	var resourcesOutput []string
 	cpuHeader := "CPU"
-	if resource.Cores != nil && *resource.Cores > 0 {
-		cpuHeader = fmt.Sprintf("CPU (%v cores)", *resource.Cores)
+	if len(resource.Cpu.ReservedCores) > 0 {
+		cpuHeader = fmt.Sprintf("CPU (%v cores)", len(resource.Cpu.ReservedCores))
 	}
 	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%s|Memory|Disk|Addresses", cpuHeader))
 	firstAddr := ""
@@ -632,11 +632,11 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 	}
 
 	// Display the rolled up stats. If possible prefer the live statistics
-	cpuUsage := strconv.Itoa(*resource.CPU)
-	memUsage := humanize.IBytes(uint64(*resource.MemoryMB * bytesPerMegabyte))
+	cpuUsage := strconv.Itoa(int(resource.Cpu.CpuShares))
+	memUsage := humanize.IBytes(uint64(resource.Memory.MemoryMB * bytesPerMegabyte))
 	memMax := ""
-	if max := resource.MemoryMaxMB; max != nil && *max != 0 && *max != *resource.MemoryMB {
-		memMax = "Max: " + humanize.IBytes(uint64(*resource.MemoryMaxMB*bytesPerMegabyte))
+	if resource.Memory.MemoryMaxMB != 0 && resource.Memory.MemoryMaxMB != resource.Memory.MemoryMB {
+		memMax = "Max: " + humanize.IBytes(uint64(resource.Memory.MemoryMaxMB*bytesPerMegabyte))
 	}
 	var deviceStats []*api.DeviceGroupStats
 
@@ -657,10 +657,11 @@ func (c *AllocStatusCommand) outputTaskResources(alloc *api.Allocation, task str
 			deviceStats = ru.ResourceUsage.DeviceStats
 		}
 	}
+
 	resourcesOutput = append(resourcesOutput, fmt.Sprintf("%v MHz|%v|%v|%v",
 		cpuUsage,
 		memUsage,
-		humanize.IBytes(uint64(*alloc.Resources.DiskMB*bytesPerMegabyte)),
+		humanize.IBytes(uint64(alloc.AllocatedResources.Shared.DiskMB*bytesPerMegabyte)),
 		firstAddr))
 	if memMax != "" || secondAddr != "" {
 		resourcesOutput = append(resourcesOutput, fmt.Sprintf("|%v||%v", memMax, secondAddr))
