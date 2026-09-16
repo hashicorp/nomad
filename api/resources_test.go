@@ -130,7 +130,7 @@ func TestDeviceOption_Canonicalize(t *testing.T) {
 	must.Eq(t, uint64(1), *opt2.Count)
 
 	// Explicit count preserved
-	opt3 := &DeviceOption{Count: pointerOf(uint64(4))}
+	opt3 := &DeviceOption{Count: new(uint64(4))}
 	opt3.Canonicalize()
 	must.Eq(t, uint64(4), *opt3.Count)
 }
@@ -142,7 +142,7 @@ func TestRequestedDevice_Canonicalize_FirstAvailable(t *testing.T) {
 	rd := &RequestedDevice{
 		Name: "nvidia/gpu",
 		FirstAvailable: []*DeviceOption{
-			{Count: pointerOf(uint64(2))},
+			{Count: new(uint64(2))},
 			{}, // no count set
 		},
 	}
