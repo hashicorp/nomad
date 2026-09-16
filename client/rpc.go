@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/helper"

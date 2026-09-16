@@ -12,7 +12,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"

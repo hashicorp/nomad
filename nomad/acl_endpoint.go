@@ -18,7 +18,7 @@ import (
 	cass "github.com/hashicorp/cap/oidc/clientassertion"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/acl"
 	policy "github.com/hashicorp/nomad/acl"

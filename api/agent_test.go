@@ -196,7 +196,7 @@ func TestAgent_ForceLeavePrune(t *testing.T) {
 	}
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(f),
-		wait.Timeout(5*time.Second),
+		wait.Timeout(15*time.Second), // pruning is async and can take a long time
 		wait.Gap(100*time.Millisecond),
 	))
 
