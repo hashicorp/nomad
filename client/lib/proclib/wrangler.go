@@ -67,14 +67,21 @@ func (w *Wranglers) Setup(task Task) error {
 func (w *Wranglers) Destroy(task Task) error {
 	w.configs.Logger.Trace("destroy and cleanup remnant task processes", "task", task)
 
+	// Only hold the lock while accessing the task map
 	w.lock.Lock()
-	defer w.lock.Unlock()
-
-	if pw, exists := w.m[task]; exists {
-		pw.Kill()
-		pw.Cleanup()
+	pw, exists := w.m[task]
+	if exists {
 		delete(w.m, task)
 	}
+	w.lock.Unlock()
+
+	if !exists {
+		return nil
+	}
+
+	// Perform syscalls outside of mutex since it is client global
+	pw.Kill()
+	pw.Cleanup()
 
 	return nil
 }
