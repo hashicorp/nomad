@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"

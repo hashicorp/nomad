@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	client "github.com/hashicorp/nomad/client/config"

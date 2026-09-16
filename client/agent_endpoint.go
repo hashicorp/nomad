@@ -11,7 +11,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"

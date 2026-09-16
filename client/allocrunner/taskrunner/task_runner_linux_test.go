@@ -21,7 +21,7 @@ import (
 
 	"github.com/golang/snappy"
 	consulapi "github.com/hashicorp/consul/api"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/hookstats"
