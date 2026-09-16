@@ -1895,11 +1895,15 @@ func (c *Client) registerAndHeartbeat() {
 			return
 		}
 		if err := c.updateNodeStatus(); err != nil {
-			// The servers have changed such that this node has not been
-			// registered before
-			if strings.Contains(err.Error(), "node not found") {
-				// Re-register the node
+			// The server state has changed such that this node has not been
+			// registered before (GC'd or restored from backup), or the identity
+			// expired while the node was disconnected. Note that this is
+			// intentionally unrecoverable in enforcement=strict mode without
+			// re-introduction.
+			if strings.Contains(err.Error(), "node not found") ||
+				strings.Contains(err.Error(), "Permission denied") {
 				c.logger.Info("re-registering node")
+				c.setNodeIdentityToken("")
 				c.retryRegisterNode()
 				heartbeat = time.After(helper.RandomStagger(initialHeartbeatStagger))
 			} else {
