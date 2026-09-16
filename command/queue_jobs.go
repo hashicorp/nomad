@@ -82,7 +82,7 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	flags.BoolVar(&jsonOut, "json", false, "")
 	flags.BoolVar(&prioritySort, "p", false, "")
 	flags.StringVar(&pageToken, "page-token", "", "")
-	flags.StringVar(&nodePool, "node-pool", "default", "")
+	flags.StringVar(&nodePool, "node-pool", "default", "") // TODO: default to '*' (and support that value)
 	flags.IntVar(&perPage, "per-page", 0, "")
 
 	if err := flags.Parse(args); err != nil {

@@ -1,6 +1,15 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
+/*
+ * T: solid, maintainable core
+ * T: consistent, correct restore (also maintainable)
+ * T: dynamic queue: split cpu/mem resource weights
+ * T: visibility: CLI, metrics
+ * S: fifo queue: opt in/out per job
+ * S: front of line blocking options
+ */
+
 package queues
 
 import (
