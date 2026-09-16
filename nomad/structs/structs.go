@@ -3080,8 +3080,10 @@ func (o *DeviceOption) Validate() error {
 	if o == nil {
 		return nil
 	}
-
 	var mErr multierror.Error
+	if o.Count == 0 {
+		_ = multierror.Append(errors.New("Device Option validation failed: count cannot be 0"))
+	}
 	for idx, constr := range o.Constraints {
 		// Ensure that the constraint doesn't use an operand we do not allow
 		switch constr.Operand {
