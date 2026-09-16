@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
