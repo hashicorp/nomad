@@ -41,6 +41,12 @@ const memoryUsed = (frame) =>
   frame.ResourceUsage.MemoryStats.Usage ||
   0;
 
+// Tasks that reserve `cores` have no Resources.CPU; use the allocated MHz instead
+const taskReservedCPU = (task, states) => {
+  const state = states.findBy('name', task.name);
+  return (state && get(state, 'resources.cpu')) || task.reservedCPU;
+};
+
 @classic
 class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   // Set via the stats computed property macro
@@ -121,7 +127,16 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
   }
 
   // Static figures, denominators for stats
-  @alias('allocation.taskGroup.reservedCPU') reservedCPU;
+  // Allocated CPU accounts for `cores` reservations (Resources.CPU is 0 then);
+  // fall back to the task group for allocations without AllocatedResources.
+  @computed('allocation.{allocatedResources.cpu,taskGroup.reservedCPU}')
+  get reservedCPU() {
+    return (
+      get(this, 'allocation.allocatedResources.cpu') ||
+      get(this, 'allocation.taskGroup.reservedCPU')
+    );
+  }
+
   @alias('allocation.taskGroup.reservedMemory') reservedMemory;
 
   // Dynamic figures, collected over time
@@ -136,10 +151,11 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
     return RollingArray(this.bufferSize);
   }
 
-  @computed('allocation.taskGroup.tasks', 'bufferSize')
+  @computed('allocation.{taskGroup.tasks,states.[]}', 'bufferSize')
   get tasks() {
     const bufferSize = this.bufferSize;
     const tasks = get(this, 'allocation.taskGroup.tasks') || [];
+    const states = get(this, 'allocation.states') || [];
     return tasks
       .slice()
       .sort(taskPrioritySort)
@@ -147,7 +163,7 @@ class AllocationStatsTracker extends EmberObject.extend(AbstractStatsTracker) {
         task: task.name,
 
         // Static figures, denominators for stats
-        reservedCPU: task.reservedCPU,
+        reservedCPU: taskReservedCPU(task, states),
         reservedMemory: task.reservedMemory,
 
         // Dynamic figures, collected over time
