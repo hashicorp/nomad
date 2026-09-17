@@ -132,7 +132,7 @@ type SnapshotRestorers map[SnapshotType]SnapshotRestorer
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
 	evalBroker         *EvalBroker
-	batchQueue         *queues.BatchQueueManager
+	batchQueue         queues.QueueManager
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
 	encrypter          *Encrypter
@@ -172,7 +172,7 @@ type FSMConfig struct {
 	EvalBroker *EvalBroker
 
 	// BatchQueue is the configured queue for batch job registrations
-	BatchQueue *queues.BatchQueueManager
+	BatchQueue queues.QueueManager
 
 	// Periodic is the periodic job dispatcher that periodic jobs should be
 	// added/removed from
@@ -977,7 +977,7 @@ func (n *nomadFSM) handleUpsertedEval(eval *structs.Evaluation) {
 	}
 
 	if eval.ShouldEnqueue() {
-		if eval.Type == structs.JobTypeBatch && eval.TriggeredBy == structs.EvalTriggerJobRegister {
+		if eval.IsBatchQueue() {
 			n.batchQueue.Enqueue(eval)
 		} else {
 			n.evalBroker.Enqueue(eval)

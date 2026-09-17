@@ -297,7 +297,7 @@ dev-debug: ## Build for the current platform with debug symbols and no optimizat
 	@rm -f $(BIN)/nomad
 	@echo "==> Done"
 	@echo "==> Building debug binary..."
-	@go build \
+	go build \
 	    -gcflags "all=-N -l" \
 		-ldflags "$(GO_LDFLAGS)" \
 		-tags "$(GO_TAGS) $(NOMAD_UI_TAG)" \

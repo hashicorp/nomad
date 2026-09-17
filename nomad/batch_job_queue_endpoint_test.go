@@ -72,13 +72,11 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 				Workloads: []structs.QueueWorkload{workload1, workload2, workload3},
 			})
 			mockQueue.On("Stop")
-			s.batchQueueMgr = queues.NewBatchQueueMgr(
-				t.Context(),
-				structs.BatchQueue{},
-				nil,
-				nil,
-				queues.WithQueue("default", mockQueue),
-			)
+
+			mockMgr := &queues.MockQueueManager{}
+			mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
+			mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
+			s.batchQueueMgr = mockMgr
 
 			reply := structs.QueueJobsResponse{}
 			err := s.RPC("BatchJobQueue.Jobs", &tc.req, &reply)
@@ -158,14 +156,13 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 			})
 
 			mockQueue.On("Stop")
+
+			mockMgr := &queues.MockQueueManager{}
+			mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
+			mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
+			s1.batchQueueMgr = mockMgr
+
 			resp := structs.QueueJobsResponse{}
-			s1.batchQueueMgr = queues.NewBatchQueueMgr(
-				t.Context(),
-				structs.BatchQueue{},
-				nil,
-				nil,
-				queues.WithQueue("default", mockQueue),
-			)
 
 			err = s1.RPC("BatchJobQueue.Jobs", &tc.req, &resp)
 			if tc.err != "" {
@@ -193,19 +190,16 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 	})
 	mockQueue.On("Stop")
 
+	mockMgr := &queues.MockQueueManager{}
+	mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
+	mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
+	s.batchQueueMgr = mockMgr
+
 	req := structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{
 		Region: "global",
 	}}
 
 	reply := structs.QueueTenantsResponse{}
-
-	s.batchQueueMgr = queues.NewBatchQueueMgr(
-		t.Context(),
-		structs.BatchQueue{},
-		nil,
-		nil,
-		queues.WithQueue("default", mockQueue),
-	)
 
 	err := s.RPC("BatchJobQueue.Tenants", &req, &reply)
 	must.NoError(t, err)
@@ -257,15 +251,12 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 			mockQueue.On("Tenants").Return(tc.resp)
 			mockQueue.On("Stop")
 
-			reply := structs.QueueTenantsResponse{}
+			mockMgr := &queues.MockQueueManager{}
+			mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
+			mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
+			s1.batchQueueMgr = mockMgr
 
-			s1.batchQueueMgr = queues.NewBatchQueueMgr(
-				t.Context(),
-				structs.BatchQueue{},
-				nil,
-				nil,
-				queues.WithQueue("default", mockQueue),
-			)
+			reply := structs.QueueTenantsResponse{}
 
 			err := s1.RPC("BatchJobQueue.Tenants", &tc.req, &reply)
 

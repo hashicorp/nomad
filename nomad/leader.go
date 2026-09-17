@@ -409,6 +409,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// the operator.
 	restoreEvals := s.handleEvalBrokerStateChange(schedulerConfig)
 
+	// Batch queue manager must come after enabling the eval broker,
+	// because it passes evals to there.
 	s.batchQueueMgr.SetEnabled(true, s.State())
 
 	// Enable the deployment watcher, since we are now the leader
@@ -833,37 +835,13 @@ func (s *Server) restoreEvals() error {
 		eval := raw.(*structs.Evaluation)
 
 		switch {
-		case eval.IsBatchQueue():
-			s.batchQueueMgr.Enqueue(eval)
 		case eval.ShouldEnqueue():
-			s.evalBroker.Restore(eval)
+			// batch queue manager does its own restoring, so skip those here.
+			if !eval.IsBatchQueue() {
+				s.evalBroker.Restore(eval)
+			}
 		case eval.ShouldBlock():
 			s.blockedEvals.Block(eval)
-		}
-	}
-	return nil
-}
-
-// restoreBatchQueue is used to only restore pending evals for batch queues.
-// This happens only on scheduler configuration updates that did not change
-// the paused status of EvalBroker, but did update the batch queue config.
-func (s *Server) restoreBatchQueue() error {
-	// Get an iterator over every evaluation
-	ws := memdb.NewWatchSet()
-	iter, err := s.fsm.State().Evals(ws, false)
-	if err != nil {
-		return fmt.Errorf("failed to get evaluations: %v", err)
-	}
-
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		eval := raw.(*structs.Evaluation)
-
-		if eval.IsBatchQueue() {
-			s.batchQueueMgr.Enqueue(eval)
 		}
 	}
 	return nil

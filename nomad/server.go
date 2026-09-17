@@ -217,7 +217,7 @@ type Server struct {
 
 	// batchQueueMgr is responsible for enqueuing job
 	// register evaluations on a queue implementation
-	batchQueueMgr *queues.BatchQueueManager
+	batchQueueMgr queues.QueueManager
 
 	// brokerLock is used to synchronise the alteration of the blockedEvals and
 	// evalBroker enabled state. These two subsystems change state when
@@ -489,9 +489,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	s.batchQueueMgr = queues.NewBatchQueueMgr(
 		s.shutdownCtx,
-		s.config.DefaultSchedulerConfig.BatchQueue,
-		s.evalBroker,
 		logger,
+		s.evalBroker,
 	)
 	if err != nil {
 		s.Shutdown()

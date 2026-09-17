@@ -7,12 +7,44 @@ import (
 	"context"
 
 	"github.com/hashicorp/nomad/nomad/queues/queue"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/mock"
 )
 
-type MockQueue struct {
+type QueueManager interface {
+	SetEnabled(bool, *state.StateStore)
+	Enqueue(*structs.Evaluation)
+	Dequeue(*structs.Job) *structs.Evaluation
+	Queue(string) queue.Queue
+	UpdateQueue(*structs.NodePool) error
+}
+
+type MockQueueManager struct {
 	mock.Mock
+}
+
+func (m *MockQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
+	m.Called(enabled, state)
+}
+func (m *MockQueueManager) Enqueue(e *structs.Evaluation) {
+	m.Called(e)
+}
+func (m *MockQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
+	if args := m.Called(job); args.Get(0) != nil {
+		return args.Get(0).(*structs.Evaluation)
+	}
+	return nil
+}
+func (m *MockQueueManager) Queue(pool string) queue.Queue {
+	// Queue on the real manager should never return nil
+	return m.Called(pool).Get(0).(queue.Queue)
+}
+func (m *MockQueueManager) UpdateQueue(pool *structs.NodePool) error {
+	if args := m.Called(pool); args.Get(0) != nil {
+		return args.Get(0).(error)
+	}
+	return nil
 }
 
 type MockBroker struct {
@@ -20,22 +52,40 @@ type MockBroker struct {
 }
 
 func (m *MockBroker) Enqueue(e *structs.Evaluation) {
-	m.Called(e)
+	m.Called(e.JobID) // concrete type for cleaner assertions
+}
+
+type MockQueue struct {
+	mock.Mock
+
+	name string
 }
 
 func (m *MockQueue) Type() structs.BatchQueueType {
+	if m.name != "" {
+		return structs.BatchQueueType(m.name)
+	}
 	return "test"
 }
 
-// Start is a noop for the passthrough implementation
-func (m *MockQueue) Start(context.Context) error { return nil }
+func (m *MockQueue) Start(context.Context) error {
+	m.Called()
+	return nil
+}
 
 func (m *MockQueue) Stop() {
 	m.Called()
 }
 
+func (m *MockQueue) Restore(e *structs.Evaluation, j *structs.Job) error {
+	// mock-call IDs for cleaner error outputs
+	m.Called(e.ID, j.ID)
+	return nil
+}
+
 func (m *MockQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
-	m.Called(e, j)
+	// mock-call IDs for cleaner error outputs
+	m.Called(e.ID, j.ID)
 }
 
 func (m *MockQueue) Dequeue(j *structs.Job) *structs.Evaluation {

@@ -174,13 +174,6 @@ type SchedulerConfiguration struct {
 	// priority jobs to place higher priority jobs.
 	PreemptionConfig PreemptionConfig
 
-	// BatchQueue specifies the configuration of the batch jobs queue
-	// use to control queueing and scheduling of batch jobs.
-	//
-	// "Scheduling" in this context refers to releasing evaluations
-	// to the eval broker for scheduling with a worker.
-	BatchQueue BatchJobQueueConfig
-
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription is enabled
 	MemoryOversubscriptionEnabled bool
 
