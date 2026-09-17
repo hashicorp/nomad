@@ -25,7 +25,7 @@ Usage: nomad queue tenants [options]
   View the current status of tenants in a batch job queue.
 
   When ACLs are enabled, this command requires a token with the 'list-jobs' capability. If multiple jobs in the queue are in different namespaces, the output will be filtered to only include jobs in namespaces the token has permissions for.
-  
+
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
@@ -102,7 +102,7 @@ func (c *QueueTenantsCommand) Run(args []string) int {
 	}
 
 	// Submit the request
-	resp, _, err := client.BatchJobQueue().Tenants(qo)
+	resp, _, err := client.BatchQueue().Tenants(qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
@@ -113,7 +113,7 @@ func (c *QueueTenantsCommand) Run(args []string) int {
 	}
 
 	switch resp.Type {
-	case api.BatchJobQueueTypeDynamic:
+	case api.BatchQueueTypeDynamic:
 		return c.printTenants(resp, jsonOut)
 	case "unset":
 		c.Ui.Output("No batch job queue configured")

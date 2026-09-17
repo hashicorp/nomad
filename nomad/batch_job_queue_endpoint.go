@@ -55,7 +55,7 @@ func (q *BatchJobQueue) Jobs(args *structs.QueueJobsRequest, reply *structs.Queu
 
 	pool := args.NodePool
 	if pool == "" {
-		pool = structs.NodePoolDefault
+		pool = structs.NodePoolDefault // TODO: hmm.
 	}
 
 	batchJobQueue := q.srv.batchQueueMgr.Queue(pool)

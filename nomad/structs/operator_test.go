@@ -4,10 +4,7 @@
 package structs
 
 import (
-	"encoding/json"
-	"maps"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
@@ -88,16 +85,10 @@ func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 			pool: &NodePool{
 				SchedulerConfiguration: &NodePoolSchedulerConfiguration{
 					MemoryOversubscriptionEnabled: new(true),
-					BatchQueue: BatchQueue{
-						Type: "test",
-					},
 				},
 			},
 			expected: &SchedulerConfiguration{
 				MemoryOversubscriptionEnabled: true,
-				BatchQueue: BatchQueue{
-					Type: "test",
-				},
 			},
 		},
 		{
@@ -175,142 +166,6 @@ func TestSchedulerConfiguration_Validate(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.schedConfig.Validate()
-			if tc.err != "" {
-				must.ErrorContains(t, err, tc.err)
-			} else {
-				must.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestSchedulerConfig_BatchQueue_Validate(t *testing.T) {
-
-	// used to provide a basic valid dpq config, which key/values that
-	// are overridden via the injected map
-	testDpqConf := func(custom map[string]any) map[string]any {
-		res := map[string]any{}
-		b, _ := json.Marshal(&DynamicQueueConfig{
-			HalfLife:     1 * time.Second,
-			CalcInterval: 1 * time.Second,
-		})
-		json.Unmarshal(b, &res)
-
-		maps.Copy(res, custom)
-		return res
-	}
-
-	testCases := []struct {
-		name        string
-		batchConfig BatchQueue
-		err         string
-	}{
-		{
-			name: "invalid queue type",
-			batchConfig: BatchQueue{
-				Type: "foo",
-			},
-			err: "unsupported batch queue type",
-		},
-		{
-			name: "invalid metadata type",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: "foo",
-				Config:     testDpqConf(nil),
-			},
-			err: "unsupported tenant type",
-		},
-		{
-			name: "batch config with no type",
-			batchConfig: BatchQueue{
-				Type:       "",
-				TenantType: TenantTypeNamespace,
-			},
-			err: "batch queue configuration found but no type specified",
-		},
-		{
-			name: "empty metadata key errors",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeMetadata,
-				Config: testDpqConf(map[string]any{
-					"calc_interval": "1s",
-					"half_life":     "1s",
-				}),
-			},
-			err: "metadata key must be specified",
-		},
-		{
-			name: "dynamic_priority - invalid interval",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeNamespace,
-				Config: testDpqConf(map[string]any{
-					"calc_interval": "hello",
-				}),
-			},
-			err: "unable to decode conf",
-		},
-		{
-			name: "dynamic_priority - valid string interval",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeNamespace,
-				Config: testDpqConf(map[string]any{
-					"calc_interval": "1h",
-					"half_life":     "1h",
-				}),
-			},
-			err: "",
-		},
-		{
-			name: "dynamic_priority - valid int interval",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeNamespace,
-				Config: testDpqConf(map[string]any{
-					"calc_interval": 1000,
-					"half_life":     "1h",
-				}),
-			},
-			err: "",
-		},
-		{
-			name: "dynamicPriority - zero calc interval",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeNamespace,
-				Config: testDpqConf(map[string]any{
-					"calc_interval": 0,
-					"half_life":     "1s",
-				}),
-			},
-			err: "calc_interval must be greater than zero",
-		},
-		{
-			name: "dynamicPriority - zero half life",
-			batchConfig: BatchQueue{
-				Type:       BatchQueueTypeDynamic,
-				TenantType: TenantTypeNamespace,
-				Config: testDpqConf(map[string]any{
-					"calc_interval": "1s",
-					"half_life":     0,
-				}),
-			},
-			err: "half_life must be greater than zero",
-		},
-		{
-			name: "fifo",
-			batchConfig: BatchQueue{
-				Type: BatchQueueTypeFifo,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.batchConfig.Validate()
 			if tc.err != "" {
 				must.ErrorContains(t, err, tc.err)
 			} else {

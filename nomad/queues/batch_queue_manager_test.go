@@ -4,230 +4,271 @@
 package queues
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	tmock "github.com/stretchr/testify/mock"
 )
 
-func TestBatchQueueManager_Enqueue(t *testing.T) {
-	t.Run("does not enqueue if not enabled", func(t *testing.T) {
-		// Test will fail if an eval is given to the mock broker
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-		mgr.enabled.Store(false)
-		mgr.Enqueue(&structs.Evaluation{})
+var (
+	// TODO: move these into the test?
+	enabledConfig = &structs.BatchQueueConfig{
+		Fifo: &structs.FifoQueueConfig{},
+	}
+	poolWithoutConfig = &structs.NodePool{
+		Name: "pool-wo-config",
+	}
+	poolWithConfig = &structs.NodePool{
+		Name:             "pool-with-config",
+		BatchQueueConfig: enabledConfig,
+	}
+)
+
+func testJobEval(pool *structs.NodePool, jobType, status string) (*structs.Evaluation, *structs.Job) {
+	job := mock.MinJob()
+	job.ID = fmt.Sprintf("%s-%s-job-in-%s", status, jobType, pool.Name)
+	job.Type = jobType
+	job.NodePool = pool.Name
+
+	eval := mock.Eval()
+	eval.TriggeredBy = structs.EvalTriggerJobRegister
+	eval.Type = job.Type
+	eval.JobID = job.ID
+	eval.Namespace = job.Namespace
+	eval.Status = status
+
+	return eval, job
+}
+
+func testStateStore(t *testing.T) *state.StateStore {
+	t.Helper()
+
+	store := state.TestStateStore(t)
+	must.NoError(t, store.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{
+		poolWithConfig, poolWithoutConfig,
+	}))
+
+	evalWithQueue, jobWithQueue := testJobEval(poolWithConfig, structs.JobTypeBatch, structs.EvalStatusPending)
+	evalWithoutQueue, jobWithoutQueue := testJobEval(poolWithoutConfig, structs.JobTypeBatch, structs.EvalStatusPending)
+
+	// TODO: non-batch, non-pending evals
+
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, jobWithQueue))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, jobWithoutQueue))
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{
+		evalWithQueue, evalWithoutQueue,
+	}))
+
+	return store
+}
+
+func TestBatchQueueManager_Disable(t *testing.T) {
+	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), &MockBroker{})
+
+	must.False(t, qm.enabled.Load(), must.Sprint("should be disabled by default"))
+	qm.SetEnabled(false, nil) // disable again does nothing
+
+	t.Run("dont do stuff", func(t *testing.T) {
+		// no errors from the mock broker is good
+		qm.Enqueue(&structs.Evaluation{ID: "eval", JobID: "job"})
+
+		qm.UpdateQueue(poolWithConfig)
+		must.MapEmpty(t, qm.qk.m, must.Sprint("should not create any queues"))
 	})
 
-	t.Run("enqueues on matching node pool queue", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
+	t.Run("set disabled", func(t *testing.T) {
+		// enable so we can test disable behavior; there are more thorough tests
+		// in Test..Enabled, so here we fake that out.
+		qm.enabled.Store(true)
+		poolQ := &MockQueue{name: "disable-me"}
+		poolQ.On("Stop").Once()
+		qm.qk.Set("my-pool", poolQ, false)
 
-		mgr.enabled.Store(true)
-		ss := state.TestStateStore(t)
-		testNodePool := mock.NodePool()
-		must.NoError(t, ss.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{testNodePool}))
-		mockJob := mock.Job()
-		mockJob.NodePool = testNodePool.Name
-		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 2, nil, mockJob))
-		mgr.state = ss
+		qm.SetEnabled(false, nil)
 
-		mockDefaultQueue := &MockQueue{}
-		mockTestQueue := &MockQueue{}
-		mockTestQueue.On("Enqueue", tmock.Anything, tmock.Anything).Return()
-		mgr.queues = map[string]*QueueData{
-			"default":         {mockDefaultQueue, true},
-			testNodePool.Name: {mockTestQueue, false},
-		}
+		must.False(t, qm.enabled.Load(), must.Sprint("should be disabled"))
 
-		mockEval := &structs.Evaluation{
-			JobID:     mockJob.ID,
-			Namespace: mockJob.Namespace,
-		}
-
-		mgr.Enqueue(mockEval)
-		must.Eq(t, len(mockDefaultQueue.Calls), 0)
-		must.Eq(t, len(mockTestQueue.Calls), 1)
+		poolQ.AssertExpectations(t)
+		must.MapEmpty(t, qm.qk.m, must.Sprint("should wipe queues"))
 	})
 }
 
-func TestBatchQueueManager_SetEnabled(t *testing.T) {
-	t.Run("creates queue when enabled", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-		ss := state.TestStateStore(t)
-		ss.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{
-			{
-				Name: "test",
-				SchedulerConfiguration: &structs.NodePoolSchedulerConfiguration{
-					BatchQueue: structs.BatchQueue{
-						Type: "test",
-					},
-				},
-			},
-		})
-
-		mgr.SetEnabled(true, ss)
-
-		must.NotNil(t, mgr.queues)
-	})
-
-	t.Run("stops queues when disabled", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-
-		mockQueue := &MockQueue{}
-		mockQueue.On("Stop").Return()
-		mgr.queues = map[string]*QueueData{"default": {mockQueue, true}}
-
-		mgr.SetEnabled(false, nil)
-
-		must.Eq(t, len(mockQueue.Calls), 1)
-		must.Eq(t, mockQueue.Calls[0].Method, "Stop")
-	})
+func getNewQueueFn(q *MockQueue) newQueueFn {
+	return func(_ hclog.Logger, _ *state.StateStore, _ *structs.BatchQueueConfig, _ queue.Broker) queue.Queue {
+		return q
+	}
 }
 
-func TestBatchQueueManager_UpdateDefaultQueues(t *testing.T) {
-	t.Run("returns early when not enabled", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-		mgr.enabled.Store(false)
+func TestBatchQueueMgr_Enable(t *testing.T) {
+	// set up state
+	store := state.TestStateStore(t)
 
-		err := mgr.UpdateDefaultQueues()
-		must.NoError(t, err)
-		must.MapEmpty(t, mgr.queues)
-	})
+	must.NoError(t, store.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{
+		poolWithConfig, poolWithoutConfig,
+	}))
 
-	t.Run("stops and recreates default queues", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-		mgr.enabled.Store(true)
+	// TODO: another node pool...
+	evalWithQueue, jobWithQueue := testJobEval(poolWithConfig, structs.JobTypeBatch, structs.EvalStatusPending)
+	evalWithoutQueue, jobWithoutQueue := testJobEval(poolWithoutConfig, structs.JobTypeBatch, structs.EvalStatusPending)
 
-		ss := state.TestStateStore(t)
-		testPool := mock.NodePool()
-		must.NoError(t, ss.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{testPool}))
-		mgr.state = ss
+	// non pending eval should be restored, non batch eval should be ignored
+	nonPendingEval, nonPendingJob := testJobEval(poolWithConfig, structs.JobTypeBatch, structs.EvalStatusBlocked)
+	nonBatchEval, nonBatchJob := testJobEval(poolWithConfig, structs.JobTypeService, structs.EvalStatusPending)
 
-		mockQueue := &MockQueue{}
-		mockQueue.On("Stop").Return()
-		mgr.queues = map[string]*QueueData{testPool.Name: {mockQueue, true}}
+	for _, j := range []*structs.Job{
+		jobWithQueue, jobWithoutQueue, nonPendingJob, nonBatchJob,
+	} {
+		must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
+	}
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{
+		evalWithQueue, evalWithoutQueue, nonPendingEval, nonBatchEval,
+	}))
 
-		err := mgr.UpdateDefaultQueues()
-		must.NoError(t, err)
-		must.Eq(t, 1, len(mockQueue.Calls))
-		must.NotNil(t, mgr.queues)
-	})
+	// queue manager
 
-	t.Run("re-enqueues batch queue evals", func(t *testing.T) {
-		broker := &MockBroker{}
-		broker.On("Enqueue", tmock.Anything).Return()
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, broker, hclog.Default())
-		mgr.enabled.Store(true)
+	broker := &MockBroker{}
+	// broker.Test(t)
 
-		ss := state.TestStateStore(t)
-		testPool := mock.NodePool()
-		must.NoError(t, ss.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{testPool}))
+	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), broker)
 
-		job := mock.Job()
-		job.Type = structs.JobTypeBatch
-		job.NodePool = testPool.Name
-		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 2, nil, job))
+	// run tests!
 
-		batchEval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			JobID:       job.ID,
-			Namespace:   job.Namespace,
-			Type:        structs.JobTypeBatch,
-			TriggeredBy: structs.EvalTriggerJobRegister,
-			Status:      structs.EvalStatusPending,
-		}
-		nonBatchEval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			JobID:       job.ID,
-			Namespace:   job.Namespace,
-			Type:        structs.JobTypeService,
-			TriggeredBy: structs.EvalTriggerJobRegister,
-			Status:      structs.EvalStatusPending,
-		}
-		must.NoError(t, ss.UpsertEvals(
-			structs.MsgTypeTestSetup,
-			3,
-			[]*structs.Evaluation{batchEval, nonBatchEval}),
-		)
+	t.Log("enabling the queue manager should create queues, restore evals, then start queues")
+	{
+		passthrough := &MockQueue{name: "passthru"}
+		passthrough.Test(t)
+		passthrough.On("Enqueue", evalWithoutQueue.ID, evalWithoutQueue.JobID).Once()
+		qm.passthrough = passthrough
 
-		mgr.state = ss
+		startingQ := &MockQueue{name: "startingQ"}
+		startingQ.Test(t)
+		enqueue := startingQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
+		restore := startingQ.On("Restore", nonPendingEval.ID, nonPendingEval.JobID).Once()
+		// Start should not run before enqueue and restore are done.
+		startingQ.On("Start").Once().NotBefore(enqueue, restore)
+		qm.newQueueFn = getNewQueueFn(startingQ)
 
-		mockQueue := &MockQueue{}
-		mockQueue.On("Stop").Return()
-		mockQueue.On("Enqueue", tmock.Anything).Return()
-		mgr.queues = map[string]*QueueData{testPool.Name: {mockQueue, true}}
+		qm.SetEnabled(true, store)
 
-		err := mgr.UpdateDefaultQueues()
-		must.NoError(t, err)
+		must.True(t, qm.enabled.Load(), must.Sprint("should be enabled"))
 
-		must.Eq(t, 1, len(mockQueue.Calls))
-	})
+		// broker.AssertExpectations(t)
+		must.True(t, passthrough.AssertExpectations(t))
+		must.True(t, startingQ.AssertExpectations(t))
 
-	t.Run("only stops default scheduler conf queues", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-		mgr.enabled.Store(true)
+		must.MapLen(t, 1, qm.qk.m, must.Sprint("queue keeper should have one queue, for the enabled pool"))
+		must.Eq(t, "startingQ", qm.Queue(poolWithConfig.Name).Type())
+		must.Eq(t, "passthru", qm.Queue(poolWithoutConfig.Name).Type())
+	}
 
-		ss := state.TestStateStore(t)
-		defaultPool := mock.NodePool()
-		defaultPool.Name = "default-pool"
-		customPool := mock.NodePool()
-		customPool.Name = "custom-pool"
-		must.NoError(t, ss.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{defaultPool, customPool}))
-		mgr.state = ss
+	t.Log("repeat enable should be a no-op")
+	{
+		// should not be called again
+		qm.newQueueFn = nil
 
-		mockDefaultQueue := &MockQueue{}
-		mockDefaultQueue.On("Stop").Return()
+		// reset mocks
+		poolQ := &MockQueue{name: "mockQ"}
+		poolQ.Test(t)
+		qm.qk.Set(poolWithConfig.Name, poolQ, false)
 
-		mockCustomQueue := &MockQueue{}
+		// no errors from unexpected mock calls is good
+		qm.SetEnabled(true, store)
+	}
 
-		mgr.queues = map[string]*QueueData{
-			defaultPool.Name: {mockDefaultQueue, true},
-			customPool.Name:  {mockCustomQueue, false},
-		}
+	t.Log("enqueue should go to the correct queue")
+	{
+		passthrough := &MockQueue{name: "passthru"}
+		passthrough.Test(t)
+		passthrough.On("Enqueue", evalWithoutQueue.ID, evalWithoutQueue.JobID).Once()
+		qm.passthrough = passthrough
 
-		err := mgr.UpdateDefaultQueues()
-		must.NoError(t, err)
+		qm.Enqueue(evalWithoutQueue)
 
-		// Verify Stop was called only on default queue
-		must.Eq(t, 1, len(mockDefaultQueue.Calls))
-		must.Eq(t, "Stop", mockDefaultQueue.Calls[0].Method)
+		must.True(t, passthrough.AssertExpectations(t))
 
-		// Verify Stop was not called on custom queue
-		must.Eq(t, 0, len(mockCustomQueue.Calls))
-	})
-}
+		poolQ := &MockQueue{name: "poolQ"}
+		poolQ.Test(t)
+		poolQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
+		qm.qk.Set(poolWithConfig.Name, poolQ, false)
 
-func TestBatchQueueManager_UpdateQueue(t *testing.T) {
-	t.Run("returns early when not enabled", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-		mgr.enabled.Store(false)
+		qm.Enqueue(evalWithQueue)
+		must.True(t, poolQ.AssertExpectations(t))
+	}
 
-		testPool := mock.NodePool()
-		err := mgr.UpdateQueue(testPool)
-		must.NoError(t, err)
-		must.MapEmpty(t, mgr.queues)
-	})
+	t.Log("update removing config should stop and delete queue")
+	{
+		// enabled at first
+		must.NotEq(t, "passthru", qm.Queue(poolWithConfig.Name).Type())
 
-	t.Run("stops and recreates queue for specific pool", func(t *testing.T) {
-		mgr := NewBatchQueueMgr(t.Context(), structs.BatchQueue{}, nil, hclog.Default())
-		mgr.enabled.Store(true)
+		update := poolWithConfig.Copy()
+		update.BatchQueueConfig = nil
 
-		ss := state.TestStateStore(t)
-		testPool := mock.NodePool()
-		must.NoError(t, ss.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{testPool}))
-		mgr.state = ss
+		poolQ := &MockQueue{name: "poolQ"}
+		poolQ.Test(t)
+		poolQ.On("Stop").Once()
+		qm.qk.Set(poolWithConfig.Name, poolQ, false)
 
-		mockQueue := &MockQueue{}
-		mockQueue.On("Stop").Return()
-		mgr.queues = map[string]*QueueData{testPool.Name: {mockQueue, false}}
+		must.NoError(t, qm.UpdateQueue(update))
 
-		err := mgr.UpdateQueue(testPool)
-		must.NoError(t, err)
-		must.Eq(t, 1, len(mockQueue.Calls))
-		must.NotNil(t, mgr.queues)
-	})
+		must.True(t, poolQ.AssertExpectations(t))
+
+		after := qm.Queue(update.Name)
+		must.Eq(t, "passthru", after.Type())
+	}
+
+	t.Log("update adding config should enable queue")
+	{
+		// disabled at first
+		must.Eq(t, "passthru", qm.Queue(poolWithoutConfig.Name).Type())
+
+		update := poolWithoutConfig.Copy()
+		update.BatchQueueConfig = enabledConfig
+
+		poolQ := &MockQueue{name: "newQ"}
+		poolQ.Test(t)
+		enqueue := poolQ.On("Enqueue", evalWithoutQueue.ID, evalWithoutQueue.JobID).Once()
+		poolQ.On("Start").Once().NotBefore(enqueue)
+		qm.newQueueFn = getNewQueueFn(poolQ)
+
+		must.NoError(t, qm.UpdateQueue(update))
+
+		must.True(t, poolQ.AssertExpectations(t))
+
+		q := qm.Queue(update.Name)
+		must.Eq(t, "newQ", q.Type())
+	}
+
+	t.Log("changing config should replace queue")
+	{
+		// TODO: add checks for handling "all" pool, and only restart on change
+
+		// this existing queue should be stopped and replaced
+		oldQ := &MockQueue{name: "oldQ"}
+		oldQ.Test(t)
+		oldQ.On("Stop").Once()
+		qm.qk.Set(poolWithConfig.Name, oldQ, false)
+
+		// expect the new queue to be restored from state
+		poolQ := &MockQueue{name: "newQ"}
+		poolQ.Test(t)
+		enqueue := poolQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
+		restore := poolQ.On("Restore", nonPendingEval.ID, nonPendingEval.JobID).Once()
+		poolQ.On("Start").Once().NotBefore(enqueue, restore)
+		qm.newQueueFn = getNewQueueFn(poolQ)
+
+		// update the queue
+		must.NoError(t, qm.UpdateQueue(poolWithConfig))
+
+		must.True(t, oldQ.AssertExpectations(t))
+		must.True(t, poolQ.AssertExpectations(t))
+
+		q := qm.Queue(poolWithConfig.Name)
+		must.Eq(t, "newQ", q.Type())
+	}
 }

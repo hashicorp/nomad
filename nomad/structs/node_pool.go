@@ -64,6 +64,10 @@ type NodePool struct {
 	// node pool.
 	SchedulerConfiguration *NodePoolSchedulerConfiguration
 
+	// BatchQueueConfig defines the batch job queue configuration used
+	// to control scheduling of batch jobs.
+	BatchQueueConfig *BatchQueueConfig
+
 	// NodeIdentityTTL is the time-to-live for node identities in the pool.
 	NodeIdentityTTL time.Duration
 
@@ -118,6 +122,7 @@ func (n *NodePool) Copy() *NodePool {
 	*nc = *n
 	nc.Meta = maps.Clone(nc.Meta)
 	nc.SchedulerConfiguration = nc.SchedulerConfiguration.Copy()
+	nc.BatchQueueConfig = nc.BatchQueueConfig.Copy()
 
 	nc.Hash = make([]byte, len(n.Hash))
 	copy(nc.Hash, n.Hash)
@@ -187,6 +192,10 @@ func (n *NodePool) SetHash() []byte {
 		}
 	}
 
+	if n.BatchQueueConfig != nil {
+		hash.Write(n.BatchQueueConfig.Hash())
+	}
+
 	// sort keys to ensure hash stability when meta is stored later
 	var keys []string
 	for k := range n.Meta {
@@ -247,10 +256,6 @@ type NodePoolSchedulerConfiguration struct {
 	// SchedulerAlgorithm is the scheduling algorithm to use for the pool.
 	// If not defined, the global cluster scheduling algorithm is used.
 	SchedulerAlgorithm SchedulerAlgorithm `hcl:"scheduler_algorithm"`
-
-	// BatchQueue defines the batch job queue configuration used
-	// to control scheduling of batch jobs.
-	BatchQueue BatchQueue `hcl:"batch_queue"`
 
 	// MemoryOversubscriptionEnabled specifies whether memory oversubscription
 	// is enabled. If not defined, the global cluster configuration is used.

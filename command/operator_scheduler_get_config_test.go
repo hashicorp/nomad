@@ -30,7 +30,6 @@ func TestOperatorSchedulerGetConfig_Run(t *testing.T) {
 	must.StrContains(t, s, "Scheduler Algorithm               = binpack")
 	must.StrContains(t, s, "Preemption SysBatch Scheduler     = false")
 	must.StrContains(t, s, "Node Limit For Feasibility Checks = 0")
-	must.StrContains(t, s, "Batch Queue Type                  =")
 	ui.ErrorWriter.Reset()
 	ui.OutputWriter.Reset()
 
