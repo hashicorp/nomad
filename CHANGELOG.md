@@ -1,3 +1,25 @@
+## 2.0.7 (September 17, 2026)
+
+IMPROVEMENTS:
+
+* dependency: Upgrade to the latest buf (1.72.0), protoc-gen-go (1.36.6), and protoc-gen-go-grpc (1.5.1) [[GH-28525](https://github.com/hashicorp/nomad/issues/28525)]
+* services: the default workload identity policy now allows using wildcard namespace queries for Nomad native services [[GH-28534](https://github.com/hashicorp/nomad/issues/28534)]
+* ui: fixed accessibility color contrast issues [[GH-28022](https://github.com/hashicorp/nomad/issues/28022)]
+
+BUG FIXES:
+
+* api: Fix job statuses error when request body is empty using HTTP2 [[GH-28541](https://github.com/hashicorp/nomad/issues/28541)]
+* client: Fixed a bug where task restart skipped `shutdown_delay` [[GH-25289](https://github.com/hashicorp/nomad/issues/25289)]
+* core: Fixed a bug where re-submitting an otherwise unchanged job with a different ACL token created a new job version and deployment [[GH-26810](https://github.com/hashicorp/nomad/issues/26810)]
+* deployments: Fixed a bug where system job updates would not result in a new deployment if the prior deployment failed [[GH-28545](https://github.com/hashicorp/nomad/issues/28545)]
+* docker: Fixed a bug where image_pull_timeout was not respected if more than 5min [[GH-28543](https://github.com/hashicorp/nomad/issues/28543)]
+* identity: Fixed a bug where clients would not attempt to recreate expired node identities [[GH-28566](https://github.com/hashicorp/nomad/issues/28566)]
+* namespaces: Fixed a bug where an invalid replication token could delete namespaces in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* namespaces: Fixed a bug where namespaces could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where an invalid replication token could delete node pools in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where blocking queries would not unblock if a node pool was added automatically by registering a node [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where node pools could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+
 ## 2.0.6 (September 09, 2026)
 
 SECURITY:
