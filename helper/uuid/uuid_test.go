@@ -10,7 +10,7 @@ import (
 
 func TestGenerate(t *testing.T) {
 	prev := Generate()
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		id := Generate()
 		if prev == id {
 			t.Fatalf("Should get a new ID!")

@@ -306,7 +306,7 @@ func newBucket(b *bucketMeta, bb *bbolt.Bucket) *Bucket {
 }
 
 // Put into boltdb iff it has changed since the last write.
-func (b *Bucket) Put(key []byte, val interface{}) error {
+func (b *Bucket) Put(key []byte, val any) error {
 	// buffer for writing serialized state to
 	var buf bytes.Buffer
 
@@ -341,7 +341,7 @@ func (b *Bucket) Put(key []byte, val interface{}) error {
 
 // Get value by key from boltdb or return an ErrNotFound error if key not
 // found.
-func (b *Bucket) Get(key []byte, obj interface{}) error {
+func (b *Bucket) Get(key []byte, obj any) error {
 	// Get the raw data from the underlying boltdb
 	data := b.boltBucket.Get(key)
 	if data == nil {

@@ -45,7 +45,7 @@ func (b *HCLParser) WithVars(vars map[string]cty.Value) *HCLParser {
 //
 //	var tc *TaskConfig
 //	hclutils.NewConfigParser(spec).ParseJson(t, configString, &tc)
-func (b *HCLParser) ParseJson(t *testing.T, configStr string, out interface{}) {
+func (b *HCLParser) ParseJson(t *testing.T, configStr string, out any) {
 	config := JsonConfigToInterface(t, configStr)
 	b.parse(t, config, out)
 }
@@ -60,12 +60,12 @@ func (b *HCLParser) ParseJson(t *testing.T, configStr string, out interface{}) {
 // var tc *TaskConfig
 // hclutils.NewConfigParser(spec).ParseHCL(t, configString, &tc)
 // ```
-func (b *HCLParser) ParseHCL(t *testing.T, configStr string, out interface{}) {
+func (b *HCLParser) ParseHCL(t *testing.T, configStr string, out any) {
 	config := HclConfigToInterface(t, configStr)
 	b.parse(t, config, out)
 }
 
-func (b *HCLParser) parse(t *testing.T, config, out interface{}) {
+func (b *HCLParser) parse(t *testing.T, config, out any) {
 	decSpec, diags := hclspecutils.Convert(b.spec)
 	require.Empty(t, diags)
 
@@ -88,7 +88,7 @@ func (b *HCLParser) parse(t *testing.T, config, out interface{}) {
 	require.NoError(t, dtc.DecodeDriverConfig(out))
 }
 
-func HclConfigToInterface(t *testing.T, config string) interface{} {
+func HclConfigToInterface(t *testing.T, config string) any {
 	t.Helper()
 
 	// Parse as we do in the jobspec parser
@@ -103,12 +103,12 @@ func HclConfigToInterface(t *testing.T, config string) interface{} {
 		t.Fatalf("root should be an object")
 	}
 
-	var m map[string]interface{}
+	var m map[string]any
 	if err := hcl.DecodeObject(&m, list.Items[0]); err != nil {
 		t.Fatalf("failed to decode object: %v", err)
 	}
 
-	var m2 map[string]interface{}
+	var m2 map[string]any
 	if err := mapstructure.WeakDecode(m, &m2); err != nil {
 		t.Fatalf("failed to weak decode object: %v", err)
 	}
@@ -116,13 +116,13 @@ func HclConfigToInterface(t *testing.T, config string) interface{} {
 	return m2["config"]
 }
 
-func JsonConfigToInterface(t *testing.T, config string) interface{} {
+func JsonConfigToInterface(t *testing.T, config string) any {
 	t.Helper()
 
 	// Decode from json
 	dec := codec.NewDecoderBytes([]byte(config), structs.JsonHandle)
 
-	var m map[string]interface{}
+	var m map[string]any
 	err := dec.Decode(&m)
 	if err != nil {
 		t.Fatalf("failed to decode: %v", err)

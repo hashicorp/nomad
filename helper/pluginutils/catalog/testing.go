@@ -16,7 +16,7 @@ func TestPluginLoader(t testing.TB) loader.PluginCatalog {
 	driverConfigs := []*config.PluginConfig{
 		{
 			Name: "raw_exec",
-			Config: map[string]interface{}{
+			Config: map[string]any{
 				"enabled": true,
 			},
 		},
