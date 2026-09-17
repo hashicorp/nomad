@@ -295,6 +295,19 @@ func (st *Topology) UsableCores() *idset.Set[hw.CoreID] {
 	return result
 }
 
+// UsableCoresUint16 is a helper for converting the logical cores of a Nomad node
+// into a []Uint16. Nomad must subtract off any reserved cores (reserved.cores)
+// and/or must mask the cpuset to the one set in config (config.reservable_cores).
+func (st *Topology) UsableCoresUint16() []uint16 {
+	result := make([]uint16, len(st.Cores))
+	for i, cpu := range st.Cores {
+		if !cpu.Disable {
+			result[i] = uint16(cpu.ID)
+		}
+	}
+	return result
+}
+
 // CoreSpeeds returns the frequency in MHz of the performance and efficiency
 // core types. If the CPU does not have effiency cores that value will be zero.
 func (st *Topology) CoreSpeeds() (hw.MHz, hw.MHz) {
