@@ -491,6 +491,21 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		s.shutdownCtx,
 		logger,
 		s.evalBroker,
+		func(e *structs.Evaluation) error {
+			// update evals to cancel
+
+			e = e.Copy()
+			e.Status = structs.EvalStatusCancelled
+			e.StatusDescription = "job-register eval exists on batch queue"
+
+			_, _, err := s.raftApply(structs.EvalUpdateRequestType, structs.EvalUpdateRequest{
+				Evals: []*structs.Evaluation{e},
+				WriteRequest: structs.WriteRequest{
+					Region: s.Region(),
+				},
+			})
+			return err
+		},
 	)
 	if err != nil {
 		s.Shutdown()

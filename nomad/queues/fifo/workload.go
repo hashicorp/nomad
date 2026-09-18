@@ -3,30 +3,17 @@
 
 package fifo
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"github.com/hashicorp/nomad/nomad/queues/queue"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 type fifoWorkload struct {
-	id            string
-	counter       uint64
-	eval          *structs.Evaluation
-	waitOnRestore bool
+	queue.BaseWorkload
 }
 
-func newFifoWorkload(e *structs.Evaluation) *fifoWorkload {
+func newFifoWorkload(e *structs.Evaluation, j *structs.Job) *fifoWorkload {
 	return &fifoWorkload{
-		id:   e.ID,
-		eval: e,
+		BaseWorkload: queue.NewBaseWorkload(e, j),
 	}
-}
-
-func (f *fifoWorkload) GetEval() *structs.Evaluation {
-	return f.eval
-}
-
-func (f *fifoWorkload) SetEval(e *structs.Evaluation) {
-	f.eval = e
-}
-
-func (f *fifoWorkload) WaitOnRestore() bool {
-	return f.waitOnRestore
 }
