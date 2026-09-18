@@ -4,6 +4,7 @@
 package tlsutil
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -12,12 +13,12 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/yamux"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 const (
@@ -34,33 +35,25 @@ const (
 func TestConfig_AppendCA_None(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	conf := &Config{}
 	pool := x509.NewCertPool()
 	err := conf.AppendCA(pool)
-
-	require.Nil(err)
+	must.NoError(t, err)
 }
 
 func TestConfig_AppendCA_Valid(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	conf := &Config{
 		CAFile: cacert,
 	}
 	pool := x509.NewCertPool()
 	err := conf.AppendCA(pool)
-
-	require.Nil(err)
+	must.NoError(t, err)
 }
 
 func TestConfig_AppendCA_Valid_MultipleCerts(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	certs := `
 -----BEGIN CERTIFICATE-----
@@ -94,20 +87,20 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 `
 
 	tmpCAFile, err := os.CreateTemp("/tmp", "test_ca_file")
-	require.NoError(err)
+	must.NoError(t, err)
 	defer os.Remove(tmpCAFile.Name())
 
 	_, err = tmpCAFile.Write([]byte(certs))
-	require.NoError(err)
+	must.NoError(t, err)
 	tmpCAFile.Close()
 
 	conf := &Config{
 		CAFile: tmpCAFile.Name(),
 	}
 	pool := x509.NewCertPool()
-	require.NoError(conf.AppendCA(pool))
+	must.NoError(t, conf.AppendCA(pool))
 
-	require.Len(pool.Subjects(), 2)
+	must.Len(t, 2, pool.Subjects())
 }
 
 // TestConfig_AppendCA_Valid_Whitespace asserts that a PEM file containing
@@ -115,24 +108,19 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 func TestConfig_AppendCA_Valid_Whitespace(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	const cacertWhitespace = "./testdata/whitespace-agent-ca.pem"
 	conf := &Config{
 		CAFile: cacertWhitespace,
 	}
 	pool := x509.NewCertPool()
-	require.NoError(conf.AppendCA(pool))
-
-	require.Len(pool.Subjects(), 1)
+	must.NoError(t, conf.AppendCA(pool))
+	must.Len(t, 1, pool.Subjects())
 }
 
 // TestConfig_AppendCA_Invalid_MultipleCerts_Whitespace asserts that a PEM file
 // containing non-PEM data between certificate blocks is still valid.
 func TestConfig_AppendCA_Valid_MultipleCerts_ExtraData(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	certs := `
 Did you know...
@@ -172,10 +160,10 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 `
 
 	tmpCAFile, err := os.CreateTemp("/tmp", "test_ca_file_extra")
-	require.NoError(err)
+	must.NoError(t, err)
 	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
-	require.NoError(err)
+	must.NoError(t, err)
 	tmpCAFile.Close()
 
 	conf := &Config{
@@ -184,16 +172,14 @@ TttDu+g2VdbcBwVDZ49X2Md6OY2N3G8Irdlj+n+mCQJaHwVt52DRzz0=
 	pool := x509.NewCertPool()
 	err = conf.AppendCA(pool)
 
-	require.NoError(err)
-	require.Len(pool.Subjects(), 2)
+	must.NoError(t, err)
+	must.Len(t, 2, pool.Subjects())
 }
 
 // TestConfig_AppendCA_Invalid_MultipleCerts asserts only the valid certificate
 // is returned.
 func TestConfig_AppendCA_Invalid_MultipleCerts(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	certs := `
 -----BEGIN CERTIFICATE-----
@@ -215,51 +201,47 @@ Invalid
 -----END CERTIFICATE-----`
 
 	tmpCAFile, err := os.CreateTemp("/tmp", "test_ca_file")
-	require.NoError(err)
+	must.NoError(t, err)
 	defer os.Remove(tmpCAFile.Name())
 	_, err = tmpCAFile.Write([]byte(certs))
-	require.NoError(err)
+	must.NoError(t, err)
 	tmpCAFile.Close()
 
 	conf := &Config{
 		CAFile: tmpCAFile.Name(),
 	}
 	pool := x509.NewCertPool()
-	require.NoError(conf.AppendCA(pool))
-
-	require.Len(pool.Subjects(), 1)
+	must.NoError(t, conf.AppendCA(pool))
+	must.Len(t, 1, pool.Subjects())
 }
 
 func TestConfig_AppendCA_Invalid(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	{
 		conf := &Config{
 			CAFile: "invalidFile",
 		}
 		pool := x509.NewCertPool()
 		err := conf.AppendCA(pool)
-		require.NotNil(err)
-		require.Contains(err.Error(), "Failed to read CA file")
-		require.Equal(len(pool.Subjects()), 0)
+		must.ErrorContains(t, err, "Failed to read CA file")
+		must.Len(t, 0, pool.Subjects())
 	}
 
 	{
 		tmpFile, err := os.CreateTemp("/tmp", "test_ca_file")
-		require.Nil(err)
+		must.NoError(t, err)
 		defer os.Remove(tmpFile.Name())
 		_, err = tmpFile.Write([]byte("Invalid CA Content!"))
-		require.Nil(err)
+		must.NoError(t, err)
 
 		conf := &Config{
 			CAFile: tmpFile.Name(),
 		}
 		pool := x509.NewCertPool()
 		err = conf.AppendCA(pool)
-		require.Error(err)
-		require.Contains(err.Error(), "Failed to parse any valid certificates in CA file:")
-		require.Equal(len(pool.Subjects()), 0)
+		must.ErrorContains(t, err, "Failed to parse any valid certificates in CA file:")
+		must.Len(t, 0, pool.Subjects())
 	}
 }
 
@@ -271,12 +253,8 @@ func TestConfig_CACertificate_Valid(t *testing.T) {
 	}
 	pool := x509.NewCertPool()
 	err := conf.AppendCA(pool)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(pool.Subjects()) == 0 {
-		t.Fatalf("expected cert")
-	}
+	must.NoError(t, err)
+	must.Len(t, 1, pool.Subjects())
 }
 
 func TestConfig_LoadKeyPair_None(t *testing.T) {
@@ -286,12 +264,8 @@ func TestConfig_LoadKeyPair_None(t *testing.T) {
 		KeyLoader: &config.KeyLoader{},
 	}
 	cert, err := conf.LoadKeyPair()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if cert != nil {
-		t.Fatalf("bad: %v", cert)
-	}
+	must.NoError(t, err)
+	must.Nil(t, cert, must.Sprint("expected no cert"))
 }
 
 func TestConfig_LoadKeyPair_Valid(t *testing.T) {
@@ -303,12 +277,8 @@ func TestConfig_LoadKeyPair_Valid(t *testing.T) {
 		KeyLoader: &config.KeyLoader{},
 	}
 	cert, err := conf.LoadKeyPair()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if cert == nil {
-		t.Fatalf("expected cert")
-	}
+	must.NoError(t, err)
+	must.NotNil(t, cert)
 }
 
 func TestConfig_OutgoingTLS_MissingCA(t *testing.T) {
@@ -318,12 +288,8 @@ func TestConfig_OutgoingTLS_MissingCA(t *testing.T) {
 		VerifyOutgoing: true,
 	}
 	tls, err := conf.OutgoingTLSConfig()
-	if err == nil {
-		t.Fatalf("expected err")
-	}
-	if tls != nil {
-		t.Fatalf("bad: %v", tls)
-	}
+	must.ErrorContains(t, err, "no CA certificate provided")
+	must.Nil(t, tls, must.Sprint("expected no config"))
 }
 
 func TestConfig_OutgoingTLS_OnlyCA(t *testing.T) {
@@ -333,12 +299,8 @@ func TestConfig_OutgoingTLS_OnlyCA(t *testing.T) {
 		CAFile: cacert,
 	}
 	tls, err := conf.OutgoingTLSConfig()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tls != nil {
-		t.Fatalf("expected no config")
-	}
+	must.NoError(t, err)
+	must.Nil(t, tls, must.Sprint("expected no config"))
 }
 
 func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
@@ -349,18 +311,10 @@ func TestConfig_OutgoingTLS_VerifyOutgoing(t *testing.T) {
 		CAFile:         cacert,
 	}
 	tls, err := conf.OutgoingTLSConfig()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tls == nil {
-		t.Fatalf("expected config")
-	}
-	if len(tls.RootCAs.Subjects()) != 1 {
-		t.Fatalf("expect root cert")
-	}
-	if !tls.InsecureSkipVerify {
-		t.Fatalf("should skip built-in verification")
-	}
+	must.NoError(t, err)
+	must.NotNil(t, tls)
+	must.Len(t, 1, tls.RootCAs.Subjects(), must.Sprint("expected root cert"))
+	must.True(t, tls.InsecureSkipVerify, must.Sprint("should skip built-in verification"))
 }
 
 func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
@@ -371,24 +325,15 @@ func TestConfig_OutgoingTLS_VerifyHostname(t *testing.T) {
 		CAFile:               cacert,
 	}
 	tls, err := conf.OutgoingTLSConfig()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if tls == nil {
-		t.Fatalf("expected config")
-	}
-	if len(tls.RootCAs.Subjects()) != 1 {
-		t.Fatalf("expect root cert")
-	}
-	if tls.InsecureSkipVerify {
-		t.Fatalf("should not skip built-in verification")
-	}
+	must.NoError(t, err)
+	must.NotNil(t, tls)
+	must.Len(t, 1, tls.RootCAs.Subjects(), must.Sprint("expected root cert"))
+	must.False(t, tls.InsecureSkipVerify,
+		must.Sprint("should not skip built-in verification"))
 }
 
 func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 	ci.Parallel(t)
-
-	assert := assert.New(t)
 
 	conf := &Config{
 		VerifyOutgoing: true,
@@ -398,21 +343,19 @@ func TestConfig_OutgoingTLS_WithKeyPair(t *testing.T) {
 		KeyLoader:      &config.KeyLoader{},
 	}
 	tlsConf, err := conf.OutgoingTLSConfig()
-	assert.Nil(err)
-	assert.NotNil(tlsConf)
-	assert.Equal(len(tlsConf.RootCAs.Subjects()), 1)
-	assert.True(tlsConf.InsecureSkipVerify)
+	must.NoError(t, err)
+	must.NotNil(t, tlsConf)
+	must.Len(t, 1, tlsConf.RootCAs.Subjects())
+	must.True(t, tlsConf.InsecureSkipVerify)
 
 	clientHelloInfo := &tls.ClientHelloInfo{}
 	cert, err := tlsConf.GetCertificate(clientHelloInfo)
-	assert.Nil(err)
-	assert.NotNil(cert)
+	must.NoError(t, err)
+	must.NotNil(t, cert)
 }
 
 func TestConfig_OutgoingTLS_TLSCipherSuites(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	{
 		defaultCiphers := []uint16{
@@ -426,8 +369,8 @@ func TestConfig_OutgoingTLS_TLSCipherSuites(t *testing.T) {
 			CipherSuites:   defaultCiphers,
 		}
 		tlsConfig, err := conf.OutgoingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.CipherSuites, defaultCiphers)
+		must.NoError(t, err)
+		must.Eq(t, defaultCiphers, tlsConfig.CipherSuites)
 	}
 	{
 		conf := &Config{
@@ -436,8 +379,9 @@ func TestConfig_OutgoingTLS_TLSCipherSuites(t *testing.T) {
 			CipherSuites:   []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305},
 		}
 		tlsConfig, err := conf.OutgoingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.CipherSuites, []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305})
+		must.NoError(t, err)
+		must.Eq(t, []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305},
+			tlsConfig.CipherSuites)
 	}
 }
 
@@ -491,64 +435,43 @@ func TestConfig_outgoingWrapper_OK(t *testing.T) {
 	}
 
 	client, errc := startTLSServer(config)
-	if client == nil {
-		t.Fatalf("startTLSServer err: %v", <-errc)
-	}
+	must.NotNil(t, client, must.Sprintf("%v", drainErrCh(t, errc)))
 
 	wrap, err := config.OutgoingTLSWrapper()
-	if err != nil {
-		t.Fatalf("OutgoingTLSWrapper err: %v", err)
-	}
+	must.NoError(t, err)
 
 	tlsClient, err := wrap("regionFoo", client)
-	if err != nil {
-		t.Fatalf("wrapTLS err: %v", err)
-	}
-	defer tlsClient.Close()
-	if err := tlsClient.(*tls.Conn).Handshake(); err != nil {
-		t.Fatalf("write err: %v", err)
-	}
+	must.NoError(t, err)
 
-	err = <-errc
-	if err != nil {
-		t.Fatalf("server: %v", err)
-	}
+	defer tlsClient.Close()
+	err = tlsClient.(*tls.Conn).Handshake()
+	must.NoError(t, err)
+	must.NoError(t, drainErrCh(t, errc))
 }
 
 func TestConfig_outgoingWrapper_BadCert(t *testing.T) {
 	ci.Parallel(t)
-	// TODO this test is currently hanging, need to investigate more.
-	t.SkipNow()
 	config := &Config{
 		CAFile:               cacert,
 		CertFile:             fooclientcert,
 		KeyFile:              fooclientkey,
 		VerifyServerHostname: true,
 		VerifyOutgoing:       true,
+		KeyLoader:            &config.KeyLoader{},
 	}
 
 	client, errc := startTLSServer(config)
 	if client == nil {
-		t.Fatalf("startTLSServer err: %v", <-errc)
+		err := drainErrCh(t, errc)
+		t.Fatalf("startTLSServer err: %v", err)
 	}
 
 	wrap, err := config.OutgoingTLSWrapper()
-	if err != nil {
-		t.Fatalf("OutgoingTLSWrapper err: %v", err)
-	}
+	must.NoError(t, err, must.Sprint("OutgoingTLSWrapper err"))
 
-	tlsClient, err := wrap("regionFoo", client)
-	if err != nil {
-		t.Fatalf("wrapTLS err: %v", err)
-	}
-	defer tlsClient.Close()
-	err = tlsClient.(*tls.Conn).Handshake()
-
-	if _, ok := err.(x509.HostnameError); !ok {
-		t.Fatalf("should get hostname err: %v", err)
-	}
-
-	<-errc
+	_, err = wrap("regionFoo", client)
+	must.ErrorContains(t, err, "failed to verify certificate: x509")
+	must.ErrorContains(t, drainErrCh(t, errc), "remote error: tls: bad certificate")
 }
 
 func TestConfig_wrapTLS_OK(t *testing.T) {
@@ -617,16 +540,14 @@ func TestConfig_wrapTLS_BadCert(t *testing.T) {
 		t.Fatalf("returned a client")
 	}
 
-	err = <-errc
-	if err != nil {
-		t.Fatalf("server: %v", err)
-	}
+	// The server receives a TLS alert because the client aborted the
+	// handshake after VerifyConnection rejected the bad certificate.
+	// Drain the channel so the goroutine can exit.
+	<-errc
 }
 
 func TestConfig_IncomingTLS(t *testing.T) {
 	ci.Parallel(t)
-
-	assert := assert.New(t)
 
 	conf := &Config{
 		VerifyIncoming: true,
@@ -651,8 +572,8 @@ func TestConfig_IncomingTLS(t *testing.T) {
 
 	clientHelloInfo := &tls.ClientHelloInfo{}
 	cert, err := tlsC.GetCertificate(clientHelloInfo)
-	assert.Nil(err)
-	assert.NotNil(cert)
+	must.NoError(t, err)
+	must.NotNil(t, cert)
 }
 
 func TestConfig_IncomingTLS_MissingCA(t *testing.T) {
@@ -708,8 +629,6 @@ func TestConfig_IncomingTLS_NoVerify(t *testing.T) {
 func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	{
 		defaultCiphers := []uint16{
 			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
@@ -720,16 +639,17 @@ func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
 			CipherSuites: defaultCiphers,
 		}
 		tlsConfig, err := conf.IncomingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.CipherSuites, defaultCiphers)
+		must.NoError(t, err)
+		must.Eq(t, defaultCiphers, tlsConfig.CipherSuites)
 	}
 	{
 		conf := &Config{
 			CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305},
 		}
 		tlsConfig, err := conf.IncomingTLSConfig()
-		require.Nil(err)
-		require.Equal(tlsConfig.CipherSuites, []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305})
+		must.NoError(t, err)
+		must.Eq(t, []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305},
+			tlsConfig.CipherSuites)
 	}
 }
 
@@ -737,8 +657,6 @@ func TestConfig_IncomingTLS_TLSCipherSuites(t *testing.T) {
 // signature algorithm
 func TestConfig_ParseCiphers_Valid(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	tlsConfig := &config.TLSConfig{
 		CertFile:  fooclientcert,
@@ -780,16 +698,14 @@ func TestConfig_ParseCiphers_Valid(t *testing.T) {
 	}
 
 	parsedCiphers, err := ParseCiphers(tlsConfig)
-	require.Nil(err)
-	require.Equal(parsedCiphers, expectedCiphers)
+	must.NoError(t, err)
+	must.Eq(t, expectedCiphers, parsedCiphers)
 }
 
 // This test relies on the fact that the specified certificate has an ECDSA
 // signature algorithm
 func TestConfig_ParseCiphers_Default(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	expectedCiphers := []uint16{
 		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -810,16 +726,14 @@ func TestConfig_ParseCiphers_Default(t *testing.T) {
 		KeyLoader: &config.KeyLoader{},
 	}
 	parsedCiphers, err := ParseCiphers(empty)
-	require.Nil(err)
-	require.Equal(parsedCiphers, expectedCiphers)
+	must.NoError(t, err)
+	must.Eq(t, expectedCiphers, parsedCiphers)
 }
 
 // This test relies on the fact that the specified certificate has an ECDSA
 // signature algorithm
 func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	invalidCiphers := []string{
 		"TLS_RSA_RSA_WITH_RC4_128_SHA",
@@ -834,9 +748,8 @@ func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 			KeyLoader:       &config.KeyLoader{},
 		}
 		parsedCiphers, err := ParseCiphers(tlsConfig)
-		require.NotNil(err)
-		require.Equal(fmt.Sprintf("unsupported TLS cipher %q", cipher), err.Error())
-		require.Equal(0, len(parsedCiphers))
+		must.EqError(t, err, fmt.Sprintf("unsupported TLS cipher %q", cipher))
+		must.Len(t, 0, parsedCiphers)
 	}
 }
 
@@ -844,8 +757,6 @@ func TestConfig_ParseCiphers_Invalid(t *testing.T) {
 // signature algorithm
 func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	// Supported signature
 	{
@@ -856,8 +767,8 @@ func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
 			KeyLoader:       &config.KeyLoader{},
 		}
 		parsedCiphers, err := ParseCiphers(tlsConfig)
-		require.Nil(err)
-		require.Equal(1, len(parsedCiphers))
+		must.NoError(t, err)
+		must.Len(t, 1, parsedCiphers)
 	}
 
 	// Unsupported signature
@@ -869,15 +780,14 @@ func TestConfig_ParseCiphers_SupportedSignature(t *testing.T) {
 			KeyLoader:       &config.KeyLoader{},
 		}
 		parsedCiphers, err := ParseCiphers(tlsConfig)
-		require.NotNil(err)
-		require.Equal(0, len(parsedCiphers))
+		must.ErrorContains(t, err,
+			"Specified cipher suites don't support the certificate signature algorithm")
+		must.Len(t, 0, parsedCiphers)
 	}
 }
 
 func TestConfig_ParseMinVersion_Valid(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	validVersions := []string{"tls10",
 		"tls11",
@@ -892,30 +802,25 @@ func TestConfig_ParseMinVersion_Valid(t *testing.T) {
 
 	for _, version := range validVersions {
 		parsedVersion, err := ParseMinVersion(version)
-		require.Nil(err)
-		require.Equal(expected[version], parsedVersion)
+		must.NoError(t, err)
+		must.Eq(t, expected[version], parsedVersion)
 	}
 }
 
 func TestConfig_ParseMinVersion_Invalid(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	invalidVersions := []string{"ssl3", "tls14", "tls15"}
 
 	for _, version := range invalidVersions {
 		parsedVersion, err := ParseMinVersion(version)
-		require.NotNil(err)
-		require.Equal(fmt.Sprintf("unsupported TLS version %q", version), err.Error())
-		require.Equal(uint16(0), parsedVersion)
+		must.EqError(t, err, fmt.Sprintf("unsupported TLS version %q", version))
+		must.Eq(t, uint16(0), parsedVersion)
 	}
 }
 
 func TestConfig_NewTLSConfiguration(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	conf := &config.TLSConfig{
 		TLSCipherSuites: "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
@@ -925,26 +830,24 @@ func TestConfig_NewTLSConfiguration(t *testing.T) {
 	}
 
 	tlsConf, err := NewTLSConfiguration(conf, true, true)
-	require.Nil(err)
-	require.True(tlsConf.VerifyIncoming)
-	require.True(tlsConf.VerifyOutgoing)
+	must.NoError(t, err)
+	must.True(t, tlsConf.VerifyIncoming)
+	must.True(t, tlsConf.VerifyOutgoing)
 
 	expectedCiphers := []uint16{
 		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 	}
-	require.Equal(tlsConf.CipherSuites, expectedCiphers)
+	must.Eq(t, expectedCiphers, tlsConf.CipherSuites)
 }
 
 func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	type shouldReloadTestInput struct {
 		old          *config.TLSConfig
 		new          *config.TLSConfig
-		shouldReload bool
+		expectReload bool
 		errorStr     string
 	}
 
@@ -960,7 +863,7 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 				CertFile: badcert,
 				KeyFile:  badkey,
 			},
-			shouldReload: false,
+			expectReload: false,
 			errorStr:     "Same TLS Configuration should not reload",
 		},
 		{
@@ -974,7 +877,7 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 				CertFile: fooclientcert,
 				KeyFile:  fooclientkey,
 			},
-			shouldReload: true,
+			expectReload: true,
 			errorStr:     "Different TLS Configuration should reload",
 		},
 		{
@@ -990,7 +893,7 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 				KeyFile:   badkey,
 				EnableRPC: false,
 			},
-			shouldReload: true,
+			expectReload: true,
 			errorStr:     "Downgrading RPC connections should force reload",
 		},
 		{
@@ -1001,7 +904,7 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 				KeyFile:   badkey,
 				EnableRPC: true,
 			},
-			shouldReload: true,
+			expectReload: true,
 			errorStr:     "Upgrading RPC connections should force reload",
 		},
 		{
@@ -1012,14 +915,26 @@ func TestConfig_ShouldReloadRPCConnections(t *testing.T) {
 				EnableRPC: true,
 			},
 			new:          nil,
-			shouldReload: true,
+			expectReload: true,
 			errorStr:     "Downgrading RPC connections should force reload",
 		},
 	}
 
 	for _, testCase := range testInput {
 		shouldReload, err := ShouldReloadRPCConnections(testCase.old, testCase.new)
-		require.NoError(err)
-		require.Equal(shouldReload, testCase.shouldReload, testCase.errorStr)
+		must.NoError(t, err)
+		must.Eq(t, testCase.expectReload, shouldReload, must.Sprint(testCase.errorStr))
+	}
+}
+
+func drainErrCh(t *testing.T, errc chan error) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond*100)
+	defer cancel()
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }

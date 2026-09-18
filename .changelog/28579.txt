@@ -1,0 +1,3 @@
+```release-note:improvement
+tls: Code quality improvements to TLS configuration may result in changed error messages for TLS handshake failures
+```
