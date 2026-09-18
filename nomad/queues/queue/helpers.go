@@ -27,7 +27,7 @@ func CmpWaitOnRestore(a, b Workload) int {
 // until a Nomad operator manually intervenes and stops the job. In the future, we can add an optional
 // configurable timeout for this blocking query.
 func WaitForPlacement(ctx context.Context, workload Workload, ss *state.StateStore, ws memdb.WatchSet) error {
-	eval := workload.GetEval()
+	eval := workload.Eval()
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
 
@@ -86,7 +86,7 @@ func IsSchedulingComplete(workload Workload, ss *state.StateStore) (bool, error)
 	}
 
 	ws := memdb.NewWatchSet()
-	eval := workload.GetEval()
+	eval := workload.Eval()
 	for eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
 
