@@ -52,6 +52,28 @@ func RestoreFromArchive(archive io.Reader, filter *nomad.FSMFilter) (raft.FSM, *
 	}
 }
 
+func FilterSnapshot(srcFile *os.File, filter *nomad.FSMFilter) error {
+	srcFile.Seek(0, 0)
+	fsm, _, meta, err := RestoreFromArchive(srcFile, filter)
+	if err != nil {
+		return fmt.Errorf("Failed to load snapshot from archive: %w", err)
+	}
+	snap, err := snapshot.NewFromFSM(hclog.Default(), fsm, meta)
+	if err != nil {
+		return fmt.Errorf("Failed to create redacted snapshot: %v", err)
+	}
+
+	srcFile.Truncate(0)
+	srcFile.Seek(0, 0)
+
+	_, err = io.Copy(srcFile, snap)
+	if err != nil {
+		return fmt.Errorf("Failed to copy snapshot to temporary file: %v", err)
+	}
+
+	return srcFile.Sync()
+}
+
 func RedactSnapshot(srcFile *os.File) error {
 	srcFile.Seek(0, 0)
 	fsm, store, meta, err := RestoreFromArchive(srcFile, nil)
