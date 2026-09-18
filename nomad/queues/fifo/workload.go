@@ -4,48 +4,16 @@
 package fifo
 
 import (
-	"fmt"
-
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type fifoWorkload struct {
-	id            string
-	counter       uint64
-	eval          *structs.Evaluation
-	waitOnRestore bool
-	status        string
-	description   string
+	queue.BaseWorkload
 }
 
-func newFifoWorkload(e *structs.Evaluation) *fifoWorkload {
+func newFifoWorkload(e *structs.Evaluation, j *structs.Job) *fifoWorkload {
 	return &fifoWorkload{
-		id:     e.ID,
-		eval:   e,
-		status: queue.WorkloadStatusQueued,
+		BaseWorkload: queue.NewBaseWorkload(e, j),
 	}
-}
-
-func (f *fifoWorkload) GetEval() *structs.Evaluation {
-	return f.eval
-}
-
-func (f *fifoWorkload) SetEval(e *structs.Evaluation) {
-	f.eval = e
-}
-
-func (f *fifoWorkload) WaitOnRestore() bool {
-	return f.waitOnRestore
-}
-
-func (f *fifoWorkload) SetStatus(s, description string) {
-	f.status = s
-	f.description = description
-}
-func (f *fifoWorkload) GetStatus() string {
-	if f.description != "" {
-		return fmt.Sprintf("%s (%s)", f.status, f.description)
-	}
-	return f.status
 }

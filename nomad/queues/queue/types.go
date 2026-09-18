@@ -10,12 +10,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+type EvalCancelFn func(*structs.Evaluation) error
+
 type Queue interface {
 	Start(context.Context) error
 	Stop()
 	Enqueue(*structs.Evaluation, *structs.Job)
 	Restore(*structs.Evaluation, *structs.Job) error
-	Dequeue(*structs.Job) *structs.Evaluation
+	Dequeue(structs.NamespacedID) *structs.Evaluation
 	Jobs(structs.SortOrder) *WorkloadIter
 	Tenants() structs.QueueTenantsResponse
 	Type() structs.BatchQueueType
@@ -27,11 +29,14 @@ type Broker interface {
 }
 
 type Workload interface {
-	GetEval() *structs.Evaluation
+	ID() structs.NamespacedID
+	Eval() *structs.Evaluation
 	SetEval(*structs.Evaluation)
 	GetStatus() string
 	SetStatus(string, string)
+	JobVersion() uint64
 	WaitOnRestore() bool
+	SetWaitOnRestore(bool)
 }
 
 type Snapshotter interface {

@@ -3,9 +3,11 @@
 
 package dynamic
 
+import "github.com/hashicorp/nomad/nomad/structs"
+
 type Tenant struct {
 	tid                TenantID
-	placedWorkloadById map[string]*dynamicPriorityWorkload
+	placedWorkloadById map[structs.NamespacedID]*dynamicPriorityWorkload
 	totalUsage         *ResourceUsage
 }
 

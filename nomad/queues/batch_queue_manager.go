@@ -33,22 +33,37 @@ type BatchQueueManager struct {
 	newQueueFn newQueueFn
 
 	shutdownCtx context.Context
-	logger      hclog.Logger
+
+	cancelFn queue.EvalCancelFn
+
+	logger hclog.Logger
 
 	// coarse lock mainly to prevent concurrent enqueue/update calls.
 	mut sync.Mutex
 }
 
 // newQueueFn matches the signature of NewQueue
-type newQueueFn func(hclog.Logger, *state.StateStore, *structs.BatchQueueConfig, queue.Broker) queue.Queue
+type newQueueFn func(
+	hclog.Logger,
+	*state.StateStore,
+	*structs.BatchQueueConfig,
+	queue.Broker,
+	queue.EvalCancelFn,
+) queue.Queue
 
 // NewBatchQueueMgr returns a BatchQueueManager. It must be enabled via
 // SetEnabled(true) before it will start processing jobs.
-func NewBatchQueueMgr(ctx context.Context, logger hclog.Logger, broker queue.Broker) *BatchQueueManager {
+func NewBatchQueueMgr(
+	ctx context.Context,
+	logger hclog.Logger,
+	broker queue.Broker,
+	cancelFn queue.EvalCancelFn,
+) *BatchQueueManager {
 	return &BatchQueueManager{
 		qk:          newQueueKeeper(),
 		broker:      broker,
 		passthrough: passthrough.NewPassthroughQueue(broker),
+		cancelFn:    cancelFn,
 		newQueueFn:  NewQueue,
 		shutdownCtx: ctx,
 		logger:      logger.Named("batch_queue"),
@@ -147,7 +162,7 @@ func (qm *BatchQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
 	qm.mut.Lock()
 	defer qm.mut.Unlock()
 
-	return qm.Queue(job.NodePool).Dequeue(job)
+	return qm.Queue(job.NodePool).Dequeue(job.NamespacedID())
 }
 
 // Queue returns a pointer to a queue. This is used by RPC handlers
@@ -186,7 +201,7 @@ func (qm *BatchQueueManager) UpdateQueue(pool *structs.NodePool) error {
 	}
 
 	// make a new one
-	queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker)
+	queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, qm.cancelFn)
 	qm.qk.Set(pool.Name, queue, false)
 
 	// restore from state
@@ -235,7 +250,7 @@ func (qm *BatchQueueManager) initQueues() error {
 			continue
 		}
 
-		queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker)
+		queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, qm.cancelFn)
 		qm.qk.Set(pool.Name, queue, false)
 	}
 
