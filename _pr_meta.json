@@ -1,9 +1,0 @@
-{
-  "repo": "hashicorp/nomad",
-  "number": 28424,
-  "base": "main",
-  "head": "fix/optional-object-attrs",
-  "fork": "VedantMadane/nomad",
-  "title": "jobspec2: support optional() object type attributes in variables",
-  "url": "https://github.com/hashicorp/nomad/pull/28424"
-}
