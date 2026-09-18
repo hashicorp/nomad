@@ -1,3 +1,25 @@
+## 2.0.7 (September 17, 2026)
+
+IMPROVEMENTS:
+
+* dependency: Upgrade to the latest buf (1.72.0), protoc-gen-go (1.36.6), and protoc-gen-go-grpc (1.5.1) [[GH-28525](https://github.com/hashicorp/nomad/issues/28525)]
+* services: the default workload identity policy now allows using wildcard namespace queries for Nomad native services [[GH-28534](https://github.com/hashicorp/nomad/issues/28534)]
+* ui: fixed accessibility color contrast issues [[GH-28022](https://github.com/hashicorp/nomad/issues/28022)]
+
+BUG FIXES:
+
+* api: Fix job statuses error when request body is empty using HTTP2 [[GH-28541](https://github.com/hashicorp/nomad/issues/28541)]
+* client: Fixed a bug where task restart skipped `shutdown_delay` [[GH-25289](https://github.com/hashicorp/nomad/issues/25289)]
+* core: Fixed a bug where re-submitting an otherwise unchanged job with a different ACL token created a new job version and deployment [[GH-26810](https://github.com/hashicorp/nomad/issues/26810)]
+* deployments: Fixed a bug where system job updates would not result in a new deployment if the prior deployment failed [[GH-28545](https://github.com/hashicorp/nomad/issues/28545)]
+* docker: Fixed a bug where image_pull_timeout was not respected if more than 5min [[GH-28543](https://github.com/hashicorp/nomad/issues/28543)]
+* identity: Fixed a bug where clients would not attempt to recreate expired node identities [[GH-28566](https://github.com/hashicorp/nomad/issues/28566)]
+* namespaces: Fixed a bug where an invalid replication token could delete namespaces in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* namespaces: Fixed a bug where namespaces could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where an invalid replication token could delete node pools in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where blocking queries would not unblock if a node pool was added automatically by registering a node [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where node pools could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+
 ## 2.0.6 (September 09, 2026)
 
 SECURITY:
@@ -217,6 +239,26 @@ BUG FIXES:
 * identity: fix bug where client identity failed to renew after server upgrade to >=1.11.0 [[GH-27773](https://github.com/hashicorp/nomad/issues/27773)]
 * oidc: Fixed a bug where the request cache could be corrupted by concurrent requests with the same nonce [[GH-27747](https://github.com/hashicorp/nomad/issues/27747)]
 * tls: fix parsing of combined key files when creating tls expiry metric [[GH-27667](https://github.com/hashicorp/nomad/issues/27667)]
+
+## 1.11.11 Enterprise (September 18, 2026)
+
+IMPROVEMENTS:
+
+* ui: fixed accessibility color contrast issues [[GH-28022](https://github.com/hashicorp/nomad/issues/28022)]
+
+BUG FIXES:
+
+* api: Fix job statuses error when request body is empty using HTTP2 [[GH-28541](https://github.com/hashicorp/nomad/issues/28541)]
+* client: Fixed a bug where task restart skipped `shutdown_delay` [[GH-25289](https://github.com/hashicorp/nomad/issues/25289)]
+* core: Fixed a bug where re-submitting an otherwise unchanged job with a different ACL token created a new job version and deployment [[GH-26810](https://github.com/hashicorp/nomad/issues/26810)]
+* deployments: Fixed a bug where system job updates would not result in a new deployment if the prior deployment failed [[GH-28545](https://github.com/hashicorp/nomad/issues/28545)]
+* docker: Fixed a bug where image_pull_timeout was not respected if more than 5min [[GH-28543](https://github.com/hashicorp/nomad/issues/28543)]
+* identity: Fixed a bug where clients would not attempt to recreate expired node identities [[GH-28566](https://github.com/hashicorp/nomad/issues/28566)]
+* namespaces: Fixed a bug where an invalid replication token could delete namespaces in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* namespaces: Fixed a bug where namespaces could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where an invalid replication token could delete node pools in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where blocking queries would not unblock if a node pool was added automatically by registering a node [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where node pools could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
 
 ## 1.11.10 Enterprise (September 09, 2026)
 
@@ -599,6 +641,24 @@ BUG FIXES:
 * ui: Fixed a bug where action fly-outs would fail to open due to a missing module [[GH-26833](https://github.com/hashicorp/nomad/issues/26833)]
 * windows: Fixed a bug where agents would not gracefully shut down on Ctrl-C [[GH-26780](https://github.com/hashicorp/nomad/issues/26780)]
 
+## 1.10.17 Enterprise (September 18, 2026)
+
+IMPROVEMENTS:
+
+* ui: fixed accessibility color contrast issues [[GH-28022](https://github.com/hashicorp/nomad/issues/28022)]
+
+BUG FIXES:
+
+* api: Fix job statuses error when request body is empty using HTTP2 [[GH-28541](https://github.com/hashicorp/nomad/issues/28541)]
+* client: Fixed a bug where task restart skipped `shutdown_delay` [[GH-25289](https://github.com/hashicorp/nomad/issues/25289)]
+* core: Fixed a bug where re-submitting an otherwise unchanged job with a different ACL token created a new job version and deployment [[GH-26810](https://github.com/hashicorp/nomad/issues/26810)]
+* docker: Fixed a bug where image_pull_timeout was not respected if more than 5min [[GH-28543](https://github.com/hashicorp/nomad/issues/28543)]
+* namespaces: Fixed a bug where an invalid replication token could delete namespaces in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* namespaces: Fixed a bug where namespaces could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where an invalid replication token could delete node pools in a federated follower region [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where blocking queries would not unblock if a node pool was added automatically by registering a node [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+* node pools: Fixed a bug where node pools could stop replicating between federated regions [[GH-28552](https://github.com/hashicorp/nomad/issues/28552)]
+
 ## 1.10.16 Enterprise (September 09, 2026)
 
 SECURITY:
@@ -609,25 +669,25 @@ IMPROVEMENTS:
 
 * api: Updated the Go module to require at least 1.26.0 [[GH-28460](https://github.com/hashicorp/nomad/issues/28460)]
 * build: Updated Go to v1.27.1 [[GH-28451](https://github.com/hashicorp/nomad/issues/28451)]
-* jobspec2: Decouple from Nomad core with isolated Go module named `github.com/hashicorp/nomad/jobspec2` [[GH-28419](https://github.com/hashicorp/nomad/issues/28419)]
+* jobspec2: Decouple from Nomad core with isolated Go module named  [[GH-28419](https://github.com/hashicorp/nomad/issues/28419)]
 * ui: prevent stuck requests due to exceeding connection limit, enable HTTP2 [[GH-28364](https://github.com/hashicorp/nomad/issues/28364)]
 
 BUG FIXES:
 
-* api: Fixed a bug where a job plan diff sorted indexed fields such as `args` lexically, listing `args[10]` before `args[2]` [[GH-4421](https://github.com/hashicorp/nomad/issues/4421)]
+* api: Fixed a bug where a job plan diff sorted indexed fields such as  lexically, listing  before  [[GH-4421](https://github.com/hashicorp/nomad/issues/4421)]
 * client: prevent Alloc FS API from accessing secret dir when symlinked into task [[GH-28468](https://github.com/hashicorp/nomad/issues/28468)]
-* core: Fixed a bug where an artifact `checksum` of the form `file:<url>` (fetching the checksum from a remote file) was rejected during job validation [[GH-9764](https://github.com/hashicorp/nomad/issues/9764)]
+* core: Fixed a bug where an artifact  of the form  (fetching the checksum from a remote file) was rejected during job validation [[GH-9764](https://github.com/hashicorp/nomad/issues/9764)]
 * jobspec: Fixed a bug where a task group containing only lifecycle tasks and no main task was accepted during job validation [[GH-17570](https://github.com/hashicorp/nomad/issues/17570)]
-* scheduler: Fixed a bug where task groups with `per_alloc` volumes could skip real feasibility checks for allocs after the first placement failure in the same task group [[GH-28422](https://github.com/hashicorp/nomad/issues/28422)]
+* scheduler: Fixed a bug where task groups with  volumes could skip real feasibility checks for allocs after the first placement failure in the same task group [[GH-28422](https://github.com/hashicorp/nomad/issues/28422)]
 * state: Fixed a bug where plans from older versioned followers did not have allocation resource schemas upgraded when written on the leader [[GH-28447](https://github.com/hashicorp/nomad/issues/28447)]
 * vault: Fixed a bug where a task's change_mode was triggered on each Vault token renewal [[GH-28409](https://github.com/hashicorp/nomad/issues/28409)]
 * vault: fixes an issue where dead tasks continued to have their tokens renewed [[GH-28501](https://github.com/hashicorp/nomad/issues/28501)]
 
-## 1.10.15 Enterprise (August 12, 2026)
+## 1.10.15 Enterprise (August 13, 2026)
 
 BREAKING CHANGES:
 
-* plugin: The `DriverNetwork.Hash` method has been removed from the `plugin/drivers` package. [[GH-28342](https://github.com/hashicorp/nomad/issues/28342)]
+* plugin: The  method has been removed from the  package. [[GH-28342](https://github.com/hashicorp/nomad/issues/28342)]
 
 IMPROVEMENTS:
 
@@ -640,50 +700,49 @@ BUG FIXES:
 
 * agent: Fixed a bug where the startup banner would display the wrong node ID for servers after restart [[GH-28276](https://github.com/hashicorp/nomad/issues/28276)]
 * api: Fixed a bug where the client allocation endpoints returned a 500 error instead of a 404 when the allocation's node could not be found [[GH-28261](https://github.com/hashicorp/nomad/issues/28261)]
-* cli: Fixed a bug where `nomad operator root keyring remove` would not accept an abbreviated key ID [[GH-24148](https://github.com/hashicorp/nomad/issues/24148)]
+* cli: Fixed a bug where  would not accept an abbreviated key ID [[GH-24148](https://github.com/hashicorp/nomad/issues/24148)]
 * client: Fix issue where deleted allocations may remain running [[GH-28394](https://github.com/hashicorp/nomad/issues/28394)]
 * client: Fixed a bug where the client would not remount the secret and private tmpfs after a restart [[GH-28345](https://github.com/hashicorp/nomad/issues/28345)]
 * client: Fixed a bug where the previous allocation watcher would retry forever when the server returned a permanent error during data migration [[GH-28191](https://github.com/hashicorp/nomad/issues/28191)]
 * csi: Fixed a bug where evals blocked on missing CSI volumes would not unblock [[GH-28275](https://github.com/hashicorp/nomad/issues/28275)]
 * deployments: Fix garbage collection to respect threshold [[GH-28225](https://github.com/hashicorp/nomad/issues/28225)]
 * docker: Fixed a bug where tasks could execute outside of their assigned cpuset range [[GH-28272](https://github.com/hashicorp/nomad/issues/28272)]
-* drivers/java: Fixed a bug where the Java driver did not correctly decode the `work_dir` option [[GH-28330](https://github.com/hashicorp/nomad/issues/28330)]
-* jobspec: Fixed a bug where a negative `cores` value in a task's resource block was accepted during job validation and registration [[GH-10511](https://github.com/hashicorp/nomad/issues/10511)]
+* drivers/java: Fixed a bug where the Java driver did not correctly decode the  option [[GH-28330](https://github.com/hashicorp/nomad/issues/28330)]
+* jobspec: Fixed a bug where a negative  value in a task's resource block was accepted during job validation and registration [[GH-10511](https://github.com/hashicorp/nomad/issues/10511)]
 * quota (Enterprise): Fixed a bug where disabling the use of cores in a quota would block the ability to use either cores or CPU in a job
 * scheduler: Ensure deployment IDs are not written to an evaluation when the generated deployment is not persisted to state due to plan apply retries [[GH-28307](https://github.com/hashicorp/nomad/issues/28307)]
 * scheduler: Fixed a bug where the scheduler could panic with a nil pointer dereference when checking host volume feasibility for an allocation whose job had been purged [[GH-28301](https://github.com/hashicorp/nomad/issues/28301)]
 * ui: Fixed SSO sign in display not displaying when SSO enabled [[GH-28262](https://github.com/hashicorp/nomad/issues/28262)]
-* ui: Fixed a bug where the job status panel would show "Complete" instead of "Scaled Down" for system and sysbatch jobs with zero allocations [[GH-27949](https://github.com/hashicorp/nomad/issues/27949)]
+* ui: Fixed a bug where the job status panel would show Complete instead of Scaled Down for system and sysbatch jobs with zero allocations [[GH-27949](https://github.com/hashicorp/nomad/issues/27949)]
 * ui: Fixed the region identifier header showing as empty in single region clusters [[GH-28310](https://github.com/hashicorp/nomad/issues/28310)]
 * ui: Fixed version diff display and missing deployment version numbers [[GH-28294](https://github.com/hashicorp/nomad/issues/28294)]
 * ui: check websocket upgrade headers with multiple values [[GH-28234](https://github.com/hashicorp/nomad/issues/28234)]
 * ui: refetch nomad license when logging in with new token [[GH-28284](https://github.com/hashicorp/nomad/issues/28284)]
 
-## 1.10.14 Enterprise (July 07, 2026)
+## 1.10.14 Enterprise (July 08, 2026)
 
 SECURITY:
 
-* docker: Enforce `allowed_modes` or `allow_privileged` requirement to set host namespace modes in task. This is CVE-2026-14891. [[GH-28190](https://github.com/hashicorp/nomad/issues/28190)]
-* docker: Fixed a bug where docker tasks could use a symlink to bypass the plugin configuration for volumes.enabled=false. This is CVE-2026-14896. [[GH-28177](https://github.com/hashicorp/nomad/issues/28177)]
-* dynamic host volumes: Fixed a bug where users with `host-volume-delete` in one namespace could delete claims from another namespace [[GH-28205](https://github.com/hashicorp/nomad/issues/28205)]
+* dynamic host volumes: Fixed a bug where users with  in one namespace could delete claims from another namespace [[GH-28205](https://github.com/hashicorp/nomad/issues/28205)]
 
 IMPROVEMENTS:
 
 * consul: Allow service, template, and connect blocks to fallback to the Nomad client agent's Consul token if workload identity is unavailable [[GH-28106](https://github.com/hashicorp/nomad/issues/28106)]
-* driver: Added optional `Init` function for task driver plugins [[GH-28104](https://github.com/hashicorp/nomad/issues/28104)]
-* driver: Added optional `Shutdown` function for task driver plugins [[GH-28102](https://github.com/hashicorp/nomad/issues/28102)]
+* driver: Added optional  function for task driver plugins [[GH-28104](https://github.com/hashicorp/nomad/issues/28104)]
+* driver: Added optional  function for task driver plugins [[GH-28102](https://github.com/hashicorp/nomad/issues/28102)]
 
 BUG FIXES:
 
 * api: allow using WI tokens on plan endpoint [[GH-28139](https://github.com/hashicorp/nomad/issues/28139)]
 * cli: Fixed a bug where complex HCL variables passed via -var flag could not be edited in the web UI [[GH-28138](https://github.com/hashicorp/nomad/issues/28138)]
+* docker: Enforce allowed_modes or allow_privileged requirement to set host namespace modes in task [[GH-28190](https://github.com/hashicorp/nomad/issues/28190)]
 * dynamic host volumes: Fixed a bug where allocations claiming host volumes with the per_alloc flag would not prevent the volume from being deleted [[GH-28198](https://github.com/hashicorp/nomad/issues/28198)]
 * metrics: expired metrics are now periodically cleared from the Prometheus sink even if no collection occurs [[GH-28170](https://github.com/hashicorp/nomad/issues/28170)]
 * scheduler: Fixed a bug where a node could be marked feasible for a task group requesting multiple host volumes when a satisfied sticky volume request short-circuited the checks for the remaining requests [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
-* scheduler: Fixed a bug where setting `sticky` on a static host volume could fail the evaluation instead of being rejected during feasibility checking [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
+* scheduler: Fixed a bug where setting  on a static host volume could fail the evaluation instead of being rejected during feasibility checking [[GH-28097](https://github.com/hashicorp/nomad/issues/28097)]
 * scheduler: keep draining batch alloc counted when node is re-enabled [[GH-28018](https://github.com/hashicorp/nomad/issues/28018)]
 * task runner: Improve the memory management for secrets [[GH-28140](https://github.com/hashicorp/nomad/issues/28140)]
-* ui: Fixed a bug where jobs that share a ModifyIndex (for example, several jobs rescheduled in a single Raft transaction after a node failure) were omitted from the jobs page and the `/v1/jobs/statuses` endpoint [[GH-28132](https://github.com/hashicorp/nomad/issues/28132)]
+* ui: Fixed a bug where jobs that share a ModifyIndex (for example, several jobs rescheduled in a single Raft transaction after a node failure) were omitted from the jobs page and the  endpoint [[GH-28132](https://github.com/hashicorp/nomad/issues/28132)]
 * ui: fixes an issue where streaming task logs would error [[GH-28137](https://github.com/hashicorp/nomad/issues/28137)]
 
 ## 1.10.13 Enterprise (June 09, 2026)
@@ -703,8 +762,9 @@ BUG FIXES:
 * client: Fixed a bug where tasks could accidentally get killed mid-restart on template re-render [[GH-27960](https://github.com/hashicorp/nomad/issues/27960)]
 * client: fix a bug where we could accidentally overwrite task states [[GH-27944](https://github.com/hashicorp/nomad/issues/27944)]
 * consul: re-write consul service identity token when reattaching to task [[GH-27936](https://github.com/hashicorp/nomad/issues/27936)]
+* job (Enterprise): Renabled use of multiple vault namespaces in a single job
 * plugins: store verified and canonicalised plugin configuration in the agent [[GH-28083](https://github.com/hashicorp/nomad/issues/28083)]
-* template: Fixed a bug where templates with `change_mode=noop` would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
+* template: Fixed a bug where templates with  would stop monitoring templates that fatally fail after initial rendering [[GH-28016](https://github.com/hashicorp/nomad/issues/28016)]
 * ui: Fix a bug where jobs with HCL variables submitted via Terraform could not be started or stopped in the web UI [[GH-28095](https://github.com/hashicorp/nomad/issues/28095)]
 * ui: Fix service detail page not rendering [[GH-28005](https://github.com/hashicorp/nomad/issues/28005)]
 * ui: Fixed a bug where the evaluation detail panel would render improperly [[GH-27987](https://github.com/hashicorp/nomad/issues/27987)]
@@ -747,7 +807,7 @@ BUG FIXES:
 * csi: improve check of StagePublishBaseDir being subdirectory of MountDir [[GH-27717](https://github.com/hashicorp/nomad/issues/27717)]
 * deployments: reset ProgressDeadline after pausing and do not fail while paused [[GH-27804](https://github.com/hashicorp/nomad/issues/27804)]
 * drivers: kill plugin instance on dispense failure [[GH-27711](https://github.com/hashicorp/nomad/issues/27711)]
-* job (Enterprise): Renabled use of multiple vault namespaces in a single job
+* job: renabled use of multiple vault namespaces in a single job [[GH-4002](https://github.com/hashicorp/nomad/issues/4002)]
 * plugins: Fixed a bug where plugin clients would continuously leak file descriptors when the agent was restarted [[GH-27885](https://github.com/hashicorp/nomad/issues/27885)]
 * scheduler: Fixed a bug where preemption of allocations by tasks that require devices could incorrectly fail placement [[GH-27880](https://github.com/hashicorp/nomad/issues/27880)]
 
@@ -786,9 +846,9 @@ IMPROVEMENTS:
 BUG FIXES:
 
 * acl: Fixed a bug where a bearer-token authenticated request could panic the handler for checking claims [[GH-27550](https://github.com/hashicorp/nomad/issues/27550)]
-* artifact: Fix artifact inspection when using `file` mode [[GH-27552](https://github.com/hashicorp/nomad/issues/27552)]
+* artifact: Fix artifact inspection when using  mode [[GH-27552](https://github.com/hashicorp/nomad/issues/27552)]
 * config: Fixed a bug where the keyring block could only be specified a maximum of two times [[GH-27579](https://github.com/hashicorp/nomad/issues/27579)]
-* config: Fixed parsing of Vault and Consul blocks as JSON that included objects such as `task_identity` [[GH-27595](https://github.com/hashicorp/nomad/issues/27595)]
+* config: Fixed parsing of Vault and Consul blocks as JSON that included objects such as  [[GH-27595](https://github.com/hashicorp/nomad/issues/27595)]
 * consul: fixes bug where clients were passing node token to connect envoy container, causing acl not found errors [[GH-27574](https://github.com/hashicorp/nomad/issues/27574)]
 * drivers: Pass error when included in fingerprint response [[GH-27537](https://github.com/hashicorp/nomad/issues/27537)]
 * http: Ensure the correct HTTP protocol version is set on event stream responses [[GH-27586](https://github.com/hashicorp/nomad/issues/27586)]
@@ -834,7 +894,7 @@ BUG FIXES:
 * ui: Tagging job versions in another namespace than the default-namespace resulted in an error [[GH-27282](https://github.com/hashicorp/nomad/issues/27282)]
 * ui: fix bug preventing OIDC login when `iss` parameter is required [[GH-27248](https://github.com/hashicorp/nomad/issues/27248)]
 
-## 1.10.7 Enterprise (December 09, 2025)
+## 1.10.7+ent (December 09, 2025)
 
 BREAKING CHANGES:
 
@@ -868,7 +928,7 @@ BUG FIXES:
 * server: Fixed a bug where a large backlog of unblocking evals could cause backpressure on Raft writes [[GH-27184](https://github.com/hashicorp/nomad/issues/27184)]
 * ui: Fixed the error message presented for invalid Variables definitions [[GH-26235](https://github.com/hashicorp/nomad/issues/26235)]
 
-## 1.10.6 Enterprise (November 11, 2025)
+## 1.10.6 (November 11, 2025)
 
 SECURITY:
 
@@ -922,7 +982,6 @@ IMPROVEMENTS:
 
 BUG FIXES:
 
-* consul: Fixed a bug where restarting the Nomad agent would cause Consul ACL tokens to be recreated [[GH-26604](https://github.com/hashicorp/nomad/pull/26604)]
 * csi: fix EOF error when registering volumes [[GH-26642](https://github.com/hashicorp/nomad/issues/26642)]
 * dispatch: Fixed a bug where evaluations were not created atomically with dispatched jobs, which could prevent dispatch jobs from creating allocations [[GH-26710](https://github.com/hashicorp/nomad/issues/26710)]
 * exec: Adjust USER and HOME env vars when user value is set [[GH-25859](https://github.com/hashicorp/nomad/issues/25859)]
