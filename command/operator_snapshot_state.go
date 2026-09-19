@@ -6,6 +6,7 @@ package command
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 
 type OperatorSnapshotStateCommand struct {
 	Meta
+	writer io.Writer
 }
 
 func (c *OperatorSnapshotStateCommand) Help() string {
@@ -64,7 +66,7 @@ func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 		return 1
 	}
 
-	filter, err := nomad.NewFSMFilter(filterExpr.String())
+	filter, err := nomad.NewFSMFilter(filterExpr.String(), nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Invalid filter expression %q: %s", filterExpr, err))
 		return 1
@@ -94,7 +96,11 @@ func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 	sm := raftutil.StateAsMap(state)
 	sm["SnapshotMeta"] = []any{meta}
 
-	enc := json.NewEncoder(os.Stdout)
+	if c.writer == nil {
+		c.writer = os.Stdout
+	}
+
+	enc := json.NewEncoder(c.writer)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(sm); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to encode output: %v", err))

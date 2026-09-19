@@ -121,7 +121,7 @@ type LogApplier func(buf []byte, index uint64) any
 type LogAppliers map[structs.MessageType]LogApplier
 
 // SnapshotRestorer is the definition of a function that can apply a Raft log
-type SnapshotRestorer func(restore *state.StateRestore, dec *codec.Decoder) error
+type SnapshotRestorer func(restore *state.StateRestore, dec *codec.Decoder, filter *FSMFilter) error
 
 // SnapshotRestorers is a mapping of the SnapshotType to the appropriate
 // snapshot restorer.
@@ -1635,7 +1635,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(node); err != nil {
 				return err
 			}
-			if filter.Include(node) {
+			if filter.Include(snapType, node) {
 				node.Canonicalize() // Handle upgrade paths
 				if err := restore.NodeRestore(node); err != nil {
 					return err
@@ -1647,7 +1647,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(job); err != nil {
 				return err
 			}
-			if filter.Include(job) {
+			if filter.Include(snapType, job) {
 				/* Handle upgrade paths:
 				 * - Empty maps and slices should be treated as nil to avoid
 				 *   un-intended destructive updates in scheduler since we use
@@ -1665,7 +1665,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(eval); err != nil {
 				return err
 			}
-			if filter.Include(eval) {
+			if filter.Include(snapType, eval) {
 				if err := restore.EvalRestore(eval); err != nil {
 					return err
 				}
@@ -1676,7 +1676,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(alloc); err != nil {
 				return err
 			}
-			if filter.Include(alloc) {
+			if filter.Include(snapType, alloc) {
 				alloc.Canonicalize() // Handle upgrade path
 				if err := restore.AllocRestore(alloc); err != nil {
 					return err
@@ -1697,7 +1697,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(launch); err != nil {
 				return err
 			}
-			if filter.Include(launch) {
+			if filter.Include(snapType, launch) {
 				if err := restore.PeriodicLaunchRestore(launch); err != nil {
 					return err
 				}
@@ -1708,7 +1708,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(summary); err != nil {
 				return err
 			}
-			if filter.Include(summary) {
+			if filter.Include(snapType, summary) {
 				if err := restore.JobSummaryRestore(summary); err != nil {
 					return err
 				}
@@ -1737,7 +1737,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(version); err != nil {
 				return err
 			}
-			if filter.Include(version) {
+			if filter.Include(snapType, version) {
 				if err := restore.JobVersionRestore(version); err != nil {
 					return err
 				}
@@ -1748,7 +1748,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(deployment); err != nil {
 				return err
 			}
-			if filter.Include(deployment) {
+			if filter.Include(snapType, deployment) {
 				if err := restore.DeploymentRestore(deployment); err != nil {
 					return err
 				}
@@ -1759,7 +1759,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(policy); err != nil {
 				return err
 			}
-			if filter.Include(policy) {
+			if filter.Include(snapType, policy) {
 				if err := restore.ACLPolicyRestore(policy); err != nil {
 					return err
 				}
@@ -1770,7 +1770,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(token); err != nil {
 				return err
 			}
-			if filter.Include(token) {
+			if filter.Include(snapType, token) {
 				if err := restore.ACLTokenRestore(token); err != nil {
 					return err
 				}
@@ -1800,7 +1800,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(jobScalingEvents); err != nil {
 				return err
 			}
-			if filter.Include(jobScalingEvents) {
+			if filter.Include(snapType, jobScalingEvents) {
 				if err := restore.ScalingEventsRestore(jobScalingEvents); err != nil {
 					return err
 				}
@@ -1811,7 +1811,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(scalingPolicy); err != nil {
 				return err
 			}
-			if filter.Include(scalingPolicy) {
+			if filter.Include(snapType, scalingPolicy) {
 				// Handle upgrade path:
 				//   - Set policy type if empty
 				scalingPolicy.Canonicalize(nil, nil, nil)
@@ -1825,7 +1825,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(plugin); err != nil {
 				return err
 			}
-			if filter.Include(plugin) {
+			if filter.Include(snapType, plugin) {
 				if err := restore.CSIPluginRestore(plugin); err != nil {
 					return err
 				}
@@ -1836,7 +1836,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(volume); err != nil {
 				return err
 			}
-			if filter.Include(volume) {
+			if filter.Include(snapType, volume) {
 				if err := restore.CSIVolumeRestore(volume); err != nil {
 					return err
 				}
@@ -1861,7 +1861,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(serviceRegistration); err != nil {
 				return err
 			}
-			if filter.Include(serviceRegistration) {
+			if filter.Include(snapType, serviceRegistration) {
 				// Perform the restoration.
 				if err := restore.ServiceRegistrationRestore(serviceRegistration); err != nil {
 					return err
@@ -1893,7 +1893,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(keyMeta); err != nil {
 				return err
 			}
-			if filter.Include(keyMeta) {
+			if filter.Include(snapType, keyMeta) {
 				wrappedKeys := structs.NewRootKey(keyMeta)
 				if err := restore.RootKeyRestore(wrappedKeys); err != nil {
 					return err
@@ -1911,7 +1911,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(wrappedKeys); err != nil {
 				return err
 			}
-			if filter.Include(wrappedKeys) {
+			if filter.Include(snapType, wrappedKeys) {
 				if err := restore.RootKeyRestore(wrappedKeys); err != nil {
 					return err
 				}
@@ -1997,7 +1997,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(vol); err != nil {
 				return err
 			}
-			if filter.Include(vol) {
+			if filter.Include(snapType, vol) {
 				if err := restore.HostVolumeRestore(vol); err != nil {
 					return err
 				}
@@ -2011,7 +2011,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			}
 
 			// Restore the enterprise only object
-			if err := restorer(restore, dec); err != nil {
+			if err := restorer(restore, dec, filter); err != nil {
 				return err
 			}
 		}
@@ -2354,27 +2354,38 @@ func (n *nomadFSM) applyACLBindingRulesDelete(buf []byte, index uint64) any {
 }
 
 type FSMFilter struct {
-	evaluator *bexpr.Evaluator
+	evaluator     *bexpr.Evaluator
+	excludedTypes map[SnapshotType]struct{}
 }
 
-func NewFSMFilter(expr string) (*FSMFilter, error) {
-	if expr == "" {
-		return nil, nil
+func NewFSMFilter(expr string, exclude []SnapshotType) (*FSMFilter, error) {
+	var evaluator *bexpr.Evaluator
+	var err error
+	if expr != "" {
+		evaluator, err = bexpr.CreateEvaluator(expr)
+		if err != nil {
+			return nil, err
+		}
 	}
-	evaluator, err := bexpr.CreateEvaluator(expr)
-	if err != nil {
-		return nil, err
+	excludedTypes := map[SnapshotType]struct{}{}
+	for _, t := range exclude {
+		excludedTypes[t] = struct{}{}
 	}
-	return &FSMFilter{evaluator: evaluator}, nil
+	return &FSMFilter{evaluator: evaluator, excludedTypes: excludedTypes}, nil
 }
 
-func (f *FSMFilter) Include(item any) bool {
+func (f *FSMFilter) Include(t SnapshotType, item any) bool {
 	if f == nil {
 		return true
 	}
-	ok, err := f.evaluator.Evaluate(item)
-	if !ok || err != nil {
+	if _, exclude := f.excludedTypes[t]; exclude {
 		return false
+	}
+	if f.evaluator != nil {
+		ok, err := f.evaluator.Evaluate(item)
+		if !ok || err != nil {
+			return false
+		}
 	}
 	return true
 }
