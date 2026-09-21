@@ -172,7 +172,7 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 	t.Run("queued workloads have status and position", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		broker := newTestBroker()
-		q := NewFifoQueue(ss, broker, &structs.BatchQueue{}, hclog.Default())
+		q := NewFifoQueue(hclog.Default(), ss, broker)
 
 		// Directly push to queue without starting (to avoid dequeuing)
 		eval1 := mock.Eval()
@@ -208,7 +208,7 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 	t.Run("in-progress workloads have placing status and position 0", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		broker := newTestBroker()
-		q := NewFifoQueue(ss, broker, &structs.BatchQueue{}, hclog.Default())
+		q := NewFifoQueue(hclog.Default(), ss, broker)
 
 		// Manually track workloads to simulate in-progress state
 		eval1 := mock.Eval()
@@ -261,7 +261,7 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 	t.Run("completed placements are removed from in-progress", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		broker := newTestBroker()
-		q := NewFifoQueue(ss, broker, &structs.BatchQueue{}, hclog.Default())
+		q := NewFifoQueue(hclog.Default(), ss, broker)
 
 		eval := mock.Eval()
 		w := newFifoWorkload(eval)

@@ -755,9 +755,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ss := state.TestStateStore(t)
-			testQueue := NewDynamicPriorityQueue(ss, nil, &structs.BatchQueue{
-				TenantType: "namespace",
-			}, &structs.DynamicQueueConfig{}, hclog.New(hclog.DefaultOptions))
+			testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{TenantType: "namespace"})
 			testQueue.queue = queue.NewWorkloadQueue(workloadSortFn())
 
 			for _, w := range tc.workloads {

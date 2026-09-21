@@ -44,7 +44,7 @@ func (w *testWorkload) WaitOnRestore() bool {
 func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 	t.Run("returns if eval complete", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
@@ -95,7 +95,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 
 	t.Run("continues watching blocked evals", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -141,7 +141,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 
 	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		next := mock.Eval()
@@ -187,7 +187,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 
 	t.Run("updates status when constrained", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -259,7 +259,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 
 	t.Run("continues waiting on resource exhaustion timeout", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -311,7 +311,7 @@ func TestWorkloadWatcher_isSchedulingComplete(t *testing.T) {
 	t.Run("pending eval results in false", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 		testEval := mock.Eval()
 		testEval.Status = structs.EvalStatusPending
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
@@ -328,7 +328,7 @@ func TestWorkloadWatcher_isSchedulingComplete(t *testing.T) {
 	t.Run("eval with pending blockedEval results in false", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 		testEval := mock.Eval()
 		blocked := mock.Eval()
 
@@ -349,7 +349,7 @@ func TestWorkloadWatcher_isSchedulingComplete(t *testing.T) {
 
 	t.Run("eval with complete blockedEval results in true", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		blocked := mock.Eval()
@@ -373,7 +373,7 @@ func TestWorkloadWatcher_isSchedulingComplete(t *testing.T) {
 func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 	t.Run("detects constraint failure without resource exhaustion", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -397,7 +397,7 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 
 	t.Run("does not detect constraint failure with resource exhaustion", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -418,7 +418,7 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 
 	t.Run("detects pure resource exhaustion as not constraint failure", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -437,7 +437,7 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 
 	t.Run("handles nil FailedTGAllocs", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = nil
@@ -449,7 +449,7 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 
 	t.Run("handles quota exhaustion as resource issue", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -471,7 +471,7 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 func TestWorkloadWatcher_TrackPlacement(t *testing.T) {
 	t.Run("tracks and untracks workloads", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default(), &structs.BatchQueue{})
+		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
 		testEval1 := mock.Eval()
 		testEval2 := mock.Eval()
