@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -221,9 +222,9 @@ server {
 
 			// Iterate the stored lines backwards, as the log line we are looking
 			// for is likely to be towards the end of the output.
-			for i := len(clientWriter.lines) - 1; i >= 0; i-- {
+			for _, v := range slices.Backward(clientWriter.lines) {
 				if strings.Contains(
-					clientWriter.lines[i],
+					v,
 					`client: error registering: error="rpc error: Permission denied"`,
 				) {
 					return nil

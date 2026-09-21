@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"text/template"
 	"time"
@@ -123,12 +124,13 @@ func RegisterAndWaitForAllocs(t *testing.T, nomadClient *api.Client, jobFile, jo
 
 		return true, nil
 	}, func(e error) {
-		msg := fmt.Sprintf("allocations not placed for %s", jobID)
+		var msg strings.Builder
+		msg.WriteString(fmt.Sprintf("allocations not placed for %s", jobID))
 		for _, eval := range evals {
-			msg += fmt.Sprintf("\n  %s - %s", eval.Status, eval.StatusDescription)
+			msg.WriteString(fmt.Sprintf("\n  %s - %s", eval.Status, eval.StatusDescription))
 		}
 
-		require.Fail(t, msg, "full evals: %v", pretty.Sprint(evals))
+		require.Fail(t, msg.String(), "full evals: %v", pretty.Sprint(evals))
 	})
 
 	require.NoError(t, err) // we only care about the last error
@@ -322,7 +324,7 @@ func DumpEvals(c *api.Client, jobID string) string {
 	}
 	buf := bytes.NewBuffer(nil)
 	for i, e := range evals {
-		err := EvalTemplate.Execute(buf, map[string]interface{}{
+		err := EvalTemplate.Execute(buf, map[string]any{
 			"Index": i + 1,
 			"Total": len(evals),
 			"Eval":  e,

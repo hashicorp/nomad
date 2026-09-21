@@ -6,6 +6,7 @@ package rescheduling
 import (
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -124,12 +125,7 @@ func TestRescheduling_MaxAttempts(t *testing.T) {
 		wait.BoolFunc(func() bool {
 			got, err := e2eutil.AllocStatuses(jobID, ns)
 			must.NoError(t, err)
-			for _, status := range got {
-				if status == "running" {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(got, "running")
 		}),
 		wait.Timeout(10*time.Second),
 		wait.Gap(500*time.Millisecond),
