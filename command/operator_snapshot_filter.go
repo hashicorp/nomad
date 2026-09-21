@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/nomad/helper/raftutil"
 	"github.com/hashicorp/nomad/nomad"
@@ -21,13 +23,16 @@ type OperatorSnapshotFilterCommand struct {
 
 func (c *OperatorSnapshotFilterCommand) Help() string {
 	helpText := `
-Usage: nomad operator snapshot filter [options] <file>
+Usage: nomad operator snapshot filter [options] <inputfile> [<outputfile>]
 
   Removes selected entries from an existing snapshot file created by the
   operator snapshot save command. This is useful for situations where you need
   to remove objects from a snapshot you want to restore to a cluster, or to
   remove a large amount of pending evals when recovering a cluster from an
-  outage. This command edits the snapshot file in place.
+  outage.
+
+  This command creates a copy of the original file to filter. It accepts an
+  optional second argument to specify an output file path.
 
 Snapshot Filter Options:
 
@@ -112,21 +117,36 @@ func (c *OperatorSnapshotFilterCommand) Run(args []string) int {
 	}
 
 	args = flagSet.Args()
-	if len(args) != 1 {
-		c.Ui.Error("This command takes one argument: <file>")
+	if len(args) == 0 || len(args) > 2 {
+		c.Ui.Error("This command takes one required argument and one optional argument: <input file> [<output file>]")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
 
-	path := args[0]
-	f, err := os.Open(path)
+	inputPath := args[0]
+	f, err := os.Open(inputPath)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error opening snapshot file: %s", err))
 		return 1
 	}
 	defer f.Close()
 
-	tmpFile, err := os.Create(path + ".tmp")
+	now := time.Now()
+	outputPath := fmt.Sprintf("nomad-state-filtered-%04d%02d%0d-%d.snap", now.Year(), now.Month(), now.Day(), now.Unix())
+	if len(args) == 2 {
+		outputPath = args[1]
+	}
+	if _, err := os.Lstat(outputPath); err == nil {
+		c.Ui.Error(fmt.Sprintf("Destination file already exists: %q", outputPath))
+		c.Ui.Error(commandErrorText(c))
+		return 1
+	} else if !os.IsNotExist(err) {
+		c.Ui.Error(fmt.Sprintf("Unexpected failure checking %q: %v", outputPath, err))
+		return 1
+	}
+
+	inputBase := filepath.Base(inputPath)
+	tmpFile, err := os.CreateTemp("", fmt.Sprintf("%s-*.snap", inputBase))
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to create temporary file: %v", err))
 		return 1
@@ -150,12 +170,12 @@ func (c *OperatorSnapshotFilterCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = os.Rename(tmpFile.Name(), path)
+	err = os.Rename(tmpFile.Name(), outputPath)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to finalize snapshot file: %v", err))
 		return 1
 	}
 
-	c.Ui.Output("Snapshot filtered")
+	c.Ui.Output(fmt.Sprintf("Filtered snapshot written to %s", outputPath))
 	return 0
 }

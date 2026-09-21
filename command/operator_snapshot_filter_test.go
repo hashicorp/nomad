@@ -5,7 +5,6 @@ package command
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"strings"
 	"testing"
@@ -49,25 +48,17 @@ func TestOperatorSnapshotFilter(t *testing.T) {
 
 	runTest := func(t *testing.T, args []string) string {
 		t.Helper()
-
-		// the filter command mutates the snapshot in place, so make a quick and
-		// dirty copy to run tests on
 		outPath := snapshotPath + ".tmp"
-		in, _ := os.Open(snapshotPath)
-		t.Cleanup(func() { in.Close() })
-		out, _ := os.Create(outPath)
-		io.Copy(out, in)
-		out.Sync()
-		out.Close()
 		t.Cleanup(func() { os.Remove(outPath) })
 
 		ui := cli.NewMockUi()
 		filterCmd := &OperatorSnapshotFilterCommand{Meta: Meta{Ui: ui}}
-		args = append(args, outPath)
+		args = append(args, snapshotPath, outPath)
 		code := filterCmd.Run(args)
 		must.Eq(t, "", ui.ErrorWriter.String())
 		must.Zero(t, code)
-		must.StrContains(t, ui.OutputWriter.String(), "Snapshot filtered")
+		must.StrContains(t, ui.OutputWriter.String(),
+			"Filtered snapshot written to")
 
 		ui = cli.NewMockUi()
 		var buf bytes.Buffer
