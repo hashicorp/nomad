@@ -84,7 +84,7 @@ func NewDynamicPriorityQueue(
 		state:        ss,
 		evalCancelFn: cancelFn,
 		logger:       logger.Named("dynamic_priority_queue"),
-		watcher: queue.NewWorkloadWatcher(ss, logger),
+		watcher:      queue.NewWorkloadWatcher(ss, logger),
 	}
 }
 
@@ -340,7 +340,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *stru
 	}
 
 	return &dynamicPriorityWorkload{
-		BaseWorkload:       queue.NewBaseWorkload(e, job),
+		BaseWorkload:       queue.NewBaseWorkload(e, job, queue.WorkloadStatusQueued),
 		tid:                tid,
 		priority:           0,
 		requestedResources: requestedResources,
@@ -511,23 +511,12 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 	pos := 0
 	workloads := []structs.QueueWorkload{}
 
-	for _, workload := range d.watcher.GetInProgressWorkloads() {
-		w := workload.(*dynamicPriorityWorkload)
-		workloads = append(workloads, w.toStruct(0))
-	}
-
-	d.queue.Iterate(func(workload queue.Workload) {
-		w := workload.(*dynamicPriorityWorkload)
-		// waitOnRestore does not count towards position in queue
-		if w.WaitOnRestore() {
-			return
-		}
-		pos++
-
+	var newDynamicWorkloadStruct = func(w *dynamicPriorityWorkload) *structs.DynamicPriorityWorkload {
 		e := w.Eval()
-		workloads = append(workloads, &structs.DynamicPriorityWorkload{
+		return &structs.DynamicPriorityWorkload{
 			JobID:            e.JobID,
 			Tenant:           string(w.tid),
+			Status:           w.Status(),
 			Namespace:        e.Namespace,
 			Position:         pos,
 			AdjustedPriority: w.priority,
@@ -538,7 +527,22 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 			MemoryAdjustment: w.memAdjustment,
 			CreatedAt:        e.CreateTime,
 			CreateIndex:      e.CreateIndex,
-		})
+		}
+	}
+
+	for _, workload := range d.watcher.GetInProgressWorkloads() {
+		w := workload.(*dynamicPriorityWorkload)
+		workloads = append(workloads, newDynamicWorkloadStruct(w))
+	}
+
+	d.queue.Iterate(func(workload queue.Workload) {
+		w := workload.(*dynamicPriorityWorkload)
+		// waitOnRestore does not count towards position in queue
+		if w.WaitOnRestore() {
+			return
+		}
+		pos++
+		workloads = append(workloads, newDynamicWorkloadStruct(w))
 	})
 
 	iter := queue.NewWorkloadIter(workloads)

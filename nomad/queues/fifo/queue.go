@@ -60,7 +60,7 @@ func NewFifoQueue(
 		state:        ss,
 		evalCancelFn: cancelFn,
 		logger:       logger.Named("fifo_queue"),
-		watcher: queue.NewWorkloadWatcher(ss, logger),
+		watcher:      queue.NewWorkloadWatcher(ss, logger),
 	}
 }
 
@@ -151,7 +151,7 @@ func (f *FifoQueue) runConsumer(ctx context.Context) {
 			w := f.queue.Pop()
 
 			if !w.WaitOnRestore() {
-				f.evalBroker.Enqueue(w.GetEval())
+				f.evalBroker.Enqueue(w.Eval())
 			}
 
 			err := f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
@@ -198,12 +198,12 @@ func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 
 	for _, workload := range f.watcher.GetInProgressWorkloads() {
 		w := workload.(*fifoWorkload)
-		eval := w.GetEval()
+		eval := w.Eval()
 		workloads = append(workloads, &structs.Workload{
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
 			Position:    0,
-			Status:      w.status,
+			Status:      w.Status(),
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
 		})
@@ -222,7 +222,7 @@ func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
 			Position:    pos,
-			Status:      w.status,
+			Status:      w.Status(),
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
 		})

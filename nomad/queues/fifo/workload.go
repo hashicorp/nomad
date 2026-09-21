@@ -14,6 +14,6 @@ type fifoWorkload struct {
 
 func newFifoWorkload(e *structs.Evaluation, j *structs.Job) *fifoWorkload {
 	return &fifoWorkload{
-		BaseWorkload: queue.NewBaseWorkload(e, j),
+		BaseWorkload: queue.NewBaseWorkload(e, j, queue.WorkloadStatusQueued),
 	}
 }

@@ -3,7 +3,11 @@
 
 package queue
 
-import "github.com/hashicorp/nomad/nomad/structs"
+import (
+	"fmt"
+
+	"github.com/hashicorp/nomad/nomad/structs"
+)
 
 type BaseWorkload struct {
 	// id is the unique identifier used in a WorkloadQueue
@@ -14,15 +18,20 @@ type BaseWorkload struct {
 
 	jobVersion uint64
 
+	status string
+
+	description string
+
 	waitOnRestore bool
 }
 
-func NewBaseWorkload(e *structs.Evaluation, j *structs.Job) BaseWorkload {
+func NewBaseWorkload(e *structs.Evaluation, j *structs.Job, status string) BaseWorkload {
 	return BaseWorkload{
 		id:            j.NamespacedID(),
 		eval:          e,
 		jobVersion:    j.Version,
 		waitOnRestore: false,
+		status:        status,
 	}
 }
 
@@ -40,6 +49,18 @@ func (b *BaseWorkload) SetEval(e *structs.Evaluation) {
 
 func (b *BaseWorkload) JobVersion() uint64 {
 	return b.jobVersion
+}
+
+func (b *BaseWorkload) Status() string {
+	if b.description != "" {
+		return fmt.Sprintf("%s (%s)", b.status, b.description)
+	}
+	return b.status
+}
+
+func (b *BaseWorkload) SetStatus(status, description string) {
+	b.status = status
+	b.description = description
 }
 
 func (b *BaseWorkload) WaitOnRestore() bool {

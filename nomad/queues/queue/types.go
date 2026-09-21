@@ -32,7 +32,7 @@ type Workload interface {
 	ID() structs.NamespacedID
 	Eval() *structs.Evaluation
 	SetEval(*structs.Evaluation)
-	GetStatus() string
+	Status() string
 	SetStatus(string, string)
 	JobVersion() uint64
 	WaitOnRestore() bool
