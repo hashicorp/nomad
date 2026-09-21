@@ -35,7 +35,7 @@ func TestSingleton_Dispense(t *testing.T) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
-			PluginF: func() interface{} { return p },
+			PluginF: func() any { return p },
 		}
 		dispenseCalled++
 		return i, nil
@@ -45,11 +45,10 @@ func TestSingleton_Dispense(t *testing.T) {
 	const count = 128
 	var l sync.Mutex
 	var wg sync.WaitGroup
-	plugins := make(map[interface{}]struct{}, 1)
+	plugins := make(map[any]struct{}, 1)
 	waitCh := make(chan struct{})
-	for i := 0; i < count; i++ {
-		wg.Add(1)
-		go func() {
+	for range count {
+		wg.Go(func() {
 			// Wait for unblock
 			<-waitCh
 
@@ -62,8 +61,7 @@ func TestSingleton_Dispense(t *testing.T) {
 			l.Lock()
 			plugins[i1] = struct{}{}
 			l.Unlock()
-			wg.Done()
-		}()
+		})
 	}
 	time.Sleep(10 * time.Millisecond)
 	close(waitCh)
@@ -85,7 +83,7 @@ func TestSingleton_Dispense_Exit_Dispense(t *testing.T) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return exited },
-			PluginF: func() interface{} { return p },
+			PluginF: func() any { return p },
 		}
 		dispenseCalled++
 		return i, nil
@@ -133,7 +131,7 @@ func TestSingleton_DispenseError_Dispense(t *testing.T) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
-			PluginF: func() interface{} { return p },
+			PluginF: func() any { return p },
 		}
 		dispenseCalled++
 		return i, nil
@@ -177,7 +175,7 @@ func TestSingleton_ReattachError_Dispense(t *testing.T) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
-			PluginF: func() interface{} { return p },
+			PluginF: func() any { return p },
 		}
 		dispenseCalled++
 		return i, nil
@@ -221,7 +219,7 @@ func TestSingleton_Reattach_Dispense(t *testing.T) {
 		p := &base.MockPlugin{}
 		i := &loader.MockInstance{
 			ExitedF: func() bool { return false },
-			PluginF: func() interface{} { return p },
+			PluginF: func() any { return p },
 		}
 		reattachCalled++
 		return i, nil

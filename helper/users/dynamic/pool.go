@@ -155,7 +155,7 @@ func (p *pool) random() UGID {
 	const maxAttempts = 10
 	size := int64(p.max - p.min)
 	tries := int(min(maxAttempts, size))
-	for attempt := 0; attempt < tries; attempt++ {
+	for range tries {
 		id := UGID(rand.Int63n(size)) + p.min
 		if p.used.Insert(id) {
 			return id
