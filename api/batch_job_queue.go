@@ -34,6 +34,7 @@ func (c *Client) BatchQueue() *BatchQueue {
 type DynamicPriorityWorkload struct {
 	JobID            string
 	Tenant           string
+	Status           string
 	Position         int
 	AdjustedPriority int
 	BasePriority     int
@@ -54,6 +55,7 @@ type DynamicPriorityTenant struct {
 type Workload struct {
 	JobID     string
 	Position  int
+	Status    string
 	CreatedAt int64
 }
 
