@@ -929,6 +929,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator snapshot filter": func() (cli.Command, error) {
+			return &OperatorSnapshotFilterCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator utilization": func() (cli.Command, error) {
 			return &OperatorUtilizationCommand{
 				Meta: meta,
