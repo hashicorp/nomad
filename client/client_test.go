@@ -16,7 +16,7 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -1015,7 +1015,6 @@ func TestClient_AddAllocError(t *testing.T) {
 
 	// Set these two fields to nil to cause alloc runner creation to fail
 	alloc1.AllocatedResources = nil
-	alloc1.TaskResources = nil
 
 	state := s1.State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
@@ -2464,4 +2463,77 @@ func TestClient_AllocPrerunErrorDuringRestore(t *testing.T) {
 	}
 	must.Eq(t, expectEvents, actual)
 	test.StrContains(t, ts.Events[3].DisplayMessage, allocrunner.ErrFailHookError.Error())
+}
+
+// TestClient_ReregisterOnExpiration asserts that when a heartbeat returns
+// "Permission denied" (ex. because the node's signed identity token has expired
+// while it was disconnected), the client re-registers itself
+func TestClient_ReregisterOnExpiration(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, token, cleanupSrv := testACLServer(t, func(c *nomad.Config) {
+		c.MinHeartbeatTTL = 50 * time.Millisecond
+		c.NumSchedulers = 0
+	})
+	defer cleanupSrv()
+	testutil.WaitForLeader(t, srv.RPC)
+
+	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
+		c.RPCHandler = srv
+		c.Fingerprinters = map[string]*config.Fingerprint{}
+	})
+	defer cleanupC1()
+
+	req := structs.NodeSpecificRequest{
+		NodeID: c1.Node().ID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: token.SecretID,
+		},
+	}
+	var out structs.SingleNodeResponse
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			err := srv.RPC("Node.GetNode", &req, &out)
+			if err != nil {
+				return err
+			}
+			if out.Node == nil || out.Node.Status != structs.NodeStatusReady {
+				return fmt.Errorf("not ready")
+			}
+			return nil
+		}),
+		wait.Gap(time.Millisecond*10),
+		wait.Timeout(time.Millisecond*100)))
+
+	// make sure we have the signed node identity
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			return c1.nodeIdentityToken() != ""
+		}),
+		wait.Gap(time.Millisecond*10),
+		wait.Timeout(time.Millisecond*500)),
+		must.Sprint("node identity not stored"),
+	)
+
+	// corrupt the identity token to simulate it expiring, because any
+	// verification error returns "Permission denied"
+	c1.setNodeIdentityToken("expired.identity.token")
+
+	// The client should detect the Permission denied error on the next
+	// heartbeat, trigger re-registration, and recover to ready.
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			return c1.nodeIdentityToken() != "expired.identity.token"
+		}),
+		wait.Gap(time.Millisecond*10),
+		wait.Timeout(time.Millisecond*1000)),
+		must.Sprint("node identity not refreshed"),
+	)
+
+	err := srv.RPC("Node.GetNode", &req, &out)
+	must.NoError(t, err)
+	must.NotNil(t, out.Node)
+	must.Eq(t, structs.NodeStatusReady, out.Node.Status)
 }

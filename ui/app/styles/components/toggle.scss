@@ -11,7 +11,7 @@ $size: 12px;
   position: relative;
 
   &.is-disabled {
-    color: $grey-blue;
+    color: var(--token-color-foreground-disabled);
     cursor: not-allowed;
   }
 
@@ -41,7 +41,7 @@ $size: 12px;
     width: $size * 2;
     height: $size;
     border-radius: $size;
-    background: $grey-blue;
+    background: var(--token-color-border-primary);
     transition: background 0.3s ease-in-out;
 
     &::after {
@@ -79,7 +79,7 @@ $size: 12px;
   }
 
   .input:disabled + .toggler {
-    background: rgba($grey-blue, 0.6);
+    background: var(--token-color-palette-neutral-400);
 
     &::after {
       opacity: 0.5;

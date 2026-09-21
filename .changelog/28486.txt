@@ -1,0 +1,7 @@
+```release-note:deprecation
+api: the Allocation struct's Resources and TaskResources fields are deprecated. Use the AllocatedResources field instead
+```
+
+```release-note:deprecation
+client: state databases restored from backups older than Nomad 0.9 are no longer compatible and will fail client startup.
+```

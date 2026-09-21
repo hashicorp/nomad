@@ -27,7 +27,7 @@ export default Factory.extend({
       Enabled: true,
       Label: {
         TextColor: 'white',
-        BackgroundColor: 'hotpink',
+        BackgroundColor: '#9e005d',
         Text: `Mirage - ${scenario}`,
       },
     },

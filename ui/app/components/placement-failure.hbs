@@ -5,16 +5,16 @@
 
 {{#if this.placementFailures}}
   {{#let this.placementFailures as |failures|}}
-    <h3 class="title is-5" data-test-placement-failure-task-group>
+    <h2 class="title is-5" data-test-placement-failure-task-group>
       {{this.placementFailures.name}}
       <Hds::Badge
         data-test-placement-failure-coalesced-failures
         @color="critical"
-        @type="outlined"
+        @type="filled"
         @size="small"
         @text="{{inc failures.coalescedFailures}} unplaced"
       />
-    </h3>
+    </h2>
     <ul class="simple-list">
       {{#if (eq failures.nodesEvaluated 0)}}
         <li data-test-placement-failure-no-evaluated-nodes>No nodes were

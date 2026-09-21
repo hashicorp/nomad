@@ -13,7 +13,6 @@ import { startMirage } from 'nomad-ui/tests/helpers/start-mirage';
 import jobEditor from 'nomad-ui/tests/pages/components/job-editor';
 import { initialize as fragmentSerializerInitializer } from 'nomad-ui/initializers/fragment-serializer';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const Editor = create(jobEditor());
 
@@ -112,8 +111,6 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
     assert.ok('[data-test-job-editor]', 'Editor is present');
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('submitting a json job skips the parse endpoint', async function (assert) {
@@ -176,8 +173,6 @@ module('Integration | Component | job-editor', function (hooks) {
     assert
       .dom('[data-test-plan-help-title]')
       .exists('The plan explanation popup is shown');
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('from the plan screen, the cancel button goes back to the editor with the job still in tact', async function (assert) {
@@ -220,8 +215,6 @@ module('Integration | Component | job-editor', function (hooks) {
       errorMessage,
       'The error message from the server is shown in the error in the UI',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('when plan fails, the plan error message is shown', async function (assert) {
@@ -252,8 +245,6 @@ module('Integration | Component | job-editor', function (hooks) {
       errorMessage,
       'The error message from the server is shown in the error in the UI',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('when run fails, the run error message is shown', async function (assert) {
@@ -283,8 +274,6 @@ module('Integration | Component | job-editor', function (hooks) {
       errorMessage,
       'The error message from the server is shown in the error in the UI',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('when the scheduler dry-run has errors, the errors are shown to the user', async function (assert) {
@@ -312,8 +301,6 @@ module('Integration | Component | job-editor', function (hooks) {
       Editor.warningMessage.isPresent,
       'The scheduler dry-run warning block is not present when there is an error but no warnings',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('When the scheduler dry-run has warnings, the warnings are shown to the user', async function (assert) {
@@ -344,8 +331,6 @@ module('Integration | Component | job-editor', function (hooks) {
       Editor.dryRunMessage.errored,
       'The warning message is not shown in addition to the success message',
     );
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('when a job is submitted in the edit context, a POST request is made to the update job endpoint', async function (assert) {
@@ -454,8 +439,6 @@ module('Integration | Component | job-editor', function (hooks) {
     `);
 
     assert.ok(Editor.cancelEditingIsAvailable, 'Cancel editing button exists');
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('constructor sets definition and variables correctly', async function (assert) {

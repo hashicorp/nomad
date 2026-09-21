@@ -23,7 +23,7 @@ $dark-bright: lighten($dark, 15%);
 .cm-s-hashi-read-only {
   &.CodeMirror {
     background-color: $dark-3;
-    color: $grey-blue;
+    color: var(--token-color-palette-neutral-300);
     border: none;
     font-family: $family-monospace;
     -webkit-font-smoothing: auto;
@@ -40,7 +40,7 @@ $dark-bright: lighten($dark, 15%);
   }
 
   .CodeMirror-linenumber {
-    color: $dark-bright;
+    color: lighten($dark-bright, 30%);
   }
 
   &.CodeMirror-focused div.CodeMirror-selected {
@@ -54,16 +54,16 @@ $dark-bright: lighten($dark, 15%);
   }
 
   span.cm-comment {
-    color: $grey;
+    color: $grey-light;
   }
 
   span.cm-string,
   span.cm-string-2 {
-    color: $nomad-green;
+    color: lighten($nomad-green, 15%);
   }
 
   span.cm-number {
-    color: $serf-red;
+    color: lighten($serf-red, 20%);
   }
 
   span.cm-variable {
@@ -79,7 +79,7 @@ $dark-bright: lighten($dark, 15%);
   }
 
   span.cm-operator {
-    color: $grey;
+    color: var(--token-color-palette-neutral-300);
   }
 
   span.cm-keyword {
@@ -174,7 +174,7 @@ header.run-job-header {
   &.sticky {
     position: sticky;
     bottom: 0;
-    background: white;
+    background: var(--token-color-palette-neutral-0);
     padding: 0.5rem 0;
 
     &.pull-left {
@@ -184,7 +184,7 @@ header.run-job-header {
 }
 
 .job-definition-select {
-  border: 1px solid $grey-blue;
+  border: 1px solid var(--token-color-border-primary);
   background: rgb(0 0 0 / 5%);
   border-radius: 2px;
   display: grid;

@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where re-submitting an otherwise unchanged job with a different ACL token created a new job version and deployment
+```

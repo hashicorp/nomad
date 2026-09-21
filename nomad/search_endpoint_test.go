@@ -2591,6 +2591,9 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 			},
 		}},
 	}}
+	// we added partial Task objects, so ensure they're canonicalized manually
+	// for anything that might read them in the agent, like reporting
+	job.Canonicalize()
 
 	ns := mock.Namespace()
 	ns.Name = job.Namespace

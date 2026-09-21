@@ -3841,23 +3841,6 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	return c
 }
 
-// OldTaskResources returns the pre-0.9.0 map of task resources. This
-// functionality is still used within the scheduling code.
-func (a *AllocatedResources) OldTaskResources() map[string]*Resources {
-	m := make(map[string]*Resources, len(a.Tasks))
-	for name, res := range a.Tasks {
-		m[name] = &Resources{
-			Cores:       len(res.Cpu.ReservedCores),
-			CPU:         int(res.Cpu.CpuShares),
-			MemoryMB:    int(res.Memory.MemoryMB),
-			MemoryMaxMB: int(res.Memory.MemoryMaxMB),
-			Networks:    res.Networks,
-		}
-	}
-
-	return m
-}
-
 func (a *AllocatedResources) Canonicalize() {
 	a.Shared.Canonicalize()
 
@@ -5278,6 +5261,7 @@ func (j *Job) SpecChanged(new *Job) bool {
 	c.ModifyIndex = j.ModifyIndex
 	c.JobModifyIndex = j.JobModifyIndex
 	c.SubmitTime = j.SubmitTime
+	c.NomadTokenID = j.NomadTokenID
 
 	// cgbaker: FINISH: probably need some consideration of scaling policy ID here
 

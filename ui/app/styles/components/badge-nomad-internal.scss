@@ -36,6 +36,10 @@
     }
   }
 
+  &.is-warning {
+    color: $black;
+  }
+
   &.is-faded {
     color: rgba($text, 0.8);
   }
@@ -45,8 +49,8 @@
   }
 
   &.is-secondary {
-    color: darken($grey-blue, 30%);
-    background: lighten($grey-blue, 10%);
+    color: var(--token-color-foreground-faint);
+    background: var(--token-color-surface-strong);
   }
 }
 

@@ -115,7 +115,7 @@ $subNavOffset: 49px;
     justify-content: left;
     grid-template-columns: 1fr auto auto;
     gap: 2rem;
-    border-bottom: 1px solid $grey-blue;
+    border-bottom: 1px solid var(--token-color-border-primary);
     padding-bottom: 1rem;
     margin-bottom: 24px;
     height: 50px;

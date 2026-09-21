@@ -1575,6 +1575,14 @@ func TestLeader_ReplicateNamespaces(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
 
+	must.Wait(t, wait.ContinualSuccess(
+		wait.BoolFunc(func() bool {
+			idx, _ := s1.State().Index(state.TableNamespaces)
+			return idx == 1
+		}),
+		wait.Timeout(time.Second),
+	), must.Sprint("build-in namespaces must not be replicated"))
+
 	// Write a namespace to the authoritative region
 	ns1 := mock.Namespace()
 	assert.Nil(s1.State().UpsertNamespaces(100, []*structs.Namespace{ns1}))
@@ -1610,9 +1618,15 @@ func TestLeader_DiffNamespaces(t *testing.T) {
 	ns1 := mock.Namespace()
 	ns2 := mock.Namespace()
 	ns3 := mock.Namespace()
-	assert.Nil(t, state.UpsertNamespaces(100, []*structs.Namespace{ns1, ns2, ns3}))
+	must.NoError(t, state.UpsertNamespaces(100, []*structs.Namespace{ns1, ns2, ns3}))
 
 	// Simulate a remote list
+	rDefault := &structs.Namespace{
+		Name:        "default",
+		CreateIndex: 1,
+		ModifyIndex: 1,
+	}
+	rDefault.SetHash()
 	rns2 := ns2.Copy()
 	rns2.ModifyIndex = 50 // Ignored, same index
 	rns3 := ns3.Copy()
@@ -1623,15 +1637,26 @@ func TestLeader_DiffNamespaces(t *testing.T) {
 		rns2,
 		rns3,
 		ns4,
+		rDefault,
 	}
+
+	// our initial query is with MinQueryIndex 1 so that we ignore built-ins
 	delete, update := diffNamespaces(state, 50, remoteList)
 	sort.Strings(delete)
+	test.Eq(t, []string{ns1.Name}, delete)
+	test.Eq(t, []string{ns3.Name, ns4.Name}, update)
 
-	// ns1 does not exist on the remote side, should delete
-	assert.Equal(t, []string{structs.DefaultNamespace, ns1.Name}, delete)
+	// a later query
+	delete, update = diffNamespaces(state, 50, remoteList)
+	sort.Strings(delete)
+
+	// ns1 does not exist on the remote side, should delete.
+	// don't touch built-in
+	test.Eq(t, []string{ns1.Name}, delete)
 
 	// ns2 is un-modified - ignore. ns3 modified, ns4 new.
-	assert.Equal(t, []string{ns3.Name, ns4.Name}, update)
+	// Built-in ns has not been modified, so not updated.
+	test.Eq(t, []string{ns3.Name, ns4.Name}, update)
 }
 
 func TestLeader_ReplicateNodePools(t *testing.T) {
@@ -1654,6 +1679,14 @@ func TestLeader_ReplicateNodePools(t *testing.T) {
 	TestJoin(t, s1, s2)
 	testutil.WaitForLeader(t, s1.RPC)
 	testutil.WaitForLeader(t, s2.RPC)
+
+	must.Wait(t, wait.ContinualSuccess(
+		wait.BoolFunc(func() bool {
+			idx, _ := s1.State().Index(state.TableNodePools)
+			return idx == 1
+		}),
+		wait.Timeout(time.Second),
+	), must.Sprint("build-in pools must not be replicated"))
 
 	// Write a node pool to the authoritative region
 	np1 := mock.NodePool()
@@ -1692,7 +1725,13 @@ func TestLeader_DiffNodePools(t *testing.T) {
 	must.NoError(t, state.UpsertNodePools(
 		structs.MsgTypeTestSetup, 100, []*structs.NodePool{np1, np2, np3}))
 
-	// Simulate a remote list
+	// Simulate a remote list that includes the built-in pools as they would be
+	// returned from cluster that's taken at least one snapshot (ModifyIndex: 1
+	// but hashed)
+	rAll := &structs.NodePool{Name: structs.NodePoolAll, ModifyIndex: 1}
+	rAll.SetHash()
+	rDefault := &structs.NodePool{Name: structs.NodePoolDefault, ModifyIndex: 1}
+	rDefault.SetHash()
 	rnp2 := np2.Copy()
 	rnp2.ModifyIndex = 50 // Ignored, same index
 	rnp3 := np3.Copy()
@@ -1701,17 +1740,29 @@ func TestLeader_DiffNodePools(t *testing.T) {
 	rnp3.SetHash()
 	rnp4 := mock.NodePool()
 	remoteList := []*structs.NodePool{
+		rAll,
+		rDefault,
 		rnp2,
 		rnp3,
 		rnp4,
 	}
-	delete, update := diffNodePools(state, 50, remoteList)
+
+	// our initial query is with MinQueryIndex 1 so that we ignore built-ins
+	delete, update := diffNodePools(state, 1, remoteList)
+	sort.Strings(delete)
+	test.Eq(t, []string{np1.Name}, delete)
+	test.Eq(t, []*structs.NodePool{rnp3, rnp4}, update)
+
+	// a later query
+	delete, update = diffNodePools(state, 50, remoteList)
 	sort.Strings(delete)
 
-	// np1 does not exist on the remote side, should delete
-	test.Eq(t, []string{structs.NodePoolAll, structs.NodePoolDefault, np1.Name}, delete)
+	// np1 does not exist on the remote side, should delete.
+	// Don't touch built-in pools.
+	test.Eq(t, []string{np1.Name}, delete)
 
 	// np2 is un-modified - ignore. np3 modified, np4 new.
+	// Built-in pools have not been modified, so they're not updated.
 	test.Eq(t, []*structs.NodePool{rnp3, rnp4}, update)
 }
 

@@ -39,7 +39,7 @@
     font-size: $body-size;
     line-height: 1;
     font-weight: $weight-normal;
-    color: darken($grey-blue, 20%);
+    color: var(--token-color-foreground-faint);
     white-space: nowrap;
 
     &.is-right-aligned {

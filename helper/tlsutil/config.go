@@ -12,7 +12,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -225,13 +224,29 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	}
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		RootCAs:            x509.NewCertPool(),
-		InsecureSkipVerify: true,
-		CipherSuites:       c.CipherSuites,
-		MinVersion:         c.MinVersion,
+		RootCAs:      x509.NewCertPool(),
+		CipherSuites: c.CipherSuites,
+		MinVersion:   c.MinVersion,
 	}
-	if c.VerifyServerHostname {
-		tlsConfig.InsecureSkipVerify = false
+	if !c.VerifyServerHostname {
+		// Skip the built-in hostname check but still verify the certificate
+		// chain against our CA pool via VerifyConnection. This allows our
+		// nomad/auth package to use the presented certificate for RBAC without
+		// requiring that the certificate's DNS SANs match the dial address.
+		// Taken from:
+		// https://pkg.go.dev/crypto/tls#example-Config-VerifyConnection
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyConnection = func(cs tls.ConnectionState) error {
+			opts := x509.VerifyOptions{
+				Roots:         tlsConfig.RootCAs,
+				Intermediates: x509.NewCertPool(),
+			}
+			for _, cert := range cs.PeerCertificates[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+			_, err := cs.PeerCertificates[0].Verify(opts)
+			return err
+		}
 	}
 
 	// Ensure we have a CA if VerifyOutgoing is set
@@ -288,53 +303,16 @@ func (c *Config) OutgoingTLSWrapper() (RegionWrapper, error) {
 
 }
 
-// WrapTLSClient wraps a net.Conn into a client tls connection, performing any
-// additional verification as needed.
-//
-// As of go 1.3, crypto/tls only supports either doing no certificate
-// verification, or doing full verification including of the peer's
-// DNS name. For consul, we want to validate that the certificate is
-// signed by a known CA, but because consul doesn't use DNS names for
-// node names, we don't verify the certificate DNS names. Since go 1.3
-// no longer supports this mode of operation, we have to do it
-// manually.
+// WrapTLSClient wraps a net.Conn into a client TLS connection and performs
+// the handshake. Certificate verification (including CA validation without
+// hostname checking when InsecureSkipVerify is set) is handled via the
+// VerifyConnection callback on tlsConfig, set by OutgoingTLSConfig.
 func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 	tlsConn := tls.Client(conn, tlsConfig)
-
-	// If crypto/tls is doing verification, there's no need to do
-	// our own.
-	if !tlsConfig.InsecureSkipVerify {
-		return tlsConn, nil
-	}
-
 	if err := tlsConn.Handshake(); err != nil {
 		tlsConn.Close()
 		return nil, err
 	}
-
-	// The following is lightly-modified from the doFullHandshake
-	// method in crypto/tls's handshake_client.go.
-	opts := x509.VerifyOptions{
-		Roots:         tlsConfig.RootCAs,
-		CurrentTime:   time.Now(),
-		DNSName:       "",
-		Intermediates: x509.NewCertPool(),
-	}
-
-	certs := tlsConn.ConnectionState().PeerCertificates
-	for i, cert := range certs {
-		if i == 0 {
-			continue
-		}
-		opts.Intermediates.AddCert(cert)
-	}
-
-	_, err := certs[0].Verify(opts)
-	if err != nil {
-		tlsConn.Close()
-		return nil, err
-	}
-
 	return tlsConn, nil
 }
 

@@ -8,7 +8,7 @@
 .table {
   color: $text;
   border-radius: $radius;
-  border: 1px solid $grey-blue;
+  border: 1px solid var(--token-color-border-primary);
   border-collapse: separate;
   width: 100%;
 
@@ -170,7 +170,7 @@
 
   thead {
     background: $white-ter;
-    border: 1px solid $grey-blue;
+    border: 1px solid var(--token-color-border-primary);
 
     tr {
       &:hover {
@@ -180,10 +180,10 @@
 
     td,
     th {
-      color: $grey-light;
+      color: var(--token-color-foreground-primary);
       font-weight: $weight-normal;
       vertical-align: bottom;
-      border-bottom: 1px solid $grey-blue;
+      border-bottom: 1px solid var(--token-color-border-primary);
 
       &.is-selectable {
         padding: 0;
@@ -203,7 +203,7 @@
           &::after {
             position: absolute;
             pointer-events: none;
-            color: $grey-light;
+            color: var(--token-color-foreground-primary);
           }
 
           &::after {
@@ -241,7 +241,8 @@
       }
 
       a {
-        color: $grey;
+        color: var(--token-color-foreground-strong);
+        font-weight: $weight-semibold;
       }
     }
   }
@@ -280,7 +281,7 @@
     }
 
     td {
-      border: 1px solid $grey-blue;
+      border: 1px solid var(--token-color-border-primary);
       border-width: 0 0 1px;
       padding: 1.25em 1.5em;
 
@@ -291,7 +292,7 @@
   }
 
   .is-faded {
-    color: darken($grey-light, 10%);
+    color: var(--token-color-foreground-primary);
   }
 }
 
@@ -299,7 +300,7 @@
 .table-foot {
   margin-top: -1px;
   background: $white-ter;
-  border: 1px solid $grey-blue;
+  border: 1px solid var(--token-color-border-primary);
   border-bottom-right-radius: $radius;
   border-bottom-left-radius: $radius;
   overflow: hidden;
@@ -332,7 +333,7 @@
 
     .label,
     .field-label {
-      color: $grey;
+      color: var(--token-color-foreground-primary);
       flex: 1 0 0;
       text-align: right;
 

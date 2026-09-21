@@ -7,7 +7,7 @@
   width: 100%;
 
   .table.boxed-section-body.is-full-bleed {
-    border: 1px solid $grey-blue;
+    border: 1px solid var(--token-color-border-primary);
   }
 
   tbody {

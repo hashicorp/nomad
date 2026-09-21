@@ -813,6 +813,11 @@ func TestJob_SpecChanged(t *testing.T) {
 	change := base.Copy()
 	change.Priority = 99
 
+	// tokenChange only differs by the accessor ID of the ACL token used to
+	// submit the job, which is not part of the functional spec
+	tokenChange := base.Copy()
+	tokenChange.NomadTokenID = "6c3c6c3c-e4b8-4d3a-9f21-0b1c2d3e4f50"
+
 	cases := []struct {
 		Name     string
 		Original *Job
@@ -830,6 +835,12 @@ func TestJob_SpecChanged(t *testing.T) {
 			Changed:  true,
 			Original: base,
 			New:      change,
+		},
+		{
+			Name:     "Same job except NomadTokenID",
+			Changed:  false,
+			Original: base,
+			New:      tokenChange,
 		},
 		{
 			Name:     "With Constraints",
