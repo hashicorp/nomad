@@ -1116,7 +1116,7 @@ func TestTaskRunner_Restart_ShutdownDelay(t *testing.T) {
 	task.Services[0].Tags = []string{"tag1"}
 	task.Services = task.Services[:1] // only need 1 for this test
 	task.Driver = "mock_driver"
-	task.Config = map[string]interface{}{
+	task.Config = map[string]any{
 		"run_for": "1000s",
 	}
 
