@@ -13,12 +13,12 @@ import (
 
 // HeapNodeImpl satisfies the HeapNode interface
 type heapNodeImpl struct {
-	dataObject interface{}
+	dataObject any
 	id         string
 	namespace  string
 }
 
-func (d *heapNodeImpl) Data() interface{} {
+func (d *heapNodeImpl) Data() any {
 	return d.dataObject
 }
 

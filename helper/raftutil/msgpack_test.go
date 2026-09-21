@@ -48,7 +48,7 @@ func TestDecodesTime(t *testing.T) {
 	err := codec.NewEncoder(&buf, structs.MsgpackHandle).Encode(v)
 	require.NoError(t, err)
 
-	var r map[string]interface{}
+	var r map[string]any
 	err = codec.NewDecoder(&buf, structs.MsgpackHandle).Decode(&r)
 	require.NoError(t, err)
 
@@ -57,7 +57,7 @@ func TestDecodesTime(t *testing.T) {
 
 	fixTime(r)
 
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"CreateTime": now,
 		"Mode":       "host",
 	}

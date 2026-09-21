@@ -194,13 +194,13 @@ func (f *FSMHelper) State() *state.StateStore {
 	return f.fsm.State()
 }
 
-func (f *FSMHelper) StateAsMap() map[string][]interface{} {
+func (f *FSMHelper) StateAsMap() map[string][]any {
 	return StateAsMap(f.fsm.State())
 }
 
 // StateAsMap returns a json-able representation of the state
-func StateAsMap(store *state.StateStore) map[string][]interface{} {
-	result := map[string][]interface{}{
+func StateAsMap(store *state.StateStore) map[string][]any {
+	result := map[string][]any{
 		"ACLPolicies":      toArray(store.ACLPolicies(nil)),
 		"ACLTokens":        toArray(store.ACLTokens(nil, state.SortDefault)),
 		"Allocs":           toArray(store.Allocs(nil, state.SortDefault)),
@@ -252,12 +252,12 @@ func (f *FSMHelper) restoreFromSnapshot() (index uint64, term uint64, err error)
 	return 0, 0, nil
 }
 
-func toArray(iter memdb.ResultIterator, err error) []interface{} {
+func toArray(iter memdb.ResultIterator, err error) []any {
 	if err != nil {
-		return []interface{}{err}
+		return []any{err}
 	}
 
-	r := []interface{}{}
+	r := []any{}
 
 	if iter != nil {
 		item := iter.Next()

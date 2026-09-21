@@ -21,7 +21,7 @@ type F struct {
 	assert *assert.Assertions
 	t      *testing.T
 
-	data map[interface{}]interface{}
+	data map[any]any
 }
 
 func newF(t *testing.T) *F {
@@ -66,11 +66,11 @@ func (f *F) ID() string {
 }
 
 // Set is used to set arbitrary key/values to pass between before/after and test methods
-func (f *F) Set(key, val interface{}) {
+func (f *F) Set(key, val any) {
 	f.data[key] = val
 }
 
 // Value retrives values set by the F.Set method
-func (f *F) Value(key interface{}) interface{} {
+func (f *F) Value(key any) any {
 	return f.data[key]
 }
