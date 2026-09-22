@@ -111,16 +111,23 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	}
 	defer metrics.MeasureSince([]string{"nomad", "scaling", "get_policy"}, time.Now())
 
-	// Check for list-job permissions
-	if aclObj, err := p.srv.ResolveACL(args); err != nil {
+	aclObj, err := p.srv.ResolveACL(args)
+	if err != nil {
 		return err
-	} else {
-		hasReadScalingPolicy := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadScalingPolicy)
-		hasListAndReadJobs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) &&
-			aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
-		if !(hasReadScalingPolicy || hasListAndReadJobs) {
-			return structs.ErrPermissionDenied
+	}
+
+	allowed := func(aclObj *acl.ACL, ns string) bool {
+		if aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadScalingPolicy) {
+			return true
 		}
+		if aclObj.AllowNsOp(ns, acl.NamespaceCapabilityListJobs) &&
+			aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob) {
+			return true
+		}
+		return false
+	}
+	if !allowed(aclObj, args.RequestNamespace()) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
@@ -128,26 +135,26 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Iterate over all the policies
 			p, err := state.ScalingPolicyByID(ws, args.ID)
 			if err != nil {
 				return err
 			}
-
-			reply.Policy = p
-
-			// If the state lookup returned a policy object, use the modify
-			// index for the response. Otherwise, use the index table to supply
-			// this, ensuring a non-zero value.
 			if p != nil {
-				reply.Index = p.ModifyIndex
-			} else {
-				index, err := state.Index("scaling_policy")
-				if err != nil {
-					return err
+				if ns, ok := p.Target["Namespace"]; ok {
+					if !allowed(aclObj, ns) {
+						return structs.ErrPermissionDenied
+					}
 				}
-				reply.Index = max(1, index)
+				reply.Index = p.ModifyIndex
+				reply.Policy = p
+				return nil
 			}
+
+			index, err := state.Index("scaling_policy")
+			if err != nil {
+				return err
+			}
+			reply.Index = max(1, index)
 			return nil
 		}}
 	return p.srv.blockingRPC(&opts)
