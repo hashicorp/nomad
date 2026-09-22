@@ -1235,6 +1235,26 @@ func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
 
 	}
 
+	// Try with a token valid only for a different namespace and a wildcard query
+	{
+		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
+			mock.NamespacePolicy("prod", "", []string{acl.NamespaceCapabilityReadJob}),
+			mock.NodePolicy(acl.PolicyRead),
+		}, "\n"))
+
+		req.Context = structs.All
+		req.AuthToken = validToken.SecretID
+		req.Namespace = structs.AllNamespacesSentinel
+		var resp structs.SearchResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+		must.Eq(t, nil, resp.Matches[structs.Jobs])
+		must.Eq(t, []string{node.ID}, resp.Matches[structs.Nodes])
+		must.Eq(t, nil, resp.Matches[structs.Namespaces])
+
+		must.Eq(t, uint64(1001), resp.Index)
+	}
+
 	// Try with a management token
 	{
 		req.Context = structs.All
