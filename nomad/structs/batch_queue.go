@@ -105,11 +105,15 @@ type DynamicQueueConfig struct {
 	CalcInterval time.Duration
 	HalfLife     time.Duration
 
+	//TenantDominance
 	UsageWeight int
+	CountWeight int
 
+	//JobUsage
 	MaxAge    time.Duration
 	AgeWeight int
 
+	// these are not affected by recalculation
 	CpuWeight int
 	MaxCpu    int
 	MemWeight int

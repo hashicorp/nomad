@@ -7,6 +7,8 @@ type Tenant struct {
 	tid                TenantID
 	placedWorkloadById map[string]*dynamicPriorityWorkload
 	totalUsage         *ResourceUsage
+
+	jobCount uint
 }
 
 func (t *Tenant) totalPercentageUsed(totalUsage *ResourceUsage) int {

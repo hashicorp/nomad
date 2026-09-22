@@ -41,6 +41,7 @@ type DynamicPriorityQueue struct {
 
 	// totalUsage is the sum of all tenant usages
 	totalUsage *ResourceUsage
+	lastHash   string
 
 	// conf contains user configurations for tuning the behavior of the queue
 	conf *structs.DynamicQueueConfig
@@ -188,9 +189,13 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case w := <-d.enqueueCh:
+			d.ensureTenant(w.tid)
+			d.tenants[w.tid].jobCount++
+
 			// use time.Now() so that workloads have the most
 			// up to date age calculation
 			d.setWorkloadPriority(time.Now(), w)
+			//d.calculatePriorities(time.Now()) // OPTION 1: always be calculating
 			d.queue.Push(w)
 
 			// Notify Workload consumer of new workload
@@ -198,7 +203,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			case d.qNotify <- struct{}{}:
 			default:
 			}
-		case <-time.After(d.conf.CalcInterval):
+		case <-time.After(time.Second): // OPTION 2: calculate frequently
 			d.calculatePriorities(time.Now())
 		}
 	}
@@ -215,7 +220,8 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			return
 		case <-d.qNotify:
 			// Pop a workload off the queue if available
-			w := d.queue.Pop()
+			pop := d.queue.Pop()
+			w := pop.(*dynamicPriorityWorkload)
 
 			// We don't need to pass the waitOnRestore workload
 			// to the eval broker, that already happened.
@@ -228,6 +234,8 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 			if err != nil {
 				d.logger.Error("failure waiting for workload placement", "evalID", w.GetEval().ID, "err", err)
 			}
+
+			d.tenants[w.tid].jobCount--
 
 			if evalHasPlacement(w.GetEval()) {
 				d.updateUsage(w)
@@ -299,6 +307,12 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 // their priorities based on tenant usage, which is decayed according to the
 // configured half-life, and usage weight.
 func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
+	if hash := d.queue.Hash(); hash == d.lastHash {
+		return
+	} else {
+		d.lastHash = hash
+	}
+
 	// Decay tenant workload usages first, because a workload's
 	// priority relies on its tenant's usage.
 	d.decayUsage(now)
@@ -311,13 +325,32 @@ func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
 	})
 }
 
-// setWorkloadPriority calculates an individual workload's priority based on
+// setWorkloadPriority calculates an individual workload's priority based on ...
 func (d *DynamicPriorityQueue) setWorkloadPriority(now time.Time, w *dynamicPriorityWorkload) {
 	w.priority = w.eval.Priority +
 		d.usageAdjustment(w) +
+		d.countAdjustment(w) +
 		d.ageAdjustment(now, w) +
 		d.cpuAdjustment(w) +
 		d.memAdjustment(w)
+}
+
+// countAdjustment prioritizes jobs for tenants that have fewer jobs in the queue,
+// based on the percentage of the queue that their jobs occupy.
+func (d *DynamicPriorityQueue) countAdjustment(w *dynamicPriorityWorkload) int {
+	d.tMux.Lock()
+	defer d.tMux.Unlock()
+
+	if d.conf.CountWeight == 0 {
+		return 0
+	}
+
+	tenant := d.tenants[w.tid]
+	totalJobs := d.queue.Len()
+	ratio := 1 - float64(tenant.jobCount)/float64(totalJobs)
+	bump := float64(d.conf.CountWeight) * ratio
+
+	return int(bump)
 }
 
 // usageAdjustment calculates the adjustment to a workload's priority based on

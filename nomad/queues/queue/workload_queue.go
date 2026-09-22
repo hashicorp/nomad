@@ -4,6 +4,7 @@
 package queue
 
 import (
+	"bytes"
 	"sync"
 
 	"github.com/hashicorp/go-set/v3"
@@ -37,6 +38,17 @@ func NewWorkloadQueue(sortFn func(i, j Workload) int) WorkloadQueue {
 		wl:     map[structs.NamespacedID]Workload{},
 		mux:    &sync.Mutex{},
 	}
+}
+
+func (pq WorkloadQueue) Hash() string {
+	var buf bytes.Buffer
+	//for nid := range pq.wl {
+	//	buf.WriteString(nid.String())
+	//}
+	for w := range pq.ts.Items() {
+		buf.WriteString(w.GetEval().ID)
+	}
+	return buf.String()
 }
 
 func (pq WorkloadQueue) Len() int {
