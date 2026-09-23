@@ -337,7 +337,8 @@ func TestExecutor_Shutdown_Exit(t *testing.T) {
 	execCmd.Args = []string{"100"}
 
 	cfg := &ExecutorConfig{
-		LogFile: "/dev/null",
+		AllocDir: testExecCmd.allocDir.AllocDir,
+		LogFile:  os.DevNull,
 	}
 
 	driverCfg := &base.ClientDriverConfig{
