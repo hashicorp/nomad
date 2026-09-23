@@ -461,6 +461,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (handle *drivers.TaskHandle,
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
 	executorConfig := &executor.ExecutorConfig{
+		AllocDir:    cfg.AllocDir,
 		LogFile:     pluginLogFile,
 		LogLevel:    "debug",
 		FSIsolation: driverCapabilities.FSIsolation == fsisolation.Chroot,
