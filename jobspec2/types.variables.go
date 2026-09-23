@@ -67,7 +67,7 @@ type Variable struct {
 	// must be applied to a value before it is converted to Type so that any
 	// omitted optional attributes are populated with their declared defaults.
 	TypeDefaults *typeexpr.Defaults
-	
+
 	// Common name of the variable
 	Name string
 	// Description of the variable
