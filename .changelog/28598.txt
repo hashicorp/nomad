@@ -1,0 +1,3 @@
+```release-note:bug
+heartbeat: Fix bug allowing node heartbeats to be sent from other nodes
+```

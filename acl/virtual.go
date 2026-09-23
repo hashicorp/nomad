@@ -19,7 +19,7 @@ func NewClientACL(pool string) *ACL {
 	aclObj.client = PolicyWrite
 	aclObj.pool = pool
 	aclObj.agent = PolicyRead
-	aclObj.server = PolicyRead
+	aclObj.server = PolicyDeny
 	return aclObj
 }
 
