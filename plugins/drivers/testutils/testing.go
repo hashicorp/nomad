@@ -139,6 +139,7 @@ func (h *DriverHarness) MkAllocDir(t *drivers.TaskConfig, enableLogs bool) func(
 			t.StderrPath = filepath.Join(taskDir.LogDir, fmt.Sprintf(".%s.stderr.fifo", t.Name))
 		}
 		err = lm.Start(&logmon.LogConfig{
+			AllocDir:      taskDir.AllocDir,
 			LogDir:        taskDir.LogDir,
 			StdoutLogFile: fmt.Sprintf("%s.stdout", t.Name),
 			StderrLogFile: fmt.Sprintf("%s.stderr", t.Name),

@@ -8,10 +8,13 @@ import (
 	"encoding/json"
 	"maps"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -68,10 +71,14 @@ func TestTaskRunner_LogmonHook_StartStop(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	dir := t.TempDir()
+	allocDir := t.TempDir()
+	logDir := filepath.Join(allocDir, "logs")
+	must.NoError(t, os.Mkdir(logDir, 0755))
 
-	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
-	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, logDir)
+	runner := &TaskRunner{
+		logmonHookConfig: hookConf,
+		taskDir:          &allocdir.TaskDir{AllocDir: allocDir}}
 	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
 	req := interfaces.TaskPrestartRequest{
@@ -114,10 +121,14 @@ func TestTaskRunner_LogmonHook_Disabled(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	task.LogConfig.Disabled = true
 
-	dir := t.TempDir()
+	allocDir := t.TempDir()
+	logDir := filepath.Join(allocDir, "logs")
+	must.NoError(t, os.Mkdir(logDir, 0755))
 
-	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
-	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, logDir)
+	runner := &TaskRunner{
+		logmonHookConfig: hookConf,
+		taskDir:          &allocdir.TaskDir{AllocDir: allocDir}}
 	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
 	req := interfaces.TaskPrestartRequest{Task: task}
