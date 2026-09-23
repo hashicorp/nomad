@@ -33,6 +33,7 @@ type StartRequest struct {
 	MaxFileSizeMb  uint32                 `protobuf:"varint,5,opt,name=max_file_size_mb,json=maxFileSizeMb,proto3" json:"max_file_size_mb,omitempty"`
 	StdoutFifo     string                 `protobuf:"bytes,6,opt,name=stdout_fifo,json=stdoutFifo,proto3" json:"stdout_fifo,omitempty"`
 	StderrFifo     string                 `protobuf:"bytes,7,opt,name=stderr_fifo,json=stderrFifo,proto3" json:"stderr_fifo,omitempty"`
+	AllocDir       string                 `protobuf:"bytes,8,opt,name=alloc_dir,json=allocDir,proto3" json:"alloc_dir,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -112,6 +113,13 @@ func (x *StartRequest) GetStdoutFifo() string {
 func (x *StartRequest) GetStderrFifo() string {
 	if x != nil {
 		return x.StderrFifo
+	}
+	return ""
+}
+
+func (x *StartRequest) GetAllocDir() string {
+	if x != nil {
+		return x.AllocDir
 	}
 	return ""
 }
@@ -228,7 +236,7 @@ var File_client_logmon_proto_logmon_proto protoreflect.FileDescriptor
 
 const file_client_logmon_proto_logmon_proto_rawDesc = "" +
 	"\n" +
-	" client/logmon/proto/logmon.proto\x12#hashicorp.nomad.client.logmon.proto\"\x83\x02\n" +
+	" client/logmon/proto/logmon.proto\x12#hashicorp.nomad.client.logmon.proto\"\xa0\x02\n" +
 	"\fStartRequest\x12\x17\n" +
 	"\alog_dir\x18\x01 \x01(\tR\x06logDir\x12(\n" +
 	"\x10stdout_file_name\x18\x02 \x01(\tR\x0estdoutFileName\x12(\n" +
@@ -238,7 +246,8 @@ const file_client_logmon_proto_logmon_proto_rawDesc = "" +
 	"\vstdout_fifo\x18\x06 \x01(\tR\n" +
 	"stdoutFifo\x12\x1f\n" +
 	"\vstderr_fifo\x18\a \x01(\tR\n" +
-	"stderrFifo\"\x0f\n" +
+	"stderrFifo\x12\x1b\n" +
+	"\talloc_dir\x18\b \x01(\tR\ballocDir\"\x0f\n" +
 	"\rStartResponse\"\r\n" +
 	"\vStopRequest\"\x0e\n" +
 	"\fStopResponse2\xe9\x01\n" +

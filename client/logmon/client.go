@@ -22,6 +22,7 @@ const logmonRPCTimeout = 1 * time.Minute
 
 func (c *logmonClient) Start(cfg *LogConfig) error {
 	req := &proto.StartRequest{
+		AllocDir:       cfg.AllocDir,
 		LogDir:         cfg.LogDir,
 		StdoutFileName: cfg.StdoutLogFile,
 		StderrFileName: cfg.StderrLogFile,

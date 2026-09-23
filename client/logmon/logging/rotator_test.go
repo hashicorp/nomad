@@ -23,7 +23,7 @@ var (
 func TestFileRotator_IncorrectPath(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	_, err := NewFileRotator("/foo", baseFileName, 10, 10, testlog.HCLogger(t))
+	_, err := NewFileRotator("/foo", baseFileName, 10, 10, testlog.HCLogger(t), "/")
 	must.Error(t, err)
 	must.ErrorContains(t, err, "no such file or directory")
 }
@@ -31,9 +31,10 @@ func TestFileRotator_IncorrectPath(t *testing.T) {
 func TestFileRotator_CreateNewFile(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path := t.TempDir()
+	allocDir := t.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 10, testlog.HCLogger(t))
+	fr, err := NewFileRotator(path, baseFileName, 10, 10, testlog.HCLogger(t), allocDir)
 	must.NoError(t, err)
 	defer fr.Close()
 
@@ -44,7 +45,8 @@ func TestFileRotator_CreateNewFile(t *testing.T) {
 func TestFileRotator_OpenLastFile(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path := t.TempDir()
+	allocDir := t.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
 	fname1 := filepath.Join(path, "redis.stdout.0")
 	fname2 := filepath.Join(path, "redis.stdout.2")
@@ -57,7 +59,7 @@ func TestFileRotator_OpenLastFile(t *testing.T) {
 	must.NoError(t, err)
 	f2.Close()
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 10, testlog.HCLogger(t))
+	fr, err := NewFileRotator(path, baseFileName, 10, 10, testlog.HCLogger(t), allocDir)
 	must.NoError(t, err)
 	defer fr.Close()
 
@@ -67,14 +69,15 @@ func TestFileRotator_OpenLastFile(t *testing.T) {
 func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path := t.TempDir()
+	allocDir := t.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
 	fname1 := filepath.Join(path, "redis.stdout.0")
 	f1, err := os.Create(fname1)
 	must.NoError(t, err)
 	f1.Close()
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
+	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t), allocDir)
 	must.NoError(t, err)
 	defer fr.Close()
 
@@ -99,9 +102,10 @@ func TestFileRotator_WriteToCurrentFile(t *testing.T) {
 func TestFileRotator_RotateFiles(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path := t.TempDir()
+	allocDir := t.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
+	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t), allocDir)
 	must.NoError(t, err)
 	defer fr.Close()
 
@@ -142,9 +146,10 @@ func TestFileRotator_RotateFiles(t *testing.T) {
 func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path := t.TempDir()
+	allocDir := t.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
+	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t), allocDir)
 	must.NoError(t, err)
 	defer fr.Close()
 
@@ -188,13 +193,14 @@ func TestFileRotator_RotateFiles_Boundary(t *testing.T) {
 func TestFileRotator_WriteRemaining(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path := t.TempDir()
+	allocDir := t.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
 	fname1 := filepath.Join(path, "redis.stdout.0")
 	err := os.WriteFile(fname1, []byte("abcd"), 0600)
 	must.NoError(t, err)
 
-	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t))
+	fr, err := NewFileRotator(path, baseFileName, 10, 5, testlog.HCLogger(t), allocDir)
 	must.NoError(t, err)
 	defer fr.Close()
 
@@ -248,9 +254,10 @@ func TestFileRotator_WriteRemaining(t *testing.T) {
 func TestFileRotator_PurgeOldFiles(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	path := t.TempDir()
+	allocDir := t.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
-	fr, err := NewFileRotator(path, baseFileName, 2, 2, testlog.HCLogger(t))
+	fr, err := NewFileRotator(path, baseFileName, 2, 2, testlog.HCLogger(t), allocDir)
 	must.NoError(t, err)
 	defer fr.Close()
 
@@ -285,9 +292,10 @@ func BenchmarkRotator(b *testing.B) {
 }
 
 func benchmarkRotatorWithInputSize(size int, b *testing.B) {
-	path := b.TempDir()
+	allocDir := b.TempDir()
+	path, _ := os.MkdirTemp(allocDir, "")
 
-	fr, err := NewFileRotator(path, baseFileName, 5, 1024*1024, testlog.HCLogger(b))
+	fr, err := NewFileRotator(path, baseFileName, 5, 1024*1024, testlog.HCLogger(b), allocDir)
 	must.NoError(b, err)
 	defer fr.Close()
 
