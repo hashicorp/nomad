@@ -107,23 +107,6 @@ type BatchQueueConfig struct {
 	Fifo            *FifoQueueConfig    `hcl:"fifo,block"`
 }
 
-// Validate provides some minimal client-side validation of the queue config.
-// TODO: this is not called anywhere
-func (b *BatchQueueConfig) Validate() error {
-	if (b.DynamicPriority == nil && b.Fifo == nil) ||
-		(b.DynamicPriority != nil && b.Fifo != nil) {
-		return fmt.Errorf("must specify a single queue config; dynamic_priority or fifo")
-	}
-
-	if b.DynamicPriority != nil {
-		if err := b.DynamicPriority.Validate(); err != nil {
-			return fmt.Errorf("dynamic_priority config is invalid: %w", err)
-		}
-	}
-
-	return nil
-}
-
 // TenantFairshareConfig configures how tenants are identified and weighted.
 type TenantFairshareConfig struct {
 	// TenantType determines how jobs are categorized into tenants,
