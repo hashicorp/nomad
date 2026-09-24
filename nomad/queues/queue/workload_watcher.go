@@ -15,9 +15,8 @@ import (
 
 type WorkloadWatcher struct {
 	stateStore Snapshotter
-	// config     *structs.BatchQueueConfig
-	logger hclog.Logger
-	mu     sync.Mutex
+	logger     hclog.Logger
+	mu         sync.Mutex
 
 	inProgressWorkloads map[string]Workload
 }
@@ -36,12 +35,12 @@ func NewWorkloadWatcher(s Snapshotter, logger hclog.Logger) *WorkloadWatcher {
 // status, and adds a workload to the in-progress tracking map.
 func (w *WorkloadWatcher) TrackPlacement(workload Workload) {
 	workload.SetStatus(WorkloadStatusPlacing, "")
-	w.inProgressWorkloads[workload.GetEval().ID] = workload
+	w.inProgressWorkloads[workload.Eval().ID] = workload
 }
 
 // UntrackPlacement decrements the currentPlacements counter and removes a workload from the in-progress tracking map.
 func (w *WorkloadWatcher) UntrackPlacement(workload Workload) {
-	eval := workload.GetEval()
+	eval := workload.Eval()
 
 	// If the eval was blocked and then unblocked, the eval will not match in
 	// the map. Attempt to use the PreviousEval in that case.
@@ -81,7 +80,7 @@ func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workloa
 
 // wait blocks until the workload's evaluation reaches a terminal state.
 func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload, ws memdb.WatchSet) error {
-	eval := workload.GetEval()
+	eval := workload.Eval()
 
 	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
 		// Determine which eval to follow
@@ -138,7 +137,7 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload, ws memdb.
 // (e.g., constraint filters) rather than resource exhaustion.
 // Returns true if the failure is constraint-related (and unlikely to resolve with time)
 func (w *WorkloadWatcher) isConstraintFailure(workload Workload) (bool, string) {
-	eval := workload.GetEval()
+	eval := workload.Eval()
 	if eval == nil || eval.FailedTGAllocs == nil {
 		return false, ""
 	}
@@ -191,7 +190,7 @@ func (w *WorkloadWatcher) IsSchedulingComplete(workload Workload) (bool, error) 
 	}
 
 	ws := memdb.NewWatchSet()
-	eval := workload.GetEval()
+	eval := workload.Eval()
 	for eval.BlockedEval != "" || eval.NextEval != "" {
 		id := eval.ID
 

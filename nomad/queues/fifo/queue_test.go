@@ -34,47 +34,48 @@ func TestFifoQueue_workloadSortFn(t *testing.T) {
 		sortFn := workloadSortFn()
 		sortedQ := queue.NewWorkloadQueue(sortFn)
 
-		first := &fifoWorkload{eval: mock.Eval(), waitOnRestore: true}
-		second := &fifoWorkload{eval: mock.Eval(), waitOnRestore: false}
+		first := &fifoWorkload{BaseWorkload: queue.NewBaseWorkload(mock.Eval(), mock.Job(), queue.WorkloadStatusQueued)}
+		first.SetWaitOnRestore(true)
+		second := &fifoWorkload{BaseWorkload: queue.NewBaseWorkload(mock.Eval(), mock.Job(), queue.WorkloadStatusQueued)}
 
-		first.eval.CreateIndex = 3
-		second.eval.CreateIndex = 1
+		first.Eval().CreateIndex = 3
+		second.Eval().CreateIndex = 1
 
 		sortedQ.Push(second)
 		sortedQ.Push(first)
 
-		must.Eq(t, first, sortedQ.Pop().(*fifoWorkload))
-		must.Eq(t, second, sortedQ.Pop().(*fifoWorkload))
-
+		must.Eq(t, first, sortedQ.Pop())
+		must.Eq(t, second, sortedQ.Pop())
 	})
 
 	t.Run("counter_orders_fifo_for_regular_workloads", func(t *testing.T) {
 		sortFn := workloadSortFn()
 		sortedQ := queue.NewWorkloadQueue(sortFn)
 
-		first := &fifoWorkload{eval: mock.Eval()}
-		second := &fifoWorkload{eval: mock.Eval()}
+		// first := &fifoWorkload{eval: mock.Eval()}
+		// second := &fifoWorkload{eval: mock.Eval()}
+		first := &fifoWorkload{BaseWorkload: queue.NewBaseWorkload(mock.Eval(), mock.Job(), queue.WorkloadStatusQueued)}
+		second := &fifoWorkload{BaseWorkload: queue.NewBaseWorkload(mock.Eval(), mock.Job(), queue.WorkloadStatusQueued)}
 
-		first.eval.CreateIndex = 1
-		second.eval.CreateIndex = 5
+		first.Eval().CreateIndex = 1
+		second.Eval().CreateIndex = 5
 
 		sortedQ.Push(second)
 		sortedQ.Push(first)
 
-		must.Eq(t, first, sortedQ.Pop().(*fifoWorkload))
-		must.Eq(t, second, sortedQ.Pop().(*fifoWorkload))
-
+		must.Eq(t, first, sortedQ.Pop())
+		must.Eq(t, second, sortedQ.Pop())
 	})
 }
 
 func TestFifoQueue_restore(t *testing.T) {
 	t.Run("restore enqueues unplaced workload", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
+		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil, nil)
 
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
-		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
+		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job))
 
 		testEval := mock.Eval()
 		testEval.JobID = job.ID
@@ -82,16 +83,15 @@ func TestFifoQueue_restore(t *testing.T) {
 		testEval.Type = structs.JobTypeBatch
 		testEval.TriggeredBy = structs.EvalTriggerJobRegister
 		testEval.Status = structs.EvalStatusBlocked
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+		must.NoError(t, ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval}))
 
 		err := testQueue.Restore(testEval, job)
 		must.NoError(t, err)
 
 		select {
 		case w := <-testQueue.enqueueCh:
-			must.Eq(t, testEval.ID, w.id)
-			must.Eq(t, testEval.ID, w.eval.ID)
-			must.True(t, w.waitOnRestore)
+			must.Eq(t, testEval.ID, w.Eval().ID)
+			must.True(t, w.WaitOnRestore())
 		default:
 			t.Fatal("expected workload in enqueueCh channel")
 		}
@@ -99,7 +99,7 @@ func TestFifoQueue_restore(t *testing.T) {
 
 	t.Run("restore does not enqueue placed workload", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil)
+		testQueue := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, nil, nil)
 
 		// NOTE: eval type/status filtering is handled by the BatchQueueManager
 		// restore path; FifoQueue.Restore only decides whether a workload is
@@ -121,7 +121,7 @@ func TestFifoQueue_restore(t *testing.T) {
 
 		select {
 		case w := <-testQueue.enqueueCh:
-			t.Fatalf("expected no workload in enqueueCh, got eval %q", w.id)
+			t.Fatalf("expected no workload in enqueueCh, got eval %q", w.ID().ID)
 		default:
 		}
 	})
@@ -130,7 +130,7 @@ func TestFifoQueue_restore(t *testing.T) {
 func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	ss := state.TestStateStore(t)
 	broker := newTestBroker()
-	q := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, broker)
+	q := NewFifoQueue(hclog.New(hclog.DefaultOptions), ss, broker, nil)
 
 	ctx := t.Context()
 
@@ -147,8 +147,9 @@ func TestFifoQueue_runConsumer_enqueueOrder(t *testing.T) {
 	ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval1})
 	ss.UpsertEvals(structs.MsgTypeTestSetup, 5, []*structs.Evaluation{eval2})
 
-	q.Enqueue(eval1, nil)
-	q.Enqueue(eval2, nil)
+	// For the purposes of this test, the job doesn't matter. It just can't be nil.
+	q.Enqueue(eval1, mock.Job())
+	q.Enqueue(eval2, mock.Job())
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.ErrorFunc(func() error {
@@ -172,7 +173,7 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 	t.Run("queued workloads have status and position", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		broker := newTestBroker()
-		q := NewFifoQueue(hclog.Default(), ss, broker)
+		q := NewFifoQueue(hclog.Default(), ss, broker, nil)
 
 		// Directly push to queue without starting (to avoid dequeuing)
 		eval1 := mock.Eval()
@@ -180,8 +181,8 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 		eval1.CreateIndex = 1
 		eval2.CreateIndex = 2
 
-		q.queue.Push(newFifoWorkload(eval1))
-		q.queue.Push(newFifoWorkload(eval2))
+		q.queue.Push(newFifoWorkload(eval1, mock.Job()))
+		q.queue.Push(newFifoWorkload(eval2, mock.Job()))
 
 		// Get jobs
 		iter := q.Jobs(structs.SortByPriority)
@@ -208,16 +209,16 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 	t.Run("in-progress workloads have placing status and position 0", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		broker := newTestBroker()
-		q := NewFifoQueue(hclog.Default(), ss, broker)
+		q := NewFifoQueue(hclog.Default(), ss, broker, nil)
 
 		// Manually track workloads to simulate in-progress state
 		eval1 := mock.Eval()
 		eval2 := mock.Eval()
 		eval3 := mock.Eval()
 
-		w1 := newFifoWorkload(eval1)
-		w2 := newFifoWorkload(eval2)
-		w3 := newFifoWorkload(eval3)
+		w1 := newFifoWorkload(eval1, mock.Job())
+		w2 := newFifoWorkload(eval2, mock.Job())
+		w3 := newFifoWorkload(eval3, mock.Job())
 
 		// Add one to queue
 		q.queue.Push(w3)
@@ -261,10 +262,10 @@ func TestFifoQueue_Jobs_WithStatus(t *testing.T) {
 	t.Run("completed placements are removed from in-progress", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		broker := newTestBroker()
-		q := NewFifoQueue(hclog.Default(), ss, broker)
+		q := NewFifoQueue(hclog.Default(), ss, broker, nil)
 
 		eval := mock.Eval()
-		w := newFifoWorkload(eval)
+		w := newFifoWorkload(eval, &structs.Job{})
 
 		// Track as in-progress
 		q.watcher.TrackPlacement(w)

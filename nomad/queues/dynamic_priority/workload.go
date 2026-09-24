@@ -4,76 +4,19 @@
 package dynamic
 
 import (
-	"fmt"
-
-	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 )
 
 type dynamicPriorityWorkload struct {
-	// id uniquely identifies this workload
-	// and is set to the evaluation ID.
-	id string
+	queue.BaseWorkload
 
-	tid                TenantID
-	priority           int
-	eval               *structs.Evaluation
+	tid      TenantID
+	priority int
+
 	requestedResources *UsageList
 
 	cpuAdjustment   int
 	memAdjustment   int
 	ageAdjustment   int
 	usageAdjustment int
-
-	// waitOnRestore signals this workload was previously popped off the
-	// queue and is waiting to be placed. This is detected on restore
-	// and this workload will be pushed to the front of the queue and
-	// waited on before processing regular workloads.
-	// By doing this, we can ensure at most 1 queue workloads blocked
-	// due to resource contraints even in the event of queue restores.
-	waitOnRestore bool
-
-	status      string
-	description string
-}
-
-func (w *dynamicPriorityWorkload) GetEval() *structs.Evaluation {
-	return w.eval
-}
-
-func (w *dynamicPriorityWorkload) WaitOnRestore() bool {
-	return w.waitOnRestore
-}
-
-func (w *dynamicPriorityWorkload) SetEval(e *structs.Evaluation) {
-	w.eval = e
-}
-
-func (w *dynamicPriorityWorkload) GetStatus() string {
-	if w.description != "" {
-		return fmt.Sprintf("%s (%s)", w.status, w.description)
-	}
-	return w.status
-}
-
-func (w *dynamicPriorityWorkload) SetStatus(s, description string) {
-	w.status = s
-	w.description = description
-}
-
-func (w *dynamicPriorityWorkload) toStruct(position int) *structs.DynamicPriorityWorkload {
-	return &structs.DynamicPriorityWorkload{
-		JobID:            w.eval.JobID,
-		Tenant:           string(w.tid),
-		Namespace:        w.eval.Namespace,
-		Position:         position,
-		Status:           w.GetStatus(),
-		AdjustedPriority: w.priority,
-		BasePriority:     w.eval.Priority,
-		UsageAdjustment:  w.usageAdjustment,
-		AgeAdjustment:    w.ageAdjustment,
-		CpuAdjustment:    w.cpuAdjustment,
-		MemoryAdjustment: w.memAdjustment,
-		CreatedAt:        w.eval.CreateTime,
-		CreateIndex:      w.eval.CreateIndex,
-	}
 }
