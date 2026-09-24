@@ -420,7 +420,7 @@ integration-test-devices: PLUGIN_DIR=$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugi
 integration-test-devices: dev
 integration-test-devices: device-plugin ## Run Nomad's device scheduling integration tests
 	@echo "==> Running Nomad integration test suite for Device Scheduling:"
-	NOMAD_E2E_PLUGIN_PATH="$(PLUGIN_DIR)" gotestsum --format=testname -- \
+	NOMAD_E2E_DEVICE="1" NOMAD_E2E_PLUGIN_PATH="$(PLUGIN_DIR)" gotestsum --format=testname -- \
 		-v \
 		-race \
 		-timeout=120s \

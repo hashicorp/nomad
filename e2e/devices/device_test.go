@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	envGate    = "NOMAD_E2E_PLUGIN_PATH"
+	envGate    = "NOMAD_E2E_DEVICE"
+	pluginPath = "NOMAD_E2E_PLUGIN_PATH"
 	deviceName = "nomad/file/mock"
 )
 
@@ -54,7 +55,11 @@ func hasDevicePlugin(t *testing.T, client *api.Client, deviceName string) bool {
 
 func TestDeviceScheduling(t *testing.T) {
 	if os.Getenv(envGate) == "" {
-		t.Fatal(envGate + " is not set; skipping")
+		t.Skip(envGate + " is not set; skipping")
+	}
+
+	if os.Getenv(pluginPath) == "" {
+		t.Fatal(pluginPath + " is not set; failing")
 	}
 	cases := []struct {
 		name            string
@@ -101,14 +106,14 @@ func TestDeviceScheduling(t *testing.T) {
 		c.AgentName = "device-test"
 		c.LogLevel = hclog.Warn.String()
 	}
-	pluginPath := os.Getenv(envGate)
-	must.FileExists(t, pluginPath+"/nomad-device-example")
+	plugin := os.Getenv(pluginPath)
+	must.FileExists(t, plugin+"/nomad-device-example")
 
 	c, err := os.ReadFile("./input/basic_device_config.hcl")
 	must.NoError(t, err)
 
 	cfg := string(c)
-	cfg = cfg + fmt.Sprintf("\nplugin_dir=\"%s\"", strings.TrimSuffix(pluginPath, "/nomad-device-example"))
+	cfg = cfg + fmt.Sprintf("\nplugin_dir=\"%s\"", strings.TrimSuffix(plugin, "/nomad-device-example"))
 
 	testServer, err := execagent.NewSingleModeAgent(
 		nomadBinary,
