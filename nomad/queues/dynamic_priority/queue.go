@@ -87,6 +87,7 @@ func NewDynamicPriorityQueue(
 		totalFairshare: &FairshareResources{},
 		wg:             sync.WaitGroup{},
 		state:          ss,
+		pool:           pool,
 		evalCancelFn:   cancelFn,
 		logger:         logger.Named("dynamic_priority_queue"),
 		watcher:        queue.NewWorkloadWatcher(ss, logger),
@@ -178,6 +179,8 @@ func (d *DynamicPriorityQueue) calculateFairshare() {
 
 	iter, err := d.state.JobsByPool(nil, d.pool)
 	if err != nil {
+		d.logger.Error("failed to get jobs for node pool", "node pool", d.pool)
+		return
 	}
 
 	for _, t := range d.tenants {
@@ -488,7 +491,7 @@ func (d *DynamicPriorityQueue) ageAdjustment(now time.Time, w *dynamicPriorityWo
 
 	elapsed := now.UnixNano() - w.Eval().CreateTime
 
-	age := float64(elapsed) / float64(d.conf.Age.MaxAge)
+	age := float64(elapsed) / float64(d.conf.Age.Max)
 	ageClamped := min(1.0, max(0.0, age))
 
 	w.ageAdjustment = int(ageClamped * float64(d.conf.Age.Weight))

@@ -110,7 +110,7 @@ type TenantFairshareConfig struct {
 
 // AgeConfig configures how job age affects scheduling priority.
 type AgeConfig struct {
-	MaxAge time.Duration
+	Max    time.Duration
 	Weight int
 }
 

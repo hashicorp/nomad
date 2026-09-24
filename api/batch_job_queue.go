@@ -133,9 +133,9 @@ type TenantFairshareConfig struct {
 // AgeConfig configures how job age affects scheduling priority.
 type AgeConfig struct {
 	// Weight determines how much the job's age affects its priority.
-	Weight int `hcl:"age_weight,optional"`
-	// MaxAge is the top end of the age calculation for a job, past which the age weight is capped.
-	MaxAge time.Duration `hcl:"max_age,optional"`
+	Weight int `hcl:"weight,optional"`
+	// Max is the top end of the age calculation for a job, past which the age weight is capped.
+	Max time.Duration `hcl:"max,optional"`
 }
 
 // JobSizeConfig configures how job resource size affects scheduling priority.
