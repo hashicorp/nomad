@@ -24,21 +24,37 @@ type testWorkload struct {
 	status string
 }
 
-func (w *testWorkload) GetEval() *structs.Evaluation {
+func (w *testWorkload) ID() structs.NamespacedID {
+	return structs.NewNamespacedID("", "")
+}
+
+func (w *testWorkload) JobVersion() uint64 {
+	return 0
+}
+
+func (w *testWorkload) Eval() *structs.Evaluation {
 	return w.eval
 }
+
 func (w *testWorkload) SetEval(e *structs.Evaluation) {
 	w.eval = e
 }
-func (w *testWorkload) GetStatus() string {
+
+func (w *testWorkload) Status() string {
 	return w.status
 }
+
 func (w *testWorkload) SetStatus(s, d string) {
 	w.status = fmt.Sprintf("%s %s", s, d)
 
 }
+
 func (w *testWorkload) WaitOnRestore() bool {
 	return w.wait
+}
+
+func (w *testWorkload) SetWaitOnRestore(wait bool) {
+	w.wait = wait
 }
 
 func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
@@ -80,7 +96,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		must.Eq(t, 1, len(inProgress))
 		must.NotNil(t, inProgress[testEval.ID])
 		workingWorkload := inProgress[testEval.ID]
-		must.Eq(t, workingWorkload.GetStatus(), "placing ")
+		must.Eq(t, workingWorkload.Status(), "placing ")
 
 		testEval.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
@@ -244,7 +260,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		must.Eq(t, 1, len(inProgress))
 		must.NotNil(t, inProgress[testEval.ID])
 		workingWorkload := inProgress[testEval.ID]
-		must.Eq(t, workingWorkload.GetStatus(), "blocked ${attr.kernel.name} == linux")
+		must.Eq(t, workingWorkload.Status(), "blocked ${attr.kernel.name} == linux")
 
 		// Complete the eval
 		testEval.Status = structs.EvalStatusComplete

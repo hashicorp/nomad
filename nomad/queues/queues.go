@@ -22,7 +22,13 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func NewQueue(logger hclog.Logger, ss *state.StateStore, conf *structs.BatchQueueConfig, broker queue.Broker) queue.Queue {
+func NewQueue(
+	logger hclog.Logger,
+	ss *state.StateStore,
+	conf *structs.BatchQueueConfig,
+	broker queue.Broker,
+	cancelFn queue.EvalCancelFn,
+) queue.Queue {
 	qType := structs.BatchQueueTypePassthrough
 	if conf != nil {
 		qType = conf.Type()
@@ -30,9 +36,9 @@ func NewQueue(logger hclog.Logger, ss *state.StateStore, conf *structs.BatchQueu
 
 	switch qType {
 	case structs.BatchQueueTypeDynamic:
-		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf.DynamicPriority)
+		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf.DynamicPriority, cancelFn)
 	case structs.BatchQueueTypeFifo:
-		return fifo.NewFifoQueue(logger, ss, broker)
+		return fifo.NewFifoQueue(logger, ss, broker, cancelFn)
 	}
 
 	return passthrough.NewPassthroughQueue(broker)

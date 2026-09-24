@@ -69,7 +69,7 @@ func testStateStore(t *testing.T) *state.StateStore {
 }
 
 func TestBatchQueueManager_Disable(t *testing.T) {
-	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), &MockBroker{})
+	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), &MockBroker{}, nil)
 
 	must.False(t, qm.enabled.Load(), must.Sprint("should be disabled by default"))
 	qm.SetEnabled(false, nil) // disable again does nothing
@@ -100,12 +100,18 @@ func TestBatchQueueManager_Disable(t *testing.T) {
 }
 
 func getNewQueueFn(q *MockQueue) newQueueFn {
-	return func(_ hclog.Logger, _ *state.StateStore, _ *structs.BatchQueueConfig, _ queue.Broker) queue.Queue {
+	return func(
+		_ hclog.Logger,
+		_ *state.StateStore,
+		_ *structs.BatchQueueConfig,
+		_ queue.Broker,
+		_ queue.EvalCancelFn,
+	) queue.Queue {
 		return q
 	}
 }
 
-func TestBatchQueueMgr_Enable(t *testing.T) {
+func TestBatchQueueManager_Enable(t *testing.T) {
 	// set up state
 	store := state.TestStateStore(t)
 
@@ -135,7 +141,7 @@ func TestBatchQueueMgr_Enable(t *testing.T) {
 	broker := &MockBroker{}
 	// broker.Test(t)
 
-	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), broker)
+	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), broker, nil)
 
 	// run tests!
 
