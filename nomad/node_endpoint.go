@@ -657,8 +657,8 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// The node update status RPC is responsible for generating node identities,
 	// so we use the custom authentication method shared with Register.
 	//
-	// Note; UpdateStatus receives requests from clients and servers that mark
-	// failed heartbeats.
+	// Note: UpdateStatus receives requests from clients and the leader to mark
+	// failed heartbeats
 	authErr := n.srv.AuthenticateNodeIdentityGenerator(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
@@ -680,21 +680,12 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
 
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
-		return structs.ErrPermissionDenied
-	} else {
-		if aclObj.AllowServerOp() || args.GetIdentity().GetACLToken() == structs.LeaderACLToken {
-			goto VERIFY_ARGS
-		}
-
+	if args.GetIdentity().GetACLToken() != structs.LeaderACLToken {
 		if err := auth.AuthorizeSameNode(args.GetIdentity(), args.NodeID); err != nil {
 			return err
 		}
 	}
 
-VERIFY_ARGS:
-
-	// Verify the arguments
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client status update")
 	}
