@@ -164,25 +164,5 @@ type DynamicQueueConfig struct {
 	JobSize         JobSizeConfig         `hcl:"job_size,block"`
 }
 
-func (qc *DynamicQueueConfig) Validate() error {
-	switch qc.TenantFairshare.TenantType {
-	case BatchQueueTenantNamespace:
-	case BatchQueueTenantMetadata:
-		if qc.TenantFairshare.MetadataKey == "" {
-			return errors.New("metadata key must be specified if using metadata tenency")
-		}
-	case "":
-		return errors.New("tenant type must be specified if using dynamic priority queue")
-	default:
-		return fmt.Errorf("unsupported tenant type: %q", qc.TenantFairshare.TenantType)
-	}
-
-	if qc.CalcInterval <= 0 {
-		return errors.New("calc_interval must be greater than zero")
-	}
-
-	return nil
-}
-
 // FifoQueueConfig enables a FIFO queue for a node pool.
 type FifoQueueConfig struct{}
