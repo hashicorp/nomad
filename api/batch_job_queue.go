@@ -32,24 +32,24 @@ func (c *Client) BatchQueue() *BatchQueue {
 }
 
 type DynamicPriorityWorkload struct {
-	JobID            string
-	Tenant           string
-	Status           string
-	Position         int
-	AdjustedPriority int
-	BasePriority     int
-	UsageAdjustment  int
-	AgeAdjustment    int
-	CpuAdjustment    int
-	MemoryAdjustment int
-	CreatedAt        int64
+	JobID               string
+	Tenant              string
+	Status              string
+	Position            int
+	AdjustedPriority    int
+	BasePriority        int
+	FairshareAdjustment int
+	AgeAdjustment       int
+	CpuAdjustment       int
+	MemoryAdjustment    int
+	CreatedAt           int64
 }
 
 type DynamicPriorityTenant struct {
-	TenantID       string
-	PercentageUsed int
-	TenantUsage    map[string]float64
-	TotalUsage     map[string]float64
+	TenantID        string
+	PercentageUsed  int
+	TenantFairshare map[string]float64
+	TotalFairshare  map[string]float64
 }
 
 type Workload struct {
@@ -108,6 +108,7 @@ type BatchQueueConfig struct {
 }
 
 // Validate provides some minimal client-side validation of the queue config.
+// TODO: this is not called anywhere
 func (b *BatchQueueConfig) Validate() error {
 	if (b.DynamicPriority == nil && b.Fifo == nil) ||
 		(b.DynamicPriority != nil && b.Fifo != nil) {
@@ -125,65 +126,73 @@ func (b *BatchQueueConfig) Validate() error {
 
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.
 type DynamicQueueConfig struct {
-	// TenantType determines how jobs are categorized into tenants,
-	// may be either "namespace" or "metadata". If "metadata" is used,
-	// MetadataKey must be specified.
-	TenantType BatchQueueTenant `hcl:"tenant_type"`
-
-	// MetadataKey specifies the key used in job meta{} block.
-	// Each unique value is treated as a separate tenant.
-	// Only valid with TenantType = "metadata"
-	MetadataKey string `hcl:"metadata_key,optional"`
-
-	// TODO: sensible defaults for interval and halflife
-
 	// CalcInterval is how often the queue will recalculate priorities.
 	CalcInterval time.Duration `hcl:"calc_interval,optional"`
 
-	// HalfLife determines the rate at which we decay the impact of a job's
-	// resource usage over time.
-	HalfLife time.Duration `hcl:"half_life,optional"`
+	// TenantFairshare holds the
+	TenantFairshare struct {
+		// TenantType determines how jobs are categorized into tenants,
+		// may be either "namespace" or "metadata". If "metadata" is used,
+		// MetadataKey must be specified.
+		TenantType BatchQueueTenant `hcl:"tenant_type"`
 
-	// UsageWeight determines how much a tenant's total resource usage affects
-	// the priority of all of its queued jobs.
-	UsageWeight int `hcl:"usage_weight,optional"`
+		// MetadataKey specifies the key used in job meta{} block.
+		// Each unique value is treated as a separate tenant.
+		// Only valid with TenantType = "metadata"
+		MetadataKey string `hcl:"metadata_key,optional"`
+
+		// CpuWeight determines how much a tenant's cpu usage affects
+		// the priority of all of its queued jobs.
+		CpuWeight int `hcl:"cpu_weight"`
+
+		// MemoryWeight determines how much a tenant's memory usage affects
+		// the priority of all of its queued jobs.
+		MemoryWeight int `hcl:"memory_weight"`
+
+		// ExcludeAllocStatuses defines the alloc statuses to exclude from
+		// tenant resource usage calculations.
+		ExcludeAllocStatuses []string `hcl:"exclude_alloc_statuses,optional"`
+	} `hcl:"tenant_fairshare,block"`
+
+	// TODO: sensible defaults for interval and halflife
 
 	// TODO: validate these weight/max pairs; if weight is set, max must be set too
 
-	// AgeWeight determines how much the job's age affects its priority.
-	AgeWeight int `hcl:"age_weight,optional"`
-	// MaxAge is the top end of the age calculation for a job, past which the age weight is capped.
-	MaxAge time.Duration `hcl:"max_age,optional"`
+	Age struct {
+		// Weight determines how much the job's age affects its priority.
+		Weight int `hcl:"age_weight,optional"`
+		// MaxAge is the top end of the age calculation for a job, past which the age weight is capped.
+		MaxAge time.Duration `hcl:"max_age,optional"`
+	} `hcl:"age,block"`
 
-	// CpuWeight determines how much a job's requested cpu affects its priority.
-	CpuWeight int `hcl:"cpu_weight,optional"`
-	// MaxCpu is the top end of the cpu value for a job, past which the cpu weight is capped.
-	MaxCpu int `hcl:"max_cpu,optional"`
+	JobSize struct {
+		// CpuWeight determines how much a job's requested cpu affects its priority.
+		CpuWeight int `hcl:"cpu_weight,optional"`
+		// MaxCpu is the top end of the cpu value for a job, past which the cpu weight is capped.
+		MaxCpu int `hcl:"max_cpu,optional"`
 
-	// MemWeight determines how much a job's requested mem affects its priority.
-	MemWeight int `hcl:"memory_weight,optional"`
-	// MaxMemory is the top end of the memory value for a job, past which the memory weight is capped.
-	MaxMemory int `hcl:"max_memory,optional"`
+		// MemoryWeight determines how much a job's requested mem affects its priority.
+		MemoryWeight int `hcl:"memory_weight,optional"`
+		// MaxMemory is the top end of the memory value for a job, past which the memory weight is capped.
+		MaxMemory int `hcl:"max_memory,optional"`
+	} `hcl:"job_size,block"`
 }
 
 func (qc *DynamicQueueConfig) Validate() error {
-	switch qc.TenantType {
+	switch qc.TenantFairshare.TenantType {
 	case BatchQueueTenantNamespace:
 	case BatchQueueTenantMetadata:
-		if qc.MetadataKey == "" {
+		if qc.TenantFairshare.MetadataKey == "" {
 			return errors.New("metadata key must be specified if using metadata tenency")
 		}
 	case "":
 		return errors.New("tenant type must be specified if using dynamic priority queue")
 	default:
-		return fmt.Errorf("unsupported tenant type: %q", qc.TenantType)
+		return fmt.Errorf("unsupported tenant type: %q", qc.TenantFairshare.TenantType)
 	}
 
 	if qc.CalcInterval <= 0 {
 		return errors.New("calc_interval must be greater than zero")
-	}
-	if qc.HalfLife <= 0 {
-		return errors.New("half_life must be greater than zero")
 	}
 
 	return nil

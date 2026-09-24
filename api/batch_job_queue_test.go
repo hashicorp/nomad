@@ -85,15 +85,26 @@ func TestBatchQueueConfig_DynamicQueueConfig_Validate(t *testing.T) {
 		{
 			name: "bad tenant type",
 			config: &DynamicQueueConfig{
-				TenantType: "foo",
+				TenantFairshare: struct {
+					TenantType           BatchQueueTenant `hcl:"tenant_type"`
+					MetadataKey          string           `hcl:"metadata_key,optional"`
+					CpuWeight            int              `hcl:"cpu_weight"`
+					MemoryWeight         int              `hcl:"memory_weight"`
+					ExcludeAllocStatuses []string         `hcl:"exclude_alloc_statuses,optional"`
+				}{TenantType: "foo"},
 			},
 			err: "unsupported tenant type",
 		},
 		{
 			name: "bad missing metadata key",
 			config: &DynamicQueueConfig{
-				TenantType:  BatchQueueTenantMetadata,
-				MetadataKey: "",
+				TenantFairshare: struct {
+					TenantType           BatchQueueTenant `hcl:"tenant_type"`
+					MetadataKey          string           `hcl:"metadata_key,optional"`
+					CpuWeight            int              `hcl:"cpu_weight"`
+					MemoryWeight         int              `hcl:"memory_weight"`
+					ExcludeAllocStatuses []string         `hcl:"exclude_alloc_statuses,optional"`
+				}{TenantType: BatchQueueTenantMetadata},
 			},
 			err: "metadata key must be specified",
 		},

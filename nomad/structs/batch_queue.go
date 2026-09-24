@@ -88,7 +88,7 @@ func (bq *BatchQueueConfig) Hash() []byte {
 	}
 	var buf bytes.Buffer
 	if bq.DynamicPriority != nil {
-		buf.WriteString(fmt.Sprintf("dynamic_priority_%v", bq.DynamicPriority))
+		fmt.Fprintf(&buf, "dynamic_priority_%v", bq.DynamicPriority)
 	}
 	if bq.Fifo != nil {
 		buf.WriteString("fifo")
@@ -99,41 +99,44 @@ func (bq *BatchQueueConfig) Hash() []byte {
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.
 // Refer to to api.DynamicQueueConfig for detailed doc comments.
 type DynamicQueueConfig struct {
-	TenantType  BatchQueueTenant
-	MetadataKey string
-
 	CalcInterval time.Duration
-	HalfLife     time.Duration
 
-	UsageWeight int
+	TenantFairshare struct {
+		TenantType           BatchQueueTenant
+		MetadataKey          string
+		CpuWeight            int
+		MemoryWeight         int
+		ExcludeAllocStatuses []string
+	}
 
-	MaxAge    time.Duration
-	AgeWeight int
+	Age struct {
+		MaxAge time.Duration
+		Weight int
+	}
 
-	CpuWeight int
-	MaxCpu    int
-	MemWeight int
-	MaxMemory int
+	JobSize struct {
+		CpuWeight    int
+		MaxCpu       int
+		MemoryWeight int
+		MaxMemory    int
+	}
 }
 
 func (qc *DynamicQueueConfig) Validate() error {
-	switch qc.TenantType {
+	switch qc.TenantFairshare.TenantType {
 	case TenantTypeNamespace:
 	case TenantTypeMetadata:
-		if qc.MetadataKey == "" {
+		if qc.TenantFairshare.MetadataKey == "" {
 			return errors.New("metadata key must be specified if using metadata tenency")
 		}
 	case "":
 		return errors.New("tenant type must be specified if using dynamic priority queue")
 	default:
-		return fmt.Errorf("unsupported tenant type: %q", qc.TenantType)
+		return fmt.Errorf("unsupported tenant type: %q", qc.TenantFairshare.TenantType)
 	}
 
 	if qc.CalcInterval <= 0 {
 		return errors.New("calc_interval must be greater than zero")
-	}
-	if qc.HalfLife <= 0 {
-		return errors.New("half_life must be greater than zero")
 	}
 
 	return nil
