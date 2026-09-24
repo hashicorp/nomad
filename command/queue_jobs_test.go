@@ -32,7 +32,7 @@ func TestQueueJobsCommand_printDynamicQueueFormatted(t *testing.T) {
 			Position:         1,
 			AdjustedPriority: 10,
 			BasePriority:     10,
-			UsageAdjustment:  10,
+			FairshareAdjustment: 10,
 			AgeAdjustment:    5,
 			CpuAdjustment:    5,
 			MemoryAdjustment: 5,
@@ -42,8 +42,8 @@ func TestQueueJobsCommand_printDynamicQueueFormatted(t *testing.T) {
 	cmd.printDynamicQueueFormatted(testResp)
 
 	expect := "Batch Queue Workloads\n" +
-		"JobID  Tenant       Status  Adjusted Priority  Base Priority  Position  Usage  Age  Cpu  Memory  CreatedAt\n" +
-		"123    testTenant1  queued  10                 10             1         10     5    5    5       " + fmt.Sprintf("%v\n", formatUnixNanoTime(testResp[0].CreatedAt))
+		"JobID  Tenant       Status  Adjusted Priority  Base Priority  Position  Fairshare  Age  Cpu  Memory  CreatedAt\n" +
+		"123    testTenant1  queued  10                 10             1         10         5    5    5       " + fmt.Sprintf("%v\n", formatUnixNanoTime(testResp[0].CreatedAt))
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }
@@ -61,7 +61,7 @@ func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
 			Position:         1,
 			AdjustedPriority: 10,
 			BasePriority:     10,
-			UsageAdjustment:  10,
+			FairshareAdjustment: 10,
 			AgeAdjustment:    5,
 			CpuAdjustment:    5,
 			MemoryAdjustment: 5,
@@ -70,7 +70,7 @@ func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
 	}
 	cmd.printDynamicQueueJSON(testResp)
 
-	expect := `[{"JobID":"123","Tenant":"testTenant1","Status":"queued","Position":1,"AdjustedPriority":10,"BasePriority":10,"UsageAdjustment":10,"AgeAdjustment":5,"CpuAdjustment":5,"MemoryAdjustment":5,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `}]` + "\n"
+	expect := `[{"JobID":"123","Tenant":"testTenant1","Status":"queued","Position":1,"AdjustedPriority":10,"BasePriority":10,"FairshareAdjustment":10,"AgeAdjustment":5,"CpuAdjustment":5,"MemoryAdjustment":5,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `}]` + "\n"
 
 	must.Eq(t, expect, ui.OutputWriter.String())
 }

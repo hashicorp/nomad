@@ -35,10 +35,10 @@ func TestQueueTenantsCommand_printTenantsFormatted(t *testing.T) {
 	cmd.printTenants(statusResp, false)
 
 	expectFormatted := `Batch Queue Tenants
-Tenant       Resource  Fairshare / Total  Percentage
-testTenant1                               100
-             cpu       10.00 / 10.00      
-             memory    20.00 / 20.00      
+Tenant       Resource  Current / Total  Percentage
+testTenant1                             100
+             cpu       10.00 / 10.00    
+             memory    20.00 / 20.00    
 `
 	must.Eq(t, expectFormatted, ui.OutputWriter.String())
 
