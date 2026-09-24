@@ -228,9 +228,7 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 
 func (d *DynamicPriorityQueue) cancelRedundant(w *dynamicPriorityWorkload) bool {
 	// check if a workload with the same ID exists on the queue. If so,
-	// either swap out the existing if the new one has a higher job version,
-	// and cancel the existing's eval, or cancel the new workload's eval
-	// if it has a job version that not greater than the existing one.
+	// keep whichever job is newer, and cancel the eval for the other one.
 	existing, ok := d.queue.Get(w.ID())
 	if ok {
 		// use an update here because it removes and replaces the workload
@@ -256,7 +254,7 @@ func (d *DynamicPriorityQueue) shouldSkipQueue(w *dynamicPriorityWorkload) bool 
 		d.logger.Error("failed to get job by version")
 	}
 	if j == nil {
-		d.logger.Info("job is nil", "jobID", w.Eval().JobID, "namespace", w.Eval().Namespace, "version", w.JobVersion())
+		return false
 	}
 	allocs, _ := d.state.AllocsByJob(nil, w.Eval().Namespace, w.Eval().JobID, true)
 	for _, a := range allocs {

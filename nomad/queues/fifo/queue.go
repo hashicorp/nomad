@@ -116,9 +116,7 @@ func (f *FifoQueue) runProducer(ctx context.Context) {
 		case w := <-f.enqueueCh:
 
 			// check if a workload with the same ID exists on the queue. If so,
-			// either swap out the existing if the new one has a higher job version,
-			// and cancel the existing's eval, or cancel the new workload's eval
-			// if it has a job version that not greater than the existing one.
+			// keep whichever job is newer, and cancel the eval for the other one.
 			existing, ok := f.queue.Get(w.ID())
 			if ok {
 				// use an update here because it removes and replaces the workload

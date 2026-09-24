@@ -496,7 +496,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 			e = e.Copy()
 			e.Status = structs.EvalStatusCancelled
-			e.StatusDescription = "job-register eval exists on batch queue"
+			e.StatusDescription = "redundant job-register eval exists on batch queue"
 
 			_, _, err := s.raftApply(structs.EvalUpdateRequestType, structs.EvalUpdateRequest{
 				Evals: []*structs.Evaluation{e},
