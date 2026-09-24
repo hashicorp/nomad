@@ -4,8 +4,6 @@
 package api
 
 import (
-	"errors"
-	"fmt"
 	"time"
 )
 
