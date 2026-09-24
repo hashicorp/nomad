@@ -53,7 +53,7 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, tc.conf, nil)
+			q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, tc.conf, "", nil)
 
 			lowUsageWorkload := &dynamicPriorityWorkload{
 				tid:          tc.lowUsageTenant.tid,
@@ -515,6 +515,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 				ss,
 				nil,
 				&structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{TenantType: "namespace"}},
+				"",
 				nil,
 			)
 			testQueue.queue = queue.NewWorkloadQueue(workloadSortFn())
@@ -587,7 +588,7 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 		ss := state.TestStateStore(t)
 		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
 			TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
-		}, nil)
+		}, "", nil)
 
 		// Set the state store before calling restore
 		testQueue.state = ss
@@ -626,7 +627,7 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 		ss := state.TestStateStore(t)
 		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
 			TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
-		}, nil)
+		}, "", nil)
 		testQueue.state = ss
 
 		job := mock.Job()

@@ -102,13 +102,6 @@ func TestBatchQueueConfig_Validate(t *testing.T) {
 }
 
 func TestBatchQueue_DynamicQueueConfig_Validate(t *testing.T) {
-	mkConf := func(tenantType BatchQueueTenant, metadataKey string, calcInterval time.Duration) DynamicQueueConfig {
-		return DynamicQueueConfig{
-			CalcInterval:    calcInterval,
-			TenantFairshare: TenantFairshareConfig{TenantType: tenantType, MetadataKey: metadataKey},
-		}
-	}
-
 	cases := []struct {
 		name   string
 		config DynamicQueueConfig
@@ -116,23 +109,29 @@ func TestBatchQueue_DynamicQueueConfig_Validate(t *testing.T) {
 	}{
 		{
 			name:   "missing tenant type",
-			config: mkConf("", "", 0),
+			config: DynamicQueueConfig{},
 			err:    "tenant type must be specified",
 		},
 		{
-			name:   "invalid tenant type",
-			config: mkConf("foo", "", 0),
-			err:    "unsupported tenant type: \"foo\"",
+			name: "invalid tenant type",
+			config: DynamicQueueConfig{
+				TenantFairshare: TenantFairshareConfig{TenantType: "foo"},
+			},
+			err: "unsupported tenant type: \"foo\"",
 		},
 		{
-			name:   "empty metadata key errors",
-			config: mkConf(TenantTypeMetadata, "", 0),
-			err:    "metadata key must be specified",
+			name: "empty metadata key errors",
+			config: DynamicQueueConfig{
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeMetadata},
+			},
+			err: "metadata key must be specified",
 		},
 		{
-			name:   "zero calc interval",
-			config: mkConf(TenantTypeNamespace, "", 0),
-			err:    "calc_interval must be greater than zero",
+			name: "zero calc interval",
+			config: DynamicQueueConfig{
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeNamespace},
+			},
+			err: "calc_interval must be greater than zero",
 		},
 	}
 

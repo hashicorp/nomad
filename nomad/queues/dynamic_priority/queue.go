@@ -46,6 +46,10 @@ type DynamicPriorityQueue struct {
 	// conf contains user configurations for tuning the behavior of the queue
 	conf *structs.DynamicQueueConfig
 
+	// pool is the node pool where the queue is configured. It is used to get
+	// allocations for building fairshare state.
+	pool string
+
 	// evalBroker is the injected broker for passing an evaluation
 	// on to be scheduled by Nomad
 	evalBroker queue.Broker
@@ -69,6 +73,7 @@ func NewDynamicPriorityQueue(
 	ss *state.StateStore,
 	broker queue.Broker,
 	conf *structs.DynamicQueueConfig,
+	pool string,
 	cancelFn queue.EvalCancelFn,
 ) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
@@ -171,8 +176,7 @@ func (d *DynamicPriorityQueue) calculateFairshare() {
 
 	d.totalFairshare = &FairshareResources{}
 
-	// TODO: hardcoded pool for testing
-	iter, err := d.state.JobsByPool(nil, "queue")
+	iter, err := d.state.JobsByPool(nil, d.pool)
 	if err != nil {
 	}
 
