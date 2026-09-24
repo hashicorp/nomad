@@ -43,13 +43,7 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 	}{
 		{
 			name: "higher usage results in lower priority",
-			conf: &structs.DynamicQueueConfig{TenantFairshare: struct {
-				TenantType           structs.BatchQueueTenant
-				MetadataKey          string
-				CpuWeight            int
-				MemoryWeight         int
-				ExcludeAllocStatuses []string
-			}{CpuWeight: 10, MemoryWeight: 10}},
+			conf: &structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{CpuWeight: 10, MemoryWeight: 10}},
 			lowUsageTenant:               mkTenant(TenantID("tenant-low"), 0, 55),
 			highUsageTenant:              mkTenant(TenantID("tenant-high"), 100, 50),
 			expectedHigherPriorityTenant: TenantID("tenant-low"),
@@ -111,12 +105,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 	}{
 		{
 			name: "larger requests results in 0 adjustment",
-			conf: &structs.DynamicQueueConfig{JobSize: struct {
-				CpuWeight    int
-				MaxCpu       int
-				MemoryWeight int
-				MaxMemory    int
-			}{CpuWeight: 10, MaxCpu: 1000, MemoryWeight: 10, MaxMemory: 1000}},
+			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, MaxCpu: 1000, MemoryWeight: 10, MaxMemory: 1000}},
 			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    1000,
 				Memory: 1000,
@@ -125,12 +114,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 		},
 		{
 			name: "smaller requests results in expected adjustment",
-			conf: &structs.DynamicQueueConfig{JobSize: struct {
-				CpuWeight    int
-				MaxCpu       int
-				MemoryWeight int
-				MaxMemory    int
-			}{CpuWeight: 10, MaxCpu: 1000, MemoryWeight: 10, MaxMemory: 1000}},
+			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, MaxCpu: 1000, MemoryWeight: 10, MaxMemory: 1000}},
 			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    50,
 				Memory: 50,
@@ -139,12 +123,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 		},
 		{
 			name: "negative weight results in negative adjustment",
-			conf: &structs.DynamicQueueConfig{JobSize: struct {
-				CpuWeight    int
-				MaxCpu       int
-				MemoryWeight int
-				MaxMemory    int
-			}{CpuWeight: -10, MaxCpu: 1000, MemoryWeight: -10, MaxMemory: 1000}},
+			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: -10, MaxCpu: 1000, MemoryWeight: -10, MaxMemory: 1000}},
 			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    50,
 				Memory: 50,
@@ -172,10 +151,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 	}{
 		{
 			name: "createTime and now equal results in 0 age adjustment",
-			conf: &structs.DynamicQueueConfig{Age: struct {
-				MaxAge time.Duration
-				Weight int
-			}{Weight: 10, MaxAge: time.Second * 10}},
+			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, MaxAge: time.Second * 10}},
 			workload: &dynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{}, mock.Job(), queue.WorkloadStatusQueued),
 			},
@@ -184,10 +160,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 		},
 		{
 			name: "greater than max age results in max adjustment",
-			conf: &structs.DynamicQueueConfig{Age: struct {
-				MaxAge time.Duration
-				Weight int
-			}{Weight: 10, MaxAge: time.Second * 10}},
+			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, MaxAge: time.Second * 10}},
 			workload: &dynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 					CreateTime: time.Time{}.UnixNano(),
@@ -198,10 +171,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 		},
 		{
 			name: "aging eval results in expected adjustment",
-			conf: &structs.DynamicQueueConfig{Age: struct {
-				MaxAge time.Duration
-				Weight int
-			}{Weight: 10, MaxAge: time.Second * 10}},
+			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, MaxAge: time.Second * 10}},
 			workload: &dynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 					CreateTime: time.Time{}.UnixNano(),
@@ -544,13 +514,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 				hclog.New(hclog.DefaultOptions),
 				ss,
 				nil,
-				&structs.DynamicQueueConfig{TenantFairshare: struct {
-					TenantType           structs.BatchQueueTenant
-					MetadataKey          string
-					CpuWeight            int
-					MemoryWeight         int
-					ExcludeAllocStatuses []string
-				}{TenantType: "namespace"}},
+				&structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{TenantType: "namespace"}},
 				nil,
 			)
 			testQueue.queue = queue.NewWorkloadQueue(workloadSortFn())
@@ -619,26 +583,10 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 }
 
 func TestDynamicPriorityQueue_restore(t *testing.T) {
-	makeTenantFairshare := func(tenantType structs.BatchQueueTenant) struct {
-		TenantType           structs.BatchQueueTenant
-		MetadataKey          string
-		CpuWeight            int
-		MemoryWeight         int
-		ExcludeAllocStatuses []string
-	} {
-		return struct {
-			TenantType           structs.BatchQueueTenant
-			MetadataKey          string
-			CpuWeight            int
-			MemoryWeight         int
-			ExcludeAllocStatuses []string
-		}{TenantType: tenantType}
-	}
-
 	t.Run("unplaced workload is enqueued", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
-			TenantFairshare: makeTenantFairshare(structs.TenantTypeNamespace),
+			TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
 		}, nil)
 
 		// Set the state store before calling restore
@@ -677,7 +625,7 @@ func TestDynamicPriorityQueue_restore(t *testing.T) {
 	t.Run("completed eval is not re-enqueued", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
-			TenantFairshare: makeTenantFairshare(structs.TenantTypeNamespace),
+			TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
 		}, nil)
 		testQueue.state = ss
 

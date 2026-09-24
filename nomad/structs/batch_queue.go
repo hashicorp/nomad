@@ -47,6 +47,9 @@ func (bq *BatchQueueConfig) Type() BatchQueueType {
 }
 
 func (bq *BatchQueueConfig) Validate() error {
+	if bq == nil {
+		return nil
+	}
 	switch bq.Type() {
 
 	case BatchQueueTypeDynamic:
@@ -96,30 +99,36 @@ func (bq *BatchQueueConfig) Hash() []byte {
 	return buf.Bytes()
 }
 
+// TenantFairshareConfig configures how tenants are identified and weighted.
+type TenantFairshareConfig struct {
+	TenantType           BatchQueueTenant
+	MetadataKey          string
+	CpuWeight            int
+	MemoryWeight         int
+	ExcludeAllocStatuses []string
+}
+
+// AgeConfig configures how job age affects scheduling priority.
+type AgeConfig struct {
+	MaxAge time.Duration
+	Weight int
+}
+
+// JobSizeConfig configures how job resource size affects scheduling priority.
+type JobSizeConfig struct {
+	CpuWeight    int
+	MaxCpu       int
+	MemoryWeight int
+	MaxMemory    int
+}
+
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.
 // Refer to to api.DynamicQueueConfig for detailed doc comments.
 type DynamicQueueConfig struct {
-	CalcInterval time.Duration
-
-	TenantFairshare struct {
-		TenantType           BatchQueueTenant
-		MetadataKey          string
-		CpuWeight            int
-		MemoryWeight         int
-		ExcludeAllocStatuses []string
-	}
-
-	Age struct {
-		MaxAge time.Duration
-		Weight int
-	}
-
-	JobSize struct {
-		CpuWeight    int
-		MaxCpu       int
-		MemoryWeight int
-		MaxMemory    int
-	}
+	CalcInterval    time.Duration
+	TenantFairshare TenantFairshareConfig
+	Age             AgeConfig
+	JobSize         JobSizeConfig
 }
 
 func (qc *DynamicQueueConfig) Validate() error {

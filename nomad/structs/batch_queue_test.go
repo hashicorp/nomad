@@ -16,11 +16,11 @@ func TestBatchQueueConfig_Copy(t *testing.T) {
 
 	orig = &BatchQueueConfig{
 		DynamicPriority: &DynamicQueueConfig{
-			CalcInterval: time.Second, // duration / int64
+			CalcInterval:    time.Second,
+			TenantFairshare: TenantFairshareConfig{TenantType: "test-type"},
 		},
 		Fifo: &FifoQueueConfig{},
 	}
-	orig.DynamicPriority.TenantFairshare.TenantType = "test-type"
 
 	cp := orig.Copy()
 
@@ -31,7 +31,7 @@ func TestBatchQueueConfig_Copy(t *testing.T) {
 	must.Eq(t, string(orig.Hash()), string(cp.Hash()), must.Sprint("Hash mismatch"))
 
 	cp.DynamicPriority.TenantFairshare.TenantType = "copy-changed"
-	must.NotEq(t, BatchQueueTenant("copy-changed"), orig.DynamicPriority.TenantFairshare.TenantType)
+	must.Eq(t, BatchQueueTenant("test-type"), orig.DynamicPriority.TenantFairshare.TenantType)
 }
 
 func TestBatchQueueConfig_IsEnabled(t *testing.T) {
@@ -50,9 +50,10 @@ func TestBatchQueueConfig_IsEnabled(t *testing.T) {
 func TestBatchQueueConfig_Type(t *testing.T) {
 	t.Run("dynamic", func(t *testing.T) {
 		c := &BatchQueueConfig{
-			DynamicPriority: &DynamicQueueConfig{},
+			DynamicPriority: &DynamicQueueConfig{
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeNamespace},
+			},
 		}
-		c.DynamicPriority.TenantFairshare.TenantType = TenantTypeNamespace
 		must.Eq(t, BatchQueueTypeDynamic, c.Type())
 	})
 	t.Run("fifo", func(t *testing.T) {
@@ -102,10 +103,10 @@ func TestBatchQueueConfig_Validate(t *testing.T) {
 
 func TestBatchQueue_DynamicQueueConfig_Validate(t *testing.T) {
 	mkConf := func(tenantType BatchQueueTenant, metadataKey string, calcInterval time.Duration) DynamicQueueConfig {
-		c := DynamicQueueConfig{CalcInterval: calcInterval}
-		c.TenantFairshare.TenantType = tenantType
-		c.TenantFairshare.MetadataKey = metadataKey
-		return c
+		return DynamicQueueConfig{
+			CalcInterval:    calcInterval,
+			TenantFairshare: TenantFairshareConfig{TenantType: tenantType, MetadataKey: metadataKey},
+		}
 	}
 
 	cases := []struct {

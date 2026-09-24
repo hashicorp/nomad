@@ -124,58 +124,61 @@ func (b *BatchQueueConfig) Validate() error {
 	return nil
 }
 
+// TenantFairshareConfig configures how tenants are identified and weighted.
+type TenantFairshareConfig struct {
+	// TenantType determines how jobs are categorized into tenants,
+	// may be either "namespace" or "metadata". If "metadata" is used,
+	// MetadataKey must be specified.
+	TenantType BatchQueueTenant `hcl:"tenant_type"`
+
+	// MetadataKey specifies the key used in job meta{} block.
+	// Each unique value is treated as a separate tenant.
+	// Only valid with TenantType = "metadata"
+	MetadataKey string `hcl:"metadata_key,optional"`
+
+	// CpuWeight determines how much a tenant's cpu usage affects
+	// the priority of all of its queued jobs.
+	CpuWeight int `hcl:"cpu_weight"`
+
+	// MemoryWeight determines how much a tenant's memory usage affects
+	// the priority of all of its queued jobs.
+	MemoryWeight int `hcl:"memory_weight"`
+
+	// ExcludeAllocStatuses defines the alloc statuses to exclude from
+	// tenant resource usage calculations.
+	ExcludeAllocStatuses []string `hcl:"exclude_alloc_statuses,optional"`
+}
+
+// AgeConfig configures how job age affects scheduling priority.
+type AgeConfig struct {
+	// Weight determines how much the job's age affects its priority.
+	Weight int `hcl:"age_weight,optional"`
+	// MaxAge is the top end of the age calculation for a job, past which the age weight is capped.
+	MaxAge time.Duration `hcl:"max_age,optional"`
+}
+
+// JobSizeConfig configures how job resource size affects scheduling priority.
+type JobSizeConfig struct {
+	// CpuWeight determines how much a job's requested cpu affects its priority.
+	CpuWeight int `hcl:"cpu_weight,optional"`
+	// MaxCpu is the top end of the cpu value for a job, past which the cpu weight is capped.
+	MaxCpu int `hcl:"max_cpu,optional"`
+
+	// MemoryWeight determines how much a job's requested mem affects its priority.
+	MemoryWeight int `hcl:"memory_weight,optional"`
+	// MaxMemory is the top end of the memory value for a job, past which the memory weight is capped.
+	MaxMemory int `hcl:"max_memory,optional"`
+}
+
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.
 type DynamicQueueConfig struct {
 	// CalcInterval is how often the queue will recalculate priorities.
 	CalcInterval time.Duration `hcl:"calc_interval,optional"`
 
-	// TenantFairshare holds the
-	TenantFairshare struct {
-		// TenantType determines how jobs are categorized into tenants,
-		// may be either "namespace" or "metadata". If "metadata" is used,
-		// MetadataKey must be specified.
-		TenantType BatchQueueTenant `hcl:"tenant_type"`
-
-		// MetadataKey specifies the key used in job meta{} block.
-		// Each unique value is treated as a separate tenant.
-		// Only valid with TenantType = "metadata"
-		MetadataKey string `hcl:"metadata_key,optional"`
-
-		// CpuWeight determines how much a tenant's cpu usage affects
-		// the priority of all of its queued jobs.
-		CpuWeight int `hcl:"cpu_weight"`
-
-		// MemoryWeight determines how much a tenant's memory usage affects
-		// the priority of all of its queued jobs.
-		MemoryWeight int `hcl:"memory_weight"`
-
-		// ExcludeAllocStatuses defines the alloc statuses to exclude from
-		// tenant resource usage calculations.
-		ExcludeAllocStatuses []string `hcl:"exclude_alloc_statuses,optional"`
-	} `hcl:"tenant_fairshare,block"`
-
-	// TODO: sensible defaults for interval and halflife
-
-	// TODO: validate these weight/max pairs; if weight is set, max must be set too
-
-	Age struct {
-		// Weight determines how much the job's age affects its priority.
-		Weight int `hcl:"age_weight,optional"`
-		// MaxAge is the top end of the age calculation for a job, past which the age weight is capped.
-		MaxAge time.Duration `hcl:"max_age,optional"`
-	} `hcl:"age,block"`
-
-	JobSize struct {
-		// CpuWeight determines how much a job's requested cpu affects its priority.
-		CpuWeight int `hcl:"cpu_weight,optional"`
-		// MaxCpu is the top end of the cpu value for a job, past which the cpu weight is capped.
-		MaxCpu int `hcl:"max_cpu,optional"`
-
-		// MemoryWeight determines how much a job's requested mem affects its priority.
-		MemoryWeight int `hcl:"memory_weight,optional"`
-		// MaxMemory is the top end of the memory value for a job, past which the memory weight is capped.
-		MaxMemory int `hcl:"max_memory,optional"`
-	} `hcl:"job_size,block"`
+	// TODO: validate and set sensible defaults.
+	TenantFairshare TenantFairshareConfig `hcl:"tenant_fairshare,block"`
+	Age             AgeConfig             `hcl:"age,block"`
+	JobSize         JobSizeConfig         `hcl:"job_size,block"`
 }
 
 func (qc *DynamicQueueConfig) Validate() error {
