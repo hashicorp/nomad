@@ -142,13 +142,13 @@ type AgeConfig struct {
 type JobSizeConfig struct {
 	// CpuWeight determines how much a job's requested cpu affects its priority.
 	CpuWeight int `hcl:"cpu_weight,optional"`
-	// MaxCpu is the top end of the cpu value for a job, past which the cpu weight is capped.
-	MaxCpu int `hcl:"max_cpu,optional"`
+	// CpuMax is the top end of the cpu value for a job, past which the cpu weight is capped.
+	CpuMax int `hcl:"cpu_max,optional"`
 
 	// MemoryWeight determines how much a job's requested mem affects its priority.
 	MemoryWeight int `hcl:"memory_weight,optional"`
-	// MaxMemory is the top end of the memory value for a job, past which the memory weight is capped.
-	MaxMemory int `hcl:"max_memory,optional"`
+	// MemoryMax is the top end of the memory value for a job, past which the memory weight is capped.
+	MemoryMax int `hcl:"memory_max,optional"`
 }
 
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.

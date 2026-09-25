@@ -105,7 +105,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 	}{
 		{
 			name: "larger requests results in 0 adjustment",
-			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, MaxCpu: 1000, MemoryWeight: 10, MaxMemory: 1000}},
+			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, CpuMax: 1000, MemoryWeight: 10, MemoryMax: 1000}},
 			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    1000,
 				Memory: 1000,
@@ -114,7 +114,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 		},
 		{
 			name: "smaller requests results in expected adjustment",
-			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, MaxCpu: 1000, MemoryWeight: 10, MaxMemory: 1000}},
+			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, CpuMax: 1000, MemoryWeight: 10, MemoryMax: 1000}},
 			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    50,
 				Memory: 50,
@@ -123,7 +123,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 		},
 		{
 			name: "negative weight results in negative adjustment",
-			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: -10, MaxCpu: 1000, MemoryWeight: -10, MaxMemory: 1000}},
+			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: -10, CpuMax: 1000, MemoryWeight: -10, MemoryMax: 1000}},
 			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    50,
 				Memory: 50,
@@ -726,4 +726,125 @@ func TestDynamicPriorityQueue_cancelRedundant(t *testing.T) {
 		must.True(t, ok)
 		must.Eq(t, wl, initial)
 	})
+}
+
+func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
+	// upsertJobAndAllocs upserts a batch job and the given allocs into the state store,
+	// linking each alloc to the job.
+	upsertJobAndAllocs := func(t *testing.T, ss *state.StateStore, job *structs.Job, allocs ...*structs.Allocation) {
+		must.NoError(t, ss.UpsertNamespaces(1, []*structs.Namespace{{Name: job.Namespace}}))
+		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 2, nil, job))
+		for i, alloc := range allocs {
+			alloc.JobID = job.ID
+			alloc.Namespace = job.Namespace
+			must.NoError(t, ss.UpsertAllocs(structs.MsgTypeTestSetup, uint64(100+i), []*structs.Allocation{alloc}))
+		}
+	}
+
+	nsConf := &structs.DynamicQueueConfig{
+		TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
+	}
+
+	t.Run("no jobs results in zero fairshare", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+
+		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q.tenants["default"] = &Tenant{}
+
+		q.calculateFairshare()
+
+		must.Eq(t, &FairshareResources{}, q.totalFairshare)
+		must.Eq(t, &FairshareResources{}, q.tenants["default"].fairshare)
+	})
+
+	t.Run("accumulates resources for tenant correctly", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+
+		job := mock.BatchJob()
+		a1, a2 := mock.Alloc(), mock.Alloc()
+		a1.ClientStatus = structs.AllocClientStatusRunning
+		a2.ClientStatus = structs.AllocClientStatusRunning
+
+		upsertJobAndAllocs(t, ss, job, a1, a2)
+
+		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q.tenants["default"] = &Tenant{}
+
+		q.calculateFairshare()
+
+		must.Eq(t, &FairshareResources{CPU: 1000, Memory: 512}, q.totalFairshare)
+		must.Eq(t, &FairshareResources{CPU: 1000, Memory: 512}, q.tenants["default"].fairshare)
+	})
+
+	t.Run("excluded alloc status is not counted", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+
+		job := mock.BatchJob()
+		alloc := mock.Alloc()
+		alloc.ClientStatus = structs.AllocClientStatusComplete
+
+		upsertJobAndAllocs(t, ss, job, alloc)
+
+		q := NewDynamicPriorityQueue(
+			hclog.New(hclog.DefaultOptions),
+			ss,
+			nil,
+			&structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{
+				TenantType:           structs.TenantTypeNamespace,
+				ExcludeAllocStatuses: []string{structs.AllocClientStatusComplete},
+			}},
+			structs.NodePoolDefault,
+			nil,
+		)
+
+		q.tenants["default"] = &Tenant{}
+		q.calculateFairshare()
+
+		must.Eq(t, &FairshareResources{}, q.totalFairshare)
+		must.Eq(t, &FairshareResources{}, q.tenants["default"].fairshare)
+	})
+
+	t.Run("non-batch job is skipped", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+
+		alloc := mock.Alloc()
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+
+		upsertJobAndAllocs(t, ss, mock.Job(), alloc) // service job, not batch
+		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q.tenants["default"] = &Tenant{}
+
+		q.calculateFairshare()
+
+		must.Eq(t, &FairshareResources{}, q.totalFairshare)
+		must.Eq(t, &FairshareResources{}, q.tenants["default"].fairshare)
+	})
+
+	t.Run("two tenants each accumulate their own resources", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+
+		jobA := mock.BatchJob()
+		jobA.Namespace = "ns-a"
+		allocA := mock.Alloc()
+		allocA.ClientStatus = structs.AllocClientStatusRunning
+
+		jobB := mock.BatchJob()
+		jobB.Namespace = "ns-b"
+		allocB := mock.Alloc()
+		allocB.ClientStatus = structs.AllocClientStatusRunning
+
+		upsertJobAndAllocs(t, ss, jobA, allocA)
+		upsertJobAndAllocs(t, ss, jobB, allocB)
+
+		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q.tenants["ns-a"] = &Tenant{}
+		q.tenants["ns-b"] = &Tenant{}
+
+		q.calculateFairshare()
+
+		must.Eq(t, &FairshareResources{CPU: 1000, Memory: 512}, q.totalFairshare)
+		must.Eq(t, &FairshareResources{CPU: 500, Memory: 256}, q.tenants["ns-a"].fairshare)
+		must.Eq(t, &FairshareResources{CPU: 500, Memory: 256}, q.tenants["ns-b"].fairshare)
+	})
+
 }

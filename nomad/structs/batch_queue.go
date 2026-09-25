@@ -117,9 +117,9 @@ type AgeConfig struct {
 // JobSizeConfig configures how job resource size affects scheduling priority.
 type JobSizeConfig struct {
 	CpuWeight    int
-	MaxCpu       int
+	CpuMax       int
 	MemoryWeight int
-	MaxMemory    int
+	MemoryMax    int
 }
 
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.

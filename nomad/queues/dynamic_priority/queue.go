@@ -156,9 +156,6 @@ func (d *DynamicPriorityQueue) Stop() {
 func (d *DynamicPriorityQueue) Restore(eval *structs.Evaluation, j *structs.Job) error {
 	w := d.generateWorkload(eval, j)
 
-	// generate the tenant if it doesn't exist
-	d.ensureTenant(w.tid)
-
 	placed, err := d.watcher.IsSchedulingComplete(w)
 	if err != nil {
 		return err
@@ -176,15 +173,14 @@ func (d *DynamicPriorityQueue) calculateFairshare() {
 	defer d.tMux.Unlock()
 
 	d.totalFairshare = &FairshareResources{}
+	for _, t := range d.tenants {
+		t.fairshare = &FairshareResources{}
+	}
 
 	iter, err := d.state.JobsByPool(nil, d.pool)
 	if err != nil {
 		d.logger.Error("failed to get jobs for node pool", "node pool", d.pool)
 		return
-	}
-
-	for _, t := range d.tenants {
-		t.fairshare = &FairshareResources{}
 	}
 
 	for {
@@ -503,7 +499,7 @@ func (d *DynamicPriorityQueue) cpuAdjustment(w *dynamicPriorityWorkload) int {
 		return 0
 	}
 
-	size := w.requestedResources.CPU / float64(d.conf.JobSize.MaxCpu)
+	size := w.requestedResources.CPU / float64(d.conf.JobSize.CpuMax)
 	sizeClamped := min(1.0, max(0.0, size))
 
 	w.cpuAdjustment = int((1 - sizeClamped) * float64(d.conf.JobSize.CpuWeight))
@@ -515,7 +511,7 @@ func (d *DynamicPriorityQueue) memAdjustment(w *dynamicPriorityWorkload) int {
 		return 0
 	}
 
-	size := w.requestedResources.Memory / float64(d.conf.JobSize.MaxMemory)
+	size := w.requestedResources.Memory / float64(d.conf.JobSize.MemoryMax)
 	sizeClamped := min(1.0, max(0.0, size))
 
 	w.memAdjustment = int((1 - sizeClamped) * float64(d.conf.JobSize.MemoryWeight))
