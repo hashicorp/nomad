@@ -6,7 +6,7 @@ package dynamic
 import (
 	"context"
 	"errors"
-	"math"
+	"slices"
 	"sync"
 	"time"
 
@@ -40,11 +40,15 @@ type DynamicPriorityQueue struct {
 	// are processed by the manager and pushed onto the queue
 	enqueueCh chan *dynamicPriorityWorkload
 
-	// totalUsage is the sum of all tenant usages
-	totalUsage *ResourceUsage
+	// totalFairshare is the sum of all tenant fairshare values
+	totalFairshare *FairshareResources
 
 	// conf contains user configurations for tuning the behavior of the queue
 	conf *structs.DynamicQueueConfig
+
+	// pool is the node pool where the queue is configured. It is used to get
+	// allocations for building fairshare state.
+	pool string
 
 	// evalBroker is the injected broker for passing an evaluation
 	// on to be scheduled by Nomad
@@ -69,22 +73,24 @@ func NewDynamicPriorityQueue(
 	ss *state.StateStore,
 	broker queue.Broker,
 	conf *structs.DynamicQueueConfig,
+	pool string,
 	cancelFn queue.EvalCancelFn,
 ) *DynamicPriorityQueue {
 	return &DynamicPriorityQueue{
-		queue:        queue.NewWorkloadQueue(workloadSortFn()),
-		evalBroker:   broker,
-		tMux:         sync.Mutex{},
-		tenants:      make(map[TenantID]*Tenant),
-		enqueueCh:    make(chan *dynamicPriorityWorkload, 8192),
-		qNotify:      make(chan struct{}, 1),
-		conf:         conf,
-		totalUsage:   &ResourceUsage{},
-		wg:           sync.WaitGroup{},
-		state:        ss,
-		evalCancelFn: cancelFn,
-		logger:       logger.Named("dynamic_priority_queue"),
-		watcher:      queue.NewWorkloadWatcher(ss, logger),
+		queue:          queue.NewWorkloadQueue(workloadSortFn()),
+		evalBroker:     broker,
+		tMux:           sync.Mutex{},
+		tenants:        make(map[TenantID]*Tenant),
+		enqueueCh:      make(chan *dynamicPriorityWorkload, 8192),
+		qNotify:        make(chan struct{}, 1),
+		conf:           conf,
+		totalFairshare: &FairshareResources{},
+		wg:             sync.WaitGroup{},
+		state:          ss,
+		pool:           pool,
+		evalCancelFn:   cancelFn,
+		logger:         logger.Named("dynamic_priority_queue"),
+		watcher:        queue.NewWorkloadWatcher(ss, logger),
 	}
 }
 
@@ -119,15 +125,27 @@ func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
 	rCtx, cancel := context.WithCancel(ctx)
 	d.cancel = cancel
 
-	// the queue manager may have restored older evals into this queue,
-	// so decay usage as appropriate.
-	d.decayUsage(time.Now())
+	// before starting, calculate priorities of evals restored to the queue
+	d.calculatePriorities(time.Now())
 
 	d.wg.Go(func() {
 		d.runProducer(rCtx)
 	})
 	d.wg.Go(func() {
 		d.runConsumer(rCtx)
+	})
+
+	// This goroutine runs the background thread for recalculating
+	// priorities on the configured interval.
+	d.wg.Go(func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(d.conf.CalcInterval):
+				d.calculatePriorities(time.Now())
+			}
+		}
 	})
 
 	return nil
@@ -141,17 +159,9 @@ func (d *DynamicPriorityQueue) Stop() {
 func (d *DynamicPriorityQueue) Restore(eval *structs.Evaluation, j *structs.Job) error {
 	w := d.generateWorkload(eval, j)
 
-	// TODO: count allocs for the *right* version of the job?
-
-	// generate the tenant if it doesn't exist
-	d.ensureTenant(w.tid)
-
 	placed, err := d.watcher.IsSchedulingComplete(w)
 	if err != nil {
 		return err
-	}
-	if placed && evalHasPlacement(w.Eval()) {
-		d.updateUsage(w)
 	}
 
 	if !placed {
@@ -159,6 +169,67 @@ func (d *DynamicPriorityQueue) Restore(eval *structs.Evaluation, j *structs.Job)
 		d.enqueueCh <- w
 	}
 	return nil
+}
+
+func (d *DynamicPriorityQueue) calculateFairshare() {
+	d.tMux.Lock()
+	defer d.tMux.Unlock()
+
+	d.totalFairshare = &FairshareResources{}
+	for _, t := range d.tenants {
+		t.fairshare = &FairshareResources{}
+	}
+
+	iter, err := d.state.JobsByPool(nil, d.pool)
+	if err != nil {
+		d.logger.Error("failed to get jobs for node pool", "node pool", d.pool)
+		return
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		job, ok := raw.(*structs.Job)
+		if !ok {
+			continue
+		}
+		if job.Type != structs.JobTypeBatch {
+			continue
+		}
+
+		tid := d.tenantID(job)
+		if tid == "" {
+			continue
+		}
+
+		allocs, err := d.state.AllocsByJob(nil, job.Namespace, job.ID, true)
+		if err != nil {
+			d.logger.Error("failed to get allocs for job", "jobID", job.ID)
+			continue
+		}
+
+		tenant := d.tenants[tid]
+		if tenant == nil {
+			continue
+		}
+
+		for _, alloc := range allocs {
+			if slices.Contains(d.conf.TenantFairshare.ExcludeAllocStatuses, alloc.ClientStatus) {
+				continue
+			}
+
+			for _, task := range alloc.AllocatedResources.Tasks {
+				tenant.fairshare.CPU += float64(task.Cpu.CpuShares)
+				tenant.fairshare.Memory += float64(task.Memory.MemoryMB)
+
+				d.totalFairshare.CPU += float64(task.Cpu.CpuShares)
+				d.totalFairshare.Memory += float64(task.Memory.MemoryMB)
+			}
+		}
+	}
 }
 
 // Enqueue is the method used to put evaluations on the queue.
@@ -220,8 +291,6 @@ func (d *DynamicPriorityQueue) runProducer(ctx context.Context) {
 			case d.qNotify <- struct{}{}:
 			default:
 			}
-		case <-time.After(d.conf.CalcInterval):
-			d.calculatePriorities(time.Now())
 		}
 	}
 }
@@ -295,9 +364,6 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 				d.logger.Error("failure waiting for workload placement", "evalID", w.Eval().ID)
 			}
 
-			if evalHasPlacement(w.Eval()) {
-				d.updateUsage(w)
-			}
 			l := d.queue.Len()
 
 			if l > 0 {
@@ -310,30 +376,39 @@ func (d *DynamicPriorityQueue) runConsumer(ctx context.Context) {
 	}
 }
 
-// generateWorkload is used to create an initial workload from a given evaluation
-func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *structs.Job) *dynamicPriorityWorkload {
+func (d *DynamicPriorityQueue) tenantID(job *structs.Job) TenantID {
 	var tid TenantID
-	switch d.conf.TenantType {
+	switch d.conf.TenantFairshare.TenantType {
 	case "namespace":
 		tid = TenantID(job.Namespace)
 	case "metadata":
-		tenantID, ok := job.Meta[d.conf.MetadataKey]
+		tenantID, ok := job.Meta[d.conf.TenantFairshare.MetadataKey]
 		if !ok {
-			return nil
+			return ""
 		}
 		tid = TenantID(tenantID)
 	default:
 		d.logger.Error("unknown tenant type, this is a bug.")
+		return ""
+	}
+
+	return tid
+}
+
+// generateWorkload is used to create an initial workload from a given evaluation
+func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *structs.Job) *dynamicPriorityWorkload {
+	tid := d.tenantID(job)
+	if tid == "" {
 		return nil
 	}
 
-	requestedResources := &UsageList{
-		resources: &ResourceUsage{},
-	}
+	d.ensureTenant(tid)
+
+	requestedResources := &FairshareResources{}
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
-			requestedResources.resources.AddCpu(float64(task.Resources.CPU) * float64(tg.Count))
-			requestedResources.resources.AddMemory(float64(task.Resources.MemoryMB) * float64(tg.Count))
+			requestedResources.CPU += float64(task.Resources.CPU * tg.Count)
+			requestedResources.Memory += float64(task.Resources.MemoryMB * tg.Count)
 		}
 	}
 
@@ -354,7 +429,7 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 	d.tenants[tid] = &Tenant{
 		tid:                tid,
 		placedWorkloadById: make(map[structs.NamespacedID]*dynamicPriorityWorkload),
-		totalUsage:         &ResourceUsage{},
+		fairshare:          &FairshareResources{},
 	}
 }
 
@@ -362,9 +437,7 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 // their priorities based on tenant usage, which is decayed according to the
 // configured half-life, and usage weight.
 func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
-	// Decay tenant workload usages first, because a workload's
-	// priority relies on its tenant's usage.
-	d.decayUsage(now)
+	d.calculateFairshare()
 
 	// Now that we have accurate tenant usage, calculate
 	// each workloads new priority and update the queue
@@ -377,131 +450,74 @@ func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
 // setWorkloadPriority calculates an individual workload's priority based on
 func (d *DynamicPriorityQueue) setWorkloadPriority(now time.Time, w *dynamicPriorityWorkload) {
 	w.priority = w.Eval().Priority +
-		d.usageAdjustment(w) +
+		d.fairshareAdjustment(w) +
 		d.ageAdjustment(now, w) +
 		d.cpuAdjustment(w) +
 		d.memAdjustment(w)
 }
 
-// usageAdjustment calculates the adjustment to a workload's priority based on
-// it's tenant's usage relative to the total usage, and configured weight.
-func (d *DynamicPriorityQueue) usageAdjustment(w *dynamicPriorityWorkload) int {
+// fairshareAdjustment calculates the adjustment to a workload's priority based on
+// its tenant's fairshare relative to the total, and configured weight.
+func (d *DynamicPriorityQueue) fairshareAdjustment(w *dynamicPriorityWorkload) int {
 	d.tMux.Lock()
 	defer d.tMux.Unlock()
 
-	if d.conf.UsageWeight == 0 {
+	if d.conf.TenantFairshare.CpuWeight == 0 && d.conf.TenantFairshare.MemoryWeight == 0 {
 		return 0
 	}
 
-	d.ensureTenant(w.tid)
-	total := d.totalUsage.Total()
-	tenantUsage := d.tenants[w.tid].totalUsage.Total()
-
-	usageRatio := 0.0
-	if total > 0 {
-		usageRatio = tenantUsage / total
-	}
-	usageAdjustment := (1 - usageRatio) * float64(d.conf.UsageWeight)
-	w.usageAdjustment = int(usageAdjustment)
-	return w.usageAdjustment
-}
-
-// decayUsage iterates over all tenants and decays the workload usage based on
-// the time elapsed since (roughly) when the eval was placed, and the configured
-// half-life. If the eval no longer exists in the state store, its workload's
-// usage is removed from the calculation.
-func (d *DynamicPriorityQueue) decayUsage(now time.Time) {
-	d.tMux.Lock()
-	defer d.tMux.Unlock()
-
-	totalUsage := &ResourceUsage{}
-
-	snap, err := d.state.Snapshot()
-	if err != nil {
-		d.logger.Error("failed to take state snapshot", "error", err)
-		return
+	total := d.totalFairshare.Total()
+	if total == 0 {
+		return 0
 	}
 
-	for _, tenant := range d.tenants {
-		newWorkloadUsageByID := make(map[structs.NamespacedID]*dynamicPriorityWorkload)
-		tenantTotalUsage := &ResourceUsage{}
+	tenant := d.tenants[w.tid]
 
-		for id, workload := range tenant.placedWorkloadById {
-			eval, err := snap.EvalByID(nil, workload.Eval().ID)
-			if err != nil || eval == nil {
-				continue
-			}
-			decayedResources := d.decayWorkloadUsage(now, workload.requestedResources)
+	cpuRatio := tenant.fairshare.CPU / d.totalFairshare.CPU
+	memRatio := tenant.fairshare.Memory / d.totalFairshare.Memory
 
-			tenantTotalUsage = tenantTotalUsage.Add(decayedResources.resources)
-			totalUsage = totalUsage.Add(decayedResources.resources)
+	cpuAdjustment := (1 - cpuRatio) * float64(d.conf.TenantFairshare.CpuWeight)
+	memAdjustment := (1 - memRatio) * float64(d.conf.TenantFairshare.MemoryWeight)
 
-			workload.requestedResources = decayedResources
-			newWorkloadUsageByID[id] = workload
-		}
-
-		tenant.totalUsage = tenantTotalUsage
-		tenant.placedWorkloadById = newWorkloadUsageByID
-	}
-	d.totalUsage = totalUsage
-}
-
-func decayMultiplier(now, createdAt time.Time, halfLife time.Duration) float64 {
-	elapsed := now.Sub(createdAt)
-	return math.Pow(0.5, elapsed.Seconds()/halfLife.Seconds())
-}
-
-// decayWorkloadUsage applies decay to an individual workload's usage based on
-// the time elapsed since (roughly) when the eval was placed, and the configured
-// half-life. It returns the decayed usage, and also updates the workload usage
-func (d *DynamicPriorityQueue) decayWorkloadUsage(now time.Time, usage *UsageList) *UsageList {
-	multiplier := decayMultiplier(now, usage.start, d.conf.HalfLife)
-
-	decayed := &ResourceUsage{}
-	decayed.AddCpu(usage.resources.CPU * multiplier)
-	decayed.AddMemory(usage.resources.Memory * multiplier)
-
-	return &UsageList{
-		resources: decayed,
-		start:     now,
-	}
+	w.fairshareAdjustment = int(cpuAdjustment + memAdjustment)
+	return w.fairshareAdjustment
 }
 
 func (d *DynamicPriorityQueue) ageAdjustment(now time.Time, w *dynamicPriorityWorkload) int {
-	if d.conf.AgeWeight == 0 {
+	if d.conf.Age.Weight == 0 {
 		return 0
 	}
 
 	elapsed := now.UnixNano() - w.Eval().CreateTime
 
-	age := float64(elapsed) / float64(d.conf.MaxAge)
+	age := float64(elapsed) / float64(d.conf.Age.Max)
 	ageClamped := min(1.0, max(0.0, age))
 
-	w.ageAdjustment = int(ageClamped * float64(d.conf.AgeWeight))
+	w.ageAdjustment = int(ageClamped * float64(d.conf.Age.Weight))
 	return w.ageAdjustment
 }
 
 func (d *DynamicPriorityQueue) cpuAdjustment(w *dynamicPriorityWorkload) int {
-	if d.conf.CpuWeight == 0 {
+	if d.conf.JobSize.CpuWeight == 0 {
 		return 0
 	}
 
-	size := w.requestedResources.resources.CPU / float64(d.conf.MaxCpu)
+	size := w.requestedResources.CPU / float64(d.conf.JobSize.CpuMax)
 	sizeClamped := min(1.0, max(0.0, size))
 
-	w.cpuAdjustment = int((1 - sizeClamped) * float64(d.conf.CpuWeight))
+	w.cpuAdjustment = int((1 - sizeClamped) * float64(d.conf.JobSize.CpuWeight))
 	return w.cpuAdjustment
 }
 
 func (d *DynamicPriorityQueue) memAdjustment(w *dynamicPriorityWorkload) int {
-	if d.conf.MemWeight == 0 {
+	if d.conf.JobSize.MemoryWeight == 0 {
 		return 0
 	}
 
-	size := w.requestedResources.resources.Memory / float64(d.conf.MaxMemory)
+	size := w.requestedResources.Memory / float64(d.conf.JobSize.MemoryMax)
 	sizeClamped := min(1.0, max(0.0, size))
 
-	w.memAdjustment = int((1 - sizeClamped) * float64(d.conf.MemWeight))
+	w.memAdjustment = int((1 - sizeClamped) * float64(d.conf.JobSize.MemoryWeight))
 	return w.memAdjustment
 }
 
@@ -512,19 +528,19 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder) *queue.Workload
 	var newDynamicWorkloadStruct = func(w *dynamicPriorityWorkload) *structs.DynamicPriorityWorkload {
 		e := w.Eval()
 		return &structs.DynamicPriorityWorkload{
-			JobID:            e.JobID,
-			Tenant:           string(w.tid),
-			Status:           w.Status(),
-			Namespace:        e.Namespace,
-			Position:         pos,
-			AdjustedPriority: w.priority,
-			BasePriority:     e.Priority,
-			UsageAdjustment:  w.usageAdjustment,
-			AgeAdjustment:    w.ageAdjustment,
-			CpuAdjustment:    w.cpuAdjustment,
-			MemoryAdjustment: w.memAdjustment,
-			CreatedAt:        e.CreateTime,
-			CreateIndex:      e.CreateIndex,
+			JobID:               e.JobID,
+			Tenant:              string(w.tid),
+			Status:              w.Status(),
+			Namespace:           e.Namespace,
+			Position:            pos,
+			AdjustedPriority:    w.priority,
+			BasePriority:        e.Priority,
+			FairshareAdjustment: w.fairshareAdjustment,
+			AgeAdjustment:       w.ageAdjustment,
+			CpuAdjustment:       w.cpuAdjustment,
+			MemoryAdjustment:    w.memAdjustment,
+			CreatedAt:           e.CreateTime,
+			CreateIndex:         e.CreateIndex,
 		}
 	}
 
@@ -559,48 +575,14 @@ func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
 	tenants := []structs.DynamicPriorityTenant{}
 	for _, t := range d.tenants {
 		tenants = append(tenants, structs.DynamicPriorityTenant{
-			TenantID:       string(t.tid),
-			PercentageUsed: t.totalPercentageUsed(d.totalUsage),
-			TenantUsage:    t.totalUsage.UsageByResource(),
-			TotalUsage:     d.totalUsage.UsageByResource(),
+			TenantID:        string(t.tid),
+			PercentageUsed:  t.totalPercentageUsed(d.totalFairshare),
+			TenantFairshare: t.fairshare.ByResource(),
+			TotalFairshare:  d.totalFairshare.ByResource(),
 		})
 	}
 	return structs.QueueTenantsResponse{
 		Type:    structs.BatchQueueTypeDynamic,
 		Tenants: tenants,
 	}
-}
-
-// updateUsage updates the tenant and total usage for a given workload.
-func (d *DynamicPriorityQueue) updateUsage(workload *dynamicPriorityWorkload) {
-	d.tMux.Lock()
-	defer d.tMux.Unlock()
-
-	tenant := d.tenants[workload.tid]
-
-	_, ok := tenant.placedWorkloadById[workload.ID()]
-	// If the workload has already been placed, don't count the usage again.
-	if ok {
-		return
-	}
-
-	workloadResources := workload.requestedResources
-	// this method should only be called when a workload was successfully placed,
-	// so we can use the ModifyTime as the for when decay will start.
-	workloadResources.start = time.Unix(0, workload.Eval().ModifyTime)
-	tenant.totalUsage = tenant.totalUsage.Add(workloadResources.resources)
-	d.totalUsage = d.totalUsage.Add(workloadResources.resources)
-
-	tenant.placedWorkloadById[workload.ID()] = workload
-}
-
-func evalHasPlacement(e *structs.Evaluation) bool {
-	if e.PlanAnnotations != nil && e.PlanAnnotations.DesiredTGUpdates != nil {
-		for _, update := range e.PlanAnnotations.DesiredTGUpdates {
-			if update.Place > 0 {
-				return true
-			}
-		}
-	}
-	return false
 }

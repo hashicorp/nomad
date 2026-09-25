@@ -4,8 +4,6 @@
 package api
 
 import (
-	"errors"
-	"fmt"
 	"time"
 )
 
@@ -32,24 +30,24 @@ func (c *Client) BatchQueue() *BatchQueue {
 }
 
 type DynamicPriorityWorkload struct {
-	JobID            string
-	Tenant           string
-	Status           string
-	Position         int
-	AdjustedPriority int
-	BasePriority     int
-	UsageAdjustment  int
-	AgeAdjustment    int
-	CpuAdjustment    int
-	MemoryAdjustment int
-	CreatedAt        int64
+	JobID               string
+	Tenant              string
+	Status              string
+	Position            int
+	AdjustedPriority    int
+	BasePriority        int
+	FairshareAdjustment int
+	AgeAdjustment       int
+	CpuAdjustment       int
+	MemoryAdjustment    int
+	CreatedAt           int64
 }
 
 type DynamicPriorityTenant struct {
-	TenantID       string
-	PercentageUsed int
-	TenantUsage    map[string]float64
-	TotalUsage     map[string]float64
+	TenantID        string
+	PercentageUsed  int
+	TenantFairshare map[string]float64
+	TotalFairshare  map[string]float64
 }
 
 type Workload struct {
@@ -107,24 +105,8 @@ type BatchQueueConfig struct {
 	Fifo            *FifoQueueConfig    `hcl:"fifo,block"`
 }
 
-// Validate provides some minimal client-side validation of the queue config.
-func (b *BatchQueueConfig) Validate() error {
-	if (b.DynamicPriority == nil && b.Fifo == nil) ||
-		(b.DynamicPriority != nil && b.Fifo != nil) {
-		return fmt.Errorf("must specify a single queue config; dynamic_priority or fifo")
-	}
-
-	if b.DynamicPriority != nil {
-		if err := b.DynamicPriority.Validate(); err != nil {
-			return fmt.Errorf("dynamic_priority config is invalid: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// DynamicQueueConfig configures a dynamic priority queue for a node pool.
-type DynamicQueueConfig struct {
+// TenantFairshareConfig configures how tenants are identified and weighted.
+type TenantFairshareConfig struct {
 	// TenantType determines how jobs are categorized into tenants,
 	// may be either "namespace" or "metadata". If "metadata" is used,
 	// MetadataKey must be specified.
@@ -135,58 +117,49 @@ type DynamicQueueConfig struct {
 	// Only valid with TenantType = "metadata"
 	MetadataKey string `hcl:"metadata_key,optional"`
 
-	// TODO: sensible defaults for interval and halflife
+	// CpuWeight determines how much a tenant's cpu usage affects
+	// the priority of all of its queued jobs.
+	CpuWeight int `hcl:"cpu_weight"`
 
+	// MemoryWeight determines how much a tenant's memory usage affects
+	// the priority of all of its queued jobs.
+	MemoryWeight int `hcl:"memory_weight"`
+
+	// ExcludeAllocStatuses defines the alloc statuses to exclude from
+	// tenant resource usage calculations.
+	ExcludeAllocStatuses []string `hcl:"exclude_alloc_statuses,optional"`
+}
+
+// AgeConfig configures how job age affects scheduling priority.
+type AgeConfig struct {
+	// Weight determines how much the job's age affects its priority.
+	Weight int `hcl:"weight,optional"`
+	// Max is the top end of the age calculation for a job, past which the age weight is capped.
+	Max time.Duration `hcl:"max,optional"`
+}
+
+// JobSizeConfig configures how job resource size affects scheduling priority.
+type JobSizeConfig struct {
+	// CpuWeight determines how much a job's requested cpu affects its priority.
+	CpuWeight int `hcl:"cpu_weight,optional"`
+	// CpuMax is the top end of the cpu value for a job, past which the cpu weight is capped.
+	CpuMax int `hcl:"cpu_max,optional"`
+
+	// MemoryWeight determines how much a job's requested mem affects its priority.
+	MemoryWeight int `hcl:"memory_weight,optional"`
+	// MemoryMax is the top end of the memory value for a job, past which the memory weight is capped.
+	MemoryMax int `hcl:"memory_max,optional"`
+}
+
+// DynamicQueueConfig configures a dynamic priority queue for a node pool.
+type DynamicQueueConfig struct {
 	// CalcInterval is how often the queue will recalculate priorities.
 	CalcInterval time.Duration `hcl:"calc_interval,optional"`
 
-	// HalfLife determines the rate at which we decay the impact of a job's
-	// resource usage over time.
-	HalfLife time.Duration `hcl:"half_life,optional"`
-
-	// UsageWeight determines how much a tenant's total resource usage affects
-	// the priority of all of its queued jobs.
-	UsageWeight int `hcl:"usage_weight,optional"`
-
-	// TODO: validate these weight/max pairs; if weight is set, max must be set too
-
-	// AgeWeight determines how much the job's age affects its priority.
-	AgeWeight int `hcl:"age_weight,optional"`
-	// MaxAge is the top end of the age calculation for a job, past which the age weight is capped.
-	MaxAge time.Duration `hcl:"max_age,optional"`
-
-	// CpuWeight determines how much a job's requested cpu affects its priority.
-	CpuWeight int `hcl:"cpu_weight,optional"`
-	// MaxCpu is the top end of the cpu value for a job, past which the cpu weight is capped.
-	MaxCpu int `hcl:"max_cpu,optional"`
-
-	// MemWeight determines how much a job's requested mem affects its priority.
-	MemWeight int `hcl:"memory_weight,optional"`
-	// MaxMemory is the top end of the memory value for a job, past which the memory weight is capped.
-	MaxMemory int `hcl:"max_memory,optional"`
-}
-
-func (qc *DynamicQueueConfig) Validate() error {
-	switch qc.TenantType {
-	case BatchQueueTenantNamespace:
-	case BatchQueueTenantMetadata:
-		if qc.MetadataKey == "" {
-			return errors.New("metadata key must be specified if using metadata tenency")
-		}
-	case "":
-		return errors.New("tenant type must be specified if using dynamic priority queue")
-	default:
-		return fmt.Errorf("unsupported tenant type: %q", qc.TenantType)
-	}
-
-	if qc.CalcInterval <= 0 {
-		return errors.New("calc_interval must be greater than zero")
-	}
-	if qc.HalfLife <= 0 {
-		return errors.New("half_life must be greater than zero")
-	}
-
-	return nil
+	// TODO: validate and set sensible defaults.
+	TenantFairshare TenantFairshareConfig `hcl:"tenant_fairshare,block"`
+	Age             AgeConfig             `hcl:"age,block"`
+	JobSize         JobSizeConfig         `hcl:"job_size,block"`
 }
 
 // FifoQueueConfig enables a FIFO queue for a node pool.

@@ -105,6 +105,7 @@ func getNewQueueFn(q *MockQueue) newQueueFn {
 		_ *state.StateStore,
 		_ *structs.BatchQueueConfig,
 		_ queue.Broker,
+		_ string,
 		_ queue.EvalCancelFn,
 	) queue.Queue {
 		return q

@@ -13,10 +13,10 @@ type dynamicPriorityWorkload struct {
 	tid      TenantID
 	priority int
 
-	requestedResources *UsageList
+	requestedResources *FairshareResources
 
-	cpuAdjustment   int
-	memAdjustment   int
-	ageAdjustment   int
-	usageAdjustment int
+	cpuAdjustment       int
+	memAdjustment       int
+	ageAdjustment       int
+	fairshareAdjustment int
 }
