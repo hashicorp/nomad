@@ -8,11 +8,20 @@
 
   a {
     text-decoration: none;
-    opacity: 0.7;
+    color: var(--token-color-foreground-primary);
+    font-weight: $weight-semibold;
 
-    &:hover {
+    &:hover,
+    &:focus,
+    &:active {
       text-decoration: none;
-      opacity: 1;
+      color: var(--token-color-foreground-strong);
+    }
+
+    &:focus-visible {
+      outline: 3px solid var(--token-color-foreground-action);
+      outline-offset: 2px;
+      border-radius: 2px;
     }
   }
 
@@ -24,8 +33,41 @@
     font-size: x-large;
   }
 
+  a.active,
+  li.is-active a,
   li:last-child a.active {
-    opacity: 1;
+    color: var(--token-color-foreground-strong);
+    font-weight: $weight-semibold;
+  }
+}
+
+.navbar.is-secondary .breadcrumb {
+  a,
+  a:visited,
+  .breadcrumb-link,
+  .breadcrumb-link:visited {
+    color: var(--token-color-foreground-strong);
+  }
+
+  a:hover,
+  a:focus,
+  a:active,
+  a.active,
+  a.is-active,
+  .breadcrumb-link:hover,
+  .breadcrumb-link:focus,
+  .breadcrumb-link:active,
+  .breadcrumb-link.active,
+  .breadcrumb-link.is-active,
+  li.is-active a,
+  li:last-child a.active {
+    color: var(--token-color-foreground-strong);
+    font-weight: $weight-semibold;
+  }
+
+  .breadcrumb-link dt,
+  .breadcrumb-link dd {
+    color: var(--token-color-foreground-strong);
   }
 
   dl dd {

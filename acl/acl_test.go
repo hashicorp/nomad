@@ -228,6 +228,7 @@ func TestACLAllowClientOp_NodePoolScoped(t *testing.T) {
 		must.True(t, acl.AllowClientOp("test-pool"))
 		must.True(t, acl.AllowClientOp("all")) // tests node_pool = "all"
 		must.False(t, acl.AllowClientOp("test-not-my-pool"))
+		must.False(t, acl.AllowServerOp())
 	})
 
 	t.Run("management", func(t *testing.T) {
@@ -959,7 +960,6 @@ func TestVariablesMatching(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			policy, err := Parse(tc.policy, PolicyParseStrict)
 			must.NoError(t, err)

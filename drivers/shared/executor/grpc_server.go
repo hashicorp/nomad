@@ -20,6 +20,7 @@ import (
 )
 
 type grpcExecutorServer struct {
+	proto.UnimplementedExecutorServer
 	impl Executor
 }
 

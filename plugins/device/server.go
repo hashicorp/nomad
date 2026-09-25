@@ -16,6 +16,7 @@ import (
 
 // devicePluginServer wraps a device plugin and exposes it via gRPC.
 type devicePluginServer struct {
+	proto.UnimplementedDevicePluginServer
 	broker *plugin.GRPCBroker
 	impl   DevicePlugin
 }

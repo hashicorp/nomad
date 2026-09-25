@@ -346,12 +346,6 @@
       "raft_multiplier": 4,
       "redundancy_zone": "foo",
       "rejoin_after_leave": true,
-      "retry_interval": "15s",
-      "retry_join": [
-        "1.1.1.1",
-        "2.2.2.2"
-      ],
-      "retry_max": 3,
       "server_join": [
         {
           "retry_interval": "15s",
@@ -361,10 +355,6 @@
           ],
           "retry_max": 3
         }
-      ],
-      "start_join": [
-        "1.1.1.1",
-        "2.2.2.2"
       ],
       "default_scheduler_config": [
         {

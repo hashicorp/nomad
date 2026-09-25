@@ -132,7 +132,7 @@ func IsAppVeyor() bool {
 	return ok
 }
 
-type rpcFn func(string, interface{}, interface{}) error
+type rpcFn func(string, any, any) error
 
 // WaitForLeader blocks until a leader is elected.
 func WaitForLeader(t testing.TB, rpc rpcFn) {
@@ -152,7 +152,7 @@ func WaitForLeaders(t testing.TB, rpcs ...rpcFn) string {
 	t.Helper()
 
 	var leader string
-	for i := 0; i < len(rpcs); i++ {
+	for i := range rpcs {
 		ok := func() (bool, error) {
 			leader = ""
 			args := &structs.GenericRequest{}

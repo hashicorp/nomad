@@ -4,7 +4,7 @@
  */
 
 .pagination {
-  color: $grey;
+  color: var(--token-color-foreground-primary);
 
   .pagination-numbers {
     padding: 0.75rem 0.5rem;

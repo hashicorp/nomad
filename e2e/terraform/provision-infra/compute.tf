@@ -19,6 +19,10 @@ resource "aws_instance" "server" {
     http_tokens   = "required"
   }
 
+  root_block_device {
+    volume_size = 100
+  }
+
   # Instance tags
   tags = {
     Name           = "${local.random_name}-server-${count.index}"
@@ -38,6 +42,10 @@ resource "aws_instance" "client_ubuntu_jammy" {
   metadata_options {
     http_endpoint = "enabled"
     http_tokens   = "required"
+  }
+
+  root_block_device {
+    volume_size = 100
   }
 
   # Instance tags
@@ -85,6 +93,10 @@ resource "aws_instance" "consul_server" {
   metadata_options {
     http_endpoint = "enabled"
     http_tokens   = "required"
+  }
+
+  root_block_device {
+    volume_size = 100
   }
 
   # Instance tags

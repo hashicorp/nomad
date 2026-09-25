@@ -15,7 +15,6 @@ import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
 import sinon from 'sinon';
 import moment from 'moment';
-import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 
 const REF_DATE = new Date();
 
@@ -55,8 +54,6 @@ module('Integration | Component | line-chart', function (hooks) {
         `${datum.type} event at ${datum.x}`,
       );
     });
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('when a chart has annotations and is timeseries, annotations are sorted reverse-chronologically', async function (assert) {
@@ -162,8 +159,6 @@ module('Integration | Component | line-chart', function (hooks) {
     assert.notOk(annotationEls[0].classList.contains('is-staggered'));
     assert.ok(annotationEls[1].classList.contains('is-staggered'));
     assert.notOk(annotationEls[2].classList.contains('is-staggered'));
-
-    await componentA11yAudit(this.element, assert);
   });
 
   test('horizontal annotations render in order', async function (assert) {

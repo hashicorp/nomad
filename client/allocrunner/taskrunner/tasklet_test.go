@@ -77,7 +77,7 @@ func TestTasklet_Exec_Cancel(t *testing.T) {
 
 	// The underlying ScriptExecutor (newBlockScriptExec) *cannot* be
 	// canceled. Only a wrapper around it obeys the context cancelation.
-	if atomic.LoadInt32(&exec.exited) == 1 {
+	if exec.exited.Load() == 1 {
 		t.Errorf("expected script executor to still be running after timeout")
 	}
 	// No tasklets finished, so no callbacks should have gotten a
@@ -115,7 +115,7 @@ func TestTasklet_Exec_Timeout(t *testing.T) {
 
 	// The underlying ScriptExecutor (newBlockScriptExec) *cannot* be
 	// canceled. Only a wrapper around it obeys the context cancelation.
-	if atomic.LoadInt32(&exec.exited) == 1 {
+	if exec.exited.Load() == 1 {
 		t.Errorf("expected executor to still be running after timeout")
 	}
 
@@ -191,7 +191,7 @@ type blockingScriptExec struct {
 	running chan struct{}
 
 	// set to 1 with atomics if Exec is called and has exited
-	exited int32
+	exited atomic.Int32
 }
 
 // newBlockingScriptExec returns a ScriptExecutor that blocks Exec() until the
@@ -220,7 +220,7 @@ func (b *blockingScriptExec) Exec(dur time.Duration, _ string, _ []string) ([]by
 			code = 1
 		}
 	}
-	atomic.StoreInt32(&b.exited, 1)
+	b.exited.Store(1)
 	return []byte{}, code, err
 }
 

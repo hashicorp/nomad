@@ -13,6 +13,7 @@ import (
 
 // basePluginServer wraps a base plugin and exposes it via gRPC.
 type basePluginServer struct {
+	proto.UnimplementedBasePluginServer
 	broker *plugin.GRPCBroker
 	impl   BasePlugin
 }

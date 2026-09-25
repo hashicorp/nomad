@@ -502,39 +502,30 @@ func TestServiceRegistration_DeleteByID_NodePoolScoped(t *testing.T) {
 	must.ErrorContains(t, err, "Permission denied")
 }
 
-func TestServiceRegistration_List(t *testing.T) {
+func TestServiceRegistration_List_ACLsDisabled(t *testing.T) {
 	ci.Parallel(t)
 
+	srv, cleanup := TestServer(t, nil)
+	t.Cleanup(cleanup)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
+	codec := rpcClient(t, srv)
+
+	services := mock.ServiceRegistrations()
+	must.NoError(t, srv.State().UpsertServiceRegistrations(
+		structs.MsgTypeTestSetup, 10, services))
+
 	testCases := []struct {
-		serverFn func(t *testing.T) (*Server, *structs.ACLToken, func())
-		testFn   func(t *testing.T, s *Server, token *structs.ACLToken)
 		name     string
+		ns       string
+		expectFn func(t *testing.T, err error, listResp structs.ServiceRegistrationListResponse)
 	}{
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				server, cleanup := TestServer(t, nil)
-				return server, nil, cleanup
-			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: structs.AllNamespacesSentinel,
-						Region:    DefaultRegion,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+			name: "wildcard ns",
+			ns:   "*",
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "default",
 						Services: []*structs.ServiceRegistrationStub{
@@ -551,35 +542,16 @@ func TestServiceRegistration_List(t *testing.T) {
 								Tags:        []string{"bar"},
 							},
 						}},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs disabled wildcard ns",
 		},
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				server, cleanup := TestServer(t, nil)
-				return server, nil, cleanup
-			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: "platform",
-						Region:    DefaultRegion,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+			name: "specific ns",
+			ns:   "platform",
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "platform",
 						Services: []*structs.ServiceRegistrationStub{
@@ -589,113 +561,112 @@ func TestServiceRegistration_List(t *testing.T) {
 							},
 						},
 					},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs disabled platform ns",
 		},
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				server, cleanup := TestServer(t, nil)
-				return server, nil, cleanup
+			name: "no services",
+			ns:   "infra",
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceEmpty(t, listResp.Services)
 			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: "platform",
-						Region:    DefaultRegion,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{}, serviceRegResp.Services)
-			},
-			name: "ACLs disabled no services",
 		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			listReq := &structs.ServiceRegistrationListRequest{
+				QueryOptions: structs.QueryOptions{
+					Namespace: tc.ns,
+					Region:    DefaultRegion,
+				},
+			}
+			var listResp structs.ServiceRegistrationListResponse
+			err := msgpackrpc.CallWithCodec(
+				codec, structs.ServiceRegistrationListRPCMethod, listReq, &listResp)
+
+			tc.expectFn(t, err, listResp)
+		})
+	}
+
+}
+
+func TestServiceRegistration_List(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, rootToken, cleanup := TestACLServer(t, nil)
+	t.Cleanup(cleanup)
+	testutil.WaitForKeyring(t, srv.RPC, "global")
+
+	platformNS := &structs.Namespace{
+		Name:        "platform",
+		Description: "test namespace",
+		CreateIndex: 5,
+		ModifyIndex: 5,
+	}
+	platformNS.SetHash()
+	must.NoError(t, srv.State().UpsertNamespaces(5, []*structs.Namespace{platformNS}))
+
+	services := mock.ServiceRegistrations()
+	must.NoError(t, srv.State().UpsertServiceRegistrations(
+		structs.MsgTypeTestSetup, 10, services))
+
+	// Generate an allocation with a signed identity
+	allocs := []*structs.Allocation{mock.Alloc()}
+	job := allocs[0].Job
+	job.Namespace = "platform"
+	allocs[0].Namespace = "platform"
+	must.NoError(t, srv.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
+	signAllocIdentities(srv.encrypter, job, allocs, platformNS, time.Now())
+	must.NoError(t, srv.State().UpsertAllocs(structs.MsgTypeTestSetup, 10, allocs))
+	signedToken := allocs[0].SignedIdentities["web"]
+
+	codec := rpcClient(t, srv)
+
+	testCases := []struct {
+		name     string
+		ns       string
+		setupFn  func(t *testing.T, ns string) string
+		expectFn func(t *testing.T, err error, listResp structs.ServiceRegistrationListResponse)
+	}{
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
+			name: "wildcard ns without token",
+			ns:   "*",
+			setupFn: func(t *testing.T, ns string) string {
+				return "" // no ACL token set
 			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: structs.AllNamespacesSentinel,
-						Region:    DefaultRegion,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{}, serviceRegResp.Services)
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceEmpty(t, listResp.Services)
 			},
-			name: "ACLs enabled wildcard ns without token",
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
+			name: "default ns without token",
+			ns:   "default",
+			setupFn: func(t *testing.T, ns string) string {
+				return "" // no ACL token set
 			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: "default",
-						Region:    DefaultRegion,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.Error(t, err)
-				require.Contains(t, err.Error(), "Permission denied")
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.EqError(t, err, "Permission denied")
+				must.SliceEmpty(t, listResp.Services)
 			},
-			name: "ACLs enabled default ns without token",
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
+			name: "wildcard with management token",
+			ns:   "*",
+			setupFn: func(t *testing.T, ns string) string {
+				return rootToken.SecretID
 			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: structs.AllNamespacesSentinel,
-						Region:    DefaultRegion,
-						AuthToken: token.SecretID,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "default",
 						Services: []*structs.ServiceRegistrationStub{
@@ -712,35 +683,20 @@ func TestServiceRegistration_List(t *testing.T) {
 								Tags:        []string{"bar"},
 							},
 						}},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs enabled wildcard with management token",
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
+			name: "default ns with management token",
+			ns:   "default",
+			setupFn: func(t *testing.T, ns string) string {
+				return rootToken.SecretID
 			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: "default",
-						Region:    DefaultRegion,
-						AuthToken: token.SecretID,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "default",
 						Services: []*structs.ServiceRegistrationStub{
@@ -749,40 +705,23 @@ func TestServiceRegistration_List(t *testing.T) {
 								Tags:        []string{"foo"},
 							},
 						}},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs enabled default ns with management token",
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
+			name: "read-job policy token",
+			ns:   "platform",
+			setupFn: func(t *testing.T, ns string) string {
+				return mock.CreatePolicyAndToken(
+					t, srv.State(), 15, "test-valid-autoscaler",
+					mock.NamespacePolicy("platform", "", []string{acl.NamespaceCapabilityReadJob}),
+				).SecretID
 			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Create a policy and grab the token which has the read-job
-				// capability on the platform namespace.
-				customToken := mock.CreatePolicyAndToken(t, s.State(), 5, "test-valid-autoscaler",
-					mock.NamespacePolicy("platform", "", []string{acl.NamespaceCapabilityReadJob})).SecretID
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 10, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: "platform",
-						Region:    DefaultRegion,
-						AuthToken: customToken,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "platform",
 						Services: []*structs.ServiceRegistrationStub{
@@ -791,51 +730,23 @@ func TestServiceRegistration_List(t *testing.T) {
 								Tags:        []string{"bar"},
 							},
 						}},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs enabled with read-job policy token",
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
+			name: "restricted token",
+			ns:   "*",
+			setupFn: func(t *testing.T, ns string) string {
+				return mock.CreatePolicyAndToken(
+					t, srv.State(), 15, "test-valid-autoscaler",
+					mock.NamespacePolicy("platform", "", []string{acl.NamespaceCapabilityReadJob}),
+				).SecretID
 			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Create a namespace as this is needed when using an ACL like
-				// we do in this test.
-				ns := &structs.Namespace{
-					Name:        "platform",
-					Description: "test namespace",
-					CreateIndex: 5,
-					ModifyIndex: 5,
-				}
-				ns.SetHash()
-				require.NoError(t, s.State().UpsertNamespaces(5, []*structs.Namespace{ns}))
-
-				// Create a policy and grab the token which has the read-job
-				// capability on the platform namespace.
-				customToken := mock.CreatePolicyAndToken(t, s.State(), 10, "test-valid-autoscaler",
-					mock.NamespacePolicy("platform", "", []string{acl.NamespaceCapabilityReadJob})).SecretID
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: structs.AllNamespacesSentinel,
-						Region:    DefaultRegion,
-						AuthToken: customToken,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "platform",
 						Services: []*structs.ServiceRegistrationStub{
@@ -844,51 +755,22 @@ func TestServiceRegistration_List(t *testing.T) {
 								Tags:        []string{"bar"},
 							},
 						}},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs enabled wildcard ns with restricted token",
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
-			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Create a namespace as this is needed when using an ACL like
-				// we do in this test.
-				ns := &structs.Namespace{
-					Name:        "platform",
-					Description: "test namespace",
-					CreateIndex: 5,
-					ModifyIndex: 5,
-				}
-				ns.SetHash()
-				require.NoError(t, s.State().UpsertNamespaces(5, []*structs.Namespace{ns}))
-
-				// Create a policy and grab the token which has the read policy
-				// on the platform namespace.
-				customToken := mock.CreatePolicyAndToken(t, s.State(), 10, "test-valid-autoscaler",
+			name: "read namespace policy token",
+			ns:   "platform",
+			setupFn: func(t *testing.T, ns string) string {
+				return mock.CreatePolicyAndToken(
+					t, srv.State(), 15, "test-valid-autoscaler",
 					mock.NamespacePolicy("platform", "read", nil)).SecretID
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
-
-				// Test a request without setting an ACL token.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: structs.AllNamespacesSentinel,
-						Region:    DefaultRegion,
-						AuthToken: customToken,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+			},
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "platform",
 						Services: []*structs.ServiceRegistrationStub{
@@ -897,88 +779,33 @@ func TestServiceRegistration_List(t *testing.T) {
 								Tags:        []string{"bar"},
 							},
 						}},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs enabled with read namespace policy token",
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
-			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Create a namespace as this is needed when using an ACL like
-				// we do in this test.
-				ns := &structs.Namespace{
-					Name:        "platform",
-					Description: "test namespace",
-					CreateIndex: 5,
-					ModifyIndex: 5,
-				}
-				ns.SetHash()
-				require.NoError(t, s.State().UpsertNamespaces(5, []*structs.Namespace{ns}))
-
-				// Generate a node.
+			name: "node secret token",
+			ns:   "platform",
+			setupFn: func(t *testing.T, ns string) string {
 				node := mock.Node()
-				require.NoError(t, s.State().UpsertNode(structs.MsgTypeTestSetup, 10, node))
-
+				must.NoError(t, srv.State().UpsertNode(structs.MsgTypeTestSetup, 15, node))
 				ws := memdb.NewWatchSet()
-				node, err := s.State().NodeByID(ws, node.ID)
-				require.NoError(t, err)
-				require.NotNil(t, node)
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(structs.MsgTypeTestSetup, 20, services))
-
-				// Test a request while setting the auth token to the node
-				// secret ID.
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: "platform",
-						Region:    DefaultRegion,
-						AuthToken: node.SecretID,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err = msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				must.EqError(t, err, structs.ErrPermissionDenied.Error())
+				node, err := srv.State().NodeByID(ws, node.ID)
+				must.NoError(t, err)
+				must.NotNil(t, node)
+				return node.SecretID
 			},
-			name: "ACLs enabled with node secret token",
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.EqError(t, err, "Permission denied")
+				must.SliceEmpty(t, listResp.Services)
+			},
 		},
+
 		{
-			serverFn: func(t *testing.T) (*Server, *structs.ACLToken, func()) {
-				return TestACLServer(t, nil)
-			},
-			testFn: func(t *testing.T, s *Server, token *structs.ACLToken) {
-				codec := rpcClient(t, s)
-				testutil.WaitForKeyring(t, s.RPC, "global")
-
-				// Create a namespace as this is needed when using an ACL like
-				// we do in this test.
-				ns := &structs.Namespace{
-					Name:        "platform",
-					Description: "test namespace",
-					CreateIndex: 5,
-					ModifyIndex: 5,
-				}
-				ns.SetHash()
-				require.NoError(t, s.State().UpsertNamespaces(5, []*structs.Namespace{ns}))
-
-				// Generate an allocation with a signed identity
-				allocs := []*structs.Allocation{mock.Alloc()}
-				job := allocs[0].Job
-				job.Namespace = "platform"
-				allocs[0].Namespace = "platform"
-				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
-				signAllocIdentities(s.encrypter, job, allocs, ns, time.Now())
-				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
-
-				signedToken := allocs[0].SignedIdentities["web"]
-
+			name: "valid signed identity same ns",
+			ns:   "platform",
+			setupFn: func(t *testing.T, ns string) string {
 				// Associate an unrelated policy with the identity's job to
 				// ensure it doesn't conflict.
 				policy := &structs.ACLPolicy{
@@ -990,28 +817,14 @@ func TestServiceRegistration_List(t *testing.T) {
 					},
 				}
 				policy.SetHash()
-				must.NoError(t, s.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 16,
+				must.NoError(t, srv.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 16,
 					[]*structs.ACLPolicy{policy}))
-
-				// Generate and upsert some service registrations.
-				services := mock.ServiceRegistrations()
-				require.NoError(t, s.State().UpsertServiceRegistrations(
-					structs.MsgTypeTestSetup, 20, services))
-
-				// Test a request while setting the auth token to the signed token
-				serviceRegReq := &structs.ServiceRegistrationListRequest{
-					QueryOptions: structs.QueryOptions{
-						Namespace: "platform",
-						Region:    DefaultRegion,
-						AuthToken: signedToken,
-					},
-				}
-				var serviceRegResp structs.ServiceRegistrationListResponse
-				err := msgpackrpc.CallWithCodec(
-					codec, structs.ServiceRegistrationListRPCMethod,
-					serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
+				return signedToken
+			},
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
 					{
 						Namespace: "platform",
 						Services: []*structs.ServiceRegistrationStub{
@@ -1020,17 +833,70 @@ func TestServiceRegistration_List(t *testing.T) {
 								Tags:        []string{"bar"},
 							},
 						}},
-				}, serviceRegResp.Services)
+				}, listResp.Services)
 			},
-			name: "ACLs enabled with valid signed identity",
+		},
+
+		{
+			name: "valid signed identity with wildcard",
+			ns:   "*",
+			setupFn: func(t *testing.T, ns string) string {
+				// Associate an unrelated policy with the identity's job to
+				// ensure it doesn't conflict.
+				policy := &structs.ACLPolicy{
+					Name:  "policy-for-identity",
+					Rules: mock.NodePolicy("read"),
+					JobACL: &structs.JobACL{
+						Namespace: "platform",
+						JobID:     job.ID,
+					},
+				}
+				policy.SetHash()
+				must.NoError(t, srv.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 16,
+					[]*structs.ACLPolicy{policy}))
+				return signedToken
+			},
+			expectFn: func(t *testing.T, err error,
+				listResp structs.ServiceRegistrationListResponse) {
+				must.NoError(t, err)
+				must.SliceContainsAll(t, []*structs.ServiceRegistrationListStub{
+					{
+						Namespace: "platform",
+						Services: []*structs.ServiceRegistrationStub{
+							{
+								ServiceName: "countdash-api",
+								Tags:        []string{"bar"},
+							},
+						}},
+					{
+						Namespace: "default",
+						Services: []*structs.ServiceRegistrationStub{
+							{
+								ServiceName: "example-cache",
+								Tags:        []string{"foo"},
+							},
+						}},
+				}, listResp.Services)
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			server, aclToken, cleanup := tc.serverFn(t)
-			defer cleanup()
-			tc.testFn(t, server, aclToken)
+			secretID := tc.setupFn(t, tc.ns)
+
+			listReq := &structs.ServiceRegistrationListRequest{
+				QueryOptions: structs.QueryOptions{
+					Namespace: tc.ns,
+					Region:    DefaultRegion,
+					AuthToken: secretID,
+				},
+			}
+			var listResp structs.ServiceRegistrationListResponse
+			err := msgpackrpc.CallWithCodec(
+				codec, structs.ServiceRegistrationListRPCMethod, listReq, &listResp)
+
+			tc.expectFn(t, err, listResp)
 		})
 	}
 }

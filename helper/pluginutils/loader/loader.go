@@ -34,7 +34,7 @@ type PluginCatalog interface {
 
 // InternalPluginConfig is used to configure launching an internal plugin.
 type InternalPluginConfig struct {
-	Config  map[string]interface{}
+	Config  map[string]any
 	Factory plugins.PluginCtxFactory
 }
 
@@ -106,7 +106,7 @@ type pluginInfo struct {
 	apiVersion string
 
 	configSchema  *hclspec.Spec
-	config        map[string]interface{}
+	config        map[string]any
 	msgpackConfig []byte
 }
 

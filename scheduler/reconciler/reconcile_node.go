@@ -455,11 +455,10 @@ func (nr *NodeReconciler) cancelUnnededSystemDeployments(j *structs.Job) {
 				Status:            structs.DeploymentStatusCancelled,
 				StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
 			})
-
-			nr.DeploymentOld = nr.DeploymentCurrent
-			nr.DeploymentCurrent = nil
-			return
 		}
+		nr.DeploymentOld = nr.DeploymentCurrent
+		nr.DeploymentCurrent = nil
+		return
 	}
 
 	// Clear it as the current deployment if it is successful

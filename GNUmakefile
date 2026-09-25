@@ -24,7 +24,7 @@ ifndef BIN
 BIN := $(GOPATH)/bin
 endif
 
-GO_TAGS := hashicorpmetrics $(GO_TAGS)
+GO_TAGS := $(GO_TAGS)
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
@@ -136,9 +136,10 @@ deps:  ## Install build and development dependencies
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
 	go install gotest.tools/gotestsum@v1.10.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
-	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.6
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 	go install github.com/hashicorp/go-msgpack/v2/codec/codecgen@v2.1.5
-	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+	go install github.com/bufbuild/buf/cmd/buf@v1.72.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.49.0
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.9.4
@@ -219,10 +220,10 @@ checkscripts: ## Lint shell scripts
 .PHONY: checkproto
 checkproto: ## Lint protobuf files
 	@echo "==> Lint proto files..."
-	@buf check lint --config tools/buf/buf.yaml
+	@buf lint --config tools/buf/buf.yaml
 
 	@echo "==> Checking for breaking changes in protos..."
-	@buf check breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
+	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
 
 .PHONY: generate-all
 generate-all: generate-structs proto ## Generate structs, protobufs
@@ -236,7 +237,7 @@ generate-structs: ## Update generated code
 .PHONY: proto
 proto: ## Generate protobuf bindings
 	@echo "==> Generating proto bindings..."
-	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
+	@buf generate --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml
 
 # the update-changelog script mutates the local git filesystem,
 # so clone into a temp dir for a fresh worktree.
@@ -397,6 +398,35 @@ integration-test-client-intro: dev ## Run Nomad's Client Intro integration tests
 		-count=1 \
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/client_intro
+
+
+.PHONY: device-plugin
+device-plugin: GOOS=$(shell go env GOOS)
+device-plugin: GOARCH=$(shell go env GOARCH)
+device-plugin: PLUGIN_DIR="$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugins"
+device-plugin: # Build the example device plugin for e2e device tests
+	@echo "==> Removing old plugin development build from ---"$(PLUGIN_DIR)"..."
+	@rm -f "$(PLUGIN_DIR)/nomad-device-example"
+	@echo "==> Building $@..."
+	@mkdir -p "$(PLUGIN_DIR)"
+	@CGO_ENABLED=0 \
+		go build  -o "$(PLUGIN_DIR)/nomad-device-example" ./plugins/device/cmd/example/cmd
+	@echo "binary at $(PLUGIN_DIR)"
+
+.PHONY: integration-test-devices
+integration-test-devices: GOOS=$(shell go env GOOS)
+integration-test-devices: GOARCH=$(shell go env GOARCH)
+integration-test-devices: PLUGIN_DIR=$(PROJECT_ROOT)/pkg/$(GOOS)_$(GOARCH)/plugins
+integration-test-devices: dev
+integration-test-devices: device-plugin ## Run Nomad's device scheduling integration tests
+	@echo "==> Running Nomad integration test suite for Device Scheduling:"
+	NOMAD_E2E_DEVICE="1" NOMAD_E2E_PLUGIN_PATH="$(PLUGIN_DIR)" gotestsum --format=testname -- \
+		-v \
+		-race \
+		-timeout=120s \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e/devices
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)

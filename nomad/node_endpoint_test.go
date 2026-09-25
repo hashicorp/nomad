@@ -893,7 +893,6 @@ func TestClientEndpoint_Deregister_ACL(t *testing.T) {
 
 func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -902,20 +901,17 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	testutil.WaitForKeyring(t, s1.RPC, s1.config.Region)
 
 	// Check that we have no client connections
-	require.Empty(s1.connectedNodes())
+	must.MapEmpty(t, s1.connectedNodes())
 
 	// Create the register request
 	node := mock.Node()
+	node.Attributes["nomad.version"] = "2.0.7"
 	reg := &structs.NodeRegisterRequest{
 		Node:         node,
 		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-
-	// Fetch the response
 	var resp structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.Register", reg, &resp))
 
 	// Check for heartbeat interval
 	ttl := resp.HeartbeatTTL
@@ -924,46 +920,43 @@ func TestClientEndpoint_UpdateStatus(t *testing.T) {
 	}
 
 	// Update the status
-	dereg := &structs.NodeUpdateStatusRequest{
+	heartbeatReq := &structs.NodeUpdateStatusRequest{
 		NodeID:       node.ID,
 		Status:       structs.NodeStatusInit,
-		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: node.SecretID},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
-	var resp2 structs.NodeUpdateResponse
-	if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", dereg, &resp2); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp2.Index == 0 {
-		t.Fatalf("bad index: %d", resp2.Index)
-	}
+	must.ErrorContains(t, msgpackrpc.CallWithCodec(
+		codec, "Node.UpdateStatus", heartbeatReq, &resp),
+		"Permission denied")
+	must.NotEq(t, 0, resp.Index, must.Sprint("bad index"))
+
+	heartbeatReq.AuthToken = *resp.SignedIdentity
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateStatus", heartbeatReq, &resp))
+	must.NotEq(t, 0, resp.Index, must.Sprint("bad index"))
 
 	// Check for heartbeat interval
-	ttl = resp2.HeartbeatTTL
+	ttl = resp.HeartbeatTTL
 	if ttl < s1.config.MinHeartbeatTTL || ttl > 2*s1.config.MinHeartbeatTTL {
 		t.Fatalf("bad: %#v", ttl)
 	}
 
 	// Check that we have the client connections
 	nodes := s1.connectedNodes()
-	require.Len(nodes, 1)
-	require.Contains(nodes, node.ID)
+	must.MapLen(t, 1, nodes)
+	must.MapContainsKey(t, nodes, node.ID)
 
 	// Check for the node in the FSM
 	state := s1.fsm.State()
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("expected node")
-	}
-	if out.ModifyIndex != resp2.Index {
+	must.NoError(t, err)
+	must.NotNil(t, out)
+	if out.ModifyIndex != resp.Index {
 		t.Fatalf("index mis-match")
 	}
 
 	// Close the connection and check that we remove the client connections
-	require.Nil(codec.Close())
+	must.NoError(t, codec.Close())
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := s1.connectedNodes()
 		return len(nodes) == 0, nil

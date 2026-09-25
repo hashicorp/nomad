@@ -20,7 +20,7 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
-	metrics "github.com/hashicorp/go-metrics/compat"
+	metrics "github.com/hashicorp/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
@@ -1895,11 +1895,15 @@ func (c *Client) registerAndHeartbeat() {
 			return
 		}
 		if err := c.updateNodeStatus(); err != nil {
-			// The servers have changed such that this node has not been
-			// registered before
-			if strings.Contains(err.Error(), "node not found") {
-				// Re-register the node
+			// The server state has changed such that this node has not been
+			// registered before (GC'd or restored from backup), or the identity
+			// expired while the node was disconnected. Note that this is
+			// intentionally unrecoverable in enforcement=strict mode without
+			// re-introduction.
+			if strings.Contains(err.Error(), "node not found") ||
+				strings.Contains(err.Error(), "Permission denied") {
 				c.logger.Info("re-registering node")
+				c.setNodeIdentityToken("")
 				c.retryRegisterNode()
 				heartbeat = time.After(helper.RandomStagger(initialHeartbeatStagger))
 			} else {
@@ -3468,16 +3472,6 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 							allocatedDeviceMbits[dev] += allocatedNetwork.MBits
 							break
 						}
-					}
-				}
-			}
-		} else if alloc.Resources != nil {
-			for _, allocatedNetwork := range alloc.Resources.Networks {
-				for cidr, dev := range cidrToDevice {
-					ip := net.ParseIP(allocatedNetwork.IP)
-					if cidr.Contains(ip) {
-						allocatedDeviceMbits[dev] += allocatedNetwork.MBits
-						break
 					}
 				}
 			}

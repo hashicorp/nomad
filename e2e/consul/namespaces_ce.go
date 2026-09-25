@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
 //go:build !ent
-// +build !ent
 
 // Nomad OSS ignores Consul Namespace configuration in jobs, these e2e tests
 // verify everything still works and is registered into the "default" namespace,

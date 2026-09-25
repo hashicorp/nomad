@@ -14,7 +14,7 @@
 
   .timestamp {
     font-size: $size-7;
-    color: darken($grey-blue, 20%);
+    color: var(--token-color-foreground-faint);
     margin-top: 0.25em;
   }
 

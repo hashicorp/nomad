@@ -20,7 +20,7 @@ import (
 // LogPrinter is the methods of testing.T (or testing.B) needed by the test
 // logger.
 type LogPrinter interface {
-	Logf(format string, args ...interface{})
+	Logf(format string, args ...any)
 }
 
 // NewWriter creates a new io.Writer backed by a Logger.

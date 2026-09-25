@@ -1,6 +1,8 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: MPL-2.0
 
+//go:build linux && cgo
+
 package executor
 
 import (

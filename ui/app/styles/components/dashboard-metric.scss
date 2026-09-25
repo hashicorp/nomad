@@ -47,7 +47,7 @@
   }
 
   &.with-divider {
-    border-top: 1px solid $grey-blue;
+    border-top: 1px solid var(--token-color-border-primary);
     padding-top: 1.5em;
   }
 
@@ -64,6 +64,6 @@
   }
 
   .is-faded {
-    color: darken($grey-blue, 20%);
+    color: var(--token-color-foreground-faint);
   }
 }
