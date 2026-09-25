@@ -42,8 +42,8 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 		expectedTotalUsage           *FairshareResources
 	}{
 		{
-			name: "higher usage results in lower priority",
-			conf: &structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{CpuWeight: 10, MemoryWeight: 10}},
+			name:                         "higher usage results in lower priority",
+			conf:                         &structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{CpuWeight: 10, MemoryWeight: 10}},
 			lowUsageTenant:               mkTenant(TenantID("tenant-low"), 0, 55),
 			highUsageTenant:              mkTenant(TenantID("tenant-high"), 100, 50),
 			expectedHigherPriorityTenant: TenantID("tenant-low"),
@@ -151,7 +151,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 	}{
 		{
 			name: "createTime and now equal results in 0 age adjustment",
-			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, MaxAge: time.Second * 10}},
+			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, Max: time.Second * 10}},
 			workload: &dynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{}, mock.Job(), queue.WorkloadStatusQueued),
 			},
@@ -160,7 +160,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 		},
 		{
 			name: "greater than max age results in max adjustment",
-			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, MaxAge: time.Second * 10}},
+			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, Max: time.Second * 10}},
 			workload: &dynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 					CreateTime: time.Time{}.UnixNano(),
@@ -171,7 +171,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 		},
 		{
 			name: "aging eval results in expected adjustment",
-			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, MaxAge: time.Second * 10}},
+			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, Max: time.Second * 10}},
 			workload: &dynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 					CreateTime: time.Time{}.UnixNano(),
