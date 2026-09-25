@@ -732,6 +732,7 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 	// upsertJobAndAllocs upserts a batch job and the given allocs into the state store,
 	// linking each alloc to the job.
 	upsertJobAndAllocs := func(t *testing.T, ss *state.StateStore, job *structs.Job, allocs ...*structs.Allocation) {
+		t.Helper()
 		must.NoError(t, ss.UpsertNamespaces(1, []*structs.Namespace{{Name: job.Namespace}}))
 		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 2, nil, job))
 		for i, alloc := range allocs {
