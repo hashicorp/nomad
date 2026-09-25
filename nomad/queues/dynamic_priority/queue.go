@@ -134,6 +134,9 @@ func (d *DynamicPriorityQueue) Start(ctx context.Context) error {
 	d.wg.Go(func() {
 		d.runConsumer(rCtx)
 	})
+
+	// This goroutine runs the background thread for recalculating
+	// priorities on the configured interval.
 	d.wg.Go(func() {
 		for {
 			select {
