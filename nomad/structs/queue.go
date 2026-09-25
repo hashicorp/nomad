@@ -17,19 +17,19 @@ const (
 )
 
 type DynamicPriorityWorkload struct {
-	JobID            string
-	Tenant           string
-	Namespace        string
-	Position         int
-	Status           string
-	AdjustedPriority int
-	BasePriority     int
-	UsageAdjustment  int
-	AgeAdjustment    int
-	CpuAdjustment    int
-	MemoryAdjustment int
-	CreatedAt        int64
-	CreateIndex      uint64
+	JobID               string
+	Tenant              string
+	Namespace           string
+	Position            int
+	Status              string
+	AdjustedPriority    int
+	BasePriority        int
+	FairshareAdjustment int
+	AgeAdjustment       int
+	CpuAdjustment       int
+	MemoryAdjustment    int
+	CreatedAt           int64
+	CreateIndex         uint64
 }
 
 func (w *DynamicPriorityWorkload) GetID() string {
@@ -45,10 +45,10 @@ func (w *DynamicPriorityWorkload) GetNamespace() string {
 }
 
 type DynamicPriorityTenant struct {
-	TenantID       string
-	PercentageUsed int
-	TenantUsage    map[string]float64
-	TotalUsage     map[string]float64
+	TenantID        string
+	PercentageUsed  int
+	TenantFairshare map[string]float64
+	TotalFairshare  map[string]float64
 }
 
 type Workload struct {

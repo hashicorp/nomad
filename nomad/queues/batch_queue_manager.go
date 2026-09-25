@@ -48,6 +48,7 @@ type newQueueFn func(
 	*state.StateStore,
 	*structs.BatchQueueConfig,
 	queue.Broker,
+	string,
 	queue.EvalCancelFn,
 ) queue.Queue
 
@@ -201,7 +202,7 @@ func (qm *BatchQueueManager) UpdateQueue(pool *structs.NodePool) error {
 	}
 
 	// make a new one
-	queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, qm.cancelFn)
+	queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, pool.Name, qm.cancelFn)
 	qm.qk.Set(pool.Name, queue, false)
 
 	// restore from state
@@ -250,7 +251,7 @@ func (qm *BatchQueueManager) initQueues() error {
 			continue
 		}
 
-		queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, qm.cancelFn)
+		queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, pool.Name, qm.cancelFn)
 		qm.qk.Set(pool.Name, queue, false)
 	}
 

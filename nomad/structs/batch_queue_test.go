@@ -16,21 +16,22 @@ func TestBatchQueueConfig_Copy(t *testing.T) {
 
 	orig = &BatchQueueConfig{
 		DynamicPriority: &DynamicQueueConfig{
-			TenantType:   "test-type", // string
-			CalcInterval: time.Second, // duration / int64
+			CalcInterval:    time.Second,
+			TenantFairshare: TenantFairshareConfig{TenantType: "test-type"},
 		},
 		Fifo: &FifoQueueConfig{},
 	}
+
 	cp := orig.Copy()
 
 	must.NotNil(t, cp.Fifo, must.Sprint("missing fifo"))
 	must.NotNil(t, cp.DynamicPriority, must.Sprint("missing dynamic priority"))
-	must.Eq(t, "test-type", cp.DynamicPriority.TenantType, must.Sprint("string mismatch"))
+	must.Eq(t, BatchQueueTenant("test-type"), cp.DynamicPriority.TenantFairshare.TenantType, must.Sprint("string mismatch"))
 	must.Eq(t, time.Second, cp.DynamicPriority.CalcInterval, must.Sprint("duration mismatch"))
 	must.Eq(t, string(orig.Hash()), string(cp.Hash()), must.Sprint("Hash mismatch"))
 
-	cp.DynamicPriority.TenantType = "copy-changed"
-	must.NotEq(t, "copy-changed", orig.DynamicPriority.TenantType)
+	cp.DynamicPriority.TenantFairshare.TenantType = "copy-changed"
+	must.Eq(t, BatchQueueTenant("test-type"), orig.DynamicPriority.TenantFairshare.TenantType)
 }
 
 func TestBatchQueueConfig_IsEnabled(t *testing.T) {
@@ -50,7 +51,7 @@ func TestBatchQueueConfig_Type(t *testing.T) {
 	t.Run("dynamic", func(t *testing.T) {
 		c := &BatchQueueConfig{
 			DynamicPriority: &DynamicQueueConfig{
-				TenantType: TenantTypeNamespace,
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeNamespace},
 			},
 		}
 		must.Eq(t, BatchQueueTypeDynamic, c.Type())
@@ -107,45 +108,30 @@ func TestBatchQueue_DynamicQueueConfig_Validate(t *testing.T) {
 		err    string
 	}{
 		{
-			name: "missing tenant type",
-			config: DynamicQueueConfig{
-				TenantType: "",
-			},
-			err: "tenant type must be specified",
+			name:   "missing tenant type",
+			config: DynamicQueueConfig{},
+			err:    "tenant type must be specified",
 		},
 		{
 			name: "invalid tenant type",
 			config: DynamicQueueConfig{
-				TenantType: "foo",
+				TenantFairshare: TenantFairshareConfig{TenantType: "foo"},
 			},
 			err: "unsupported tenant type: \"foo\"",
 		},
 		{
 			name: "empty metadata key errors",
 			config: DynamicQueueConfig{
-				TenantType: TenantTypeMetadata,
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeMetadata},
 			},
 			err: "metadata key must be specified",
 		},
 		{
-			name: "dynamicPriority - zero calc interval",
+			name: "zero calc interval",
 			config: DynamicQueueConfig{
-				TenantType: TenantTypeNamespace,
-
-				CalcInterval: 0,
-				HalfLife:     1 * time.Second,
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeNamespace},
 			},
 			err: "calc_interval must be greater than zero",
-		},
-		{
-			name: "dynamicPriority - zero half life",
-			config: DynamicQueueConfig{
-				TenantType: TenantTypeNamespace,
-
-				CalcInterval: 1 * time.Second,
-				HalfLife:     0,
-			},
-			err: "half_life must be greater than zero",
 		},
 	}
 

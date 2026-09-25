@@ -143,7 +143,7 @@ func (c *QueueTenantsCommand) printTenants(resp *api.BatchJobQueueTenantsRespons
 
 	if !jsonOut {
 		tenantInfo := []string{}
-		tenantInfo = append(tenantInfo, "Tenant|Resource|Usage / Total|Percentage")
+		tenantInfo = append(tenantInfo, "Tenant|Resource|Current / Total|Percentage")
 
 		for _, v := range tenants {
 			tenantInfo = append(tenantInfo, fmt.Sprintf("%s|%s|%s|%d",
@@ -153,13 +153,13 @@ func (c *QueueTenantsCommand) printTenants(resp *api.BatchJobQueueTenantsRespons
 				v.PercentageUsed,
 			))
 
-			resources := make([]string, 0, len(v.TenantUsage))
-			for resource, usage := range v.TenantUsage {
+			resources := make([]string, 0, len(v.TenantFairshare))
+			for resource, usage := range v.TenantFairshare {
 				resources = append(resources, fmt.Sprintf("%s|%s|%.2f / %.2f|%s",
 					"",
 					resource,
 					usage,
-					v.TotalUsage[resource],
+					v.TotalFairshare[resource],
 					"",
 				))
 			}

@@ -27,6 +27,7 @@ func NewQueue(
 	ss *state.StateStore,
 	conf *structs.BatchQueueConfig,
 	broker queue.Broker,
+	pool string,
 	cancelFn queue.EvalCancelFn,
 ) queue.Queue {
 	qType := structs.BatchQueueTypePassthrough
@@ -36,7 +37,7 @@ func NewQueue(
 
 	switch qType {
 	case structs.BatchQueueTypeDynamic:
-		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf.DynamicPriority, cancelFn)
+		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf.DynamicPriority, pool, cancelFn)
 	case structs.BatchQueueTypeFifo:
 		return fifo.NewFifoQueue(logger, ss, broker, cancelFn)
 	}

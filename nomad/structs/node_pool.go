@@ -97,6 +97,8 @@ func (n *NodePool) Validate() error {
 
 	mErr = multierror.Append(mErr, n.SchedulerConfiguration.Validate())
 
+	mErr = multierror.Append(mErr, n.BatchQueueConfig.Validate())
+
 	return mErr.ErrorOrNil()
 }
 
