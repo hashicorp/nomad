@@ -763,8 +763,6 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 
 		job := mock.BatchJob()
 		a1, a2 := mock.Alloc(), mock.Alloc()
-		a1.ClientStatus = structs.AllocClientStatusRunning
-		a2.ClientStatus = structs.AllocClientStatusRunning
 
 		upsertJobAndAllocs(t, ss, job, a1, a2)
 
@@ -782,7 +780,7 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 
 		job := mock.BatchJob()
 		alloc := mock.Alloc()
-		alloc.ClientStatus = structs.AllocClientStatusComplete
+		alloc.ClientStatus = structs.AllocClientStatusFailed
 
 		upsertJobAndAllocs(t, ss, job, alloc)
 
@@ -792,7 +790,7 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 			nil,
 			&structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{
 				TenantType:           structs.TenantTypeNamespace,
-				ExcludeAllocStatuses: []string{structs.AllocClientStatusComplete},
+				ExcludeAllocStatuses: []string{structs.AllocClientStatusFailed},
 			}},
 			structs.NodePoolDefault,
 			nil,
@@ -809,7 +807,6 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 		ss := state.TestStateStore(t)
 
 		alloc := mock.Alloc()
-		alloc.ClientStatus = structs.AllocClientStatusRunning
 
 		upsertJobAndAllocs(t, ss, mock.Job(), alloc) // service job, not batch
 		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
@@ -827,12 +824,10 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 		jobA := mock.BatchJob()
 		jobA.Namespace = "ns-a"
 		allocA := mock.Alloc()
-		allocA.ClientStatus = structs.AllocClientStatusRunning
 
 		jobB := mock.BatchJob()
 		jobB.Namespace = "ns-b"
 		allocB := mock.Alloc()
-		allocB.ClientStatus = structs.AllocClientStatusRunning
 
 		upsertJobAndAllocs(t, ss, jobA, allocA)
 		upsertJobAndAllocs(t, ss, jobB, allocB)
