@@ -48,6 +48,14 @@ func dropDirPermissions(path string, desired os.FileMode) error {
 		return fmt.Errorf("Unable to find nobody user: %w", err)
 	}
 
+	// Within a snap we can't chown to `nobody`, so we use `_daemon_` instead
+	// requires snap configured to use `system-usernames`
+	// https://snapcraft.io/docs/system-usernames
+	snapu, err := users.Lookup("_daemon_")
+	if err == nil {
+		u = snapu
+	}
+
 	uid, err := getUid(u)
 	if err != nil {
 		return err
