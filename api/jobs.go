@@ -1536,6 +1536,7 @@ type JobPlanResponse struct {
 	CreatedEvals       []*Evaluation
 	Diff               *JobDiff
 	Annotations        *PlanAnnotations
+	CauseDeployment    bool
 	FailedTGAllocs     map[string]*AllocationMetric
 	NextPeriodicLaunch time.Time
 
