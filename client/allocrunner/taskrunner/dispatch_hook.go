@@ -5,12 +5,14 @@ package taskrunner
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/golang/snappy"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -41,7 +43,6 @@ func (h *dispatchHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		resp.Done = true
 		return nil
 	}
-
 	err := writeDispatchPayload(req.TaskDir.LocalDir, req.Task.DispatchPayload.File, h.payload)
 	if err != nil {
 		return err
@@ -62,6 +63,11 @@ func (h *dispatchHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 // error.
 func writeDispatchPayload(base, filename string, payload []byte) error {
 	renderTo := filepath.Join(base, filename)
+
+	if escapes := escapingfs.PathEscapesSandbox(base, renderTo); escapes {
+		return fmt.Errorf("invalid value for dispatch_payload.file")
+	}
+
 	decoded, err := snappy.Decode(nil, payload)
 	if err != nil {
 		return err
