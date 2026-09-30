@@ -6,6 +6,7 @@ package taskrunner
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 // restartTestDriver implements only the DriverPlugin methods restartImpl
@@ -28,10 +30,12 @@ type restartTestDriver struct {
 	logger   hclog.Logger
 	exitCh   chan struct{} // closed when the task "process" exits
 	stopOnce sync.Once
+	waiters  atomic.Int32 // WaitTask goroutines that haven't delivered a result
 }
 
-// WaitTask mirrors the docker driver's handleWait: a result is sent when the
-// task exits *or* when ctx is done.
+// WaitTask mirrors the docker driver's handleWait: a result is sent on an
+// unbuffered channel when the task exits *or* when ctx is done, so the
+// goroutine only returns once someone receives it.
 func (d *restartTestDriver) WaitTask(ctx context.Context, taskID string) (<-chan *drivers.ExitResult, error) {
 	if deadline, ok := ctx.Deadline(); ok {
 		d.logger.Trace("WaitTask called", "task_id", taskID, "ctx_deadline_in", time.Until(deadline).Round(time.Millisecond))
@@ -39,8 +43,10 @@ func (d *restartTestDriver) WaitTask(ctx context.Context, taskID string) (<-chan
 		d.logger.Trace("WaitTask called", "task_id", taskID, "ctx_deadline_in", "none")
 	}
 
-	ch := make(chan *drivers.ExitResult, 1)
+	ch := make(chan *drivers.ExitResult)
+	d.waiters.Add(1)
 	go func() {
+		defer d.waiters.Add(-1)
 		defer close(ch)
 		select {
 		case <-d.exitCh:
@@ -57,14 +63,19 @@ func (d *restartTestDriver) WaitTask(ctx context.Context, taskID string) (<-chan
 	return ch, nil
 }
 
+// StopTask returns before the exit is observed, like the docker driver, whose
+// handle closes its wait channel only after ContainerWait and ContainerInspect.
 func (d *restartTestDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
 	stopped := false
 	d.stopOnce.Do(func() {
-		close(d.exitCh)
+		time.AfterFunc(10*time.Millisecond, func() {
+			d.logger.Trace("task exited", "task_id", taskID)
+			close(d.exitCh)
+		})
 		stopped = true
 	})
 	if stopped {
-		d.logger.Trace("StopTask: task killed", "task_id", taskID, "timeout", timeout, "signal", signal)
+		d.logger.Trace("StopTask: stopping task", "task_id", taskID, "timeout", timeout, "signal", signal)
 	} else {
 		d.logger.Trace("StopTask: task already stopped", "task_id", taskID)
 	}
@@ -117,7 +128,8 @@ func newRestartTestTaskRunner(t *testing.T, shutdownDelay time.Duration) (*TaskR
 // TestTaskRunner_Restart_ShutdownDelayVsCtx asserts a restart kills the task
 // even when the caller's ctx expires during shutdown_delay. check_restart
 // calls Restart with a 10s ctx (serviceregistration.asyncRestart), so a task
-// with shutdown_delay >= 10s must not be left running and marked pending.
+// with shutdown_delay >= 10s must not be left running and marked pending, and
+// must not leak the driver's wait goroutine when the ctx has already expired.
 func TestTaskRunner_Restart_ShutdownDelayVsCtx(t *testing.T) {
 	ci.Parallel(t)
 
@@ -170,6 +182,14 @@ func TestTaskRunner_Restart_ShutdownDelayVsCtx(t *testing.T) {
 			must.True(t, drv.killed(), must.Sprintf(
 				"task was never killed: state=%q events=%v follow-up restart err=%v",
 				ts.State, eventTypes(ts), retryErr))
+
+			// A WaitTask goroutine nobody receives from is leaked for the
+			// life of the client.
+			must.Wait(t, wait.InitialSuccess(
+				wait.BoolFunc(func() bool { return drv.waiters.Load() == 0 }),
+				wait.Timeout(time.Second),
+				wait.Gap(10*time.Millisecond),
+			), must.Sprint("WaitTask goroutine blocked sending its exit result"))
 		})
 	}
 }

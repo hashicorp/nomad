@@ -153,6 +153,9 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 	select {
 	case <-waitCh:
 	case <-ctx.Done():
+		// Drivers send the exit result on an unbuffered channel, so drain it
+		// or the driver's wait goroutine blocks forever once the task exits.
+		go func() { <-waitCh }()
 	}
 	return nil
 }
