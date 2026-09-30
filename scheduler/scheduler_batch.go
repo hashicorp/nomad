@@ -19,7 +19,7 @@ type BatchScheduler struct {
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State,
+func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State,
 	planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
 	bs := &BatchScheduler{
 		GenericScheduler: GenericScheduler{
