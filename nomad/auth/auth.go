@@ -513,8 +513,9 @@ func (s *Authenticator) ResolveToken(secretID string) (*acl.ACL, error) {
 
 // VerifyClaim asserts that the token is valid. If it is for a workload
 // identity, it will ensure that the resulting allocation ID belongs to a
-// non-terminal allocation. If the token is for a node identity, it will ensure
-// the node ID matches the claim.
+// non-terminal allocation, unless the claimed task is a still-running
+// poststop task. If the token is for a node identity, it will ensure the node
+// ID matches the claim.
 //
 // This should usually not be called by RPC handlers.
 func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, error) {
@@ -729,12 +730,29 @@ func (s *Authenticator) verifyWorkloadIdentityClaim(claims *structs.IdentityClai
 		return fmt.Errorf("allocation does not exist")
 	}
 
-	// the claims for terminal allocs are always treated as expired
-	if alloc.ClientTerminalStatus() {
+	// Claims for terminal allocs are treated as expired unless they belong to a
+	// still-running poststop task. Poststop tasks run after other tasks have
+	// stopped, and a failed sibling can mark the allocation terminal while
+	// poststop is still running.
+	if alloc.ClientTerminalStatus() && !poststopTaskRunning(alloc, claims) {
 		return fmt.Errorf("allocation is terminal")
 	}
 
 	return nil
+}
+
+// poststopTaskRunning reports whether the workload identity belongs to a
+// poststop task that is still running on the allocation.
+func poststopTaskRunning(alloc *structs.Allocation, claims *structs.IdentityClaims) bool {
+	if alloc == nil || claims == nil || claims.TaskName == "" {
+		return false
+	}
+	task := alloc.LookupTask(claims.TaskName)
+	if task == nil || !task.IsPoststop() {
+		return false
+	}
+	state := alloc.TaskStates[claims.TaskName]
+	return state != nil && state.State == structs.TaskStateRunning
 }
 
 func (s *Authenticator) resolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {

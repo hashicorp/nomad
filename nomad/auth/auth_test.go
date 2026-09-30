@@ -308,6 +308,75 @@ func TestAuthenticateDefault(t *testing.T) {
 			},
 		},
 		{
+			name: "mTLS and ACLs with WI token for running poststop task on terminal alloc",
+			testFn: func(t *testing.T, store *state.StateStore) {
+				alloc := mock.Alloc()
+				tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+				poststop := tg.Tasks[0].Copy()
+				poststop.Name = "poststop"
+				poststop.Lifecycle = &structs.TaskLifecycleConfig{
+					Hook: structs.TaskLifecycleHookPoststop,
+				}
+				tg.Tasks = append(tg.Tasks, poststop)
+
+				poststop = alloc.LookupTask("poststop")
+				identity := poststop.Identity
+				wih := poststop.IdentityHandle(identity)
+
+				alloc.ClientStatus = structs.AllocClientStatusFailed
+				alloc.TaskStates = map[string]*structs.TaskState{
+					"web": {
+						State:  structs.TaskStateDead,
+						Failed: true,
+					},
+					"poststop": {
+						State: structs.TaskStateRunning,
+					},
+				}
+
+				claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+					wih,
+					identity,
+					mock.Namespace()).
+					WithTask(poststop).
+					Build(time.Now())
+				auth := testAuthenticator(t, store, true, true)
+				token, err := auth.encrypter.(*testEncrypter).signClaim(claims)
+				must.NoError(t, err)
+
+				must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 199, nil, alloc.Job))
+				must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 200,
+					[]*structs.Allocation{alloc}))
+
+				ctx := newTestContext(t, "client.nomad.global", "192.168.1.1")
+				args := &structs.GenericRequest{}
+				args.AuthToken = token
+
+				err = auth.Authenticate(ctx, args)
+				must.NoError(t, err)
+
+				aclObj, err := auth.ResolveACL(args)
+				must.NoError(t, err)
+				must.NotNil(t, aclObj)
+				must.True(t,
+					aclObj.AllowServiceRegistrationReadList(alloc.Job.Namespace, true))
+				must.Eq(t, "alloc:"+alloc.ID, args.GetIdentity().String())
+
+				// poststop finishing should revoke the identity
+				alloc.TaskStates["poststop"] = &structs.TaskState{
+					State: structs.TaskStateDead,
+				}
+				must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 201,
+					[]*structs.Allocation{alloc}))
+
+				args = &structs.GenericRequest{}
+				args.AuthToken = token
+				err = auth.Authenticate(ctx, args)
+				must.EqError(t, err, "allocation is terminal")
+				must.Eq(t, "unauthenticated", args.GetIdentity().String())
+			},
+		},
+		{
 			name: "mTLS and ACLs with invalid WI token",
 			testFn: func(t *testing.T, store *state.StateStore) {
 				alloc := mock.Alloc()

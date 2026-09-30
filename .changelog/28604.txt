@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed poststop task workload identities being rejected when the allocation is terminal
+```
