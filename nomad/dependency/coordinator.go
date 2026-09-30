@@ -305,7 +305,7 @@ func (c *Coordinator) Stop() {
 	c.dependencies = nil
 }
 
-func (c *Coordinator) HasDependencies(j *structs.Job) (bool, error) {
+func (c *Coordinator) HasActiveDependents(j *structs.Job) (bool, error) {
 	err := c.loopDetector.RemoveNode(j.ID)
 	if err != nil {
 		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
@@ -365,7 +365,7 @@ func NewNoOpCoordinator() *NoOpCoordinator {
 
 type NoOpCoordinator struct{}
 
-func (c *NoOpCoordinator) HasDependencies(j *structs.Job) (bool, error) {
+func (c *NoOpCoordinator) HasActiveDependents(j *structs.Job) (bool, error) {
 	return false, nil
 }
 
