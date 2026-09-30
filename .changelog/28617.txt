@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where tasks restarted by `check_restart` with a `shutdown_delay` of 10s or more were never killed and left in the pending state
+```
