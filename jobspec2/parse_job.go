@@ -104,9 +104,13 @@ func normalizeVault(v *api.Vault) {
 	}
 }
 
-func normalizeDependency(d *api.Dependency) {
+func normalizeDependency(d *api.JobDependencies) {
 	if d == nil {
 		return
+	}
+
+	if d.ActionOnTimeout == "" {
+		d.ActionOnTimeout = "reject"
 	}
 
 	for _, depJob := range d.Jobs {

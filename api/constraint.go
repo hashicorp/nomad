@@ -38,7 +38,7 @@ func NewConstraint(left, operand, right string) *Constraint {
 }
 
 type JobDependency struct {
-	Name   string `hcl:"name,optional"`
+	Name   string `hcl:"name"`
 	Status string `hcl:"status,optional"`
 }
 
@@ -71,32 +71,38 @@ func (d *JobDependency) Validate() error {
 	return nil
 }
 
-// Dependency is used to serialize a job placement dependency.
-type Dependency struct {
-	Timeout *time.Duration   `hcl:"timeout,optional"`
-	Jobs    []*JobDependency `hcl:"job,block"`
+// JobDependencies is used to serialize a job placement dependency.
+type JobDependencies struct {
+	Timeout         *time.Duration   `hcl:"timeout,optional"`
+	ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
+	Jobs            []*JobDependency `hcl:"job,block"`
 }
 
-func NewDependency(timeout string, jobs ...*JobDependency) *Dependency {
+func NewJobDependencies(timeout, actionOnTimeout string, jobs ...*JobDependency) *JobDependencies {
 	copyJobs := make([]*JobDependency, 0, len(jobs))
 	for _, job := range jobs {
 		copyJobs = append(copyJobs, job.Copy())
 	}
 
 	duration, _ := time.ParseDuration(timeout)
-	return &Dependency{
-		Timeout: &duration,
-		Jobs:    copyJobs,
+	return &JobDependencies{
+		Timeout:         &duration,
+		ActionOnTimeout: actionOnTimeout,
+		Jobs:            copyJobs,
 	}
 }
 
-func (d *Dependency) Canonicalize() {
+func (d *JobDependencies) Canonicalize() {
+	if d.ActionOnTimeout == "" {
+		d.ActionOnTimeout = "reject"
+	}
+
 	for _, job := range d.Jobs {
 		job.Canonicalize()
 	}
 }
 
-func (d *Dependency) Copy() *Dependency {
+func (d *JobDependencies) Copy() *JobDependencies {
 	if d == nil {
 		return nil
 	}
@@ -106,19 +112,24 @@ func (d *Dependency) Copy() *Dependency {
 		jobs = append(jobs, job.Copy())
 	}
 
-	return &Dependency{
-		Timeout: d.Timeout,
-		Jobs:    jobs,
+	return &JobDependencies{
+		Timeout:         d.Timeout,
+		ActionOnTimeout: d.ActionOnTimeout,
+		Jobs:            jobs,
 	}
 }
 
-func (d *Dependency) Validate() error {
+func (d *JobDependencies) Validate() error {
 	if d == nil {
 		return nil
 	}
 
 	if d.Timeout == nil || *d.Timeout == 0 {
 		return errors.New("dependency timeout is required")
+	}
+
+	if d.ActionOnTimeout != "" && d.ActionOnTimeout != "reject" {
+		return errors.New("dependency action on timeout is invalid")
 	}
 
 	if len(d.Jobs) == 0 {

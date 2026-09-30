@@ -1113,7 +1113,7 @@ type Job struct {
 	Datacenters      []string                `hcl:"datacenters,optional"`
 	NodePool         *string                 `mapstructure:"node_pool" hcl:"node_pool,optional"`
 	Constraints      []*Constraint           `hcl:"constraint,block"`
-	Dependencies     *Dependency             `hcl:"dependency,block"`
+	Dependencies     *JobDependencies        `hcl:"dependency,block"`
 	Affinities       []*Affinity             `hcl:"affinity,block"`
 	TaskGroups       []*TaskGroup            `hcl:"group,block"`
 	Update           *UpdateStrategy         `hcl:"update,block"`

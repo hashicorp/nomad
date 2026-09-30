@@ -41,10 +41,6 @@ func (d *JobDependency) Validate() error {
 		return errors.New("dependency job name is mandatory")
 	}
 
-	if d.Status == "" {
-		return errors.New("dependency job status is mandatory")
-	}
-
 	return nil
 }
 
@@ -66,13 +62,13 @@ func (d *JobDependency) String() string {
 	return fmt.Sprintf("%s: %s", d.Name, d.Status)
 }
 
-// A Dependency is used to restrict placement options.
-type Dependency struct {
+// JobDependencies is used to restrict placement options.
+type JobDependencies struct {
 	Timeout time.Duration
 	Jobs    []*JobDependency
 }
 
-func (d *Dependency) Empty() bool {
+func (d *JobDependencies) Empty() bool {
 	if d != nil && len(d.Jobs) > 0 {
 		return false
 	}
@@ -81,7 +77,7 @@ func (d *Dependency) Empty() bool {
 }
 
 // Equal checks if two dependencies are equal.
-func (d *Dependency) Equal(o *Dependency) bool {
+func (d *JobDependencies) Equal(o *JobDependencies) bool {
 	if d == nil || o == nil {
 		return d == o
 	}
@@ -100,7 +96,7 @@ func (d *Dependency) Equal(o *Dependency) bool {
 			jEqual
 }
 
-func (d *Dependency) Copy() *Dependency {
+func (d *JobDependencies) Copy() *JobDependencies {
 	if d == nil {
 		return nil
 	}
@@ -116,13 +112,13 @@ func (d *Dependency) Copy() *Dependency {
 		jobs = append(jobs, &copy)
 	}
 
-	return &Dependency{
+	return &JobDependencies{
 		Timeout: d.Timeout,
 		Jobs:    jobs,
 	}
 }
 
-func (d *Dependency) String() string {
+func (d *JobDependencies) String() string {
 	jobs := make([]string, 0, len(d.Jobs))
 	for _, j := range d.Jobs {
 		jobs = append(jobs, j.String())
@@ -131,7 +127,7 @@ func (d *Dependency) String() string {
 	return fmt.Sprintf("%s: %s", d.Timeout, strings.Join(jobs, ", "))
 }
 
-func (d *Dependency) Validate() error {
+func (d *JobDependencies) Validate() error {
 	var mErr multierror.Error
 	if d == nil {
 		return nil
@@ -150,7 +146,7 @@ func (d *Dependency) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
-func (d *Dependency) Canonicalize() {
+func (d *JobDependencies) Canonicalize() {
 	if d == nil {
 		return
 	}
@@ -161,6 +157,6 @@ func (d *Dependency) Canonicalize() {
 }
 
 // DiffID fulfills the DiffableWithID interface.
-func (d *Dependency) DiffID() string {
+func (d *JobDependencies) DiffID() string {
 	return d.String()
 }
