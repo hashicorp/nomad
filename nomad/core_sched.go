@@ -23,7 +23,7 @@ import (
 )
 
 type dependencyChecker interface {
-	HasDependencies(j *structs.Job) (bool, error)
+	HasActiveDependents(j *structs.Job) (bool, error)
 }
 
 // withCoreDependencyChecker returns a SchedulerOption that injects the given
@@ -32,7 +32,7 @@ type dependencyChecker interface {
 func withCoreDependencyChecker(checker dependencyChecker) sstructs.SchedulerOption {
 	return func(s sstructs.Scheduler) error {
 		if c, ok := s.(*CoreScheduler); ok {
-			c.dependecyChecker = checker
+			c.dependencyChecker = checker
 		}
 		return nil
 	}
@@ -56,7 +56,7 @@ type CoreScheduler struct {
 	// (e.g., structs.CoreJobEvalGC) and time.Duration that will be used as GC
 	// threshold value.
 	customThresholdForObject map[string]*time.Duration
-	dependecyChecker         dependencyChecker
+	dependencyChecker        dependencyChecker
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
@@ -67,7 +67,7 @@ func NewCoreScheduler(srv *Server, snap *state.StateSnapshot, planner sstructs.P
 		logger:                   srv.logger.ResetNamed("core.sched"),
 		planner:                  planner,
 		customThresholdForObject: make(map[string]*time.Duration),
-		dependecyChecker:         dependencyChecker(&dependency.NoOpCoordinator{}), // default to no-op dependency checker
+		dependencyChecker:        dependencyChecker(&dependency.NoOpCoordinator{}), // default to no-op dependency checker
 	}
 
 	for _, opt := range opts {
@@ -185,7 +185,7 @@ OUTER:
 			continue
 		}
 
-		free, err := c.dependecyChecker.HasDependencies(job)
+		free, err := c.dependencyChecker.HasActiveDependents(job)
 		if err != nil {
 			c.logger.Error("job GC failed to get dependencies for job", "job", job.ID, "error", err)
 			continue

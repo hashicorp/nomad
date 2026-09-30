@@ -6,6 +6,7 @@ package structs
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -86,10 +87,7 @@ func (d *JobDependencies) Equal(o *JobDependencies) bool {
 		return false
 	}
 
-	jEqual := true
-	for i := range d.Jobs {
-		jEqual = jEqual && d.Jobs[i].Equal(o.Jobs[i])
-	}
+	jEqual := slices.Equal(d.Jobs, o.Jobs)
 
 	return d == o ||
 		d.Timeout == o.Timeout &&
@@ -135,6 +133,7 @@ func (d *JobDependencies) Validate() error {
 
 	if len(d.Jobs) == 0 {
 		mErr.Errors = append(mErr.Errors, errors.New("Missing job in dependency"))
+		return mErr.ErrorOrNil()
 	}
 
 	for idx, job := range d.Jobs {

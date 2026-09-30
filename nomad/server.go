@@ -116,7 +116,7 @@ type raftBackend interface {
 
 type DependencyCoordinator interface {
 	Reload(state sstructs.State, evals memdb.ResultIterator)
-	HasDependencies(j *structs.Job) (bool, error)
+	HasActiveDependents(j *structs.Job) (bool, error)
 	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) ([]string, error)
 	CreatesCircularDependency(j *structs.Job) bool
 }
