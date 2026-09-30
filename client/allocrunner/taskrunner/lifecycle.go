@@ -109,35 +109,37 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 	// Run the pre-kill hooks prior to restarting the task
 	tr.preKill()
 
-	// Grab a handle to the wait channel that will timeout with context cancelation
-	// _before_ killing the task.
-	waitCh, err := handle.WaitCh(ctx)
+	// Grab a handle to the wait channel _before_ killing the task. Bind it to
+	// the task runner rather than the caller's ctx so it only fires when the
+	// task exits (or the runner is killed), not when the caller gives up.
+	waitCh, err := handle.WaitCh(tr.killCtx)
 	if err != nil {
 		return err
 	}
 
 	// Wait for ShutdownDelay after prekill hooks so services have time to
-	// drain before the task is signalled.
+	// drain before the task is signalled. preKill has already deregistered
+	// services, so the kill must happen even if ctx expires during the delay.
 	if delay := tr.Task().ShutdownDelay; delay != 0 {
 		var ev *structs.TaskEvent
 		if tr.alloc.DesiredTransition.ShouldIgnoreShutdownDelay() {
 			tr.logger.Debug("skipping shutdown_delay", "shutdown_delay", delay)
 			ev = structs.NewTaskEvent(structs.TaskSkippingShutdownDelay).
 				SetDisplayMessage(fmt.Sprintf("Skipping shutdown_delay of %s before killing the task.", delay))
-			tr.UpdateState(structs.TaskStatePending, ev)
+			tr.EmitEvent(ev)
 		} else {
 			tr.logger.Debug("waiting before killing task", "shutdown_delay", delay)
 			ev = structs.NewTaskEvent(structs.TaskWaitingShuttingDownDelay).
 				SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
-			tr.UpdateState(structs.TaskStatePending, ev)
+			tr.EmitEvent(ev)
 
 			select {
 			case <-waitCh:
+				// Task exited on its own, or Kill() took over; the Run loop
+				// owns the next state transition.
 				return nil
 			case <-tr.shutdownDelayCtx.Done():
 			case <-time.After(delay):
-			case <-ctx.Done():
-				return nil
 			}
 		}
 	}
