@@ -13,6 +13,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParse_ConnectJob(t *testing.T) {

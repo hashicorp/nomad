@@ -2264,7 +2264,7 @@ func ApiAffinitiesToStructs(in []*api.Affinity) []*structs.Affinity {
 	return out
 }
 
-func ApiDependencyToStructs(in *api.Dependency) *structs.Dependency {
+func ApiDependencyToStructs(in *api.JobDependencies) *structs.JobDependencies {
 	if in == nil {
 		return nil
 	}
@@ -2286,7 +2286,7 @@ func ApiDependencyToStructs(in *api.Dependency) *structs.Dependency {
 		timeout = *in.Timeout
 	}
 
-	return &structs.Dependency{
+	return &structs.JobDependencies{
 		Timeout: timeout,
 		Jobs:    jobs,
 	}
