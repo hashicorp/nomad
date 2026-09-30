@@ -15,9 +15,9 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/dependency"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler/dependency"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"golang.org/x/time/rate"
 )

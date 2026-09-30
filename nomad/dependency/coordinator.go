@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/nomad/dependency/loop_detection"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler/loop_detection"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 

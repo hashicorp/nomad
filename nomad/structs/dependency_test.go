@@ -14,7 +14,7 @@ import (
 func TestDependency_CanonicalizeAndValidate(t *testing.T) {
 	ci.Parallel(t)
 
-	d := &Dependency{
+	d := &JobDependencies{
 		Timeout: 10 * time.Minute,
 		Jobs: []*JobDependency{{
 			Name: "service-123",
@@ -29,7 +29,7 @@ func TestDependency_CanonicalizeAndValidate(t *testing.T) {
 func TestDependency_CopyDeep(t *testing.T) {
 	ci.Parallel(t)
 
-	d := &Dependency{
+	d := &JobDependencies{
 		Timeout: 10 * time.Minute,
 
 		Jobs: []*JobDependency{{
@@ -56,9 +56,9 @@ func TestJob_CopyIncludesDependencies(t *testing.T) {
 		Type:      JobTypeService,
 		TaskGroups: []*TaskGroup{{
 			Name:  "group",
-			Tasks: []*Task{{Name: "task", Driver: "raw_exec", Config: map[string]interface{}{"command": "/bin/date"}}},
+			Tasks: []*Task{{Name: "task", Driver: "raw_exec", Config: map[string]any{"command": "/bin/date"}}},
 		}},
-		Dependencies: &Dependency{
+		Dependencies: &JobDependencies{
 			Timeout: 10 * time.Minute,
 
 			Jobs: []*JobDependency{{

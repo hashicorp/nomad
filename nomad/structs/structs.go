@@ -4435,7 +4435,7 @@ type Job struct {
 	// inter-job dependencies, such as "job A cannot start until job B is
 	// running". This can be used to express complex workflows with multiple
 	//  jobs.
-	Dependencies *Dependency
+	Dependencies *JobDependencies
 
 	// Spread can be specified at the job level to express spreading
 	// allocations across a desired attribute, such as datacenter

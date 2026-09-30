@@ -101,9 +101,9 @@ func TestNew(t *testing.T) {
 
 func TestLoopDetector_AddNodes(t *testing.T) {
 	tests := []struct {
-		name    string
-		ops     func(*loopDetector) error
-		verify  func(*testing.T, *loopDetector, error)
+		name   string
+		ops    func(*loopDetector) error
+		verify func(*testing.T, *loopDetector, error)
 	}{
 		{
 			name: "empty node ID",
@@ -240,7 +240,6 @@ func TestLoopDetector_AddNodes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestDetector(t)
 			err := tc.ops(s)
@@ -376,7 +375,6 @@ func TestLoopDetector_AddNodes_CycleDetection(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestDetector(t)
 			if tc.setup != nil {
@@ -449,7 +447,6 @@ func TestLoopDetector_Reaches(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestDetector(t)
 			if tc.setup != nil {
@@ -614,7 +611,6 @@ func TestLoopDetector_RemoveNode(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestDetector(t)
 			if tc.setup != nil {
@@ -675,7 +671,6 @@ func TestLoopDetector_PruneOrphan(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestDetector(t)
 			if tc.setup != nil {
@@ -744,19 +739,19 @@ func TestLoopDetector_CreatesCircularDependency(t *testing.T) {
 		want  bool
 	}{
 		{
-			name: "empty dependency is ignored",
-			dep:  "",
+			name:  "empty dependency is ignored",
+			dep:   "",
 			nodes: []string{"A"},
-			want: false,
+			want:  false,
 		},
 		{
 			name: "direct cycle",
 			setup: func(s *loopDetector) {
 				must.NoError(t, s.AddNodes("A", "B"))
 			},
-			dep:  "B",
+			dep:   "B",
 			nodes: []string{"A"},
-			want: true,
+			want:  true,
 		},
 		{
 			name: "indirect cycle",
@@ -764,9 +759,9 @@ func TestLoopDetector_CreatesCircularDependency(t *testing.T) {
 				must.NoError(t, s.AddNodes("A", "B"))
 				must.NoError(t, s.AddNodes("B", "C"))
 			},
-			dep:  "C",
+			dep:   "C",
 			nodes: []string{"A"},
-			want: true,
+			want:  true,
 		},
 		{
 			name: "multiple candidates",
@@ -774,20 +769,19 @@ func TestLoopDetector_CreatesCircularDependency(t *testing.T) {
 				must.NoError(t, s.AddNodes("A", "B"))
 				must.NoError(t, s.AddNodes("B", "C"))
 			},
-			dep:  "C",
+			dep:   "C",
 			nodes: []string{"X", "B"},
-			want: true,
+			want:  true,
 		},
 		{
-			name: "no cycle among candidates",
-			dep:  "X",
+			name:  "no cycle among candidates",
+			dep:   "X",
 			nodes: []string{"Y"},
-			want: false,
+			want:  false,
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestDetector(t)
 			if tc.setup != nil {
