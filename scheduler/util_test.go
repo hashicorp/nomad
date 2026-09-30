@@ -458,8 +458,7 @@ func TestTasksUpdated(t *testing.T) {
 	// Change job dependency timeout
 	j34 := mock.Job()
 	j34.Dependencies = &structs.Dependency{
-		Timeout:         10 * time.Minute,
-		ActionOnTimeout: "reject",
+		Timeout: 10 * time.Minute,
 		Jobs: []*structs.JobDependency{{
 			Name:   "service-123",
 			Status: "completed",
