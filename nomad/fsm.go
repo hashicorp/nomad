@@ -542,8 +542,10 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 	}
 
 	// Unblock evals for the nodes computed node class if it is in a ready state
-	// and we are updating its eligibility to eligible.
-	if node != nil && node.SchedulingEligibility == structs.NodeSchedulingIneligible && req.MarkEligible {
+	// and we are updating its eligibility to eligible or duration aware.
+	nowEligible := node.SchedulingEligibility == structs.NodeSchedulingIneligible && req.MarkEligible
+	backfill := req.DrainStrategy != nil && req.DrainStrategy.DurationAware
+	if nowEligible || backfill {
 		n.blockedEvals.Unblock(node.ComputedClass, index)
 		n.blockedEvals.UnblockNode(req.NodeID)
 	}
