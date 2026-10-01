@@ -60,20 +60,22 @@ func TestPaginator(t *testing.T) {
 		{
 			name:    "when numbers are numbers",
 			perPage: 2,
-			// "10" is converted to uint64(10) and compared with uint64 index
+			// a bare "10" target exercises the legacy index-only path: "10" is
+			// parsed as uint64(10) and compared numerically with the index.
 			nextToken:         "10",
-			tokenizer:         ModifyIndexTokenizer[*mockObject]("10"),
+			tokenizer:         ModifyIndexAndNamespaceIDTokenizer[*mockObject]("10"),
 			expected:          []string{"10", "11"},
 			expectedNextToken: "",
 		},
 		{
-			name:    "when zero is a number",
+			name:    "when the next token is a full cursor",
 			perPage: 2,
-			// "" is converted to uint64(0) and compared with uint64 index
+			// an empty token starts from the beginning; the next token is the
+			// full "<index>.<namespace>.<id>" cursor (namespace is empty here).
 			nextToken:         "",
-			tokenizer:         ModifyIndexTokenizer[*mockObject](""),
+			tokenizer:         ModifyIndexAndNamespaceIDTokenizer[*mockObject](""),
 			expected:          []string{"0", "1"},
-			expectedNextToken: "2",
+			expectedNextToken: "2..2",
 		},
 		{
 			name:              "starting off the end",
@@ -121,6 +123,43 @@ func TestPaginator(t *testing.T) {
 		})
 	}
 
+	// The cases above can only vary the id, so their compound tokens always
+	// have an empty namespace. This case drives a full
+	// "<index>.<namespace>.<id>" cursor through the paginator when several
+	// objects share an index, exercising the namespace/id tiebreaker in the
+	// seek path rather than just in the tokenizer in isolation.
+	t.Run("resumes from a full namespaced cursor", func(t *testing.T) {
+		// Ordered as memdb iterates: by index, then namespace, then id.
+		mocks := []*mockObject{
+			{index: 4, namespace: "teamA", id: "old"},
+			{index: 5, namespace: "teamA", id: "web"},
+			{index: 5, namespace: "teamB", id: "api"},
+			{index: 5, namespace: "teamB", id: "web"},
+			{index: 6, namespace: "teamA", id: "new"},
+		}
+
+		iter := newTestIteratorWithMocks(mocks)
+		opts := structs.QueryOptions{
+			PerPage:   2,
+			NextToken: "5.teamB.api",
+		}
+
+		paginator, err := NewPaginator(iter, opts, nil,
+			ModifyIndexAndNamespaceIDTokenizer[*mockObject]("5.teamB.api"),
+			func(result *mockObject) (string, error) {
+				return result.id, nil
+			},
+		)
+		must.NoError(t, err)
+
+		results, nextToken, err := paginator.Page()
+		must.NoError(t, err)
+		// Skips 4.teamA.old (lower index) and 5.teamA.web (same index, earlier
+		// namespace) and resumes exactly at 5.teamB.api.
+		must.Eq(t, []string{"api", "web"}, results)
+		// The next page's cursor is a full three-part token.
+		must.Eq(t, "6.teamA.new", nextToken)
+	})
 }
 
 // helpers for pagination tests

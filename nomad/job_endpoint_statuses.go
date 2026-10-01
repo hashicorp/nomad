@@ -139,7 +139,7 @@ func (j *Job) Statuses(
 			newJobs := set.New[structs.NamespacedID](0)
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
 				selector,
-				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
+				paginator.ModifyIndexAndNamespaceIDTokenizer[*structs.Job](args.NextToken),
 				func(job *structs.Job) (structs.JobStatusesJob, error) {
 					var none structs.JobStatusesJob
 					// this is where the sausage is made

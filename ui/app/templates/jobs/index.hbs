@@ -320,7 +320,7 @@
             @size="small"
             @icon="chevrons-left"
             @iconPosition="leading"
-            disabled={{not this.cursorAt}}
+            disabled={{this.onFirstPage}}
             data-test-pager="first"
             {{on "click" (fn this.handlePageChange "first")}}
           />
@@ -338,7 +338,7 @@
             @size="small"
             @icon="chevron-left"
             @iconPosition="leading"
-            disabled={{not this.cursorAt}}
+            disabled={{this.onFirstPage}}
             data-test-pager="previous"
             {{on "click" (fn this.handlePageChange "prev")}}
           />
