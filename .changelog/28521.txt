@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where allocations on a node would fail to start with `cpuparts_hook` errors (`no space left on device` or `device or resource busy`) after an allocation's reserved cores were released while another allocation still held them
+```
