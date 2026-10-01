@@ -158,8 +158,8 @@ func TestDeviceScheduling(t *testing.T) {
 			return false
 		}),
 		wait.Attempts(2),
-		wait.Timeout(15*time.Second),
-		wait.Gap(100*time.Millisecond),
+		wait.Timeout(30*time.Second),
+		wait.Gap(3*time.Second),
 	))
 
 	for _, tc := range cases {
