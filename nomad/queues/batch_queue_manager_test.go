@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/queues/mocks"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -69,7 +70,7 @@ func testStateStore(t *testing.T) *state.StateStore {
 }
 
 func TestBatchQueueManager_Disable(t *testing.T) {
-	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), &MockBroker{}, nil)
+	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), &mocks.MockBroker{}, nil)
 
 	must.False(t, qm.enabled.Load(), must.Sprint("should be disabled by default"))
 	qm.SetEnabled(false, nil) // disable again does nothing
@@ -86,7 +87,7 @@ func TestBatchQueueManager_Disable(t *testing.T) {
 		// enable so we can test disable behavior; there are more thorough tests
 		// in Test..Enabled, so here we fake that out.
 		qm.enabled.Store(true)
-		poolQ := &MockQueue{name: "disable-me"}
+		poolQ := &mocks.MockQueueRunner{Name: "disable-me"}
 		poolQ.On("Stop").Once()
 		qm.qk.Set("my-pool", poolQ, false)
 
@@ -99,7 +100,7 @@ func TestBatchQueueManager_Disable(t *testing.T) {
 	})
 }
 
-func getNewQueueFn(q *MockQueue) newQueueFn {
+func getNewQueueFn(q *mocks.MockQueueRunner) newQueueFn {
 	return func(
 		_ hclog.Logger,
 		_ *state.StateStore,
@@ -107,7 +108,7 @@ func getNewQueueFn(q *MockQueue) newQueueFn {
 		_ queue.Broker,
 		_ string,
 		_ queue.EvalCancelFn,
-	) queue.Queue {
+	) queue.QueueRunner {
 		return q
 	}
 }
@@ -139,7 +140,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 
 	// queue manager
 
-	broker := &MockBroker{}
+	broker := &mocks.MockBroker{}
 	// broker.Test(t)
 
 	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), broker, nil)
@@ -148,12 +149,12 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 
 	t.Log("enabling the queue manager should create queues, restore evals, then start queues")
 	{
-		passthrough := &MockQueue{name: "passthru"}
+		passthrough := &mocks.MockQueueRunner{Name: "passthru"}
 		passthrough.Test(t)
 		passthrough.On("Enqueue", evalWithoutQueue.ID, evalWithoutQueue.JobID).Once()
 		qm.passthrough = passthrough
 
-		startingQ := &MockQueue{name: "startingQ"}
+		startingQ := &mocks.MockQueueRunner{Name: "startingQ"}
 		startingQ.Test(t)
 		enqueue := startingQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
 		restore := startingQ.On("Restore", nonPendingEval.ID, nonPendingEval.JobID).Once()
@@ -180,7 +181,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		qm.newQueueFn = nil
 
 		// reset mocks
-		poolQ := &MockQueue{name: "mockQ"}
+		poolQ := &mocks.MockQueueRunner{Name: "mockQ"}
 		poolQ.Test(t)
 		qm.qk.Set(poolWithConfig.Name, poolQ, false)
 
@@ -190,7 +191,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 
 	t.Log("enqueue should go to the correct queue")
 	{
-		passthrough := &MockQueue{name: "passthru"}
+		passthrough := &mocks.MockQueueRunner{Name: "passthru"}
 		passthrough.Test(t)
 		passthrough.On("Enqueue", evalWithoutQueue.ID, evalWithoutQueue.JobID).Once()
 		qm.passthrough = passthrough
@@ -199,7 +200,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 
 		must.True(t, passthrough.AssertExpectations(t))
 
-		poolQ := &MockQueue{name: "poolQ"}
+		poolQ := &mocks.MockQueueRunner{Name: "poolQ"}
 		poolQ.Test(t)
 		poolQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
 		qm.qk.Set(poolWithConfig.Name, poolQ, false)
@@ -216,7 +217,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		update := poolWithConfig.Copy()
 		update.BatchQueueConfig = nil
 
-		poolQ := &MockQueue{name: "poolQ"}
+		poolQ := &mocks.MockQueueRunner{Name: "poolQ"}
 		poolQ.Test(t)
 		poolQ.On("Stop").Once()
 		qm.qk.Set(poolWithConfig.Name, poolQ, false)
@@ -237,7 +238,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		update := poolWithoutConfig.Copy()
 		update.BatchQueueConfig = enabledConfig
 
-		poolQ := &MockQueue{name: "newQ"}
+		poolQ := &mocks.MockQueueRunner{Name: "newQ"}
 		poolQ.Test(t)
 		enqueue := poolQ.On("Enqueue", evalWithoutQueue.ID, evalWithoutQueue.JobID).Once()
 		poolQ.On("Start").Once().NotBefore(enqueue)
@@ -256,13 +257,13 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		// TODO: add checks for handling "all" pool, and only restart on change
 
 		// this existing queue should be stopped and replaced
-		oldQ := &MockQueue{name: "oldQ"}
+		oldQ := &mocks.MockQueueRunner{Name: "oldQ"}
 		oldQ.Test(t)
 		oldQ.On("Stop").Once()
 		qm.qk.Set(poolWithConfig.Name, oldQ, false)
 
 		// expect the new queue to be restored from state
-		poolQ := &MockQueue{name: "newQ"}
+		poolQ := &mocks.MockQueueRunner{Name: "newQ"}
 		poolQ.Test(t)
 		enqueue := poolQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
 		restore := poolQ.On("Restore", nonPendingEval.ID, nonPendingEval.JobID).Once()

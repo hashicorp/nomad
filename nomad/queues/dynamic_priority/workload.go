@@ -5,9 +5,10 @@ package dynamic
 
 import (
 	"github.com/hashicorp/nomad/nomad/queues/queue"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type dynamicPriorityWorkload struct {
+type DynamicPriorityWorkload struct {
 	queue.BaseWorkload
 
 	tid      TenantID
@@ -19,4 +20,23 @@ type dynamicPriorityWorkload struct {
 	memAdjustment       int
 	ageAdjustment       int
 	fairshareAdjustment int
+}
+
+func (w *DynamicPriorityWorkload) ToStruct(pos int) *structs.DynamicPriorityWorkload {
+	e := w.Eval()
+	return &structs.DynamicPriorityWorkload{
+		JobID:               e.JobID,
+		Tenant:              string(w.tid),
+		Status:              w.Status(),
+		Namespace:           e.Namespace,
+		Position:            pos,
+		AdjustedPriority:    w.priority,
+		BasePriority:        e.Priority,
+		FairshareAdjustment: w.fairshareAdjustment,
+		AgeAdjustment:       w.ageAdjustment,
+		CpuAdjustment:       w.cpuAdjustment,
+		MemoryAdjustment:    w.memAdjustment,
+		CreatedAt:           e.CreateTime,
+		CreateIndex:         e.CreateIndex,
+	}
 }

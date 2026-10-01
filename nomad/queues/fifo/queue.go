@@ -5,225 +5,104 @@ package fifo
 
 import (
 	"cmp"
-	"context"
-	"errors"
-	"sync"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// FifoQueue orders workloads by the create index of their evaluation.
 type FifoQueue struct {
-	// This is using a TreeSet from Hashicorp's go-set module due to it's
-	// ability for log(n) insert and delete and allows for Top(k) lookups
-	queue queue.WorkloadQueue[*fifoWorkload]
-
-	// evalBroker is the injected broker for passing an evaluation
-	// on to be scheduled by Nomad
-	evalBroker queue.Broker
-
-	// state is the in-memory state store used for both reconciling tenant
-	// workload usages, and polling submitted evaluations for placement
-	state  *state.StateStore
-	logger hclog.Logger
-
-	// enqueueCh is used to buffer workloads before they
-	// are processed by the manager and pushed onto the queue
-	enqueueCh chan *fifoWorkload
-
-	// qNotify allows for notifying the consumer that workloads
-	// have been added to the queue
-	qNotify chan struct{}
-
-	evalCancelFn queue.EvalCancelFn
-
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
-
-	watcher *queue.WorkloadWatcher
+	queue queue.WorkloadQueue
 }
 
-func NewFifoQueue(
-	logger hclog.Logger,
-	ss *state.StateStore,
-	broker queue.Broker,
-	cancelFn queue.EvalCancelFn,
-) *FifoQueue {
+// New returns the workload storage and ordering for a FIFO queue.
+func New() *FifoQueue {
 	return &FifoQueue{
-		queue:        queue.NewWorkloadQueue(workloadSortFn()),
-		enqueueCh:    make(chan *fifoWorkload, 8192),
-		qNotify:      make(chan struct{}, 1),
-		evalBroker:   broker,
-		state:        ss,
-		evalCancelFn: cancelFn,
-		logger:       logger.Named("fifo_queue"),
-		watcher:      queue.NewWorkloadWatcher(ss, logger),
+		queue: queue.NewWorkloadQueue(workloadSortFn()),
 	}
 }
 
-func workloadSortFn() func(i, j *fifoWorkload) int {
-	return func(i, j *fifoWorkload) int {
-		wait := queue.CmpWaitOnRestore(i, j)
-		if wait != 0 {
-			return wait
-		}
-
+func workloadSortFn() func(i, j queue.Workload) int {
+	return func(i, j queue.Workload) int {
 		return cmp.Compare(i.Eval().CreateIndex, j.Eval().CreateIndex)
 	}
 }
 
-func (f *FifoQueue) Enqueue(e *structs.Evaluation, j *structs.Job) {
-	f.enqueueCh <- newFifoWorkload(e, j)
-}
-
-func (f *FifoQueue) Dequeue(id structs.NamespacedID) *structs.Evaluation {
-	wl := f.queue.Remove(id)
-
-	if wl != nil {
-		return wl.Eval()
-	}
-
-	return nil
-}
-
-func (f *FifoQueue) Start(ctx context.Context) error {
-	rCtx, cancel := context.WithCancel(ctx)
-	f.cancel = cancel
-
-	f.wg.Go(func() {
-		f.runProducer(rCtx)
-	})
-	f.wg.Go(func() {
-		f.runConsumer(rCtx)
-	})
-
-	return nil
-}
-
-func (f *FifoQueue) Stop() {
-	f.cancel()
-	f.wg.Wait()
-}
-
-func (f *FifoQueue) runProducer(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case w := <-f.enqueueCh:
-
-			// check if a workload with the same ID exists on the queue. If so,
-			// keep whichever job is newer, and cancel the eval for the other one.
-			existing, ok := f.queue.Get(w.ID())
-			if ok {
-				// use an update here because it removes and replaces the workload
-				// in the same locking transaction.
-				if w.JobVersion() > existing.JobVersion() {
-					f.queue.UpdateByID(w)
-					f.evalCancelFn(existing.Eval())
-				} else {
-					f.evalCancelFn(w.Eval())
-				}
-				continue
-			}
-
-			f.queue.Push(w)
-			select {
-			case f.qNotify <- struct{}{}:
-			default:
-			}
-		}
-	}
-}
-
-func (f *FifoQueue) runConsumer(ctx context.Context) {
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-f.qNotify:
-			w := f.queue.Pop()
-
-			if !w.WaitOnRestore() {
-				f.evalBroker.Enqueue(w.Eval())
-			}
-
-			err := f.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				f.logger.Error("failure waiting for workload placement", "evalID", w.Eval().ID)
-			}
-
-			l := f.queue.Len()
-
-			if l > 0 {
-				select {
-				case f.qNotify <- struct{}{}:
-				default:
-				}
-			}
-		}
-	}
-}
-
-func (f *FifoQueue) Restore(eval *structs.Evaluation, j *structs.Job) error {
-	w := newFifoWorkload(eval, j)
-
-	placed, err := f.watcher.IsSchedulingComplete(w)
-	if err != nil {
-		return err
-	}
-	if !placed {
-		w.SetWaitOnRestore(true)
-		f.enqueueCh <- w
-	}
-	return nil
+// NewWorkload implements base.Queue. All evals are accepted.
+func (f *FifoQueue) NewWorkload(e *structs.Evaluation, j *structs.Job) (queue.Workload, bool) {
+	return newFifoWorkload(e, j), true
 }
 
 func (f *FifoQueue) Type() structs.BatchQueueType {
 	return structs.BatchQueueTypeFifo
 }
 
-func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
+// Push implements base.Queue. The workload must have been created by
+// NewWorkload.
+func (f *FifoQueue) Push(w queue.Workload) {
+	f.queue.Push(w.(*fifoWorkload))
+}
+
+func (f *FifoQueue) Pop() (queue.Workload, bool) {
+	w, ok := f.queue.Pop()
+	if !ok {
+		return nil, false
+	}
+	return w, true
+}
+
+func (f *FifoQueue) Get(id structs.NamespacedID) (queue.Workload, bool) {
+	w, ok := f.queue.Get(id)
+	if !ok {
+		return nil, false
+	}
+	return w, true
+}
+
+func (f *FifoQueue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
+	w, ok := f.queue.Remove(id)
+	if !ok {
+		return nil, false
+	}
+	return w, true
+}
+
+// Update implements base.Queue. The workload must have been created by
+// NewWorkload.
+func (f *FifoQueue) Update(w queue.Workload) (queue.Workload, bool) {
+	old, ok := f.queue.UpdateByID(w.(*fifoWorkload))
+	if !ok {
+		return nil, false
+	}
+	return old, true
+}
+
+// Jobs implements base.Viewable.
+func (f *FifoQueue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *queue.WorkloadIter {
 	pos := 0
 	workloads := []structs.QueueWorkload{}
 
-	for _, workload := range f.watcher.GetInProgressWorkloads() {
-		w := workload.(*fifoWorkload)
+	newWorkloadStruct := func(w *fifoWorkload, position int) *structs.Workload {
 		eval := w.Eval()
-		workloads = append(workloads, &structs.Workload{
+		return &structs.Workload{
 			JobID:       eval.JobID,
 			Namespace:   eval.Namespace,
-			Position:    0,
+			Position:    position,
 			Status:      w.Status(),
 			CreatedAt:   eval.CreateTime,
 			CreateIndex: eval.CreateIndex,
-		})
+		}
+	}
+
+	for _, workload := range inProgress {
+		if w, ok := workload.(*fifoWorkload); ok {
+			workloads = append(workloads, newWorkloadStruct(w, 0))
+		}
 	}
 
 	f.queue.Iterate(func(workload queue.Workload) {
-		w := workload.(*fifoWorkload)
-		// waitOnRestore does not count towards position in queue
-		if w.WaitOnRestore() {
-			return
-		}
 		pos++
-
-		eval := w.Eval()
-		workloads = append(workloads, &structs.Workload{
-			JobID:       eval.JobID,
-			Namespace:   eval.Namespace,
-			Position:    pos,
-			Status:      w.Status(),
-			CreatedAt:   eval.CreateTime,
-			CreateIndex: eval.CreateIndex,
-		})
+		workloads = append(workloads, newWorkloadStruct(workload.(*fifoWorkload), pos))
 	})
 
 	iter := queue.NewWorkloadIter(workloads)
@@ -235,6 +114,7 @@ func (f *FifoQueue) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
 	return iter
 }
 
+// Tenants implements base.Viewable.
 func (f *FifoQueue) Tenants() structs.QueueTenantsResponse {
 	return structs.QueueTenantsResponse{Type: structs.BatchQueueTypeFifo}
 }

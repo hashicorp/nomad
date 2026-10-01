@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/queues/fifo"
 	"github.com/hashicorp/nomad/nomad/queues/passthrough"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
+	"github.com/hashicorp/nomad/nomad/queues/runner"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -29,18 +30,27 @@ func NewQueue(
 	broker queue.Broker,
 	pool string,
 	cancelFn queue.EvalCancelFn,
-) queue.Queue {
+) queue.QueueRunner {
 	qType := structs.BatchQueueTypePassthrough
 	if conf != nil {
 		qType = conf.Type()
 	}
 
+	var queue runner.Queue
 	switch qType {
 	case structs.BatchQueueTypeDynamic:
-		return dynamic.NewDynamicPriorityQueue(logger, ss, broker, conf.DynamicPriority, pool, cancelFn)
+		queue = dynamic.New(logger.Named("dynamic_priority_queue"), ss, conf.DynamicPriority, pool)
 	case structs.BatchQueueTypeFifo:
-		return fifo.NewFifoQueue(logger, ss, broker, cancelFn)
+		queue = fifo.New()
+	default:
+		return passthrough.NewPassthroughQueue(broker)
 	}
 
-	return passthrough.NewPassthroughQueue(broker)
+	return runner.New(
+		logger.Named("queue_runner"),
+		queue,
+		broker,
+		ss,
+		cancelFn,
+	)
 }

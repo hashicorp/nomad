@@ -6,6 +6,7 @@ package queue
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
@@ -57,7 +58,10 @@ func (w *WorkloadWatcher) UntrackPlacement(workload Workload) {
 
 // GetInProgressWorkloads returns a copy of all workloads currently being watched for placement.
 func (w *WorkloadWatcher) GetInProgressWorkloads() map[string]Workload {
-	return w.inProgressWorkloads
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	return maps.Clone(w.inProgressWorkloads)
 }
 
 // WaitForPlacement watches an evaluation until it reaches a terminal state or times out.

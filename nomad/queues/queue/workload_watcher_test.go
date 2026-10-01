@@ -6,6 +6,7 @@ package queue
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,10 +19,14 @@ import (
 	"github.com/shoenig/test/wait"
 )
 
+// testWorkload is safe for concurrent use so tests can inspect it while it
+// is being watched.
 type testWorkload struct {
-	eval   *structs.Evaluation
-	wait   bool
-	status string
+	mu      sync.Mutex
+	eval    *structs.Evaluation
+	job     *structs.Job
+	status  string
+	setEval int
 }
 
 func (w *testWorkload) ID() structs.NamespacedID {
@@ -33,28 +38,47 @@ func (w *testWorkload) JobVersion() uint64 {
 }
 
 func (w *testWorkload) Eval() *structs.Evaluation {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.eval
 }
 
 func (w *testWorkload) SetEval(e *structs.Evaluation) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.eval = e
+	w.setEval++
 }
 
 func (w *testWorkload) Status() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.status
 }
 
 func (w *testWorkload) SetStatus(s, d string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.status = fmt.Sprintf("%s %s", s, d)
-
 }
 
-func (w *testWorkload) WaitOnRestore() bool {
-	return w.wait
+func (w *testWorkload) Job() *structs.Job {
+	return w.job
 }
 
-func (w *testWorkload) SetWaitOnRestore(wait bool) {
-	w.wait = wait
+// waitForWatch waits until the watcher has looked up the workload's eval from
+// state, which happens after it has been added to the watch set.
+func waitForWatch(t *testing.T, w *testWorkload) {
+	t.Helper()
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			w.mu.Lock()
+			defer w.mu.Unlock()
+			return w.setEval > 0
+		}),
+		wait.Timeout(5*time.Second),
+		wait.Gap(10*time.Millisecond),
+	))
 }
 
 func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
@@ -73,18 +97,9 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 			doneCh <- err
 		}()
 
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
+		// We want to make sure the watcher has begun a watch on the eval
+		// before continuing.
+		waitForWatch(t, workload)
 
 		select {
 		case <-doneCh:
@@ -98,6 +113,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		workingWorkload := inProgress[testEval.ID]
 		must.Eq(t, workingWorkload.Status(), "placing ")
 
+		testEval = testEval.Copy()
 		testEval.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
@@ -129,18 +145,9 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 			doneCh <- err
 		}()
 
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
+		// We want to make sure the watcher has begun a watch on the eval
+		// before continuing.
+		waitForWatch(t, workload)
 
 		select {
 		case <-doneCh:
@@ -148,6 +155,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		default:
 		}
 
+		blocked = blocked.Copy()
 		blocked.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{blocked})
 
@@ -175,18 +183,9 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 			doneCh <- err
 		}()
 
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
+		// We want to make sure the watcher has begun a watch on the eval
+		// before continuing.
+		waitForWatch(t, workload)
 
 		select {
 		case <-doneCh:
@@ -194,6 +193,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		default:
 		}
 
+		next = next.Copy()
 		next.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{next})
 
@@ -225,18 +225,9 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 			doneCh <- err
 		}()
 
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
+		// We want to make sure the watcher has begun a watch on the eval
+		// before continuing.
+		waitForWatch(t, workload)
 
 		select {
 		case <-doneCh:
@@ -244,13 +235,11 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		default:
 		}
 
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval.Copy()})
 
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
 		must.Wait(t, wait.InitialSuccess(
 			wait.BoolFunc(func() bool {
-				return strings.Contains(workload.status, "blocked")
+				return strings.Contains(workload.Status(), "blocked")
 			}),
 			wait.Timeout(5*time.Second),
 			wait.Gap(100*time.Millisecond),
@@ -263,6 +252,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		must.Eq(t, workingWorkload.Status(), "blocked ${attr.kernel.name} == linux")
 
 		// Complete the eval
+		testEval = testEval.Copy()
 		testEval.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 
@@ -294,24 +284,16 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 			doneCh <- err
 		}()
 
-		// We want to make sure the testQueue has begun a watch on the blocked eval
-		// before continuing, which is indicated by the length of the watchset being >0.
-		must.Wait(t, wait.InitialSuccess(
-			wait.ErrorFunc(func() error {
-				if len(ws) == 0 {
-					return fmt.Errorf("blocking query not started yet")
-				}
-				return nil
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
-		))
+		// We want to make sure the watcher has begun a watch on the eval
+		// before continuing.
+		waitForWatch(t, workload)
 
 		inProgress := watcher.GetInProgressWorkloads()
 		must.Eq(t, 1, len(inProgress))
 		must.NotNil(t, inProgress[testEval.ID])
 
 		// Complete the eval
+		testEval = testEval.Copy()
 		testEval.Status = structs.EvalStatusComplete
 		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
 

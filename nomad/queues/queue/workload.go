@@ -18,20 +18,20 @@ type BaseWorkload struct {
 
 	jobVersion uint64
 
+	job *structs.Job
+
 	status string
 
 	description string
-
-	waitOnRestore bool
 }
 
 func NewBaseWorkload(e *structs.Evaluation, j *structs.Job, status string) BaseWorkload {
 	return BaseWorkload{
-		id:            j.NamespacedID(),
-		eval:          e,
-		jobVersion:    j.Version,
-		waitOnRestore: false,
-		status:        status,
+		id:         j.NamespacedID(),
+		eval:       e,
+		jobVersion: j.Version,
+		job:        j,
+		status:     status,
 	}
 }
 
@@ -41,6 +41,10 @@ func (b *BaseWorkload) ID() structs.NamespacedID {
 
 func (b *BaseWorkload) Eval() *structs.Evaluation {
 	return b.eval
+}
+
+func (b *BaseWorkload) Job() *structs.Job {
+	return b.job
 }
 
 func (b *BaseWorkload) SetEval(e *structs.Evaluation) {
@@ -61,12 +65,4 @@ func (b *BaseWorkload) Status() string {
 func (b *BaseWorkload) SetStatus(status, description string) {
 	b.status = status
 	b.description = description
-}
-
-func (b *BaseWorkload) WaitOnRestore() bool {
-	return b.waitOnRestore
-}
-
-func (b *BaseWorkload) SetWaitOnRestore(w bool) {
-	b.waitOnRestore = w
 }

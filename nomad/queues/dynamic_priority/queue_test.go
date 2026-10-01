@@ -21,7 +21,7 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 	mkTenant := func(id TenantID, cpu, memory float64) *Tenant {
 		return &Tenant{
 			tid: id,
-			placedWorkloadById: map[structs.NamespacedID]*dynamicPriorityWorkload{
+			placedWorkloadById: map[structs.NamespacedID]*DynamicPriorityWorkload{
 				{ID: eval1.ID}: {
 					BaseWorkload:       queue.NewBaseWorkload(eval1, mock.Job(), queue.WorkloadStatusQueued),
 					requestedResources: &FairshareResources{CPU: cpu, Memory: memory},
@@ -53,13 +53,13 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, tc.conf, "", nil)
+			q := New(hclog.New(hclog.DefaultOptions), ss, tc.conf, "")
 
-			lowUsageWorkload := &dynamicPriorityWorkload{
+			lowUsageWorkload := &DynamicPriorityWorkload{
 				tid:          tc.lowUsageTenant.tid,
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{Priority: 5}, &structs.Job{}, queue.WorkloadStatusQueued),
 			}
-			highUsageWorkload := &dynamicPriorityWorkload{
+			highUsageWorkload := &DynamicPriorityWorkload{
 				tid:          tc.highUsageTenant.tid,
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{Priority: 5}, &structs.Job{}, queue.WorkloadStatusQueued),
 			}
@@ -78,7 +78,7 @@ func TestDynamicPriorityQueue_calculatePriorities(t *testing.T) {
 
 			// Update priorities directly without recalculating fairshare.
 			q.queue.UpdateAll(func(w queue.Workload) {
-				workload := w.(*dynamicPriorityWorkload)
+				workload := w.(*DynamicPriorityWorkload)
 				q.setWorkloadPriority(time.Unix(20, 0), workload)
 			})
 
@@ -100,13 +100,13 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 	testCases := []struct {
 		name     string
 		conf     *structs.DynamicQueueConfig
-		workload *dynamicPriorityWorkload
+		workload *DynamicPriorityWorkload
 		exp      int
 	}{
 		{
 			name: "larger requests results in 0 adjustment",
 			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, CpuMax: 1000, MemoryWeight: 10, MemoryMax: 1000}},
-			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
+			workload: &DynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    1000,
 				Memory: 1000,
 			}},
@@ -115,7 +115,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 		{
 			name: "smaller requests results in expected adjustment",
 			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: 10, CpuMax: 1000, MemoryWeight: 10, MemoryMax: 1000}},
-			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
+			workload: &DynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    50,
 				Memory: 50,
 			}},
@@ -124,7 +124,7 @@ func TestDynamicPriorityQueue_resourceAdjustments(t *testing.T) {
 		{
 			name: "negative weight results in negative adjustment",
 			conf: &structs.DynamicQueueConfig{JobSize: structs.JobSizeConfig{CpuWeight: -10, CpuMax: 1000, MemoryWeight: -10, MemoryMax: 1000}},
-			workload: &dynamicPriorityWorkload{requestedResources: &FairshareResources{
+			workload: &DynamicPriorityWorkload{requestedResources: &FairshareResources{
 				CPU:    50,
 				Memory: 50,
 			}},
@@ -145,14 +145,14 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 	testCases := []struct {
 		name     string
 		conf     *structs.DynamicQueueConfig
-		workload *dynamicPriorityWorkload
+		workload *DynamicPriorityWorkload
 		nowTime  time.Time
 		exp      int
 	}{
 		{
 			name: "createTime and now equal results in 0 age adjustment",
 			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, Max: time.Second * 10}},
-			workload: &dynamicPriorityWorkload{
+			workload: &DynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{}, mock.Job(), queue.WorkloadStatusQueued),
 			},
 			nowTime: time.Time{},
@@ -161,7 +161,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 		{
 			name: "greater than max age results in max adjustment",
 			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, Max: time.Second * 10}},
-			workload: &dynamicPriorityWorkload{
+			workload: &DynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 					CreateTime: time.Time{}.UnixNano(),
 				}, mock.Job(), queue.WorkloadStatusQueued),
@@ -172,7 +172,7 @@ func TestDynamicPriorityQueue_ageAdjustment(t *testing.T) {
 		{
 			name: "aging eval results in expected adjustment",
 			conf: &structs.DynamicQueueConfig{Age: structs.AgeConfig{Weight: 10, Max: time.Second * 10}},
-			workload: &dynamicPriorityWorkload{
+			workload: &DynamicPriorityWorkload{
 				BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 					CreateTime: time.Time{}.UnixNano(),
 				}, mock.Job(), queue.WorkloadStatusQueued),
@@ -197,13 +197,13 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 		sortOrder structs.SortOrder
 		placing   int
 		completed int
-		workloads []*dynamicPriorityWorkload
+		workloads []*DynamicPriorityWorkload
 		exp       *queue.WorkloadIter
 	}{
 		{
 			name:      "status response parses workloads correctly",
 			sortOrder: structs.SortDefault,
-			workloads: []*dynamicPriorityWorkload{
+			workloads: []*DynamicPriorityWorkload{
 				{
 					BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 						ID:          "eval1",
@@ -238,7 +238,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 		{
 			name:      "default sort returns workloads in order of jobID",
 			sortOrder: structs.SortDefault,
-			workloads: []*dynamicPriorityWorkload{
+			workloads: []*DynamicPriorityWorkload{
 				{
 					BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 						ID:          "eval3",
@@ -314,7 +314,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 		{
 			name:      "priority order returns workloads in order of adjusted priority",
 			sortOrder: structs.SortByPriority,
-			workloads: []*dynamicPriorityWorkload{
+			workloads: []*DynamicPriorityWorkload{
 				{
 					BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 						ID:          "eval1",
@@ -390,7 +390,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 		{
 			name:      "priority order falls back to createIndex if priority is equal",
 			sortOrder: structs.SortByPriority,
-			workloads: []*dynamicPriorityWorkload{
+			workloads: []*DynamicPriorityWorkload{
 				{
 					BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 						ID:          "eval2",
@@ -449,7 +449,7 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 			name:      "tracks placing workloads and returns them in the results",
 			sortOrder: structs.SortByPriority,
 			placing:   1,
-			workloads: []*dynamicPriorityWorkload{
+			workloads: []*DynamicPriorityWorkload{
 				{
 					BaseWorkload: queue.NewBaseWorkload(&structs.Evaluation{
 						ID:          "eval1",
@@ -510,25 +510,23 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ss := state.TestStateStore(t)
-			testQueue := NewDynamicPriorityQueue(
+			testQueue := New(
 				hclog.New(hclog.DefaultOptions),
 				ss,
-				nil,
 				&structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{TenantType: "namespace"}},
 				"",
-				nil,
 			)
-			testQueue.queue = queue.NewWorkloadQueue(workloadSortFn())
 
+			var inProgress []queue.Workload
 			for _, w := range tc.workloads {
 				if w.Status() == "placing" {
-					testQueue.watcher.TrackPlacement(w)
+					inProgress = append(inProgress, w)
 				} else {
-					testQueue.queue.Push(w)
+					testQueue.Push(w)
 				}
 			}
 
-			got := testQueue.Jobs(tc.sortOrder)
+			got := testQueue.Jobs(tc.sortOrder, inProgress)
 			must.Eq(t, len(tc.exp.Workloads), len(got.Workloads))
 			for i := range tc.exp.Workloads {
 				expWorkload := tc.exp.Workloads[i].(*structs.DynamicPriorityWorkload)
@@ -583,149 +581,116 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 	}
 }
 
-func TestDynamicPriorityQueue_restore(t *testing.T) {
-	t.Run("unplaced workload is enqueued", func(t *testing.T) {
+func TestDynamicPriorityQueue_NewWorkload(t *testing.T) {
+	t.Run("workload has tenant and priority", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
+		q := New(hclog.New(hclog.DefaultOptions), ss, &structs.DynamicQueueConfig{
 			TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
-		}, "", nil)
+			JobSize:         structs.JobSizeConfig{CpuWeight: 10, CpuMax: 1_000_000},
+		}, "")
 
-		// Set the state store before calling restore
-		testQueue.state = ss
+		job := mock.BatchJob()
+		eval := mock.Eval()
+		eval.Priority = 50
+		eval.CreateTime = time.Now().UnixNano()
 
-		// Create a job and eval that hasn't been placed yet
-		job := mock.Job()
-		job.Type = structs.JobTypeBatch
-		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
+		wl, ok := q.NewWorkload(eval, job)
+		must.True(t, ok)
+		w := wl.(*DynamicPriorityWorkload)
+		must.Eq(t, eval, w.Eval())
+		must.Eq(t, job, w.Job())
+		must.Eq(t, TenantID(job.Namespace), w.tid)
+		must.Eq(t, queue.WorkloadStatusQueued, w.Status())
+		must.Positive(t, w.requestedResources.CPU)
 
-		now := time.Now()
+		// priority is set immediately, rather than on the next Run() tick
+		must.Positive(t, w.cpuAdjustment)
+		must.Eq(t, eval.Priority+w.cpuAdjustment, w.priority)
 
-		testEval := mock.Eval()
-		testEval.JobID = job.ID
-		testEval.Namespace = job.Namespace
-		testEval.Type = structs.JobTypeBatch
-		testEval.TriggeredBy = structs.EvalTriggerJobRegister
-		testEval.Status = structs.EvalStatusBlocked
-		testEval.CreateTime = now.UnixNano()
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
-
-		err := testQueue.Restore(testEval, job)
-		must.NoError(t, err)
-
-		// Verify the workload was enqueued
-		select {
-		case w := <-testQueue.enqueueCh:
-			must.Eq(t, testEval.ID, w.Eval().ID)
-			must.Eq(t, TenantID(job.Namespace), w.tid)
-			must.True(t, w.WaitOnRestore())
-		default:
-			t.Fatal("expected workload in enqueueCh channel")
-		}
-	})
-
-	t.Run("completed eval is not re-enqueued", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		testQueue := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, &structs.DynamicQueueConfig{
-			TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
-		}, "", nil)
-		testQueue.state = ss
-
-		job := mock.Job()
-		job.Type = structs.JobTypeBatch
-		ss.UpsertJob(structs.MsgTypeTestSetup, 0, nil, job)
-
-		testEval := mock.Eval()
-		testEval.JobID = job.ID
-		testEval.Namespace = job.Namespace
-		testEval.Type = structs.JobTypeBatch
-		testEval.TriggeredBy = structs.EvalTriggerJobRegister
-		testEval.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
-
-		err := testQueue.Restore(testEval, job)
-		must.NoError(t, err)
-
-		// Tenant should be created even for completed evals.
-		tenant, ok := testQueue.tenants[TenantID(job.Namespace)]
+		tenant, ok := q.tenants[TenantID(job.Namespace)]
 		must.True(t, ok)
 		must.NotNil(t, tenant)
+	})
 
-		// A completed eval must not have been pushed onto the enqueue channel.
-		select {
-		case <-testQueue.enqueueCh:
-			t.Fatal("completed eval should not be enqueued")
-		default:
-		}
+	t.Run("empty tenant is not queued", func(t *testing.T) {
+		ss := state.TestStateStore(t)
+		q := New(hclog.New(hclog.DefaultOptions), ss, &structs.DynamicQueueConfig{
+			TenantFairshare: structs.TenantFairshareConfig{
+				TenantType:  structs.TenantTypeMetadata,
+				MetadataKey: "tenant",
+			},
+		}, "")
+
+		job := mock.BatchJob()
+		w, ok := q.NewWorkload(mock.Eval(), job)
+		must.False(t, ok)
+		must.True(t, w == nil, must.Sprint("expected untyped nil workload"))
+		must.MapEmpty(t, q.tenants)
+
+		job.Meta = map[string]string{"tenant": "team-a"}
+		w, ok = q.NewWorkload(mock.Eval(), job)
+		must.True(t, ok)
+		must.Eq(t, TenantID("team-a"), w.(*DynamicPriorityWorkload).tid)
+		must.MapContainsKey(t, q.tenants, TenantID("team-a"))
 	})
 }
 
-func TestDynamicPriorityQueue_cancelRedundant(t *testing.T) {
-	newWorkload := func(evalID string, jobVersion uint64) *dynamicPriorityWorkload {
-		j := mock.Job()
-		j.ID = "test-job-ID"
-		j.Version = jobVersion
+func TestDynamicPriorityQueue_queueOps(t *testing.T) {
+	ss := state.TestStateStore(t)
+	q := New(hclog.New(hclog.DefaultOptions), ss, &structs.DynamicQueueConfig{
+		TenantFairshare: structs.TenantFairshareConfig{TenantType: structs.TenantTypeNamespace},
+	}, "")
 
-		e := mock.Eval()
-		e.ID = evalID
-		e.JobID = j.ID
-
-		return &dynamicPriorityWorkload{
-			BaseWorkload: queue.NewBaseWorkload(e, j, queue.WorkloadStatusQueued),
-		}
+	newWorkload := func(priority int, version uint64) *DynamicPriorityWorkload {
+		job := mock.BatchJob()
+		job.Version = version
+		eval := mock.Eval()
+		eval.Priority = priority
+		eval.JobID = job.ID
+		w, ok := q.NewWorkload(eval, job)
+		must.True(t, ok)
+		return w.(*DynamicPriorityWorkload)
 	}
 
-	newQueue := func() (*DynamicPriorityQueue, []string) {
-		cancelled := make([]string, 1)
-		q := &DynamicPriorityQueue{
-			queue: queue.NewWorkloadQueue(workloadSortFn()),
-			evalCancelFn: func(e *structs.Evaluation) error {
-				cancelled[0] = e.ID
-				return nil
-			},
-		}
-		return q, cancelled
-	}
+	low := newWorkload(10, 0)
+	high := newWorkload(90, 0)
+	q.Push(low)
+	q.Push(high)
 
-	t.Run("no existing workload return false", func(t *testing.T) {
-		q, cancelled := newQueue()
+	got, ok := q.Get(low.ID())
+	must.True(t, ok)
+	must.Eq[queue.Workload](t, low, got)
 
-		must.False(t, q.cancelRedundant(newWorkload("test", 1)))
-		must.Eq(t, "", cancelled[0])
-	})
+	// Update replaces the workload by ID
+	lowV2 := newWorkload(10, 1)
+	lowV2.BaseWorkload = queue.NewBaseWorkload(lowV2.Eval(), low.Job().Copy(), queue.WorkloadStatusQueued)
+	replaced, ok := q.Update(lowV2)
+	must.True(t, ok)
+	must.Eq[queue.Workload](t, low, replaced)
+	got, ok = q.Get(low.ID())
+	must.True(t, ok)
+	must.Eq[queue.Workload](t, lowV2, got)
 
-	t.Run("incoming workload with higher version is inserted", func(t *testing.T) {
-		q, cancelled := newQueue()
-		// seed queue with workload
-		initial := newWorkload("initial", 1)
-		q.queue.Push(initial)
+	// Update does not insert missing workloads
+	_, ok = q.Update(newWorkload(10, 0))
+	must.False(t, ok)
 
-		newVersion := newWorkload("new", 2)
-		must.True(t, q.cancelRedundant(newVersion))
-		must.Eq(t, cancelled[0], initial.Eval().ID)
+	// Pop returns the highest priority workload
+	got, ok = q.Pop()
+	must.True(t, ok)
+	must.Eq[queue.Workload](t, high, got)
 
-		// get the new workload from the queue and assert it is
-		// the new version workload
-		wl, ok := q.queue.Get(newVersion.ID())
-		must.True(t, ok)
-		must.Eq(t, wl, newVersion)
-	})
+	// Remove returns the removed workload
+	got, ok = q.Remove(low.ID())
+	must.True(t, ok)
+	must.Eq[queue.Workload](t, lowV2, got)
+	got, ok = q.Remove(low.ID())
+	must.False(t, ok)
+	must.True(t, got == nil, must.Sprint("expected untyped nil workload"))
 
-	t.Run("incoming redundant workload is cancelled", func(t *testing.T) {
-		q, cancelled := newQueue()
-		// seed queue with workload
-		initial := newWorkload("initial", 1)
-		q.queue.Push(initial)
-
-		redundant := newWorkload("redundant", 1)
-		must.True(t, q.cancelRedundant(redundant))
-		must.Eq(t, cancelled[0], redundant.Eval().ID)
-
-		// Get the original workload from the queue to assert
-		// the redundant workload was not inserted.
-		wl, ok := q.queue.Get(initial.ID())
-		must.True(t, ok)
-		must.Eq(t, wl, initial)
-	})
+	got, ok = q.Pop()
+	must.False(t, ok)
+	must.True(t, got == nil, must.Sprint("expected untyped nil workload"))
 }
 
 func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
@@ -749,7 +714,7 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 	t.Run("no jobs results in zero fairshare", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 
-		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q := New(hclog.New(hclog.DefaultOptions), ss, nsConf, structs.NodePoolDefault)
 		q.tenants["default"] = &Tenant{}
 
 		q.calculateFairshare()
@@ -766,7 +731,7 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 
 		upsertJobAndAllocs(t, ss, job, a1, a2)
 
-		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q := New(hclog.New(hclog.DefaultOptions), ss, nsConf, structs.NodePoolDefault)
 		q.tenants["default"] = &Tenant{}
 
 		q.calculateFairshare()
@@ -784,16 +749,14 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 
 		upsertJobAndAllocs(t, ss, job, alloc)
 
-		q := NewDynamicPriorityQueue(
+		q := New(
 			hclog.New(hclog.DefaultOptions),
 			ss,
-			nil,
 			&structs.DynamicQueueConfig{TenantFairshare: structs.TenantFairshareConfig{
 				TenantType:           structs.TenantTypeNamespace,
 				ExcludeAllocStatuses: []string{structs.AllocClientStatusFailed},
 			}},
 			structs.NodePoolDefault,
-			nil,
 		)
 
 		q.tenants["default"] = &Tenant{}
@@ -809,7 +772,7 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 		alloc := mock.Alloc()
 
 		upsertJobAndAllocs(t, ss, mock.Job(), alloc) // service job, not batch
-		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q := New(hclog.New(hclog.DefaultOptions), ss, nsConf, structs.NodePoolDefault)
 		q.tenants["default"] = &Tenant{}
 
 		q.calculateFairshare()
@@ -832,7 +795,7 @@ func TestDynamicPriorityQueue_calculateFairshare(t *testing.T) {
 		upsertJobAndAllocs(t, ss, jobA, allocA)
 		upsertJobAndAllocs(t, ss, jobB, allocB)
 
-		q := NewDynamicPriorityQueue(hclog.New(hclog.DefaultOptions), ss, nil, nsConf, structs.NodePoolDefault, nil)
+		q := New(hclog.New(hclog.DefaultOptions), ss, nsConf, structs.NodePoolDefault)
 		q.tenants["ns-a"] = &Tenant{}
 		q.tenants["ns-b"] = &Tenant{}
 

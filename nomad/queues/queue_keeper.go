@@ -21,7 +21,7 @@ func newQueueKeeper() *queueKeeper {
 // qEntry tracks whether the queue was made with the global config,
 // according to the caller.
 type qEntry struct {
-	q queue.Queue
+	q queue.QueueRunner
 
 	// TODO: we may want this later if we allow all-pools config, where it
 	// becomes opt-out per pool, rather than only opt-in, but today it is
@@ -37,14 +37,14 @@ type queueKeeper struct {
 
 // Set stores the queue by pool name. Callers are expected to set isGlobalConf
 // if the queue was configured using the cluster-wide default.
-func (qk *queueKeeper) Set(pool string, q queue.Queue, isGlobalConf bool) {
+func (qk *queueKeeper) Set(pool string, q queue.QueueRunner, isGlobalConf bool) {
 	qk.mut.Lock()
 	defer qk.mut.Unlock()
 	qk.m[pool] = qEntry{q, isGlobalConf}
 }
 
 // Get gets the pool's queue by name.
-func (qk *queueKeeper) Get(pool string) (queue.Queue, bool) {
+func (qk *queueKeeper) Get(pool string) (queue.QueueRunner, bool) {
 	qk.mut.RLock()
 	defer qk.mut.RUnlock()
 	e, ok := qk.m[pool]
@@ -78,17 +78,17 @@ func (qk *queueKeeper) Wipe() {
 }
 
 // Iter iterates over all queues.
-func (qk *queueKeeper) Iter() iter.Seq2[string, queue.Queue] {
+func (qk *queueKeeper) Iter() iter.Seq2[string, queue.QueueRunner] {
 	return qk.iter(false)
 }
 
 // IterGlobal iterates over only the queues using the global config.
-func (qk *queueKeeper) IterGlobal() iter.Seq2[string, queue.Queue] {
+func (qk *queueKeeper) IterGlobal() iter.Seq2[string, queue.QueueRunner] {
 	return qk.iter(true)
 }
 
-func (qk *queueKeeper) iter(globalOnly bool) iter.Seq2[string, queue.Queue] {
-	return func(yield func(string, queue.Queue) bool) {
+func (qk *queueKeeper) iter(globalOnly bool) iter.Seq2[string, queue.QueueRunner] {
+	return func(yield func(string, queue.QueueRunner) bool) {
 		// copy the map so callers can modify their &Queues while iterating.
 		qk.mut.RLock()
 		cp := maps.Clone(qk.m)

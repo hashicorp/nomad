@@ -7,7 +7,7 @@ import "github.com/hashicorp/nomad/nomad/structs"
 
 type Tenant struct {
 	tid                TenantID
-	placedWorkloadById map[structs.NamespacedID]*dynamicPriorityWorkload
+	placedWorkloadById map[structs.NamespacedID]*DynamicPriorityWorkload
 	fairshare          *FairshareResources
 }
 
