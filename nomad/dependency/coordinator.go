@@ -101,6 +101,10 @@ func (c *Coordinator) removeDeps(eval *structs.Evaluation, dependeeJobs map[stri
 func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 	eval *structs.Evaluation) ([]string, error) {
 
+	if eval == nil || job == nil || state == nil {
+		return []string{}, nil
+	}
+
 	if job.Dependencies == nil {
 		return []string{}, nil
 	}
@@ -145,6 +149,10 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 	err = c.loopDetector.AddNodes(eval.JobID, djNames...)
 	if err != nil {
 		return []string{}, err
+	}
+
+	if c.blockedEvals == nil {
+		return []string{}, nil
 	}
 
 	ctx, cancel := context.WithDeadlineCause(c.mainContext,
@@ -253,6 +261,10 @@ func (c *Coordinator) deleteEval(eval structs.Evaluation, job structs.Job) error
 func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[string]*structs.Job) ([]string, error) {
 	var mErr multierror.Error
 	blockers := []string{}
+
+	if dependantJob == nil || dependantJob.Dependencies == nil {
+		return blockers, mErr.ErrorOrNil()
+	}
 
 	for _, depJob := range dependantJob.Dependencies.Jobs {
 		if depJob == nil {
