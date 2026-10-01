@@ -32,6 +32,8 @@ type Stack interface {
 
 	// Select is used to select a node for the task group
 	Select(tg *structs.TaskGroup, options *SelectOptions) *RankedNode
+
+	SetSchedulerConfiguration(schedConfig *structs.SchedulerConfiguration)
 }
 
 type SelectOptions struct {

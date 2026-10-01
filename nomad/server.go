@@ -24,6 +24,7 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/raft"
@@ -43,6 +44,8 @@ import (
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/auth"
+	"github.com/hashicorp/nomad/nomad/dependency"
+	"github.com/hashicorp/nomad/nomad/dependency/loop_detection"
 	"github.com/hashicorp/nomad/nomad/deploymentwatcher"
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
@@ -109,6 +112,13 @@ type raftBackend interface {
 	raft.LogStore
 	raft.StableStore
 	Close() error
+}
+
+type DependencyCoordinator interface {
+	Reload(state sstructs.State, evals memdb.ResultIterator)
+	HasActiveDependents(j *structs.Job) (bool, error)
+	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) ([]string, error)
+	CreatesCircularDependency(j *structs.Job) bool
 }
 
 // Server is Nomad server which manages the job queues,
@@ -209,6 +219,8 @@ type Server struct {
 	// BlockedEvals is used to manage evaluations that are blocked on node
 	// capacity changes.
 	blockedEvals *BlockedEvals
+
+	dependencyCoordinator DependencyCoordinator
 
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
@@ -1400,6 +1412,11 @@ func (s *Server) setupRaft() error {
 	if s.config.RaftConfig.ProtocolVersion >= 3 {
 		s.config.RaftConfig.LocalID = raft.ServerID(s.config.NodeID)
 	}
+
+	// Create the dependency Coordinator
+	depCoordinator := dependency.NewCoordinator(s.logger,
+		loop_detection.New(s.logger), s.blockedEvals, s.raftApply)
+	s.dependencyCoordinator = depCoordinator
 
 	// Build an all in-memory setup for dev mode, otherwise prepare a full
 	// disk-based setup.
