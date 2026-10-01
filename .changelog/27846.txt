@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: The topology page now also shows reserved resources (CPU and memory) of every node using an orange bar at the end
+```

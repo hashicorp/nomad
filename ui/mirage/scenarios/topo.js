@@ -22,6 +22,13 @@ export function topoSmall(server) {
     nodeResources: genResources(3000, 5192),
   });
 
+  // Add one node with reserved resources to show reserved node in topology view
+  server.createList('node', 2, 'reserved', {
+    datacenter: 'dc1',
+    status: 'ready',
+    nodeResources: genResources(8000, 12192),
+  });
+
   const jobResources = [
     ['M: 2560, C: 150'],
     ['M: 128, C: 400'],
@@ -74,6 +81,13 @@ export function topoMedium(server) {
     nodeResources: genResources(8000, 12192),
   });
   server.createList('node', 9, {
+    datacenter: 'us-east-1',
+    status: 'ready',
+    nodeResources: genResources(8000, 12192),
+  });
+
+  // Add some nodes with reserved resources to show reserved node in topology view
+  server.createList('node', 3, 'reserved', {
     datacenter: 'us-east-1',
     status: 'ready',
     nodeResources: genResources(8000, 12192),
