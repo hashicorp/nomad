@@ -6,7 +6,6 @@ package structs
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -83,15 +82,21 @@ func (d *JobDependencies) Equal(o *JobDependencies) bool {
 		return d == o
 	}
 
+	if d.Timeout != o.Timeout {
+		return false
+	}
+
 	if len(d.Jobs) != len(o.Jobs) {
 		return false
 	}
 
-	jEqual := slices.Equal(d.Jobs, o.Jobs)
+	for i, job := range d.Jobs {
+		if !job.Equal(o.Jobs[i]) {
+			return false
+		}
+	}
 
-	return d == o ||
-		d.Timeout == o.Timeout &&
-			jEqual
+	return true
 }
 
 func (d *JobDependencies) Copy() *JobDependencies {
