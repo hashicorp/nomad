@@ -39,7 +39,7 @@ func TestDependency_CopyDeep(t *testing.T) {
 	}
 
 	copy := d.Copy()
-	must.Eq(t, d, copy)
+	must.True(t, d.Equal(copy))
 	must.True(t, d.Jobs[0] != copy.Jobs[0])
 
 	copy.Jobs[0].Status = "running"
