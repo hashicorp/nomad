@@ -34,7 +34,7 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.St
 	}
 
 	bs.nodesSetter = bs.dependencyWrapper(bs.GenericScheduler.setNodes)
-
+	bs.GenericScheduler.batch = true
 	return bs
 }
 
