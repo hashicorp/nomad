@@ -24,7 +24,7 @@ var initialDirs = map[string]string{
 	"/usr/libexec":   "rx",
 }
 
-// findHomeDir returns the home directory as provided by os.UserHomeDir. In case
+// findHomeDir returns the home directory as provided by homedir.Dir(). In case
 // os.UserHomeDir returns an error, we return /root if the current process is being
 // run by root, or /dev/null otherwise.
 func findHomeDir() string {
@@ -42,7 +42,7 @@ func findHomeDir() string {
 	}
 
 	// nothing safe to do
-	return "/nonexistent"
+	return "/dev/null"
 }
 
 // findConfigDir returns the config directory as provided by os.UserConfigDir. In
