@@ -121,19 +121,47 @@ module('Unit | Util | AllocationStatsTracker', function () {
     );
   });
 
-  test('reservedCPU and reservedMemory properties come from the allocation', async function (assert) {
+  test('reservedCPU and reservedMemory properties come from the allocation task group when there are no allocated resources', async function (assert) {
     const allocation = MockAllocation();
     const tracker = AllocationStatsTracker.create({ fetch, allocation });
 
     assert.deepEqual(
       tracker.get('reservedCPU'),
       allocation.taskGroup.reservedCPU,
-      'reservedCPU comes from the allocation task group',
+      'reservedCPU falls back to the allocation task group',
     );
     assert.deepEqual(
       tracker.get('reservedMemory'),
       allocation.taskGroup.reservedMemory,
       'reservedMemory comes from the allocation task group',
+    );
+  });
+
+  test('reservedCPU prefers the allocated CPU (MHz) when the allocation has AllocatedResources', async function (assert) {
+    // A task reserving `cores = 4` has Resources.CPU == 0 in the job spec,
+    // but the scheduler fills in the MHz equivalent in AllocatedResources.
+    const allocation = MockAllocation({
+      allocatedResources: { cpu: 12968 },
+      states: [{ name: 'service', resources: { cpu: 12968 } }],
+    });
+    allocation.taskGroup.reservedCPU = 0;
+    allocation.taskGroup.tasks.findBy('name', 'service').reservedCPU = 0;
+    const tracker = AllocationStatsTracker.create({ fetch, allocation });
+
+    assert.deepEqual(
+      tracker.get('reservedCPU'),
+      12968,
+      'reservedCPU comes from the allocated resources',
+    );
+    assert.deepEqual(
+      tracker.get('tasks').findBy('task', 'service').reservedCPU,
+      12968,
+      'the task reservedCPU comes from the task state allocated resources',
+    );
+    assert.deepEqual(
+      tracker.get('tasks').findBy('task', 'sidecar').reservedCPU,
+      50,
+      'tasks without allocated resources fall back to the job spec reservation',
     );
   });
 

@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where the CPU utilization graph for allocations and tasks that reserve CPU with `cores` showed 0% and "0 MHz Total"
+```
