@@ -6,6 +6,8 @@ package proclib
 import (
 	"fmt"
 	"sync"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 // Task records the unique coordinates of a task from the perspective of a Nomad
@@ -67,16 +69,24 @@ func (w *Wranglers) Setup(task Task) error {
 func (w *Wranglers) Destroy(task Task) error {
 	w.configs.Logger.Trace("destroy and cleanup remnant task processes", "task", task)
 
+	// Only hold the lock while accessing the task map
 	w.lock.Lock()
-	defer w.lock.Unlock()
-
-	if pw, exists := w.m[task]; exists {
-		pw.Kill()
-		pw.Cleanup()
+	pw, exists := w.m[task]
+	if exists {
 		delete(w.m, task)
 	}
+	w.lock.Unlock()
 
-	return nil
+	if !exists {
+		return nil
+	}
+
+	// Perform syscalls outside of mutex since it is client global
+	var mErr multierror.Error
+	_ = multierror.Append(&mErr, pw.Kill())
+	_ = multierror.Append(&mErr, pw.Cleanup())
+
+	return mErr.ErrorOrNil()
 }
 
 // A ProcessWrangler "owns" a particular Task on a client, enabling the client
