@@ -15,20 +15,18 @@ type dependencyChecker interface {
 }
 
 type BatchScheduler struct {
-	GenericScheduler
+	*GenericScheduler
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
 func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State,
 	planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
+
+	s := NewServiceScheduler(logger, eventsCh, state,
+		planner, opts...)
+
 	bs := &BatchScheduler{
-		GenericScheduler: GenericScheduler{
-			logger:   logger.Named("batch_sched"),
-			eventsCh: eventsCh,
-			state:    state,
-			planner:  planner,
-			batch:    true,
-		},
+		GenericScheduler: s.(*GenericScheduler),
 	}
 
 	for _, opt := range opts {

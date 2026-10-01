@@ -84,7 +84,7 @@ type GenericScheduler struct {
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
 func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State,
-	planner sstructs.Planner, _ ...sstructs.SchedulerOption) sstructs.Scheduler {
+	planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
 
 	s := &GenericScheduler{
 		logger:            logger.Named("service_sched"),
@@ -93,6 +93,10 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.
 		planner:           planner,
 		batch:             false,
 		dependencyChecker: dependencyChecker(&dependency.NoOpCoordinator{}), // default to no-op dependency checker
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	s.nodesSetter = s.setNodes
