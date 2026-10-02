@@ -1,0 +1,3 @@
+```release-note:bug
+build: Update busybox image used for container final image to 1.38.0
+```
