@@ -17,7 +17,7 @@ import (
 
 type TenantID string
 
-type DynamicPriorityQueue struct {
+type Queue struct {
 	// This is using a TreeSet from Hashicorp's go-set module due to it's
 	// ability for log(n) insert and delete and allows for Top(k) lookups
 	queue queue.WorkloadQueue
@@ -54,8 +54,8 @@ func New(
 	ss *state.StateStore,
 	conf *structs.DynamicQueueConfig,
 	pool string,
-) *DynamicPriorityQueue {
-	return &DynamicPriorityQueue{
+) *Queue {
+	return &Queue{
 		queue:          queue.NewWorkloadQueue(workloadSortFn()),
 		tMux:           sync.Mutex{},
 		tenants:        make(map[TenantID]*Tenant),
@@ -69,8 +69,8 @@ func New(
 
 func workloadSortFn() func(i, j queue.Workload) int {
 	return func(i, j queue.Workload) int {
-		a := i.(*DynamicPriorityWorkload)
-		b := j.(*DynamicPriorityWorkload)
+		a := i.(*dynamicPriorityWorkload)
+		b := j.(*dynamicPriorityWorkload)
 
 		if a.priority > b.priority {
 			return -1
@@ -88,7 +88,7 @@ func workloadSortFn() func(i, j queue.Workload) int {
 }
 
 // Run implements base.Runnable to periodically recalculate priorities.
-func (d *DynamicPriorityQueue) Run(ctx context.Context) {
+func (d *Queue) Run(ctx context.Context) {
 	// initially calculate priorities
 	d.calculatePriorities(time.Now())
 
@@ -106,7 +106,7 @@ func (d *DynamicPriorityQueue) Run(ctx context.Context) {
 
 // NewWorkload implements base.Queue. Jobs without a tenant ID are not
 // queued.
-func (d *DynamicPriorityQueue) NewWorkload(e *structs.Evaluation, j *structs.Job) (queue.Workload, bool) {
+func (d *Queue) NewWorkload(e *structs.Evaluation, j *structs.Job) (queue.Workload, bool) {
 	tid := d.tenantID(j)
 	if tid == "" {
 		return nil, false
@@ -121,17 +121,17 @@ func (d *DynamicPriorityQueue) NewWorkload(e *structs.Evaluation, j *structs.Job
 	return w, true
 }
 
-func (d *DynamicPriorityQueue) Type() structs.BatchQueueType {
+func (d *Queue) Type() structs.BatchQueueType {
 	return structs.BatchQueueTypeDynamic
 }
 
 // Push implements base.Queue. The workload must have been created by
 // NewWorkload.
-func (d *DynamicPriorityQueue) Push(w queue.Workload) {
-	d.queue.Push(w.(*DynamicPriorityWorkload))
+func (d *Queue) Push(w queue.Workload) {
+	d.queue.Push(w)
 }
 
-func (d *DynamicPriorityQueue) Pop() (queue.Workload, bool) {
+func (d *Queue) Pop() (queue.Workload, bool) {
 	w, ok := d.queue.Pop()
 	if !ok {
 		return nil, false
@@ -139,33 +139,21 @@ func (d *DynamicPriorityQueue) Pop() (queue.Workload, bool) {
 	return w, true
 }
 
-func (d *DynamicPriorityQueue) Get(id structs.NamespacedID) (queue.Workload, bool) {
-	w, ok := d.queue.Get(id)
-	if !ok {
-		return nil, false
-	}
-	return w, true
+func (d *Queue) Get(id structs.NamespacedID) (queue.Workload, bool) {
+	return d.queue.Get(id)
 }
 
-func (d *DynamicPriorityQueue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
-	w, ok := d.queue.Remove(id)
-	if !ok {
-		return nil, false
-	}
-	return w, true
+func (d *Queue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
+	return d.queue.Remove(id)
 }
 
-// Update implements base.Queue. The workload must have been created by
+// Swap implements base.Queue. The workload must have been created by
 // NewWorkload.
-func (d *DynamicPriorityQueue) Update(w queue.Workload) (queue.Workload, bool) {
-	old, ok := d.queue.UpdateByID(w.(*DynamicPriorityWorkload))
-	if !ok {
-		return nil, false
-	}
-	return old, true
+func (d *Queue) Swap(w queue.Workload) (queue.Workload, bool) {
+	return d.queue.Swap(w)
 }
 
-func (d *DynamicPriorityQueue) calculateFairshare() {
+func (d *Queue) calculateFairshare() {
 	d.tMux.Lock()
 	defer d.tMux.Unlock()
 
@@ -226,7 +214,7 @@ func (d *DynamicPriorityQueue) calculateFairshare() {
 	}
 }
 
-func (d *DynamicPriorityQueue) tenantID(job *structs.Job) TenantID {
+func (d *Queue) tenantID(job *structs.Job) TenantID {
 	var tid TenantID
 	switch d.conf.TenantFairshare.TenantType {
 	case "namespace":
@@ -246,7 +234,7 @@ func (d *DynamicPriorityQueue) tenantID(job *structs.Job) TenantID {
 }
 
 // generateWorkload is used to create an initial workload from a given evaluation
-func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *structs.Job, tid TenantID) *DynamicPriorityWorkload {
+func (d *Queue) generateWorkload(e *structs.Evaluation, job *structs.Job, tid TenantID) *dynamicPriorityWorkload {
 	requestedResources := &FairshareResources{}
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
@@ -255,7 +243,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *stru
 		}
 	}
 
-	return &DynamicPriorityWorkload{
+	return &dynamicPriorityWorkload{
 		BaseWorkload:       queue.NewBaseWorkload(e, job, queue.WorkloadStatusQueued),
 		tid:                tid,
 		priority:           0,
@@ -264,7 +252,7 @@ func (d *DynamicPriorityQueue) generateWorkload(e *structs.Evaluation, job *stru
 }
 
 // ensureTenant creates a new tenant in the queue if it doesn't already exist.
-func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
+func (d *Queue) ensureTenant(tid TenantID) {
 	d.tMux.Lock()
 	defer d.tMux.Unlock()
 
@@ -274,7 +262,7 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 
 	d.tenants[tid] = &Tenant{
 		tid:                tid,
-		placedWorkloadById: make(map[structs.NamespacedID]*DynamicPriorityWorkload),
+		placedWorkloadById: make(map[structs.NamespacedID]*dynamicPriorityWorkload),
 		fairshare:          &FairshareResources{},
 	}
 }
@@ -282,18 +270,20 @@ func (d *DynamicPriorityQueue) ensureTenant(tid TenantID) {
 // calculatePriorities iterates over all workloads in the queue and updates
 // their priorities based on tenant usage, which is decayed according to the
 // configured half-life, and usage weight.
-func (d *DynamicPriorityQueue) calculatePriorities(now time.Time) {
+func (d *Queue) calculatePriorities(now time.Time) {
 	d.calculateFairshare()
 
 	// Now that we have accurate tenant usage, calculate
 	// each workloads new priority and update the queue
 	d.queue.UpdateAll(func(w queue.Workload) {
-		d.setWorkloadPriority(now, w.(*DynamicPriorityWorkload))
+		if dynamic, ok := w.(*dynamicPriorityWorkload); ok {
+			d.setWorkloadPriority(now, dynamic)
+		}
 	})
 }
 
 // setWorkloadPriority calculates an individual workload's priority based on
-func (d *DynamicPriorityQueue) setWorkloadPriority(now time.Time, w *DynamicPriorityWorkload) {
+func (d *Queue) setWorkloadPriority(now time.Time, w *dynamicPriorityWorkload) {
 	w.priority = w.Eval().Priority +
 		d.fairshareAdjustment(w) +
 		d.ageAdjustment(now, w) +
@@ -303,7 +293,7 @@ func (d *DynamicPriorityQueue) setWorkloadPriority(now time.Time, w *DynamicPrio
 
 // fairshareAdjustment calculates the adjustment to a workload's priority based on
 // its tenant's fairshare relative to the total, and configured weight.
-func (d *DynamicPriorityQueue) fairshareAdjustment(w *DynamicPriorityWorkload) int {
+func (d *Queue) fairshareAdjustment(w *dynamicPriorityWorkload) int {
 	d.tMux.Lock()
 	defer d.tMux.Unlock()
 
@@ -328,7 +318,7 @@ func (d *DynamicPriorityQueue) fairshareAdjustment(w *DynamicPriorityWorkload) i
 	return w.fairshareAdjustment
 }
 
-func (d *DynamicPriorityQueue) ageAdjustment(now time.Time, w *DynamicPriorityWorkload) int {
+func (d *Queue) ageAdjustment(now time.Time, w *dynamicPriorityWorkload) int {
 	if d.conf.Age.Weight == 0 {
 		return 0
 	}
@@ -342,7 +332,7 @@ func (d *DynamicPriorityQueue) ageAdjustment(now time.Time, w *DynamicPriorityWo
 	return w.ageAdjustment
 }
 
-func (d *DynamicPriorityQueue) cpuAdjustment(w *DynamicPriorityWorkload) int {
+func (d *Queue) cpuAdjustment(w *dynamicPriorityWorkload) int {
 	if d.conf.JobSize.CpuWeight == 0 {
 		return 0
 	}
@@ -354,7 +344,7 @@ func (d *DynamicPriorityQueue) cpuAdjustment(w *DynamicPriorityWorkload) int {
 	return w.cpuAdjustment
 }
 
-func (d *DynamicPriorityQueue) memAdjustment(w *DynamicPriorityWorkload) int {
+func (d *Queue) memAdjustment(w *dynamicPriorityWorkload) int {
 	if d.conf.JobSize.MemoryWeight == 0 {
 		return 0
 	}
@@ -367,20 +357,21 @@ func (d *DynamicPriorityQueue) memAdjustment(w *DynamicPriorityWorkload) int {
 }
 
 // Jobs implements base.Viewable.
-func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *queue.WorkloadIter {
+func (d *Queue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *queue.WorkloadIter {
 	pos := 0
 	workloads := []structs.QueueWorkload{}
 
 	for _, workload := range inProgress {
-		if w, ok := workload.(*DynamicPriorityWorkload); ok {
-			workloads = append(workloads, w.ToStruct(0))
+		if w, ok := workload.(*dynamicPriorityWorkload); ok {
+			workloads = append(workloads, w.ToStruct(pos))
 		}
 	}
 
 	d.queue.Iterate(func(workload queue.Workload) {
-		w := workload.(*DynamicPriorityWorkload)
-		pos++
-		workloads = append(workloads, w.ToStruct(pos))
+		if w, ok := workload.(*dynamicPriorityWorkload); ok {
+			pos++
+			workloads = append(workloads, w.ToStruct(pos))
+		}
 	})
 
 	iter := queue.NewWorkloadIter(workloads)
@@ -393,7 +384,7 @@ func (d *DynamicPriorityQueue) Jobs(sortOrder structs.SortOrder, inProgress []qu
 }
 
 // Tenants implements base.Viewable.
-func (d *DynamicPriorityQueue) Tenants() structs.QueueTenantsResponse {
+func (d *Queue) Tenants() structs.QueueTenantsResponse {
 	d.tMux.Lock()
 	defer d.tMux.Unlock()
 

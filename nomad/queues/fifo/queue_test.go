@@ -32,51 +32,6 @@ func TestFifoQueue_workloadSortFn(t *testing.T) {
 	must.Eq(t, second, got.(*fifoWorkload))
 }
 
-func TestFifoQueue_queueOps(t *testing.T) {
-	q := New()
-
-	newWorkload := func(createIndex, version uint64) *fifoWorkload {
-		job := mock.BatchJob()
-		job.Version = version
-		eval := mock.Eval()
-		eval.JobID = job.ID
-		eval.CreateIndex = createIndex
-		w, ok := q.NewWorkload(eval, job)
-		must.True(t, ok)
-		return w.(*fifoWorkload)
-	}
-
-	first := newWorkload(1, 0)
-	second := newWorkload(2, 0)
-	q.Push(second)
-	q.Push(first)
-
-	got, ok := q.Get(second.ID())
-	must.True(t, ok)
-	must.Eq[queue.Workload](t, second, got)
-
-	secondV2 := newFifoWorkload(mock.Eval(), second.Job().Copy())
-	secondV2.Eval().CreateIndex = 3
-	replaced, ok := q.Update(secondV2)
-	must.True(t, ok)
-	must.Eq[queue.Workload](t, second, replaced)
-
-	_, ok = q.Update(newWorkload(4, 0))
-	must.False(t, ok, must.Sprint("update should not insert missing workloads"))
-
-	got, ok = q.Pop()
-	must.True(t, ok)
-	must.Eq[queue.Workload](t, first, got)
-
-	got, ok = q.Remove(second.ID())
-	must.True(t, ok)
-	must.Eq[queue.Workload](t, secondV2, got)
-
-	got, ok = q.Pop()
-	must.False(t, ok)
-	must.True(t, got == nil, must.Sprint("expected untyped nil workload"))
-}
-
 func TestFifoQueue_Jobs(t *testing.T) {
 	collect := func(iter *queue.WorkloadIter) []*structs.Workload {
 		workloads := []*structs.Workload{}

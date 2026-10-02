@@ -21,26 +21,24 @@ type Queue interface {
 	Pop() (Workload, bool)
 	Get(structs.NamespacedID) (Workload, bool)
 	Remove(structs.NamespacedID) (Workload, bool)
-	// TODO: this doesnt really need to exist? Should Push just replace if
-	// the workload already exists on the
-	Update(Workload) (Workload, bool)
+	Swap(Workload) (Workload, bool)
 	Type() structs.BatchQueueType
 }
 
 type QueueManager interface {
 	SetEnabled(bool, *state.StateStore)
 	Enqueue(*structs.Evaluation)
-	Dequeue(*structs.Job) *structs.Evaluation
+	Dequeue(*structs.Job)
 	Queue(string) QueueRunner
 	UpdateQueue(*structs.NodePool) error
 }
 
 type QueueRunner interface {
-	Start(context.Context) error
+	Start(context.Context)
 	Stop()
 	Enqueue(*structs.Evaluation, *structs.Job)
 	Restore(*structs.Evaluation, *structs.Job) error
-	Dequeue(structs.NamespacedID) *structs.Evaluation
+	Dequeue(structs.NamespacedID)
 	Jobs(structs.SortOrder) *WorkloadIter
 	Tenants() structs.QueueTenantsResponse
 	Type() structs.BatchQueueType
@@ -50,7 +48,6 @@ type Workload interface {
 	ID() structs.NamespacedID
 	Eval() *structs.Evaluation
 	SetEval(*structs.Evaluation)
-	Job() *structs.Job
 	Status() string
 	SetStatus(string, string)
 	JobVersion() uint64

@@ -78,10 +78,10 @@ func (pq *WorkloadQueue) Get(id structs.NamespacedID) (Workload, bool) {
 	return wl, ok
 }
 
-// UpdateByID atomically replaces the workload with the same ID as updated,
+// Swap atomically replaces the workload with the same ID as updated,
 // returning the replaced workload. If no workload with that ID is in the
 // queue, updated is not inserted and false is returned.
-func (pq *WorkloadQueue) UpdateByID(updated Workload) (Workload, bool) {
+func (pq *WorkloadQueue) Swap(updated Workload) (Workload, bool) {
 	pq.mux.Lock()
 	defer pq.mux.Unlock()
 

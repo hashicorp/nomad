@@ -36,7 +36,7 @@ func NewQueue(
 		qType = conf.Type()
 	}
 
-	var queue runner.Queue
+	var queue queue.Queue
 	switch qType {
 	case structs.BatchQueueTypeDynamic:
 		queue = dynamic.New(logger.Named("dynamic_priority_queue"), ss, conf.DynamicPriority, pool)

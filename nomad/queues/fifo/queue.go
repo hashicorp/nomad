@@ -10,14 +10,14 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// FifoQueue orders workloads by the create index of their evaluation.
-type FifoQueue struct {
+// Queue orders workloads by the create index of their evaluation.
+type Queue struct {
 	queue queue.WorkloadQueue
 }
 
 // New returns the workload storage and ordering for a FIFO queue.
-func New() *FifoQueue {
-	return &FifoQueue{
+func New() *Queue {
+	return &Queue{
 		queue: queue.NewWorkloadQueue(workloadSortFn()),
 	}
 }
@@ -29,25 +29,25 @@ func workloadSortFn() func(i, j queue.Workload) int {
 }
 
 // NewWorkload implements base.Queue. All evals are accepted.
-func (f *FifoQueue) NewWorkload(e *structs.Evaluation, j *structs.Job) (queue.Workload, bool) {
+func (f *Queue) NewWorkload(e *structs.Evaluation, j *structs.Job) (queue.Workload, bool) {
 	return newFifoWorkload(e, j), true
 }
 
-func (f *FifoQueue) Type() structs.BatchQueueType {
+func (f *Queue) Type() structs.BatchQueueType {
 	return structs.BatchQueueTypeFifo
 }
 
 // Push implements base.Queue. The workload must have been created by
 // NewWorkload.
-func (f *FifoQueue) Push(w queue.Workload) {
-	f.queue.Push(w.(*fifoWorkload))
+func (f *Queue) Push(w queue.Workload) {
+	f.queue.Push(w)
 }
 
-func (f *FifoQueue) Pop() (queue.Workload, bool) {
+func (f *Queue) Pop() (queue.Workload, bool) {
 	return f.queue.Pop()
 }
 
-func (f *FifoQueue) Get(id structs.NamespacedID) (queue.Workload, bool) {
+func (f *Queue) Get(id structs.NamespacedID) (queue.Workload, bool) {
 	w, ok := f.queue.Get(id)
 	if !ok {
 		return nil, false
@@ -55,7 +55,7 @@ func (f *FifoQueue) Get(id structs.NamespacedID) (queue.Workload, bool) {
 	return w, true
 }
 
-func (f *FifoQueue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
+func (f *Queue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
 	w, ok := f.queue.Remove(id)
 	if !ok {
 		return nil, false
@@ -65,8 +65,8 @@ func (f *FifoQueue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
 
 // Update implements base.Queue. The workload must have been created by
 // NewWorkload.
-func (f *FifoQueue) Update(w queue.Workload) (queue.Workload, bool) {
-	old, ok := f.queue.UpdateByID(w.(*fifoWorkload))
+func (f *Queue) Swap(w queue.Workload) (queue.Workload, bool) {
+	old, ok := f.queue.Swap(w)
 	if !ok {
 		return nil, false
 	}
@@ -74,31 +74,21 @@ func (f *FifoQueue) Update(w queue.Workload) (queue.Workload, bool) {
 }
 
 // Jobs implements base.Viewable.
-func (f *FifoQueue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *queue.WorkloadIter {
+func (f *Queue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *queue.WorkloadIter {
 	pos := 0
 	workloads := []structs.QueueWorkload{}
 
-	newWorkloadStruct := func(w *fifoWorkload, position int) *structs.Workload {
-		eval := w.Eval()
-		return &structs.Workload{
-			JobID:       eval.JobID,
-			Namespace:   eval.Namespace,
-			Position:    position,
-			Status:      w.Status(),
-			CreatedAt:   eval.CreateTime,
-			CreateIndex: eval.CreateIndex,
-		}
-	}
-
 	for _, workload := range inProgress {
 		if w, ok := workload.(*fifoWorkload); ok {
-			workloads = append(workloads, newWorkloadStruct(w, 0))
+			workloads = append(workloads, w.toStruct(pos))
 		}
 	}
 
 	f.queue.Iterate(func(workload queue.Workload) {
-		pos++
-		workloads = append(workloads, newWorkloadStruct(workload.(*fifoWorkload), pos))
+		if w, ok := workload.(*fifoWorkload); ok {
+			pos++
+			workloads = append(workloads, w.toStruct(pos))
+		}
 	})
 
 	iter := queue.NewWorkloadIter(workloads)
@@ -111,6 +101,6 @@ func (f *FifoQueue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workloa
 }
 
 // Tenants implements base.Viewable.
-func (f *FifoQueue) Tenants() structs.QueueTenantsResponse {
+func (f *Queue) Tenants() structs.QueueTenantsResponse {
 	return structs.QueueTenantsResponse{Type: structs.BatchQueueTypeFifo}
 }

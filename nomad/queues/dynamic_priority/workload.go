@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type DynamicPriorityWorkload struct {
+type dynamicPriorityWorkload struct {
 	queue.BaseWorkload
 
 	tid      TenantID
@@ -22,7 +22,7 @@ type DynamicPriorityWorkload struct {
 	fairshareAdjustment int
 }
 
-func (w *DynamicPriorityWorkload) ToStruct(pos int) *structs.DynamicPriorityWorkload {
+func (w *dynamicPriorityWorkload) ToStruct(pos int) *structs.DynamicPriorityWorkload {
 	e := w.Eval()
 	return &structs.DynamicPriorityWorkload{
 		JobID:               e.JobID,

@@ -47,28 +47,6 @@ func testJobEval(pool *structs.NodePool, jobType, status string) (*structs.Evalu
 	return eval, job
 }
 
-func testStateStore(t *testing.T) *state.StateStore {
-	t.Helper()
-
-	store := state.TestStateStore(t)
-	must.NoError(t, store.UpsertNodePools(structs.MsgTypeTestSetup, 1, []*structs.NodePool{
-		poolWithConfig, poolWithoutConfig,
-	}))
-
-	evalWithQueue, jobWithQueue := testJobEval(poolWithConfig, structs.JobTypeBatch, structs.EvalStatusPending)
-	evalWithoutQueue, jobWithoutQueue := testJobEval(poolWithoutConfig, structs.JobTypeBatch, structs.EvalStatusPending)
-
-	// TODO: non-batch, non-pending evals
-
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, jobWithQueue))
-	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, jobWithoutQueue))
-	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{
-		evalWithQueue, evalWithoutQueue,
-	}))
-
-	return store
-}
-
 func TestBatchQueueManager_Disable(t *testing.T) {
 	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), &mocks.MockBroker{}, nil)
 
@@ -159,7 +137,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		enqueue := startingQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
 		restore := startingQ.On("Restore", nonPendingEval.ID, nonPendingEval.JobID).Once()
 		// Start should not run before enqueue and restore are done.
-		startingQ.On("Start").Once().NotBefore(enqueue, restore)
+		startingQ.On("Start", t.Context()).Once().NotBefore(enqueue, restore)
 		qm.newQueueFn = getNewQueueFn(startingQ)
 
 		qm.SetEnabled(true, store)
@@ -241,7 +219,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		poolQ := &mocks.MockQueueRunner{Name: "newQ"}
 		poolQ.Test(t)
 		enqueue := poolQ.On("Enqueue", evalWithoutQueue.ID, evalWithoutQueue.JobID).Once()
-		poolQ.On("Start").Once().NotBefore(enqueue)
+		poolQ.On("Start", t.Context()).Once().NotBefore(enqueue)
 		qm.newQueueFn = getNewQueueFn(poolQ)
 
 		must.NoError(t, qm.UpdateQueue(update))
@@ -267,7 +245,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		poolQ.Test(t)
 		enqueue := poolQ.On("Enqueue", evalWithQueue.ID, evalWithQueue.JobID).Once()
 		restore := poolQ.On("Restore", nonPendingEval.ID, nonPendingEval.JobID).Once()
-		poolQ.On("Start").Once().NotBefore(enqueue, restore)
+		poolQ.On("Start", t.Context()).Once().NotBefore(enqueue, restore)
 		qm.newQueueFn = getNewQueueFn(poolQ)
 
 		// update the queue

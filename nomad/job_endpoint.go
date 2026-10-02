@@ -831,19 +831,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 
 	// During job deregistration, the original job register eval may be sitting
 	// in a batch queue. If so, we cancel it here so it can be GC'd.
-	//
-	// TODO: this functionality will move into the BQM via a closure
-	if e := j.srv.batchQueueMgr.Dequeue(job); e != nil {
-		e = e.Copy()
-		e.Status = structs.EvalStatusCancelled
-
-		_, _, err := j.srv.raftApply(structs.EvalUpdateRequestType, &structs.EvalUpdateRequest{
-			Evals: []*structs.Evaluation{e},
-		})
-		if err != nil {
-			j.logger.Error("failed to cancel batch queue evaluation")
-		}
-	}
+	j.srv.batchQueueMgr.Dequeue(job)
 
 	// If the job is periodic or parameterized, we don't create an eval.
 	if !(job.IsPeriodic() || job.IsParameterized()) {

@@ -44,7 +44,7 @@ type MockBroker struct {
 }
 
 func (m *MockBroker) Enqueue(e *structs.Evaluation) {
-	m.Called(e.JobID) // concrete type for cleaner assertions
+	m.Called(e)
 }
 
 type MockQueueRunner struct {
@@ -60,9 +60,8 @@ func (m *MockQueueRunner) Type() structs.BatchQueueType {
 	return "test"
 }
 
-func (m *MockQueueRunner) Start(context.Context) error {
-	m.Called()
-	return nil
+func (m *MockQueueRunner) Start(ctx context.Context) {
+	m.Called(ctx)
 }
 
 func (m *MockQueueRunner) Stop() {
@@ -80,10 +79,8 @@ func (m *MockQueueRunner) Enqueue(e *structs.Evaluation, j *structs.Job) {
 	m.Called(e.ID, j.ID)
 }
 
-func (m *MockQueueRunner) Dequeue(id structs.NamespacedID) *structs.Evaluation {
-	args := m.Called(id)
-
-	return args.Get(0).(*structs.Evaluation)
+func (m *MockQueueRunner) Dequeue(id structs.NamespacedID) {
+	m.Called(id)
 }
 
 func (m *MockQueueRunner) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter {
@@ -115,37 +112,36 @@ func (m *MockQueue) NewWorkload(e *structs.Evaluation, j *structs.Job) (queue.Wo
 	wl, _ := args.Get(0).(queue.Workload)
 	return wl, args.Bool(1)
 }
+
 func (m *MockQueue) Push(w queue.Workload) {
 	m.Called(w)
 }
+
 func (m *MockQueue) Pop() (queue.Workload, bool) {
 	args := m.Called()
 	wl, _ := args.Get(0).(queue.Workload)
 	return wl, args.Bool(1)
 }
+
 func (m *MockQueue) Get(id structs.NamespacedID) (queue.Workload, bool) {
 	args := m.Called(id)
 	wl, _ := args.Get(0).(queue.Workload)
 	return wl, args.Bool(1)
 }
+
 func (m *MockQueue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
 	args := m.Called(id)
 	wl, _ := args.Get(0).(queue.Workload)
 	return wl, args.Bool(1)
 }
-func (m *MockQueue) Update(w queue.Workload) (queue.Workload, bool) {
+
+func (m *MockQueue) Swap(w queue.Workload) (queue.Workload, bool) {
 	args := m.Called(w)
 	wl, _ := args.Get(0).(queue.Workload)
 	return wl, args.Bool(1)
 }
-func (m *MockQueue) Type() structs.BatchQueueType {
-	return ""
-}
 
-// NewWorkload(*structs.Evaluation, *structs.Job) (queue.Workload, bool)
-// Push(queue.Workload)
-// Pop() (queue.Workload, bool)
-// Get(structs.NamespacedID) (queue.Workload, bool)
-// Remove(structs.NamespacedID) (queue.Workload, bool)
-// Update(queue.Workload) (queue.Workload, bool)
-// Type() structs.BatchQueueType
+func (m *MockQueue) Type() structs.BatchQueueType {
+	args := m.Called()
+	return args.Get(0).(structs.BatchQueueType)
+}

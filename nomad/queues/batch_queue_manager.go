@@ -151,19 +151,21 @@ func (qm *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 	qm.Queue(job.NodePool).Enqueue(e, job)
 }
 
-func (qm *BatchQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
+// Dequeue removes a job from the node pool queue. If no queue exists for that
+// node pool, or the job is not on the queue, it is a noop.
+func (qm *BatchQueueManager) Dequeue(job *structs.Job) {
 	if job == nil {
-		return nil
+		return
 	}
 
 	if !qm.enabled.Load() {
-		return nil
+		return
 	}
 
 	qm.mut.Lock()
 	defer qm.mut.Unlock()
 
-	return qm.Queue(job.NodePool).Dequeue(job.NamespacedID())
+	qm.Queue(job.NodePool).Dequeue(job.NamespacedID())
 }
 
 // Queue returns a pointer to a queue. This is used by RPC handlers

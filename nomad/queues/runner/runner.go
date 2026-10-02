@@ -17,31 +17,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Queue is implemented by queue implementations to store and order their
-// workloads. Implementations must be safe for concurrent use.
-//
-// The runner only ever passes an implementation workloads that were created
-// by its own NewWorkload, so implementations may type assert them to their
-// concrete workload type.
-type Queue interface {
-	// NewWorkload builds an implementation-specific workload for the eval and
-	// job. If it returns false, the eval does not belong in the queue and is
-	// sent straight to the eval broker.
-	NewWorkload(*structs.Evaluation, *structs.Job) (queue.Workload, bool)
-	Push(queue.Workload)
-	Pop() (queue.Workload, bool)
-	Get(structs.NamespacedID) (queue.Workload, bool)
-	Remove(structs.NamespacedID) (queue.Workload, bool)
-	// Update atomically replaces the workload with the same ID, returning
-	// the replaced workload. It returns false and does not insert the
-	// workload if there is nothing to replace.
-
-	// TODO: this doesnt really need to exist? Should Push just replace if
-	// the workload already exists on the queue?
-	Update(queue.Workload) (queue.Workload, bool)
-	Type() structs.BatchQueueType
-}
-
 // Runnable may be implemented by a Queue that needs a background goroutine,
 // for example to periodically re-prioritize its workloads.
 type Runnable interface {
@@ -60,7 +35,7 @@ var _ queue.QueueRunner = (*QueueRunner)(nil)
 
 // QueueRunner implements queue.Queue for any Queue implementation.
 type QueueRunner struct {
-	queue Queue
+	queue queue.Queue
 
 	// enqueueCh is used to buffer workloads before they are processed by
 	// the producer and pushed onto the queue.
@@ -89,7 +64,7 @@ type QueueRunner struct {
 // New returns a QueueRunner around the given queue implementation.
 func New(
 	logger hclog.Logger,
-	q Queue,
+	q queue.Queue,
 	broker queue.Broker,
 	ss *state.StateStore,
 	cancelFn queue.EvalCancelFn,
@@ -110,7 +85,7 @@ func (qr *QueueRunner) Type() structs.BatchQueueType { return qr.queue.Type() }
 
 // Start runs the queue's goroutines. Any Restore calls must happen before
 // Start.
-func (qr *QueueRunner) Start(ctx context.Context) error {
+func (qr *QueueRunner) Start(ctx context.Context) {
 	rCtx, cancel := context.WithCancel(ctx)
 	qr.cancel = cancel
 
@@ -126,8 +101,6 @@ func (qr *QueueRunner) Start(ctx context.Context) error {
 	qr.wg.Go(func() {
 		qr.runConsumer(rCtx)
 	})
-
-	return nil
 }
 
 func (qr *QueueRunner) Stop() {
@@ -149,11 +122,10 @@ func (qr *QueueRunner) Enqueue(e *structs.Evaluation, j *structs.Job) {
 }
 
 // Dequeue removes a job's workload from the queue, returning its eval.
-func (qr *QueueRunner) Dequeue(id structs.NamespacedID) *structs.Evaluation {
+func (qr *QueueRunner) Dequeue(id structs.NamespacedID) {
 	if wl, ok := qr.queue.Remove(id); ok {
-		return wl.Eval()
+		qr.cancelEval(wl.Eval())
 	}
-	return nil
 }
 
 // Restore takes a non-pending eval that was previously sent to the eval
@@ -296,7 +268,7 @@ func (qr *QueueRunner) cancelRedundant(w queue.Workload) bool {
 	if w.JobVersion() > existing.JobVersion() {
 		// Update removes and replaces the workload in the same locking
 		// transaction.
-		replaced, ok := qr.queue.Update(w)
+		replaced, ok := qr.queue.Swap(w)
 		if !ok {
 			// the existing workload left the queue since Get, so there is
 			// nothing to replace and w should be pushed as normal.
@@ -313,12 +285,14 @@ func (qr *QueueRunner) cancelRedundant(w queue.Workload) bool {
 func (qr *QueueRunner) cancelEval(e *structs.Evaluation) {
 	if err := qr.evalCancelFn(e); err != nil {
 		qr.logger.Error("failed to cancel redundant eval", "eval_id", e.ID, "error", err)
+
+		// We failed to cancel this evaluation, so just enqueue it on the broker.
+		qr.evalBroker.Enqueue(e)
 	}
 }
 
-// skipQueue lets the caller know if an alloc already exists for the job, or we are currently watching the job.
-// In these situations, we don't want to enqueue the workload, and the caller should directly enqueue the workload
-// on the eval broker.
+// skipQueue lets the caller know if an alloc already exists for the job+version, or the
+// queue is currently watching the job.
 func (qr *QueueRunner) skipQueue(w queue.Workload) bool {
 	e := w.Eval()
 	j, err := qr.state.JobByIDAndVersion(nil, e.Namespace, e.JobID, w.JobVersion())
@@ -331,11 +305,17 @@ func (qr *QueueRunner) skipQueue(w queue.Workload) bool {
 	allocs, _ := qr.state.AllocsByJob(nil, e.Namespace, e.JobID, true)
 	for _, a := range allocs {
 		if a.Job.Version == j.Version {
-			qr.evalBroker.Enqueue(w.Eval())
+			qr.evalBroker.Enqueue(e)
 			return true
 		}
 	}
 
-	// TODO this does not check the workload we are currently "watching"
+	// Check if we are watching a workload of the same ID and version
+	for _, inProgress := range qr.watcher.GetInProgressWorkloads() {
+		if inProgress.ID() == w.ID() && inProgress.JobVersion() == w.JobVersion() {
+			return true
+		}
+	}
+
 	return false
 }

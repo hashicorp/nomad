@@ -18,8 +18,6 @@ type BaseWorkload struct {
 
 	jobVersion uint64
 
-	job *structs.Job
-
 	status string
 
 	description string
@@ -30,7 +28,6 @@ func NewBaseWorkload(e *structs.Evaluation, j *structs.Job, status string) BaseW
 		id:         j.NamespacedID(),
 		eval:       e,
 		jobVersion: j.Version,
-		job:        j,
 		status:     status,
 	}
 }
@@ -41,10 +38,6 @@ func (b *BaseWorkload) ID() structs.NamespacedID {
 
 func (b *BaseWorkload) Eval() *structs.Evaluation {
 	return b.eval
-}
-
-func (b *BaseWorkload) Job() *structs.Job {
-	return b.job
 }
 
 func (b *BaseWorkload) SetEval(e *structs.Evaluation) {
