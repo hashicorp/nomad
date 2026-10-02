@@ -44,11 +44,7 @@ func (f *FifoQueue) Push(w queue.Workload) {
 }
 
 func (f *FifoQueue) Pop() (queue.Workload, bool) {
-	w, ok := f.queue.Pop()
-	if !ok {
-		return nil, false
-	}
-	return w, true
+	return f.queue.Pop()
 }
 
 func (f *FifoQueue) Get(id structs.NamespacedID) (queue.Workload, bool) {

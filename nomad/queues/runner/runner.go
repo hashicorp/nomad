@@ -271,8 +271,9 @@ func (qr *QueueRunner) runConsumer(ctx context.Context) {
 }
 
 // waitForPlacement blocks until the workload finishes scheduling. It returns
-// false if the context was canceled.
-func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) bool {
+// false only if the context was canceled, so the runner can shut down.
+func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) (contextCanceled bool) {
+
 	err := qr.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
 	if err != nil {
 		if errors.Is(err, context.Canceled) || ctx.Err() != nil {

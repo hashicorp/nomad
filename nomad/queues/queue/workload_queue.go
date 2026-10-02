@@ -39,7 +39,7 @@ func NewWorkloadQueue(sortFn func(i, j Workload) int) WorkloadQueue {
 	}
 }
 
-func (pq WorkloadQueue) Len() int {
+func (pq *WorkloadQueue) Len() int {
 	pq.mux.Lock()
 	defer pq.mux.Unlock()
 
