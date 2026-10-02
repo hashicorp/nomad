@@ -10,6 +10,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+const (
+	WorkloadStatusQueued  = "queued"
+	WorkloadStatusPlacing = "placing"
+	WorkloadStatusBlocked = "blocked"
+)
+
 type EvalCancelFn func(*structs.Evaluation) error
 
 // Queue is the main interface that must be implemented to create a
