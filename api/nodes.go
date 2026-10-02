@@ -724,7 +724,7 @@ type CSIInfo struct {
 // DrainStrategy describes a Node's drain behavior.
 type DrainStrategy struct {
 	// DrainSpec is the user declared drain specification
-	DrainSpec
+	DrainSpec `mapstructure:",squash"`
 
 	// ForceDeadline is the deadline time for the drain after which drains will
 	// be forced
@@ -743,6 +743,14 @@ type DrainSpec struct {
 	// IgnoreSystemJobs allows systems jobs to remain on the node even though it
 	// has been marked for draining.
 	IgnoreSystemJobs bool
+
+	// DurationAware permits bounded batch allocs during a drain with a
+	// deadline.
+	DurationAware bool
+
+	// BackfillBuffer adds headroom beyond runtime and declared shutdown delays.
+	// Zero uses the server default of 30 seconds.
+	BackfillBuffer time.Duration
 }
 
 func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
@@ -757,6 +765,12 @@ func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
 		return false
 	}
 	if d.IgnoreSystemJobs != o.IgnoreSystemJobs {
+		return false
+	}
+	if d.DurationAware != o.DurationAware {
+		return false
+	}
+	if d.BackfillBuffer != o.BackfillBuffer {
 		return false
 	}
 

@@ -122,7 +122,7 @@ func (s *SysBatchScheduler) process() (bool, error) {
 	// Get the ready nodes in the required datacenters
 	if !s.job.Stopped() {
 		s.nodes, s.notReadyNodes, s.nodesByDC, err = readyNodesInDCsAndPool(
-			s.state, s.job.Datacenters, s.job.NodePool)
+			s.state, s.job.Datacenters, s.job.NodePool, true)
 		if err != nil {
 			return false, fmt.Errorf("failed to get ready nodes: %v", err)
 		}
