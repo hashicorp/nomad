@@ -23,7 +23,7 @@ type BatchQueueManager struct {
 	// broker is passed to queues to forward to when ready.
 	broker queue.Broker
 	// passthrough is a fallback queue that passes evals straight to the broker.
-	passthrough queue.Queue
+	passthrough queue.QueueRunner
 
 	// enabled and state are set when the server runs SetEnabled(true)
 	enabled atomic.Bool
@@ -50,7 +50,7 @@ type newQueueFn func(
 	queue.Broker,
 	string,
 	queue.EvalCancelFn,
-) queue.Queue
+) queue.QueueRunner
 
 // NewBatchQueueMgr returns a BatchQueueManager. It must be enabled via
 // SetEnabled(true) before it will start processing jobs.
@@ -151,24 +151,26 @@ func (qm *BatchQueueManager) Enqueue(e *structs.Evaluation) {
 	qm.Queue(job.NodePool).Enqueue(e, job)
 }
 
-func (qm *BatchQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
+// Dequeue removes a job from the node pool queue. If no queue exists for that
+// node pool, or the job is not on the queue, it is a noop.
+func (qm *BatchQueueManager) Dequeue(job *structs.Job) {
 	if job == nil {
-		return nil
+		return
 	}
 
 	if !qm.enabled.Load() {
-		return nil
+		return
 	}
 
 	qm.mut.Lock()
 	defer qm.mut.Unlock()
 
-	return qm.Queue(job.NodePool).Dequeue(job.NamespacedID())
+	qm.Queue(job.NodePool).Dequeue(job.NamespacedID())
 }
 
 // Queue returns a pointer to a queue. This is used by RPC handlers
 // to get the jobs or tenants in a queue.
-func (qm *BatchQueueManager) Queue(pool string) queue.Queue {
+func (qm *BatchQueueManager) Queue(pool string) queue.QueueRunner {
 	if q, ok := qm.qk.Get(pool); ok {
 		return q
 	}

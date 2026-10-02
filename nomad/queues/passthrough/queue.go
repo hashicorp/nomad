@@ -30,13 +30,13 @@ func (p *PassthroughQueue) Type() structs.BatchQueueType {
 func (p *PassthroughQueue) Restore(_ *structs.Evaluation, _ *structs.Job) error { return nil }
 
 // Start is a noop for the passthrough implementation
-func (p *PassthroughQueue) Start(context.Context) error { return nil }
+func (p *PassthroughQueue) Start(context.Context) {}
 
 func (p *PassthroughQueue) Stop() {}
 
 func (p *PassthroughQueue) Enqueue(e *structs.Evaluation, _ *structs.Job) { p.evalBroker.Enqueue(e) }
 
-func (p *PassthroughQueue) Dequeue(structs.NamespacedID) *structs.Evaluation { return nil }
+func (p *PassthroughQueue) Dequeue(structs.NamespacedID) {}
 
 func (p *PassthroughQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
 	return &queue.WorkloadIter{}
