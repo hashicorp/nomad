@@ -19,19 +19,20 @@ type MockQueueManager struct {
 func (m *MockQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
 	m.Called(enabled, state)
 }
+
 func (m *MockQueueManager) Enqueue(e *structs.Evaluation) {
 	m.Called(e)
 }
-func (m *MockQueueManager) Dequeue(job *structs.Job) *structs.Evaluation {
-	if args := m.Called(job); args.Get(0) != nil {
-		return args.Get(0).(*structs.Evaluation)
-	}
-	return nil
+
+func (m *MockQueueManager) Dequeue(job *structs.Job) {
+	m.Called(job)
 }
+
 func (m *MockQueueManager) Queue(pool string) queue.QueueRunner {
 	// Queue on the real manager should never return nil
 	return m.Called(pool).Get(0).(queue.QueueRunner)
 }
+
 func (m *MockQueueManager) UpdateQueue(pool *structs.NodePool) error {
 	if args := m.Called(pool); args.Get(0) != nil {
 		return args.Get(0).(error)

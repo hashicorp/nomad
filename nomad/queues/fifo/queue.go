@@ -63,7 +63,7 @@ func (f *Queue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
 	return w, true
 }
 
-// Update implements base.Queue. The workload must have been created by
+// Swap implements base.Queue. The workload must have been created by
 // NewWorkload.
 func (f *Queue) Swap(w queue.Workload) (queue.Workload, bool) {
 	old, ok := f.queue.Swap(w)
