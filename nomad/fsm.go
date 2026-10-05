@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/queues"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
@@ -133,7 +133,7 @@ type SnapshotRestorers map[SnapshotType]SnapshotRestorer
 // this outside the Server to avoid exposing this outside the package.
 type nomadFSM struct {
 	evalBroker         *EvalBroker
-	batchQueue         queues.QueueManager
+	batchQueue         queue.QueueManager
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
 	encrypter          *Encrypter
@@ -173,7 +173,7 @@ type FSMConfig struct {
 	EvalBroker *EvalBroker
 
 	// BatchQueue is the configured queue for batch job registrations
-	BatchQueue queues.QueueManager
+	BatchQueue queue.QueueManager
 
 	// Periodic is the periodic job dispatcher that periodic jobs should be
 	// added/removed from

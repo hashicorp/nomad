@@ -17,3 +17,15 @@ func newFifoWorkload(e *structs.Evaluation, j *structs.Job) *fifoWorkload {
 		BaseWorkload: queue.NewBaseWorkload(e, j, queue.WorkloadStatusQueued),
 	}
 }
+
+func (f *fifoWorkload) toStruct(pos int) *structs.Workload {
+	e := f.Eval()
+	return &structs.Workload{
+		JobID:       e.JobID,
+		Namespace:   e.Namespace,
+		Position:    pos,
+		Status:      f.Status(),
+		CreatedAt:   e.CreateTime,
+		CreateIndex: e.CreateIndex,
+	}
+}

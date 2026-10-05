@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/queues"
+	"github.com/hashicorp/nomad/nomad/queues/mocks"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -67,13 +67,13 @@ func TestBatchJobQueue_Jobs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockQueue := new(queues.MockQueue)
+			mockQueue := new(mocks.MockQueueRunner)
 			mockQueue.On("Jobs", tmock.Anything).Return(&queue.WorkloadIter{
 				Workloads: []structs.QueueWorkload{workload1, workload2, workload3},
 			})
 			mockQueue.On("Stop")
 
-			mockMgr := &queues.MockQueueManager{}
+			mockMgr := &mocks.MockQueueManager{}
 			mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
 			mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
 			s.batchQueueMgr = mockMgr
@@ -146,7 +146,7 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockQueue := new(queues.MockQueue)
+			mockQueue := new(mocks.MockQueueRunner)
 			mockQueue.On("Jobs", tmock.Anything).Return(&queue.WorkloadIter{
 				Workloads: []structs.QueueWorkload{
 					workload1,
@@ -157,7 +157,7 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 
 			mockQueue.On("Stop")
 
-			mockMgr := &queues.MockQueueManager{}
+			mockMgr := &mocks.MockQueueManager{}
 			mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
 			mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
 			s1.batchQueueMgr = mockMgr
@@ -181,7 +181,7 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, s.RPC)
 
-	mockQueue := new(queues.MockQueue)
+	mockQueue := new(mocks.MockQueueRunner)
 	mockQueue.On("Tenants").Return(structs.QueueTenantsResponse{
 		Type: "test",
 		Tenants: []string{
@@ -190,7 +190,7 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 	})
 	mockQueue.On("Stop")
 
-	mockMgr := &queues.MockQueueManager{}
+	mockMgr := &mocks.MockQueueManager{}
 	mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
 	mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
 	s.batchQueueMgr = mockMgr
@@ -247,11 +247,11 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockQueue := new(queues.MockQueue)
+			mockQueue := new(mocks.MockQueueRunner)
 			mockQueue.On("Tenants").Return(tc.resp)
 			mockQueue.On("Stop")
 
-			mockMgr := &queues.MockQueueManager{}
+			mockMgr := &mocks.MockQueueManager{}
 			mockMgr.On("SetEnabled", tmock.Anything, tmock.Anything).Return(nil)
 			mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
 			s1.batchQueueMgr = mockMgr

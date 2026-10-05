@@ -21,17 +21,14 @@ type BaseWorkload struct {
 	status string
 
 	description string
-
-	waitOnRestore bool
 }
 
 func NewBaseWorkload(e *structs.Evaluation, j *structs.Job, status string) BaseWorkload {
 	return BaseWorkload{
-		id:            j.NamespacedID(),
-		eval:          e,
-		jobVersion:    j.Version,
-		waitOnRestore: false,
-		status:        status,
+		id:         j.NamespacedID(),
+		eval:       e,
+		jobVersion: j.Version,
+		status:     status,
 	}
 }
 
@@ -61,12 +58,4 @@ func (b *BaseWorkload) Status() string {
 func (b *BaseWorkload) SetStatus(status, description string) {
 	b.status = status
 	b.description = description
-}
-
-func (b *BaseWorkload) WaitOnRestore() bool {
-	return b.waitOnRestore
-}
-
-func (b *BaseWorkload) SetWaitOnRestore(w bool) {
-	b.waitOnRestore = w
 }
