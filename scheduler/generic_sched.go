@@ -729,9 +729,11 @@ func (s *GenericScheduler) computePlacements(
 					// Track the fact that we didn't find a placement
 					s.failedTGAllocs[tg.Name] = reporting
 				}
-				s.ctx.Metrics().AddBlockedDependencies(s.blockers...)
-				// Track the fact that we didn't find a placement
-				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
+
+				// Add any blocked dependencies to the metrics
+				if len(s.blockers) > 0 {
+					s.failedTGAllocs[tg.Name].AddBlockedDependencies(s.blockers...)
+				}
 
 				// If we weren't able to find a placement for the allocation, back
 				// out the fact that we asked to stop the allocation.
