@@ -354,3 +354,60 @@ func TestPlanCommand_TemplateOutput(t *testing.T) {
 	out := strings.TrimSpace(ui.OutputWriter.String())
 	must.Eq(t, "job1", out, must.Sprintf("expected job ID 'job1', got: %s", out))
 }
+
+func TestFormatFieldDiff_EmbeddedTmplUsesCmpDiff(t *testing.T) {
+	ci.Parallel(t)
+
+	oldTmpl := `{
+  "service": {
+    "name": "nonce",
+    "grpc": {
+      "address": "{{ env "NOMAD_ADDR_grpc" }}",
+      "maxConnectionAge": "60s"
+    }
+  }
+}
+`
+	newTmpl := `{
+  "service": {
+    "name": "nonce",
+    "grpc": {
+      "address": "{{ env "NOMAD_ADDR_grpc" }}",
+      "maxConnectionAge": "30s"
+    }
+  }
+}
+`
+
+	diff := &api.FieldDiff{
+		Type: "Edited",
+		Name: "EmbeddedTmpl",
+		Old:  oldTmpl,
+		New:  newTmpl,
+	}
+
+	out := formatFieldDiff(diff, 0, 0, 0)
+
+	// Uses cmp.Diff output (leading +/- markers), not the flat
+	// `"Old" => "New"` string concatenation used for other fields.
+	must.StrContains(t, out, `"""`)
+	must.StrContains(t, out, `"maxConnectionAge": "60s"`)
+	must.StrContains(t, out, `"maxConnectionAge": "30s"`)
+	must.StrNotContains(t, out, `" => "`)
+}
+
+func TestFormatFieldDiff_NonEmbeddedTmplUsesFlatFormat(t *testing.T) {
+	ci.Parallel(t)
+
+	diff := &api.FieldDiff{
+		Type: "Edited",
+		Name: "SomeOtherField",
+		Old:  "60s",
+		New:  "30s",
+	}
+
+	out := formatFieldDiff(diff, 0, 0, 0)
+
+	// Non-EmbeddedTmpl fields keep the existing flat format.
+	must.StrContains(t, out, `"60s" => "30s"`)
+}
