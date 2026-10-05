@@ -130,7 +130,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shoenig/go-landlock v1.3.1
-	github.com/shoenig/go-m1cpu v0.2.2
+	github.com/shoenig/go-m1cpu v0.2.3
 	github.com/shoenig/test v1.13.2
 	github.com/stretchr/testify v1.12.1
 	github.com/zclconf/go-cty v1.19.0
