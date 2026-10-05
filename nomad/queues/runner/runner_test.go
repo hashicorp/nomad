@@ -92,6 +92,7 @@ func TestQueueRunner_Restore(t *testing.T) {
 	must.NoError(t, qr.Restore(blockedEval, job))
 
 	must.Eq(t, 1, len(qr.restored))
+	q.AssertExpectations(t)
 }
 
 // A newer version of a queued job replaces the queued workload and cancels
@@ -114,6 +115,7 @@ func TestQueueRunner_CancelRedundant(t *testing.T) {
 
 		must.True(t, qr.cancelRedundant(incoming))
 		must.Eq(t, []*structs.Evaluation{queued.Eval()}, canceler.canceled)
+		q.AssertExpectations(t)
 	})
 
 	t.Run("same version cancels new eval", func(t *testing.T) {
@@ -129,6 +131,7 @@ func TestQueueRunner_CancelRedundant(t *testing.T) {
 
 		must.True(t, qr.cancelRedundant(incoming))
 		must.Eq(t, []*structs.Evaluation{incoming.Eval()}, canceler.canceled)
+		q.AssertExpectations(t)
 	})
 }
 
@@ -220,6 +223,7 @@ func TestQueueRunner_Dequeue(t *testing.T) {
 
 	must.Len(t, 1, canceler.canceled)
 	must.Eq(t, canceler.canceled[0], wl.Eval())
+	q.AssertExpectations(t)
 }
 
 // pendingEvalWithJob returns a pending eval for a new batch job, and stores the eval
