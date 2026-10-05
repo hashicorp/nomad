@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed incorrect CPU fingerprinting of Apple M4 chips
+```
