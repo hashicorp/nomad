@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug where additional capabilities could be added to the CSI `plugin status` command output when the `-verbose` flag was used that were not supported by the plugin
+```
