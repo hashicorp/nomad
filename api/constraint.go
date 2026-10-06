@@ -19,6 +19,13 @@ const (
 	ConstraintSetContainsAny    = "set_contains_any"
 	ConstraintAttributeIsSet    = "is_set"
 	ConstraintAttributeIsNotSet = "is_not_set"
+
+	JobDependencyComplete   = "jobComplete"   // All expected allocations are complete
+	JobDependencyRunning    = "jobRunning"    // All expected allocations are running
+	JobDependencyRecovering = "jobRecovering" // Some allocations are pending
+	JobDependencyLost       = "jobLost"       // All allocations are unknown
+	JobDependencyFailed     = "jobFailed"     // All allocations are failed, lost, or unplaced
+	JobDependencyStopped    = "jobStopped"    // The job has been manually stopped
 )
 
 // Constraint is used to serialize a job placement constraint.
@@ -51,7 +58,7 @@ func NewJobDependency(name, status string) *JobDependency {
 
 func (d *JobDependency) Canonicalize() {
 	if d.Status == "" {
-		d.Status = "dead"
+		d.Status = JobDependencyComplete
 	}
 }
 
@@ -68,14 +75,22 @@ func (d *JobDependency) Validate() error {
 	if d.Name == "" {
 		return errors.New("dependency job name is required")
 	}
+
+	switch d.Status {
+	case JobDependencyComplete, JobDependencyRunning, JobDependencyRecovering,
+		JobDependencyLost, JobDependencyFailed, JobDependencyStopped:
+
+	default:
+		return errors.New("invalid state for dependency job")
+	}
+
 	return nil
 }
 
 // JobDependencies is used to serialize a job placement dependency.
 type JobDependencies struct {
-	Timeout         *time.Duration   `hcl:"timeout,optional"`
-	ActionOnTimeout string           `hcl:"action_on_timeout,optional"`
-	Jobs            []*JobDependency `hcl:"job,block"`
+	Timeout *time.Duration   `hcl:"timeout,optional"`
+	Jobs    []*JobDependency `hcl:"job,block"`
 }
 
 func NewJobDependencies(timeout, actionOnTimeout string, jobs ...*JobDependency) *JobDependencies {
@@ -86,17 +101,15 @@ func NewJobDependencies(timeout, actionOnTimeout string, jobs ...*JobDependency)
 
 	duration, _ := time.ParseDuration(timeout)
 	return &JobDependencies{
-		Timeout:         &duration,
-		ActionOnTimeout: actionOnTimeout,
-		Jobs:            copyJobs,
+		Timeout: &duration,
+		Jobs:    copyJobs,
 	}
 }
 
 func (d *JobDependencies) Canonicalize() {
-	if d.ActionOnTimeout == "" {
-		d.ActionOnTimeout = "reject"
+	if d.Timeout == nil {
+		d.Timeout = new(60 * time.Minute)
 	}
-
 	for _, job := range d.Jobs {
 		job.Canonicalize()
 	}
@@ -113,9 +126,8 @@ func (d *JobDependencies) Copy() *JobDependencies {
 	}
 
 	return &JobDependencies{
-		Timeout:         d.Timeout,
-		ActionOnTimeout: d.ActionOnTimeout,
-		Jobs:            jobs,
+		Timeout: d.Timeout,
+		Jobs:    jobs,
 	}
 }
 
@@ -126,10 +138,6 @@ func (d *JobDependencies) Validate() error {
 
 	if d.Timeout == nil || *d.Timeout == 0 {
 		return errors.New("dependency timeout is required")
-	}
-
-	if d.ActionOnTimeout != "" && d.ActionOnTimeout != "reject" {
-		return errors.New("dependency action on timeout is invalid")
 	}
 
 	if len(d.Jobs) == 0 {
