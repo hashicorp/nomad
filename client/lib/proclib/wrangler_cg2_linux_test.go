@@ -78,4 +78,7 @@ func TestProcessWrangler(t *testing.T) {
 	case <-time.After(300 * time.Millisecond):
 		t.Fatalf("sleep did not exit")
 	}
+
+	// Destroy should be idempotent
+	must.NoError(t, w.Destroy(task))
 }
