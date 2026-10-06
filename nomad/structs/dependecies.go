@@ -13,8 +13,12 @@ import (
 )
 
 const (
-	DependencyActionReject   = "reject"
-	DependencyActionDispatch = "dispatch"
+	JobDependencyComplete   = "jobComplete"   // All expected allocations are complete
+	JobDependencyRunning    = "jobRunning"    // All expected allocations are running
+	JobDependencyRecovering = "jobRecovering" // Some allocations are pending
+	JobDependencyLost       = "jobLost"       // All allocations are unknown
+	JobDependencyFailed     = "jobFailed"     // All allocations are failed, lost, or unplaced
+	JobDependencyStopped    = "jobStopped"    // The job has been manually stopped
 )
 
 type JobDependency struct {
@@ -41,6 +45,14 @@ func (d *JobDependency) Validate() error {
 		return errors.New("dependency job name is mandatory")
 	}
 
+	switch d.Status {
+	case JobDependencyComplete, JobDependencyRunning, JobDependencyRecovering,
+		JobDependencyLost, JobDependencyFailed, JobDependencyStopped:
+
+	default:
+		return errors.New("invalid state for dependency job")
+	}
+
 	return nil
 }
 
@@ -50,7 +62,7 @@ func (d *JobDependency) Canonicalize() {
 	}
 
 	if d.Status == "" {
-		d.Status = "completed"
+		d.Status = JobDependencyComplete
 	}
 }
 
@@ -153,6 +165,10 @@ func (d *JobDependencies) Validate() error {
 func (d *JobDependencies) Canonicalize() {
 	if d == nil {
 		return
+	}
+
+	if d.Timeout == 0 {
+		d.Timeout = 60 * time.Minute
 	}
 
 	for _, job := range d.Jobs {

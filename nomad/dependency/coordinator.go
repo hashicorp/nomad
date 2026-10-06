@@ -74,18 +74,13 @@ func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
 	}
 }
 
-func (c *Coordinator) removeDeps(eval *structs.Evaluation, dependeeJobs map[string]*structs.Job) error {
-	for _, job := range dependeeJobs {
-		// The dependee job was never present but the dependant will be unblocked
-		// after it timed out.
-		if job == nil {
-			continue
-		}
+func (c *Coordinator) removeDeps(dependeeJobs map[string][]*structs.Allocation) error {
+	for jobID, _ := range dependeeJobs {
 
 		c.l.Lock()
 		defer c.l.Unlock()
 
-		if err := c.loopDetector.RemoveNode(eval.JobID); err != nil {
+		if err := c.loopDetector.RemoveNode(jobID); err != nil {
 			c.logger.Error("failed to remove dependency", "error", err)
 		}
 	}
@@ -112,7 +107,7 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 	numDeps := len(job.Dependencies.Jobs)
 
 	djNames := make([]string, 0, numDeps)
-	djs := make(map[string]*structs.Job, numDeps)
+	djs := make(map[string][]*structs.Allocation, numDeps)
 
 	for _, depJob := range job.Dependencies.Jobs {
 		if depJob == nil || depJob.Name == "" {
@@ -123,7 +118,7 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 			continue
 		}
 
-		dependentJob, err := state.JobByID(nil, job.Namespace, depJob.Name)
+		dependantAllocs, err := state.AllocsByJob(nil, job.Namespace, depJob.Name, true)
 		if err != nil {
 			c.logger.Error("failed to get dependency job", "job_id", depJob.Name,
 				"error", err)
@@ -133,7 +128,7 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 		// dependentJob may be nil in cases where the dependent job has not been
 		// scheduled yet. That's intentional: the presence of the key means
 		// this dependency has already been processed.
-		djs[depJob.Name] = dependentJob
+		djs[depJob.Name] = dependantAllocs
 		djNames = append(djNames, depJob.Name)
 	}
 
@@ -171,21 +166,21 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.State,
 	eval *structs.Evaluation, dependeeJobIDs ...string) {
 	dep := c.dependencies[eval.ID]
-	dj := map[string]*structs.Job{}
+	dj := map[string][]*structs.Allocation{}
 	ws := memdb.NewWatchSet()
 
 	for _, jID := range dependeeJobIDs {
-		dependeeJob, err := state.JobByID(ws, eval.Namespace, jID)
+		_, err := state.JobByID(ws, eval.Namespace, jID)
 		if err != nil {
 			c.logger.Error("failed to get job by ID", "error", err)
 		}
 
-		dj[jID] = dependeeJob
+		dj[jID] = []*structs.Allocation{}
 	}
 
 	defer func() {
 		delete(c.dependencies, eval.ID)
-		err := c.removeDeps(eval, dj)
+		err := c.removeDeps(dj)
 		if err != nil {
 			c.logger.Info("failed to remove dependencies", "error", err)
 		}
@@ -196,12 +191,21 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 	for {
 		select {
 		case <-ws.WatchCh(ctx):
+			for _, jID := range dependeeJobIDs {
+				allocs, err := state.AllocsByJob(ws, eval.Namespace, dep.job.ID, true)
+				if err != nil {
+					c.logger.Error("failed to get allocs to verify dependency", "error", err)
+				}
+
+				dj[jID] = allocs
+			}
+
 			blockers, err := c.verifyDependencies(dep.job, dj)
 			if err != nil {
 				c.logger.Error("failed to verify dependency", "error", err)
 			}
 
-			if len(blockers) > 0 {
+			if len(blockers) == 0 {
 				c.blockedEvals.Unblock(eval.ID, dep.job.JobModifyIndex)
 				c.logger.Debug("dependency ready, unblocking job", "job", eval.JobID,
 					"eval", eval.ID, "ready", len(blockers) > 0)
@@ -209,9 +213,8 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 				if err != nil {
 					c.logger.Error("failed to unblock job", "error", err)
 				}
+				return
 			}
-
-			return
 
 		case <-ctx.Done():
 			c.logger.Error("dependency timeout reached", "job", eval.JobID,
@@ -228,18 +231,6 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 }
 
 func (c *Coordinator) deleteEval(eval structs.Evaluation, job structs.Job) error {
-	/* 	job.Status = structs.JobStatusDead
-	   	_, _, err := c.jobUpdaterFunc(structs.JobDeregisterRequestType, &structs.JobDeregisterRequest{
-	   		JobID: job.ID,
-	   		WriteRequest: structs.WriteRequest{
-	   			Namespace: eval.Namespace,
-	   		},
-	   	})
-	   	if err != nil {
-	   		c.logger.Error("coordinator: failed to update eval", "eval", eval.ID, "error", err)
-	   		return err
-	   	} */
-
 	eval.Status = structs.EvalStatusCancelled
 	eval.StatusDescription = structs.EvalTriggeredDeps
 
@@ -258,7 +249,7 @@ func (c *Coordinator) deleteEval(eval structs.Evaluation, job structs.Job) error
 	return nil
 }
 
-func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[string]*structs.Job) ([]string, error) {
+func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobsAllocs map[string][]*structs.Allocation) ([]string, error) {
 	var mErr multierror.Error
 	blockers := []string{}
 
@@ -266,37 +257,73 @@ func (c *Coordinator) verifyDependencies(dependantJob *structs.Job, jobs map[str
 		return blockers, mErr.ErrorOrNil()
 	}
 
-	for _, depJob := range dependantJob.Dependencies.Jobs {
-		if depJob == nil {
-			continue
-		}
+	for _, dependencyJob := range dependantJob.Dependencies.Jobs {
 
-		job, ok := jobs[depJob.Name]
+		allocs, ok := jobsAllocs[dependencyJob.Name]
 		if !ok {
-			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+depJob.Name))
+			mErr.Errors = append(mErr.Errors, errors.New("unable to check dependency for job: "+dependencyJob.Name))
 			return []string{}, &mErr
 		}
 
-		if job == nil || !statusMatches(job.Status, depJob.Status) {
-			blockers = append(blockers, depJob.Name)
+		if !conditionsMatch(allocs, dependencyJob.Status) {
+			blockers = append(blockers, dependencyJob.Name)
 		}
 	}
 
 	return blockers, mErr.ErrorOrNil()
 }
 
-// This function needs work to allow more descriptive statues, like what is done
-// on the front end.
-func statusMatches(actual, expected string) bool {
-	if expected == "" {
-		return actual == ""
+// Possible states of the dependency
+//   - - Complete: (Batch/Sysbatch only) All expected allocations are complete
+//   - - Running: (Batch/Sysbatch only) All expected allocations are running
+//   - - Recovering: Some allocations are pending
+//   - - Failed: All allocations are failed, lost, or unplaced
+//   - - Stopped: The job has been manually stopped (and not purged or yet garbage collected) by a user
+//   - - Lost: All allocations are unknown
+func conditionsMatch(allocs []*structs.Allocation, expectedState string) bool {
+	if len(allocs) == 0 {
+		return false
 	}
 
-	if expected == "completed" {
-		return actual == structs.JobStatusDead
+	result := true
+	switch expectedState {
+	case structs.JobDependencyComplete:
+		for _, a := range allocs {
+			result = result && a.ClientStatus == structs.AllocClientStatusComplete
+		}
+
+	case structs.JobDependencyRunning:
+		for _, a := range allocs {
+			result = result && a.ClientStatus == structs.AllocClientStatusRunning
+		}
+
+	case structs.JobDependencyRecovering:
+		for _, a := range allocs {
+			result = result && (a.ClientStatus == structs.AllocClientStatusRunning ||
+				a.ClientStatus == structs.AllocClientStatusPending)
+		}
+
+	case structs.JobDependencyFailed:
+		for _, a := range allocs {
+			result = result && a.ClientStatus == structs.AllocClientStatusFailed
+		}
+
+	case structs.JobDependencyStopped:
+		for _, a := range allocs {
+			result = result && a.DesiredStatus == structs.AllocDesiredStatusStop &&
+				a.ClientStatus == structs.AllocClientStatusComplete
+		}
+
+	case structs.JobDependencyLost:
+		for _, a := range allocs {
+			result = result && a.ClientStatus == structs.AllocClientStatusUnknown
+		}
+
+	default:
+		result = false
 	}
 
-	return actual == expected
+	return result
 }
 
 func dependencyTimeout(job *structs.Job) time.Duration {
