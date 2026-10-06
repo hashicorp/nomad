@@ -58,10 +58,6 @@ const (
 	// JobDispatchLaunchSuffix is the string appended to the parameterized job's ID
 	// when dispatching instances of it.
 	JobDispatchLaunchSuffix = "/dispatch-"
-
-	JobStatusPending = "pending" // Pending means the job is waiting on scheduling
-	JobStatusRunning = "running" // Running means the job has non-terminal allocations
-	JobStatusDead    = "dead"    // Dead means all evaluation's and allocations are terminal
 )
 
 // Jobs is used to access the job-specific endpoints.
