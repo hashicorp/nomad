@@ -22,7 +22,7 @@ func TestDependency_CanonicalizeAndValidate(t *testing.T) {
 	}
 	d.Canonicalize()
 
-	must.Eq(t, "completed", d.Jobs[0].Status)
+	must.Eq(t, JobDependencyComplete, d.Jobs[0].Status)
 	must.NoError(t, d.Validate())
 }
 
