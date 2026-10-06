@@ -15,13 +15,12 @@ import (
 )
 
 const (
-	variablesLabel  = "variables"
-	variableLabel   = "variable"
-	localsLabel     = "locals"
-	vaultLabel      = "vault"
-	taskLabel       = "task"
-	secretLabel     = "secret"
-	dependencyLabel = "dependency"
+	variablesLabel = "variables"
+	variableLabel  = "variable"
+	localsLabel    = "locals"
+	vaultLabel     = "vault"
+	taskLabel      = "task"
+	secretLabel    = "secret"
 
 	inputVariablesAccessor = "var"
 	localsAccessor         = "local"
@@ -33,10 +32,9 @@ type jobConfig struct {
 
 	ParseConfig *ParseConfig
 
-	Vault        *api.Vault           `hcl:"vault,block"`
-	Secrets      []*api.Secret        `hcl:"secret,block"`
-	Tasks        []*api.Task          `hcl:"task,block"`
-	Dependencies *api.JobDependencies `hcl:"dependency,block"`
+	Vault   *api.Vault    `hcl:"vault,block"`
+	Secrets []*api.Secret `hcl:"secret,block"`
+	Tasks   []*api.Task   `hcl:"task,block"`
 
 	InputVariables Variables
 	LocalVariables Variables
@@ -151,7 +149,6 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 	var diags hcl.Diagnostics
 
 	var foundVault *hcl.Block
-	var foundDependency *hcl.Block
 	for _, b := range content.Blocks {
 		switch b.Type {
 		case vaultLabel:
@@ -188,25 +185,6 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 				t.Name = b.Labels[0]
 				c.Secrets = append(c.Secrets, t)
 			}
-
-		case dependencyLabel:
-			if foundDependency != nil {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Duplicate %s block", b.Type),
-					Detail: fmt.Sprintf(
-						"Only one block of type %q is allowed. Previous definition was at %s.",
-						b.Type, foundDependency.DefRange.String(),
-					),
-					Subject: &b.DefRange,
-				})
-				continue
-			}
-			foundDependency = b
-
-			d := &api.JobDependencies{}
-			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, d)...)
-			c.Dependencies = d
 		}
 	}
 
@@ -312,7 +290,6 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 				{Type: "vault"},
 				{Type: "secret", LabelNames: []string{"name"}},
 				{Type: "task", LabelNames: []string{"name"}},
-				{Type: "dependency"},
 			},
 		})
 
