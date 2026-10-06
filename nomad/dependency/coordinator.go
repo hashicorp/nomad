@@ -75,7 +75,7 @@ func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
 }
 
 func (c *Coordinator) removeDeps(dependeeJobs map[string][]*structs.Allocation) error {
-	for jobID, _ := range dependeeJobs {
+	for jobID := range dependeeJobs {
 
 		c.l.Lock()
 		defer c.l.Unlock()
