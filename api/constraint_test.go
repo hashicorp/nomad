@@ -28,13 +28,13 @@ func TestCompose_Constraints(t *testing.T) {
 func TestCompose_Dependencies(t *testing.T) {
 	testutil.Parallel(t)
 
-	d := NewJobDependencies("10m", "reject", &JobDependency{Name: "service-123", Status: "completed"})
+	d := NewJobDependencies("10m", "reject", &JobDependency{Name: "service-123", Status: JobDependencyComplete})
 	d.Canonicalize()
 
 	must.Eq(t, &timeoutDuration, d.Timeout)
 	must.Len(t, 1, d.Jobs)
 	must.Eq(t, "service-123", d.Jobs[0].Name)
-	must.Eq(t, "completed", d.Jobs[0].Status)
+	must.Eq(t, JobDependencyComplete, d.Jobs[0].Status)
 	must.NoError(t, d.Validate())
 
 	copy := d.Copy()
@@ -53,12 +53,12 @@ func TestCompose_Dependencies_DefaultsAndValidation(t *testing.T) {
 	}
 	d.Canonicalize()
 
-	must.Eq(t, "dead", d.Jobs[0].Status)
+	must.Eq(t, JobDependencyComplete, d.Jobs[0].Status)
 	must.NoError(t, d.Validate())
 
 	bad := &JobDependencies{
 		Timeout: &timeoutDuration,
-		Jobs:    []*JobDependency{{Name: "service-123", Status: "completed"}},
+		Jobs:    []*JobDependency{{Name: "service-123", Status: "unexpectedState"}},
 	}
 	must.Error(t, bad.Validate())
 }
