@@ -32,7 +32,6 @@ func TestCompose_Dependencies(t *testing.T) {
 	d.Canonicalize()
 
 	must.Eq(t, &timeoutDuration, d.Timeout)
-	must.Eq(t, "reject", d.ActionOnTimeout)
 	must.Len(t, 1, d.Jobs)
 	must.Eq(t, "service-123", d.Jobs[0].Name)
 	must.Eq(t, "completed", d.Jobs[0].Status)
@@ -54,14 +53,12 @@ func TestCompose_Dependencies_DefaultsAndValidation(t *testing.T) {
 	}
 	d.Canonicalize()
 
-	must.Eq(t, "reject", d.ActionOnTimeout)
 	must.Eq(t, "dead", d.Jobs[0].Status)
 	must.NoError(t, d.Validate())
 
 	bad := &JobDependencies{
-		Timeout:         &timeoutDuration,
-		ActionOnTimeout: "continue",
-		Jobs:            []*JobDependency{{Name: "service-123", Status: "completed"}},
+		Timeout: &timeoutDuration,
+		Jobs:    []*JobDependency{{Name: "service-123", Status: "completed"}},
 	}
 	must.Error(t, bad.Validate())
 }

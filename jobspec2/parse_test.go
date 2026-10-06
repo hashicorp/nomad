@@ -447,7 +447,6 @@ job "example" {
 	require.NotNil(t, out.Dependencies)
 	require.NotNil(t, out.Dependencies.Timeout)
 	require.Equal(t, 10*time.Minute, *out.Dependencies.Timeout)
-	require.Equal(t, "reject", out.Dependencies.ActionOnTimeout)
 	require.Len(t, out.Dependencies.Jobs, 2)
 	require.Equal(t, "main", out.Dependencies.Jobs[0].Name)
 	require.Equal(t, "dead", out.Dependencies.Jobs[0].Status)
