@@ -122,16 +122,6 @@ func IsCI() bool {
 	return ok
 }
 
-func IsTravis() bool {
-	_, ok := os.LookupEnv("TRAVIS")
-	return ok
-}
-
-func IsAppVeyor() bool {
-	_, ok := os.LookupEnv("APPVEYOR")
-	return ok
-}
-
 type rpcFn func(string, any, any) error
 
 // WaitForLeader blocks until a leader is elected.
