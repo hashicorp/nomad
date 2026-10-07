@@ -257,7 +257,7 @@ func TestCoordinator_CreatesCircularDependency(t *testing.T) {
 				Name: "job-1",
 			},
 			setupLoopDetector: func(m *mockLoopDetector) {},
-			expectCircular: false,
+			expectCircular:    false,
 		},
 		{
 			name: "job with non-circular dependencies",
@@ -308,11 +308,11 @@ func TestCoordinator_HasActiveDependents(t *testing.T) {
 	ci.Parallel(t)
 
 	tests := []struct {
-		name               string
-		job                *structs.Job
-		setupLoopDetector  func(*mockLoopDetector)
-		expectActiveDeps   bool
-		expectError        bool
+		name              string
+		job               *structs.Job
+		setupLoopDetector func(*mockLoopDetector)
+		expectActiveDeps  bool
+		expectError       bool
 	}{
 		{
 			name: "job with no dependents",
@@ -360,28 +360,6 @@ func TestCoordinator_HasActiveDependents(t *testing.T) {
 	}
 }
 
-func TestCoordinator_Stop(t *testing.T) {
-	ci.Parallel(t)
-
-	tests := []struct {
-		name string
-	}{
-		{
-			name: "stop_clears_dependencies",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			coord := NewCoordinator(hclog.NewNullLogger(), newMockLoopDetector(), nil, nil)
-
-			must.NotNil(t, coord.dependencies)
-			coord.Stop()
-			must.Nil(t, coord.dependencies)
-		})
-	}
-}
-
 func TestCoordinator_Reload(t *testing.T) {
 	ci.Parallel(t)
 
@@ -390,7 +368,7 @@ func TestCoordinator_Reload(t *testing.T) {
 		setupState func(*state.StateStore)
 	}{
 		{
-			name: "empty_evaluations",
+			name:       "empty_evaluations",
 			setupState: func(s *state.StateStore) {},
 		},
 		{
@@ -452,22 +430,22 @@ func TestConditionsMatch(t *testing.T) {
 	ci.Parallel(t)
 
 	tests := []struct {
-		name             string
-		allocations      []*structs.Allocation
-		expectedState    string
-		expectMatch      bool
+		name          string
+		allocations   []*structs.Allocation
+		expectedState string
+		expectMatch   bool
 	}{
 		{
-			name:             "nil allocations",
-			allocations:      nil,
-			expectedState:    structs.JobDependencyRunning,
-			expectMatch:      false,
+			name:          "nil allocations",
+			allocations:   nil,
+			expectedState: structs.JobDependencyRunning,
+			expectMatch:   false,
 		},
 		{
-			name:             "empty allocations",
-			allocations:      []*structs.Allocation{},
-			expectedState:    structs.JobDependencyRunning,
-			expectMatch:      false,
+			name:          "empty allocations",
+			allocations:   []*structs.Allocation{},
+			expectedState: structs.JobDependencyRunning,
+			expectMatch:   false,
 		},
 		{
 			name: "single allocation running",

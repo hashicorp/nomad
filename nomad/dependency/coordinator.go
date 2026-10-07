@@ -45,11 +45,12 @@ type dependency struct {
 }
 
 type Coordinator struct {
-	mainContext context.Context
-	logger      hclog.Logger
-	l           sync.RWMutex
+	mainContext   context.Context
+	cancelFunc    context.CancelFunc
+	logger        hclog.Logger
+	lDependencies sync.RWMutex
+	dependencies  map[evalID]*dependency
 
-	dependencies   map[evalID]*dependency
 	loopDetector   loopDetector
 	blockedEvals   evalUnblocker
 	jobUpdaterFunc evalUpdaterFunc
@@ -64,8 +65,11 @@ type Coordinator struct {
 // after the timeout is reached.
 func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
 	blockedEvals evalUnblocker, jobUpdater evalUpdaterFunc) *Coordinator {
+
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Coordinator{
-		mainContext:    context.Background(),
+		mainContext:    ctx,
+		cancelFunc:     cancel,
 		logger:         logger.Named("dependency-coordinator"),
 		dependencies:   make(map[evalID]*dependency),
 		loopDetector:   loopDetector,
@@ -75,10 +79,11 @@ func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
 }
 
 func (c *Coordinator) removeDeps(dependeeJobs map[string][]*structs.Allocation) error {
-	for jobID := range dependeeJobs {
 
-		c.l.Lock()
-		defer c.l.Unlock()
+	c.lDependencies.Lock()
+	defer c.lDependencies.Unlock()
+
+	for jobID := range dependeeJobs {
 
 		if err := c.loopDetector.RemoveNode(jobID); err != nil {
 			c.logger.Error("failed to remove dependency", "error", err)
@@ -150,26 +155,39 @@ func (c *Coordinator) CheckDependency(state sstructs.State, job *structs.Job,
 		return []string{}, nil
 	}
 
+	c.lDependencies.Lock()
+	if _, exists := c.dependencies[eval.ID]; exists {
+		c.lDependencies.Unlock()
+		return blockers, nil
+	}
+
 	ctx, cancel := context.WithDeadlineCause(c.mainContext,
 		time.Now().Add(dependencyTimeout(job)), errDependencyTimeout)
+
 	c.dependencies[eval.ID] = &dependency{
 		cancelFunc: cancel,
 		job:        job,
 		dependees:  djNames,
 	}
 
-	go c.waitForDependency(ctx, state, eval, djNames...)
+	c.lDependencies.Unlock()
+
+	go c.waitForDependency(ctx, state, eval)
 
 	return blockers, nil
 }
 
 func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.State,
-	eval *structs.Evaluation, dependeeJobIDs ...string) {
+	eval *structs.Evaluation) {
+
+	c.lDependencies.RLock()
 	dep := c.dependencies[eval.ID]
+	c.lDependencies.RUnlock()
+
 	dj := map[string][]*structs.Allocation{}
 	ws := memdb.NewWatchSet()
 
-	for _, jID := range dependeeJobIDs {
+	for _, jID := range dep.dependees {
 		_, err := state.JobByID(ws, eval.Namespace, jID)
 		if err != nil {
 			c.logger.Error("failed to get job by ID", "error", err)
@@ -179,7 +197,10 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 	}
 
 	defer func() {
+		c.lDependencies.Lock()
 		delete(c.dependencies, eval.ID)
+		c.lDependencies.Unlock()
+
 		err := c.removeDeps(dj)
 		if err != nil {
 			c.logger.Info("failed to remove dependencies", "error", err)
@@ -191,8 +212,8 @@ func (c *Coordinator) waitForDependency(ctx context.Context, state sstructs.Stat
 	for {
 		select {
 		case <-ws.WatchCh(ctx):
-			for _, jID := range dependeeJobIDs {
-				allocs, err := state.AllocsByJob(ws, eval.Namespace, dep.job.ID, true)
+			for _, jID := range dep.dependees {
+				allocs, err := state.AllocsByJob(ws, eval.Namespace, jID, true)
 				if err != nil {
 					c.logger.Error("failed to get allocs to verify dependency", "error", err)
 				}
@@ -341,7 +362,8 @@ func dependencyTimeout(job *structs.Job) time.Duration {
 
 func (c *Coordinator) Stop() {
 	c.mainContext.Done()
-	c.dependencies = nil
+	c.cancelFunc()
+
 }
 
 func (c *Coordinator) HasActiveDependents(j *structs.Job) (bool, error) {
