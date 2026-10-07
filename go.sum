@@ -408,10 +408,10 @@ github.com/hashicorp/go-connlimit v0.3.1 h1:v5A31V0FfXNYAtWP6BFtRhs8Nhr650a1HJmw
 github.com/hashicorp/go-connlimit v0.3.1/go.mod h1:Duz6KJRveeIrTMrat9ZxH/FaWOxDUmqDumz4qxGdQVM=
 github.com/hashicorp/go-cty-funcs v0.1.0 h1:TRO/6x1unvTPpotTgrTU7qlcbd99JBLt+vmF6dMF6lY=
 github.com/hashicorp/go-cty-funcs v0.1.0/go.mod h1:crc3afXAsjGOJ+12LNX8PImH+ejyxOjnjvsUteKcFIw=
-github.com/hashicorp/go-discover v1.4.0 h1:Rj8M31ogCaKOBpn+yl1dneTU8jsQIuOSd1hyvww86qU=
-github.com/hashicorp/go-discover v1.4.0/go.mod h1:jljjOiG41lDyKJOKPPHgSPIsflZypFMJq5Kkxufkk/o=
-github.com/hashicorp/go-discover/provider/gce v0.0.0-20241120163552-5eb1507d16b4 h1:ywaDsVo7n5ko12YD8uXjuQ8G2mQhC2mxAc4Kj3WW3GE=
-github.com/hashicorp/go-discover/provider/gce v0.0.0-20241120163552-5eb1507d16b4/go.mod h1:yxikfLXA8Y5JA3FcFTR720PfqVEFd0dZY9FBpmcsO54=
+github.com/hashicorp/go-discover v1.5.0 h1:3ZmVKyKb2zgW6uDJRkesHlnG+uRbHnXbQU+fc1i/qgc=
+github.com/hashicorp/go-discover v1.5.0/go.mod h1:HhGeHPymhjljYn3TfdkLPuz99Agk8tuzMC1mC3rq08g=
+github.com/hashicorp/go-discover/provider/gce v0.0.0-20260729160347-bd352ec235a2 h1:NLM46+tksGnUMJsySzTjsT3sySFtI+NNThYA10k3jJc=
+github.com/hashicorp/go-discover/provider/gce v0.0.0-20260729160347-bd352ec235a2/go.mod h1:z3HGZn8dFsYE2oYsdNNhOQiRnPIluCnvV3gIvtb6928=
 github.com/hashicorp/go-envparse v0.1.0 h1:bE++6bhIsNCPLvgDZkYqo3nA+/PFI51pkrHdmPSDFPY=
 github.com/hashicorp/go-envparse v0.1.0/go.mod h1:OHheN1GoygLlAkTlXLXvAdnXdZxy8JUweQ1rAXx1xnc=
 github.com/hashicorp/go-gatedio v0.5.0 h1:Jm1X5yP4yCqqWj5L1TgW7iZwCVPGtVc+mro5r/XX7Tg=
@@ -520,8 +520,6 @@ github.com/hashicorp/vault/api v1.23.0 h1:gXgluBsSECfRWTSW9niY2jwg2e9mMJc4WoHNv4
 github.com/hashicorp/vault/api v1.23.0/go.mod h1:zransKiB9ftp+kgY8ydjnvCU7Wk8i9L0DYWpXeMj9ko=
 github.com/hashicorp/vault/api/auth/kubernetes v0.12.0 h1:DTrUMNXjpWEFMcU0FY1Eza+l4nSSz/+yUr6JN2GpzF0=
 github.com/hashicorp/vault/api/auth/kubernetes v0.12.0/go.mod h1:njyxrmFPtMuEPpPMZeemwhHovzC22hq2OuJtScI3iFc=
-github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443 h1:O/pT5C1Q3mVXMyuqg7yuAWUg/jMZR1/0QTzTRdNR6Uw=
-github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443/go.mod h1:bEpDU35nTu0ey1EXjwNwPjI9xErAsoOCmcMb9GKvyxo=
 github.com/hashicorp/yamux v0.1.2 h1:XtB8kyFOyHXYVFnwT5C3+Bdo8gArse7j2AQ0DA0Uey8=
 github.com/hashicorp/yamux v0.1.2/go.mod h1:C+zze2n6e/7wshOZep2A70/aQU6QBRWJO/G6FT1wIns=
 github.com/hexdigest/gowrap v1.1.7/go.mod h1:Z+nBFUDLa01iaNM+/jzoOA1JJ7sm51rnYFauKFUB5fs=
@@ -838,8 +836,8 @@ github.com/vmihailenco/msgpack/v5 v5.3.5 h1:5gO0H1iULLWGhs2H5tbAHIZTV8/cYafcFOr9
 github.com/vmihailenco/msgpack/v5 v5.3.5/go.mod h1:7xyJ9e+0+9SaZT0Wt1RGleJXzli6Q/V5KbhBonMG9jc=
 github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=
 github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
-github.com/vmware/govmomi v0.18.0 h1:f7QxSmP7meCtoAmiKZogvVbLInT+CZx6Px6K5rYsJZo=
-github.com/vmware/govmomi v0.18.0/go.mod h1:URlwyTFZX72RmxtxuaFL2Uj3fD1JTvZdx59bHWk6aFU=
+github.com/vmware/govmomi v0.55.1 h1:7FW6VXIdKe/7AXftBoFTHaf0UO8Kdl84tIjothNDlZI=
+github.com/vmware/govmomi v0.55.1/go.mod h1:QR6UoTHdmvT5XvdomNKwyi7VPOnrE0QZxjPBJ0mWWQs=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
