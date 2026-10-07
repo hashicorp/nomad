@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func newTestDetector(t *testing.T) *loopDetector {
@@ -165,7 +164,7 @@ func TestLoopDetector_AddNodes(t *testing.T) {
 				requireNode(t, s, "dep")
 				requireEdge(t, s, "main", "dep")
 
-				require.Len(t, s.deps["main"], 1)
+				must.One(t, len(s.deps["main"]))
 				must.Zero(t, len(s.deps["dep"]))
 
 				must.Zero(t, len(s.dependents["main"]))
@@ -186,7 +185,7 @@ func TestLoopDetector_AddNodes(t *testing.T) {
 				requireEdge(t, s, "main", "migration")
 				requireEdge(t, s, "main", "setup")
 
-				require.Len(t, s.deps["main"], 3)
+				must.Eq(t, 3, len(s.deps["main"]))
 				requireConsistentGraph(t, s)
 			},
 		},
@@ -198,8 +197,8 @@ func TestLoopDetector_AddNodes(t *testing.T) {
 			verify: func(t *testing.T, s *loopDetector, err error) {
 				must.NoError(t, err)
 
-				require.Len(t, s.deps["main"], 1)
-				require.Len(t, s.dependents["dep"], 1)
+				must.One(t, len(s.deps["main"]))
+				must.One(t, len(s.dependents["dep"]))
 
 				requireEdge(t, s, "main", "dep")
 				requireConsistentGraph(t, s)
@@ -214,8 +213,8 @@ func TestLoopDetector_AddNodes(t *testing.T) {
 			verify: func(t *testing.T, s *loopDetector, err error) {
 				must.NoError(t, err)
 
-				require.Len(t, s.deps["main"], 1)
-				require.Len(t, s.dependents["dep"], 1)
+				must.One(t, len(s.deps["main"]))
+				must.One(t, len(s.dependents["dep"]))
 
 				requireEdge(t, s, "main", "dep")
 				requireConsistentGraph(t, s)
@@ -233,7 +232,7 @@ func TestLoopDetector_AddNodes(t *testing.T) {
 				requireEdge(t, s, "main", "dep1")
 				requireEdge(t, s, "main", "dep2")
 
-				require.Len(t, s.deps["main"], 2)
+				must.Eq(t, 2, len(s.deps["main"]))
 				requireConsistentGraph(t, s)
 			},
 		},
@@ -264,9 +263,9 @@ func TestLoopDetector_AddNodes_CycleDetection(t *testing.T) {
 				return s.AddNodes("dep", "main")
 			},
 			verify: func(t *testing.T, s *loopDetector, err error) {
-				require.Error(t, err)
+				must.Error(t, err)
 				must.ErrorIs(t, err, ErrCircularDependency)
-				require.Contains(t, err.Error(), "circular dependency detected: dep -> main would create a loop")
+				must.StrContains(t, err.Error(), "circular dependency detected: dep -> main would create a loop")
 				requireEdge(t, s, "main", "dep")
 				requireNoEdge(t, s, "dep", "main")
 				requireConsistentGraph(t, s)
@@ -282,9 +281,9 @@ func TestLoopDetector_AddNodes_CycleDetection(t *testing.T) {
 				return s.AddNodes("C", "A")
 			},
 			verify: func(t *testing.T, s *loopDetector, err error) {
-				require.Error(t, err)
+				must.Error(t, err)
 				must.ErrorIs(t, err, ErrCircularDependency)
-				require.Contains(t, err.Error(), "circular dependency detected")
+				must.StrContains(t, err.Error(), "circular dependency detected")
 				requireEdge(t, s, "A", "B")
 				requireEdge(t, s, "B", "C")
 				requireNoEdge(t, s, "C", "A")
@@ -303,9 +302,9 @@ func TestLoopDetector_AddNodes_CycleDetection(t *testing.T) {
 				return s.AddNodes("E", "A")
 			},
 			verify: func(t *testing.T, s *loopDetector, err error) {
-				require.Error(t, err)
+				must.Error(t, err)
 				must.ErrorIs(t, err, ErrCircularDependency)
-				require.Contains(t, err.Error(), "circular dependency detected")
+				must.StrContains(t, err.Error(), "circular dependency detected")
 				requireNoEdge(t, s, "E", "A")
 				requireConsistentGraph(t, s)
 			},
@@ -324,9 +323,9 @@ func TestLoopDetector_AddNodes_CycleDetection(t *testing.T) {
 				return s.AddNodes("E", "A")
 			},
 			verify: func(t *testing.T, s *loopDetector, err error) {
-				require.Error(t, err)
+				must.Error(t, err)
 				must.ErrorIs(t, err, ErrCircularDependency)
-				require.Contains(t, err.Error(), "circular dependency detected")
+				must.StrContains(t, err.Error(), "circular dependency detected")
 				requireNoEdge(t, s, "E", "A")
 				requireConsistentGraph(t, s)
 			},
@@ -368,7 +367,7 @@ func TestLoopDetector_AddNodes_CycleDetection(t *testing.T) {
 				must.NoError(t, err)
 				requireEdge(t, s, "A", "C")
 				requireEdge(t, s, "B", "C")
-				require.Len(t, s.dependents["C"], 2)
+				must.Eq(t, 2, len(s.dependents["C"]))
 				requireConsistentGraph(t, s)
 			},
 		},
@@ -551,7 +550,7 @@ func TestLoopDetector_RemoveNode(t *testing.T) {
 				requireNode(t, s, "C")
 				requireNoEdge(t, s, "A", "C")
 				requireEdge(t, s, "B", "C")
-				require.Len(t, s.dependents["C"], 1)
+				must.One(t, len(s.dependents["C"]))
 				requireConsistentGraph(t, s)
 			},
 		},
@@ -787,7 +786,7 @@ func TestLoopDetector_CreatesCircularDependency(t *testing.T) {
 			if tc.setup != nil {
 				tc.setup(s)
 			}
-			require.Equal(t, tc.want, s.CreatesCircularDependency(tc.dep, tc.nodes...))
+			must.Eq(t, tc.want, s.CreatesCircularDependency(tc.dep, tc.nodes...))
 		})
 	}
 }
