@@ -46,7 +46,7 @@
   a:visited,
   .breadcrumb-link,
   .breadcrumb-link:visited {
-    color: var(--token-color-foreground-strong);
+    color: $white;
   }
 
   a:hover,
@@ -61,13 +61,51 @@
   .breadcrumb-link.is-active,
   li.is-active a,
   li:last-child a.active {
-    color: var(--token-color-foreground-strong);
+    color: $white;
     font-weight: $weight-semibold;
   }
 
   .breadcrumb-link dt,
   .breadcrumb-link dd {
-    color: var(--token-color-foreground-strong);
+    color: $white;
+  }
+
+  a:focus-visible {
+    outline-color: $white;
+  }
+
+  li:not(:last-child) a,
+  li:not(:last-child) a:visited,
+  li:not(:last-child) a:hover,
+  li:not(:last-child) a:focus,
+  li:not(:last-child) a:active,
+  li:not(:last-child) a.active,
+  li:not(:last-child) a.is-active {
+    color: rgba($white, 0.9);
+
+    dt,
+    dd {
+      color: inherit;
+    }
+  }
+
+  li:first-child a.breadcrumb-link.is-plain,
+  li:first-child a.breadcrumb-link.is-plain:visited,
+  li:first-child a.breadcrumb-link.is-plain:hover,
+  li:first-child a.breadcrumb-link.is-plain:focus,
+  li:first-child a.breadcrumb-link.is-plain:active {
+    color: $white;
+    font-size: 24px;
+    font-weight: $weight-bold;
+    line-height: 32px;
+  }
+
+  li:first-child:not(:last-child) a.breadcrumb-link.is-plain,
+  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:visited,
+  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:hover,
+  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:focus,
+  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:active {
+    color: rgba($white, 0.75);
   }
 
   dl dd {

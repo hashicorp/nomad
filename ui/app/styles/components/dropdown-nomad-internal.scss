@@ -42,6 +42,20 @@
     }
   }
 
+  &.is-header-region-switcher {
+    background-color: $nomad-green-region-toggle;
+    border-color: #c2c5cb;
+    color: $white;
+
+    .ember-power-select-prefix {
+      color: $white;
+    }
+
+    .ember-power-select-status-icon {
+      border-top-color: $white;
+    }
+  }
+
   &.is-compact {
     margin: -0.25em 0;
 
