@@ -48,10 +48,11 @@ func TestWriteFileFor_Linux(t *testing.T) {
 	umask := unix.Umask(0)
 	unix.Umask(umask)
 
-	path := filepath.Join(t.TempDir(), "secret.txt")
+	secretDir := t.TempDir()
+	path := filepath.Join(secretDir, "secret.txt")
 	contents := []byte("TOO MANY SECRETS")
 
-	must.NoError(t, WriteFileFor(path, contents, "nobody"))
+	must.NoError(t, WriteFileFor(secretDir, "secret.txt", contents, "nobody"))
 
 	stat, err := os.Lstat(path)
 	must.NoError(t, err)
