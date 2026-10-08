@@ -68,7 +68,7 @@ func Current() (*user.User, error) {
 
 // WriteFileFor is like os.WriteFile except if possible it chowns the file to
 // the specified user (possibly from Task.User) and sets the permissions to
-// 0o600.
+// 0o600. It always constrains the file to inside the root
 //
 // If chowning fails (either due to OS or Nomad being unprivileged), the file
 // will be left world readable (0o666).
@@ -77,11 +77,16 @@ func Current() (*user.User, error) {
 // returned.
 //
 // See SocketFileFor if writing a unix socket file.
-func WriteFileFor(path string, contents []byte, username string) error {
+func WriteFileFor(rootDir, relPath string, contents []byte, username string) error {
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		return err
+	}
+
 	// Don't even bother trying to chown to an empty username
 	var origErr error
 	if username != "" {
-		origErr := writeFileFor(path, contents, username)
+		origErr := writeFileFor(root, relPath, contents, username)
 		if origErr == nil {
 			// Success!
 			return nil
@@ -89,7 +94,7 @@ func WriteFileFor(path string, contents []byte, username string) error {
 	}
 
 	// Fallback to world readable
-	if err := os.WriteFile(path, contents, 0o666); err != nil {
+	if err := root.WriteFile(relPath, contents, 0o666); err != nil {
 		if origErr != nil {
 			// Return both errors
 			return &multierror.Error{
@@ -103,20 +108,20 @@ func WriteFileFor(path string, contents []byte, username string) error {
 	return nil
 }
 
-func writeFileFor(path string, contents []byte, username string) error {
+func writeFileFor(root *os.Root, path string, contents []byte, username string) error {
 	uid, _, _, err := LookupUnix(username)
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(path, contents, 0o600); err != nil {
+	if err := root.WriteFile(path, contents, 0o600); err != nil {
 		return err
 	}
 
-	if err := os.Chown(path, uid, -1); err != nil {
+	if err := root.Chown(path, uid, -1); err != nil {
 		// Delete the file so that the fallback method properly resets
 		// permissions.
-		_ = os.Remove(path)
+		_ = root.Remove(path)
 		return err
 	}
 
