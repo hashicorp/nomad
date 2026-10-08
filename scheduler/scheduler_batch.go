@@ -5,14 +5,10 @@ package scheduler
 
 import (
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/nomad/dependency"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
-
-type dependencyChecker interface {
-	CheckDependency(state sstructs.State, job *structs.Job,
-		eval *structs.Evaluation) ([]string, error)
-}
 
 type BatchScheduler struct {
 	*GenericScheduler
@@ -20,17 +16,13 @@ type BatchScheduler struct {
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
 func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State,
-	planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
+	planner sstructs.Planner) sstructs.Scheduler {
 
 	s := NewServiceScheduler(logger, eventsCh, state,
-		planner, opts...)
+		planner)
 
 	bs := &BatchScheduler{
 		GenericScheduler: s.(*GenericScheduler),
-	}
-
-	for _, opt := range opts {
-		opt(bs)
 	}
 
 	bs.nodesSetter = bs.dependencyWrapper(bs.GenericScheduler.setNodes)
@@ -42,7 +34,7 @@ func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.St
 // depending on if the dependencies for the job being processed are met or not.
 func (bs *BatchScheduler) dependencyWrapper(next filterNodesFunc) filterNodesFunc {
 	return func(job *structs.Job) ([]*structs.Node, map[string]int, error) {
-		blockers, err := bs.dependencyChecker.CheckDependency(bs.state, job, bs.eval)
+		blockers, err := dependency.VerifyDependencies(bs.state, job)
 		if err != nil {
 			return []*structs.Node{}, nil, err
 		}

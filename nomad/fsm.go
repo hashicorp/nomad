@@ -25,6 +25,10 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+type DependencyVerifier interface {
+	CreatesCircularDependency(j *structs.Job) bool
+}
+
 // SnapshotType is prefixed to a record in the FSM snapshot
 // so that we can determine the type for restore
 type SnapshotType byte
@@ -151,7 +155,8 @@ type nomadFSM struct {
 	// racing with Restore(), which is called by Raft (it puts in a totally
 	// new state store). Everything internal here is synchronized by the
 	// Raft side, so doesn't need to lock this.
-	stateLock sync.RWMutex
+	stateLock             sync.RWMutex
+	dependencyCoordinator DependencyVerifier
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -196,6 +201,8 @@ type FSMConfig struct {
 
 	// JobTrackedVersions is the number of historic job versions that are kept.
 	JobTrackedVersions int
+
+	DependencyCoordinator DependencyVerifier
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
@@ -691,6 +698,11 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 			// found a job matching the idempotency token, so bail out early
 			return nil
 		}
+	}
+
+	// Check for dependencies and circular dependencies
+	if !req.Job.Dependencies.Empty() && n.dependencyCoordinator.CreatesCircularDependency(req.Job) {
+		return ErrCircularDependency
 	}
 
 	if err := n.state.UpsertJobWithRequest(msgType, index, &req); err != nil {

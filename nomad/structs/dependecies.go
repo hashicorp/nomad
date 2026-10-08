@@ -18,7 +18,9 @@ const (
 	JobDependencyRecovering = "jobRecovering" // Some allocations are pending
 	JobDependencyLost       = "jobLost"       // All allocations are unknown
 	JobDependencyFailed     = "jobFailed"     // All allocations are failed, lost, or unplaced
-	JobDependencyStopped    = "jobStopped"    // The job has been manually stopped
+
+	JobDependencyTimeoutDefault = 1 * time.Hour
+	JobDependencyStatusDefault  = JobDependencyComplete
 )
 
 type JobDependency struct {
@@ -47,7 +49,7 @@ func (d *JobDependency) Validate() error {
 
 	switch d.Status {
 	case JobDependencyComplete, JobDependencyRunning, JobDependencyRecovering,
-		JobDependencyLost, JobDependencyFailed, JobDependencyStopped:
+		JobDependencyLost, JobDependencyFailed:
 
 	default:
 		return errors.New("invalid state for dependency job")
@@ -76,7 +78,7 @@ func (d *JobDependency) String() string {
 
 // JobDependencies is used to restrict placement options.
 type JobDependencies struct {
-	Timeout time.Duration
+	Timeout *time.Duration
 	Jobs    []*JobDependency
 }
 
@@ -167,8 +169,8 @@ func (d *JobDependencies) Canonicalize() {
 		return
 	}
 
-	if d.Timeout == 0 {
-		d.Timeout = 60 * time.Minute
+	if d.Timeout == nil {
+		d.Timeout = new(JobDependencyTimeoutDefault)
 	}
 
 	for _, job := range d.Jobs {

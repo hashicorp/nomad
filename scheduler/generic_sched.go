@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/nomad/dependency"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconciler"
@@ -66,7 +65,7 @@ type GenericScheduler struct {
 	plan       *structs.Plan
 	planResult *structs.PlanResult
 	ctx        *feasible.EvalContext
-	stack      feasible.Stack
+	stack      *feasible.GenericStack
 
 	// followUpEvals are evals with WaitUntil set, which are delayed until that time
 	// before being rescheduled
@@ -74,29 +73,23 @@ type GenericScheduler struct {
 
 	deployment *structs.Deployment
 
-	blocked           *structs.Evaluation
-	failedTGAllocs    map[string]*structs.AllocMetric
-	queuedAllocs      map[string]int
-	planAnnotations   *structs.PlanAnnotations
-	nodesSetter       filterNodesFunc
-	dependencyChecker dependencyChecker
+	blocked         *structs.Evaluation
+	failedTGAllocs  map[string]*structs.AllocMetric
+	queuedAllocs    map[string]int
+	planAnnotations *structs.PlanAnnotations
+	nodesSetter     filterNodesFunc
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
 func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State,
-	planner sstructs.Planner, opts ...sstructs.SchedulerOption) sstructs.Scheduler {
+	planner sstructs.Planner) sstructs.Scheduler {
 
 	s := &GenericScheduler{
-		logger:            logger.Named("service_sched"),
-		eventsCh:          eventsCh,
-		state:             state,
-		planner:           planner,
-		batch:             false,
-		dependencyChecker: dependencyChecker(&dependency.NoOpCoordinator{}), // default to no-op dependency checker
-	}
-
-	for _, opt := range opts {
-		opt(s)
+		logger:   logger.Named("service_sched"),
+		eventsCh: eventsCh,
+		state:    state,
+		planner:  planner,
+		batch:    false,
 	}
 
 	s.nodesSetter = s.setNodes
