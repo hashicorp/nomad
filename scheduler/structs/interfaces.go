@@ -16,10 +16,8 @@ import (
  * This package contains top-level interfaces used throughout the scheduler.
  */
 
-type SchedulerOption func(Scheduler) error
-
 // Factory is used to instantiate a new Scheduler
-type Factory func(log.Logger, chan<- any, State, Planner, ...SchedulerOption) Scheduler
+type Factory func(log.Logger, chan<- any, State, Planner) Scheduler
 
 // Scheduler is the top level instance for a scheduler. A scheduler is
 // meant to only encapsulate business logic, pushing the various plumbing

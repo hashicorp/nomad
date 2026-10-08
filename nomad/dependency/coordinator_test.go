@@ -6,6 +6,7 @@ package dependency
 import (
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
@@ -496,17 +497,6 @@ func TestConditionsMatch(t *testing.T) {
 			expectMatch:   true,
 		},
 		{
-			name: "allocation stopped",
-			allocations: []*structs.Allocation{
-				{
-					DesiredStatus: structs.AllocDesiredStatusStop,
-					ClientStatus:  structs.AllocClientStatusComplete,
-				},
-			},
-			expectedState: structs.JobDependencyStopped,
-			expectMatch:   true,
-		},
-		{
 			name: "allocation lost",
 			allocations: []*structs.Allocation{
 				{
@@ -539,6 +529,8 @@ func TestConditionsMatch(t *testing.T) {
 func TestDependencyTimeout(t *testing.T) {
 	ci.Parallel(t)
 
+	thirtySeconds := 30 * time.Second
+
 	tests := []struct {
 		name          string
 		job           *structs.Job
@@ -556,7 +548,7 @@ func TestDependencyTimeout(t *testing.T) {
 			job: &structs.Job{
 				Name: "test",
 				Dependencies: &structs.JobDependencies{
-					Timeout: 0,
+					Timeout: nil,
 				},
 			},
 			expectDefault: true,
@@ -566,7 +558,7 @@ func TestDependencyTimeout(t *testing.T) {
 			job: &structs.Job{
 				Name: "test",
 				Dependencies: &structs.JobDependencies{
-					Timeout: 30000000000, // 30 seconds in nanoseconds
+					Timeout: &thirtySeconds,
 				},
 			},
 			expectDefault: false,
@@ -581,9 +573,9 @@ func TestDependencyTimeout(t *testing.T) {
 			}
 
 			if tt.expectDefault {
-				must.Eq(t, DefaultTimeout, result)
-			} else if tt.job != nil && tt.job.Dependencies != nil && tt.job.Dependencies.Timeout > 0 {
-				must.Eq(t, tt.job.Dependencies.Timeout, result)
+				must.Eq(t, structs.JobDependencyTimeoutDefault, result)
+			} else if tt.job != nil && tt.job.Dependencies != nil && tt.job.Dependencies.Timeout != nil && *tt.job.Dependencies.Timeout > 0 {
+				must.Eq(t, *tt.job.Dependencies.Timeout, result)
 			}
 		})
 	}

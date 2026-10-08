@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/golang/snappy"
 	"github.com/hashicorp/nomad/acl"
@@ -2281,13 +2280,8 @@ func ApiDependencyToStructs(in *api.JobDependencies) *structs.JobDependencies {
 		})
 	}
 
-	var timeout time.Duration
-	if in.Timeout != nil {
-		timeout = *in.Timeout
-	}
-
 	return &structs.JobDependencies{
-		Timeout: timeout,
+		Timeout: in.Timeout,
 		Jobs:    jobs,
 	}
 }

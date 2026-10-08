@@ -457,8 +457,9 @@ func TestTasksUpdated(t *testing.T) {
 
 	// Change job dependency timeout
 	j34 := mock.Job()
+	timeout10Min := 10 * time.Minute
 	j34.Dependencies = &structs.JobDependencies{
-		Timeout: 10 * time.Minute,
+		Timeout: &timeout10Min,
 		Jobs: []*structs.JobDependency{{
 			Name:   "service-123",
 			Status: "completed",
@@ -467,7 +468,8 @@ func TestTasksUpdated(t *testing.T) {
 	j35 := j34.Copy()
 	must.False(t, tasksUpdated(j34, j35, name).modified)
 
-	j35.Dependencies.Timeout = 15 * time.Minute
+	timeout15Min := 15 * time.Minute
+	j35.Dependencies.Timeout = &timeout15Min
 	must.True(t, tasksUpdated(j34, j35, name).modified)
 
 }

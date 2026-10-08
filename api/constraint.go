@@ -25,7 +25,9 @@ const (
 	JobDependencyRecovering = "jobRecovering" // Some allocations are pending
 	JobDependencyLost       = "jobLost"       // All allocations are unknown
 	JobDependencyFailed     = "jobFailed"     // All allocations are failed, lost, or unplaced
-	JobDependencyStopped    = "jobStopped"    // The job has been manually stopped
+
+	JobDependencyTimeoutDefault = 1 * time.Hour
+	JobDependencyStatusDefault  = JobDependencyComplete
 )
 
 // Constraint is used to serialize a job placement constraint.
@@ -58,7 +60,7 @@ func NewJobDependency(name, status string) *JobDependency {
 
 func (d *JobDependency) Canonicalize() {
 	if d.Status == "" {
-		d.Status = JobDependencyComplete
+		d.Status = JobDependencyStatusDefault
 	}
 }
 
@@ -78,7 +80,7 @@ func (d *JobDependency) Validate() error {
 
 	switch d.Status {
 	case JobDependencyComplete, JobDependencyRunning, JobDependencyRecovering,
-		JobDependencyLost, JobDependencyFailed, JobDependencyStopped:
+		JobDependencyLost, JobDependencyFailed:
 
 	default:
 		return errors.New("invalid state for dependency job")
@@ -88,6 +90,7 @@ func (d *JobDependency) Validate() error {
 }
 
 // JobDependencies is used to serialize a job placement dependency.
+// A value of 0 on the timeout means no timeout.
 type JobDependencies struct {
 	Timeout *time.Duration   `hcl:"timeout,optional"`
 	Jobs    []*JobDependency `hcl:"job,block"`
@@ -108,7 +111,7 @@ func NewJobDependencies(timeout, actionOnTimeout string, jobs ...*JobDependency)
 
 func (d *JobDependencies) Canonicalize() {
 	if d.Timeout == nil {
-		d.Timeout = new(60 * time.Minute)
+		d.Timeout = new(JobDependencyTimeoutDefault)
 	}
 	for _, job := range d.Jobs {
 		job.Canonicalize()
@@ -136,7 +139,7 @@ func (d *JobDependencies) Validate() error {
 		return nil
 	}
 
-	if d.Timeout == nil || *d.Timeout == 0 {
+	if d.Timeout == nil {
 		return errors.New("dependency timeout is required")
 	}
 

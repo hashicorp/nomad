@@ -118,8 +118,6 @@ type raftBackend interface {
 
 type DependencyCoordinator interface {
 	Reload(state sstructs.State, evals memdb.ResultIterator)
-	HasActiveDependents(j *structs.Job) (bool, error)
-	CheckDependency(state sstructs.State, job *structs.Job, eval *structs.Evaluation) ([]string, error)
 	CreatesCircularDependency(j *structs.Job) bool
 }
 
@@ -1393,18 +1391,24 @@ func (s *Server) setupRaft() error {
 		}
 	}()
 
+	// Create the dependency Coordinator
+	depCoordinator := dependency.NewCoordinator(s.logger,
+		loop_detection.New(s.logger), s.blockedEvals, s.raftApply)
+	s.dependencyCoordinator = depCoordinator
+
 	// Create the FSM
 	fsmConfig := &FSMConfig{
-		EvalBroker:         s.evalBroker,
-		BatchQueue:         s.batchQueueMgr,
-		Periodic:           s.periodicDispatcher,
-		Blocked:            s.blockedEvals,
-		Encrypter:          s.encrypter,
-		Logger:             s.logger,
-		Region:             s.Region(),
-		EnableEventBroker:  s.config.EnableEventBroker,
-		EventBufferSize:    s.config.EventBufferSize,
-		JobTrackedVersions: s.config.JobTrackedVersions,
+		EvalBroker:            s.evalBroker,
+		BatchQueue:            s.batchQueueMgr,
+		Periodic:              s.periodicDispatcher,
+		Blocked:               s.blockedEvals,
+		Encrypter:             s.encrypter,
+		Logger:                s.logger,
+		Region:                s.Region(),
+		EnableEventBroker:     s.config.EnableEventBroker,
+		EventBufferSize:       s.config.EventBufferSize,
+		JobTrackedVersions:    s.config.JobTrackedVersions,
+		DependencyCoordinator: s.dependencyCoordinator,
 	}
 
 	var err error
@@ -1439,11 +1443,6 @@ func (s *Server) setupRaft() error {
 	if s.config.RaftConfig.ProtocolVersion >= 3 {
 		s.config.RaftConfig.LocalID = raft.ServerID(s.config.NodeID)
 	}
-
-	// Create the dependency Coordinator
-	depCoordinator := dependency.NewCoordinator(s.logger,
-		loop_detection.New(s.logger), s.blockedEvals, s.raftApply)
-	s.dependencyCoordinator = depCoordinator
 
 	// Build an all in-memory setup for dev mode, otherwise prepare a full
 	// disk-based setup.
