@@ -42,9 +42,8 @@ type ConfigScanner struct {
 	//
 	// Used to set the total MHz of available CPU bandwidth on a system. This
 	// value is used by the scheduler for fitment, and by the client for computing
-	// task / alloc / client resource utilization. Therefor this value:
-	//  - Should NOT be set if Nomad was able to fingerprint a value.
-	//  - Should NOT be used to over/under provision compute resources.
+	// task / alloc / client resource utilization. When set, it replaces all
+	// detected core speeds with an equal share of the configured total compute.
 	TotalCompute hw.MHz
 
 	// ReservedCores comes from client.reserved.cores.
@@ -78,6 +77,23 @@ func (cs *ConfigScanner) ScanSystem(top *Topology) {
 
 	// set total compute from client configuration
 	top.OverrideTotalCompute = cs.TotalCompute
+
+	// apply override to cores proportionally otherwise using both cpu and
+	// cores for workloads produces incoherent results on node's with
+	// cpu_total_compute set
+	if top.OverrideTotalCompute > 0 && len(top.Cores) > 0 {
+		n := hw.MHz(len(top.Cores))
+
+		// cpu_total_compute / nproc may equal 0 which effectively
+		// disables mhz-based scheduling on this node but allows core
+		// reservations
+		mhz := cs.TotalCompute / n
+		for i := range top.Cores {
+			top.Cores[i].BaseSpeed = mhz
+			top.Cores[i].MaxSpeed = mhz
+			top.Cores[i].GuessSpeed = mhz
+		}
+	}
 
 	// set the reserved compute from client configuration
 	top.OverrideWitholdCompute = cs.ReservedCompute
