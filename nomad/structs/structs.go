@@ -1069,7 +1069,7 @@ type ApplyPlanResultsRequest struct {
 	// New or updated allocations
 	AllocsUpdated []*Allocation
 
-	// Evals is the list of new evaluations to create Evals are valid only when
+	// Evals is the list of new evaluations to create. Evals are valid only when
 	// used in the Raft RPC
 	Evals []*Evaluation
 
@@ -4490,6 +4490,16 @@ type Job struct {
 	// or Successful. This field is not meaningful for jobs that don't have an
 	// update block.
 	Stable bool
+
+	// Placed is for batch jobs to indicate this job's allocations have been
+	// scheduled in the cluster. Batch jobs do not have deployments so
+	// this field acts as a miniature deployment tracker to check on placement
+	// of batch jobs.
+	//
+	// Allocation failures resulting in reschedules during initial placement
+	// could delay setting this field to true, but allocation failures/reschedules
+	// after initial placement will not revert this field.
+	Placed bool
 
 	// Version is a monotonically increasing version number that is incremented
 	// on each job register.

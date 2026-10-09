@@ -5,13 +5,11 @@ package queue
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -22,11 +20,9 @@ import (
 // testWorkload is safe for concurrent use so tests can inspect it while it
 // is being watched.
 type testWorkload struct {
-	mu      sync.Mutex
-	eval    *structs.Evaluation
-	job     *structs.Job
-	status  string
-	setEval int
+	mu     sync.Mutex
+	eval   *structs.Evaluation
+	status string
 }
 
 func (w *testWorkload) ID() structs.NamespacedID {
@@ -47,7 +43,6 @@ func (w *testWorkload) SetEval(e *structs.Evaluation) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.eval = e
-	w.setEval++
 }
 
 func (w *testWorkload) Status() string {
@@ -62,309 +57,83 @@ func (w *testWorkload) SetStatus(s, d string) {
 	w.status = fmt.Sprintf("%s %s", s, d)
 }
 
-func (w *testWorkload) Job() *structs.Job {
-	return w.job
-}
-
-// waitForWatch waits until the watcher has looked up the workload's eval from
-// state, which happens after it has been added to the watch set.
-func waitForWatch(t *testing.T, w *testWorkload) {
-	t.Helper()
-	must.Wait(t, wait.InitialSuccess(
-		wait.BoolFunc(func() bool {
-			w.mu.Lock()
-			defer w.mu.Unlock()
-			return w.setEval > 0
-		}),
-		wait.Timeout(5*time.Second),
-		wait.Gap(10*time.Millisecond),
-	))
-}
-
 func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
-	t.Run("returns if eval complete", func(t *testing.T) {
+	// newWorkloadAndJob creates a job in state and an eval that references it,
+	// returning a testWorkload ready to be passed to WaitForPlacement.
+	newWorkloadAndJob := func(t *testing.T, ss *state.StateStore) (*testWorkload, *structs.Job) {
+		t.Helper()
+		testEval := mock.Eval()
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		job.ID = testEval.JobID
+		job.Namespace = testEval.Namespace
+		job.Placed = false
+		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
+		must.NoError(t, ss.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{testEval}))
+		return &testWorkload{eval: testEval}, job
+	}
+
+	t.Run("returns when placed is set", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
-		testEval := mock.Eval()
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+		workload, job := newWorkloadAndJob(t, ss)
 
-		ws := memdb.NewWatchSet()
-		workload := &testWorkload{eval: testEval.Copy()}
-		doneCh := make(chan error)
+		doneCh := make(chan error, 1)
 		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
+			doneCh <- watcher.WaitForPlacement(t.Context(), workload)
 		}()
 
-		// We want to make sure the watcher has begun a watch on the eval
-		// before continuing.
-		waitForWatch(t, workload)
+		// Give the goroutine time to enter the watch loop before triggering.
+		must.Wait(t, wait.InitialSuccess(
+			wait.BoolFunc(func() bool {
+				return len(watcher.GetInProgressWorkloads()) == 1
+			}),
+			wait.Timeout(5*time.Second),
+			wait.Gap(10*time.Millisecond),
+		))
 
 		select {
 		case <-doneCh:
-			t.Fatal("should not have exited")
+			t.Fatal("should not have returned yet")
 		default:
 		}
 
-		inProgress := watcher.GetInProgressWorkloads()
-		must.Eq(t, 1, len(inProgress))
-		must.NotNil(t, inProgress[testEval.ID])
-		workingWorkload := inProgress[testEval.ID]
-		must.Eq(t, workingWorkload.Status(), "placing ")
+		// Mark the job as placed.
+		placed := job.Copy()
+		placed.Placed = true
+		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 3, nil, placed))
 
-		testEval = testEval.Copy()
-		testEval.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
+		t.Log("waiting for doneCh")
 
-		done := <-doneCh
-		must.NoError(t, done)
-
-		inProgress = watcher.GetInProgressWorkloads()
-		must.Eq(t, 0, len(inProgress))
-
+		must.NoError(t, <-doneCh)
+		must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
 	})
 
-	t.Run("continues watching blocked evals", func(t *testing.T) {
+	t.Run("returns if job is removed from state", func(t *testing.T) {
 		ss := state.TestStateStore(t)
 		watcher := NewWorkloadWatcher(ss, hclog.Default())
 
-		testEval := mock.Eval()
-		blocked := mock.Eval()
+		workload, job := newWorkloadAndJob(t, ss)
 
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		ws := memdb.NewWatchSet()
-		workload := &testWorkload{eval: testEval.Copy()}
-		doneCh := make(chan error)
+		doneCh := make(chan error, 1)
 		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
+			doneCh <- watcher.WaitForPlacement(t.Context(), workload)
 		}()
-
-		// We want to make sure the watcher has begun a watch on the eval
-		// before continuing.
-		waitForWatch(t, workload)
-
-		select {
-		case <-doneCh:
-			t.Fatal("should not have exited")
-		default:
-		}
-
-		blocked = blocked.Copy()
-		blocked.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{blocked})
-
-		done := <-doneCh
-		must.NoError(t, done)
-	})
-
-	t.Run("continues watching next evals after eval failure", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
-
-		testEval := mock.Eval()
-		next := mock.Eval()
-
-		testEval.Status = structs.EvalStatusFailed
-		testEval.NextEval = next.ID
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, next})
-
-		ws := memdb.NewWatchSet()
-		workload := &testWorkload{eval: testEval.Copy()}
-		doneCh := make(chan error)
-		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
-		}()
-
-		// We want to make sure the watcher has begun a watch on the eval
-		// before continuing.
-		waitForWatch(t, workload)
-
-		select {
-		case <-doneCh:
-			t.Fatal("should not have exited")
-		default:
-		}
-
-		next = next.Copy()
-		next.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{next})
-
-		done := <-doneCh
-		must.NoError(t, done)
-	})
-
-	t.Run("updates status when constrained", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
-
-		testEval := mock.Eval()
-		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
-			"web": {
-				ConstraintFiltered: map[string]int{
-					"${attr.kernel.name} == linux": 5,
-				},
-				NodesExhausted: 0,
-				NodesAvailable: map[string]int{"test": 5},
-			},
-		}
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		ws := memdb.NewWatchSet()
-		workload := &testWorkload{eval: testEval.Copy()}
-		doneCh := make(chan error)
-		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
-		}()
-
-		// We want to make sure the watcher has begun a watch on the eval
-		// before continuing.
-		waitForWatch(t, workload)
-
-		select {
-		case <-doneCh:
-			t.Fatal("should not have exited")
-		default:
-		}
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval.Copy()})
 
 		must.Wait(t, wait.InitialSuccess(
 			wait.BoolFunc(func() bool {
-				return strings.Contains(workload.Status(), "blocked")
+				return len(watcher.GetInProgressWorkloads()) == 1
 			}),
 			wait.Timeout(5*time.Second),
-			wait.Gap(100*time.Millisecond),
+			wait.Gap(10*time.Millisecond),
 		))
 
-		inProgress := watcher.GetInProgressWorkloads()
-		must.Eq(t, 1, len(inProgress))
-		must.NotNil(t, inProgress[testEval.ID])
-		workingWorkload := inProgress[testEval.ID]
-		must.Eq(t, workingWorkload.Status(), "blocked ${attr.kernel.name} == linux")
+		// Deregister the job so it disappears from state.
+		must.NoError(t, ss.DeleteJob(3, job.Namespace, job.ID))
 
-		// Complete the eval
-		testEval = testEval.Copy()
-		testEval.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
-
-		done := <-doneCh
-		must.NoError(t, done)
-
-		inProgress = watcher.GetInProgressWorkloads()
-		must.Eq(t, 0, len(inProgress))
-	})
-
-	t.Run("continues waiting on resource exhaustion timeout", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
-
-		testEval := mock.Eval()
-		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
-			"web": {
-				NodesExhausted:     10,
-				DimensionExhausted: map[string]int{"cpu": 5},
-			},
-		}
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		ws := memdb.NewWatchSet()
-		workload := &testWorkload{eval: testEval.Copy()}
-		doneCh := make(chan error)
-		go func() {
-			err := watcher.WaitForPlacement(t.Context(), workload, ws)
-			doneCh <- err
-		}()
-
-		// We want to make sure the watcher has begun a watch on the eval
-		// before continuing.
-		waitForWatch(t, workload)
-
-		inProgress := watcher.GetInProgressWorkloads()
-		must.Eq(t, 1, len(inProgress))
-		must.NotNil(t, inProgress[testEval.ID])
-
-		// Complete the eval
-		testEval = testEval.Copy()
-		testEval.Status = structs.EvalStatusComplete
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{testEval})
-
-		done := <-doneCh
-		must.NoError(t, done)
-
-		inProgress = watcher.GetInProgressWorkloads()
-		must.Eq(t, 0, len(inProgress))
-	})
-}
-
-func TestWorkloadWatcher_isSchedulingComplete(t *testing.T) {
-	t.Run("pending eval results in false", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
-		testEval := mock.Eval()
-		testEval.Status = structs.EvalStatusPending
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval})
-
-		workload := &testWorkload{
-			eval: testEval.Copy(),
-		}
-
-		complete, err := watcher.IsSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.False(t, complete)
-	})
-
-	t.Run("eval with pending blockedEval results in false", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-		blocked.Status = structs.EvalStatusPending
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		workload := &testWorkload{
-			eval: testEval.Copy(),
-		}
-
-		complete, err := watcher.IsSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.False(t, complete)
-	})
-
-	t.Run("eval with complete blockedEval results in true", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
-
-		testEval := mock.Eval()
-		blocked := mock.Eval()
-
-		testEval.Status = structs.EvalStatusComplete
-		testEval.BlockedEval = blocked.ID
-		blocked.Status = structs.EvalStatusComplete
-
-		ss.UpsertEvals(structs.MsgTypeTestSetup, 0, []*structs.Evaluation{testEval, blocked})
-
-		workload := &testWorkload{
-			eval: testEval.Copy(),
-		}
-
-		complete, err := watcher.IsSchedulingComplete(workload)
-		must.NoError(t, err)
-		must.True(t, complete)
+		must.NoError(t, <-doneCh)
+		must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
 	})
 }
 

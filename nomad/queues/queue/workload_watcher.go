@@ -11,7 +11,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type WorkloadWatcher struct {
@@ -66,13 +65,13 @@ func (w *WorkloadWatcher) GetInProgressWorkloads() map[string]Workload {
 
 // WaitForPlacement watches an evaluation until it reaches a terminal state or times out.
 // It runs async and sends the result to the Results() channel.
-func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workload, ws memdb.WatchSet) error {
+func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workload) error {
 	// Track this placement
 	w.mu.Lock()
 	w.TrackPlacement(workload)
 	w.mu.Unlock()
 
-	err := w.wait(ctx, workload, ws)
+	err := w.wait(ctx, workload)
 
 	// Remove the workload from tracking
 	w.mu.Lock()
@@ -83,58 +82,36 @@ func (w *WorkloadWatcher) WaitForPlacement(ctx context.Context, workload Workloa
 }
 
 // wait blocks until the workload's evaluation reaches a terminal state.
-func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload, ws memdb.WatchSet) error {
-	eval := workload.Eval()
+func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
+	ws := memdb.NewWatchSet()
 
-	for !eval.TerminalStatus() || eval.BlockedEval != "" || eval.NextEval != "" {
-		// Determine which eval to follow
-		evalID := eval.ID
-		if eval.BlockedEval != "" {
-			evalID = eval.BlockedEval
-		} else if eval.NextEval != "" {
-			evalID = eval.NextEval
-		}
-
-		// Get a snapshot of the state
+	for {
 		snap, err := w.stateStore.Snapshot()
 		if err != nil {
 			return err
 		}
 
-		// Watch for snapshot abandonment
-		ws.Add(snap.AbandonCh())
-
-		// Lookup the evaluation
-		eval, err = snap.EvalByID(ws, evalID)
+		job, err := snap.JobByID(ws, workload.Eval().Namespace, workload.Eval().JobID)
 		if err != nil {
 			return err
 		}
-		if eval == nil {
-			return ErrWatchedEvalNotFound
+		if job == nil {
+			w.logger.Debug("watched queue job no longer present in state")
+			return nil
 		}
 
-		workload.SetEval(eval)
-
-		// If terminal, continue to check for followup evals
-		if eval.TerminalStatus() {
-			continue
+		if job.Placed {
+			return nil
 		}
 
-		if failure, reason := w.isConstraintFailure(workload); failure {
-			workload.SetStatus(WorkloadStatusBlocked, reason)
-		}
-
-		// Wait for eval update or context cancellation
 		if err = ws.WatchCtx(ctx); err != nil {
-			return err
+			return ctx.Err()
 		}
 
-		// Clear the watchset for next iteration
 		for k := range ws {
 			delete(ws, k)
 		}
 	}
-	return nil
 }
 
 // isConstraintFailure checks if the evaluation failed due to non-resource constraints
@@ -187,43 +164,35 @@ func (w *WorkloadWatcher) isConstraintFailure(workload Workload) (bool, string) 
 // evaluation's BlockedEvals and NextEvals.
 // Similar to WaitForPlacement, IsSchedulingComplete will record usage in the event an
 // actual placement occurred.
-func (w *WorkloadWatcher) IsSchedulingComplete(workload Workload) (bool, error) {
-	snap, err := w.stateStore.Snapshot()
-	if err != nil {
-		return false, err
-	}
-
-	ws := memdb.NewWatchSet()
-	eval := workload.Eval()
-	for eval.BlockedEval != "" || eval.NextEval != "" {
-		id := eval.ID
-
-		if eval.BlockedEval != "" {
-			id = eval.BlockedEval
-		} else if eval.NextEval != "" {
-			id = eval.NextEval
-		}
-
-		eval, err = snap.EvalByID(ws, id)
-		if err != nil {
-			return false, err
-		}
-		if eval == nil {
-			return false, ErrWatchedEvalNotFound
-		}
-
-		workload.SetEval(eval)
-
-		if !eval.TerminalStatus() {
-			return false, nil
-		}
-	}
-
-	if eval.Status == structs.EvalStatusComplete {
-		return true, nil
-	}
-
-	// This would only happen if an eval was not complete and did not
-	// yet have a followup eval
-	return false, nil
-}
+// func (w *WorkloadWatcher) IsSchedulingComplete(workload Workload) (bool, error) {
+// 	snap, err := w.stateStore.Snapshot()
+// 	if err != nil {
+// 		return false, err
+// 	}
+//
+// 	ws := memdb.NewWatchSet()
+//
+//
+// 		eval, err = snap.EvalByID(ws, id)
+// 		if err != nil {
+// 			return false, err
+// 		}
+// 		if eval == nil {
+// 			return false, ErrWatchedEvalNotFound
+// 		}
+//
+// 		workload.SetEval(eval)
+//
+// 		if !eval.TerminalStatus() {
+// 			return false, nil
+// 		}
+// 	}
+//
+// 	if eval.Status == structs.EvalStatusComplete {
+// 		return true, nil
+// 	}
+//
+// 	// This would only happen if an eval was not complete and did not
+// 	// yet have a followup eval
+// 	return false, nil
+// }

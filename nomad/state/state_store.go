@@ -1825,12 +1825,16 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		if err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
 		}
+		job.Placed, err = s.getJobPlaced(txn, job)
+		if err != nil {
+			return fmt.Errorf("setting job placed for %q failed: %v", job.ID, err)
+		}
 	} else {
 		job.CreateIndex = index
 		job.ModifyIndex = index
 		job.JobModifyIndex = index
 
-		if err := s.setJobStatus(index, txn, job, false, ""); err != nil {
+		if err := s.setJobStatusFields(index, txn, job, false, ""); err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
 		}
 
@@ -5422,7 +5426,7 @@ func (s *StateStore) setJobStatuses(index uint64, txn *txn,
 			continue
 		}
 
-		if err := s.setJobStatus(index, txn, existing.(*structs.Job), evalDelete, forceStatus); err != nil {
+		if err := s.setJobStatusFields(index, txn, existing.(*structs.Job), evalDelete, forceStatus); err != nil {
 			return err
 		}
 
@@ -5431,12 +5435,12 @@ func (s *StateStore) setJobStatuses(index uint64, txn *txn,
 	return nil
 }
 
-// setJobStatus sets the status of the job by looking up associated evaluations
-// and allocations. evalDelete should be set to true if setJobStatus is being
+// setJobStatusFields sets the status of the job by looking up associated evaluations
+// and allocations. evalDelete should be set to true if setJobStatusFields is being
 // called because an evaluation is being deleted (potentially because of garbage
 // collection). If forceStatus is non-empty, the job's status will be set to the
 // passed status.
-func (s *StateStore) setJobStatus(index uint64, txn *txn,
+func (s *StateStore) setJobStatusFields(index uint64, txn *txn,
 	job *structs.Job, evalDelete bool, forceStatus string) error {
 
 	// Capture the current status so we can check if there is a change
@@ -5452,14 +5456,21 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 		}
 	}
 
+	oldPlaced := job.Placed
+	newPlaced, err := s.getJobPlaced(txn, job)
+	if err != nil {
+		return err
+	}
+
 	// Fast-path if the job has not changed.
-	if oldStatus == newStatus {
+	if oldStatus == newStatus && oldPlaced == newPlaced {
 		return nil
 	}
 
 	// Copy and update the existing job
 	updated := job.Copy()
 	updated.Status = newStatus
+	updated.Placed = newPlaced
 	updated.ModifyIndex = index
 
 	// Insert the job
@@ -5546,6 +5557,49 @@ func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64,
 		}
 	}
 	return nil
+}
+
+func (s *StateStore) getJobPlaced(txn *txn, job *structs.Job) (bool, error) {
+	// Placed only applies to batch jobs
+	if job.Type != structs.JobTypeBatch {
+		return false, nil
+	}
+
+	// Placed signifies the original placement, alloc failures should not
+	// revert this field so once true, always true.
+	if job.Placed {
+		return true, nil
+	}
+
+	allocs, err := txn.Get("allocs", "job", job.Namespace, job.ID)
+	if err != nil {
+		return false, err
+	}
+
+	hasAlloc := false
+	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
+		hasAlloc = true
+	}
+	if !hasAlloc {
+		return false, nil
+	}
+
+	evals, err := txn.Get("evals", "job_prefix", job.Namespace, job.ID)
+	if err != nil {
+		return false, err
+	}
+
+	for raw := evals.Next(); raw != nil; raw = evals.Next() {
+		eval := raw.(*structs.Evaluation)
+		if eval.JobID != job.ID {
+			continue
+		}
+		if eval.Status == structs.EvalStatusBlocked {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (string, error) {
