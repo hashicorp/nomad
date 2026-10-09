@@ -46,7 +46,7 @@
   a:visited,
   .breadcrumb-link,
   .breadcrumb-link:visited {
-    color: var(--token-color-foreground-strong);
+    color: $primary-invert;
   }
 
   a:hover,
@@ -61,13 +61,17 @@
   .breadcrumb-link.is-active,
   li.is-active a,
   li:last-child a.active {
-    color: var(--token-color-foreground-strong);
+    color: $primary-invert;
     font-weight: $weight-semibold;
   }
 
   .breadcrumb-link dt,
   .breadcrumb-link dd {
-    color: var(--token-color-foreground-strong);
+    color: $primary-invert;
+  }
+
+  a:focus-visible {
+    outline-color: $primary-invert;
   }
 
   dl dd {

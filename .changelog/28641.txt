@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Restore light header breadcrumbs with accessible text and keyboard focus contrast
+```
