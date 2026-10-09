@@ -7198,74 +7198,107 @@ func TestStateStore_Allocs_PrevAlloc(t *testing.T) {
 	must.Eq(t, alloc0.ModifyIndex, uint64(1001))
 }
 
-func TestStateStore_SetJobStatus_ForceStatus(t *testing.T) {
+func TestStateStore_SetJobStatusFields(t *testing.T) {
 	ci.Parallel(t)
+	setupIdx := uint64(0)
+	setFieldsIdx := uint64(1000)
 
-	index := uint64(0)
-	state := testStateStore(t)
-	txn := state.db.WriteTxn(index)
+	t.Run("forceStatus successfully forces status", func(t *testing.T) {
+		state := testStateStore(t)
+		txn := state.db.WriteTxn(setupIdx)
 
-	// Create and insert a mock job.
-	job := mock.Job()
-	job.Status = ""
-	job.ModifyIndex = index
-	must.NoError(t, txn.Insert("jobs", job))
+		job := mock.Job()
+		job.Status = ""
+		job.ModifyIndex = setupIdx
+		must.NoError(t, txn.Insert("jobs", job))
 
-	exp := "foobar"
-	index = uint64(1000)
-	must.NoError(t, state.setJobStatus(index, txn, job, false, exp))
+		exp := "foobar"
+		must.NoError(t, state.setJobStatusFields(setFieldsIdx, txn, job, false, exp))
 
-	i, err := txn.First("jobs", "id", job.Namespace, job.ID)
-	must.NoError(t, err)
-	updated := i.(*structs.Job)
+		i, err := txn.First("jobs", "id", job.Namespace, job.ID)
+		must.NoError(t, err)
+		updated := i.(*structs.Job)
 
-	must.Eq(t, exp, updated.Status)
-	must.Eq(t, index, updated.ModifyIndex)
-}
+		must.Eq(t, exp, updated.Status)
+		must.Eq(t, setFieldsIdx, updated.ModifyIndex)
+	})
 
-func TestStateStore_SetJobStatus_NoOp(t *testing.T) {
-	ci.Parallel(t)
+	t.Run("same status is a noop", func(t *testing.T) {
+		state := testStateStore(t)
+		txn := state.db.WriteTxn(setupIdx)
 
-	index := uint64(0)
-	state := testStateStore(t)
-	txn := state.db.WriteTxn(index)
+		// Create and insert a mock job that should be pending.
+		job := mock.Job()
+		job.Status = structs.JobStatusPending
+		job.ModifyIndex = 10
+		must.NoError(t, txn.Insert("jobs", job))
 
-	// Create and insert a mock job that should be pending.
-	job := mock.Job()
-	job.Status = structs.JobStatusPending
-	job.ModifyIndex = 10
-	must.NoError(t, txn.Insert("jobs", job))
+		must.NoError(t, state.setJobStatusFields(setFieldsIdx, txn, job, false, ""))
 
-	index = uint64(1000)
-	must.NoError(t, state.setJobStatus(index, txn, job, false, ""))
+		i, err := txn.First("jobs", "id", job.Namespace, job.ID)
+		must.NoError(t, err)
+		updated := i.(*structs.Job)
+		must.Eq(t, 10, updated.ModifyIndex, must.Sprint("should be no-op"))
+	})
 
-	i, err := txn.First("jobs", "id", job.Namespace, job.ID)
-	must.NoError(t, err)
-	updated := i.(*structs.Job)
-	must.Eq(t, 10, updated.ModifyIndex, must.Sprint("should be no-op"))
-}
+	t.Run("updates status successfully", func(t *testing.T) {
+		state := testStateStore(t)
+		txn := state.db.WriteTxn(setupIdx)
 
-func TestStateStore_SetJobStatus(t *testing.T) {
-	ci.Parallel(t)
+		// Create and insert a mock job that should be pending but has an incorrect
+		// status.
+		job := mock.Job()
+		job.Status = "foobar"
+		job.ModifyIndex = 10
+		must.NoError(t, txn.Insert("jobs", job))
 
-	state := testStateStore(t)
-	txn := state.db.WriteTxn(uint64(0))
+		must.NoError(t, state.setJobStatusFields(setFieldsIdx, txn, job, false, ""))
 
-	// Create and insert a mock job that should be pending but has an incorrect
-	// status.
-	job := mock.Job()
-	job.Status = "foobar"
-	job.ModifyIndex = 10
-	must.NoError(t, txn.Insert("jobs", job))
+		i, err := txn.First("jobs", "id", job.Namespace, job.ID)
+		must.NoError(t, err)
+		updated := i.(*structs.Job)
+		must.Eq(t, structs.JobStatusPending, updated.Status)
+		must.Eq(t, setFieldsIdx, updated.ModifyIndex)
+	})
 
-	index := uint64(1000)
-	must.NoError(t, state.setJobStatus(index, txn, job, false, ""))
+	t.Run("same placed is a noop", func(t *testing.T) {
+		state := testStateStore(t)
+		txn := state.db.WriteTxn(setupIdx)
 
-	i, err := txn.First("jobs", "id", job.Namespace, job.ID)
-	must.NoError(t, err)
-	updated := i.(*structs.Job)
-	must.Eq(t, structs.JobStatusPending, updated.Status)
-	must.Eq(t, index, updated.ModifyIndex)
+		job := mock.Job()
+		job.Placed = false
+		job.ModifyIndex = 10
+		must.NoError(t, txn.Insert("jobs", job))
+
+		must.NoError(t, state.setJobStatusFields(setFieldsIdx, txn, job, false, ""))
+
+		i, err := txn.First("jobs", "id", job.Namespace, job.ID)
+		must.NoError(t, err)
+		updated := i.(*structs.Job)
+		must.Eq(t, false, updated.Placed)
+		must.Eq(t, 10, updated.ModifyIndex)
+	})
+
+	t.Run("updates placed successfully", func(t *testing.T) {
+		state := testStateStore(t)
+		txn := state.db.WriteTxn(setupIdx)
+
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		job.Placed = false
+		job.ModifyIndex = 10
+		must.NoError(t, txn.Insert("jobs", job))
+		alloc := mock.MinAllocForJob(job)
+		must.NoError(t, txn.Insert("allocs", alloc))
+
+		must.NoError(t, state.setJobStatusFields(setFieldsIdx, txn, job, false, ""))
+
+		i, err := txn.First("jobs", "id", job.Namespace, job.ID)
+		must.NoError(t, err)
+		updated := i.(*structs.Job)
+		must.Eq(t, true, updated.Placed)
+		must.Eq(t, setFieldsIdx, updated.ModifyIndex)
+	})
 }
 
 func TestStateStore_GetJobStatus(t *testing.T) {
@@ -7516,6 +7549,90 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			job := tc.setup(t, txn)
 
 			status, err := state.getJobStatus(txn, job, false)
+			must.NoError(t, err)
+			must.Eq(t, tc.exp, status)
+		})
+	}
+}
+
+func TestStateStore_GetJobPlaced(t *testing.T) {
+	ci.Parallel(t)
+
+	mockBatch := func() *structs.Job {
+		j := mock.Job()
+		j.Type = structs.JobTypeBatch
+		return j
+	}
+
+	testCases := []struct {
+		name  string
+		setup func(*testing.T, *txn) *structs.Job
+		exp   bool
+	}{
+		{
+			name: "ignores non-batch jobs",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				txn.Insert("jobs", j)
+				return j
+			},
+			exp: false,
+		},
+		{
+			name: "already placed returns true",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mockBatch()
+				j.Placed = true
+				txn.Insert("jobs", j)
+				return j
+			},
+			exp: true,
+		},
+		{
+			name: "no allocs is not placed",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mockBatch()
+				txn.Insert("jobs", j)
+				return j
+			},
+			exp: false,
+		},
+		{
+			name: "has blocked eval is false",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mockBatch()
+				txn.Insert("jobs", j)
+				a := mock.MinAllocForJob(j)
+				txn.Insert("allocs", a)
+				e := mock.Eval()
+				e.JobID = j.ID
+				e.Status = structs.EvalStatusBlocked
+				txn.Insert("evals", e)
+				return j
+			},
+			exp: false,
+		},
+		{
+			name: "allocs and no blocked eval is placed",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mockBatch()
+				txn.Insert("jobs", j)
+				a := mock.MinAllocForJob(j)
+				txn.Insert("allocs", a)
+				return j
+			},
+			exp: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ci.Parallel(t)
+
+			state := testStateStore(t)
+			txn := state.db.WriteTxn(0)
+			job := tc.setup(t, txn)
+
+			status, err := state.getJobPlaced(txn, job)
 			must.NoError(t, err)
 			must.Eq(t, tc.exp, status)
 		})

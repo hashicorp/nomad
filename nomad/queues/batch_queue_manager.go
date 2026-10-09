@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/queues/passthrough"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -272,60 +273,50 @@ func (qm *BatchQueueManager) restoreAllQueues() error {
 // restoreQueue runs Enqueue on pending evals and Restore on non-pending evals
 // for a given pool's queue. If pool is empty, it will restore all queues.
 func (qm *BatchQueueManager) restoreQueue(pool string) error {
-
-	// TODO: iter jobs instead of evals, because we can't depend on the register-job eval existing in the state store.
-
-	return qm.iterEvals(func(eval *structs.Evaluation, job *structs.Job) error {
-
-		// skip evals on other pools.
-		if pool != "" && job.NodePool != pool {
-			return nil
-		}
-
-		q := qm.Queue(job.NodePool) // per-pool queue, or passthrough
-
-		if eval.Status == structs.EvalStatusPending {
-			q.Enqueue(eval, job)
-		} else {
-			// non-pending evals get "restored" (count resource usage, resume watching)
-			if err := q.Restore(eval, job); err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-}
-
-// iterEvals executes fn for each batch queue evaluation in the state store.
-func (qm *BatchQueueManager) iterEvals(fn func(*structs.Evaluation, *structs.Job) error) error {
 	snap, err := qm.state.Snapshot()
 	if err != nil {
 		return err
 	}
-	evals, err := snap.Evals(nil, state.SortDefault)
+
+	var jobs memdb.ResultIterator
+
+	if pool != "" {
+		jobs, err = snap.JobsByPool(nil, pool)
+	} else {
+		jobs, err = snap.Jobs(nil, state.SortDefault)
+	}
 	if err != nil {
 		return err
 	}
 
-	for raw := evals.Next(); raw != nil; raw = evals.Next() {
-		eval := raw.(*structs.Evaluation)
-
-		if !eval.IsBatchQueue() {
+	for raw := jobs.Next(); raw != nil; raw = jobs.Next() {
+		job := raw.(*structs.Job)
+		if job.Type != structs.JobTypeBatch {
+			continue
+		}
+		if job.Placed {
 			continue
 		}
 
-		job, err := snap.JobByID(nil, eval.Namespace, eval.JobID)
+		evals, err := qm.state.EvalsByJob(nil, job.Namespace, job.ID)
 		if err != nil {
 			return err
 		}
-		if job == nil { // job may be nil if it was purged
+		if len(evals) == 0 {
 			continue
 		}
 
-		if err := fn(eval, job); err != nil {
-			return err
+		q := qm.Queue(job.NodePool) // per-pool queue, or passthrough
+
+		for _, e := range evals {
+			switch {
+			case e.Status == structs.EvalStatusBlocked:
+				q.Restore(e, job)
+			case e.Status == structs.EvalStatusPending && e.TriggeredBy == structs.EvalTriggerJobRegister:
+				q.Enqueue(e, job)
+			}
 		}
 	}
+
 	return nil
 }
