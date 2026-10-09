@@ -1,6 +1,0 @@
-{
-  "settingsInheritedFrom": "hashicorp/mend-config@main",
-  "scanSettingsSAST": {
-    "enableScan": false
-  }
-}
