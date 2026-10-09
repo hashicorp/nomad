@@ -5,7 +5,7 @@ package nomad
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 	"testing"
 	"time"
 
@@ -142,12 +142,17 @@ func TestJob_Statuses(t *testing.T) {
 
 	// test various single-job requests
 
+	// the pagination cursor is "<ModifyIndex>.<Namespace>.<ID>"
+	tok := func(j *structs.Job) string {
+		return fmt.Sprintf("%d.%s.%s", j.ModifyIndex, j.Namespace, j.ID)
+	}
+
 	for _, tc := range []struct {
 		name       string
 		qo         structs.QueryOptions
 		jobs       []structs.NamespacedID
 		expect     *structs.Job
-		expectNext uint64 // NextToken (ModifyIndex)
+		expectNext *structs.Job // job the NextToken cursor points at
 	}{
 		{
 			name: "page 1",
@@ -155,16 +160,16 @@ func TestJob_Statuses(t *testing.T) {
 				PerPage: 1,
 			},
 			expect:     jobs[4],
-			expectNext: jobs[3].ModifyIndex,
+			expectNext: jobs[3],
 		},
 		{
 			name: "page 2",
 			qo: structs.QueryOptions{
 				PerPage:   1,
-				NextToken: strconv.FormatUint(jobs[3].ModifyIndex, 10),
+				NextToken: tok(jobs[3]),
 			},
 			expect:     jobs[3],
-			expectNext: jobs[2].ModifyIndex,
+			expectNext: jobs[2],
 		},
 		{
 			name: "reverse",
@@ -173,7 +178,7 @@ func TestJob_Statuses(t *testing.T) {
 				Reverse: true,
 			},
 			expect:     jobs[0],
-			expectNext: jobs[1].ModifyIndex,
+			expectNext: jobs[1],
 		},
 		{
 			name: "filter",
@@ -212,8 +217,8 @@ func TestJob_Statuses(t *testing.T) {
 				must.Eq(t, tc.expect.ID, resp.Jobs[0].ID)
 			}
 			expectToken := ""
-			if tc.expectNext > 0 {
-				expectToken = strconv.FormatUint(tc.expectNext, 10)
+			if tc.expectNext != nil {
+				expectToken = tok(tc.expectNext)
 			}
 			must.Eq(t, expectToken, resp.NextToken)
 		})
