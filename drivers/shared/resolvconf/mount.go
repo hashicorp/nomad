@@ -4,7 +4,10 @@
 package resolvconf
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"path/filepath"
 
@@ -14,10 +17,9 @@ import (
 
 func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountConfig, error) {
 	var nSearches, nServers, nOptions int
-	path := filepath.Join(taskDir, "resolv.conf")
 	mount := &drivers.MountConfig{
 		TaskPath:        "/etc/resolv.conf",
-		HostPath:        path,
+		HostPath:        filepath.Join(taskDir, "resolv.conf"),
 		Readonly:        true,
 		PropagationMode: "private",
 	}
@@ -27,12 +29,17 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		nOptions = len(conf.Options)
 	}
 
+	root, err := os.OpenRoot(taskDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open task dir: %w", err)
+	}
+	defer root.Close()
+
 	// Use system dns if no configuration is given
 	if nServers == 0 && nSearches == 0 && nOptions == 0 {
-		if err := copySystemDNS(path); err != nil {
+		if err := copySystemDNS(root); err != nil {
 			return nil, err
 		}
-
 		return mount, nil
 	}
 
@@ -56,15 +63,37 @@ func GenerateDNSMount(taskDir string, conf *drivers.DNSConfig) (*drivers.MountCo
 		dnsOptionsList = conf.Options
 	}
 
-	_, err = resolvconf.Build(path, dnsList, dnsSearchList, dnsOptionsList)
+	content, err := buildResolvConf(dnsList, dnsSearchList, dnsOptionsList)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := writeToRoot(root, "resolv.conf", content); err != nil {
 		return nil, err
 	}
 
 	return mount, nil
 }
 
-func copySystemDNS(filePath string) error {
+// buildResolvConf generates resolv.conf content from the given DNS parameters
+// without writing to disk, mirroring the logic in resolvconf.Build.
+func buildResolvConf(nameservers, dnsSearch, dnsOptions []string) ([]byte, error) {
+	var ns []netip.Addr
+	for _, addr := range nameservers {
+		ipAddr, err := netip.ParseAddr(addr)
+		if err != nil {
+			return nil, fmt.Errorf("bad nameserver address: %w", err)
+		}
+		ns = append(ns, ipAddr)
+	}
+	rc := resolvconf.ResolvConf{}
+	rc.OverrideNameServers(ns)
+	rc.OverrideSearch(dnsSearch)
+	rc.OverrideOptions(dnsOptions)
+	return rc.Generate(false)
+}
+
+func copySystemDNS(root *os.Root) error {
 	in, err := os.Open(resolvconf.Path())
 	if err != nil {
 		return err
@@ -78,5 +107,15 @@ func copySystemDNS(filePath string) error {
 		return err
 	}
 
-	return os.WriteFile(filePath, content, 0644)
+	return writeToRoot(root, "resolv.conf", content)
+}
+
+func writeToRoot(root *os.Root, name string, content []byte) error {
+	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, bytes.NewReader(content))
+	return err
 }
