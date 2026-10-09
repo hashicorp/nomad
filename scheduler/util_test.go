@@ -112,7 +112,7 @@ func TestReadyNodesInDCsAndPool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ready, notReady, dcIndex, err := readyNodesInDCsAndPool(state, tc.datacenters, tc.pool)
+			ready, notReady, dcIndex, err := readyNodesInDCsAndPool(state, tc.datacenters, tc.pool, false)
 			must.NoError(t, err)
 			must.SliceContainsAll(t, tc.expectReady, ready, must.Sprint("expected ready to match"))
 			must.Eq(t, tc.expectNotReady, notReady, must.Sprint("expected not-ready to match"))
