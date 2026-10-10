@@ -46,15 +46,11 @@ const (
 	// For Client configuration, if no region information is given,
 	// the client node will default to be part of the GlobalRegion.
 	GlobalRegion = "global"
-)
 
-const (
 	// RegisterEnforceIndexErrPrefix is the prefix to use in errors caused by
 	// enforcing the job modify index during registers.
 	RegisterEnforceIndexErrPrefix = "Enforcing job modify index"
-)
 
-const (
 	// JobPeriodicLaunchSuffix is the string appended to the periodic jobs ID
 	// when launching derived instances of it.
 	JobPeriodicLaunchSuffix = "/periodic-"
@@ -1113,6 +1109,7 @@ type Job struct {
 	Datacenters      []string                `hcl:"datacenters,optional"`
 	NodePool         *string                 `mapstructure:"node_pool" hcl:"node_pool,optional"`
 	Constraints      []*Constraint           `hcl:"constraint,block"`
+	Dependencies     *JobDependencies        `hcl:"dependency,block"`
 	Affinities       []*Affinity             `hcl:"affinity,block"`
 	TaskGroups       []*TaskGroup            `hcl:"group,block"`
 	Update           *UpdateStrategy         `hcl:"update,block"`
@@ -1232,6 +1229,10 @@ func (j *Job) Canonicalize() {
 	}
 	if j.Multiregion != nil {
 		j.Multiregion.Canonicalize()
+	}
+
+	if j.Dependencies != nil {
+		j.Dependencies.Canonicalize()
 	}
 
 	for _, tg := range j.TaskGroups {
