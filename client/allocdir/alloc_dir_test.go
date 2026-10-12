@@ -252,6 +252,47 @@ func TestAllocDir_Move(t *testing.T) {
 	must.NotNil(t, fi)
 }
 
+// TestAllocDir_MoveSymlinkRejects verifies that Move refuses to relocate a
+// symlinked task local directory, preventing a malicious task from planting a
+// symlink that could be followed by subsequent permission drops (chmod/chown)
+// during TaskDir.Build, which would modify the symlink target on the host.
+func TestAllocDir_MoveSymlinkRejects(t *testing.T) {
+	ci.Parallel(t)
+
+	tmp1 := t.TempDir()
+	tmp2 := t.TempDir()
+
+	// Create two alloc dirs
+	d1 := NewAllocDir(testlog.HCLogger(t), tmp1, tmp1, "test")
+	must.NoError(t, d1.Build())
+	defer d1.Destroy()
+
+	d2 := NewAllocDir(testlog.HCLogger(t), tmp2, tmp2, "test")
+	must.NoError(t, d2.Build())
+	defer d2.Destroy()
+
+	// Build task dir in d1 so that the local dir exists
+	td1 := d1.NewTaskDir(t1)
+	must.NoError(t, td1.Build(fsisolation.None, nil, "nobody"))
+
+	// Replace the local dir with a symlink pointing outside the alloc dir
+	target := t.TempDir()
+	must.NoError(t, os.Remove(td1.LocalDir))
+	must.NoError(t, os.Symlink(target, td1.LocalDir))
+
+	// Create but don't build second task dir to mimic alloc/task runner
+	// behavior (AllocDir.Move() is called pre-TaskDir.Build).
+	d2.NewTaskDir(t1)
+
+	// Move should refuse to relocate the symlink
+	err := d2.Move(d1, []*structs.Task{t1})
+	must.Error(t, err)
+
+	// Ensure the symlink was not relocated into the new alloc dir
+	_, statErr := os.Lstat(filepath.Join(d2.TaskDirs[t1.Name].LocalDir))
+	must.True(t, os.IsNotExist(statErr))
+}
+
 func TestAllocDir_EscapeChecking(t *testing.T) {
 	ci.Parallel(t)
 

@@ -288,7 +288,10 @@ func (a *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 	// Move the data directory
 	otherDataDir := filepath.Join(other.ShareDirPath(), SharedDataDir)
 	dataDir := filepath.Join(a.SharedDir, SharedDataDir)
-	if fileInfo, err := os.Stat(otherDataDir); fileInfo != nil && err == nil {
+	if fileInfo, err := os.Lstat(otherDataDir); fileInfo != nil && err == nil {
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to move data dir: %q is a symlink", otherDataDir)
+		}
 		os.Remove(dataDir) // remove an empty data dir if it exists
 		if err := os.Rename(otherDataDir, dataDir); err != nil {
 			return fmt.Errorf("error moving data dir: %w", err)
@@ -300,8 +303,12 @@ func (a *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 		otherTaskDir := filepath.Join(other.AllocDirPath(), task.Name)
 		otherTaskLocal := filepath.Join(otherTaskDir, TaskLocal)
 
-		fileInfo, err := os.Stat(otherTaskLocal)
+		// a symlink here from a migrated allocdir could point outside the sandbox
+		fileInfo, err := os.Lstat(otherTaskLocal)
 		if fileInfo != nil && err == nil {
+			if fileInfo.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("refusing to move task %q local dir: %q is a symlink", task.Name, otherTaskLocal)
+			}
 			// TaskDirs haven't been built yet, so create it
 			newTaskDir := filepath.Join(a.AllocDir, task.Name)
 			if err := os.MkdirAll(newTaskDir, fileMode777); err != nil {

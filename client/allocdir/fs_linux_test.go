@@ -174,3 +174,24 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 		t.Fatalf("error removing nonexistent secrets dir %q: %v", secretsDir, err)
 	}
 }
+
+// TestDropDirPermissions_Symlink verifies that dropDirPermissions refuses to
+// modify permissions on symlinks, preventing a symlinked path from causing
+// chmod/chown to affect the symlink target on the host.
+func TestDropDirPermissions_Symlink(t *testing.T) {
+	ci.Parallel(t)
+
+	target := t.TempDir()
+	link := filepath.Join(t.TempDir(), "link")
+	must.NoError(t, os.Symlink(target, link))
+
+	err := dropDirPermissions(link, fileMode777)
+	must.Error(t, err)
+
+	// Verify the target directory was not modified: its permissions should
+	// still be the default temp dir perms (not 0777).
+	fi, err := os.Stat(target)
+	must.NoError(t, err)
+	// TempDir default perms are 0o700, definitely not 0o777.
+	must.False(t, fi.Mode().Perm()&os.ModePerm == 0o777)
+}
