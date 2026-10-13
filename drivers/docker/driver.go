@@ -715,10 +715,21 @@ func (d *Driver) resolveRegistryAuthentication(driverConfig *TaskConfig, repo st
 // loadImage creates an image by loading it from the file system
 func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, dockerClient *client.Client) (id string, user string, err error) {
 
-	archive := filepath.Join(task.TaskDir().LocalDir, driverConfig.LoadImage)
+	localDir := task.TaskDir().LocalDir
+	archive := filepath.Join(localDir, driverConfig.LoadImage)
 	d.logger.Debug("loading image from disk", "archive", archive)
 
-	f, err := os.Open(archive)
+	relArchive, err := filepath.Rel(localDir, archive)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to open image archive: %v", err)
+	}
+	root, err := os.OpenRoot(localDir)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to open image archive: %v", err)
+	}
+	defer root.Close()
+
+	f, err := root.Open(relArchive)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to open image archive: %v", err)
 	}
