@@ -383,8 +383,8 @@ func (d *Queue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *
 	return iter
 }
 
-// Tenants implements base.Viewable.
-func (d *Queue) Tenants() structs.QueueTenantsResponse {
+// Status implements base.Viewable.
+func (d *Queue) Status() structs.QueueStatusResponse {
 	d.tMux.Lock()
 	defer d.tMux.Unlock()
 
@@ -397,8 +397,8 @@ func (d *Queue) Tenants() structs.QueueTenantsResponse {
 			TotalFairshare:  d.totalFairshare.ByResource(),
 		})
 	}
-	return structs.QueueTenantsResponse{
-		Type:    structs.BatchQueueTypeDynamic,
-		Tenants: tenants,
+	return structs.QueueStatusResponse{
+		Type:   structs.BatchQueueTypeDynamic,
+		Status: tenants,
 	}
 }

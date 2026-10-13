@@ -22,14 +22,14 @@ func TestJobs_BatchQueue_Jobs(t *testing.T) {
 	must.Eq(t, "passthrough", resp.Type)
 }
 
-func TestJobs_BatchQueue_Tenants(t *testing.T) {
+func TestJobs_BatchQueue_Status(t *testing.T) {
 	testutil.Parallel(t)
 
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 	queue := c.BatchQueue()
 
-	resp, _, err := queue.Tenants(nil)
+	resp, _, err := queue.Status(nil)
 	must.NoError(t, err)
 	must.Eq(t, "passthrough", resp.Type)
 }

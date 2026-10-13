@@ -12,15 +12,15 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestQueueTenantsCommand_Implements(t *testing.T) {
+func TestQueueStatusCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
-	var _ cli.Command = &QueueTenantsCommand{}
+	var _ cli.Command = &QueueStatusCommand{}
 }
 
-func TestQueueTenantsCommand_printTenantsFormatted(t *testing.T) {
+func TestQueueStatusCommand_printStatusFormatted(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	cmd := &QueueTenantsCommand{Meta: Meta{Ui: ui}}
+	cmd := &QueueStatusCommand{Meta: Meta{Ui: ui}}
 	testRespTenant := []api.DynamicPriorityTenant{
 		{
 			TenantID:        "testTenant1",
@@ -29,25 +29,24 @@ func TestQueueTenantsCommand_printTenantsFormatted(t *testing.T) {
 			TotalFairshare:  map[string]float64{"cpu": 10, "memory": 20},
 		},
 	}
-	statusResp := &api.BatchJobQueueTenantsResponse{
-		Tenants: testRespTenant,
+	statusResp := &api.BatchJobQueueStatusResponse{
+		Status: testRespTenant,
 	}
-	cmd.printTenants(statusResp, false)
+	cmd.printStatus(statusResp, false)
 
-	expectFormatted := `Batch Queue Tenants
-Tenant       Resource  Current / Total  Percentage
-testTenant1                             100
-             cpu       10.00 / 10.00    
-             memory    20.00 / 20.00    
-`
+	expectFormatted := "Batch Queue Status\n" +
+		"Tenant       Resource  Current / Total  Percentage\n" +
+		"testTenant1                             100\n" +
+		"             cpu       10.00 / 10.00    \n" +
+		"             memory    20.00 / 20.00    \n"
 	must.Eq(t, expectFormatted, ui.OutputWriter.String())
 
 }
 
-func TestQueueTenantsCommand_printTenantsJSON(t *testing.T) {
+func TestQueueStatusCommand_printStatusJSON(t *testing.T) {
 	ci.Parallel(t)
 	ui := cli.NewMockUi()
-	cmd := &QueueTenantsCommand{Meta: Meta{Ui: ui}}
+	cmd := &QueueStatusCommand{Meta: Meta{Ui: ui}}
 	testRespTenant := []api.DynamicPriorityTenant{
 		{
 			TenantID:        "testTenant1",
@@ -56,11 +55,11 @@ func TestQueueTenantsCommand_printTenantsJSON(t *testing.T) {
 			TotalFairshare:  map[string]float64{"cpu": 10, "memory": 20},
 		},
 	}
-	statusResp := &api.BatchJobQueueTenantsResponse{
-		Tenants: testRespTenant,
+	statusResp := &api.BatchJobQueueStatusResponse{
+		Status: testRespTenant,
 	}
 
-	cmd.printTenants(statusResp, true)
+	cmd.printStatus(statusResp, true)
 
 	expectJson := `[{"TenantID":"testTenant1","PercentageUsed":100,"TenantFairshare":{"cpu":10,"memory":20},"TotalFairshare":{"cpu":10,"memory":20}}]` + "\n"
 	must.Eq(t, expectJson, ui.OutputWriter.String())

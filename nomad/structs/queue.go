@@ -72,18 +72,18 @@ func (w *Workload) GetNamespace() string {
 	return w.Namespace
 }
 
-type QueueTenantsRequest struct {
+type QueueStatusRequest struct {
 	NodePool string `json:"node_pool,omitempty"`
 	QueryOptions
 }
 
-type QueueTenantsResponse struct {
+type QueueStatusResponse struct {
 	Type BatchQueueType
 
-	// Tenants contains data about a specific queue
+	// Status contains data about a specific queue
 	// that is important to a consumer of this API.
 	// The actual type is based on the "Type" parameter.
-	Tenants any
+	Status any
 	QueryMeta
 }
 

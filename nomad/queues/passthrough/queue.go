@@ -42,6 +42,6 @@ func (p *PassthroughQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
 	return &queue.WorkloadIter{}
 }
 
-func (p *PassthroughQueue) Tenants() structs.QueueTenantsResponse {
-	return structs.QueueTenantsResponse{Type: structs.BatchQueueTypePassthrough}
+func (p *PassthroughQueue) Status() structs.QueueStatusResponse {
+	return structs.QueueStatusResponse{Type: structs.BatchQueueTypePassthrough}
 }

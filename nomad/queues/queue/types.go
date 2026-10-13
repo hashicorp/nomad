@@ -46,7 +46,7 @@ type QueueRunner interface {
 	Restore(*structs.Evaluation, *structs.Job) error
 	Dequeue(structs.NamespacedID)
 	Jobs(structs.SortOrder) *WorkloadIter
-	Tenants() structs.QueueTenantsResponse
+	Status() structs.QueueStatusResponse
 	Type() structs.BatchQueueType
 }
 

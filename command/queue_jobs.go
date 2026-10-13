@@ -20,7 +20,7 @@ type QueueJobsCommand struct {
 
 func (c *QueueJobsCommand) Help() string {
 	helpText := `
-Usage: nomad queue status [options]
+Usage: nomad queue jobs [options]
 
   View the current status of workloads queued in a batch job queue.
 
@@ -51,7 +51,7 @@ Jobs Options:
 }
 
 func (c *QueueJobsCommand) Synopsis() string {
-	return "View the status of a batch job queue"
+	return "View the workloads in a batch job queue"
 }
 
 func (c *QueueJobsCommand) AutocompleteFlags() complete.Flags {
@@ -70,7 +70,7 @@ func (c *QueueJobsCommand) AutocompleteArgs() complete.Predictor {
 	return JobPredictor(c.Meta.Client)
 }
 
-func (c *QueueJobsCommand) Name() string { return "queue status" }
+func (c *QueueJobsCommand) Name() string { return "queue jobs" }
 
 func (c *QueueJobsCommand) Run(args []string) int {
 	var verbose, jsonOut, prioritySort bool

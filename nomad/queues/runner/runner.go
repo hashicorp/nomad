@@ -27,7 +27,7 @@ type Viewable interface {
 	// Jobs returns the queued workloads along with the given in-progress
 	// workloads, which are no longer stored in the queue.
 	Jobs(structs.SortOrder, []queue.Workload) *queue.WorkloadIter
-	Tenants() structs.QueueTenantsResponse
+	Status() structs.QueueStatusResponse
 }
 
 var _ queue.QueueRunner = (*QueueRunner)(nil)
@@ -156,13 +156,13 @@ func (qr *QueueRunner) Jobs(o structs.SortOrder) *queue.WorkloadIter {
 	return view.Jobs(o, inProgress)
 }
 
-// Tenants returns the queue's tenants, if the queue implementation is
+// Status returns the queue's status, if the queue implementation is
 // Viewable.
-func (qr *QueueRunner) Tenants() structs.QueueTenantsResponse {
+func (qr *QueueRunner) Status() structs.QueueStatusResponse {
 	if view, ok := qr.queue.(Viewable); ok {
-		return view.Tenants()
+		return view.Status()
 	}
-	return structs.QueueTenantsResponse{Type: qr.queue.Type()}
+	return structs.QueueStatusResponse{Type: qr.queue.Type()}
 }
 
 // runProducer pushes workloads onto the queue and notifies the consumer

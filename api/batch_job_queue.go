@@ -65,12 +65,12 @@ type BatchJobQueueJobsResponse struct {
 	Workloads any
 }
 
-type BatchJobQueueTenantsResponse struct {
+type BatchJobQueueStatusResponse struct {
 	Type BatchQueueType
-	// Tenants contains data about a specific queue
+	// Status contains data about a specific queue
 	// that is important to a consumer of this API.
 	// The struct type is based on the "Type" parameter.
-	Tenants any
+	Status any
 }
 
 // Jobs is used to query the current batch job queue.
@@ -85,10 +85,10 @@ func (q *BatchQueue) Jobs(queryOpts *QueryOptions) (*BatchJobQueueJobsResponse, 
 	return &resp, qm, nil
 }
 
-// Tenants is used to query the current batch job queue.
-func (q *BatchQueue) Tenants(queryOpts *QueryOptions) (*BatchJobQueueTenantsResponse, *QueryMeta, error) {
-	var resp BatchJobQueueTenantsResponse
-	endpoint := "/v1/queue/tenants"
+// Status is used to query the current batch job queue.
+func (q *BatchQueue) Status(queryOpts *QueryOptions) (*BatchJobQueueStatusResponse, *QueryMeta, error) {
+	var resp BatchJobQueueStatusResponse
+	endpoint := "/v1/queue/status"
 
 	qm, err := q.client.query(endpoint, &resp, queryOpts)
 	if err != nil {
