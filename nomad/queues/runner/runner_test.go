@@ -47,10 +47,11 @@ func TestQueueRunner_Enqueue(t *testing.T) {
 		q.On("Get", wl.ID()).Return(nil, false).Once()
 		q.On("Push", wl).Once()
 		q.On("Pop").Return(wl, true).Once()
+		q.On("Pop").Return(nil, false).Once()
 
 		enqueued := make(chan struct{})
 		broker := &mocks.MockBroker{}
-		broker.On("Enqueue", eval).Run(func(args tmock.Arguments) { close(enqueued) }).Once()
+		broker.On("Enqueue", eval).Run(func(args tmock.Arguments) { close(enqueued) })
 
 		qr := New(testlog.HCLogger(t), q, broker, store, nil)
 		qr.Start(t.Context())

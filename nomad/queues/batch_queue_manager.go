@@ -308,12 +308,15 @@ func (qm *BatchQueueManager) restoreQueue(pool string) error {
 
 		q := qm.Queue(job.NodePool) // per-pool queue, or passthrough
 
+	LOOP:
 		for _, e := range evals {
 			switch {
 			case e.Status == structs.EvalStatusBlocked:
 				q.Restore(e, job)
+				break LOOP
 			case e.Status == structs.EvalStatusPending && e.TriggeredBy == structs.EvalTriggerJobRegister:
 				q.Enqueue(e, job)
+				break LOOP
 			}
 		}
 	}

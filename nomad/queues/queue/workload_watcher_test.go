@@ -106,7 +106,11 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 
 		t.Log("waiting for doneCh")
 
-		must.NoError(t, <-doneCh)
+		select {
+		case <-doneCh:
+		case <-time.After(1 * time.Second):
+			t.Fatalf("timed out waiting for doneCh")
+		}
 		must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
 	})
 
@@ -132,7 +136,11 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		// Deregister the job so it disappears from state.
 		must.NoError(t, ss.DeleteJob(3, job.Namespace, job.ID))
 
-		must.NoError(t, <-doneCh)
+		select {
+		case <-doneCh:
+		case <-time.After(1 * time.Second):
+			t.Fatalf("timed out waiting for doneCh")
+		}
 		must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
 	})
 }

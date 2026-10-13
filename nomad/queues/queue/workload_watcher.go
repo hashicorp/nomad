@@ -91,7 +91,9 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
 			return err
 		}
 
-		job, err := snap.JobByID(ws, workload.Eval().Namespace, workload.Eval().JobID)
+		eval := workload.Eval()
+
+		job, err := snap.JobByID(ws, eval.Namespace, eval.JobID)
 		if err != nil {
 			return err
 		}
@@ -105,7 +107,8 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
 		}
 
 		if err = ws.WatchCtx(ctx); err != nil {
-			return ctx.Err()
+			w.logger.Debug("shutting down workload watcher for job", "ID", workload.ID())
+			return nil
 		}
 
 		for k := range ws {
