@@ -45,3 +45,7 @@ func (p *PassthroughQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
 func (p *PassthroughQueue) Tenants() structs.QueueTenantsResponse {
 	return structs.QueueTenantsResponse{Type: structs.BatchQueueTypePassthrough}
 }
+
+func (p *PassthroughQueue) Len() int {
+	return 0
+}

@@ -104,3 +104,7 @@ func (f *Queue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *
 func (f *Queue) Tenants() structs.QueueTenantsResponse {
 	return structs.QueueTenantsResponse{Type: structs.BatchQueueTypeFifo}
 }
+
+func (f *Queue) Len() int {
+	return f.queue.Len()
+}

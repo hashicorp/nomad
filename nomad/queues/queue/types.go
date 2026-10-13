@@ -29,6 +29,7 @@ type Queue interface {
 	Remove(structs.NamespacedID) (Workload, bool)
 	Swap(Workload) (Workload, bool)
 	Type() structs.BatchQueueType
+	Len() int
 }
 
 type QueueManager interface {

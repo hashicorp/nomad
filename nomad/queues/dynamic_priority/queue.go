@@ -402,3 +402,7 @@ func (d *Queue) Tenants() structs.QueueTenantsResponse {
 		Tenants: tenants,
 	}
 }
+
+func (d *Queue) Len() int {
+	return d.queue.Len()
+}

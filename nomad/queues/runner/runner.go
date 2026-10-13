@@ -9,8 +9,10 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -35,6 +37,9 @@ var _ queue.QueueRunner = (*QueueRunner)(nil)
 // QueueRunner implements queue.Queue for any Queue implementation.
 type QueueRunner struct {
 	queue queue.Queue
+
+	// pool is the name of the node pool, used for labeling metrics.
+	pool string
 
 	// enqueueCh is used to buffer workloads before they are processed by
 	// the producer and pushed onto the queue.
@@ -64,12 +69,14 @@ type QueueRunner struct {
 func New(
 	logger hclog.Logger,
 	q queue.Queue,
+	pool string,
 	broker queue.Broker,
 	ss *state.StateStore,
 	cancelFn queue.EvalCancelFn,
 ) *QueueRunner {
 	return &QueueRunner{
 		queue:        q,
+		pool:         pool,
 		enqueueCh:    make(chan queue.Workload, 8192),
 		qNotify:      make(chan struct{}, 1),
 		evalBroker:   broker,
@@ -100,6 +107,10 @@ func (qr *QueueRunner) Start(ctx context.Context) {
 	qr.wg.Go(func() {
 		qr.runConsumer(rCtx)
 	})
+
+	qr.wg.Go(func() {
+		qr.emitMetrics(rCtx)
+	})
 }
 
 func (qr *QueueRunner) Stop() {
@@ -107,6 +118,24 @@ func (qr *QueueRunner) Stop() {
 		qr.cancel()
 	}
 	qr.wg.Wait()
+}
+
+func (qr *QueueRunner) emitMetrics(ctx context.Context) {
+	// TODO: time stuck watching a job?
+	for {
+		metrics.SetGaugeWithLabels(
+			[]string{"nomad", "queue", "jobs"},
+			float32(qr.queue.Len()),
+			[]metrics.Label{{Name: "node_pool", Value: qr.pool}},
+		)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second): // same as eval broker's metric timer
+			// continue
+		}
+	}
 }
 
 // Enqueue submits a pending eval to the queue. If the queue implementation
