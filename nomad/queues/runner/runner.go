@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -141,16 +140,6 @@ func (qr *QueueRunner) Restore(e *structs.Evaluation, j *structs.Job) error {
 		return nil
 	}
 
-	// this follows the eval chain and sets the latest eval on the workload.
-	placed, err := qr.watcher.IsSchedulingComplete(wl)
-	if err != nil {
-		return err
-	}
-
-	if placed {
-		return nil
-	}
-
 	qr.restored = append(qr.restored, wl)
 	return nil
 }
@@ -246,7 +235,7 @@ func (qr *QueueRunner) runConsumer(ctx context.Context) {
 // false only if the context was canceled, so the runner can shut down.
 func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) (contextCanceled bool) {
 
-	err := qr.watcher.WaitForPlacement(ctx, w, memdb.NewWatchSet())
+	err := qr.watcher.WaitForPlacement(ctx, w)
 	if err != nil {
 		if errors.Is(err, context.Canceled) || ctx.Err() != nil {
 			return false

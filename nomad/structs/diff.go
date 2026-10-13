@@ -74,7 +74,7 @@ func (j *Job) Diff(other *Job, contextual bool) (*JobDiff, error) {
 	// See agent.ApiJobToStructJob Update is a default for TaskGroups
 	diff := &JobDiff{Type: DiffTypeNone}
 	var oldPrimitiveFlat, newPrimitiveFlat map[string]string
-	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "CreateIndex",
+	filter := []string{"ID", "Status", "StatusDescription", "Version", "Stable", "Placed", "CreateIndex",
 		"ModifyIndex", "JobModifyIndex", "Update", "SubmitTime", "NomadTokenID", "VaultToken"}
 
 	if j == nil && other == nil {
