@@ -43,12 +43,20 @@
   }
 
   &.is-header-region-switcher {
+    padding-top: 0.25em;
+    padding-bottom: 0.25em;
     background-color: $nomad-green-region-toggle;
-    border-color: #c2c5cb;
+    border-color: var(--token-color-palette-neutral-200);
     color: $white;
+    font-weight: $weight-semibold;
+
+    .ember-power-select-selected-item {
+      line-height: 1.5;
+    }
 
     .ember-power-select-prefix {
       color: $white;
+      font-weight: inherit;
     }
 
     .ember-power-select-status-icon {

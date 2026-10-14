@@ -81,7 +81,7 @@
   li:not(:last-child) a:active,
   li:not(:last-child) a.active,
   li:not(:last-child) a.is-active {
-    color: rgba($white, 0.9);
+    color: rgba($white, 0.98);
 
     dt,
     dd {
@@ -100,12 +100,21 @@
     line-height: 32px;
   }
 
-  li:first-child:not(:last-child) a.breadcrumb-link.is-plain,
-  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:visited,
-  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:hover,
-  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:focus,
-  li:first-child:not(:last-child) a.breadcrumb-link.is-plain:active {
-    color: rgba($white, 0.75);
+  li:not(:last-child) a.breadcrumb-link.is-plain,
+  li:not(:last-child) a.breadcrumb-link.is-plain:visited,
+  li:not(:last-child) a.breadcrumb-link.is-plain:hover,
+  li:not(:last-child) a.breadcrumb-link.is-plain:focus,
+  li:not(:last-child) a.breadcrumb-link.is-plain:active {
+    color: var(--token-color-palette-neutral-200);
+  }
+
+  li:not(:first-child, :last-child) a.breadcrumb-link.is-plain,
+  li:not(:first-child, :last-child) a.breadcrumb-link.is-plain:visited,
+  li:not(:first-child, :last-child) a.breadcrumb-link.is-plain:hover,
+  li:not(:first-child, :last-child) a.breadcrumb-link.is-plain:focus,
+  li:not(:first-child, :last-child) a.breadcrumb-link.is-plain:active {
+    font-size: 19px;
+    font-weight: $weight-bold;
   }
 
   dl dd {
