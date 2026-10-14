@@ -99,4 +99,5 @@ func TestKeyring_OIDCDiscoveryConfig(t *testing.T) {
 	must.SliceNotEmpty(t, c.IDTokenAlgs)
 	must.SliceNotEmpty(t, c.ResponseTypes)
 	must.SliceNotEmpty(t, c.Subjects)
+	must.Eq(t, DefaultClaimsSupported, c.ClaimsSupported)
 }

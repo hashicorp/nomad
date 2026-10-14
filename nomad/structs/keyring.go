@@ -600,11 +600,29 @@ type KeyringGetConfigResponse struct {
 // specification are not relevant to Nomad's use case:
 // https://openid.net/specs/openid-connect-discovery-1_0.html
 type OIDCDiscoveryConfig struct {
-	Issuer        string   `json:"issuer"`
-	JWKS          string   `json:"jwks_uri"`
-	IDTokenAlgs   []string `json:"id_token_signing_alg_values_supported"`
-	ResponseTypes []string `json:"response_types_supported"`
-	Subjects      []string `json:"subject_types_supported"`
+	Issuer          string   `json:"issuer"`
+	JWKS            string   `json:"jwks_uri"`
+	IDTokenAlgs     []string `json:"id_token_signing_alg_values_supported"`
+	ResponseTypes   []string `json:"response_types_supported"`
+	Subjects        []string `json:"subject_types_supported"`
+	ClaimsSupported []string `json:"claims_supported"`
+}
+
+// DefaultClaimsSupported is the default set of claims supported by Nomad's
+// workload identity OIDC provider.
+var DefaultClaimsSupported = []string{
+	"iss",
+	"sub",
+	"aud",
+	"exp",
+	"nbf",
+	"iat",
+	"jti",
+	"nomad_namespace",
+	"nomad_job_id",
+	"nomad_allocation_id",
+	"nomad_task",
+	"nomad_service",
 }
 
 // NewOIDCDiscoveryConfig returns a populated OIDCDiscoveryConfig or an error.
@@ -630,8 +648,9 @@ func NewOIDCDiscoveryConfig(issuer string) (*OIDCDiscoveryConfig, error) {
 		// advertise support for backward compatibility.
 		IDTokenAlgs: []string{PubKeyAlgRS256, PubKeyAlgEdDSA},
 
-		ResponseTypes: []string{"code"},
-		Subjects:      []string{"public"},
+		ResponseTypes:   []string{"code"},
+		Subjects:        []string{"public"},
+		ClaimsSupported: slices.Clone(DefaultClaimsSupported),
 	}
 
 	return disc, nil
