@@ -144,7 +144,7 @@ func PathEscapesAllocDir(base, prefix, path string) (bool, error) {
 
 // PathEscapesSandbox returns whether previously cleaned path inside the
 // sandbox directory (typically this will be the allocation directory)
-// escapes.
+// escapes. Note this is only a lexical check.
 func PathEscapesSandbox(sandboxDir, path string) bool {
 	rel, err := filepath.Rel(sandboxDir, path)
 	if err != nil {
