@@ -112,7 +112,35 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 		filePath      string
 		symlink       string
 		expectedError string
+
+		// innerLink is the name of a symlink the task has planted inside its
+		// local dir, pointing outside the sandbox. If innerLinkIsFile, it
+		// points at a nonexistent file rather than a directory.
+		innerLink       string
+		innerLinkIsFile bool
 	}{
+		{
+			name:          "in-sandbox symlinked dir escape",
+			payload:       snappy.Encode(nil, []byte("hello world")),
+			filePath:      "link/out",
+			innerLink:     "link",
+			expectedError: "path escapes from parent",
+		},
+		{
+			name:          "in-sandbox symlinked dir escape with new subdir",
+			payload:       snappy.Encode(nil, []byte("hello world")),
+			filePath:      "link/sub/out",
+			innerLink:     "link",
+			expectedError: "path escapes from parent",
+		},
+		{
+			name:            "in-sandbox symlinked file escape",
+			payload:         snappy.Encode(nil, []byte("hello world")),
+			filePath:        "link",
+			innerLink:       "link",
+			innerLinkIsFile: true,
+			expectedError:   "path escapes from parent",
+		},
 		{
 			name:          "corrupt input",
 			payload:       []byte("hello world"),
@@ -176,6 +204,20 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 				escapeDir := filepath.Join(taskDir.AllocDir, "etc")
 				must.NoError(t, os.Symlink(taskDir.LocalDir, escapeDir))
 			}
+
+			// plant a symlink inside the sandbox that points outside of it
+			outside := t.TempDir()
+			expectedEntries := 0
+			if tc.innerLink != "" {
+				target := outside
+				if tc.innerLinkIsFile {
+					target = filepath.Join(outside, "target")
+				}
+				must.NoError(t, os.Symlink(target,
+					filepath.Join(taskDir.LocalDir, tc.innerLink)))
+				expectedEntries = 1
+			}
+
 			h := newDispatchHook(alloc, logger)
 
 			req := interfaces.TaskPrestartRequest{
@@ -185,14 +227,20 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 			resp := interfaces.TaskPrestartResponse{}
 
 			// Assert an error was returned and Done=false
-			must.EqError(t, h.Prestart(ctx, &req, &resp), tc.expectedError)
+			err := h.Prestart(ctx, &req, &resp)
+			must.ErrorContains(t, err, tc.expectedError)
 
 			must.False(t, resp.Done)
 
-			// Assert payload directory is empty
+			// Assert nothing but the planted symlink is in the payload
+			// directory, and nothing was written outside the sandbox
 			files, err := os.ReadDir(req.TaskDir.LocalDir)
 			must.NoError(t, err)
-			must.SliceEmpty(t, files)
+			must.SliceLen(t, expectedEntries, files)
+
+			escaped, err := os.ReadDir(outside)
+			must.NoError(t, err)
+			must.SliceEmpty(t, escaped)
 		})
 	}
 }

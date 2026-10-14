@@ -73,9 +73,24 @@ func writeDispatchPayload(base, filename string, payload []byte) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(renderTo), 0777); err != nil {
-		return err
+	rel, err := filepath.Rel(base, renderTo)
+	if err != nil {
+		return fmt.Errorf("invalid value for dispatch_payload.file")
 	}
 
-	return os.WriteFile(renderTo, decoded, 0777)
+	// Use an os.Root so symlinks planted by the task in its sandbox can't
+	// redirect the privileged write outside of it.
+	root, err := os.OpenRoot(base)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
+	if dir := filepath.Dir(rel); dir != "." {
+		if err := root.MkdirAll(dir, 0777); err != nil {
+			return err
+		}
+	}
+
+	return root.WriteFile(rel, decoded, 0777)
 }
