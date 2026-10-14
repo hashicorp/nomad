@@ -17,6 +17,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -203,6 +204,60 @@ func TestAllocDir_Snapshot(t *testing.T) {
 
 	must.SliceLen(t, 2, files)
 	must.SliceLen(t, 2, links)
+}
+
+func TestAllocDir_SnapshotSymlinksAndSpecialFiles(t *testing.T) {
+	ci.Parallel(t)
+
+	tmp := t.TempDir()
+	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
+	defer d.Destroy()
+	must.NoError(t, d.Build())
+
+	dataDir := filepath.Join(d.SharedDir, SharedDataDir)
+	outsidePath := filepath.Join(tmp, "outside")
+	must.NoError(t, os.WriteFile(outsidePath, []byte("outside"), 0o600))
+	must.NoError(t, os.Symlink(outsidePath, filepath.Join(dataDir, "outside-link")))
+	must.NoError(t, syscall.Mkfifo(filepath.Join(dataDir, "fifo"), 0o600))
+
+	type snapshotResult struct {
+		archive bytes.Buffer
+		err     error
+	}
+	result := make(chan snapshotResult, 1)
+	go func() {
+		var snapshot snapshotResult
+		snapshot.err = d.Snapshot(&snapshot.archive)
+		result <- snapshot
+	}()
+
+	var snapshot snapshotResult
+	select {
+	case snapshot = <-result:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Snapshot blocked while archiving a FIFO")
+	}
+	must.NoError(t, snapshot.err)
+
+	entries := make(map[string]*tar.Header)
+	tr := tar.NewReader(&snapshot.archive)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		must.NoError(t, err)
+		entries[hdr.Name] = hdr
+	}
+
+	linkHeader, ok := entries[filepath.Join(SharedAllocName, SharedDataDir, "outside-link")]
+	must.True(t, ok)
+	must.Eq(t, byte(tar.TypeSymlink), linkHeader.Typeflag)
+	must.Eq(t, outsidePath, linkHeader.Linkname)
+
+	fifoHeader, ok := entries[filepath.Join(SharedAllocName, SharedDataDir, "fifo")]
+	must.True(t, ok)
+	must.Eq(t, byte(tar.TypeFifo), fifoHeader.Typeflag)
 }
 
 func TestAllocDir_Move(t *testing.T) {
