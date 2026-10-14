@@ -413,7 +413,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, err
 	}
 
-	if err := makeExecutable(absPath); err != nil {
+	if err := makeExecutable(command.TaskDir, absPath); err != nil {
 		return nil, err
 	}
 
@@ -743,14 +743,18 @@ func (e *UniversalExecutor) usesCustomCgroup() bool {
 func lookupBin(taskDir string, bin string) (string, error) {
 	// Check in the local directory
 	local := filepath.Join(taskDir, allocdir.TaskLocal, bin)
-	if _, err := os.Stat(local); err == nil {
-		return local, nil
+	if lexicallyInDir(taskDir, local) {
+		if _, err := os.Stat(local); err == nil {
+			return local, nil
+		}
 	}
 
 	// Check at the root of the task's directory
 	root := filepath.Join(taskDir, bin)
-	if _, err := os.Stat(root); err == nil {
-		return root, nil
+	if lexicallyInDir(taskDir, root) {
+		if _, err := os.Stat(root); err == nil {
+			return root, nil
+		}
 	}
 
 	// when checking host paths, check with Stat first if path is absolute
@@ -769,8 +773,33 @@ func lookupBin(taskDir string, bin string) (string, error) {
 	return "", fmt.Errorf("binary %q could not be found", bin)
 }
 
-// makeExecutable makes the given file executable for root,group,others.
-func makeExecutable(binPath string) error {
+// lexicallyInDir returns whether path is inside dir without considering
+// symlinks.
+func lexicallyInDir(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	return err == nil && filepath.IsLocal(rel)
+}
+
+// statInTaskDir stats path, which must be inside taskDir, using an os.Root so
+// that symlinks (including intermediate ones) that resolve outside of taskDir
+// result in an error.
+func statInTaskDir(taskDir, path string) (os.FileInfo, error) {
+	rel, err := filepath.Rel(taskDir, path)
+	if err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(taskDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open task dir: %w", err)
+	}
+	defer root.Close()
+	return root.Stat(rel)
+}
+
+// makeExecutable makes the given file executable for root,group,others. Paths
+// inside the task directory are changed through an os.Root so that a symlink
+// planted by the task can't make us change the mode of a file outside of it
+func makeExecutable(taskDir, binPath string) error {
 	if runtime.GOOS == "windows" {
 		return nil
 	}
@@ -786,10 +815,31 @@ func makeExecutable(binPath string) error {
 	// If it is not executable, make it so.
 	perm := fi.Mode().Perm()
 	req := os.FileMode(0555)
-	if perm&req != req {
+	if perm&req == req {
+		return nil
+	}
+
+	// note: we're intentionally only doing the lexical check here because the
+	// path might intentionally be coming from outside the sandbox
+	if !lexicallyInDir(taskDir, binPath) {
 		if err := os.Chmod(binPath, perm|req); err != nil {
 			return fmt.Errorf("error making %q executable: %s", binPath, err)
 		}
+		return nil
+	}
+
+	rel, err := filepath.Rel(taskDir, binPath)
+	if err != nil {
+		return fmt.Errorf("specified binary is invalid: %v", err)
+	}
+	root, err := os.OpenRoot(taskDir)
+	if err != nil {
+		return fmt.Errorf("failed to open task dir: %w", err)
+	}
+	defer root.Close()
+
+	if err := root.Chmod(rel, perm|req); err != nil {
+		return fmt.Errorf("error making %q executable: %s", binPath, err)
 	}
 	return nil
 }
