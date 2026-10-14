@@ -562,6 +562,12 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 	tr := tar.NewReader(resp)
 	defer resp.Close()
 
+	root, err := os.OpenRoot(dest)
+	if err != nil {
+		return fmt.Errorf("error opening alloc dir: %w", err)
+	}
+	defer root.Close()
+
 	// Cache effective uid as we only run Chown if we're root
 	euid := syscall.Geteuid()
 
@@ -613,12 +619,13 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 
 		// If the header is for a directory we create the directory
 		if hdr.Typeflag == tar.TypeDir {
-			name := filepath.Join(dest, hdr.Name)
-			os.MkdirAll(name, os.FileMode(hdr.Mode))
+			if err := root.MkdirAll(hdr.Name, os.FileMode(hdr.Mode)); err != nil {
+				return fmt.Errorf("error creating directory: %w", err)
+			}
 
 			// Can't change owner if not root or on Windows.
 			if euid == 0 {
-				if err := os.Chown(name, hdr.Uid, hdr.Gid); err != nil {
+				if err := root.Chown(hdr.Name, hdr.Uid, hdr.Gid); err != nil {
 					return fmt.Errorf("error chowning directory %w", err)
 				}
 			}
@@ -626,29 +633,26 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		}
 		// If the header is for a symlink we create the symlink
 		if hdr.Typeflag == tar.TypeSymlink {
-			if err = os.Symlink(hdr.Linkname, filepath.Join(dest, hdr.Name)); err != nil {
+			// The target is relative to the directory containing the link and
+			// must stay within the alloc dir.
+			if filepath.IsAbs(hdr.Linkname) ||
+				!filepath.IsLocal(filepath.Join(filepath.Dir(hdr.Name), hdr.Linkname)) {
+				return fmt.Errorf("archive contains symlink that escapes alloc dir")
+			}
+
+			if err = root.Symlink(hdr.Linkname, hdr.Name); err != nil {
 				return fmt.Errorf("error creating symlink: %w", err)
 			}
-
-			for _, path := range []string{hdr.Name, hdr.Linkname} {
-				if escapes, err := escapingfs.PathEscapesAllocDir(dest, "", path); err != nil {
-					return fmt.Errorf("error evaluating symlink: %w", err)
-				} else if escapes {
-					return fmt.Errorf("archive contains symlink that escapes alloc dir")
-				}
-			}
-
 			continue
 		}
 		// If the header is a file, we write to a file
 		if hdr.Typeflag == tar.TypeReg {
-			fPath := filepath.Join(dest, hdr.Name)
-			if _, err := os.Lstat(fPath); err == nil {
-				if err := os.Remove(fPath); err != nil {
+			if _, err := root.Lstat(hdr.Name); err == nil {
+				if err := root.Remove(hdr.Name); err != nil {
 					return fmt.Errorf("error removing existing file: %w", err)
 				}
 			}
-			f, err := os.Create(fPath)
+			f, err := root.OpenFile(hdr.Name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 			if err != nil {
 				return fmt.Errorf("error creating file: %w", err)
 			}
