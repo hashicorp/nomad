@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -114,4 +115,44 @@ func TestGenerateEtcHostsMount(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateEtcHostsMount_Symlink(t *testing.T) {
+	spec := &drivers.NetworkIsolationSpec{
+		Mode: drivers.NetIsolationModeGroup,
+		HostsConfig: &drivers.HostsConfig{
+			Address:  "192.168.1.1",
+			Hostname: "xyzzy",
+		},
+	}
+
+	t.Run("dangling", func(t *testing.T) {
+		taskDir := t.TempDir()
+		target := filepath.Join(t.TempDir(), "victim")
+		must.NoError(t, os.Symlink(target, filepath.Join(taskDir, "hosts")))
+
+		got, err := GenerateEtcHostsMount(taskDir, spec, nil)
+
+		// the target must not have been created through the link
+		_, statErr := os.Lstat(target)
+		must.ErrorIs(t, statErr, os.ErrNotExist)
+
+		must.ErrorContains(t, err, "refusing to mount symlinked hosts file")
+		must.Nil(t, got)
+	})
+
+	t.Run("existing", func(t *testing.T) {
+		taskDir := t.TempDir()
+		target := filepath.Join(t.TempDir(), "victim")
+		must.NoError(t, os.WriteFile(target, []byte("original"), 0600))
+		must.NoError(t, os.Symlink(target, filepath.Join(taskDir, "hosts")))
+
+		got, err := GenerateEtcHostsMount(taskDir, spec, nil)
+		must.ErrorContains(t, err, "refusing to mount symlinked hosts file")
+		must.Nil(t, got)
+
+		b, err := os.ReadFile(target)
+		must.NoError(t, err)
+		must.Eq(t, "original", string(b))
+	})
 }

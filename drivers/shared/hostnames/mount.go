@@ -85,6 +85,16 @@ ff02::3 ip6-allhosts
 		}
 	}
 
+	// The container runtime resolves the bind mount source itself, so refuse
+	// to hand it a symlink.
+	info, err := root.Lstat("hosts")
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat hosts file: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("refusing to mount symlinked hosts file %q", path)
+	}
+
 	// Note that we're not setting readonly. The file is in the task dir
 	// anyways, so this lets the task overwrite its own hosts file if the
 	// application knows better than Nomad here. Task drivers may override
