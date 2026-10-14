@@ -102,7 +102,7 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
 			return nil
 		}
 
-		if job.Placed {
+		if job.Placed || job.Stopped() {
 			return nil
 		}
 

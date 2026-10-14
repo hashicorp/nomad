@@ -73,81 +73,70 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 		job.ID = testEval.JobID
 		job.Namespace = testEval.Namespace
 		job.Placed = false
+		job.Stop = false
 		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
 		must.NoError(t, ss.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{testEval}))
 		return &testWorkload{eval: testEval}, job
 	}
 
-	t.Run("returns when placed is set", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
+	cases := []struct {
+		name string
+		// modifyJob may assume that the provided job is a copy;
+		// the func is expected to trigger WaitForPlacement to complete.
+		modifyJob func(*state.StateStore, *structs.Job) error
+	}{
+		{"placed", func(ss *state.StateStore, j *structs.Job) error {
+			j.Placed = true
+			return ss.UpsertJob(structs.MsgTypeTestSetup, 3, nil, j)
+		}},
+		{"stopped", func(ss *state.StateStore, j *structs.Job) error {
+			j.Stop = true
+			return ss.UpsertJob(structs.MsgTypeTestSetup, 3, nil, j)
+		}},
+		{"purged", func(ss *state.StateStore, j *structs.Job) error {
+			return ss.DeleteJob(3, j.Namespace, j.ID)
+		}},
+	}
 
-		workload, job := newWorkloadAndJob(t, ss)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ss := state.TestStateStore(t)
+			watcher := NewWorkloadWatcher(ss, hclog.Default())
 
-		doneCh := make(chan error, 1)
-		go func() {
-			doneCh <- watcher.WaitForPlacement(t.Context(), workload)
-		}()
+			workload, job := newWorkloadAndJob(t, ss)
 
-		// Give the goroutine time to enter the watch loop before triggering.
-		must.Wait(t, wait.InitialSuccess(
-			wait.BoolFunc(func() bool {
-				return len(watcher.GetInProgressWorkloads()) == 1
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(10*time.Millisecond),
-		))
+			doneCh := make(chan error, 1)
+			go func() {
+				doneCh <- watcher.WaitForPlacement(t.Context(), workload)
+			}()
 
-		select {
-		case <-doneCh:
-			t.Fatal("should not have returned yet")
-		default:
-		}
+			// Give the goroutine time to enter the watch loop before triggering.
+			must.Wait(t, wait.InitialSuccess(
+				wait.BoolFunc(func() bool {
+					return len(watcher.GetInProgressWorkloads()) == 1
+				}),
+				wait.Timeout(5*time.Second),
+				wait.Gap(10*time.Millisecond),
+			))
 
-		// Mark the job as placed.
-		placed := job.Copy()
-		placed.Placed = true
-		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 3, nil, placed))
+			select {
+			case <-doneCh:
+				t.Fatal("should not have returned yet")
+			default:
+			}
 
-		t.Log("waiting for doneCh")
+			// test the condition we care about
+			must.NoError(t, tc.modifyJob(ss, job.Copy()))
 
-		select {
-		case <-doneCh:
-		case <-time.After(1 * time.Second):
-			t.Fatalf("timed out waiting for doneCh")
-		}
-		must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
-	})
-
-	t.Run("returns if job is removed from state", func(t *testing.T) {
-		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
-
-		workload, job := newWorkloadAndJob(t, ss)
-
-		doneCh := make(chan error, 1)
-		go func() {
-			doneCh <- watcher.WaitForPlacement(t.Context(), workload)
-		}()
-
-		must.Wait(t, wait.InitialSuccess(
-			wait.BoolFunc(func() bool {
-				return len(watcher.GetInProgressWorkloads()) == 1
-			}),
-			wait.Timeout(5*time.Second),
-			wait.Gap(10*time.Millisecond),
-		))
-
-		// Deregister the job so it disappears from state.
-		must.NoError(t, ss.DeleteJob(3, job.Namespace, job.ID))
-
-		select {
-		case <-doneCh:
-		case <-time.After(1 * time.Second):
-			t.Fatalf("timed out waiting for doneCh")
-		}
-		must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
-	})
+			t.Log("waiting for WaitForPlacement to complete")
+			select {
+			case <-doneCh:
+			case <-time.After(1 * time.Second):
+				t.Fatalf("timed out waiting for doneCh")
+			}
+			must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
+		})
+	}
 }
 
 func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
