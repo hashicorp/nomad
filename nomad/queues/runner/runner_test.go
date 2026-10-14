@@ -229,44 +229,76 @@ func TestQueueRunner_Dequeue(t *testing.T) {
 	q.AssertExpectations(t)
 }
 
-func TestQueueRunner_Metrics(t *testing.T) {
+func TestQueueRunner_emitMetrics(t *testing.T) {
 	numJobs := 5
 	pool := "testpool"
 
-	sink := metrics.NewInmemSink(time.Millisecond*10, time.Millisecond*50)
-	conf := metrics.DefaultConfig("metrics_svc")
+	sink := metrics.NewInmemSink(time.Millisecond*20, time.Millisecond*50)
+	conf := metrics.DefaultConfig("nomad")
 	conf.EnableHostname = false
 	m, err := metrics.NewGlobal(conf, sink)
 	must.NoError(t, err)
 	t.Cleanup(m.Shutdown)
 
-	q := &mocks.MockQueue{
-		Qlen: numJobs,
-	}
+	// jobs in queue
+	q := &mocks.MockQueue{Qlen: numJobs}
 	q.On("Len").Return(numJobs)
 
-	canceler := &evalCanceler{}
-	qr := New(testlog.HCLogger(t), q, pool, &mocks.MockBroker{}, nil, canceler.cancel)
+	// time waiting on placement since job submitted
+	job := mock.Job()
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	jobSubmitTimeAgo := time.Minute
+	job.SubmitTime = time.Now().Add(-jobSubmitTimeAgo).UnixNano()
+	wl := newWorkload(eval, job)
+
+	ss := state.TestStateStore(t)
+	must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
+	qr := New(testlog.HCLogger(t), q, pool, &mocks.MockBroker{}, ss, nilCanceler)
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()
 
-	// this starts the emitMetrics goroutine
-	qr.Start(ctx)
-	time.Sleep(time.Millisecond * 20)
+	go qr.waitForPlacement(ctx, wl)
+	go qr.emitMetrics(ctx)
 
-	data := sink.Data()
-	must.Greater(t, 0, len(data), must.Sprint("no data in metrics sink"))
-	info := data[0]
+	var gauge metrics.GaugeValue
+	var ok bool
+	var sample metrics.SampledValue
+	must.Wait(t, wait.InitialSuccess(
+		wait.Timeout(time.Second),
+		wait.Gap(20*time.Millisecond),
+		wait.TestFunc(func() (bool, error) {
+			datas := sink.Data()
+			if len(datas) < 1 {
+				return false, errors.New("missing data")
+			}
+			data := datas[0]
+			gauge, ok = data.Gauges["nomad.queue.jobs;node_pool=testpool"]
+			if !ok {
+				return false, errors.New("missing Gauge")
+			}
+			sample, ok = data.Samples["nomad.queue.watcher.since_job_submitted;node_pool=testpool"]
+			if !ok {
+				return false, errors.New("missing MeasureSince sample")
+			}
+			return true, nil
+		}),
+	))
 
-	must.MapLen(t, 1, info.Gauges)
-	for _, val := range info.Gauges {
-		must.Eq(t, "metrics_svc.nomad.queue.jobs", val.Name)
-		must.Eq(t, float32(numJobs), val.Value)
-		must.SliceLen(t, 1, val.Labels, must.Sprint("unexpected metric labels"))
-		must.Eq(t, "node_pool", val.Labels[0].Name)
-		must.Eq(t, "testpool", val.Labels[0].Value)
-	}
+	// jobs in queue
+	must.Eq(t, "nomad.queue.jobs", gauge.Name)
+	must.Eq(t, float32(numJobs), gauge.Value)
+	must.SliceLen(t, 1, gauge.Labels, must.Sprint("unexpected metric labels"))
+	must.Eq(t, "node_pool", gauge.Labels[0].Name)
+	must.Eq(t, "testpool", gauge.Labels[0].Value)
+
+	// waiting for placement
+	must.Eq(t, "nomad.queue.watcher.since_job_submitted", sample.Name)
+	must.NotNil(t, sample.AggregateSample, must.Sprint("expect AggregateSample from MeasureSince"))
+	must.Eq(t, 1, sample.AggregateSample.Count, must.Sprint("expect one AggregateSample"))
+	must.Greater(t, jobSubmitTimeAgo.Seconds(), sample.AggregateSample.Min,
+		must.Sprint("a minute should have elapsed since job SubmitTime"))
 }
 
 // pendingEvalWithJob returns a pending eval for a new batch job, and stores the eval
@@ -292,5 +324,9 @@ type evalCanceler struct {
 
 func (c *evalCanceler) cancel(e *structs.Evaluation) error {
 	c.canceled = append(c.canceled, e)
+	return nil
+}
+
+func nilCanceler(*structs.Evaluation) error {
 	return nil
 }

@@ -21,12 +21,17 @@ import (
 // is being watched.
 type testWorkload struct {
 	mu     sync.Mutex
+	job    *structs.Job
 	eval   *structs.Evaluation
 	status string
 }
 
 func (w *testWorkload) ID() structs.NamespacedID {
 	return structs.NewNamespacedID("", "")
+}
+
+func (w *testWorkload) Job() *structs.Job {
+	return w.job
 }
 
 func (w *testWorkload) JobVersion() uint64 {

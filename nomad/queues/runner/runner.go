@@ -58,8 +58,11 @@ type QueueRunner struct {
 	evalBroker   queue.Broker
 	evalCancelFn queue.EvalCancelFn
 	state        *state.StateStore
-	watcher      *queue.WorkloadWatcher
-	logger       hclog.Logger
+
+	watcher             *queue.WorkloadWatcher
+	waitingJobSubmitted time.Time
+
+	logger hclog.Logger
 
 	wg     sync.WaitGroup
 	cancel context.CancelFunc
@@ -121,13 +124,16 @@ func (qr *QueueRunner) Stop() {
 }
 
 func (qr *QueueRunner) emitMetrics(ctx context.Context) {
-	// TODO: time stuck watching a job?
+	labels := []metrics.Label{{Name: "node_pool", Value: qr.pool}}
+
 	for {
-		metrics.SetGaugeWithLabels(
-			[]string{"nomad", "queue", "jobs"},
-			float32(qr.queue.Len()),
-			[]metrics.Label{{Name: "node_pool", Value: qr.pool}},
-		)
+		metrics.SetGaugeWithLabels([]string{"queue", "jobs"},
+			float32(qr.queue.Len()), labels)
+
+		if !qr.waitingJobSubmitted.IsZero() {
+			metrics.MeasureSinceWithLabels([]string{"queue", "watcher", "since_job_submitted"},
+				qr.waitingJobSubmitted, labels)
+		}
 
 		select {
 		case <-ctx.Done():
@@ -263,6 +269,11 @@ func (qr *QueueRunner) runConsumer(ctx context.Context) {
 // waitForPlacement blocks until the workload finishes scheduling. It returns
 // false only if the context was canceled, so the runner can shut down.
 func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) (contextCanceled bool) {
+
+	qr.waitingJobSubmitted = time.Unix(0, w.Job().SubmitTime)
+	defer func() {
+		qr.waitingJobSubmitted = time.Time{}
+	}()
 
 	err := qr.watcher.WaitForPlacement(ctx, w)
 	if err != nil {
