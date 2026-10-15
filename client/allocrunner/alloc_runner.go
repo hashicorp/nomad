@@ -26,8 +26,6 @@ import (
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
-	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -508,23 +506,15 @@ func (ar *allocRunner) Restore() error {
 
 		// restore process wrangler for task
 		ar.wranglers.Setup(proclib.Task{AllocID: tr.Alloc().ID, Task: tr.Task().Name})
-
-		// restore cpuset partition state
-		ar.restoreCores(tr.Alloc().AllocatedResources)
 	}
+
+	// restore cpuset partition state
+	alloc := ar.Alloc()
+	ar.partitions.Restore(alloc.ID, alloc.ReservedCores())
 
 	ar.taskCoordinator.Restore(states)
 
 	return nil
-}
-
-// restoreCores will restore the cpuset partitions with the reserved core
-// data for each task in the alloc
-func (ar *allocRunner) restoreCores(res *structs.AllocatedResources) {
-	for _, taskRes := range res.Tasks {
-		s := idset.From[hw.CoreID](taskRes.Cpu.ReservedCores)
-		ar.partitions.Restore(s)
-	}
 }
 
 // persistDeploymentStatus stores AllocDeploymentStatus.
