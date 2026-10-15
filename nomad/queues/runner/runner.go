@@ -9,8 +9,10 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -36,6 +38,9 @@ var _ queue.QueueRunner = (*QueueRunner)(nil)
 type QueueRunner struct {
 	queue queue.Queue
 
+	// pool is the name of the node pool, used for labeling metrics.
+	pool string
+
 	// enqueueCh is used to buffer workloads before they are processed by
 	// the producer and pushed onto the queue.
 	enqueueCh chan queue.Workload
@@ -53,8 +58,11 @@ type QueueRunner struct {
 	evalBroker   queue.Broker
 	evalCancelFn queue.EvalCancelFn
 	state        *state.StateStore
-	watcher      *queue.WorkloadWatcher
-	logger       hclog.Logger
+
+	watcher             *queue.WorkloadWatcher
+	waitingJobSubmitted time.Time
+
+	logger hclog.Logger
 
 	wg     sync.WaitGroup
 	cancel context.CancelFunc
@@ -64,12 +72,14 @@ type QueueRunner struct {
 func New(
 	logger hclog.Logger,
 	q queue.Queue,
+	pool string,
 	broker queue.Broker,
 	ss *state.StateStore,
 	cancelFn queue.EvalCancelFn,
 ) *QueueRunner {
 	return &QueueRunner{
 		queue:        q,
+		pool:         pool,
 		enqueueCh:    make(chan queue.Workload, 8192),
 		qNotify:      make(chan struct{}, 1),
 		evalBroker:   broker,
@@ -100,6 +110,10 @@ func (qr *QueueRunner) Start(ctx context.Context) {
 	qr.wg.Go(func() {
 		qr.runConsumer(rCtx)
 	})
+
+	qr.wg.Go(func() {
+		qr.emitMetrics(rCtx)
+	})
 }
 
 func (qr *QueueRunner) Stop() {
@@ -107,6 +121,27 @@ func (qr *QueueRunner) Stop() {
 		qr.cancel()
 	}
 	qr.wg.Wait()
+}
+
+func (qr *QueueRunner) emitMetrics(ctx context.Context) {
+	labels := []metrics.Label{{Name: "node_pool", Value: qr.pool}}
+
+	for {
+		metrics.SetGaugeWithLabels([]string{"queue", "jobs"},
+			float32(qr.queue.Len()), labels)
+
+		if !qr.waitingJobSubmitted.IsZero() {
+			metrics.MeasureSinceWithLabels([]string{"queue", "watcher", "since_job_submitted"},
+				qr.waitingJobSubmitted, labels)
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Second): // same as eval broker's metric timer
+			// continue
+		}
+	}
 }
 
 // Enqueue submits a pending eval to the queue. If the queue implementation
@@ -234,6 +269,11 @@ func (qr *QueueRunner) runConsumer(ctx context.Context) {
 // waitForPlacement blocks until the workload finishes scheduling. It returns
 // false only if the context was canceled, so the runner can shut down.
 func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) (contextCanceled bool) {
+
+	qr.waitingJobSubmitted = time.Unix(0, w.Job().SubmitTime)
+	defer func() {
+		qr.waitingJobSubmitted = time.Time{}
+	}()
 
 	err := qr.watcher.WaitForPlacement(ctx, w)
 	if err != nil {

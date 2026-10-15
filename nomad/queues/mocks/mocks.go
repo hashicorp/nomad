@@ -106,6 +106,10 @@ func (m *MockQueueRunner) Status() structs.QueueStatusResponse {
 
 type MockQueue struct {
 	mock.Mock
+
+	// Len() returns this static length to avoid requiring all tests to expect
+	// that mock Len() might be called.
+	Qlen int
 }
 
 func (m *MockQueue) NewWorkload(e *structs.Evaluation, j *structs.Job) (queue.Workload, bool) {
@@ -145,4 +149,8 @@ func (m *MockQueue) Swap(w queue.Workload) (queue.Workload, bool) {
 func (m *MockQueue) Type() structs.BatchQueueType {
 	args := m.Called()
 	return args.Get(0).(structs.BatchQueueType)
+}
+
+func (m *MockQueue) Len() int {
+	return m.Qlen
 }

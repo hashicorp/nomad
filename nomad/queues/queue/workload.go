@@ -10,13 +10,12 @@ import (
 )
 
 type BaseWorkload struct {
-	// id is the unique identifier used in a WorkloadQueue
-	id structs.NamespacedID
+	// job is the job the user cares about. its NamespacedID() is used as the
+	// BaseWorkload.ID()
+	job *structs.Job
 
 	// eval is the eval that will be submitted to eval broker.
 	eval *structs.Evaluation
-
-	jobVersion uint64
 
 	status string
 
@@ -25,15 +24,18 @@ type BaseWorkload struct {
 
 func NewBaseWorkload(e *structs.Evaluation, j *structs.Job, status string) BaseWorkload {
 	return BaseWorkload{
-		id:         j.NamespacedID(),
-		eval:       e,
-		jobVersion: j.Version,
-		status:     status,
+		job:    j,
+		eval:   e,
+		status: status,
 	}
 }
 
 func (b *BaseWorkload) ID() structs.NamespacedID {
-	return b.id
+	return b.job.NamespacedID()
+}
+
+func (b *BaseWorkload) Job() *structs.Job {
+	return b.job
 }
 
 func (b *BaseWorkload) Eval() *structs.Evaluation {
@@ -45,7 +47,7 @@ func (b *BaseWorkload) SetEval(e *structs.Evaluation) {
 }
 
 func (b *BaseWorkload) JobVersion() uint64 {
-	return b.jobVersion
+	return b.job.Version
 }
 
 func (b *BaseWorkload) Status() string {

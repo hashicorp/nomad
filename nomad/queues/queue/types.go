@@ -29,6 +29,7 @@ type Queue interface {
 	Remove(structs.NamespacedID) (Workload, bool)
 	Swap(Workload) (Workload, bool)
 	Type() structs.BatchQueueType
+	Len() int
 }
 
 type QueueManager interface {
@@ -53,6 +54,7 @@ type QueueRunner interface {
 type Workload interface {
 	ID() structs.NamespacedID
 	Eval() *structs.Evaluation
+	Job() *structs.Job
 	SetEval(*structs.Evaluation)
 	Status() string
 	SetStatus(string, string)

@@ -4,10 +4,12 @@
 package runner
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/queues/mocks"
@@ -30,7 +32,7 @@ func TestQueueRunner_Enqueue(t *testing.T) {
 		broker := &mocks.MockBroker{}
 		broker.On("Enqueue", eval).Once()
 
-		qr := New(testlog.HCLogger(t), q, broker, nil, nil)
+		qr := New(testlog.HCLogger(t), q, "", broker, nil, nil)
 		qr.Enqueue(eval, job)
 
 		q.AssertExpectations(t)
@@ -53,7 +55,7 @@ func TestQueueRunner_Enqueue(t *testing.T) {
 		broker := &mocks.MockBroker{}
 		broker.On("Enqueue", eval).Run(func(args tmock.Arguments) { close(enqueued) })
 
-		qr := New(testlog.HCLogger(t), q, broker, store, nil)
+		qr := New(testlog.HCLogger(t), q, "", broker, store, nil)
 		qr.Start(t.Context())
 		qr.Enqueue(eval, job)
 
@@ -89,7 +91,7 @@ func TestQueueRunner_Restore(t *testing.T) {
 	q := &mocks.MockQueue{}
 	q.On("NewWorkload", blockedEval, job).Return(newWorkload(blockedEval, job), true).Once()
 
-	qr := New(testlog.HCLogger(t), q, &mocks.MockBroker{}, store, nil)
+	qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, store, nil)
 	must.NoError(t, qr.Restore(blockedEval, job))
 
 	must.Eq(t, 1, len(qr.restored))
@@ -112,7 +114,7 @@ func TestQueueRunner_CancelRedundant(t *testing.T) {
 		q.On("Swap", incoming).Return(queued, true).Once()
 
 		canceler := &evalCanceler{}
-		qr := New(testlog.HCLogger(t), q, &mocks.MockBroker{}, nil, canceler.cancel)
+		qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel)
 
 		must.True(t, qr.cancelRedundant(incoming))
 		must.Eq(t, []*structs.Evaluation{queued.Eval()}, canceler.canceled)
@@ -128,7 +130,7 @@ func TestQueueRunner_CancelRedundant(t *testing.T) {
 		q.On("Get", incoming.ID()).Return(queued, true).Once()
 
 		canceler := &evalCanceler{}
-		qr := New(testlog.HCLogger(t), q, &mocks.MockBroker{}, nil, canceler.cancel)
+		qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel)
 
 		must.True(t, qr.cancelRedundant(incoming))
 		must.Eq(t, []*structs.Evaluation{incoming.Eval()}, canceler.canceled)
@@ -141,7 +143,7 @@ func TestQueueRunner_cancelEval(t *testing.T) {
 	mockBroker := &mocks.MockBroker{}
 	mockBroker.On("Enqueue", e).Return().Once()
 
-	qr := New(testlog.HCLogger(t), nil, mockBroker, nil, func(e *structs.Evaluation) error {
+	qr := New(testlog.HCLogger(t), nil, "", mockBroker, nil, func(e *structs.Evaluation) error {
 		return errors.New("bad raft")
 	})
 
@@ -161,7 +163,7 @@ func TestQueueRunner_SkipQueue(t *testing.T) {
 
 		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
-		qr := New(testlog.HCLogger(t), nil, nil, ss, nil)
+		qr := New(testlog.HCLogger(t), nil, "", nil, ss, nil)
 
 		wl := newWorkload(eval, job)
 		must.False(t, qr.skipQueue(wl))
@@ -181,7 +183,7 @@ func TestQueueRunner_SkipQueue(t *testing.T) {
 		must.NoError(t, ss.UpsertAllocs(structs.MsgTypeTestSetup, 101, []*structs.Allocation{alloc}))
 		broker := &mocks.MockBroker{}
 		broker.On("Enqueue", eval).Return().Once()
-		qr := New(testlog.HCLogger(t), nil, broker, ss, nil)
+		qr := New(testlog.HCLogger(t), nil, "", broker, ss, nil)
 
 		wl := newWorkload(eval, job)
 		must.True(t, qr.skipQueue(wl))
@@ -199,7 +201,7 @@ func TestQueueRunner_SkipQueue(t *testing.T) {
 
 		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
-		qr := New(testlog.HCLogger(t), nil, nil, ss, nil)
+		qr := New(testlog.HCLogger(t), nil, "", nil, ss, nil)
 
 		wl := newWorkload(eval, job)
 		qr.watcher.TrackPlacement(wl)
@@ -217,7 +219,7 @@ func TestQueueRunner_Dequeue(t *testing.T) {
 	q.On("Remove", missing).Return(nil, false).Once()
 
 	canceler := &evalCanceler{}
-	qr := New(testlog.HCLogger(t), q, &mocks.MockBroker{}, nil, canceler.cancel)
+	qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel)
 
 	qr.Dequeue(wl.ID())
 	qr.Dequeue(missing)
@@ -225,6 +227,78 @@ func TestQueueRunner_Dequeue(t *testing.T) {
 	must.Len(t, 1, canceler.canceled)
 	must.Eq(t, canceler.canceled[0], wl.Eval())
 	q.AssertExpectations(t)
+}
+
+func TestQueueRunner_emitMetrics(t *testing.T) {
+	numJobs := 5
+	pool := "testpool"
+
+	sink := metrics.NewInmemSink(time.Millisecond*20, time.Millisecond*50)
+	conf := metrics.DefaultConfig("nomad")
+	conf.EnableHostname = false
+	m, err := metrics.NewGlobal(conf, sink)
+	must.NoError(t, err)
+	t.Cleanup(m.Shutdown)
+
+	// jobs in queue
+	q := &mocks.MockQueue{Qlen: numJobs}
+	q.On("Len").Return(numJobs)
+
+	// time waiting on placement since job submitted
+	job := mock.Job()
+	eval := mock.Eval()
+	eval.JobID = job.ID
+	jobSubmitTimeAgo := time.Minute
+	job.SubmitTime = time.Now().Add(-jobSubmitTimeAgo).UnixNano()
+	wl := newWorkload(eval, job)
+
+	ss := state.TestStateStore(t)
+	must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
+	qr := New(testlog.HCLogger(t), q, pool, &mocks.MockBroker{}, ss, nilCanceler)
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+
+	go qr.waitForPlacement(ctx, wl)
+	go qr.emitMetrics(ctx)
+
+	var gauge metrics.GaugeValue
+	var ok bool
+	var sample metrics.SampledValue
+	must.Wait(t, wait.InitialSuccess(
+		wait.Timeout(time.Second),
+		wait.Gap(20*time.Millisecond),
+		wait.TestFunc(func() (bool, error) {
+			datas := sink.Data()
+			if len(datas) < 1 {
+				return false, errors.New("missing data")
+			}
+			data := datas[0]
+			gauge, ok = data.Gauges["nomad.queue.jobs;node_pool=testpool"]
+			if !ok {
+				return false, errors.New("missing Gauge")
+			}
+			sample, ok = data.Samples["nomad.queue.watcher.since_job_submitted;node_pool=testpool"]
+			if !ok {
+				return false, errors.New("missing MeasureSince sample")
+			}
+			return true, nil
+		}),
+	))
+
+	// jobs in queue
+	must.Eq(t, "nomad.queue.jobs", gauge.Name)
+	must.Eq(t, float32(numJobs), gauge.Value)
+	must.SliceLen(t, 1, gauge.Labels, must.Sprint("unexpected metric labels"))
+	must.Eq(t, "node_pool", gauge.Labels[0].Name)
+	must.Eq(t, "testpool", gauge.Labels[0].Value)
+
+	// waiting for placement
+	must.Eq(t, "nomad.queue.watcher.since_job_submitted", sample.Name)
+	must.NotNil(t, sample.AggregateSample, must.Sprint("expect AggregateSample from MeasureSince"))
+	must.Eq(t, 1, sample.AggregateSample.Count, must.Sprint("expect one AggregateSample"))
+	must.Greater(t, jobSubmitTimeAgo.Seconds(), sample.AggregateSample.Min,
+		must.Sprint("a minute should have elapsed since job SubmitTime"))
 }
 
 // pendingEvalWithJob returns a pending eval for a new batch job, and stores the eval
@@ -250,5 +324,9 @@ type evalCanceler struct {
 
 func (c *evalCanceler) cancel(e *structs.Evaluation) error {
 	c.canceled = append(c.canceled, e)
+	return nil
+}
+
+func nilCanceler(*structs.Evaluation) error {
 	return nil
 }

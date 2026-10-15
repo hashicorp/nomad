@@ -49,6 +49,7 @@ func NewQueue(
 	return runner.New(
 		logger.Named("queue_runner"),
 		queue,
+		pool,
 		broker,
 		ss,
 		cancelFn,

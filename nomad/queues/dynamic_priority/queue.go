@@ -402,3 +402,7 @@ func (d *Queue) Status() structs.QueueStatusResponse {
 		Status: tenants,
 	}
 }
+
+func (d *Queue) Len() int {
+	return d.queue.Len()
+}

@@ -45,3 +45,7 @@ func (p *PassthroughQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
 func (p *PassthroughQueue) Status() structs.QueueStatusResponse {
 	return structs.QueueStatusResponse{Type: structs.BatchQueueTypePassthrough}
 }
+
+func (p *PassthroughQueue) Len() int {
+	return 0
+}
