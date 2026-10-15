@@ -181,7 +181,7 @@ func query(t *testing.T, metrics []*metric) {
 
 			q := m.Query()
 			t.Log("query for metric", q)
-			result, warnings, err := api1.Query(ctx, q, time.Now(), promapi1.WithTimeout(10*time.Second))
+			result, warnings, _, err := api1.Query(ctx, q, time.Now(), promapi1.WithTimeout(10*time.Second))
 			must.NoError(t, err, must.Sprintf("unable to query %q", q))
 			must.SliceEmpty(t, warnings, must.Sprintf("got warnings %v", warnings))
 
