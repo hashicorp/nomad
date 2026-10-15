@@ -76,6 +76,7 @@ func New(
 	broker queue.Broker,
 	ss *state.StateStore,
 	cancelFn queue.EvalCancelFn,
+	timeout time.Duration,
 ) *QueueRunner {
 	return &QueueRunner{
 		queue:        q,
@@ -85,7 +86,7 @@ func New(
 		evalBroker:   broker,
 		evalCancelFn: cancelFn,
 		state:        ss,
-		watcher:      queue.NewWorkloadWatcher(ss, logger),
+		watcher:      queue.NewWorkloadWatcher(logger, ss, timeout),
 		logger:       logger,
 	}
 }

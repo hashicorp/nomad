@@ -26,6 +26,7 @@ const (
 )
 
 type BatchQueueConfig struct {
+	BlockedTimeout  time.Duration
 	DynamicPriority *DynamicQueueConfig
 	Fifo            *FifoQueueConfig
 }
