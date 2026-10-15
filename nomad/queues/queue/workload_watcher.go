@@ -112,6 +112,9 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
 		}
 
 		allEvals, err := snap.EvalsByJob(ws, eval.Namespace, eval.JobID)
+		if err != nil {
+			return err
+		}
 
 		watchCtx, cancel := ctx, context.CancelFunc(func() {})
 		for _, e := range allEvals {
