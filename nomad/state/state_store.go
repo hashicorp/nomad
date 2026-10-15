@@ -1025,7 +1025,7 @@ func (s *StateStore) DeleteNode(msgType structs.MessageType, index uint64, nodes
 
 	err := s.deleteNodeTxn(txn, index, nodes)
 	if err != nil {
-		return nil
+		return err
 	}
 	return txn.Commit()
 }

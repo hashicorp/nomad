@@ -1397,6 +1397,14 @@ func TestStateStore_UpsertNode_NodePool(t *testing.T) {
 	}
 }
 
+func TestStateStore_DeleteNode_Missing(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	err := state.DeleteNode(structs.MsgTypeTestSetup, 1000, []string{mock.Node().ID})
+	must.ErrorContains(t, err, "node not found")
+}
+
 func TestStateStore_DeleteNode_Node(t *testing.T) {
 	ci.Parallel(t)
 
