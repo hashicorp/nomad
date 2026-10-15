@@ -91,12 +91,12 @@ func (q *BatchJobQueue) Jobs(args *structs.QueueJobsRequest, reply *structs.Queu
 	return nil
 }
 
-func (q *BatchJobQueue) Tenants(args *structs.QueueTenantsRequest, reply *structs.QueueTenantsResponse) error {
+func (q *BatchJobQueue) Status(args *structs.QueueStatusRequest, reply *structs.QueueStatusResponse) error {
 	authErr := q.srv.Authenticate(q.ctx, args)
-	if done, err := q.srv.forward("BatchJobQueue.Tenants", args, args, reply); done {
+	if done, err := q.srv.forward("BatchJobQueue.Status", args, args, reply); done {
 		return err
 	}
-	q.srv.MeasureRPCRate("queue.tenants", structs.RateMetricList, args)
+	q.srv.MeasureRPCRate("queue.status", structs.RateMetricList, args)
 	if authErr != nil {
 		return structs.ErrPermissionDenied
 	}
@@ -113,8 +113,8 @@ func (q *BatchJobQueue) Tenants(args *structs.QueueTenantsRequest, reply *struct
 		pool = structs.NodePoolDefault
 	}
 
-	status := q.srv.batchQueueMgr.Queue(pool).Tenants()
-	reply.Tenants = status.Tenants
+	status := q.srv.batchQueueMgr.Queue(pool).Status()
+	reply.Status = status.Status
 	reply.Type = status.Type
 
 	q.srv.setQueryMeta(&reply.QueryMeta)

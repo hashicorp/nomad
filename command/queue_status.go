@@ -14,15 +14,15 @@ import (
 	"github.com/ryanuber/columnize"
 )
 
-type QueueTenantsCommand struct {
+type QueueStatusCommand struct {
 	Meta
 }
 
-func (c *QueueTenantsCommand) Help() string {
+func (c *QueueStatusCommand) Help() string {
 	helpText := `
-Usage: nomad queue tenants [options]
+Usage: nomad queue status [options]
 
-  View the current status of tenants in a batch job queue.
+  View the current status of a batch job queue.
 
   When ACLs are enabled, this command requires a token with the 'list-jobs' capability. If multiple jobs in the queue are in different namespaces, the output will be filtered to only include jobs in namespaces the token has permissions for.
 
@@ -30,13 +30,13 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
-Tenants Options:
+Status Options:
 
   -node-pool
     The node pool queue to query
 
   -limit
-    The maximum number of tenants to return
+    The maximum number of items to return
 
   -verbose
     Display full output
@@ -48,11 +48,11 @@ Tenants Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *QueueTenantsCommand) Synopsis() string {
-	return "View the status of tenants in a batch job queue"
+func (c *QueueStatusCommand) Synopsis() string {
+	return "View the status of a batch job queue"
 }
 
-func (c *QueueTenantsCommand) AutocompleteFlags() complete.Flags {
+func (c *QueueStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-node-pool": complete.PredictNothing,
@@ -62,13 +62,13 @@ func (c *QueueTenantsCommand) AutocompleteFlags() complete.Flags {
 		})
 }
 
-func (c *QueueTenantsCommand) AutocompleteArgs() complete.Predictor {
+func (c *QueueStatusCommand) AutocompleteArgs() complete.Predictor {
 	return JobPredictor(c.Meta.Client)
 }
 
-func (c *QueueTenantsCommand) Name() string { return "queue status" }
+func (c *QueueStatusCommand) Name() string { return "queue status" }
 
-func (c *QueueTenantsCommand) Run(args []string) int {
+func (c *QueueStatusCommand) Run(args []string) int {
 	var verbose, jsonOut bool
 	var limit int
 	var nodePool string
@@ -102,7 +102,7 @@ func (c *QueueTenantsCommand) Run(args []string) int {
 	}
 
 	// Submit the request
-	resp, _, err := client.BatchQueue().Tenants(qo)
+	resp, _, err := client.BatchQueue().Status(qo)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
 		return 255
@@ -114,20 +114,20 @@ func (c *QueueTenantsCommand) Run(args []string) int {
 
 	switch resp.Type {
 	case api.BatchQueueTypeDynamic:
-		return c.printTenants(resp, jsonOut)
-	case "unset":
+		return c.printStatus(resp, jsonOut)
+	case api.BatchQueueTypePassthrough:
 		c.Ui.Output("No batch job queue configured")
 	default:
-		c.Ui.Error(fmt.Sprintf("Unknown queue type: %s", resp.Type))
+		c.Ui.Error(fmt.Sprintf(`Queue type "%s" does not implement status`, resp.Type))
 		return 255
 	}
 
 	return 0
 }
 
-func (c *QueueTenantsCommand) printTenants(resp *api.BatchJobQueueTenantsResponse, jsonOut bool) int {
+func (c *QueueStatusCommand) printStatus(resp *api.BatchJobQueueStatusResponse, jsonOut bool) int {
 	tenants := []api.DynamicPriorityTenant{}
-	bytes, err := json.Marshal(resp.Tenants)
+	bytes, err := json.Marshal(resp.Status)
 	if err != nil {
 		c.Ui.Error("Error marshaling response status")
 		return 255
@@ -167,7 +167,7 @@ func (c *QueueTenantsCommand) printTenants(resp *api.BatchJobQueueTenantsRespons
 			tenantInfo = append(tenantInfo, resources...)
 		}
 
-		c.Ui.Output(c.Colorize().Color("[bold]Batch Queue Tenants[reset]"))
+		c.Ui.Output(c.Colorize().Color("[bold]Batch Queue Status[reset]"))
 		c.Ui.Output(columnize.SimpleFormat(tenantInfo))
 	} else {
 		c.Ui.Output(string(bytes))

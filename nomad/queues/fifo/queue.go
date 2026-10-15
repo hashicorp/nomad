@@ -100,7 +100,7 @@ func (f *Queue) Jobs(sortOrder structs.SortOrder, inProgress []queue.Workload) *
 	return iter
 }
 
-// Tenants implements base.Viewable.
-func (f *Queue) Tenants() structs.QueueTenantsResponse {
-	return structs.QueueTenantsResponse{Type: structs.BatchQueueTypeFifo}
+// Status implements base.Viewable.
+func (f *Queue) Status() structs.QueueStatusResponse {
+	return structs.QueueStatusResponse{Type: structs.BatchQueueTypeFifo}
 }

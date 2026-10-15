@@ -94,14 +94,14 @@ func (m *MockQueueRunner) Jobs(sortOrder structs.SortOrder) *queue.WorkloadIter 
 	return args.Get(0).(*queue.WorkloadIter)
 }
 
-func (m *MockQueueRunner) Tenants() structs.QueueTenantsResponse {
+func (m *MockQueueRunner) Status() structs.QueueStatusResponse {
 	args := m.Called()
 
 	if args.Get(0) == nil {
-		return structs.QueueTenantsResponse{}
+		return structs.QueueStatusResponse{}
 	}
 
-	return args.Get(0).(structs.QueueTenantsResponse)
+	return args.Get(0).(structs.QueueStatusResponse)
 }
 
 type MockQueue struct {

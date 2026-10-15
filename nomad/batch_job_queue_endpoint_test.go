@@ -175,16 +175,16 @@ func TestBatchJobQueue_Jobs_WithACL(t *testing.T) {
 	}
 }
 
-func TestBatchJobQueue_Tenants(t *testing.T) {
+func TestBatchJobQueue_Status(t *testing.T) {
 	ci.Parallel(t)
 	s, cleanup := TestServer(t, nil)
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, s.RPC)
 
 	mockQueue := new(mocks.MockQueueRunner)
-	mockQueue.On("Tenants").Return(structs.QueueTenantsResponse{
+	mockQueue.On("Status").Return(structs.QueueStatusResponse{
 		Type: "test",
-		Tenants: []string{
+		Status: []string{
 			"ns1", "ns2",
 		},
 	})
@@ -195,19 +195,19 @@ func TestBatchJobQueue_Tenants(t *testing.T) {
 	mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
 	s.batchQueueMgr = mockMgr
 
-	req := structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{
+	req := structs.QueueStatusRequest{QueryOptions: structs.QueryOptions{
 		Region: "global",
 	}}
 
-	reply := structs.QueueTenantsResponse{}
+	reply := structs.QueueStatusResponse{}
 
-	err := s.RPC("BatchJobQueue.Tenants", &req, &reply)
+	err := s.RPC("BatchJobQueue.Status", &req, &reply)
 	must.NoError(t, err)
 	must.Eq(t, reply.Type, "test")
-	must.Len(t, 2, reply.Tenants.([]string))
+	must.Len(t, 2, reply.Status.([]string))
 }
 
-func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
+func TestBatchJobQueue_Status_WithACL(t *testing.T) {
 	ci.Parallel(t)
 	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
 	})
@@ -217,38 +217,38 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 
 	testCases := []struct {
 		name string
-		req  structs.QueueTenantsRequest
+		req  structs.QueueStatusRequest
 		err  string
-		resp structs.QueueTenantsResponse
+		resp structs.QueueStatusResponse
 	}{
 		{
 			name: "no token",
-			req:  structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{Region: "global"}},
+			req:  structs.QueueStatusRequest{QueryOptions: structs.QueryOptions{Region: "global"}},
 			err:  structs.ErrPermissionDenied.Error(),
-			resp: structs.QueueTenantsResponse{},
+			resp: structs.QueueStatusResponse{},
 		},
 		{
 			name: "management token",
-			req:  structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{Region: "global", AuthToken: root.SecretID}},
-			resp: structs.QueueTenantsResponse{Tenants: []string{"ns1", "ns2"}, QueryMeta: structs.QueryMeta{KnownLeader: true}},
+			req:  structs.QueueStatusRequest{QueryOptions: structs.QueryOptions{Region: "global", AuthToken: root.SecretID}},
+			resp: structs.QueueStatusResponse{Status: []string{"ns1", "ns2"}, QueryMeta: structs.QueryMeta{KnownLeader: true}},
 		},
 		{
 			name: "valid token without operator read permissions",
-			req:  structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{Region: "global", AuthToken: mock.CreatePolicyAndToken(t, state, 1003, "test-valid", mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs})).SecretID}},
+			req:  structs.QueueStatusRequest{QueryOptions: structs.QueryOptions{Region: "global", AuthToken: mock.CreatePolicyAndToken(t, state, 1003, "test-valid", mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListJobs})).SecretID}},
 			err:  structs.ErrPermissionDenied.Error(),
-			resp: structs.QueueTenantsResponse{},
+			resp: structs.QueueStatusResponse{},
 		},
 		{
 			name: "valid token with operator read permissions",
-			req:  structs.QueueTenantsRequest{QueryOptions: structs.QueryOptions{Region: "global", AuthToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-operator", mock.OperatorPolicy("read")).SecretID}},
-			resp: structs.QueueTenantsResponse{Tenants: []string{"ns1", "ns2"}, QueryMeta: structs.QueryMeta{KnownLeader: true}},
+			req:  structs.QueueStatusRequest{QueryOptions: structs.QueryOptions{Region: "global", AuthToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-operator", mock.OperatorPolicy("read")).SecretID}},
+			resp: structs.QueueStatusResponse{Status: []string{"ns1", "ns2"}, QueryMeta: structs.QueryMeta{KnownLeader: true}},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockQueue := new(mocks.MockQueueRunner)
-			mockQueue.On("Tenants").Return(tc.resp)
+			mockQueue.On("Status").Return(tc.resp)
 			mockQueue.On("Stop")
 
 			mockMgr := &mocks.MockQueueManager{}
@@ -256,9 +256,9 @@ func TestBatchJobQueue_Tenants_WithACL(t *testing.T) {
 			mockMgr.On("Queue", tmock.Anything).Return(mockQueue)
 			s1.batchQueueMgr = mockMgr
 
-			reply := structs.QueueTenantsResponse{}
+			reply := structs.QueueStatusResponse{}
 
-			err := s1.RPC("BatchJobQueue.Tenants", &tc.req, &reply)
+			err := s1.RPC("BatchJobQueue.Status", &tc.req, &reply)
 
 			if tc.err != "" {
 				must.ErrorContains(t, err, tc.err)

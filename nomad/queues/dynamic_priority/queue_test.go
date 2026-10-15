@@ -537,12 +537,12 @@ func TestDynamicPriorityQueue_Jobs(t *testing.T) {
 	}
 }
 
-func TestDynamicPriorityQueue_Tenants(t *testing.T) {
+func TestDynamicPriorityQueue_Status(t *testing.T) {
 	testCases := []struct {
 		name           string
 		tenants        map[TenantID]*Tenant
 		totalFairshare *FairshareResources
-		exp            structs.QueueTenantsResponse
+		exp            structs.QueueStatusResponse
 	}{
 		{
 			name: "status response parses tenants correctly",
@@ -559,9 +559,9 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 				CPU:    400,
 				Memory: 300,
 			},
-			exp: structs.QueueTenantsResponse{
+			exp: structs.QueueStatusResponse{
 				Type: structs.BatchQueueTypeDynamic,
-				Tenants: []structs.DynamicPriorityTenant{
+				Status: []structs.DynamicPriorityTenant{
 					{
 						TenantID:        "tenantA",
 						PercentageUsed:  42,
@@ -577,7 +577,7 @@ func TestDynamicPriorityQueue_Tenants(t *testing.T) {
 			tenants:        tc.tenants,
 			totalFairshare: tc.totalFairshare,
 		}
-		must.Eq(t, tc.exp, testQueue.Tenants())
+		must.Eq(t, tc.exp, testQueue.Status())
 	}
 }
 

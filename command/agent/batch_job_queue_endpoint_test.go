@@ -36,22 +36,22 @@ func TestHTTP_BatchJobQueue(t *testing.T) {
 		_, err = s.Server.BatchJobQueueJobsRequest(respW, req)
 		must.Error(t, err)
 
-		req, err = http.NewRequest(http.MethodGet, "/v1/queue/tenants", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/queue/status", nil)
 		must.NoError(t, err)
 
-		_, err = s.Server.BatchJobQueueTenantsRequest(respW, req)
+		_, err = s.Server.BatchJobQueueStatusRequest(respW, req)
 		must.NoError(t, err)
 
 		req.Method = http.MethodPost
-		_, err = s.Server.BatchJobQueueTenantsRequest(respW, req)
+		_, err = s.Server.BatchJobQueueStatusRequest(respW, req)
 		must.Error(t, err)
 
 		req.Method = http.MethodPut
-		_, err = s.Server.BatchJobQueueTenantsRequest(respW, req)
+		_, err = s.Server.BatchJobQueueStatusRequest(respW, req)
 		must.Error(t, err)
 
 		req.Method = http.MethodDelete
-		_, err = s.Server.BatchJobQueueTenantsRequest(respW, req)
+		_, err = s.Server.BatchJobQueueStatusRequest(respW, req)
 		must.Error(t, err)
 	})
 }

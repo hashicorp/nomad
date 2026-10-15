@@ -962,8 +962,8 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"queue tenants": func() (cli.Command, error) {
-			return &QueueTenantsCommand{
+		"queue status": func() (cli.Command, error) {
+			return &QueueStatusCommand{
 				Meta: meta,
 			}, nil
 		},
