@@ -115,10 +115,10 @@ func (c *QueueStatusCommand) Run(args []string) int {
 	switch resp.Type {
 	case api.BatchQueueTypeDynamic:
 		return c.printStatus(resp, jsonOut)
-	case "unset":
+	case api.BatchQueueTypePassthrough:
 		c.Ui.Output("No batch job queue configured")
 	default:
-		c.Ui.Error(fmt.Sprintf("Unknown queue type: %s", resp.Type))
+		c.Ui.Error(fmt.Sprintf(`Queue type "%s" does not implement status`, resp.Type))
 		return 255
 	}
 
