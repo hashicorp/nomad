@@ -42,6 +42,7 @@
     "nomad/stream/...",
     "nomad/structs/...",
     "nomad/volumewatcher/...",
+    "nomad/dependency/...",
     "plugins/...",
     "scheduler/...",
     "scheduler/feasible/...",

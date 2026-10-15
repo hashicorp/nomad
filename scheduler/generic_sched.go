@@ -35,6 +35,9 @@ const (
 	maxPastRescheduleEvents = 5
 )
 
+// function used to limit the initial pool of nodes for the feasibility check.
+type filterNodesFunc func(*structs.Job) ([]*structs.Node, map[string]int, error)
+
 // SetStatusError is used to set the status of the evaluation to the given error
 type SetStatusError struct {
 	Err        error
@@ -51,12 +54,12 @@ func (s *SetStatusError) Error() string {
 // most workloads. It also supports a 'batch' mode to optimize for fast decision
 // making at the cost of quality.
 type GenericScheduler struct {
-	logger   log.Logger
-	eventsCh chan<- any
-	state    sstructs.State
-	planner  sstructs.Planner
-	batch    bool
-
+	logger     log.Logger
+	eventsCh   chan<- any
+	state      sstructs.State
+	planner    sstructs.Planner
+	batch      bool
+	blockers   []string
 	eval       *structs.Evaluation
 	job        *structs.Job
 	plan       *structs.Plan
@@ -74,10 +77,13 @@ type GenericScheduler struct {
 	failedTGAllocs  map[string]*structs.AllocMetric
 	queuedAllocs    map[string]int
 	planAnnotations *structs.PlanAnnotations
+	nodesSetter     filterNodesFunc
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State,
+	planner sstructs.Planner) sstructs.Scheduler {
+
 	s := &GenericScheduler{
 		logger:   logger.Named("service_sched"),
 		eventsCh: eventsCh,
@@ -85,18 +91,9 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.
 		planner:  planner,
 		batch:    false,
 	}
-	return s
-}
 
-// NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- any, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
-	s := &GenericScheduler{
-		logger:   logger.Named("batch_sched"),
-		eventsCh: eventsCh,
-		state:    state,
-		planner:  planner,
-		batch:    true,
-	}
+	s.nodesSetter = s.setNodes
+
 	return s
 }
 
@@ -148,6 +145,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 			if err := s.createBlockedEval(true); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
+
 			if err := setStatus(s.logger, s.planner, s.eval, s.blocked,
 				s.failedTGAllocs, s.planAnnotations, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
@@ -189,9 +187,12 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	}
 
 	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs, e.MissingResources())
-	if planFailure {
+	if planFailure && !s.blockedByDependencies() {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalMaxPlan
+	} else if planFailure && s.blockedByDependencies() {
+		s.blocked.TriggeredBy = structs.EvalTriggeredDeps
+		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	} else {
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	}
@@ -257,6 +258,7 @@ func (s *GenericScheduler) process() (bool, error) {
 		len(s.failedTGAllocs) != 0 &&
 		s.blocked == nil &&
 		(len(s.followUpEvals) == 0 || time.Now().After(s.eval.WaitUntil)) {
+
 		if err := s.createBlockedEval(false); err != nil {
 			s.logger.Error("failed to make blocked eval", "error", err)
 			return false, err
@@ -489,7 +491,7 @@ func (s *GenericScheduler) computePlacements(
 ) error {
 
 	// Get the base nodes
-	nodes, byDC, err := s.setNodes(s.job)
+	nodes, byDC, err := s.nodesSetter(s.job)
 	if err != nil {
 		return err
 	}
@@ -553,7 +555,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(downgradedJob)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(downgradedJob)
+					nodes, byDC, err = s.nodesSetter(downgradedJob)
 					if err != nil {
 						return err
 					}
@@ -595,7 +597,7 @@ func (s *GenericScheduler) computePlacements(
 				s.setJob(s.job)
 
 				if needsToSetNodes(downgradedJob, s.job) {
-					nodes, byDC, err = s.setNodes(s.job)
+					nodes, byDC, err = s.nodesSetter(s.job)
 					if err != nil {
 						return err
 					}
@@ -721,6 +723,11 @@ func (s *GenericScheduler) computePlacements(
 					s.failedTGAllocs[tg.Name] = reporting
 				}
 
+				// Add any blocked dependencies to the metrics
+				if len(s.blockers) > 0 {
+					s.failedTGAllocs[tg.Name].AddBlockedDependencies(s.blockers...)
+				}
+
 				// If we weren't able to find a placement for the allocation, back
 				// out the fact that we asked to stop the allocation.
 				if stopPrevAlloc {
@@ -805,6 +812,7 @@ func (s *GenericScheduler) setJob(job *structs.Job) error {
 // setnodes updates the stack with the nodes that are ready for placement for
 // the given job.
 func (s *GenericScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
+
 	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, job.Datacenters, job.NodePool)
 	if err != nil {
 		return nil, nil, err
@@ -979,4 +987,8 @@ func (s *GenericScheduler) handlePreemptions(option *feasible.RankedNode, alloc 
 	}
 
 	alloc.PreemptedAllocations = preemptedAllocIDs
+}
+
+func (s *GenericScheduler) blockedByDependencies() bool {
+	return len(s.blockers) > 0
 }

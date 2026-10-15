@@ -2517,6 +2517,46 @@ func (s *StateStore) JobsByScheduler(ws memdb.WatchSet, schedulerType string) (m
 	return iter, nil
 }
 
+// filterJobsWithActiveDependents excludes jobs that are depended upon
+// by at least one pending or running job.
+func (s *StateStore) filterJobsWithActiveDependents(txn *memdb.Txn, ws memdb.WatchSet) (memdb.FilterFunc, error) {
+	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	if ws != nil {
+		ws.Add(iter.WatchCh())
+	}
+
+	dependees := make(map[string]map[string]struct{})
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		job := raw.(*structs.Job)
+
+		if job.Dependencies == nil ||
+			(job.Status != structs.JobStatusPending &&
+				job.Status != structs.JobStatusRunning) {
+			continue
+		}
+
+		for _, dep := range job.Dependencies.Jobs {
+			if dependees[job.Namespace] == nil {
+				dependees[job.Namespace] = make(map[string]struct{})
+			}
+
+			dependees[job.Namespace][dep.Name] = struct{}{}
+		}
+	}
+
+	return func(raw interface{}) bool {
+		job := raw.(*structs.Job)
+
+		_, hasActiveDependents := dependees[job.Namespace][job.Name]
+		return hasActiveDependents
+	}, nil
+}
+
 // JobsByGC returns an iterator over all jobs eligible or ineligible for garbage
 // collection.
 func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator, error) {
@@ -2529,7 +2569,12 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 
 	ws.Add(iter.WatchCh())
 
-	return iter, nil
+	filter, err := s.filterJobsWithActiveDependents(txn.Txn, ws)
+	if err != nil {
+		return nil, err
+	}
+
+	return memdb.NewFilterIterator(iter, filter), nil
 }
 
 // JobsByPool returns an iterator over all jobs in a given node pool.

@@ -36,6 +36,7 @@ const (
 
 // ErrMultipleNamespaces is send when multiple namespaces are used in the OSS setup
 var ErrMultipleNamespaces = errors.New("multiple Vault namespaces requires Nomad Enterprise")
+var ErrCircularDependency = errors.New("job generates circular dependency")
 
 var (
 	// allowRescheduleTransition is the transition that allows failed
@@ -226,6 +227,11 @@ func (j *Job) doRegister(aclObj *acl.ACL, additionalAllowedPermissions []string,
 		if err := existingJob.EnforceIndex(args.JobModifyIndex); err != nil {
 			return err
 		}
+	}
+
+	// Check for dependencies and circular dependencies
+	if !job.Dependencies.Empty() && j.srv.dependencyCoordinator.CreatesCircularDependency(job) {
+		return ErrCircularDependency
 	}
 
 	// Validate job transitions if its an update
