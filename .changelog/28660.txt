@@ -1,0 +1,3 @@
+```release-note:bug
+state: Fixed node deletion errors being silently discarded
+```
