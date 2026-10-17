@@ -81,8 +81,7 @@ type FeasibilityChecker interface {
 }
 
 // StaticIterator is a FeasibleIterator which returns nodes
-// in a static order. This is used at the base of the iterator
-// chain only for testing due to deterministic behavior.
+// in a static order, preserving its rotating offset between resets.
 type StaticIterator struct {
 	ctx    Context
 	nodes  []*structs.Node
@@ -90,7 +89,7 @@ type StaticIterator struct {
 	seen   int
 }
 
-// NewStaticIterator constructs a random iterator from a list of nodes
+// NewStaticIterator constructs a static iterator from a list of nodes.
 func NewStaticIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	iter := &StaticIterator{
 		ctx:   ctx,
@@ -149,18 +148,6 @@ func ShuffleNodes(plan *structs.Plan, index uint64, nodes []*structs.Node) {
 		j := r.Intn(i + 1)
 		nodes[i], nodes[j] = nodes[j], nodes[i]
 	}
-}
-
-// NewRandomIterator constructs a static iterator from a list of nodes
-// after applying the Fisher-Yates algorithm for a random shuffle. This
-// is applied in-place
-func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
-	// shuffle with the Fisher-Yates algorithm
-	idx, _ := ctx.State().LatestIndex()
-	ShuffleNodes(ctx.Plan(), idx, nodes)
-
-	// Create a static iterator
-	return NewStaticIterator(ctx, nodes)
 }
 
 type SecretsProviderChecker struct {

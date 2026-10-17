@@ -781,7 +781,7 @@ func correctDeploymentCanaries(result *structs.PlanResult) {
 
 // evaluateNodePlan is used to evaluate the plan for a single node,
 // returning if the plan is valid or if an error is encountered
-func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID string) (bool, string, error) {
+func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID string, nowFn func() time.Time) (bool, string, error) {
 	// If this is an evict-only plan, it always 'fits' since we are removing things.
 	if len(plan.NodeAllocation[nodeID]) == 0 {
 		return true, "", nil
@@ -819,12 +819,55 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 		return false, "", fmt.Errorf("failed to get existing allocations for '%s': %v", nodeID, err)
 	}
 
+	durationAware := node.DrainStrategy != nil && node.DrainStrategy.DurationAware &&
+		(plan.Job.Type == structs.JobTypeBatch || plan.Job.Type == structs.JobTypeSysBatch)
+	if durationAware {
+		if len(plan.NodePreemptions[nodeID]) > 0 {
+			return false, "drain backfill cannot preempt existing allocations", nil
+		}
+
+		existingByID := make(map[string]*structs.Allocation, len(existingAlloc))
+		for _, alloc := range existingAlloc {
+			existingByID[alloc.ID] = alloc
+		}
+
+		// Ensure all allocations will stop before drain deadline
+		now := nowFn()
+		for _, alloc := range plan.NodeAllocation[nodeID] {
+			tg := plan.Job.LookupTaskGroup(alloc.TaskGroup)
+			if tg.MaxRunDuration == nil || *tg.MaxRunDuration <= 0 {
+				continue
+			}
+
+			maxRunStart := now
+
+			// If this is an updated alloc, calculate deadline from
+			// existing alloc CreateTime
+			if existing := existingByID[alloc.ID]; existing != nil {
+				maxRunStart = time.Unix(0, existing.CreateTime)
+			}
+
+			// Allow allocs max runtime to extend into the backfill
+			// buffer in the plan applier to account for clock skew
+			// between servers
+			// Otherwise a follower 3s behind the leader may
+			// continually submit the same plan for those 3s even
+			// if the leader rejects it each time.
+			maxRunStart = maxRunStart.
+				Add(*tg.MaxRunDuration).
+				Add(tg.MaxShutdown())
+			if maxRunStart.After(node.DrainStrategy.ForceDeadline) {
+				return false, "allocation exceeds node drain time budget", nil
+			}
+		}
+	}
+
 	// If nodeAllocations is a subset of the existing allocations we can continue,
 	// even if the node is not eligible, as only in-place updates or stop/evict are performed
 	if structs.AllocSubset(existingAlloc, plan.NodeAllocation[nodeID]) {
 		return true, "", nil
 	}
-	if node.SchedulingEligibility == structs.NodeSchedulingIneligible {
+	if node.SchedulingEligibility == structs.NodeSchedulingIneligible && !durationAware {
 		return false, "node is not eligible", nil
 	}
 
