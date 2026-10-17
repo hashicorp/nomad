@@ -21,6 +21,12 @@ const (
 	// launched process to close its stdout/stderr before we force close it. If
 	// data is written after this tolerance, we will not capture it.
 	processOutputCloseTolerance = 2 * time.Second
+
+	// processOutputReadCloseTolerance is the length of time we will wait
+	// for the read side of the pipe to close naturally. Once exceeded a
+	// dummy writer will be opened and disposed to allow the read side
+	// to progress.
+	processOutputReadCloseTolerance = 100 * time.Millisecond
 )
 
 type LogConfig struct {
@@ -271,19 +277,37 @@ func (l *logRotatorWrapper) Close() {
 	go func() {
 		defer close(closeDone)
 
-		// we must wait until reader is opened before we can close it, and cannot inteerrupt an in-flight open request
-		// The Close function uses processOutputCloseTolerance to protect against long running open called
-		// and then request will be interrupted and file will be closed on process shutdown
+		// Wait here until the read side of the pipe has been opened. An in-flight
+		// open request cannot be interrupted, so wait until it has completed before
+		// attempting to close.
 		<-l.openCompleted
 
+		// Now close the read side of the pipe. In cases where closing may block as described
+		// above, the processOutputCloseTolerance is used below to continue on. If that
+		// occurs, the pipe will be closed when the process exits.
 		if l.processOutReader != nil {
 			err := l.processOutReader.Close()
 			if err != nil && !strings.Contains(err.Error(), "file already closed") {
 				l.logger.Warn("error closing read-side of process output pipe", "error", err)
 			}
 		}
-
 	}()
+
+	// Closing the read side of the pipe can block in different ways if the write side
+	// of the pipe is never opened. On linux systems, opening the read side of the pipe
+	// will block until the write side is opened. On windows systems, the read side of
+	// the pipe will block on the copy until the write side is opened. To handle
+	// instances where the write side is never opened, we wait here temporarily for the
+	// close to occur naturally. If it does not, we open a writer and then immediately
+	// discard it to allow the read side to progress.
+	select {
+	case <-closeDone:
+	case <-time.After(processOutputReadCloseTolerance):
+		f, _ := fifo.OpenWriter(l.fifoPath)
+		if f != nil {
+			f.Close()
+		}
+	}
 
 	select {
 	case <-closeDone:
@@ -291,5 +315,8 @@ func (l *logRotatorWrapper) Close() {
 		l.logger.Warn("timed out waiting for read-side of process output pipe to close")
 	}
 
-	l.rotatorWriter.Close()
+	// If an error is encountered when closing the write side of the pipe, just log it.
+	if err := l.rotatorWriter.Close(); err != nil {
+		l.logger.Warn("error closing write-side of process output pipe", "error", err)
+	}
 }
