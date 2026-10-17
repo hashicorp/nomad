@@ -846,8 +846,11 @@ func evaluateNodePlan(snap *state.StateSnapshot, plan *structs.Plan, nodeID stri
 	proposed := structs.RemoveAllocs(existingAlloc, remove)
 	proposed = append(proposed, plan.NodeAllocation[nodeID]...)
 
+	allocResources := make(structs.AllocResourceCache, len(proposed))
+	allocResources.Insert(proposed...)
+
 	// Check if these allocations fit
-	fit, reason, _, err := structs.AllocsFit(node, proposed, nil, true)
+	fit, reason, _, err := structs.AllocsFit(node, allocResources, nil, true)
 	return fit, reason, err
 }
 

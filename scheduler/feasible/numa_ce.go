@@ -7,7 +7,6 @@ package feasible
 
 import (
 	"cmp"
-	"math/rand"
 	"slices"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -41,13 +40,6 @@ func (cs *coreSelector) Select(ask *structs.Resources) ([]uint16, hw.MHz) {
 		}
 	}
 	return ids, mhz
-}
-
-// randomize the cores so we can at least try to mitigate PFNR problems
-func randomizeCores(cores []numalib.Core) {
-	rand.Shuffle(len(cores), func(x, y int) {
-		cores[x], cores[y] = cores[y], cores[x]
-	})
 }
 
 // candidateMemoryNodes return -1 on CE, indicating any memory node is acceptable
