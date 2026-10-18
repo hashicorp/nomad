@@ -2017,16 +2017,38 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 		_ = resp.CloseWrite()
 	}()
 
+	const (
+		execStartupRetries       = 10
+		execStartupRetryInterval = 5 * time.Millisecond
+	)
 	exitCode := 999
+	retries := 0
+
 	for {
 		inspect, err := client.ExecInspect(ctx, exec.ID, mclient.ExecInspectOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to inspect exec: %v", err)
 		}
 
-		running := inspect.Running
-		if running {
+		if inspect.Running {
+			retries = execStartupRetries // process started, no more retries
 			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		// we can receive the response from ContainerExecAttach before the
+		// exec'd process has actually started, at which point we would get
+		// Running=false but zero values for Pid and ExitCode which we'd then
+		// treat as successful completion. If the PID is still 0 we might be in
+		// this window, so retry until the PID has been set or we run out of
+		// retries.
+		if inspect.PID == 0 && retries < execStartupRetries {
+			retries++
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(execStartupRetryInterval):
+			}
 			continue
 		}
 
