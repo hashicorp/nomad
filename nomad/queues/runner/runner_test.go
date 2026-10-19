@@ -32,7 +32,7 @@ func TestQueueRunner_Enqueue(t *testing.T) {
 		broker := &mocks.MockBroker{}
 		broker.On("Enqueue", eval).Once()
 
-		qr := New(testlog.HCLogger(t), q, "", broker, nil, nil)
+		qr := New(testlog.HCLogger(t), q, "", broker, nil, nil, time.Hour)
 		qr.Enqueue(eval, job)
 
 		q.AssertExpectations(t)
@@ -55,7 +55,7 @@ func TestQueueRunner_Enqueue(t *testing.T) {
 		broker := &mocks.MockBroker{}
 		broker.On("Enqueue", eval).Run(func(args tmock.Arguments) { close(enqueued) })
 
-		qr := New(testlog.HCLogger(t), q, "", broker, store, nil)
+		qr := New(testlog.HCLogger(t), q, "", broker, store, nil, time.Hour)
 		qr.Start(t.Context())
 		qr.Enqueue(eval, job)
 
@@ -91,7 +91,7 @@ func TestQueueRunner_Restore(t *testing.T) {
 	q := &mocks.MockQueue{}
 	q.On("NewWorkload", blockedEval, job).Return(newWorkload(blockedEval, job), true).Once()
 
-	qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, store, nil)
+	qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, store, nil, time.Hour)
 	must.NoError(t, qr.Restore(blockedEval, job))
 
 	must.Eq(t, 1, len(qr.restored))
@@ -114,7 +114,7 @@ func TestQueueRunner_CancelRedundant(t *testing.T) {
 		q.On("Swap", incoming).Return(queued, true).Once()
 
 		canceler := &evalCanceler{}
-		qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel)
+		qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel, time.Hour)
 
 		must.True(t, qr.cancelRedundant(incoming))
 		must.Eq(t, []*structs.Evaluation{queued.Eval()}, canceler.canceled)
@@ -130,7 +130,7 @@ func TestQueueRunner_CancelRedundant(t *testing.T) {
 		q.On("Get", incoming.ID()).Return(queued, true).Once()
 
 		canceler := &evalCanceler{}
-		qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel)
+		qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel, time.Hour)
 
 		must.True(t, qr.cancelRedundant(incoming))
 		must.Eq(t, []*structs.Evaluation{incoming.Eval()}, canceler.canceled)
@@ -145,7 +145,7 @@ func TestQueueRunner_cancelEval(t *testing.T) {
 
 	qr := New(testlog.HCLogger(t), nil, "", mockBroker, nil, func(e *structs.Evaluation) error {
 		return errors.New("bad raft")
-	})
+	}, time.Hour)
 
 	qr.cancelEval(e)
 
@@ -163,7 +163,7 @@ func TestQueueRunner_SkipQueue(t *testing.T) {
 
 		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
-		qr := New(testlog.HCLogger(t), nil, "", nil, ss, nil)
+		qr := New(testlog.HCLogger(t), nil, "", nil, ss, nil, time.Hour)
 
 		wl := newWorkload(eval, job)
 		must.False(t, qr.skipQueue(wl))
@@ -183,7 +183,7 @@ func TestQueueRunner_SkipQueue(t *testing.T) {
 		must.NoError(t, ss.UpsertAllocs(structs.MsgTypeTestSetup, 101, []*structs.Allocation{alloc}))
 		broker := &mocks.MockBroker{}
 		broker.On("Enqueue", eval).Return().Once()
-		qr := New(testlog.HCLogger(t), nil, "", broker, ss, nil)
+		qr := New(testlog.HCLogger(t), nil, "", broker, ss, nil, time.Hour)
 
 		wl := newWorkload(eval, job)
 		must.True(t, qr.skipQueue(wl))
@@ -201,7 +201,7 @@ func TestQueueRunner_SkipQueue(t *testing.T) {
 
 		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job))
 
-		qr := New(testlog.HCLogger(t), nil, "", nil, ss, nil)
+		qr := New(testlog.HCLogger(t), nil, "", nil, ss, nil, time.Hour)
 
 		wl := newWorkload(eval, job)
 		qr.watcher.TrackPlacement(wl)
@@ -219,7 +219,7 @@ func TestQueueRunner_Dequeue(t *testing.T) {
 	q.On("Remove", missing).Return(nil, false).Once()
 
 	canceler := &evalCanceler{}
-	qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel)
+	qr := New(testlog.HCLogger(t), q, "", &mocks.MockBroker{}, nil, canceler.cancel, time.Hour)
 
 	qr.Dequeue(wl.ID())
 	qr.Dequeue(missing)
@@ -254,7 +254,7 @@ func TestQueueRunner_emitMetrics(t *testing.T) {
 
 	ss := state.TestStateStore(t)
 	must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
-	qr := New(testlog.HCLogger(t), q, pool, &mocks.MockBroker{}, ss, nilCanceler)
+	qr := New(testlog.HCLogger(t), q, pool, &mocks.MockBroker{}, ss, nilCanceler, time.Hour)
 
 	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 	defer cancel()

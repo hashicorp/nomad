@@ -101,8 +101,9 @@ func (q *BatchQueue) Status(queryOpts *QueryOptions) (*BatchJobQueueStatusRespon
 // If it is absent from NodePool config, the pool's batch job queue is disabled.
 // One and only one queue config must be set.
 type BatchQueueConfig struct {
-	DynamicPriority *DynamicQueueConfig `hcl:"dynamic_priority,block"`
-	Fifo            *FifoQueueConfig    `hcl:"fifo,block"`
+	ConstraintTimeout time.Duration       `hcl:"constraint_timeout,optional"`
+	DynamicPriority   *DynamicQueueConfig `hcl:"dynamic_priority,block"`
+	Fifo              *FifoQueueConfig    `hcl:"fifo,block"`
 }
 
 // TenantFairshareConfig configures how tenants are identified and weighted.

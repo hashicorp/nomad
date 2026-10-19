@@ -101,7 +101,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			ss := state.TestStateStore(t)
-			watcher := NewWorkloadWatcher(ss, hclog.Default())
+			watcher := NewWorkloadWatcher(hclog.Default(), ss, time.Hour)
 
 			workload, job := newWorkloadAndJob(t, ss)
 
@@ -142,7 +142,7 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 	t.Run("detects constraint failure without resource exhaustion", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
+		watcher := NewWorkloadWatcher(hclog.Default(), ss, time.Hour)
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -158,15 +158,12 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 			},
 		}
 
-		workload := &testWorkload{eval: testEval}
-		failure, reason := watcher.isConstraintFailure(workload)
-		must.True(t, failure)
-		must.Eq(t, reason, "${attr.kernel.name} == linux")
+		must.True(t, watcher.isConstraintFailure(testEval))
 	})
 
 	t.Run("does not detect constraint failure with resource exhaustion", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
+		watcher := NewWorkloadWatcher(hclog.Default(), ss, time.Hour)
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -180,14 +177,12 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 			},
 		}
 
-		workload := &testWorkload{eval: testEval}
-		failure, _ := watcher.isConstraintFailure(workload)
-		must.False(t, failure)
+		must.False(t, watcher.isConstraintFailure(testEval))
 	})
 
 	t.Run("detects pure resource exhaustion as not constraint failure", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
+		watcher := NewWorkloadWatcher(hclog.Default(), ss, time.Hour)
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -199,26 +194,22 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 			},
 		}
 
-		workload := &testWorkload{eval: testEval}
-		failure, _ := watcher.isConstraintFailure(workload)
-		must.False(t, failure)
+		must.False(t, watcher.isConstraintFailure(testEval))
 	})
 
 	t.Run("handles nil FailedTGAllocs", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
+		watcher := NewWorkloadWatcher(hclog.Default(), ss, time.Hour)
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = nil
 
-		workload := &testWorkload{eval: testEval}
-		failure, _ := watcher.isConstraintFailure(workload)
-		must.False(t, failure)
+		must.False(t, watcher.isConstraintFailure(testEval))
 	})
 
 	t.Run("handles quota exhaustion as resource issue", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
+		watcher := NewWorkloadWatcher(hclog.Default(), ss, time.Hour)
 
 		testEval := mock.Eval()
 		testEval.FailedTGAllocs = map[string]*structs.AllocMetric{
@@ -231,16 +222,14 @@ func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
 			},
 		}
 
-		workload := &testWorkload{eval: testEval}
-		failure, _ := watcher.isConstraintFailure(workload)
-		must.False(t, failure)
+		must.False(t, watcher.isConstraintFailure(testEval))
 	})
 }
 
 func TestWorkloadWatcher_TrackPlacement(t *testing.T) {
 	t.Run("tracks and untracks workloads", func(t *testing.T) {
 		ss := state.TestStateStore(t)
-		watcher := NewWorkloadWatcher(ss, hclog.Default())
+		watcher := NewWorkloadWatcher(hclog.Default(), ss, time.Hour)
 
 		testEval1 := mock.Eval()
 		testEval2 := mock.Eval()

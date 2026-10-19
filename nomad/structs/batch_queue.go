@@ -26,8 +26,9 @@ const (
 )
 
 type BatchQueueConfig struct {
-	DynamicPriority *DynamicQueueConfig
-	Fifo            *FifoQueueConfig
+	ConstraintTimeout time.Duration
+	DynamicPriority   *DynamicQueueConfig
+	Fifo              *FifoQueueConfig
 }
 
 func (bq *BatchQueueConfig) IsEnabled() bool {
