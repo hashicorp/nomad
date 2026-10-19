@@ -32,6 +32,9 @@ General Options:
 
 Jobs Options:
 
+  -node-pool
+    The node pool queue to query. This is a required flag.
+
   -per-page
     The maximum number of workloads to return per page. If not specified, or set to 0, all results are returned.
 
@@ -82,11 +85,16 @@ func (c *QueueJobsCommand) Run(args []string) int {
 	flags.BoolVar(&jsonOut, "json", false, "")
 	flags.BoolVar(&prioritySort, "p", false, "")
 	flags.StringVar(&pageToken, "page-token", "", "")
-	flags.StringVar(&nodePool, "node-pool", "default", "") // TODO: default to '*' (and support that value)
+	flags.StringVar(&nodePool, "node-pool", "", "") // TODO: default to '*' (and support that value)
 	flags.IntVar(&perPage, "per-page", 0, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
+	}
+
+	if nodePool == "" {
+		c.Ui.Error("node-pool is required")
+		return 255
 	}
 
 	// Get the HTTP client

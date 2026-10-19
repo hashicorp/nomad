@@ -53,12 +53,7 @@ func (q *BatchJobQueue) Jobs(args *structs.QueueJobsRequest, reply *structs.Queu
 		return err
 	}
 
-	pool := args.NodePool
-	if pool == "" {
-		pool = structs.NodePoolDefault // TODO: hmm.
-	}
-
-	batchJobQueue := q.srv.batchQueueMgr.Queue(pool)
+	batchJobQueue := q.srv.batchQueueMgr.Queue(args.NodePool)
 	iter := batchJobQueue.Jobs(args.Sort)
 
 	selector := func(workload structs.QueueWorkload) bool {

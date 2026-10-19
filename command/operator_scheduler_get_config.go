@@ -76,7 +76,8 @@ func (o *OperatorSchedulerGetConfig) Run(args []string) int {
 
 	schedConfig := resp.SchedulerConfig
 
-	out := []string{
+	// Output the information.
+	o.Ui.Output(formatKV([]string{
 		fmt.Sprintf("Scheduler Algorithm|%s", schedConfig.SchedulerAlgorithm),
 		fmt.Sprintf("Memory Oversubscription|%v", schedConfig.MemoryOversubscriptionEnabled),
 		fmt.Sprintf("Reject Job Registration|%v", schedConfig.RejectJobRegistration),
@@ -86,12 +87,8 @@ func (o *OperatorSchedulerGetConfig) Run(args []string) int {
 		fmt.Sprintf("Preemption Batch Scheduler|%v", schedConfig.PreemptionConfig.BatchSchedulerEnabled),
 		fmt.Sprintf("Preemption SysBatch Scheduler|%v", schedConfig.PreemptionConfig.SysBatchSchedulerEnabled),
 		fmt.Sprintf("Node Limit For Feasibility Checks|%v", schedConfig.NodeLimitForFeasibilityChecks),
-	}
-
-	out = append(out, fmt.Sprintf("Modify Index|%v", resp.SchedulerConfig.ModifyIndex))
-
-	// Output the information.
-	o.Ui.Output(formatKV(out))
+		fmt.Sprintf("Modify Index|%v", resp.SchedulerConfig.ModifyIndex),
+	}))
 	return 0
 }
 

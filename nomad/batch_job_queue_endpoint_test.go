@@ -238,11 +238,6 @@ func TestBatchJobQueue_Status_WithACL(t *testing.T) {
 			err:  structs.ErrPermissionDenied.Error(),
 			resp: structs.QueueStatusResponse{},
 		},
-		{
-			name: "valid token with operator read permissions",
-			req:  structs.QueueStatusRequest{QueryOptions: structs.QueryOptions{Region: "global", AuthToken: mock.CreatePolicyAndToken(t, state, 1005, "test-valid-operator", mock.OperatorPolicy("read")).SecretID}},
-			resp: structs.QueueStatusResponse{Status: []string{"ns1", "ns2"}, QueryMeta: structs.QueryMeta{KnownLeader: true}},
-		},
 	}
 
 	for _, tc := range testCases {

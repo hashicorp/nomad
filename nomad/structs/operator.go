@@ -286,7 +286,6 @@ func (s *SchedulerConfiguration) WithNodePool(pool *NodePool) *SchedulerConfigur
 	if poolConfig.SchedulerAlgorithm != "" {
 		schedConfig.SchedulerAlgorithm = poolConfig.SchedulerAlgorithm
 	}
-
 	if poolConfig.MemoryOversubscriptionEnabled != nil {
 		schedConfig.MemoryOversubscriptionEnabled = *poolConfig.MemoryOversubscriptionEnabled
 	}
@@ -295,10 +294,7 @@ func (s *SchedulerConfiguration) WithNodePool(pool *NodePool) *SchedulerConfigur
 }
 
 func (s *SchedulerConfiguration) Canonicalize() {
-	if s == nil {
-		return
-	}
-	if s.SchedulerAlgorithm == "" {
+	if s != nil && s.SchedulerAlgorithm == "" {
 		s.SchedulerAlgorithm = SchedulerAlgorithmBinpack
 	}
 }

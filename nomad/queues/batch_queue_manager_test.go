@@ -99,7 +99,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 		poolWithConfig, poolWithoutConfig,
 	}))
 
-	// TODO: another node pool...
+	// another node pool...
 	evalWithQueue, jobWithQueue := testJobEval(poolWithConfig, structs.JobTypeBatch, structs.EvalStatusPending)
 	evalWithoutQueue, jobWithoutQueue := testJobEval(poolWithoutConfig, structs.JobTypeBatch, structs.EvalStatusPending)
 
@@ -119,7 +119,6 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 	// queue manager
 
 	broker := &mocks.MockBroker{}
-	// broker.Test(t)
 
 	qm := NewBatchQueueMgr(t.Context(), testlog.HCLogger(t), broker, nil)
 
@@ -144,7 +143,7 @@ func TestBatchQueueManager_Enable(t *testing.T) {
 
 		must.True(t, qm.enabled.Load(), must.Sprint("should be enabled"))
 
-		// broker.AssertExpectations(t)
+		broker.AssertExpectations(t)
 		must.True(t, passthrough.AssertExpectations(t))
 		must.True(t, startingQ.AssertExpectations(t))
 

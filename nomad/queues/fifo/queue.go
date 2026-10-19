@@ -48,11 +48,7 @@ func (f *Queue) Pop() (queue.Workload, bool) {
 }
 
 func (f *Queue) Get(id structs.NamespacedID) (queue.Workload, bool) {
-	w, ok := f.queue.Get(id)
-	if !ok {
-		return nil, false
-	}
-	return w, true
+	return f.queue.Get(id)
 }
 
 func (f *Queue) Remove(id structs.NamespacedID) (queue.Workload, bool) {

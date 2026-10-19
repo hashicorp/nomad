@@ -1822,7 +1822,6 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		t.Run(job.ID, func(t *testing.T) {
 			testFn(job)
 		})
-		// testFn(job)
 	}
 }
 

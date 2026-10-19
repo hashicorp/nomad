@@ -33,7 +33,7 @@ General Options:
 Status Options:
 
   -node-pool
-    The node pool queue to query
+    The node pool queue to query. This flag is required.
 
   -limit
     The maximum number of items to return
@@ -77,10 +77,15 @@ func (c *QueueStatusCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&jsonOut, "json", false, "")
 	flags.IntVar(&limit, "limit", 0, "")
-	flags.StringVar(&nodePool, "node-pool", "default", "")
+	flags.StringVar(&nodePool, "node-pool", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
+	}
+
+	if nodePool == "" {
+		c.Ui.Error("node-pool is required")
+		return 255
 	}
 
 	// Get the HTTP client

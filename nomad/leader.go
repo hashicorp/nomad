@@ -2660,7 +2660,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 		return nil
 	}
 
-	return &s.config.DefaultSchedulerConfig
+	return config
 }
 
 var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
@@ -2791,9 +2791,17 @@ func (s *Server) handleEvalBrokerStateChange(schedConfig *structs.SchedulerConfi
 	// processes should be enabled or not. It allows us to answer this question
 	// whether using a persisted Raft configuration, or the default bootstrap
 	// config.
-	var restoreEvals bool
+	var enableBrokers, restoreEvals bool
 
-	enableBrokers := !schedConfig.PauseEvalBroker
+	// The scheduler config can only be persisted to Raft once quorum has been
+	// established. If this is a fresh cluster, we need to use the default
+	// scheduler config, otherwise we can use the persisted object.
+	switch schedConfig {
+	case nil:
+		enableBrokers = !s.config.DefaultSchedulerConfig.PauseEvalBroker
+	default:
+		enableBrokers = !schedConfig.PauseEvalBroker
+	}
 
 	// If the evalBroker status is changing, set the new state.
 	if enableBrokers != s.evalBroker.Enabled() {

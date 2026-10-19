@@ -190,14 +190,13 @@ func (qm *BatchQueueManager) UpdateQueue(pool *structs.NodePool) error {
 	qm.mut.Lock()
 	defer qm.mut.Unlock()
 
-	conf := configForPool(pool)
-
 	// TODO: special handling for the "all" pool, become a "global" default config.
 	// TODO: only restart queue if there's a change. (use Hash()?)
 
 	// stop the queue with the old config to send evals straight to the broker.
 	qm.qk.Stop(pool.Name)
 
+	conf := pool.BatchQueueConfig
 	// drop the queue if the config has been removed from the node pool.
 	if conf == nil || !conf.IsEnabled() {
 		qm.qk.Delete(pool.Name)
@@ -217,14 +216,6 @@ func (qm *BatchQueueManager) UpdateQueue(pool *structs.NodePool) error {
 
 	queue.Start(qm.shutdownCtx)
 
-	return nil
-}
-
-func configForPool(p *structs.NodePool) *structs.BatchQueueConfig {
-	if p.BatchQueueConfig != nil {
-		return p.BatchQueueConfig
-	}
-	// TODO: fallback to all/global queue config, if set.
 	return nil
 }
 
@@ -249,7 +240,7 @@ func (qm *BatchQueueManager) initQueues() error {
 			continue
 		}
 
-		conf := configForPool(pool)
+		conf := pool.BatchQueueConfig
 		if conf == nil {
 			continue
 		}

@@ -495,8 +495,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		logger,
 		s.evalBroker,
 		func(e *structs.Evaluation) error {
-			// update evals to cancel
-
 			e = e.Copy()
 			e.Status = structs.EvalStatusCancelled
 			e.StatusDescription = "redundant job-register eval exists on batch queue"

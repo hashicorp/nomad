@@ -215,12 +215,10 @@ type SchedulerSetConfigurationResponse struct {
 	WriteMeta
 }
 
-// Enum strings that encapsulate the valid options for a
-// their respective scheduler configuration blocks. These modes
-// allow the config to be user-selectable.
-type (
-	SchedulerAlgorithm string
-)
+// SchedulerAlgorithm is an enum string that encapsulates the valid options for a
+// SchedulerConfiguration block's SchedulerAlgorithm. These modes will allow the
+// scheduler to be user-selectable.
+type SchedulerAlgorithm string
 
 const (
 	SchedulerAlgorithmBinpack SchedulerAlgorithm = "binpack"
