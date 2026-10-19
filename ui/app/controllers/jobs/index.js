@@ -113,11 +113,14 @@ export default class JobsIndexController extends Controller {
       // previous page's start token as meta.nextToken. Keep only that token and
       // render forward, discarding the returned jobs. This never constructs a
       // cursor and works from a cold cursorAt (refresh / shared URL), since it
-      // reads the query param rather than in-memory history. An empty token
-      // means the previous page is the first page, which has no cursor.
+      // reads the query param rather than in-memory history. Landing on the
+      // first page drops the cursor so it re-reads from the top and picks up
+      // jobs created since.
       const prevPage = await this.loadReverse({ next_token: this.cursorAt });
-      this.cursorAt = prevPage.meta.nextToken || undefined;
-      this.onFirstPage = await this.reachedStart(this.cursorAt);
+      const token = prevPage.meta.nextToken || undefined;
+      const atStart = await this.reachedStart(token);
+      this.cursorAt = atStart ? undefined : token;
+      this.onFirstPage = atStart;
     } else if (page === 'next') {
       if (!this.nextToken) {
         return;

@@ -1142,19 +1142,17 @@ module('Acceptance | jobs list', function (hooks) {
           'cursorAt is a string after paging forward',
         );
 
-        // Paging back onto the first page lands on the server-minted token for
-        // that page rather than undefined; either is fine, but it must not be
-        // null, which (unlike undefined) is not omitted from the query string.
+        // Paging back onto the first page drops the cursor, so the first page
+        // re-reads from the top and picks up jobs created since.
         await click('[data-test-pager="previous"]');
-        assert.notStrictEqual(
+        assert.strictEqual(
           controller.cursorAt,
-          null,
-          'cursorAt is never null back on the first page',
+          undefined,
+          'cursorAt is undefined back on the first page',
         );
-        assert.ok(
-          controller.cursorAt === undefined ||
-            typeof controller.cursorAt === 'string',
-          'cursorAt is a string or undefined back on the first page',
+        assert.notOk(
+          currentURL().includes('cursorAt'),
+          'URL has no cursorAt back on the first page',
         );
 
         localStorage.removeItem('nomadPageSize');
