@@ -53,6 +53,6 @@ func NewQueue(
 		broker,
 		ss,
 		cancelFn,
-		conf.BlockedTimeout,
+		conf.ConstraintTimeout,
 	)
 }
