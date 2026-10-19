@@ -116,14 +116,14 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
 			return err
 		}
 
-		watchCtx, cancel := ctx, context.CancelFunc(func() {})
+		cancel := func() {}
 		for _, e := range allEvals {
 			if e.Status == structs.EvalStatusBlocked && w.isConstraintFailure(e) {
-				watchCtx, cancel = context.WithDeadline(ctx, time.Unix(0, e.CreateTime).Add(w.timeout))
+				ctx, cancel = context.WithDeadline(ctx, time.Unix(0, e.CreateTime).Add(w.timeout))
 			}
 		}
 
-		err = ws.WatchCtx(watchCtx)
+		err = ws.WatchCtx(ctx)
 		cancel()
 
 		if err != nil {
