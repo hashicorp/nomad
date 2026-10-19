@@ -52,21 +52,13 @@ func (f *Queue) Get(id structs.NamespacedID) (queue.Workload, bool) {
 }
 
 func (f *Queue) Remove(id structs.NamespacedID) (queue.Workload, bool) {
-	w, ok := f.queue.Remove(id)
-	if !ok {
-		return nil, false
-	}
-	return w, true
+	return f.queue.Remove(id)
 }
 
 // Swap implements base.Queue. The workload must have been created by
 // NewWorkload.
 func (f *Queue) Swap(w queue.Workload) (queue.Workload, bool) {
-	old, ok := f.queue.Swap(w)
-	if !ok {
-		return nil, false
-	}
-	return old, true
+	return f.queue.Swap(w)
 }
 
 // Jobs implements base.Viewable.
