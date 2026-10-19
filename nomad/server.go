@@ -47,6 +47,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/drainer"
 	"github.com/hashicorp/nomad/nomad/lock"
 	"github.com/hashicorp/nomad/nomad/peers"
+	"github.com/hashicorp/nomad/nomad/queues"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
 	"github.com/hashicorp/nomad/nomad/reporting"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -213,6 +215,10 @@ type Server struct {
 	// evalBroker is used to manage the in-progress evaluations
 	// that are waiting to be brokered to a sub-scheduler
 	evalBroker *EvalBroker
+
+	// batchQueueMgr is responsible for enqueuing job
+	// register evaluations on a queue implementation
+	batchQueueMgr queue.QueueManager
 
 	// brokerLock is used to synchronise the alteration of the blockedEvals and
 	// evalBroker enabled state. These two subsystems change state when
@@ -483,6 +489,25 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		Region:         s.Region(),
 		Encrypter:      s.encrypter,
 	})
+
+	s.batchQueueMgr = queues.NewBatchQueueMgr(
+		s.shutdownCtx,
+		logger,
+		s.evalBroker,
+		func(e *structs.Evaluation) error {
+			e = e.Copy()
+			e.Status = structs.EvalStatusCancelled
+			e.StatusDescription = "redundant job-register eval exists on batch queue"
+
+			_, _, err := s.raftApply(structs.EvalUpdateRequestType, structs.EvalUpdateRequest{
+				Evals: []*structs.Evaluation{e},
+				WriteRequest: structs.WriteRequest{
+					Region: s.Region(),
+				},
+			})
+			return err
+		},
+	)
 
 	// Initialize the Raft server
 	if err := s.setupRaft(); err != nil {
@@ -1336,6 +1361,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewHostVolumeEndpoint(s, ctx))
 	_ = server.Register(NewTaskGroupVolumeClaimEndpoint(s, ctx))
 	_ = server.Register(NewClientHostVolumeEndpoint(s, ctx))
+	_ = server.Register(NewBatchJobQueueEndpoints(s, ctx))
 
 	// Register non-streaming
 
@@ -1358,6 +1384,7 @@ func (s *Server) setupRaft() error {
 	// Create the FSM
 	fsmConfig := &FSMConfig{
 		EvalBroker:         s.evalBroker,
+		BatchQueue:         s.batchQueueMgr,
 		Periodic:           s.periodicDispatcher,
 		Blocked:            s.blockedEvals,
 		Encrypter:          s.encrypter,

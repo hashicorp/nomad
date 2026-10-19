@@ -390,9 +390,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.getOrCreateAutopilotConfig()
 	s.autopilot.Start(s.shutdownCtx)
 
-	// Initialize scheduler configuration.
-	schedulerConfig := s.getOrCreateSchedulerConfig()
-
 	// Initialize the Cluster metadata
 	clusterMetadata, err := s.ClusterMetadata()
 	if err != nil {
@@ -405,9 +402,16 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	// Start the plan evaluator
 	go s.planApply(s.GetConfig().PlanApplyPipeline)
 
+	// Initialize scheduler configuration.
+	schedulerConfig := s.getOrCreateSchedulerConfig()
+
 	// Start the eval broker and blocked eval broker if these are not paused by
 	// the operator.
 	restoreEvals := s.handleEvalBrokerStateChange(schedulerConfig)
+
+	// Batch queue manager must come after enabling the eval broker,
+	// because it passes evals to there.
+	s.batchQueueMgr.SetEnabled(true, s.State())
 
 	// Enable the deployment watcher, since we are now the leader
 	s.deploymentWatcher.SetEnabled(true, s.State())
@@ -419,7 +423,8 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 	s.volumeWatcher.SetEnabled(true, s.State(), s.getLeaderAcl())
 
 	// Restore the eval broker state and blocked eval state. If these are
-	// currently paused, we do not need to do this.
+	// currently paused, we do not need to do this. There is also no need
+	// to restore the batch queue evals if the eval broker is paused.
 	if restoreEvals {
 		if err := s.restoreEvals(); err != nil {
 			return err
@@ -819,10 +824,10 @@ func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*struc
 	return
 }
 
-// restoreEvals is used to restore pending evaluations into the eval broker and
-// blocked evaluations into the blocked eval tracker. The broker and blocked
-// eval tracker is maintained only by the leader, so it must be restored anytime
-// a leadership transition takes place.
+// restoreEvals is used to restore pending evaluations into the eval brocker,
+// batchQueues, and blocked evals tracker.  The broker and blocked eval tracker
+// is maintained only by the leader, so it must be restored anytime leadership
+// transitions takes place.
 func (s *Server) restoreEvals() error {
 	// Get an iterator over every evaluation
 	ws := memdb.NewWatchSet()
@@ -838,9 +843,13 @@ func (s *Server) restoreEvals() error {
 		}
 		eval := raw.(*structs.Evaluation)
 
-		if eval.ShouldEnqueue() {
-			s.evalBroker.Restore(eval)
-		} else if eval.ShouldBlock() {
+		switch {
+		case eval.ShouldEnqueue():
+			// batch queue manager does its own restoring, so skip those here.
+			if !eval.IsBatchQueue() {
+				s.evalBroker.Restore(eval)
+			}
+		case eval.ShouldBlock():
 			s.blockedEvals.Block(eval)
 		}
 	}
@@ -1450,6 +1459,8 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the deployment watcher as it is only useful as a leader.
 	s.deploymentWatcher.SetEnabled(false, nil)
+
+	s.batchQueueMgr.SetEnabled(false, nil)
 
 	// Disable the node drainer
 	s.nodeDrainer.SetEnabled(false, nil)

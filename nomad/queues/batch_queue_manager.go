@@ -1,0 +1,316 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package queues
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"sync/atomic"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/nomad/queues/passthrough"
+	"github.com/hashicorp/nomad/nomad/queues/queue"
+	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+type BatchQueueManager struct {
+	// qk keeps track of the queues for each node pool.
+	qk *queueKeeper
+	// broker is passed to queues to forward to when ready.
+	broker queue.Broker
+	// passthrough is a fallback queue that passes evals straight to the broker.
+	passthrough queue.QueueRunner
+
+	// enabled and state are set when the server runs SetEnabled(true)
+	enabled atomic.Bool
+	state   *state.StateStore
+
+	// newQueueFn is called to create a new queue, to be overridden in tests.
+	newQueueFn newQueueFn
+
+	shutdownCtx context.Context
+
+	cancelFn queue.EvalCancelFn
+
+	logger hclog.Logger
+
+	// coarse lock mainly to prevent concurrent enqueue/update calls.
+	mut sync.Mutex
+}
+
+// newQueueFn matches the signature of NewQueue
+type newQueueFn func(
+	hclog.Logger,
+	*state.StateStore,
+	*structs.BatchQueueConfig,
+	queue.Broker,
+	string,
+	queue.EvalCancelFn,
+) queue.QueueRunner
+
+// NewBatchQueueMgr returns a BatchQueueManager. It must be enabled via
+// SetEnabled(true) before it will start processing jobs.
+func NewBatchQueueMgr(
+	ctx context.Context,
+	logger hclog.Logger,
+	broker queue.Broker,
+	cancelFn queue.EvalCancelFn,
+) *BatchQueueManager {
+	return &BatchQueueManager{
+		qk:          newQueueKeeper(),
+		broker:      broker,
+		passthrough: passthrough.NewPassthroughQueue(broker),
+		cancelFn:    cancelFn,
+		newQueueFn:  NewQueue,
+		shutdownCtx: ctx,
+		logger:      logger.Named("batch_queue"),
+	}
+}
+
+// SetEnabled is called during leadership transfers to start and stop queues.
+func (qm *BatchQueueManager) SetEnabled(enabled bool, state *state.StateStore) {
+	if qm.enabled.Load() == enabled {
+		return
+	}
+
+	// prevent concurrent calls to other methods.
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	if enabled {
+		if err := qm.enable(state); err != nil {
+			qm.logger.Warn("failed to enable batch queues, batch jobs will be processed normally", "err", err)
+			qm.qk.Wipe()
+			return
+		}
+	} else {
+		// eval broker will be shutting down, too, so no need to flush queues.
+		// we're just reclaiming some memory here.
+		qm.qk.Wipe()
+	}
+
+	qm.enabled.Store(enabled)
+}
+
+// enable creates, restores, and starts all queues. caller should hold a lock.
+func (qm *BatchQueueManager) enable(store *state.StateStore) error {
+	if store == nil {
+		return errors.New("empty state (this is a bug)")
+	}
+	qm.state = store
+
+	// set up queues for each node pool.
+	if err := qm.initQueues(); err != nil {
+		qm.qk.Wipe()
+		return fmt.Errorf("init queue error: %w", err)
+	}
+
+	// now that the queues are set up, restore evals into them.
+	if err := qm.restoreAllQueues(); err != nil {
+		qm.qk.Wipe()
+		return fmt.Errorf("restore queue error: %w", err)
+	}
+
+	for _, q := range qm.qk.Iter() {
+		q.Start(qm.shutdownCtx)
+	}
+	return nil
+}
+
+// Enqueue takes a pending evaluation, finds its job, and passes them to the
+// appropriate queue for the job's node pool.
+func (qm *BatchQueueManager) Enqueue(e *structs.Evaluation) {
+	// If an enqueue somehow happens before SetEnabled = true, throw it away;
+	// it will be processed during eval restore.
+	if e == nil || !qm.enabled.Load() {
+		return
+	}
+
+	// lock prevents evals being somehow dropped during queue changes
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	job, err := qm.state.JobByID(nil, e.Namespace, e.JobID)
+	// the eval broker probably can't do anything if the job can't be found,
+	// but we send the eval anyway out of an abundance of caution.
+	if err != nil {
+		qm.logger.Error("couldn't get job to enqueue, passing to eval broker", "eval_id", e.ID)
+		qm.broker.Enqueue(e)
+		return
+	}
+	if job == nil {
+		qm.logger.Error("job for eval not found to enqueue, passing to eval broker", "eval_id", e.ID)
+		qm.broker.Enqueue(e)
+		return
+	}
+
+	qm.Queue(job.NodePool).Enqueue(e, job)
+}
+
+// Dequeue removes a job from the node pool queue. If no queue exists for that
+// node pool, or the job is not on the queue, it is a noop.
+func (qm *BatchQueueManager) Dequeue(job *structs.Job) {
+	if job == nil {
+		return
+	}
+
+	if !qm.enabled.Load() {
+		return
+	}
+
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	qm.Queue(job.NodePool).Dequeue(job.NamespacedID())
+}
+
+// Queue returns a pointer to a queue. This is used by RPC handlers
+// to get the jobs or tenants in a queue.
+func (qm *BatchQueueManager) Queue(pool string) queue.QueueRunner {
+	if q, ok := qm.qk.Get(pool); ok {
+		return q
+	}
+	// If a queue does not exist, pass through to eval broker.
+	// This can happen with jobs that specify node_pool = "all"
+	return qm.passthrough
+}
+
+// UpdateQueue updates an individual queue to use the provided config
+// TODO: make sure this gets called on node register, and (flush and) delete the Q on node pool delete
+func (qm *BatchQueueManager) UpdateQueue(pool *structs.NodePool) error {
+	if !qm.enabled.Load() {
+		return nil
+	}
+
+	qm.mut.Lock()
+	defer qm.mut.Unlock()
+
+	// TODO: special handling for the "all" pool, become a "global" default config.
+	// TODO: only restart queue if there's a change. (use Hash()?)
+
+	// stop the queue with the old config to send evals straight to the broker.
+	qm.qk.Stop(pool.Name)
+
+	conf := pool.BatchQueueConfig
+	// drop the queue if the config has been removed from the node pool.
+	if conf == nil || !conf.IsEnabled() {
+		qm.qk.Delete(pool.Name)
+		return nil
+	}
+
+	// make a new one
+	queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, pool.Name, qm.cancelFn)
+	qm.qk.Set(pool.Name, queue, false)
+
+	// restore from state
+	if err := qm.restoreQueue(pool.Name); err != nil {
+		qm.qk.Stop(pool.Name)
+		qm.qk.Delete(pool.Name)
+		return err
+	}
+
+	queue.Start(qm.shutdownCtx)
+
+	return nil
+}
+
+// initQueues makes a new queue per node pool and store them in the queue keeper
+func (qm *BatchQueueManager) initQueues() error {
+	snap, err := qm.state.Snapshot()
+	if err != nil {
+		return err
+	}
+	pools, err := snap.NodePools(nil, state.SortDefault)
+	if err != nil {
+		return err
+	}
+
+	for raw := pools.Next(); raw != nil; raw = pools.Next() {
+		pool := raw.(*structs.NodePool)
+
+		// never create a queue for the special "all" node pool. later,
+		// if we enqueue a job with the "all" pool, we won't find a queue,
+		// and therefore send it straight to the eval broker.
+		if pool.Name == structs.NodePoolAll {
+			continue
+		}
+
+		conf := pool.BatchQueueConfig
+		if conf == nil {
+			continue
+		}
+
+		queue := qm.newQueueFn(qm.logger, qm.state, conf, qm.broker, pool.Name, qm.cancelFn)
+		qm.qk.Set(pool.Name, queue, false)
+	}
+
+	return nil
+}
+
+// restoreQueues restores all queues from state.
+func (qm *BatchQueueManager) restoreAllQueues() error {
+	// we should only do this on initial startup.
+	if qm.enabled.Load() {
+		return nil
+	}
+	return qm.restoreQueue("")
+}
+
+// restoreQueue runs Enqueue on pending evals and Restore on non-pending evals
+// for a given pool's queue. If pool is empty, it will restore all queues.
+func (qm *BatchQueueManager) restoreQueue(pool string) error {
+	snap, err := qm.state.Snapshot()
+	if err != nil {
+		return err
+	}
+
+	var jobs memdb.ResultIterator
+
+	if pool != "" {
+		jobs, err = snap.JobsByPool(nil, pool)
+	} else {
+		jobs, err = snap.Jobs(nil, state.SortDefault)
+	}
+	if err != nil {
+		return err
+	}
+
+	for raw := jobs.Next(); raw != nil; raw = jobs.Next() {
+		job := raw.(*structs.Job)
+		if job.Type != structs.JobTypeBatch {
+			continue
+		}
+		if job.Placed {
+			continue
+		}
+
+		evals, err := qm.state.EvalsByJob(nil, job.Namespace, job.ID)
+		if err != nil {
+			return err
+		}
+		if len(evals) == 0 {
+			continue
+		}
+
+		q := qm.Queue(job.NodePool) // per-pool queue, or passthrough
+
+	LOOP:
+		for _, e := range evals {
+			switch {
+			case e.Status == structs.EvalStatusBlocked:
+				q.Restore(e, job)
+				break LOOP
+			case e.Status == structs.EvalStatusPending && e.TriggeredBy == structs.EvalTriggerJobRegister:
+				q.Enqueue(e, job)
+				break LOOP
+			}
+		}
+	}
+
+	return nil
+}

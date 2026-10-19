@@ -64,6 +64,10 @@ type NodePool struct {
 	// node pool.
 	SchedulerConfiguration *NodePoolSchedulerConfiguration
 
+	// BatchQueueConfig defines the batch job queue configuration used
+	// to control scheduling of batch jobs.
+	BatchQueueConfig *BatchQueueConfig
+
 	// NodeIdentityTTL is the time-to-live for node identities in the pool.
 	NodeIdentityTTL time.Duration
 
@@ -93,6 +97,8 @@ func (n *NodePool) Validate() error {
 
 	mErr = multierror.Append(mErr, n.SchedulerConfiguration.Validate())
 
+	mErr = multierror.Append(mErr, n.BatchQueueConfig.Validate())
+
 	return mErr.ErrorOrNil()
 }
 
@@ -118,6 +124,7 @@ func (n *NodePool) Copy() *NodePool {
 	*nc = *n
 	nc.Meta = maps.Clone(nc.Meta)
 	nc.SchedulerConfiguration = nc.SchedulerConfiguration.Copy()
+	nc.BatchQueueConfig = nc.BatchQueueConfig.Copy()
 
 	nc.Hash = make([]byte, len(n.Hash))
 	copy(nc.Hash, n.Hash)
@@ -185,6 +192,10 @@ func (n *NodePool) SetHash() []byte {
 				_, _ = hash.Write([]byte("memory_oversubscription_disabled"))
 			}
 		}
+	}
+
+	if n.BatchQueueConfig != nil {
+		hash.Write(n.BatchQueueConfig.Hash())
 	}
 
 	// sort keys to ensure hash stability when meta is stored later

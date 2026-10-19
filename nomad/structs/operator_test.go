@@ -139,3 +139,38 @@ func TestSchedulerConfiguration_WithNodePool(t *testing.T) {
 		})
 	}
 }
+
+func TestSchedulerConfiguration_Validate(t *testing.T) {
+
+	testCases := []struct {
+		name        string
+		schedConfig *SchedulerConfiguration
+		err         string
+	}{
+		{
+			name: "invalid scheduler algorithm",
+			schedConfig: &SchedulerConfiguration{
+				SchedulerAlgorithm: "not-good",
+			},
+			err: "invalid scheduler algorithm: not-good",
+		},
+		{
+			name: "valid scheduler algorithm",
+			schedConfig: &SchedulerConfiguration{
+				SchedulerAlgorithm: SchedulerAlgorithmBinpack,
+			},
+			err: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.schedConfig.Validate()
+			if tc.err != "" {
+				must.ErrorContains(t, err, tc.err)
+			} else {
+				must.NoError(t, err)
+			}
+		})
+	}
+}

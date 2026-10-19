@@ -1,0 +1,181 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package command
+
+import (
+	"encoding/json"
+	"fmt"
+	"slices"
+	"strings"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/posener/complete"
+	"github.com/ryanuber/columnize"
+)
+
+type QueueStatusCommand struct {
+	Meta
+}
+
+func (c *QueueStatusCommand) Help() string {
+	helpText := `
+Usage: nomad queue status [options]
+
+  View the current status of a batch job queue.
+
+  When ACLs are enabled, this command requires a token with the 'list-jobs' capability. If multiple jobs in the queue are in different namespaces, the output will be filtered to only include jobs in namespaces the token has permissions for.
+
+General Options:
+
+  ` + generalOptionsUsage(usageOptsDefault) + `
+
+Status Options:
+
+  -node-pool
+    The node pool queue to query. This flag is required.
+
+  -limit
+    The maximum number of items to return
+
+  -verbose
+    Display full output
+
+  -json
+    Display output as json
+
+`
+	return strings.TrimSpace(helpText)
+}
+
+func (c *QueueStatusCommand) Synopsis() string {
+	return "View the status of a batch job queue"
+}
+
+func (c *QueueStatusCommand) AutocompleteFlags() complete.Flags {
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-node-pool": complete.PredictNothing,
+			"-verbose":   complete.PredictNothing,
+			"-limit":     complete.PredictNothing,
+			"-json":      complete.PredictNothing,
+		})
+}
+
+func (c *QueueStatusCommand) AutocompleteArgs() complete.Predictor {
+	return JobPredictor(c.Meta.Client)
+}
+
+func (c *QueueStatusCommand) Name() string { return "queue status" }
+
+func (c *QueueStatusCommand) Run(args []string) int {
+	var verbose, jsonOut bool
+	var limit int
+	var nodePool string
+	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&jsonOut, "json", false, "")
+	flags.IntVar(&limit, "limit", 0, "")
+	flags.StringVar(&nodePool, "node-pool", "", "")
+
+	if err := flags.Parse(args); err != nil {
+		return 1
+	}
+
+	if nodePool == "" {
+		c.Ui.Error("node-pool is required")
+		return 255
+	}
+
+	// Get the HTTP client
+	client, err := c.Meta.Client()
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
+		return 255
+	}
+
+	// Setup the options
+	qo := &api.QueryOptions{
+		Params: map[string]string{
+			"node_pool": nodePool,
+		},
+	}
+
+	if limit > 0 {
+		qo.PerPage = int32(limit)
+	}
+
+	// Submit the request
+	resp, _, err := client.BatchQueue().Status(qo)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error during batch queue request: %s", err))
+		return 255
+	}
+	if resp == nil {
+		c.Ui.Error("Empty batch queue response")
+		return 255
+	}
+
+	switch resp.Type {
+	case api.BatchQueueTypeDynamic:
+		return c.printStatus(resp, jsonOut)
+	case api.BatchQueueTypePassthrough:
+		c.Ui.Output("No batch job queue configured")
+	default:
+		c.Ui.Error(fmt.Sprintf(`Queue type "%s" does not implement status`, resp.Type))
+		return 255
+	}
+
+	return 0
+}
+
+func (c *QueueStatusCommand) printStatus(resp *api.BatchJobQueueStatusResponse, jsonOut bool) int {
+	tenants := []api.DynamicPriorityTenant{}
+	bytes, err := json.Marshal(resp.Status)
+	if err != nil {
+		c.Ui.Error("Error marshaling response status")
+		return 255
+	}
+	if err := json.Unmarshal(bytes, &tenants); err != nil {
+		c.Ui.Error("Invalid Status response from server")
+		return 255
+	}
+
+	slices.SortFunc(tenants, func(a, b api.DynamicPriorityTenant) int {
+		return strings.Compare(a.TenantID, b.TenantID)
+	})
+
+	if !jsonOut {
+		tenantInfo := []string{}
+		tenantInfo = append(tenantInfo, "Tenant|Resource|Current / Total|Percentage")
+
+		for _, v := range tenants {
+			tenantInfo = append(tenantInfo, fmt.Sprintf("%s|%s|%s|%d",
+				v.TenantID,
+				"",
+				"",
+				v.PercentageUsed,
+			))
+
+			resources := make([]string, 0, len(v.TenantFairshare))
+			for resource, usage := range v.TenantFairshare {
+				resources = append(resources, fmt.Sprintf("%s|%s|%.2f / %.2f|%s",
+					"",
+					resource,
+					usage,
+					v.TotalFairshare[resource],
+					"",
+				))
+			}
+			slices.Sort(resources)
+			tenantInfo = append(tenantInfo, resources...)
+		}
+
+		c.Ui.Output(c.Colorize().Color("[bold]Batch Queue Status[reset]"))
+		c.Ui.Output(columnize.SimpleFormat(tenantInfo))
+	} else {
+		c.Ui.Output(string(bytes))
+	}
+	return 0
+}

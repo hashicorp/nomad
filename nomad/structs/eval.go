@@ -405,6 +405,11 @@ func (e *Evaluation) ShouldBlock() bool {
 	}
 }
 
+func (e *Evaluation) IsBatchQueue() bool {
+	return e.Type == JobTypeBatch &&
+		e.TriggeredBy == EvalTriggerJobRegister
+}
+
 // MakePlan is used to make a plan from the given evaluation
 // for a given Job
 func (e *Evaluation) MakePlan(j *Job) *Plan {
