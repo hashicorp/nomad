@@ -100,10 +100,8 @@ func newPlanner(s *Server) (*planner, error) {
 func (p *planner) planApply(maxPipelineDepth int) {
 	maxPipelineDepth = max(maxPipelineDepth, 1)
 
-	// maxSnapsBeforeRefresh is the number of non-no-op plans that can be
-	// optimistically applied to a snapshot before it's refreshed from the FSM,
-	// to bound how bad any staleness can get
-	maxSnapsBeforeRefresh := min(maxPipelineDepth, 32)
+	// TODO: make this a configuration knob
+	const snapshotRefreshInterval = 500 * time.Millisecond
 
 	// planIndexCh is used to track an outstanding Raft write and receive its
 	// committed index, while the snapshot holds an optimistic state that
@@ -123,9 +121,7 @@ func (p *planner) planApply(maxPipelineDepth int) {
 	// updates that would be lost on refresh.
 	var inFlightPlans int
 
-	// plansSinceSnap counts plans optimistically applied to the current
-	// snapshot, bounding how long it can go without a refresh from the FSM.
-	var plansSinceSnap int
+	var lastSnapshotTime time.Time
 
 	// Setup a worker pool with half the cores, with at least 1
 	poolSize := runtime.NumCPU() / 2
@@ -174,14 +170,16 @@ func (p *planner) planApply(maxPipelineDepth int) {
 		}
 
 		if snap != nil {
-			// If the snapshot doesn't contain the objects the current plan
-			// references, evaluating against it is a correctness problem. Drain
-			// in-flight plans and discard the snapshot. We don't compare
+			// Refresh if the snapshot is too old or doesn't contain the objects
+			// the current plan references. Drain in-flight plans before
+			// discarding their optimistic updates. We don't compare
 			// against prevPlanResultIndex here because the optimistic snapshot
 			// already includes those results and its index comes from the
 			// optimistic apply and not Raft, so that would needlessly serialize
 			// the pipeline.
-			if idx, err := snap.LatestIndex(); err != nil || idx < pending.plan.SnapshotIndex {
+			if idx, err := snap.LatestIndex(); err != nil ||
+				idx < pending.plan.SnapshotIndex ||
+				time.Since(lastSnapshotTime) >= snapshotRefreshInterval {
 				for inFlightPlans > 0 {
 					idx := <-planIndexCh
 					inFlightPlans--
@@ -202,7 +200,7 @@ func (p *planner) planApply(maxPipelineDepth int) {
 				pending.respond(nil, err)
 				continue
 			}
-			plansSinceSnap = 0
+			lastSnapshotTime = time.Now()
 		}
 
 		// Evaluate the plan
@@ -235,29 +233,6 @@ func (p *planner) planApply(maxPipelineDepth int) {
 			prevPlanResultIndex = max(prevPlanResultIndex, idx)
 		}
 
-		// Under sustained load the pipeline may never drain on its own, which
-		// would leave the optimistic snapshot permanently out of date with
-		// other state changes. Once the snapshot has absorbed enough plans,
-		// wait for the in-flight plans to commit and refresh from the FSM.
-		// This happens after evaluation so that it overlaps with the Raft
-		// commits of previous plans; the plan just evaluated used the older
-		// snapshot, but is applied optimistically to the fresh one.
-		if plansSinceSnap >= maxSnapsBeforeRefresh {
-			for inFlightPlans > 0 {
-				idx := <-planIndexCh
-				inFlightPlans--
-				prevPlanResultIndex = max(prevPlanResultIndex, idx)
-			}
-			minIndex := max(prevPlanResultIndex, pending.plan.SnapshotIndex)
-			snap, err = p.snapshotMinIndex(minIndex, pending.plan.SnapshotIndex)
-			if err != nil {
-				p.srv.logger.Error("failed to snapshot state", "error", err)
-				pending.respond(nil, err)
-				continue
-			}
-			plansSinceSnap = 0
-		}
-
 		// Dispatch the Raft transaction for the plan without blocking. This
 		// enables pipelining: multiple plans can be in-flight in the Raft
 		// pipeline simultaneously, improving throughput by allowing Raft to
@@ -273,7 +248,6 @@ func (p *planner) planApply(maxPipelineDepth int) {
 		}
 
 		inFlightPlans++
-		plansSinceSnap++
 
 		// Respond to the plan async; the goroutine will send the committed
 		// index on planIndexCh when the Raft apply completes. We reuse the same
