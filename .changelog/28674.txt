@@ -1,0 +1,3 @@
+```release-note:feature
+batch: Adds the (experimental) batch job queue feature for added controls of scheduling batch jobs in node pools
+```
