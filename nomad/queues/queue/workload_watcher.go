@@ -118,7 +118,7 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
 
 		cancel := func() {}
 		for _, e := range allEvals {
-			if e.Status == structs.EvalStatusBlocked && w.isConstraintFailure(e) {
+			if e.Status == structs.EvalStatusBlocked && w.isConstraintFailure(e) && w.timeout > 0 {
 				ctx, cancel = context.WithDeadline(ctx, time.Unix(0, e.CreateTime).Add(w.timeout))
 			}
 		}
