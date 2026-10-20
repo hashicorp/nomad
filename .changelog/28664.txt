@@ -1,0 +1,3 @@
+```release-note:bug
+planner: Fixed a bug where plan applier would never refresh optimisitic snapshot under sustained saturation
+```

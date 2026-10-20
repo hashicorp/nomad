@@ -99,6 +99,10 @@ func newPlanner(s *Server) (*planner, error) {
 // applier.
 func (p *planner) planApply(maxPipelineDepth int) {
 	maxPipelineDepth = max(maxPipelineDepth, 1)
+
+	// TODO: make this a configuration knob
+	const snapshotRefreshInterval = 500 * time.Millisecond
+
 	// planIndexCh is used to track an outstanding Raft write and receive its
 	// committed index, while the snapshot holds an optimistic state that
 	// includes the plan application.
@@ -116,6 +120,8 @@ func (p *planner) planApply(maxPipelineDepth int) {
 	// snapshot while plans are in-flight, as the snapshot contains optimistic
 	// updates that would be lost on refresh.
 	var inFlightPlans int
+
+	var lastSnapshotTime time.Time
 
 	// Setup a worker pool with half the cores, with at least 1
 	poolSize := runtime.NumCPU() / 2
@@ -164,14 +170,22 @@ func (p *planner) planApply(maxPipelineDepth int) {
 		}
 
 		if snap != nil {
-			// If snapshot doesn't contain the previous plan result's index
-			// or the current plan's snapshot index, discard it and get a new one below.
-			// But only if no plans are in-flight (to preserve optimistic updates).
-			minIndex := max(prevPlanResultIndex, pending.plan.SnapshotIndex)
-			if idx, err := snap.LatestIndex(); err != nil || idx < minIndex {
-				if inFlightPlans == 0 {
-					snap = nil
+			// Refresh if the snapshot is too old or doesn't contain the objects
+			// the current plan references. Drain in-flight plans before
+			// discarding their optimistic updates. We don't compare
+			// against prevPlanResultIndex here because the optimistic snapshot
+			// already includes those results and its index comes from the
+			// optimistic apply and not Raft, so that would needlessly serialize
+			// the pipeline.
+			if idx, err := snap.LatestIndex(); err != nil ||
+				idx < pending.plan.SnapshotIndex ||
+				time.Since(lastSnapshotTime) >= snapshotRefreshInterval {
+				for inFlightPlans > 0 {
+					idx := <-planIndexCh
+					inFlightPlans--
+					prevPlanResultIndex = max(prevPlanResultIndex, idx)
 				}
+				snap = nil
 			}
 		}
 		if snap == nil {
@@ -186,6 +200,7 @@ func (p *planner) planApply(maxPipelineDepth int) {
 				pending.respond(nil, err)
 				continue
 			}
+			lastSnapshotTime = time.Now()
 		}
 
 		// Evaluate the plan
