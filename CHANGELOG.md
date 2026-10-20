@@ -1,39 +1,3 @@
-## 2.1.0-rc.1 (October 20, 2026)
-
-FEATURES:
-
-* batch jobs: An new (experimental) batch job queue can be configured on node pools with different queuing options: FIFO ensures batch jobs are placed in the order received, and Dynamic Priority can prioritize batch jobs by age and "fairness" of resources requested and/or placed. [[GH-28674](https://github.com/hashicorp/nomad/issues/28674)]
-
-BREAKING CHANGES:
-
-* agent: Server join via the CLI or API now requires `agent:write` permission [[GH-28553](https://github.com/hashicorp/nomad/issues/28553)]
-* agent: The deprecated server-level retry_join, retry_max, retry_interval, and start_join blocks have been removed. You should use these fields in the server_join block [[GH-28554](https://github.com/hashicorp/nomad/issues/28554)]
-
-IMPROVEMENTS:
-
-* cli: Added `operator snapshot filter` command to allow editing snapshot files [[GH-28580](https://github.com/hashicorp/nomad/issues/28580)]
-* jobspec2: support `optional()` object type attributes in variables [[GH-28424](https://github.com/hashicorp/nomad/issues/28424)]
-* tls: Code quality improvements to TLS configuration may result in changed error messages for TLS handshake failures [[GH-28579](https://github.com/hashicorp/nomad/issues/28579)]
-
-DEPRECATIONS:
-
-* api: the Allocation struct's Resources and TaskResources fields are deprecated. Use the AllocatedResources field instead [[GH-28486](https://github.com/hashicorp/nomad/issues/28486)]
-* client: state databases restored from backups older than Nomad 0.9 are no longer compatible and will fail client startup. [[GH-28486](https://github.com/hashicorp/nomad/issues/28486)]
-
-BUG FIXES:
-
-* build: Update busybox image used for container final image to 1.38.0 [[GH-28622](https://github.com/hashicorp/nomad/issues/28622)]
-* build: Updated Go to v1.27.2 [[GH-28647](https://github.com/hashicorp/nomad/issues/28647)]
-* build: Updated Go to v1.27.3 [[GH-28679](https://github.com/hashicorp/nomad/issues/28679)]
-* cli: Fixed a bug in the `var put` command that could panic the CLI on invalid inputs [[GH-28630](https://github.com/hashicorp/nomad/issues/28630)]
-* cli: Fixed a bug where additional capabilities could be added to the CSI `plugin status` command output when the `-verbose` flag was used that were not supported by the plugin [[GH-28626](https://github.com/hashicorp/nomad/issues/28626)]
-* client: Fixed incorrect CPU fingerprinting of Apple M4 chips [[GH-28627](https://github.com/hashicorp/nomad/issues/28627)]
-* client: fix a bug where we could accidentally overwrite task states [[GH-27944](https://github.com/hashicorp/nomad/issues/27944)]
-* heartbeat: Fix bug allowing node heartbeats to be sent from other nodes [[GH-28598](https://github.com/hashicorp/nomad/issues/28598)]
-* planner: Fixed a bug where plan applier would never refresh optimisitic snapshot under sustained saturation [[GH-28664](https://github.com/hashicorp/nomad/issues/28664)]
-* ui: Fixed a bug where the CPU utilization graph for allocations and tasks that reserve CPU with `cores` showed 0% and "0 MHz Total" [[GH-28569](https://github.com/hashicorp/nomad/issues/28569)]
-* ui: Fixed a bug where the jobs list page could repeat a job across pages, get stuck while paging, jump to the wrong last page, show jobs outside the active filter when paging backward, or page incorrectly after refreshing or opening a shared link [[GH-28178](https://github.com/hashicorp/nomad/issues/28178)]
-
 ## 2.0.7 (September 17, 2026)
 
 IMPROVEMENTS:
