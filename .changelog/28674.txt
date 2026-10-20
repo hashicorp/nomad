@@ -1,0 +1,3 @@
+```release-note:feature
+batch jobs: An new (experimental) batch job queue can be configured on node pools with different queuing options: FIFO ensures batch jobs are placed in the order received, and Dynamic Priority can prioritize batch jobs by age and "fairness" of resources requested and/or placed.
+```
