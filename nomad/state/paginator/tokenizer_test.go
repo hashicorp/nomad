@@ -319,12 +319,7 @@ func TestNamespaceIDTokenizer(t *testing.T) {
 			expectedCmp:   0,
 		},
 		{
-			// regression: namespaces "team" and "team-a" must order
-			// field-by-field so "team" sorts before "team-a" (matching memdb's
-			// NUL-separated (Namespace, ID) key order). A whole-string compare
-			// of the joined token would reverse them, because '.' > '-', which
-			// is the bug this fixes (a "team-a" namespace could shadow "team"
-			// and break pagination).
+			// regression: a whole-string compare puts "team-a" first, as '.' > '-'
 			name:          "dash namespace ordering (less)",
 			obj:           newMockNamespaceIDObject("team", "z"),
 			target:        "team-a.a",

@@ -15,11 +15,8 @@ import (
 // seeking. Implementations should close over the token we're seeking.
 type Tokenizer[T any] func(item T) (string, int)
 
-// tokenField is one component of a pagination token. Fields are compared in
-// order to produce the token's total ordering, which must match the order the
-// underlying memdb index iterates in. A numeric field is compared numerically
-// (so 12 sorts before 102, not lexicographically); a string field is compared
-// lexicographically.
+// tokenField is one component of a pagination token, compared numerically
+// (12 before 102) or as a string.
 type tokenField struct {
 	str       string
 	num       uint64
@@ -32,31 +29,11 @@ func stringField(s string) tokenField { return tokenField{str: s} }
 // numericField builds a numerically-compared token component.
 func numericField(n uint64) tokenField { return tokenField{num: n, isNumeric: true} }
 
-// tokenAndCompare serializes fields into a '.'-joined token and compares that
-// token against target field-by-field, in order, returning the token, the
-// comparison result (-1, 0, +1), and whether the target was well-formed.
-//
-// Comparing field-by-field, rather than comparing the joined strings directly,
-// is what makes the token's order match memdb's tuple order. memdb's compound
-// indexes separate fields with a NUL byte, which sorts before every printable
-// character, so the index orders by each field in turn. A direct string compare
-// of the joined token uses the '.' separator instead, whose value relative to
-// the field characters can invert the order (e.g. namespaces "team" and
-// "team-a": memdb sorts "team" first, but "team.id" > "team-a.id" because
-// '.' > '-'). Field-by-field comparison avoids that entirely.
-//
-// Only the final field may contain the '.' separator (e.g. an ID); every
-// earlier field (namespace, an index) must not, so the target is split into at
-// most len(fields) segments and the last segment absorbs any remaining '.'.
-//
-// A target with fewer segments than fields (a legacy or truncated token, e.g.
-// a bare integer minted before a tiebreaker was added, seen during a rolling
-// upgrade) compares only the segments it has and treats the rest as equal,
-// degrading to the older, narrower ordering rather than erroring.
-//
-// A numeric field whose target segment isn't an integer makes the target
-// malformed: the comparison stops and ok is false, leaving the fallback to the
-// caller, since each tokenizer handles a malformed token differently.
+// tokenAndCompare joins fields into a '.'-separated token and compares it to
+// target field by field, which matches memdb's compound index order. Comparing
+// the joined strings does not: '.' > '-' puts "team-a.x" before "team.x".
+// Only the last field may contain '.'. Missing target segments compare equal,
+// and a non-integer numeric segment returns ok == false.
 func tokenAndCompare(fields []tokenField, target string) (token string, c int, ok bool) {
 	parts := make([]string, len(fields))
 	for i, f := range fields {
@@ -71,8 +48,7 @@ func tokenAndCompare(fields []tokenField, target string) (token string, c int, o
 	segments := strings.SplitN(target, ".", len(fields))
 
 	for i, f := range fields {
-		// The target ran out of segments; everything so far matched, so treat
-		// the remaining fields as equal (legacy/truncated token).
+		// Legacy or truncated target: the remaining fields compare equal.
 		if i >= len(segments) {
 			return token, 0, true
 		}
@@ -94,10 +70,8 @@ func tokenAndCompare(fields []tokenField, target string) (token string, c int, o
 	return token, 0, true
 }
 
-// NamespaceIDTokenizer returns a tokenizer by Namespace and ID. The token is
-// `namespace.id`; comparison is field-by-field so it matches the memdb
-// (Namespace, ID) iteration order (Namespace cannot contain '.', so it is
-// always the first segment).
+// NamespaceIDTokenizer returns a tokenizer by Namespace and ID. Namespace
+// cannot contain '.', so it is always the first token segment.
 func NamespaceIDTokenizer[T namespaceIDGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
 		// String fields only, so the target can't be malformed.
@@ -121,8 +95,7 @@ func IDTokenizer[T idGetter](target string) Tokenizer[T] {
 }
 
 // CreateIndexAndIDTokenizer returns a tokenizer by CreateIndex and ID. The
-// token is `createIndex.id`; the index is compared numerically and the ID
-// lexicographically.
+// index compares numerically and the ID as a string.
 func CreateIndexAndIDTokenizer[T idAndCreateIndexGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
 		token, c, ok := tokenAndCompare([]tokenField{
@@ -130,8 +103,7 @@ func CreateIndexAndIDTokenizer[T idAndCreateIndexGetter](target string) Tokenize
 			stringField(item.GetID()),
 		}, target)
 
-		// A target missing either part, or with a non-integer index, is
-		// compared directly as a string.
+		// No ID or a non-integer index: compare as strings, as before.
 		if !ok || !strings.Contains(target, ".") {
 			return token, cmp.Compare(token, target)
 		}
@@ -153,11 +125,8 @@ func ModifyIndexAndNamespaceIDTokenizer[T modifyIndexAndNamespaceIDGetter](targe
 			stringField(item.GetID()),
 		}, target)
 
-		// A target whose first segment isn't an integer is malformed -- only
-		// reachable from a hand-crafted token, since real next_tokens are empty
-		// or start with an index -- so degrade to first-page behavior:
-		// returning 0 ("matched") makes the paginator skip nothing and start
-		// from the beginning, matching the previous ModifyIndex-only tokenizer.
+		// Non-integer index, only from a hand-crafted token: return 0 so paging
+		// starts from the beginning, as the old ModifyIndex-only tokenizer did.
 		if !ok {
 			return token, 0
 		}

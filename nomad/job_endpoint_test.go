@@ -5352,15 +5352,8 @@ func TestJobEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 	}
 }
 
-// TestJobEndpoint_ListJobs_NamespacePagination is a regression test for a
-// pagination bug affecting namespaces that share a prefix but differ by a '-',
-// for example "team" and "team-a". The NamespaceID pagination token is
-// "<namespace>.<id>". Comparing those tokens as whole strings ordered
-// "team-a.*" before "team.*" (because '.' (0x2E) > '-' (0x2D)), which disagrees
-// with the state store's (Namespace, ID) iteration order, where "team" sorts
-// before "team-a". That mismatch made jobs in "team" duplicate across pages
-// while jobs in "team-a" became unreachable, and the cursor could repeat a page
-// forever. Comparing the token field-by-field (namespace, then id) fixes it.
+// TestJobEndpoint_ListJobs_NamespacePagination pages Job.List across "team"
+// and "team-a", which a whole-string token compare ordered wrong.
 func TestJobEndpoint_ListJobs_NamespacePagination(t *testing.T) {
 	ci.Parallel(t)
 	s1, _, cleanupS1 := TestACLServer(t, nil)
@@ -5373,8 +5366,7 @@ func TestJobEndpoint_ListJobs_NamespacePagination(t *testing.T) {
 		{Name: "team"}, {Name: "team-a"},
 	}))
 
-	// Three jobs in each namespace. The state store iterates the (Namespace, ID)
-	// index in order, so all "team" jobs precede all "team-a" jobs.
+	// Three jobs per namespace; memdb returns every "team" job before "team-a".
 	type nsID struct{ namespace, id string }
 	want := []nsID{}
 	index := uint64(1000)
@@ -5394,10 +5386,7 @@ func TestJobEndpoint_ListJobs_NamespacePagination(t *testing.T) {
 	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
 		mock.NamespacePolicy("*", "read", nil)).SecretID
 
-	// Walk every page with a small page size, following NextToken, collecting
-	// each (namespace, id). A correct walk visits all six jobs exactly once and
-	// terminates; the pre-fix bug duplicated "team" jobs, never returned
-	// "team-a" jobs, and repeated a token forever (caught by the page guard).
+	// Follow NextToken to the end; the page cap catches a token that repeats.
 	seen := map[nsID]int{}
 	total := 0
 	nextToken := ""
