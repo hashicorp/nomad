@@ -4230,6 +4230,8 @@ func (c *ComparableResources) Copy() *ComparableResources {
 	}
 	newR := new(ComparableResources)
 	*newR = *c
+	newR.Flattened = *c.Flattened.Copy()
+	newR.Shared = c.Shared.Copy()
 	return newR
 }
 

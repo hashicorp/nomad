@@ -4379,6 +4379,78 @@ func TestComparableResources_Subtract(t *testing.T) {
 	require.Equal(expect, r1)
 }
 
+func TestComparableResources_CopyDoesNotShareNetworks(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, shared := range []bool{false, true} {
+		t.Run(fmt.Sprintf("shared=%t", shared), func(t *testing.T) {
+			ci.Parallel(t)
+
+			original := &ComparableResources{}
+			networks := &original.Flattened.Networks
+			if shared {
+				networks = &original.Shared.Networks
+			}
+			*networks = Networks{{
+				MBits:         100,
+				ReservedPorts: []Port{{Label: "reserved", Value: 8080}},
+				DynamicPorts:  []Port{{Label: "dynamic", Value: 20000}},
+			}}
+
+			cloned := original.Copy()
+			must.Eq(t, original, cloned)
+			clonedNetworks := cloned.Flattened.Networks
+			if shared {
+				clonedNetworks = cloned.Shared.Networks
+			} else {
+				cloned.Add(&ComparableResources{Flattened: AllocatedTaskResources{Networks: Networks{{
+					MBits:         10,
+					ReservedPorts: []Port{{Label: "reserved2", Value: 8081}},
+					DynamicPorts:  []Port{{Label: "dynamic2", Value: 20001}},
+				}}}})
+				must.Len(t, 2, clonedNetworks[0].ReservedPorts)
+				must.Len(t, 2, clonedNetworks[0].DynamicPorts)
+				must.Eq(t, 110, clonedNetworks[0].MBits)
+			}
+			clonedNetworks[0].ReservedPorts[0].Value = 9999
+			clonedNetworks[0].DynamicPorts[0].Value = 9999
+			must.Eq(t, Networks{{
+				MBits:         100,
+				ReservedPorts: []Port{{Label: "reserved", Value: 8080}},
+				DynamicPorts:  []Port{{Label: "dynamic", Value: 20000}},
+			}}, *networks)
+		})
+	}
+}
+
+func TestComparableResources_CopyDoesNotShareDevices(t *testing.T) {
+	ci.Parallel(t)
+
+	original := &ComparableResources{Flattened: AllocatedTaskResources{Devices: []*AllocatedDeviceResource{{
+		Vendor: "nvidia", Type: "gpu", Name: "test", DeviceIDs: []string{"gpu0"},
+	}}}}
+	cloned := original.Copy()
+	must.Eq(t, original, cloned)
+	cloned.Add(&ComparableResources{Flattened: AllocatedTaskResources{Devices: []*AllocatedDeviceResource{{
+		Vendor: "nvidia", Type: "gpu", Name: "test", DeviceIDs: []string{"gpu1"},
+	}}}})
+	cloned.Flattened.Devices[0].DeviceIDs[0] = "changed"
+	must.Eq(t, []string{"gpu0"}, original.Flattened.Devices[0].DeviceIDs)
+	must.Eq(t, []string{"changed", "gpu1"}, cloned.Flattened.Devices[0].DeviceIDs)
+}
+
+func TestComparableResources_CopyNilAndEmpty(t *testing.T) {
+	ci.Parallel(t)
+
+	var original *ComparableResources
+	must.Nil(t, original.Copy())
+	original = &ComparableResources{}
+	cloned := original.Copy()
+	must.Eq(t, original, cloned)
+	cloned.Shared.DiskMB = 1
+	must.Eq(t, int64(0), original.Shared.DiskMB)
+}
+
 func TestMemoryResources_Add(t *testing.T) {
 	ci.Parallel(t)
 
