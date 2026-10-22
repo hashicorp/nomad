@@ -6,7 +6,6 @@
 package dependency
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -16,17 +15,18 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/dependency/loop_detection"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 var errDependencyTimeout = errors.New("dependency timeout reached")
 
-type evalID = string
-
-type evalUnblocker interface {
-	Unblock(computedClass string, index uint64) chan struct{}
-}
+// This is the jobID from the dependencies, not the job that has a dependency.
+// Because unblocking a dependency is triggered by updates on allocations the
+// most efficient way to look up jobs that might be unblocked by the update
+// is storing them by the JobID of teh updated alloc.
+type blockingJobID = string
+type blockedJobID = string
 
 type loopDetector interface {
 	AddNodes(dependantJob string, dependeeJob ...string) error
@@ -34,22 +34,13 @@ type loopDetector interface {
 	CreatesCircularDependency(dependantJob string, dependeeJob ...string) bool
 }
 
-// This function is a raft apply, to use it here is possible only because the coordinator
-// is supposed to run exclusively on the leader, allowing for the log to be applied to the FSM.
-type evalUpdaterFunc func(t structs.MessageType, msg any) (any, uint64, error)
-
-type dependency struct {
-	//cancelFunc context.CancelFunc
-	job       *structs.Job
-	dependees []string
-}
-
 type Coordinator struct {
-	mainContext   context.Context
-	cancelFunc    context.CancelFunc
 	logger        hclog.Logger
 	lDependencies sync.RWMutex
-	dependencies  map[evalID]*dependency
+
+	// The value of the dependencies per blockingJob could be an array, but it
+	// is a map to avoid storing duplicated jobs.
+	dependencies map[blockingJobID]map[blockedJobID]*structs.Job
 
 	loopDetector loopDetector
 }
@@ -57,145 +48,151 @@ type Coordinator struct {
 // NewCoordinator creates a new dependency coordinator. The coordinator is
 // responsible for tracking dependencies between jobs and evaluations.
 //
-//	It will block evaluations until their dependencies are met or a timeout is
-//
-// reached. The coordinator will also update jobs that have unmet dependencies
-// after the timeout is reached.
-func NewCoordinator(logger hclog.Logger, loopDetector loopDetector,
-	blockedEvals evalUnblocker, jobUpdater evalUpdaterFunc) *Coordinator {
-
-	ctx, cancel := context.WithCancel(context.Background())
+// The broker is designed to be entirely
+// in-memory and is managed by the leader node.
+func NewCoordinator(logger hclog.Logger, loopDetector loopDetector) *Coordinator {
 	return &Coordinator{
-		mainContext:  ctx,
-		cancelFunc:   cancel,
 		logger:       logger.Named("dependency-coordinator"),
-		dependencies: make(map[evalID]*dependency),
+		dependencies: make(map[blockingJobID]map[blockedJobID]*structs.Job),
 		loopDetector: loopDetector,
 	}
 }
 
-func (c *Coordinator) removeDeps(dependeeJobs map[string][]*structs.Allocation) error {
-
+func (c *Coordinator) removeBlockingJob(jID blockingJobID) error {
 	c.lDependencies.Lock()
 	defer c.lDependencies.Unlock()
 
-	for jobID := range dependeeJobs {
-
-		if err := c.loopDetector.RemoveNode(jobID); err != nil {
-			c.logger.Error("failed to remove dependency", "error", err)
+	if err := c.loopDetector.RemoveNode(jID); err != nil {
+		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
+			c.logger.Info("more dependencies are blocked by job ", "job", jID)
+			return nil
 		}
+
+		c.logger.Error("failed to remove dependency", "error", err)
+		return err
 	}
+
+	delete(c.dependencies, jID)
 
 	return nil
 }
 
-func (c *Coordinator) AddDependency(state sstructs.State, job *structs.Job,
-	eval *structs.Evaluation) ([]string, error) {
+func (c *Coordinator) removeBlockedJob(blkingJobID blockingJobID, bledJobID blockedJobID) error {
+	c.lDependencies.Lock()
+	defer c.lDependencies.Unlock()
 
-	if eval == nil || job == nil || state == nil {
-		return []string{}, nil
+	// If the blocked job itself is blocking other jobs it can't be removed
+	// from the loop detector, but it can be removed from the list of
+	// blocked jobs for the job that is blocking it.
+	if err := c.loopDetector.RemoveNode(bledJobID); err != nil {
+		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
+			c.logger.Info("dependencies are blocked by job ", "job", bledJobID)
+			return nil
+		}
+
+		c.logger.Error("failed to remove dependency", "error", err)
+		return err
 	}
 
-	if job.Dependencies == nil {
-		return []string{}, nil
+	delete(c.dependencies[blkingJobID], bledJobID)
+
+	return nil
+}
+
+func (c *Coordinator) AddDependency(state *state.StateStore, blockedJob *structs.Job) error {
+	if blockedJob == nil || state == nil || blockedJob.Dependencies == nil ||
+		len(blockedJob.Dependencies.Jobs) == 0 {
+		return nil
 	}
 
-	numDeps := len(job.Dependencies.Jobs)
+	numDeps := len(blockedJob.Dependencies.Jobs)
+	blockingJobsIDs := make([]string, 0, numDeps)
 
-	djNames := make([]string, 0, numDeps)
-	djs := make(map[string][]*structs.Allocation, numDeps)
-
-	for _, depJob := range job.Dependencies.Jobs {
-		if depJob == nil || depJob.Name == "" {
+	for _, blockingJob := range blockedJob.Dependencies.Jobs {
+		if blockingJob == nil || blockingJob.Name == "" {
 			continue
 		}
 
-		if _, ok := djs[depJob.Name]; ok {
-			continue
-		}
-
-		dependantAllocs, err := state.AllocsByJob(nil, job.Namespace, depJob.Name, true)
-		if err != nil {
-			c.logger.Error("failed to get dependency job", "job_id", depJob.Name,
-				"error", err)
-			continue
-		}
-
-		// dependentJob may be nil in cases where the dependent job has not been
-		// scheduled yet. That's intentional: the presence of the key means
-		// this dependency has already been processed.
-		djs[depJob.Name] = dependantAllocs
-		djNames = append(djNames, depJob.Name)
+		blockingJobsIDs = append(blockingJobsIDs, blockingJob.Name)
 	}
 
-	blockers, err := verifyDependencies(job, djs)
+	err := c.loopDetector.AddNodes(blockedJob.ID, blockingJobsIDs...)
 	if err != nil {
-		c.logger.Error("failed to verify dependencies", "error", err)
-	}
-
-	if len(blockers) == 0 {
-		return []string{}, nil
-	}
-
-	err = c.loopDetector.AddNodes(eval.JobID, djNames...)
-	if err != nil {
-		return []string{}, err
+		return err
 	}
 
 	c.lDependencies.Lock()
-	if _, exists := c.dependencies[eval.ID]; exists {
-		c.lDependencies.Unlock()
-		return blockers, nil
-	}
+	for _, blingJobID := range blockingJobsIDs {
+		if _, ok := c.dependencies[blingJobID][blockedJob.ID]; ok {
+			c.logger.Warn("dependency for job overwritten", "jobID", blockedJob.ID)
+		}
 
-	c.dependencies[eval.ID] = &dependency{
-		job:       job,
-		dependees: djNames,
+		c.dependencies[blingJobID][blockedJob.ID] = blockedJob
 	}
-
 	c.lDependencies.Unlock()
 
-	return blockers, nil
+	return nil
 }
 
-func (c *Coordinator) VerifyDependencies(ctx context.Context, state sstructs.State,
-	eval *structs.Evaluation) ([]string, error) {
+func (c *Coordinator) UnblockedDependencies(state *state.StateStore, bkingJobID string) ([]*structs.Evaluation, error) {
 
 	c.lDependencies.RLock()
-	dep := c.dependencies[eval.ID]
+	blockedJobs := c.dependencies[bkingJobID]
 	c.lDependencies.RUnlock()
 
-	blockers, err := VerifyDependencies(state, dep.job)
-	if err != nil {
-		return []string{}, err
+	evalsToUnblock := []*structs.Evaluation{}
+
+	for _, blockedJob := range blockedJobs {
+		blockers, err := VerifyDependencies(state, blockedJob)
+		if err != nil {
+			return evalsToUnblock, err
+		}
+
+		if len(blockers) == 0 {
+			c.logger.Debug("dependency ready, unblocking job", "job", blockedJob.ID)
+
+			if err := c.removeBlockedJob(bkingJobID, blockedJob.ID); err != nil {
+				c.logger.Error("unable to unblock dependencies for job ", "jobID", blockedJob)
+				continue
+			}
+
+			blockedJobEvals, err := state.EvalsByJob(nil, blockedJob.Namespace, blockedJob.ID)
+			if err != nil {
+				c.logger.Error("unable to look up evaluations for blocked job", "jobID", blockedJob)
+				continue
+			}
+
+			for _, e := range blockedJobEvals {
+				if e.Status == structs.EvalStatusPending && e.TriggeredBy == structs.EvalTriggeredDeps {
+					evalsToUnblock = append(evalsToUnblock, e)
+				}
+			}
+		}
 	}
 
-	if len(blockers) == 0 {
-		c.logger.Debug("dependency ready, unblocking job", "job", eval.JobID,
-			"eval", eval.ID, "ready", len(blockers) > 0)
-		c.lDependencies.Lock()
-		delete(c.dependencies, eval.ID)
-		c.lDependencies.Unlock()
-
-		return []string{}, nil
-
+	if err := c.removeBlockingJob(bkingJobID); err != nil {
+		c.logger.Error("unable to stop monitoring job for blocked dependencies", "jobID", bkingJobID)
 	}
 
-	return blockers, nil
+	return evalsToUnblock, nil
 }
 
-func VerifyDependencies(state sstructs.State, dependantJob *structs.Job) ([]string, error) {
+type Storage interface {
+	AllocsByJob(ws memdb.WatchSet, namespace, jobID string, anyCreateIndex bool) ([]*structs.Allocation, error)
+}
 
-	if dependantJob.Dependencies == nil {
+func VerifyDependencies(state Storage, blockedJobs *structs.Job) ([]string, error) {
+
+	if blockedJobs.Dependencies == nil {
 		return []string{}, nil
 	}
 
-	numDeps := len(dependantJob.Dependencies.Jobs)
+	numDeps := len(blockedJobs.Dependencies.Jobs)
 
 	djNames := make([]string, 0, numDeps)
 	djs := make(map[string][]*structs.Allocation, numDeps)
 
-	for _, depJob := range dependantJob.Dependencies.Jobs {
+	for _, depJob := range blockedJobs.Dependencies.Jobs {
 		if depJob == nil || depJob.Name == "" {
 			continue
 		}
@@ -204,7 +201,7 @@ func VerifyDependencies(state sstructs.State, dependantJob *structs.Job) ([]stri
 			continue
 		}
 
-		dependantAllocs, err := state.AllocsByJob(nil, dependantJob.Namespace, depJob.Name, true)
+		dependantAllocs, err := state.AllocsByJob(nil, blockedJobs.Namespace, depJob.Name, true)
 		if err != nil {
 			return []string{}, fmt.Errorf("unable to get alloc for dependency check: %w", err)
 		}
@@ -216,7 +213,7 @@ func VerifyDependencies(state sstructs.State, dependantJob *structs.Job) ([]stri
 		djNames = append(djNames, depJob.Name)
 	}
 
-	return verifyDependencies(dependantJob, djs)
+	return verifyDependencies(blockedJobs, djs)
 }
 
 func verifyDependencies(dependantJob *structs.Job, jobsAllocs map[string][]*structs.Allocation) ([]string, error) {
@@ -298,12 +295,6 @@ func dependencyTimeout(job *structs.Job) time.Duration {
 	return timeout
 }
 
-func (c *Coordinator) Stop() {
-	c.mainContext.Done()
-	c.cancelFunc()
-
-}
-
 func (c *Coordinator) HasActiveDependents(j *structs.Job) (bool, error) {
 	err := c.loopDetector.RemoveNode(j.ID)
 	if err != nil {
@@ -319,7 +310,7 @@ func (c *Coordinator) HasActiveDependents(j *structs.Job) (bool, error) {
 	return false, nil
 }
 
-func (c *Coordinator) Reload(state sstructs.State, evals memdb.ResultIterator) {
+func (c *Coordinator) Reload(state *state.StateStore, evals memdb.ResultIterator) {
 	for {
 		raw := evals.Next()
 		if raw == nil {
@@ -337,7 +328,8 @@ func (c *Coordinator) Reload(state sstructs.State, evals memdb.ResultIterator) {
 			c.logger.Error("failed to get job by ID", "error", err)
 			continue
 		}
-		_, err = c.AddDependency(state, job, eval)
+
+		err = c.AddDependency(state, job)
 		if err != nil {
 			c.logger.Error("failed to check dependency", "error", err)
 		}
@@ -364,15 +356,15 @@ func NewNoOpCoordinator() *NoOpCoordinator {
 
 type NoOpCoordinator struct{}
 
-func (c *NoOpCoordinator) HasActiveDependents(j *structs.Job) (bool, error) {
+func (c *NoOpCoordinator) HasActiveDependents(_ *structs.Job) (bool, error) {
 	return false, nil
 }
 
-func (c *NoOpCoordinator) CheckDependency(state sstructs.State, job *structs.Job,
+func (c *NoOpCoordinator) CheckDependency(_ *state.StateStore, _ *structs.Job,
 	eval *structs.Evaluation) ([]string, error) {
 	return []string{}, nil
 }
 
-func (c *NoOpCoordinator) CreatesCircularDependency(j *structs.Job) bool {
+func (c *NoOpCoordinator) CreatesCircularDependency(_ *structs.Job) bool {
 	return false
 }

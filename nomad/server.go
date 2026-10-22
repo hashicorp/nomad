@@ -117,8 +117,10 @@ type raftBackend interface {
 }
 
 type DependencyCoordinator interface {
-	Reload(state sstructs.State, evals memdb.ResultIterator)
+	Reload(state *state.StateStore, evals memdb.ResultIterator)
 	CreatesCircularDependency(j *structs.Job) bool
+	AddDependency(state *state.StateStore, job *structs.Job) error
+	UnblockedDependencies(state *state.StateStore, bkingJobID string) ([]*structs.Evaluation, error)
 }
 
 // Server is Nomad server which manages the job queues,
@@ -1393,7 +1395,7 @@ func (s *Server) setupRaft() error {
 
 	// Create the dependency Coordinator
 	depCoordinator := dependency.NewCoordinator(s.logger,
-		loop_detection.New(s.logger), s.blockedEvals, s.raftApply)
+		loop_detection.New(s.logger))
 	s.dependencyCoordinator = depCoordinator
 
 	// Create the FSM

@@ -643,6 +643,31 @@ func (b *BlockedEvals) UnblockNonNodeResources(resources []string, index uint64)
 	return fut
 }
 
+func (b *BlockedEvals) UnblockDependency(blockedEval *structs.Evaluation, index uint64) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	// Note that unlike other unblock methods, we can't usefully track an
+	// unblockIndex because any blocked eval won't have the node ID attached
+	// when we check the index.
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{blockedEval: blockedEval, future: fut}:
+	}
+
+	return fut
+}
+
 // watchCapacity is a long lived function that watches for capacity changes in
 // nodes and unblocks the correct set of evals.
 func (b *BlockedEvals) watchCapacity(

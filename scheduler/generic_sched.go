@@ -190,9 +190,12 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	if planFailure && !s.blockedByDependencies() {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalMaxPlan
-	} else if planFailure && s.blockedByDependencies() {
+	} else if s.blockedByDependencies() {
 		s.blocked.TriggeredBy = structs.EvalTriggeredDeps
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
+		if s.job.Dependencies != nil {
+			s.blocked.WaitUntil = time.Now().Add(*s.job.Dependencies.Timeout)
+		}
 	} else {
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	}
