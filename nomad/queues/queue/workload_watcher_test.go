@@ -4,6 +4,7 @@
 package queue
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -137,6 +138,42 @@ func TestWorkloadWatcher_WaitForPlacement(t *testing.T) {
 			must.Eq(t, 0, len(watcher.GetInProgressWorkloads()))
 		})
 	}
+
+	t.Run("timeout", func(t *testing.T) {
+		timeout := time.Duration(1) // must be non-zero to enable the feature
+
+		ss := state.TestStateStore(t)
+		watcher := NewWorkloadWatcher(hclog.Default(), ss, timeout)
+
+		job := mock.Job()
+		job.Type = structs.JobTypeBatch
+		eval := mock.Eval()
+		eval.JobID = job.ID
+		eval.Status = structs.EvalStatusBlocked
+		eval.CreateTime = time.Now().Add(-time.Second).UnixNano()
+		eval.FailedTGAllocs = map[string]*structs.AllocMetric{
+			// zero nodes available, should block
+			"tg": {NodesAvailable: map[string]int{}},
+		}
+
+		must.NoError(t, ss.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
+		must.NoError(t, ss.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval}))
+
+		workload := &testWorkload{job: job, eval: eval}
+
+		errCh := make(chan error)
+
+		go func() {
+			errCh <- watcher.wait(t.Context(), workload)
+		}()
+
+		select {
+		case err := <-errCh:
+			must.ErrorIs(t, err, context.DeadlineExceeded)
+		case <-time.After(100 * time.Millisecond):
+			t.Error("test timeout")
+		}
+	})
 }
 
 func TestWorkloadWatcher_isConstraintFailure(t *testing.T) {
