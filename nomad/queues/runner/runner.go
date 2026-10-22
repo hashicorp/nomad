@@ -236,7 +236,7 @@ func (qr *QueueRunner) runConsumer(ctx context.Context) {
 	// restored evals are already in the eval broker or blocked evals
 	// tracker, so only wait on them.
 	for _, w := range qr.restored {
-		if !qr.waitForPlacement(ctx, w) {
+		if err := qr.waitForPlacement(ctx, w); err != nil {
 			return
 		}
 	}
@@ -255,7 +255,7 @@ func (qr *QueueRunner) runConsumer(ctx context.Context) {
 
 			qr.evalBroker.Enqueue(w.Eval())
 
-			if !qr.waitForPlacement(ctx, w) {
+			if err := qr.waitForPlacement(ctx, w); err != nil {
 				return
 			}
 
@@ -269,8 +269,7 @@ func (qr *QueueRunner) runConsumer(ctx context.Context) {
 
 // waitForPlacement blocks until the workload finishes scheduling. It returns
 // false only if the context was canceled, so the runner can shut down.
-func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) (contextCanceled bool) {
-
+func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) error {
 	qr.waitingJobSubmitted = time.Unix(0, w.Job().SubmitTime)
 	defer func() {
 		qr.waitingJobSubmitted = time.Time{}
@@ -278,12 +277,13 @@ func (qr *QueueRunner) waitForPlacement(ctx context.Context, w queue.Workload) (
 
 	err := qr.watcher.WaitForPlacement(ctx, w)
 	if err != nil {
-		if errors.Is(err, context.Canceled) || ctx.Err() != nil {
-			return false
+		if errors.Is(ctx.Err(), context.Canceled) {
+			// parent context done, normal shutting down behavior
+			return nil
 		}
 		qr.logger.Error("failure waiting for workload placement", "eval_id", w.Eval().ID, "error", err)
 	}
-	return true
+	return err
 }
 
 // cancelRedundant checks if a workload with the same ID exists on the queue.
