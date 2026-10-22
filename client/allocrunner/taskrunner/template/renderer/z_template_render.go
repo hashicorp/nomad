@@ -36,6 +36,7 @@ func init() {
 			// wrapped by CT's own logger, but it's important to keep Stderr and
 			// Stdout separate so that "read" has a clean output.
 			fmt.Fprintln(os.Stderr, `expected "read" or "write" argument`)
+			os.Exit(1)
 		}
 
 		switch os.Args[2] {
