@@ -20,115 +20,84 @@ import (
 func TestResourceDistance(t *testing.T) {
 	ci.Parallel(t)
 
-	resourceAsk := &structs.ComparableResources{
-		Flattened: structs.AllocatedTaskResources{
-			Cpu: structs.AllocatedCpuResources{
-				CpuShares: 2048,
-			},
-			Memory: structs.AllocatedMemoryResources{
-				MemoryMB: 512,
-			},
-			Networks: []*structs.NetworkResource{
-				{
-					Device: "eth0",
-					MBits:  1024,
-				},
-			},
-		},
-		Shared: structs.AllocatedSharedResources{
-			DiskMB: 4096,
-		},
-	}
+	ask := &structs.BaseComparableResource{}
+	ask.CpuShares = 2048
+	ask.MemoryMB = 512
+	ask.DiskMB = 4096
 
 	type testCase struct {
-		allocResource    *structs.ComparableResources
+		allocResource    *structs.BaseComparableResource
 		expectedDistance string
 	}
 
 	testCases := []*testCase{
 		{
-			&structs.ComparableResources{
-				Flattened: structs.AllocatedTaskResources{
-					Cpu: structs.AllocatedCpuResources{
+			&structs.BaseComparableResource{
+				ComparableCPU: structs.ComparableCPU{
+					AllocatedCpuResources: structs.AllocatedCpuResources{
 						CpuShares: 2048,
 					},
-					Memory: structs.AllocatedMemoryResources{
+				},
+				ComparableMem: structs.ComparableMem{
+					AllocatedMemoryResources: structs.AllocatedMemoryResources{
 						MemoryMB: 512,
 					},
-					Networks: []*structs.NetworkResource{
-						{
-							Device: "eth0",
-							MBits:  1024,
-						},
-					},
 				},
-				Shared: structs.AllocatedSharedResources{
+				ComparableDisk: structs.ComparableDisk{
 					DiskMB: 4096,
 				},
 			},
 			"0.000",
 		},
 		{
-			&structs.ComparableResources{
-				Flattened: structs.AllocatedTaskResources{
-					Cpu: structs.AllocatedCpuResources{
+			&structs.BaseComparableResource{
+				ComparableCPU: structs.ComparableCPU{
+					AllocatedCpuResources: structs.AllocatedCpuResources{
 						CpuShares: 1024,
 					},
-					Memory: structs.AllocatedMemoryResources{
+				},
+				ComparableMem: structs.ComparableMem{
+					AllocatedMemoryResources: structs.AllocatedMemoryResources{
 						MemoryMB: 400,
 					},
-					Networks: []*structs.NetworkResource{
-						{
-							Device: "eth0",
-							MBits:  1024,
-						},
-					},
 				},
-				Shared: structs.AllocatedSharedResources{
+				ComparableDisk: structs.ComparableDisk{
 					DiskMB: 1024,
 				},
 			},
 			"0.928",
 		},
 		{
-			&structs.ComparableResources{
-				Flattened: structs.AllocatedTaskResources{
-					Cpu: structs.AllocatedCpuResources{
+			&structs.BaseComparableResource{
+				ComparableCPU: structs.ComparableCPU{
+					AllocatedCpuResources: structs.AllocatedCpuResources{
 						CpuShares: 8192,
 					},
-					Memory: structs.AllocatedMemoryResources{
+				},
+				ComparableMem: structs.ComparableMem{
+					AllocatedMemoryResources: structs.AllocatedMemoryResources{
 						MemoryMB: 200,
 					},
-					Networks: []*structs.NetworkResource{
-						{
-							Device: "eth0",
-							MBits:  512,
-						},
-					},
 				},
-				Shared: structs.AllocatedSharedResources{
+				ComparableDisk: structs.ComparableDisk{
 					DiskMB: 1024,
 				},
 			},
 			"3.152",
 		},
 		{
-			&structs.ComparableResources{
-				Flattened: structs.AllocatedTaskResources{
-					Cpu: structs.AllocatedCpuResources{
+			&structs.BaseComparableResource{
+				ComparableCPU: structs.ComparableCPU{
+					AllocatedCpuResources: structs.AllocatedCpuResources{
 						CpuShares: 2048,
 					},
-					Memory: structs.AllocatedMemoryResources{
+				},
+				ComparableMem: structs.ComparableMem{
+					AllocatedMemoryResources: structs.AllocatedMemoryResources{
 						MemoryMB: 500,
 					},
-					Networks: []*structs.NetworkResource{
-						{
-							Device: "eth0",
-							MBits:  1024,
-						},
-					},
 				},
-				Shared: structs.AllocatedSharedResources{
+				ComparableDisk: structs.ComparableDisk{
 					DiskMB: 4096,
 				},
 			},
@@ -138,7 +107,7 @@ func TestResourceDistance(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
-			actualDistance := fmt.Sprintf("%3.3f", basicResourceDistance(resourceAsk, tc.allocResource))
+			actualDistance := fmt.Sprintf("%3.3f", basicResourceDistance(ask, tc.allocResource))
 			must.Eq(t, tc.expectedDistance, actualDistance)
 		})
 
