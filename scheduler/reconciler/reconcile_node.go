@@ -374,7 +374,7 @@ func (nr *NodeReconciler) computeForNode(
 
 			// Tainted and ineligible nodes for a non existing alloc
 			// should be filtered out and not count towards ignore or place
-			if _, tainted := taintedNodes[nodeID]; tainted {
+			if n, tainted := taintedNodes[nodeID]; tainted && !n.CanBackfill(job, tg, time.Now()) {
 				continue
 			}
 			if _, eligible := eligibleNodes[nodeID]; !eligible {

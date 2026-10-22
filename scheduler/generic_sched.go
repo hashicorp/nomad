@@ -805,7 +805,7 @@ func (s *GenericScheduler) setJob(job *structs.Job) error {
 // setnodes updates the stack with the nodes that are ready for placement for
 // the given job.
 func (s *GenericScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[string]int, error) {
-	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, job.Datacenters, job.NodePool)
+	nodes, _, byDC, err := readyNodesInDCsAndPool(s.state, job.Datacenters, job.NodePool, job.Type == structs.JobTypeBatch)
 	if err != nil {
 		return nil, nil, err
 	}
