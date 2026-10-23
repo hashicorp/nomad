@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/peers"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 )
@@ -192,6 +194,53 @@ func TestAutopilot_RollingUpdate(t *testing.T) {
 	t.Logf("waiting for cluster to stabilize")
 	servers = []*Server{s1, s2, s4}
 	waitForStableLeadership(t, servers)
+}
+
+func TestAutopilot_KnownServersAllStates(t *testing.T) {
+	ci.Parallel(t)
+
+	s := &Server{
+		config:     &Config{Region: "global"},
+		peersCache: peers.NewPeerCache("global"),
+	}
+
+	testCases := []struct {
+		status serf.MemberStatus
+		want   autopilot.NodeStatus
+	}{
+		{serf.StatusAlive, autopilot.NodeAlive},
+		{serf.StatusFailed, autopilot.NodeFailed},
+		{serf.StatusLeft, autopilot.NodeLeft},
+
+		// Leaving servers are still alive from autopilot's
+		// perspective.
+		//
+		// See https://github.com/hashicorp/consul/blob/v2.1.0/agent/consul/autopilot.go#L143-L146
+		{serf.StatusLeaving, autopilot.NodeAlive},
+	}
+	for i, tc := range testCases {
+		s.peersCache.UpdatePeerSet(&peers.Parts{
+			Name:   tc.status.String(),
+			ID:     tc.status.String(),
+			Region: "global",
+			Addr:   &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4647 + i},
+			Status: tc.status,
+		})
+	}
+
+	// Autopilot needs non-live peers too, otherwise it classifies their Raft
+	// entries as stale instead of preserving their membership status.
+	autopilot := &AutopilotDelegate{
+		server: s,
+	}
+	known := autopilot.KnownServers()
+	must.MapLen(t, len(testCases), known)
+
+	for _, tc := range testCases {
+		srv := known[raft.ServerID(tc.status.String())]
+		must.NotNil(t, srv)
+		must.Eq(t, tc.want, srv.NodeStatus)
+	}
 }
 
 func TestAutopilot_MultiRegion(t *testing.T) {
