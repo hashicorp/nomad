@@ -59,7 +59,6 @@ var (
 	dockerTransientErrs = []string{
 		"Client.Timeout exceeded while awaiting headers",
 		"EOF",
-		"API error (500)",
 	}
 
 	// recoverableErrTimeouts returns a recoverable error if the error was due
@@ -2151,6 +2150,10 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]*containerapi.Ulimit, err
 func isDockerTransientError(err error) bool {
 	if err == nil {
 		return false
+	}
+
+	if errdefs.IsInternal(err) {
+		return true
 	}
 
 	errMsg := err.Error()
