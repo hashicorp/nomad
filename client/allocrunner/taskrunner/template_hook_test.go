@@ -304,7 +304,8 @@ func TestTemplateHook_Update(t *testing.T) {
 			},
 			{
 				DestPath:     filepath.Join(tmpDir, "foo2.txt"),
-				EmbeddedTmpl: "foo2",
+				EmbeddedTmpl: "EXAMPLE_VALUE=example-value\n",
+				Envvars:      true,
 				Once:         true,
 			},
 		},
@@ -337,6 +338,7 @@ func TestTemplateHook_Update(t *testing.T) {
 	must.NoError(t, err)
 	_, err = os.Stat(filepath.Join(tmpDir, "foo2.txt"))
 	must.Error(t, err)
+	must.Eq(t, "example-value", envBuilder.Build().Map()["EXAMPLE_VALUE"])
 }
 
 // TestTemplateHook_RestoreChangeModeScript exercises change_mode=script

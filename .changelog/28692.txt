@@ -1,0 +1,3 @@
+```release-note:bug
+template: Fixed a bug where mixing `once` and watched templates could drop template-derived task environment variables
+```
