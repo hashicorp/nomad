@@ -47,10 +47,24 @@ func (bq *BatchQueueConfig) Type() BatchQueueType {
 	return BatchQueueTypeUnset
 }
 
+func (bq *BatchQueueConfig) Canonicalize() {
+	if bq == nil {
+		return
+	}
+	if bq.DynamicPriority != nil {
+		bq.DynamicPriority.Canonicalize()
+	}
+}
+
 func (bq *BatchQueueConfig) Validate() error {
 	if bq == nil {
 		return nil
 	}
+
+	if bq.Fifo != nil && bq.DynamicPriority != nil {
+		return errors.New("only one queue type may be specified")
+	}
+
 	switch bq.Type() {
 
 	case BatchQueueTypeDynamic:
@@ -132,6 +146,12 @@ type DynamicQueueConfig struct {
 	JobSize         JobSizeConfig
 }
 
+func (qc *DynamicQueueConfig) Canonicalize() {
+	if qc.CalcInterval == 0 {
+		qc.CalcInterval = 30 * time.Second
+	}
+}
+
 func (qc *DynamicQueueConfig) Validate() error {
 	switch qc.TenantFairshare.TenantType {
 	case TenantTypeNamespace:
@@ -147,6 +167,13 @@ func (qc *DynamicQueueConfig) Validate() error {
 
 	if qc.CalcInterval <= 0 {
 		return errors.New("calc_interval must be greater than zero")
+	}
+
+	if qc.JobSize.CpuWeight > 0 && qc.JobSize.CpuMax <= 0 {
+		return errors.New("cpu_max must be set if cpu_weight is set")
+	}
+	if qc.JobSize.MemoryWeight > 0 && qc.JobSize.MemoryMax <= 0 {
+		return errors.New("memory_max must be set if memory_weight is set")
 	}
 
 	return nil
