@@ -96,6 +96,22 @@ func normalizeVault(v *api.Vault) {
 	}
 }
 
+func normalizeDependency(d *api.JobDependencies) {
+	if d == nil {
+		return
+	}
+
+	for _, depJob := range d.Jobs {
+		if depJob == nil {
+			continue
+		}
+
+		if depJob.Status == "" {
+			depJob.Status = "completed"
+		}
+	}
+}
+
 func normalizeNetworkPorts(networks []*api.NetworkResource) {
 	if networks == nil {
 		return

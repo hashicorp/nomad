@@ -26,6 +26,12 @@ import (
 	"github.com/hashicorp/raft"
 )
 
+type DependencyVerifier interface {
+	CreatesCircularDependency(j *structs.Job) bool
+	AddDependency(state *state.StateStore, job *structs.Job) error
+	UnblockedDependencies(state *state.StateStore, bkingJobID string) ([]*structs.Evaluation, error)
+}
+
 // SnapshotType is prefixed to a record in the FSM snapshot
 // so that we can determine the type for restore
 type SnapshotType byte
@@ -153,7 +159,8 @@ type nomadFSM struct {
 	// racing with Restore(), which is called by Raft (it puts in a totally
 	// new state store). Everything internal here is synchronized by the
 	// Raft side, so doesn't need to lock this.
-	stateLock sync.RWMutex
+	stateLock             sync.RWMutex
+	dependencyCoordinator DependencyVerifier
 }
 
 // nomadSnapshot is used to provide a snapshot of the current
@@ -201,6 +208,8 @@ type FSMConfig struct {
 
 	// JobTrackedVersions is the number of historic job versions that are kept.
 	JobTrackedVersions int
+
+	DependencyCoordinator DependencyVerifier
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
@@ -219,16 +228,17 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 	}
 
 	fsm := &nomadFSM{
-		evalBroker:          config.EvalBroker,
-		batchQueue:          config.BatchQueue,
-		periodicDispatcher:  config.Periodic,
-		blockedEvals:        config.Blocked,
-		encrypter:           config.Encrypter,
-		logger:              config.Logger.Named("fsm"),
-		config:              config,
-		state:               state,
-		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
-		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
+		evalBroker:            config.EvalBroker,
+		batchQueue:            config.BatchQueue,
+		periodicDispatcher:    config.Periodic,
+		blockedEvals:          config.Blocked,
+		encrypter:             config.Encrypter,
+		logger:                config.Logger.Named("fsm"),
+		config:                config,
+		state:                 state,
+		enterpriseAppliers:    make(map[structs.MessageType]LogApplier, 8),
+		enterpriseRestorers:   make(map[SnapshotType]SnapshotRestorer, 8),
+		dependencyCoordinator: config.DependencyCoordinator,
 	}
 
 	// Register all the log applier functions
@@ -699,6 +709,19 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		}
 	}
 
+	// Check for dependencies and circular dependencies.
+	// Only for job registrations.
+	if !req.Job.Dependencies.Empty() && req.Eval.TriggeredBy == structs.EvalTriggerJobRegister {
+		if n.dependencyCoordinator.CreatesCircularDependency(req.Job) {
+			return ErrCircularDependency
+		}
+
+		if err := n.dependencyCoordinator.AddDependency(n.state, req.Job); err != nil {
+			n.logger.Error("unable to register dependency", "error", err)
+			return err
+		}
+	}
+
 	if err := n.state.UpsertJobWithRequest(msgType, index, &req); err != nil {
 		n.logger.Error("UpsertJob failed", "error", err)
 		return err
@@ -1083,6 +1106,16 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 
 			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
 			n.blockedEvals.UnblockNode(node.ID)
+		}
+
+		evals, err := n.dependencyCoordinator.UnblockedDependencies(n.State(), alloc.JobID)
+		if err != nil {
+			n.logger.Error("looking up eval associated with alloc failed", "alloc_id", alloc.ID, "error", err)
+			return err
+		}
+
+		for _, e := range evals {
+			n.blockedEvals.UnblockDependency(e, index)
 		}
 	}
 
