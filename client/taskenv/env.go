@@ -524,6 +524,7 @@ func NewEmptyBuilder() *Builder {
 		hookEnvs:    map[string]map[string]string{},
 		envvars:     make(map[string]string),
 		taskSecrets: make(map[string]string),
+		templateEnv: make(map[string]string),
 	}
 }
 
@@ -1109,8 +1110,8 @@ func (b *Builder) SetHostEnvvars(filter []string) *Builder {
 
 func (b *Builder) SetTemplateEnv(m map[string]string) *Builder {
 	b.mu.Lock()
-	b.templateEnv = m
-	b.mu.Unlock()
+	defer b.mu.Unlock()
+	maps.Copy(b.templateEnv, m)
 	return b
 }
 
