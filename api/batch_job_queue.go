@@ -142,22 +142,26 @@ type AgeConfig struct {
 // JobSizeConfig configures how job resource size affects scheduling priority.
 type JobSizeConfig struct {
 	// CpuWeight determines how much a job's requested cpu affects its priority.
+	// CpuMax is required if this is set.
 	CpuWeight int `hcl:"cpu_weight,optional"`
-	// CpuMax is the top end of the cpu value for a job, past which the cpu weight is capped.
+	// CpuMax is the top end of the cpu value for a job, past which the cpu
+	// weight is capped. Must be set if CpuWeight is set.
 	CpuMax int `hcl:"cpu_max,optional"`
 
 	// MemoryWeight determines how much a job's requested mem affects its priority.
+	// MemoryMax is required if this is set.
 	MemoryWeight int `hcl:"memory_weight,optional"`
-	// MemoryMax is the top end of the memory value for a job, past which the memory weight is capped.
+	// MemoryMax is the top end of the memory value for a job, past which
+	// the memory weight is capped. Must be set if MemoryWeight is set.
 	MemoryMax int `hcl:"memory_max,optional"`
 }
 
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.
 type DynamicQueueConfig struct {
 	// CalcInterval is how often the queue will recalculate priorities.
+	// Defaults to 30 seconds.
 	CalcInterval time.Duration `hcl:"calc_interval,optional"`
 
-	// TODO: validate and set sensible defaults.
 	TenantFairshare TenantFairshareConfig `hcl:"tenant_fairshare,block"`
 	Age             AgeConfig             `hcl:"age,block"`
 	JobSize         JobSizeConfig         `hcl:"job_size,block"`
