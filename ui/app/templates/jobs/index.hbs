@@ -139,19 +139,20 @@
         {{keyboard-shortcut
           label="Run Job"
           pattern=(array "r" "u" "n")
-          action=this.goToRun
+          action=(if (can "run job") this.goToRun null)
         }}
       >
         <Hds::Button
           data-test-run-job
           @text="Run Job"
+          @color="secondary"
           disabled={{not (can "run job")}}
           title={{if
             (can "run job")
             null
             "You don’t have permission to run jobs"
           }}
-          @route="jobs.run"
+          @route={{if (can "run job") "jobs.run"}}
         />
       </div>
 
