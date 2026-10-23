@@ -190,11 +190,12 @@ func minRaftProtocol(members []*peers.Parts) (int, error) {
 	return minVersion, nil
 }
 
+// autopilotServers returns all known servers, not just live servers.
 func (s *Server) autopilotServers() map[raft.ServerID]*autopilot.Server {
 
 	// Get a list of the regional peers for our local region. We cannot use the
 	// LocalPeers function, as we need peers in all states.
-	localPeers := s.peersCache.RegionPeers(s.Region())
+	localPeers := s.peersCache.RegionPeersAll(s.Region())
 
 	servers := make(map[raft.ServerID]*autopilot.Server, len(localPeers))
 
