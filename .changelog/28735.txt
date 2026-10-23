@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where container start failing with HTTP 500 was not retried and was marked unrecoverable
+```
