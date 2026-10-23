@@ -112,6 +112,10 @@ func (n *NodePool) Canonicalize() {
 	if n.NodeIdentityTTL == 0 {
 		n.NodeIdentityTTL = DefaultNodePoolNodeIdentityTTL
 	}
+
+	if n.BatchQueueConfig != nil {
+		n.BatchQueueConfig.Canonicalize()
+	}
 }
 
 // Copy returns a deep copy of the node pool.
