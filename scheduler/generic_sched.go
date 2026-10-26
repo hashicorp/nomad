@@ -122,7 +122,8 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 		structs.EvalTriggerPeriodicJob, structs.EvalTriggerMaxPlans,
 		structs.EvalTriggerDeploymentWatcher, structs.EvalTriggerRetryFailedAlloc,
 		structs.EvalTriggerFailedFollowUp, structs.EvalTriggerPreemption,
-		structs.EvalTriggerScaling, structs.EvalTriggerMaxDisconnectTimeout, structs.EvalTriggerReconnect:
+		structs.EvalTriggerScaling, structs.EvalTriggerMaxDisconnectTimeout, structs.EvalTriggerReconnect,
+		structs.EvalTriggeredDeps:
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
@@ -193,9 +194,6 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	} else if s.blockedByDependencies() {
 		s.blocked.TriggeredBy = structs.EvalTriggeredDeps
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
-		/* if s.job.Dependencies != nil {
-			s.blocked.WaitUntil = time.Now().Add(*s.job.Dependencies.Timeout)
-		} */
 	} else {
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	}

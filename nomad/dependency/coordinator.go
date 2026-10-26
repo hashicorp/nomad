@@ -293,21 +293,6 @@ func dependencyTimeout(job *structs.Job) time.Duration {
 	return timeout
 }
 
-func (c *Coordinator) HasActiveDependents(j *structs.Job) (bool, error) {
-	err := c.loopDetector.RemoveNode(j.ID)
-	if err != nil {
-		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
-			return true, nil
-		}
-
-		if !errors.Is(err, loop_detection.ErrNodeNotFound) {
-			return false, err
-		}
-	}
-
-	return false, nil
-}
-
 func (c *Coordinator) Reload(state *state.StateStore, evals memdb.ResultIterator) {
 	for {
 		raw := evals.Next()
@@ -346,23 +331,4 @@ func (c *Coordinator) CreatesCircularDependency(job *structs.Job) bool {
 	}
 
 	return c.loopDetector.CreatesCircularDependency(job.Name, djNames...)
-}
-
-func NewNoOpCoordinator() *NoOpCoordinator {
-	return &NoOpCoordinator{}
-}
-
-type NoOpCoordinator struct{}
-
-func (c *NoOpCoordinator) HasActiveDependents(_ *structs.Job) (bool, error) {
-	return false, nil
-}
-
-func (c *NoOpCoordinator) CheckDependency(_ *state.StateStore, _ *structs.Job,
-	eval *structs.Evaluation) ([]string, error) {
-	return []string{}, nil
-}
-
-func (c *NoOpCoordinator) CreatesCircularDependency(_ *structs.Job) bool {
-	return false
 }
