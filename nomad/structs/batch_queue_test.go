@@ -10,6 +10,15 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+func TestBatchQueueConfig_Canonicalize(t *testing.T) {
+	var bq BatchQueueConfig
+	bq.Canonicalize() // no panic is good
+
+	bq.DynamicPriority = &DynamicQueueConfig{CalcInterval: 0}
+	bq.Canonicalize()
+	must.Eq(t, 30*time.Second, bq.DynamicPriority.CalcInterval, must.Sprint("expect default calc interval"))
+}
+
 func TestBatchQueueConfig_Copy(t *testing.T) {
 	var orig *BatchQueueConfig
 	must.Nil(t, orig.Copy())
@@ -127,11 +136,29 @@ func TestBatchQueue_DynamicQueueConfig_Validate(t *testing.T) {
 			err: "metadata key must be specified",
 		},
 		{
-			name: "zero calc interval",
+			name: "zero calc interval", // shouldn't happen if Canoncalize is called
 			config: DynamicQueueConfig{
 				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeNamespace},
 			},
 			err: "calc_interval must be greater than zero",
+		},
+		{
+			name: "size with cpu missing max",
+			config: DynamicQueueConfig{
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeNamespace},
+				CalcInterval:    1,
+				JobSize:         JobSizeConfig{CpuWeight: 1},
+			},
+			err: "cpu_max must be set",
+		},
+		{
+			name: "size with memory missing max",
+			config: DynamicQueueConfig{
+				TenantFairshare: TenantFairshareConfig{TenantType: TenantTypeNamespace},
+				CalcInterval:    1,
+				JobSize:         JobSizeConfig{MemoryWeight: 1},
+			},
+			err: "memory_max must be set",
 		},
 	}
 
