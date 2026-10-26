@@ -61,17 +61,6 @@ func NewCoordinator(logger hclog.Logger, loopDetector loopDetector) *Coordinator
 func (c *Coordinator) removeBlockingJob(jID blockingJobID) error {
 	c.lDependencies.Lock()
 	defer c.lDependencies.Unlock()
-
-	if err := c.loopDetector.RemoveNode(jID); err != nil {
-		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
-			c.logger.Info("more dependencies are blocked by job ", "job", jID)
-			return nil
-		}
-
-		c.logger.Error("failed to remove dependency", "error", err)
-		return err
-	}
-
 	delete(c.dependencies, jID)
 
 	return nil
@@ -127,6 +116,10 @@ func (c *Coordinator) AddDependency(state *state.StateStore, blockedJob *structs
 			c.logger.Warn("dependency for job overwritten", "jobID", blockedJob.ID)
 		}
 
+		if c.dependencies[blingJobID] == nil {
+			c.dependencies[blingJobID] = make(map[blockedJobID]*structs.Job)
+		}
+
 		c.dependencies[blingJobID][blockedJob.ID] = blockedJob
 	}
 	c.lDependencies.Unlock()
@@ -148,30 +141,35 @@ func (c *Coordinator) UnblockedDependencies(state *state.StateStore, bkingJobID 
 			return evalsToUnblock, err
 		}
 
-		if len(blockers) == 0 {
-			c.logger.Debug("dependency ready, unblocking job", "job", blockedJob.ID)
+		if len(blockers) > 0 {
+			return evalsToUnblock, nil
+		}
 
-			if err := c.removeBlockedJob(bkingJobID, blockedJob.ID); err != nil {
-				c.logger.Error("unable to unblock dependencies for job ", "jobID", blockedJob)
-				continue
-			}
+		c.logger.Debug("dependency ready, unblocking job", "job", blockedJob.ID)
 
-			blockedJobEvals, err := state.EvalsByJob(nil, blockedJob.Namespace, blockedJob.ID)
-			if err != nil {
-				c.logger.Error("unable to look up evaluations for blocked job", "jobID", blockedJob)
-				continue
-			}
+		if err := c.removeBlockedJob(bkingJobID, blockedJob.ID); err != nil {
+			c.logger.Error("unable to unblock dependencies for job ", "jobID", blockedJob)
+			continue
+		}
 
-			for _, e := range blockedJobEvals {
-				if e.Status == structs.EvalStatusPending && e.TriggeredBy == structs.EvalTriggeredDeps {
-					evalsToUnblock = append(evalsToUnblock, e)
-				}
+		blockedJobEvals, err := state.EvalsByJob(nil, blockedJob.Namespace, blockedJob.ID)
+		if err != nil {
+			c.logger.Error("unable to look up evaluations for blocked job", "jobID", blockedJob)
+			continue
+		}
+
+		for _, e := range blockedJobEvals {
+			if e.Status == structs.EvalStatusBlocked && e.TriggeredBy == structs.EvalTriggeredDeps {
+				evalsToUnblock = append(evalsToUnblock, e)
 			}
 		}
+
 	}
 
-	if err := c.removeBlockingJob(bkingJobID); err != nil {
-		c.logger.Error("unable to stop monitoring job for blocked dependencies", "jobID", bkingJobID)
+	if len(blockedJobs) == 0 {
+		if err := c.removeBlockingJob(bkingJobID); err != nil {
+			c.logger.Error("unable to stop monitoring job for blocked dependencies", "jobID", bkingJobID)
+		}
 	}
 
 	return evalsToUnblock, nil

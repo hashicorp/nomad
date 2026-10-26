@@ -59,6 +59,10 @@ type BlockedEvals struct {
 	// classes.
 	escaped map[string]wrappedEval
 
+	// pendingDependencies is the set of evaluations that have been blocked by
+	// the dependencies defined in the job.
+	pendingDependencies map[string]wrappedEval
+
 	// system is the set of system evaluations that failed to start on nodes because of
 	// resource constraints.
 	system *systemEvals
@@ -108,9 +112,10 @@ type capacityUpdate struct {
 	nodeID           string
 	nonNodeResources []string
 
-	blockedEval  *structs.Evaluation
-	blockToken   string
-	untrackJobID structs.NamespacedID
+	blockedEval    *structs.Evaluation
+	blockToken     string
+	untrackJobID   structs.NamespacedID
+	unblockedEvals []*structs.Evaluation
 
 	// future will be closed when the operation is done, which allows callers to
 	// block until then if they need to (this is mostly used for tests). The
@@ -279,6 +284,10 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	// existing nodes
 	if eval.Type == structs.JobTypeSystem {
 		b.system.Add(eval, token)
+	}
+
+	if eval.TriggeredBy == structs.EvalTriggeredDeps {
+		b.pendingDependencies[eval.ID] = wrapped
 	}
 
 	// Add the eval to the set of blocked evals whose jobs constraints are
@@ -643,7 +652,7 @@ func (b *BlockedEvals) UnblockNonNodeResources(resources []string, index uint64)
 	return fut
 }
 
-func (b *BlockedEvals) UnblockDependency(blockedEval *structs.Evaluation, index uint64) chan struct{} {
+func (b *BlockedEvals) UnblockDependency(unblockedEvals []*structs.Evaluation, index uint64) chan struct{} {
 	fut := make(chan struct{})
 
 	b.flushLock.RLock()
@@ -656,13 +665,9 @@ func (b *BlockedEvals) UnblockDependency(blockedEval *structs.Evaluation, index 
 	ch := b.capacityChangeCh
 	done := b.stopCh
 
-	// Note that unlike other unblock methods, we can't usefully track an
-	// unblockIndex because any blocked eval won't have the node ID attached
-	// when we check the index.
-
 	select {
 	case <-done:
-	case ch <- &capacityUpdate{blockedEval: blockedEval, future: fut}:
+	case ch <- &capacityUpdate{unblockedEvals: unblockedEvals, future: fut}:
 	}
 
 	return fut
@@ -690,13 +695,15 @@ func (b *BlockedEvals) watchCapacity(
 				continue
 			}
 
-			b.unblock(update.computedClass, update.quotaChange, update.nodeID, update.nonNodeResources)
+			b.unblock(update.computedClass, update.quotaChange, update.nodeID,
+				update.nonNodeResources, update.unblockedEvals...)
 			close(update.future)
 		}
 	}
 }
 
-func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []string) {
+func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []string,
+	unblockedEvals ...*structs.Evaluation) {
 
 	// Protect against the case of a flush.
 	b.flushLock.RLock()
@@ -733,6 +740,15 @@ func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []
 				delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 			}
 		}
+	}
+
+	if len(unblockedEvals) > 0 {
+		for id, wrapped := range b.pendingDependencies {
+			unblocked[wrapped.eval] = wrapped.token
+			delete(b.pendingDependencies, id)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+		}
+
 	}
 
 	if quota == "" && computedClass == "" {

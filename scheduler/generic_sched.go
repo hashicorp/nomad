@@ -193,9 +193,9 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	} else if s.blockedByDependencies() {
 		s.blocked.TriggeredBy = structs.EvalTriggeredDeps
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
-		if s.job.Dependencies != nil {
+		/* if s.job.Dependencies != nil {
 			s.blocked.WaitUntil = time.Now().Add(*s.job.Dependencies.Timeout)
-		}
+		} */
 	} else {
 		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	}
