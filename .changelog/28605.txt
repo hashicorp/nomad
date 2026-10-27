@@ -1,0 +1,7 @@
+```release-note:security
+client: Harden file creation for log files and dispatch payloads
+```
+
+```release-note:security
+client: Refuse to migrate task directories that have been symlinked
+```

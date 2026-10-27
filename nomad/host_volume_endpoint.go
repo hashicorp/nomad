@@ -148,8 +148,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				}
 
 				allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
-				return allowVolume(aclObj, ns)
-
+				return allowVolume(aclObj, vol.Namespace)
 			}
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,

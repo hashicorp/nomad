@@ -24,7 +24,8 @@ func TestLogmon_Start_rotate(t *testing.T) {
 
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir := t.TempDir()
+	allocDir := t.TempDir()
+	dir, _ := os.MkdirTemp(allocDir, "")
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-rotate.stdout"
@@ -35,6 +36,7 @@ func TestLogmon_Start_rotate(t *testing.T) {
 	}
 
 	cfg := &LogConfig{
+		AllocDir:      allocDir,
 		LogDir:        dir,
 		StdoutLogFile: "stdout",
 		StdoutFifo:    stdoutFifoPath,
@@ -87,7 +89,8 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir := t.TempDir()
+	allocDir := t.TempDir()
+	dir, _ := os.MkdirTemp(allocDir, "")
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-restart.stdout"
@@ -98,6 +101,7 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	}
 
 	cfg := &LogConfig{
+		AllocDir:      allocDir,
 		LogDir:        dir,
 		StdoutLogFile: "stdout",
 		StdoutFifo:    stdoutFifoPath,
@@ -189,7 +193,8 @@ func TestLogmon_Start_restart(t *testing.T) {
 
 	var stdoutFifoPath, stderrFifoPath string
 
-	dir := t.TempDir()
+	allocDir := t.TempDir()
+	dir, _ := os.MkdirTemp(allocDir, "")
 
 	if runtime.GOOS == "windows" {
 		stdoutFifoPath = "//./pipe/test-restart.stdout"
@@ -200,6 +205,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 	}
 
 	cfg := &LogConfig{
+		AllocDir:      allocDir,
 		LogDir:        dir,
 		StdoutLogFile: "stdout",
 		StdoutFifo:    stdoutFifoPath,

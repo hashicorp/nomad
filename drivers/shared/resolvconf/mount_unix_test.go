@@ -18,12 +18,15 @@ func Test_copySystemDNS(t *testing.T) {
 	data, err := os.ReadFile(resolvconf.Path())
 	must.NoError(t, err)
 
-	resolvConfFile := filepath.Join(t.TempDir(), "resolv.conf")
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	must.NoError(t, err)
+	t.Cleanup(func() { root.Close() })
 
-	must.NoError(t, copySystemDNS(resolvConfFile))
-	must.FileExists(t, resolvConfFile)
+	must.NoError(t, copySystemDNS(root))
+	must.FileExists(t, filepath.Join(dir, "resolv.conf"))
 
-	tmpResolv, readErr := os.ReadFile(resolvConfFile)
+	tmpResolv, readErr := os.ReadFile(filepath.Join(dir, "resolv.conf"))
 	must.NoError(t, readErr)
 	must.Eq(t, data, tmpResolv)
 }

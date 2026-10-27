@@ -502,8 +502,8 @@ func TestVaultHook_handleRenewalFailure(t *testing.T) {
 			// required to simulate a previous PreStart running
 			hook.client, _ = hook.clientFunc("default")
 			hook.vaultConfig = hook.vaultConfigsFunc(hook.logger)["default"]
-			hook.secretsDirTokenPath = filepath.Join(t.TempDir(), vaultTokenFile)
-			hook.privateDirTokenPath = filepath.Join(t.TempDir(), vaultTokenFile)
+			hook.privateDirPath = t.TempDir()
+			hook.secretsDirPath = t.TempDir()
 
 			tok, lease, err := hook.handleRenewalFailure(ctx)
 

@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -416,6 +417,26 @@ func isAllowedImagePath(allowedPaths []string, allocDir, imagePath string) bool 
 	return false
 }
 
+// checkImagePathSymlinks verifies that an absolute image path which is
+// lexically inside the alloc dir or one of the allowed paths does not escape
+// that directory through a symlink.
+func checkImagePathSymlinks(allowedPaths []string, allocDir, imagePath string) error {
+	var lastErr error
+	for _, root := range append([]string{allocDir}, allowedPaths...) {
+		if escapingfs.PathEscapesSandbox(root, imagePath) {
+			continue
+		}
+		lastErr = escapingfs.ChildEscapesParentDir(root, imagePath)
+		if lastErr == nil {
+			return nil
+		}
+	}
+	if lastErr != nil {
+		return lastErr
+	}
+	return errors.New("image_path is not in the allowed paths")
+}
+
 // hardcoded list of drive interfaces, Qemu currently supports
 var allowedDriveInterfaces = []string{"ide", "scsi", "sd", "mtd", "floppy", "pflash", "virtio", "none"}
 
@@ -485,8 +506,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	vmID := filepath.Base(vmPath)
 
+	if !filepath.IsAbs(vmPath) {
+		vmPath = filepath.Join(cfg.TaskDir().Dir, vmPath)
+	}
+
 	if !isAllowedImagePath(d.config.ImagePaths, cfg.AllocDir, vmPath) {
 		return nil, nil, fmt.Errorf("image_path is not in the allowed paths")
+	}
+
+	if err := checkImagePathSymlinks(d.config.ImagePaths, cfg.AllocDir, vmPath); err != nil {
+		return nil, nil, fmt.Errorf("image_path is not allowed: %w", err)
 	}
 
 	// Parse configuration arguments
@@ -637,6 +666,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, fmt.Sprintf("%s-executor.out", cfg.Name))
 	executorConfig := &executor.ExecutorConfig{
+		AllocDir: cfg.AllocDir,
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
 		Compute:  d.nomadConfig.Topology.Compute(),

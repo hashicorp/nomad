@@ -337,7 +337,8 @@ func TestExecutor_Shutdown_Exit(t *testing.T) {
 	execCmd.Args = []string{"100"}
 
 	cfg := &ExecutorConfig{
-		LogFile: "/dev/null",
+		AllocDir: testExecCmd.allocDir.AllocDir,
+		LogFile:  os.DevNull,
 	}
 
 	driverCfg := &base.ClientDriverConfig{
@@ -368,7 +369,8 @@ func TestExecutor_Shutdown_Exit(t *testing.T) {
 func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 	ci.Parallel(t)
 	// Create a temp file
-	f, err := os.CreateTemp("", "")
+	taskDir := t.TempDir()
+	f, err := os.CreateTemp(taskDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -378,7 +380,7 @@ func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 	// Set its permissions to be non-executable
 	f.Chmod(os.FileMode(0610))
 
-	err = makeExecutable(f.Name())
+	err = makeExecutable(taskDir, f.Name())
 	if err != nil {
 		t.Fatalf("makeExecutable() failed: %v", err)
 	}
@@ -394,6 +396,65 @@ func TestUniversalExecutor_MakeExecutable(t *testing.T) {
 	if act != exp {
 		t.Fatalf("expected permissions %v; got %v", exp, act)
 	}
+}
+
+func TestUniversalExecutor_MakeExecutable_Symlink(t *testing.T) {
+	ci.Parallel(t)
+
+	newVictim := func(t *testing.T, mode os.FileMode) string {
+		p := filepath.Join(t.TempDir(), "victim")
+		must.NoError(t, os.WriteFile(p, []byte("x"), 0600))
+		must.NoError(t, os.Chmod(p, mode))
+		return p
+	}
+	mode := func(t *testing.T, p string) os.FileMode {
+		fi, err := os.Stat(p)
+		must.NoError(t, err)
+		return fi.Mode().Perm()
+	}
+
+	t.Run("symlink out of task dir", func(t *testing.T) {
+		taskDir := t.TempDir()
+		victim := newVictim(t, 0600)
+		must.NoError(t, os.MkdirAll(filepath.Join(taskDir, "local"), 0777))
+		must.NoError(t, os.Symlink(victim, filepath.Join(taskDir, "local", "myscript")))
+
+		path, err := lookupBin(taskDir, "myscript")
+		must.NoError(t, err)
+		must.Error(t, makeExecutable(taskDir, path))
+		must.Eq(t, os.FileMode(0600), mode(t, victim))
+	})
+
+	t.Run("symlink out of task dir to executable", func(t *testing.T) {
+		taskDir := t.TempDir()
+		victim := newVictim(t, 0755)
+		must.NoError(t, os.Symlink(victim, filepath.Join(taskDir, "myscript")))
+
+		path, err := lookupBin(taskDir, "myscript")
+		must.NoError(t, err)
+		must.NoError(t, makeExecutable(taskDir, path))
+	})
+
+	t.Run("symlink within task dir", func(t *testing.T) {
+		taskDir := t.TempDir()
+		target := filepath.Join(taskDir, "real")
+		must.NoError(t, os.WriteFile(target, []byte("x"), 0600))
+		must.NoError(t, os.Symlink("real", filepath.Join(taskDir, "link")))
+
+		must.NoError(t, makeExecutable(taskDir, filepath.Join(taskDir, "link")))
+		must.Eq(t, os.FileMode(0755), mode(t, target))
+	})
+
+	t.Run("dot-dot command", func(t *testing.T) {
+		taskDir := t.TempDir()
+		victim := newVictim(t, 0600)
+		rel, err := filepath.Rel(taskDir, victim)
+		must.NoError(t, err)
+
+		_, err = lookupBin(taskDir, rel)
+		must.Error(t, err)
+		must.Eq(t, os.FileMode(0600), mode(t, victim))
+	})
 }
 
 func TestUniversalExecutor_LookupPath(t *testing.T) {
