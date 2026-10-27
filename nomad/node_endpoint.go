@@ -1753,7 +1753,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = state.NodesByIDPrefix(ws, prefix)
 			} else {
-				iter, err = state.Nodes(ws)
+				iter, err = state.NodesFrom(ws, args.NextToken)
 			}
 			if err != nil {
 				return err
