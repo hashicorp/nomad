@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/dependency/loop_detection"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -63,169 +62,88 @@ func (m *mockLoopDetector) CreatesCircularDependency(dependantJob string, depend
 	return m.circularDeps[dependantJob]
 }
 
-type mockEvalUnblocker struct {
-	unblocked map[string]uint64
-}
-
-func newMockEvalUnblocker() *mockEvalUnblocker {
-	return &mockEvalUnblocker{
-		unblocked: make(map[string]uint64),
-	}
-}
-
-func (m *mockEvalUnblocker) Unblock(computedClass string, index uint64) chan struct{} {
-	m.unblocked[computedClass] = index
-	ch := make(chan struct{})
-	close(ch)
-	return ch
-}
-
 // Table-driven tests for Coordinator public methods
 
-func TestCoordinator_CheckDependency(t *testing.T) {
+func TestCoordinator_AddDependency(t *testing.T) {
 	ci.Parallel(t)
 
 	tests := []struct {
-		name           string
-		setupState     func(*state.StateStore) (string, string, string)
-		expectError    bool
-		expectBlockers bool
+		name         string
+		setupState   func(*state.StateStore, *mockLoopDetector) *structs.Job
+		expectError  bool
+		expectStored bool
 	}{
 		{
-			name:           "nil inputs",
-			setupState:     nil,
-			expectError:    false,
-			expectBlockers: false,
+			name:         "nil inputs",
+			setupState:   nil,
+			expectError:  false,
+			expectStored: false,
 		},
 		{
 			name: "no dependencies",
-			setupState: func(s *state.StateStore) (string, string, string) {
+			setupState: func(s *state.StateStore, _ *mockLoopDetector) *structs.Job {
 				job := mock.Job()
 				job.Namespace = structs.DefaultNamespace
 				must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
-
-				eval := &structs.Evaluation{
-					ID:        uuid.Generate(),
-					JobID:     job.ID,
-					Namespace: job.Namespace,
-					Status:    structs.EvalStatusPending,
-				}
-				must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 2, []*structs.Evaluation{eval}))
-
-				return job.ID, eval.ID, job.Namespace
+				return job
 			},
-			expectError:    false,
-			expectBlockers: false,
+			expectError:  false,
+			expectStored: false,
 		},
 		{
-			name: "dependencies without running allocations",
-			setupState: func(s *state.StateStore) (string, string, string) {
-				// Create dependency job but don't allocate it
-				depJob := mock.Job()
-				depJob.Namespace = structs.DefaultNamespace
-				must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1, nil, depJob))
-
-				// Create dependent job with dependency using the job ID
+			name: "dependencies are tracked",
+			setupState: func(s *state.StateStore, _ *mockLoopDetector) *structs.Job {
 				job := mock.Job()
 				job.Namespace = structs.DefaultNamespace
 				job.Dependencies = &structs.JobDependencies{
 					Jobs: []*structs.JobDependency{
 						{
-							Name:   depJob.ID,
+							Name:   "job-dependency",
 							Status: structs.JobDependencyRunning,
 						},
 					},
 				}
-				must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 2, nil, job))
-
-				eval := &structs.Evaluation{
-					ID:        uuid.Generate(),
-					JobID:     job.ID,
-					Namespace: job.Namespace,
-					Status:    structs.EvalStatusPending,
-				}
-				must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 3, []*structs.Evaluation{eval}))
-
-				return job.ID, eval.ID, job.Namespace
+				must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
+				return job
 			},
-			expectError:    false,
-			expectBlockers: true,
+			expectError:  false,
+			expectStored: true,
 		},
 		{
-			name: "dependencies with running allocations",
-			setupState: func(s *state.StateStore) (string, string, string) {
-				// Create dependency job
-				depJob := mock.Job()
-				depJob.Namespace = structs.DefaultNamespace
-				must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1, nil, depJob))
-
-				// Create running allocation for dependency job
-				depAlloc := mock.Alloc()
-				depAlloc.JobID = depJob.ID
-				depAlloc.Job = depJob
-				depAlloc.ClientStatus = structs.AllocClientStatusPending
-				depAlloc.DesiredStatus = structs.AllocDesiredStatusRun
-				must.NoError(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{depAlloc}))
-
-				// Update allocation to running
-				depAlloc.ClientStatus = structs.AllocClientStatusRunning
-				must.NoError(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{depAlloc}))
-
-				// Create dependent job using the dependency job's ID
+			name: "loop detector error",
+			setupState: func(s *state.StateStore, loopDetector *mockLoopDetector) *structs.Job {
+				loopDetector.shouldReturnError = true
 				job := mock.Job()
 				job.Namespace = structs.DefaultNamespace
 				job.Dependencies = &structs.JobDependencies{
 					Jobs: []*structs.JobDependency{
 						{
-							Name:   depJob.ID,
+							Name:   "job-dependency",
 							Status: structs.JobDependencyRunning,
 						},
 					},
 				}
-				must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 4, nil, job))
-
-				eval := &structs.Evaluation{
-					ID:        uuid.Generate(),
-					JobID:     job.ID,
-					Namespace: job.Namespace,
-					Status:    structs.EvalStatusPending,
-				}
-				must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 5, []*structs.Evaluation{eval}))
-
-				return job.ID, eval.ID, job.Namespace
+				must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 1, nil, job))
+				return job
 			},
-			expectError:    false,
-			expectBlockers: false,
+			expectError:  true,
+			expectStored: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			loopDetector := newMockLoopDetector()
+			coord := NewCoordinator(hclog.NewNullLogger(), loopDetector)
+
 			var stateStore *state.StateStore
 			var job *structs.Job
-			var eval *structs.Evaluation
-
 			if tt.setupState != nil {
 				stateStore = state.TestStateStore(t)
-				jobID, evalID, namespace := tt.setupState(stateStore)
-
-				// Retrieve job and eval from state
-				jobIt, err := stateStore.JobByID(memdb.NewWatchSet(), namespace, jobID)
-				must.NoError(t, err)
-				if jobIt != nil {
-					job = jobIt
-				}
-
-				evalIt, err := stateStore.EvalByID(memdb.NewWatchSet(), evalID)
-				must.NoError(t, err)
-				if evalIt != nil {
-					eval = evalIt
-				}
+				job = tt.setupState(stateStore, loopDetector)
 			}
 
-			coord := NewCoordinator(hclog.NewNullLogger(), newMockLoopDetector(), newMockEvalUnblocker(), nil)
-
-			blockers, err := coord.CheckDependency(stateStore, job, eval)
+			err := coord.AddDependency(stateStore, job)
 
 			if tt.expectError {
 				must.Error(t, err)
@@ -233,11 +151,12 @@ func TestCoordinator_CheckDependency(t *testing.T) {
 				must.NoError(t, err)
 			}
 
-			if tt.expectBlockers {
-				must.NotNil(t, blockers)
-				must.NotEq(t, 0, len(blockers))
-			} else {
-				must.Len(t, 0, blockers)
+			if tt.expectStored {
+				depName := job.Dependencies.Jobs[0].Name
+				stored, ok := coord.dependencies[depName][job.ID]
+				must.True(t, ok)
+				must.Eq(t, job.ID, stored.ID)
+				must.Eq(t, []string{depName}, loopDetector.nodes[job.ID])
 			}
 		})
 	}
@@ -297,7 +216,7 @@ func TestCoordinator_CreatesCircularDependency(t *testing.T) {
 			loopDetector := newMockLoopDetector()
 			tt.setupLoopDetector(loopDetector)
 
-			coord := NewCoordinator(hclog.NewNullLogger(), loopDetector, nil, nil)
+			coord := NewCoordinator(hclog.NewNullLogger(), loopDetector)
 			result := coord.CreatesCircularDependency(tt.job)
 
 			must.Eq(t, tt.expectCircular, result)
@@ -305,60 +224,57 @@ func TestCoordinator_CreatesCircularDependency(t *testing.T) {
 	}
 }
 
-func TestCoordinator_HasActiveDependents(t *testing.T) {
+func TestCoordinator_UnblockedDependencies(t *testing.T) {
 	ci.Parallel(t)
 
-	tests := []struct {
-		name              string
-		job               *structs.Job
-		setupLoopDetector func(*mockLoopDetector)
-		expectActiveDeps  bool
-		expectError       bool
-	}{
-		{
-			name: "job with no dependents",
-			job: &structs.Job{
-				Name: "job-1",
-				ID:   "job-1-id",
-			},
-			setupLoopDetector: func(m *mockLoopDetector) {
-				m.shouldReturnNotFound = true
-			},
-			expectActiveDeps: false,
-			expectError:      false,
-		},
-		{
-			name: "job with active dependents",
-			job: &structs.Job{
-				Name: "job-1",
-				ID:   "job-1-id",
-			},
-			setupLoopDetector: func(m *mockLoopDetector) {
-				// Setup so RemoveNode returns ErrNodeIsDependency for job-1-id
-				m.nodes["job-2"] = []string{"job-1-id"}
-			},
-			expectActiveDeps: true,
-			expectError:      false,
-		},
+	stateStore := state.TestStateStore(t)
+	loopDetector := newMockLoopDetector()
+	coord := NewCoordinator(hclog.NewNullLogger(), loopDetector)
+
+	depJob := mock.Job()
+	depJob.Namespace = structs.DefaultNamespace
+	must.NoError(t, stateStore.UpsertJob(structs.MsgTypeTestSetup, 1, nil, depJob))
+
+	blockedJob := mock.Job()
+	blockedJob.Namespace = structs.DefaultNamespace
+	blockedJob.Dependencies = &structs.JobDependencies{
+		Jobs: []*structs.JobDependency{{
+			Name:   depJob.ID,
+			Status: structs.JobDependencyRunning,
+		}},
 	}
+	must.NoError(t, stateStore.UpsertJob(structs.MsgTypeTestSetup, 2, nil, blockedJob))
+	must.NoError(t, coord.AddDependency(stateStore, blockedJob))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			loopDetector := newMockLoopDetector()
-			tt.setupLoopDetector(loopDetector)
+	blockedEval := mock.Eval()
+	blockedEval.JobID = blockedJob.ID
+	blockedEval.Namespace = blockedJob.Namespace
+	blockedEval.Status = structs.EvalStatusBlocked
+	blockedEval.TriggeredBy = structs.EvalTriggeredDeps
+	must.NoError(t, stateStore.UpsertEvals(structs.MsgTypeTestSetup, 3, []*structs.Evaluation{blockedEval}))
 
-			coord := NewCoordinator(hclog.NewNullLogger(), loopDetector, nil, nil)
-			result, err := coord.HasActiveDependents(tt.job)
+	evals, err := coord.UnblockedDependencies(stateStore, depJob.ID)
+	must.NoError(t, err)
+	must.Len(t, 0, evals)
 
-			if tt.expectError {
-				must.Error(t, err)
-			} else {
-				must.NoError(t, err)
-			}
+	alloc := mock.Alloc()
+	alloc.JobID = depJob.ID
+	alloc.Job = depJob
+	alloc.Namespace = depJob.Namespace
+	alloc.DesiredStatus = structs.AllocDesiredStatusRun
+	alloc.ClientStatus = structs.AllocClientStatusPending
+	must.NoError(t, stateStore.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{alloc}))
 
-			must.Eq(t, tt.expectActiveDeps, result)
-		})
-	}
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	must.NoError(t, stateStore.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}))
+
+	evals, err = coord.UnblockedDependencies(stateStore, depJob.ID)
+	must.NoError(t, err)
+	must.Len(t, 1, evals)
+	must.Eq(t, blockedEval.ID, evals[0].ID)
+
+	_, stillTracked := coord.dependencies[depJob.ID]
+	must.False(t, stillTracked)
 }
 
 func TestCoordinator_Reload(t *testing.T) {
@@ -417,7 +333,7 @@ func TestCoordinator_Reload(t *testing.T) {
 
 			iter, _ := stateStore.Evals(memdb.NewWatchSet(), state.SortDefault)
 
-			coord := NewCoordinator(hclog.NewNullLogger(), newMockLoopDetector(), newMockEvalUnblocker(), nil)
+			coord := NewCoordinator(hclog.NewNullLogger(), newMockLoopDetector())
 			coord.Reload(stateStore, iter)
 
 			must.NotNil(t, coord)

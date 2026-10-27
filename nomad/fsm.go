@@ -1114,7 +1114,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 			return err
 		}
 
-		n.blockedEvals.UnblockDependency(evals, index)
+		n.blockedEvals.UnblockDependency(evals)
 	}
 
 	// It's possible that allocs on different nodes were marked unknown in the

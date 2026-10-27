@@ -4,6 +4,9 @@
 package scheduler
 
 import (
+	"errors"
+	"time"
+
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/dependency"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -40,8 +43,13 @@ func (bs *BatchScheduler) dependencyWrapper(next filterNodesFunc) filterNodesFun
 		}
 
 		if len(blockers) > 0 {
+			if bs.eval.TriggeredBy == structs.EvalTriggerByDependencies &&
+				bs.eval.BlockingTimeout < time.Now().UnixNano() {
+				return []*structs.Node{}, nil, errors.New("evaluation failed because of timeout")
+			}
+
 			bs.blockers = blockers
-			return []*structs.Node{}, nil, err
+			return []*structs.Node{}, nil, nil
 		}
 
 		return next(job)

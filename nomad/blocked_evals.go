@@ -22,7 +22,7 @@ const (
 
 	// pruneInterval is the interval at which we prune objects from the
 	// BlockedEvals tracker
-	pruneInterval = 5 * time.Minute
+	pruneInterval = 1 * time.Minute
 
 	// pruneThreshold is the threshold after which objects will be pruned.
 	pruneThreshold = 15 * time.Minute
@@ -133,17 +133,18 @@ type wrappedEval struct {
 // unblocked evals into the passed broker.
 func NewBlockedEvals(evalBroker *EvalBroker, logger hclog.Logger) *BlockedEvals {
 	return &BlockedEvals{
-		logger:           logger.Named("blocked_evals"),
-		evalBroker:       evalBroker,
-		captured:         make(map[string]wrappedEval),
-		escaped:          make(map[string]wrappedEval),
-		system:           newSystemEvals(),
-		jobs:             make(map[structs.NamespacedID]string),
-		unblockIndexes:   make(map[string]unblockEvent),
-		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
-		duplicateCh:      make(chan struct{}, 1),
-		stopCh:           make(chan struct{}),
-		stats:            NewBlockedStats(),
+		logger:              logger.Named("blocked_evals"),
+		evalBroker:          evalBroker,
+		captured:            make(map[string]wrappedEval),
+		escaped:             make(map[string]wrappedEval),
+		pendingDependencies: make(map[string]wrappedEval),
+		system:              newSystemEvals(),
+		jobs:                make(map[structs.NamespacedID]string),
+		unblockIndexes:      make(map[string]unblockEvent),
+		capacityChangeCh:    make(chan *capacityUpdate, unblockBuffer),
+		duplicateCh:         make(chan struct{}, 1),
+		stopCh:              make(chan struct{}),
+		stats:               NewBlockedStats(),
 	}
 }
 
@@ -271,6 +272,11 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 		token: token,
 	}
 
+	if eval.TriggeredBy == structs.EvalTriggerByDependencies {
+		b.pendingDependencies[eval.ID] = wrapped
+		return
+	}
+
 	// If the eval has escaped, meaning computed node classes could not capture
 	// the constraints of the job, we store the eval separately as we have to
 	// unblock it whenever node capacity changes. This is because we don't know
@@ -284,10 +290,6 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	// existing nodes
 	if eval.Type == structs.JobTypeSystem {
 		b.system.Add(eval, token)
-	}
-
-	if eval.TriggeredBy == structs.EvalTriggeredDeps {
-		b.pendingDependencies[eval.ID] = wrapped
 	}
 
 	// Add the eval to the set of blocked evals whose jobs constraints are
@@ -652,7 +654,7 @@ func (b *BlockedEvals) UnblockNonNodeResources(resources []string, index uint64)
 	return fut
 }
 
-func (b *BlockedEvals) UnblockDependency(unblockedEvals []*structs.Evaluation, index uint64) chan struct{} {
+func (b *BlockedEvals) UnblockDependency(unblockedEvals []*structs.Evaluation) chan struct{} {
 	fut := make(chan struct{})
 
 	b.flushLock.RLock()
@@ -955,9 +957,11 @@ func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 		case <-stopCh:
 			return
 		case t := <-ticker.C:
+			b.logger.Debug(" YYYyyyyyyyyyyyyyyyy \n")
 			cutoff := t.UTC().Add(-1 * pruneThreshold)
 			b.pruneUnblockIndexes(cutoff)
 			b.pruneStats(cutoff)
+			b.prunePendingDependencies()
 		}
 	}
 }
@@ -978,4 +982,21 @@ func (b *BlockedEvals) pruneUnblockIndexes(cutoff time.Time) {
 // pruneStats is used to prune any zero value stats that are excessively old.
 func (b *BlockedEvals) pruneStats(cutoff time.Time) {
 	b.stats.prune(cutoff)
+}
+
+// pruneUnblockIndexes is used to prune any tracked entry that is excessively
+// old. This protects against unbounded growth of the map.
+func (b *BlockedEvals) prunePendingDependencies() {
+	oldEvals := []*structs.Evaluation{}
+
+	b.l.RLock()
+	for _, wrapedEval := range b.pendingDependencies {
+		if time.Now().UnixNano() > wrapedEval.eval.BlockingTimeout {
+			b.logger.Debug("evalution timeout", "eval", wrapedEval.eval.ID, "job", wrapedEval.eval.JobID)
+			oldEvals = append(oldEvals, wrapedEval.eval)
+		}
+	}
+	b.l.RUnlock()
+
+	b.UnblockDependency(oldEvals)
 }

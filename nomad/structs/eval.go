@@ -31,7 +31,7 @@ const (
 	EvalTriggerMaxDisconnectTimeout = "max-disconnect-timeout"
 	EvalTriggerReconnect            = "reconnect"
 	EvalTriggerAllocReschedule      = "alloc-reschedule"
-	EvalTriggeredDeps               = "block-by-dependency"
+	EvalTriggerByDependencies       = "block-by-dependency"
 
 	EvalStatusBlocked   = "blocked"
 	EvalStatusPending   = "pending"
@@ -201,6 +201,10 @@ type Evaluation struct {
 	// QuotaLimitReached marks whether a quota limit was reached for the
 	// evaluation.
 	QuotaLimitReached string
+
+	// UnixNano representation of the max amount of time an evaluation can remain
+	// blocked.
+	BlockingTimeout int64
 
 	// MissingNonNodeResources marks whether we could not find a resource not
 	// tied to a specific node (ex. CSI volume) when processing the eval.
