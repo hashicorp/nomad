@@ -6,7 +6,7 @@ The official Nomad UI.
 
 This is an [ember.js](https://emberjs.com/) project, and you will need the following tools installed on your computer.
 
-- [The current Node.js LTS release](https://nodejs.org/)
+- [Node.js 22.23.4](https://nodejs.org/)
 - [Ember CLI](https://ember-cli.com/)
 - Make sure you have `corepack` installed wither via `node` as it usually comes bundled with it or install manually with homebrew.
 
