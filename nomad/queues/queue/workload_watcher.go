@@ -116,19 +116,20 @@ func (w *WorkloadWatcher) wait(ctx context.Context, workload Workload) error {
 			return err
 		}
 
-		cancel := func() {}
+		wCtx, cancel := ctx, func() {}
 		for _, e := range allEvals {
 			if e.Status == structs.EvalStatusBlocked && w.isConstraintFailure(e) && w.timeout > 0 {
-				ctx, cancel = context.WithDeadline(ctx, time.Unix(0, e.CreateTime).Add(w.timeout))
+				wCtx, cancel = context.WithDeadline(ctx, time.Unix(0, e.CreateTime).Add(w.timeout))
+				break
 			}
 		}
 
-		err = ws.WatchCtx(ctx)
+		// WatchCtx only returns an error if the context gets done
+		err = ws.WatchCtx(wCtx)
 		cancel()
 
 		if err != nil {
-			w.logger.Debug("shutting down workload watcher for job", "ID", workload.ID(), "err", ctx.Err())
-			return nil
+			return err
 		}
 
 		for k := range ws {
