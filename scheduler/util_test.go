@@ -156,7 +156,7 @@ func TestRetryMax(t *testing.T) {
 	must.Eq(t, 1, calls)
 }
 
-func TestTaintedNodes(t *testing.T) {
+func TestGetTaintedNodes(t *testing.T) {
 	ci.Parallel(t)
 
 	state := state.TestStateStore(t)
@@ -179,7 +179,7 @@ func TestTaintedNodes(t *testing.T) {
 		{NodeID: node4.ID},
 		{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
 	}
-	tainted, err := taintedNodes(state, allocs)
+	tainted, err := getTaintedNodes(state, allocs)
 	must.NoError(t, err)
 	must.Eq(t, 3, len(tainted))
 	must.MapNotContainsKey(t, tainted, node1.ID)
