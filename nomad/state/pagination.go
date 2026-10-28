@@ -18,7 +18,7 @@ import (
 func (s *StateStore) AllocsFrom(ws memdb.WatchSet, namespace, nextToken string, sort SortOption) (memdb.ResultIterator, error) {
 	indexString, id, ok := strings.Cut(nextToken, ".")
 	createIndex, err := strconv.Atoi(indexString)
-	if !ok || err != nil || strings.ContainsRune(id, '\x00') {
+	if !ok || err != nil {
 		if namespace == structs.AllNamespacesSentinel {
 			return s.Allocs(ws, sort)
 		}

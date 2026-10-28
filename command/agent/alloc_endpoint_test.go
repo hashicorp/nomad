@@ -97,6 +97,37 @@ func TestHTTP_AllocsList(t *testing.T) {
 	})
 }
 
+func TestHTTP_AllocsList_InvalidPagination(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		for _, tc := range []struct {
+			name  string
+			query string
+			err   string
+		}{
+			{
+				name:  "invalid filter",
+				query: "filter=NotValid",
+				err:   "failed to read filter expression",
+			},
+			{
+				name:  "null byte in token",
+				query: "next_token=1000.id%00",
+				err:   "next_token must not contain null bytes",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, "/v1/allocations?"+tc.query, nil)
+				resp := httptest.NewRecorder()
+				s.Server.mux.ServeHTTP(resp, req)
+				require.Equal(t, http.StatusBadRequest, resp.Code)
+				require.Contains(t, resp.Body.String(), "failed to create result paginator")
+				require.Contains(t, resp.Body.String(), tc.err)
+			})
+		}
+	})
+}
+
 func TestHTTP_AllocsPrefixList(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {

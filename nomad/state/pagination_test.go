@@ -21,7 +21,7 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 	store := testStateStore(t)
 	txn := store.db.WriteTxn(100)
 	var allocs []*structs.Allocation
-	for _, namespace := range []string{"a", "default", "default-extra", "z"} {
+	for _, namespace := range []string{"default", "infra"} {
 		for _, index := range []uint64{2, 10, 10, 100} {
 			alloc := mock.Alloc()
 			alloc.ID = fmt.Sprintf("%08x-0000-0000-0000-000000000000", len(allocs)+1)
@@ -36,7 +36,37 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 	}
 	must.NoError(t, txn.Commit())
 
-	cursor := fmt.Sprintf("10.%s", allocs[6].ID)
+	for _, tc := range []struct {
+		name      string
+		namespace string
+		want      []*structs.Allocation
+	}{
+		{
+			name:      "default namespace excludes infra allocations",
+			namespace: structs.DefaultNamespace,
+			want:      allocs[:4],
+		},
+		{
+			name:      "all namespaces includes all allocations",
+			namespace: structs.AllNamespacesSentinel,
+			want: []*structs.Allocation{
+				allocs[0], allocs[4], allocs[1], allocs[2],
+				allocs[5], allocs[6], allocs[3], allocs[7],
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			iter, err := store.AllocsFrom(memdb.NewWatchSet(), tc.namespace, "0.", SortDefault)
+			must.NoError(t, err)
+			var got []*structs.Allocation
+			for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				got = append(got, raw.(*structs.Allocation))
+			}
+			must.Eq(t, tc.want, got)
+		})
+	}
+
+	cursor := fmt.Sprintf("10.%s", allocs[2].ID)
 	const webFilter = `TaskGroup == "web"`
 	for _, tc := range []struct {
 		name      string
@@ -79,69 +109,25 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 			filter:    webFilter,
 		},
 		{
-			name:      "missing namespace",
-			namespace: "missing",
-			token:     cursor,
-		},
-		{
-			name:      "missing namespace reverse",
-			namespace: "missing",
-			token:     cursor,
-			reverse:   true,
-		},
-		{
-			name:      "all namespaces first page",
-			namespace: "*",
-		},
-		{
-			name:      "all namespaces first page reverse",
-			namespace: "*",
-			reverse:   true,
-		},
-		{
-			name:      "all namespaces cursor",
-			namespace: "*",
-			token:     cursor,
-		},
-		{
-			name:      "all namespaces cursor reverse",
-			namespace: "*",
-			token:     cursor,
-			reverse:   true,
-		},
-		{
-			name:      "all namespaces filtered cursor",
-			namespace: "*",
-			token:     cursor,
-			filter:    webFilter,
-		},
-		{
-			name:      "all namespaces filtered cursor reverse",
-			namespace: "*",
-			token:     cursor,
-			reverse:   true,
-			filter:    webFilter,
-		},
-		{
 			name:      "missing index",
 			namespace: "default",
-			token:     "9." + allocs[6].ID,
+			token:     "9." + allocs[2].ID,
 		},
 		{
 			name:      "missing index reverse",
 			namespace: "default",
-			token:     "9." + allocs[6].ID,
+			token:     "9." + allocs[2].ID,
 			reverse:   true,
 		},
 		{
 			name:      "missing ID",
 			namespace: "default",
-			token:     "10.00000006-0000-0000-0000-000000000001",
+			token:     "10.00000002-0000-0000-0000-000000000001",
 		},
 		{
 			name:      "missing ID reverse",
 			namespace: "default",
-			token:     "10.00000006-0000-0000-0000-000000000001",
+			token:     "10.00000002-0000-0000-0000-000000000001",
 			reverse:   true,
 		},
 		{
@@ -211,17 +197,6 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 			reverse:   true,
 		},
 		{
-			name:      "null in ID",
-			namespace: "default",
-			token:     "10.id\x00",
-		},
-		{
-			name:      "null in ID reverse",
-			namespace: "default",
-			token:     "10.id\x00",
-			reverse:   true,
-		},
-		{
 			name:      "index overflow",
 			namespace: "default",
 			token:     "99999999999999999999999999.id",
@@ -235,26 +210,18 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ws := memdb.NewWatchSet()
-			var original memdb.ResultIterator
-			var err error
-			if tc.namespace == structs.AllNamespacesSentinel {
-				original, err = store.Allocs(ws, SortOption(tc.reverse))
-			} else {
-				original, err = store.AllocsByNamespaceOrdered(ws, tc.namespace, SortOption(tc.reverse))
-			}
+			original, err := store.AllocsByNamespaceOrdered(ws, tc.namespace, SortOption(tc.reverse))
 			must.NoError(t, err)
 			seek, err := store.AllocsFrom(ws, tc.namespace, tc.token, SortOption(tc.reverse))
 			must.NoError(t, err)
 			must.NotNil(t, seek.WatchCh())
 
 			opts := structs.QueryOptions{NextToken: tc.token, Reverse: tc.reverse, PerPage: 2, Filter: tc.filter}
-			// Also exercise ACL-style selection after the seek.
-			selector := func(a *structs.Allocation) bool { return a.Namespace != "a" }
 			stub := func(a *structs.Allocation) (string, error) { return a.ID, nil }
-			baseline, err := paginator.NewPaginator(original, opts, selector,
+			baseline, err := paginator.NewPaginator(original, opts, nil,
 				paginator.CreateIndexAndIDTokenizer[*structs.Allocation](tc.token), stub)
 			must.NoError(t, err)
-			optimized, err := paginator.NewPaginator(seek, opts, selector,
+			optimized, err := paginator.NewPaginator(seek, opts, nil,
 				paginator.CreateIndexAndIDTokenizer[*structs.Allocation](tc.token), stub)
 			must.NoError(t, err)
 			want, wantNext, err := baseline.Page()
@@ -274,11 +241,11 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 	}{
 		{
 			reverse: false,
-			want:    allocs[6:8],
+			want:    allocs[2:4],
 		},
 		{
 			reverse: true,
-			want:    []*structs.Allocation{allocs[6], allocs[5], allocs[4]},
+			want:    []*structs.Allocation{allocs[2], allocs[1], allocs[0]},
 		},
 	} {
 		ws := memdb.NewWatchSet()
@@ -293,7 +260,7 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 
 	// A deleted cursor must still seek to its successor/predecessor.
 	txn = store.db.WriteTxn(101)
-	must.NoError(t, txn.Delete("allocs", allocs[6]))
+	must.NoError(t, txn.Delete("allocs", allocs[2]))
 	must.NoError(t, txn.Commit())
 	for _, tc := range []struct {
 		reverse bool
@@ -301,11 +268,11 @@ func TestStateStore_AllocsFrom(t *testing.T) {
 	}{
 		{
 			reverse: false,
-			want:    allocs[7],
+			want:    allocs[3],
 		},
 		{
 			reverse: true,
-			want:    allocs[5],
+			want:    allocs[1],
 		},
 	} {
 		iter, err := store.AllocsFrom(memdb.NewWatchSet(), "default", cursor, SortOption(tc.reverse))

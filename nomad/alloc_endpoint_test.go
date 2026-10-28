@@ -365,6 +365,32 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 	}
 }
 
+func TestAllocEndpoint_List_NullToken(t *testing.T) {
+	ci.Parallel(t)
+	srv, cleanup := TestServer(t, nil)
+	defer cleanup()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	for _, prefix := range []string{"", "aa"} {
+		t.Run("prefix="+prefix, func(t *testing.T) {
+			req := &structs.AllocListRequest{QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+				Prefix:    prefix,
+				NextToken: "1000.id\x00",
+			}}
+			var resp structs.AllocListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Alloc.List", req, &resp)
+			require.Error(t, err)
+			code, message, ok := structs.CodeFromRPCCodedErr(err)
+			require.True(t, ok)
+			require.Equal(t, 400, code)
+			require.Contains(t, message, "next_token must not contain null bytes")
+		})
+	}
+}
+
 func TestAllocEndpoint_List_PaginationUpdates(t *testing.T) {
 	ci.Parallel(t)
 	srv, cleanup := TestServer(t, nil)
