@@ -257,6 +257,13 @@ func (h *envoyBootstrapHook) lookupService(svcKind, svcName string, taskEnv *tas
 	return service, nil
 }
 
+const (
+	bootstrapFileName       = "envoy_bootstrap.json"
+	bootstrapStderrFileName = "envoy_bootstrap.stderr.0"
+	bootstrapEnvPath        = ".envoy_bootstrap.env"
+	bootstrapCmdPath        = ".envoy_bootstrap.cmd"
+)
+
 // Prestart creates an envoy bootstrap config file.
 //
 // Must be aware of both launching envoy as a sidecar proxy, as well as a connect gateway.
@@ -292,16 +299,32 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		helper.CleanEnvVar(envoyReadyBindEnvPrefix+serviceName, '_'): envoyReadyBind,
 	}
 
-	// Envoy bootstrap configuration may contain a Consul token, so write
-	// it to the secrets directory like Vault tokens.
-	bootstrapFilePath := filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json")
+	secretRoot, err := os.OpenRoot(req.TaskDir.SecretsDir)
+	if err != nil {
+		return fmt.Errorf("failed to open task secret dir: %w", err)
+	}
+	defer func() { _ = secretRoot.Close() }()
 
-	// Write everything related to the command to enable debugging
-	bootstrapStderrPath := filepath.Join(req.TaskDir.LogDir, "envoy_bootstrap.stderr.0")
-	bootstrapEnvPath := filepath.Join(req.TaskDir.SecretsDir, ".envoy_bootstrap.env")
-	bootstrapCmdPath := filepath.Join(req.TaskDir.SecretsDir, ".envoy_bootstrap.cmd")
+	allocRoot, err := os.OpenRoot(req.TaskDir.AllocDir)
+	if err != nil {
+		return fmt.Errorf("failed to open allocdir: %w", err)
+	}
+	defer func() { _ = allocRoot.Close() }()
 
-	siToken, err := h.maybeLoadSIToken(req.Task.Name, req.TaskDir.SecretsDir)
+	logDir, err := filepath.Rel(req.TaskDir.AllocDir, req.TaskDir.LogDir)
+	if err != nil {
+		return fmt.Errorf("failed to get path to logdir: %w", err)
+	}
+
+	// Confine the stderr file to the log directory too, so a symlink planted
+	// there can't redirect it to another file in the allocation.
+	logRoot, err := allocRoot.OpenRoot(logDir)
+	if err != nil {
+		return fmt.Errorf("failed to open logdir: %w", err)
+	}
+	defer func() { _ = logRoot.Close() }()
+
+	siToken, err := h.maybeLoadSIToken(req.Task.Name, secretRoot)
 	if err != nil {
 		h.logger.Error("failed to generate envoy bootstrap config", "sidecar_for", service.Name)
 		return fmt.Errorf("failed to generate envoy bootstrap config: %w", err)
@@ -309,13 +332,16 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	h.logger.Debug("check for SI token for task", "task", req.Task.Name, "exists", siToken != "")
 
 	proxyID := h.proxyServiceID(h.alloc.TaskGroup, service)
-	bootstrap := h.newEnvoyBootstrapArgs(service, grpcAddr, envoyAdminBind, envoyReadyBind, siToken, bootstrapFilePath, proxyID)
+	bootstrap := h.newEnvoyBootstrapArgs(
+		service, grpcAddr, envoyAdminBind, envoyReadyBind, siToken,
+		filepath.Join(req.TaskDir.SecretsDir, bootstrapFileName), proxyID)
 
 	// Create command line arguments
 	bootstrapArgs := bootstrap.args()
 
 	// Write args to file for debugging
-	argsFile, err := os.Create(bootstrapCmdPath)
+
+	argsFile, err := secretRoot.Create(bootstrapCmdPath)
 	if err != nil {
 		return fmt.Errorf("failed to write bootstrap command line: %w", err)
 	}
@@ -328,7 +354,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 	bootstrapEnv := bootstrap.env(h.groupEnv())
 
 	// Write env to file for debugging
-	envFile, err := os.Create(bootstrapEnvPath)
+	envFile, err := secretRoot.Create(bootstrapEnvPath)
 	if err != nil {
 		return fmt.Errorf("failed to write bootstrap environment: %w", err)
 	}
@@ -369,7 +395,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		cmd.Env = bootstrapEnv
 
 		// Redirect stdout to secrets/envoy_bootstrap.json.
-		stdout, fileErr := os.Create(bootstrapFilePath)
+		stdout, fileErr := secretRoot.Create(bootstrapFileName)
 		if fileErr != nil {
 			return false, fmt.Errorf("failed to create secrets/envoy_bootstrap.json for envoy: %w", fileErr)
 		}
@@ -377,7 +403,7 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		cmd.Stdout = stdout
 
 		// Redirect stderr into another file for later debugging.
-		stderr, fileErr := os.OpenFile(bootstrapStderrPath, os.O_RDWR|os.O_CREATE, 0644)
+		stderr, fileErr := logRoot.OpenFile(bootstrapStderrFileName, os.O_RDWR|os.O_CREATE, 0644)
 		if fileErr != nil {
 			return false, fmt.Errorf("failed to create alloc/logs/envoy_bootstrap.stderr.0 for envoy: %w", fileErr)
 		}
@@ -401,21 +427,24 @@ func (h *envoyBootstrapHook) Prestart(ctx context.Context, req *ifs.TaskPrestart
 		// occurs, and (b) the file will either be rewritten on
 		// retry or eventually garbage collected if the task
 		// fails.
-		_ = os.Remove(bootstrapFilePath)
+		_ = secretRoot.Remove(filepath.Base(bootstrapFileName))
 
 		return true, cmdErr
 	}, backoffOpts)
 
 	if backoffErr != nil {
-		// Wrap the last error from Consul and set that as our status.
-		_, recoverable := cmdErr.(*exec.ExitError)
-		return structs.NewRecoverableError(
-			fmt.Errorf("%w: %v; see: <https://developer.hashicorp.com/nomad/s/envoy-bootstrap-error>",
-				errEnvoyBootstrapError,
-				cmdErr,
-			),
-			recoverable,
-		)
+		if cmdErr != nil {
+			// Wrap the last error from Consul and set that as our status.
+			_, recoverable := cmdErr.(*exec.ExitError)
+			return structs.NewRecoverableError(
+				fmt.Errorf("%w: %v; see: <https://developer.hashicorp.com/nomad/s/envoy-bootstrap-error>",
+					errEnvoyBootstrapError,
+					cmdErr,
+				),
+				recoverable,
+			)
+		}
+		return backoffErr
 	}
 
 	return nil
@@ -626,9 +655,8 @@ func (e envoyBootstrapArgs) env(env []string) []string {
 // by the service identities prestart hook. This envoy bootstrap hook blocks
 // until the sids hook completes, so if the SI token is required to exist (i.e.
 // Consul ACLs are enabled), it will be in place by the time we try to read it.
-func (h *envoyBootstrapHook) maybeLoadSIToken(task, dir string) (string, error) {
-	tokenPath := filepath.Join(dir, sidsTokenFile)
-	token, err := os.ReadFile(tokenPath)
+func (h *envoyBootstrapHook) maybeLoadSIToken(task string, secretRoot *os.Root) (string, error) {
+	token, err := secretRoot.ReadFile(sidsTokenFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			h.logger.Error("failed to load SI token", "task", task, "error", err)

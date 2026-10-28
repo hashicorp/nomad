@@ -40,7 +40,19 @@ type FileRotator struct {
 	MaxFiles int   // MaxFiles is the maximum number of rotated files allowed in a path
 	FileSize int64 // FileSize is the size a rotated file is allowed to grow
 
-	path         string // path is the path on the file system where the rotated set of files are opened
+	// abslogDir is the absolute directory on the file system where the rotated
+	// set of files are opened. TODO: once os.ReadDir supports the os.Root
+	// sandbox we can get rid of this field
+	abslogDir string
+
+	// logDir is the relative path inside the sandbox to the directory wheree
+	// log files are opened
+	logDir string
+
+	// sandbox is a handle to the directory we check for escapes onto the host;
+	// this should be the logDir's parent
+	sandbox *os.Root
+
 	baseFileName string // baseFileName is the base file name of the rotated files
 	logFileIdx   int    // logFileIdx is the current index of the rotated files
 
@@ -61,14 +73,26 @@ type FileRotator struct {
 
 // NewFileRotator returns a new file rotator
 func NewFileRotator(path string, baseFile string, maxFiles int,
-	fileSize int64, logger hclog.Logger) (*FileRotator, error) {
+	fileSize int64, logger hclog.Logger, sandboxDir string) (*FileRotator, error) {
 	logger = logger.Named("rotator")
+
+	sandbox, err := os.OpenRoot(sandboxDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not open sandbox dir %q: %w", sandboxDir, err)
+	}
+	relLogDir, err := filepath.Rel(sandboxDir, path)
+	if err != nil {
+		return nil, fmt.Errorf("could not verify log dir %q was relative to sandbox dir %q: %w", path, sandboxDir, err)
+	}
+
 	rotator := &FileRotator{
 		MaxFiles: maxFiles,
 		FileSize: fileSize,
 
-		path:         path,
+		abslogDir:    path,
+		logDir:       relLogDir,
 		baseFileName: baseFile,
+		sandbox:      sandbox,
 
 		flushTicker: time.NewTicker(bufferFlushDuration),
 		logger:      logger,
@@ -165,8 +189,8 @@ func (f *FileRotator) nextFile() error {
 	nextFileIdx := f.logFileIdx
 	for {
 		nextFileIdx += 1
-		logFileName := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, nextFileIdx))
-		if fi, err := os.Stat(logFileName); err == nil {
+		logFileName := filepath.Join(f.logDir, fmt.Sprintf("%s.%d", f.baseFileName, nextFileIdx))
+		if fi, err := f.sandbox.Stat(logFileName); err == nil {
 			if fi.IsDir() || fi.Size() >= f.FileSize {
 				continue
 			}
@@ -191,7 +215,10 @@ func (f *FileRotator) nextFile() error {
 
 // lastFile finds out the rotated file with the largest index in a path.
 func (f *FileRotator) lastFile() error {
-	finfos, err := os.ReadDir(f.path)
+	// TODO: ideally we'd use the sandbox for this just for consistency but Go
+	// stdlib doesn't support it. But so long as we're using the sandbox in
+	// create file the worst that can happen is we corrupt the allocs own logs
+	finfos, err := os.ReadDir(f.abslogDir)
 	if err != nil {
 		return err
 	}
@@ -220,8 +247,8 @@ func (f *FileRotator) lastFile() error {
 
 // createFile opens a new or existing file for writing
 func (f *FileRotator) createFile() error {
-	logFileName := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, f.logFileIdx))
-	cFile, err := os.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	logFileName := filepath.Join(f.logDir, fmt.Sprintf("%s.%d", f.baseFileName, f.logFileIdx))
+	cFile, err := f.sandbox.OpenFile(logFileName, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
@@ -265,6 +292,7 @@ func (f *FileRotator) Close() error {
 		close(f.purgeCh)
 		f.closed = true
 		f.currentFile.Close()
+		f.sandbox.Close()
 	}
 
 	return nil
@@ -277,7 +305,7 @@ func (f *FileRotator) purgeOldFiles() {
 		select {
 		case <-f.purgeCh:
 			var fIndexes []int
-			files, err := os.ReadDir(f.path)
+			files, err := os.ReadDir(f.abslogDir)
 			if err != nil {
 				f.logger.Error("error getting directory listing", "error", err)
 				return
@@ -306,8 +334,8 @@ func (f *FileRotator) purgeOldFiles() {
 			sort.Ints(fIndexes)
 			toDelete := fIndexes[0 : len(fIndexes)-f.MaxFiles]
 			for _, fIndex := range toDelete {
-				fname := filepath.Join(f.path, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
-				err := os.RemoveAll(fname)
+				fname := filepath.Join(f.logDir, fmt.Sprintf("%s.%d", f.baseFileName, fIndex))
+				err := f.sandbox.RemoveAll(fname)
 				if err != nil {
 					f.logger.Error("error removing file", "filename", fname, "error", err)
 				}

@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -90,16 +91,24 @@ func TestScalingEndpoint_GetPolicy_ACL(t *testing.T) {
 	// lookup without token should fail
 	var resp structs.SingleScalingPolicyResponse
 	err := msgpackrpc.CallWithCodec(codec, "Scaling.GetPolicy", get, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "Permission denied")
+	must.ErrorContains(t, err, "Permission denied")
 
 	// Expect failure for request with an invalid token
 	invalidToken := mock.CreatePolicyAndToken(t, state, 1003, "test-invalid",
 		mock.NamespacePolicy(structs.DefaultNamespace, "", []string{acl.NamespaceCapabilityListScalingPolicies}))
 	get.AuthToken = invalidToken.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "Scaling.GetPolicy", get, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "Permission denied")
+	must.ErrorContains(t, err, "Permission denied")
+
+	// Expect failure for request with token for wrong namespace, even when
+	// trying with a wildcard namespace
+	invalidToken = mock.CreatePolicyAndToken(t, state, 1004, "test-invalid2",
+		mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadScalingPolicy}))
+	get.AuthToken = invalidToken.SecretID
+	get.Namespace = structs.AllNamespacesSentinel
+	err = msgpackrpc.CallWithCodec(codec, "Scaling.GetPolicy", get, &resp)
+	must.ErrorContains(t, err, "Permission denied")
+
 	type testCase struct {
 		authToken string
 		name      string

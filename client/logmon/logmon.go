@@ -27,6 +27,9 @@ type LogConfig struct {
 	// LogDir is the host path where logs are to be written to
 	LogDir string
 
+	// AllocDir is the sandbox directory that contains LogDir
+	AllocDir string
+
 	// StdoutLogFile is the path relative to LogDir for stdout logging
 	StdoutLogFile string
 
@@ -139,7 +142,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 
 	logFileSize := int64(cfg.MaxFileSizeMB * 1024 * 1024)
 	lro, err := logging.NewFileRotator(cfg.LogDir, cfg.StdoutLogFile,
-		cfg.MaxFiles, logFileSize, logger)
+		cfg.MaxFiles, logFileSize, logger, cfg.AllocDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdout logfile for %q: %v", cfg.StdoutLogFile, err)
 	}
@@ -152,7 +155,7 @@ func NewTaskLogger(cfg *LogConfig, logger hclog.Logger) (*TaskLogger, error) {
 	tl.lro = wrapperOut
 
 	lre, err := logging.NewFileRotator(cfg.LogDir, cfg.StderrLogFile,
-		cfg.MaxFiles, logFileSize, logger)
+		cfg.MaxFiles, logFileSize, logger, cfg.AllocDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stderr logfile for %q: %v", cfg.StderrLogFile, err)
 	}

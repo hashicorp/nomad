@@ -193,6 +193,7 @@ func (h *logmonHook) prestartOneLoop(ctx context.Context, req *interfaces.TaskPr
 	}
 
 	err := h.logmon.Start(&logmon.LogConfig{
+		AllocDir:      h.runner.taskDir.AllocDir,
 		LogDir:        h.config.logDir,
 		StdoutLogFile: fmt.Sprintf("%s.stdout", req.Task.Name),
 		StderrLogFile: fmt.Sprintf("%s.stderr", req.Task.Name),

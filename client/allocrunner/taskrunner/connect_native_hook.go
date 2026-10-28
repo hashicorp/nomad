@@ -154,8 +154,13 @@ func (connectNativeHook) copyCertificate(source, dir, name string) error {
 	}
 	defer original.Close()
 
-	destination := filepath.Join(dir, name)
-	fd, err := os.Create(destination)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return fmt.Errorf("failed to open secrets dir: %w", err)
+	}
+	defer root.Close()
+
+	fd, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("failed to create secrets/%s: %w", name, err)
 	}
@@ -271,7 +276,13 @@ func (h *connectNativeHook) maybeSetSITokenEnv(dir, task string, env map[string]
 		return nil
 	}
 
-	token, err := os.ReadFile(filepath.Join(dir, sidsTokenFile))
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return fmt.Errorf("failed to open secrets dir for native task %s: %w", task, err)
+	}
+	defer root.Close()
+
+	token, err := root.ReadFile(sidsTokenFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to load SI token for native task %s: %w", task, err)

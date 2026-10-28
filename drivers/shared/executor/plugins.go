@@ -14,6 +14,9 @@ import (
 // ExecutorConfig is the config that Nomad passes to the executor
 type ExecutorConfig struct {
 
+	// AllocDir is the allocation sandbox from which the log writes should not escape
+	AllocDir string
+
 	// LogFile is the file to which Executor logs
 	LogFile string
 

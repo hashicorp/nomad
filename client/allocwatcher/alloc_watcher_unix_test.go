@@ -168,27 +168,37 @@ func TestPrevAlloc_StreamAllocDir_SyminkWriteAttack(t *testing.T) {
 	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
 	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(&buf), newDir)
 
-	// No error expected
-	must.NoError(t, err)
+	must.EqError(t, err, "archive contains symlink that escapes alloc dir")
 
-	// Check if the symlink target outside the alloc dir has not been written
+	// Nothing was written outside the alloc dir or created inside it
 	_, err = os.Stat(outsidePath)
-	must.EqError(t, err, "stat "+outsidePath+": no such file or directory")
+	must.ErrorIs(t, err, os.ErrNotExist)
+	_, err = os.Lstat(filepath.Join(newDir, insidePath))
+	must.ErrorIs(t, err, os.ErrNotExist)
+}
 
-	// Check if the symlink inside the alloc dir has been written
-	_, err = os.Stat(filepath.Join(newDir, insidePath))
+func TestPrevAlloc_StreamAllocDir_NestedRelativeSymlink(t *testing.T) {
+	ci.Parallel(t)
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	must.NoError(t, tw.WriteHeader(&tar.Header{Typeflag: tar.TypeDir, Name: "a/b", Mode: 0700}))
+	must.NoError(t, tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeReg, Name: "a/file", Size: 2, Mode: 0600}))
+	_, err := tw.Write([]byte("hi"))
+	must.NoError(t, err)
+	must.NoError(t, tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeSymlink, Name: "a/b/ok", Linkname: "../file", Mode: 0600}))
+	must.NoError(t, tw.Close())
+
+	newDir := t.TempDir()
+	prevAlloc := &remotePrevAlloc{logger: testlog.HCLogger(t)}
+	err = prevAlloc.streamAllocDir(context.Background(), io.NopCloser(&buf), newDir)
 	must.NoError(t, err)
 
-	// Check if the content of the file inside the alloc dir is correct
-	contentBytes := make([]byte, len(content))
-	f, err := os.Open(filepath.Join(newDir, insidePath))
-	defer func() {
-		must.NoError(t, f.Close())
-	}()
+	got, err := os.ReadFile(filepath.Join(newDir, "a/b/ok"))
 	must.NoError(t, err)
-	n, err := f.Read(contentBytes)
-	must.NoError(t, err)
-	must.Eq(t, content, string(contentBytes[:n]))
+	must.Eq(t, "hi", string(got))
 }
 
 func testTar(dir string) (*bytes.Buffer, error) {

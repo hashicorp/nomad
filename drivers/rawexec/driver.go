@@ -418,6 +418,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	pluginLogFile := filepath.Join(cfg.TaskDir().Dir, "executor.out")
 	executorConfig := &executor.ExecutorConfig{
+		AllocDir: cfg.AllocDir,
 		LogFile:  pluginLogFile,
 		LogLevel: "debug",
 		Compute:  d.compute,

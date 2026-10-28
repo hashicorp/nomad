@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -207,20 +208,23 @@ func (a *AllocDir) Snapshot(w io.Writer) error {
 	tw := tar.NewWriter(w)
 	defer tw.Close()
 
-	walkFn := func(path string, fileInfo os.FileInfo, err error) error {
+	// root is the os.Root for the top level directory currently being
+	// walked, and relRoot is its path relative to the alloc dir.
+	var root *os.Root
+	var relRoot string
+
+	walkFn := func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		fileInfo, err := d.Info()
 		if err != nil {
 			return err
 		}
 
-		// Include the path of the file name relative to the alloc dir
-		// so that we can put the files in the right directories
-		relPath, err := filepath.Rel(a.AllocDir, path)
-		if err != nil {
-			return err
-		}
 		link := ""
 		if fileInfo.Mode()&os.ModeSymlink != 0 {
-			target, err := os.Readlink(path)
+			target, err := root.Readlink(path)
 			if err != nil {
 				return fmt.Errorf("error reading symlink: %v", err)
 			}
@@ -230,22 +234,32 @@ func (a *AllocDir) Snapshot(w io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("error creating file header: %w", err)
 		}
-		hdr.Name = relPath
+		hdr.Name = filepath.Join(relRoot, filepath.FromSlash(path))
 		if err := tw.WriteHeader(hdr); err != nil {
 			return err
 		}
 
-		// If it's a directory or symlink we just write the header into the tar
-		if fileInfo.IsDir() || (fileInfo.Mode()&os.ModeSymlink != 0) {
+		// Only regular files have contents to write
+		if !fileInfo.Mode().IsRegular() {
 			return nil
 		}
 
 		// Write the file into the archive
-		file, err := os.Open(path)
+		file, err := root.Open(path)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
+
+		// The entry may have been swapped for a non-regular file (such as a
+		// FIFO) after the walk saw it
+		openInfo, err := file.Stat()
+		if err != nil {
+			return err
+		}
+		if !openInfo.Mode().IsRegular() {
+			return fmt.Errorf("%q changed type during snapshot", path)
+		}
 
 		if _, err := io.Copy(tw, file); err != nil {
 			return err
@@ -256,7 +270,22 @@ func (a *AllocDir) Snapshot(w io.Writer) error {
 	// Walk through all the top level directories and add the files and
 	// directories in the archive
 	for _, path := range rootPaths {
-		if err := filepath.Walk(path, walkFn); err != nil {
+		err := func() error {
+			var err error
+			// Include the path relative to the alloc dir so that we can put
+			// the files in the right directories
+			relRoot, err = filepath.Rel(a.AllocDir, path)
+			if err != nil {
+				return err
+			}
+			root, err = os.OpenRoot(path)
+			if err != nil {
+				return err
+			}
+			defer root.Close()
+			return fs.WalkDir(root.FS(), ".", walkFn)
+		}()
+		if err != nil {
 			allocID := filepath.Base(a.AllocDir)
 			if writeErr := writeError(tw, allocID, err); writeErr != nil {
 				// This could be bad; other side won't know
@@ -288,7 +317,10 @@ func (a *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 	// Move the data directory
 	otherDataDir := filepath.Join(other.ShareDirPath(), SharedDataDir)
 	dataDir := filepath.Join(a.SharedDir, SharedDataDir)
-	if fileInfo, err := os.Stat(otherDataDir); fileInfo != nil && err == nil {
+	if fileInfo, err := os.Lstat(otherDataDir); fileInfo != nil && err == nil {
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to move data dir: %q is a symlink", otherDataDir)
+		}
 		os.Remove(dataDir) // remove an empty data dir if it exists
 		if err := os.Rename(otherDataDir, dataDir); err != nil {
 			return fmt.Errorf("error moving data dir: %w", err)
@@ -300,8 +332,12 @@ func (a *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 		otherTaskDir := filepath.Join(other.AllocDirPath(), task.Name)
 		otherTaskLocal := filepath.Join(otherTaskDir, TaskLocal)
 
-		fileInfo, err := os.Stat(otherTaskLocal)
+		// a symlink here from a migrated allocdir could point outside the sandbox
+		fileInfo, err := os.Lstat(otherTaskLocal)
 		if fileInfo != nil && err == nil {
+			if fileInfo.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("refusing to move task %q local dir: %q is a symlink", task.Name, otherTaskLocal)
+			}
 			// TaskDirs haven't been built yet, so create it
 			newTaskDir := filepath.Join(a.AllocDir, task.Name)
 			if err := os.MkdirAll(newTaskDir, fileMode777); err != nil {

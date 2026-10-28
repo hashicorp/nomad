@@ -4,7 +4,9 @@
 package hostnames
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -60,13 +62,37 @@ ff02::3 ip6-allhosts
 
 	path := filepath.Join(taskDir, "hosts")
 
+	root, err := os.OpenRoot(taskDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open task dir: %w", err)
+	}
+	defer root.Close()
+
 	// tasks within an alloc should be able to share and modify the file, so
-	// only write to it if it doesn't exist
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		err := os.WriteFile(path, []byte(content.String()), 0644)
-		if err != nil {
+	// only write to it if it doesn't exist. Use Lstat so a symlink at this
+	// path is treated as "exists" and never followed.
+	if _, err := root.Lstat("hosts"); os.IsNotExist(err) {
+		f, err := root.OpenFile("hosts", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+		if err != nil && !os.IsExist(err) {
 			return nil, err
 		}
+		if err == nil {
+			_, werr := io.Copy(f, bytes.NewReader([]byte(content.String())))
+			f.Close()
+			if werr != nil {
+				return nil, werr
+			}
+		}
+	}
+
+	// The container runtime resolves the bind mount source itself, so refuse
+	// to hand it a symlink.
+	info, err := root.Lstat("hosts")
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat hosts file: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("refusing to mount symlinked hosts file %q", path)
 	}
 
 	// Note that we're not setting readonly. The file is in the task dir

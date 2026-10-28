@@ -213,7 +213,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if err != nil {
 		return nil, err
 	}
-	if err := makeExecutable(hostPath); err != nil {
+	if err := makeExecutable(command.TaskDir, hostPath); err != nil {
 		return nil, err
 	}
 
@@ -1043,9 +1043,12 @@ func lookupTaskBin(command *ExecCommand) (string, string, error) {
 func getPathInTaskDir(taskDir, searchDir, bin string) (string, string, error) {
 
 	hostPath := filepath.Join(searchDir, bin)
-	err := filepathIsRegular(hostPath)
+	f, err := statInTaskDir(taskDir, hostPath)
 	if err != nil {
 		return "", "", err
+	}
+	if !f.Mode().Type().IsRegular() {
+		return "", "", fmt.Errorf("path was not a regular file")
 	}
 
 	// Find the path relative to the task directory

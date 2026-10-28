@@ -30,18 +30,21 @@ var (
 	// ossContexts are the oss contexts which are searched to find matches
 	// for a given prefix
 	ossContexts = []structs.Context{
+		// namespaced contexts
 		structs.Allocs,
-		structs.Jobs,
-		structs.Nodes,
-		structs.NodePools,
-		structs.Evals,
 		structs.Deployments,
-		structs.Plugins,
-		structs.Volumes,
+		structs.Evals,
+		structs.HostVolumes,
+		structs.Jobs,
+		structs.Namespaces,
 		structs.ScalingPolicies,
 		structs.Variables,
-		structs.Namespaces,
-		structs.HostVolumes,
+		structs.Volumes,
+
+		// non-namespaced contexts
+		structs.NodePools,
+		structs.Nodes,
+		structs.Plugins,
 	}
 )
 
@@ -382,135 +385,128 @@ func sortSet(matches []fuzzyMatch) {
 // getResourceIter takes a context and returns a memdb iterator specific to
 // that context
 func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix string, ws memdb.WatchSet, store *state.StateStore) (memdb.ResultIterator, error) {
+	var iter memdb.ResultIterator
+	var err error
+
 	switch context {
 	case structs.Jobs:
-		return store.JobsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+		iter, err = store.JobsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Evals:
-		return store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+		iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Allocs:
-		return store.AllocsByIDPrefix(ws, namespace, prefix, state.SortDefault)
-	case structs.Nodes:
-		return store.NodesByIDPrefix(ws, prefix)
-	case structs.NodePools:
-		iter, err := store.NodePoolsByNamePrefix(ws, prefix, state.SortDefault)
-		if err != nil {
-			return nil, err
-		}
-		if aclObj.IsManagement() {
-			return iter, nil
-		}
-		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
+		iter, err = store.AllocsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Deployments:
-		return store.DeploymentsByIDPrefix(ws, namespace, prefix, state.SortDefault)
-	case structs.Plugins:
-		return store.CSIPluginsByIDPrefix(ws, prefix)
+		iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.ScalingPolicies:
-		return store.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
+		iter, err = store.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
 	case structs.Volumes:
-		return store.CSIVolumesByIDPrefix(ws, namespace, prefix)
+		iter, err = store.CSIVolumesByIDPrefix(ws, namespace, prefix)
 	case structs.HostVolumes:
-		return store.HostVolumesByIDPrefix(ws, namespace, prefix, state.SortDefault)
+		iter, err = store.HostVolumesByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Namespaces:
-		iter, err := store.NamespacesByNamePrefix(ws, prefix)
-		if err != nil {
-			return nil, err
-		}
-		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
+		iter, err = store.NamespacesByNamePrefix(ws, prefix)
 	case structs.Variables:
-		iter, err := store.GetVariablesByPrefix(ws, prefix)
-		if err != nil {
-			return nil, err
-		}
-		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
+		iter, err = store.GetVariablesByPrefix(ws, prefix)
+	case structs.Nodes:
+		iter, err = store.NodesByIDPrefix(ws, prefix)
+	case structs.NodePools:
+		iter, err = store.NodePoolsByNamePrefix(ws, prefix, state.SortDefault)
+	case structs.Plugins:
+		iter, err = store.CSIPluginsByIDPrefix(ws, prefix)
 	default:
 		return getEnterpriseResourceIter(context, aclObj, namespace, prefix, ws, store)
 	}
-}
 
-// wildcard is a helper for determining if namespace is '*', used to determine
-// if objects from every namespace should be considered when iterating, and that
-// additional ACL checks will be necessary.
-func wildcard(namespace string) bool {
-	return namespace == structs.AllNamespacesSentinel
+	if err != nil {
+		return nil, err
+	}
+
+	return memdb.NewFilterIterator(iter, aclFilter(aclObj)), nil
 }
 
 func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespace string, ws memdb.WatchSet, store *state.StateStore) (memdb.ResultIterator, error) {
+	var iter memdb.ResultIterator
+	var err error
+
 	switch context {
 	case structs.Jobs:
-		if wildcard(namespace) {
-			iter, err := store.Jobs(ws, state.SortDefault)
-			return nsCapIterFilter(iter, err, aclObj)
+		if isWildcard(namespace) {
+			iter, err = store.Jobs(ws, state.SortDefault)
+		} else {
+			iter, err = store.JobsByNamespace(ws, namespace, state.SortDefault)
 		}
-		return store.JobsByNamespace(ws, namespace, state.SortDefault)
-
 	case structs.Allocs:
-		if wildcard(namespace) {
-			iter, err := store.Allocs(ws, state.SortDefault)
-			return nsCapIterFilter(iter, err, aclObj)
+		if isWildcard(namespace) {
+			iter, err = store.Allocs(ws, state.SortDefault)
+		} else {
+			iter, err = store.AllocsByNamespace(ws, namespace)
 		}
-		return store.AllocsByNamespace(ws, namespace)
-
 	case structs.Variables:
-		if wildcard(namespace) {
-			iter, err := store.Variables(ws)
-			return nsCapIterFilter(iter, err, aclObj)
+		if isWildcard(namespace) {
+			iter, err = store.Variables(ws)
+		} else {
+			iter, err = store.GetVariablesByNamespace(ws, namespace)
 		}
-		return store.GetVariablesByNamespace(ws, namespace)
+	case structs.Namespaces:
+		iter, err = store.Namespaces(ws)
 
 	case structs.Nodes:
-		if wildcard(namespace) {
-			iter, err := store.Nodes(ws)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.Nodes(ws)
+		iter, err = store.Nodes(ws)
 
 	case structs.NodePools:
 		iter, err := store.NodePools(ws, state.SortDefault)
 		if err != nil {
 			return nil, err
 		}
-
 		if aclObj.IsManagement() {
 			return iter, nil
 		}
 		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
 
 	case structs.Plugins:
-		if wildcard(namespace) {
-			iter, err := store.CSIPlugins(ws)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.CSIPlugins(ws)
-
-	case structs.Namespaces:
-		iter, err := store.Namespaces(ws)
-		return nsCapIterFilter(iter, err, aclObj)
+		iter, err = store.CSIPlugins(ws)
 
 	default:
 		return getEnterpriseFuzzyResourceIter(context, aclObj, namespace, ws, store)
 	}
-}
 
-// nsCapIterFilter wraps an iterator with a filter for removing items that the token
-// does not have permission to read (whether missing the capability or in the
-// wrong namespace).
-func nsCapIterFilter(iter memdb.ResultIterator, err error, aclObj *acl.ACL) (memdb.ResultIterator, error) {
 	if err != nil {
 		return nil, err
 	}
-	return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
+	return memdb.NewFilterIterator(iter, aclFilter(aclObj)), nil
 }
 
-// nsCapFilter produces a memdb.FilterFunc for removing objects not accessible
+// isWildcard is a helper for determining if namespace is '*', used to determine
+// if objects from every namespace should be considered when iterating
+func isWildcard(namespace string) bool {
+	return namespace == structs.AllNamespacesSentinel
+}
+
+// aclFilter produces a memdb.FilterFunc for removing objects not accessible
 // by aclObj during a table scan.
-func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
+func aclFilter(aclObj *acl.ACL) memdb.FilterFunc {
 	return func(v any) bool {
 		switch t := v.(type) {
 		case *structs.Job:
-			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
+			return !(aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob) ||
+				aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityListJobs))
 
 		case *structs.Allocation:
+			return !(aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob) ||
+				aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityListJobs))
+
+		case *structs.Deployment:
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
+		case *structs.Evaluation:
+			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
+		case *structs.ScalingPolicy:
+			return !aclObj.AllowNsOp(t.Target["Namespace"], acl.NamespaceCapabilityListScalingPolicies)
+		case *structs.CSIVolume:
+			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
+		case *structs.HostVolume:
+			return !aclObj.AllowNsOp(t.Namespace,
+
+				acl.NamespaceCapabilityReadJob)
 
 		case *structs.VariableEncrypted:
 			return !aclObj.AllowVariableSearch(t.Namespace)
@@ -523,6 +519,9 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 
 		case *structs.CSIPlugin:
 			return !aclObj.AllowPluginRead()
+
+		case *structs.NodePool:
+			return !aclObj.AllowNodePoolOperation(t.Name, acl.NodePoolCapabilityRead)
 
 		default:
 			return false
@@ -881,7 +880,7 @@ func expandContext(context structs.Context) []structs.Context {
 // validation will be performed while scanning objects instead, where we have finally
 // have a concrete namespace to work with.
 func sufficientFuzzySearchPerms(aclObj *acl.ACL, namespace string, context structs.Context) bool {
-	if wildcard(namespace) {
+	if isWildcard(namespace) {
 		return true
 	}
 	return sufficientSearchPerms(aclObj, namespace, context)
@@ -961,7 +960,7 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 // perform the ACL validation while scanning objects, where we have a concrete
 // namespace to work with.
 func filteredFuzzySearchContexts(aclObj *acl.ACL, namespace string, context structs.Context) []structs.Context {
-	if wildcard(namespace) {
+	if isWildcard(namespace) {
 		return expandContext(context)
 	}
 	return filteredSearchContexts(aclObj, namespace, context)
