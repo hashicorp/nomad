@@ -36,6 +36,11 @@ binary {
         // Exists in the "golang.org/x/crypto/openpgp" package which is not used
         // by Nomad and is deprecated and unmaintained.
         "GO-2026-5932",
+
+        // github.com/go-jose/go-jose/v3 does not have a fixed version, so Nomad
+        // needs to migrate from this library which needs to be roadmapped and
+        // prioritized accordingly.
+        "GHSA-mgcc-cww5-fp2q",
       ]
     }
   }
