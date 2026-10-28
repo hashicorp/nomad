@@ -1,3 +1,24 @@
+## 1.10.18 Enterprise (October 28, 2026)
+
+SECURITY:
+
+* client: Harden file creation for log files and dispatch payloads [[GH-28605](https://github.com/hashicorp/nomad/issues/28605)]
+* client: Refuse to migrate task directories that have been symlinked [[GH-28605](https://github.com/hashicorp/nomad/issues/28605)]
+* security: Fixed a bug where the Prefix Search API allowed enumerating IDs for jobs, deployments, allocs, evals, scaling policies, and volume from disallowed namespaces [[GH-28597](https://github.com/hashicorp/nomad/issues/28597)]
+* security: Fixed a bug where the Read Dynamic Host Volume API allowed reading host volume metadata from disallowed namespaces [[GH-28597](https://github.com/hashicorp/nomad/issues/28597)]
+* security: Fixed a bug where the Read Scaling Policy API allowed reading a policy from disallowed namespaces [[GH-28597](https://github.com/hashicorp/nomad/issues/28597)]
+
+BUG FIXES:
+
+* build: Update busybox image used for container final image to 1.38.0 [[GH-28622](https://github.com/hashicorp/nomad/issues/28622)]
+* build: Updated Go to v1.27.2 [[GH-28647](https://github.com/hashicorp/nomad/issues/28647)]
+* build: Updated Go to v1.27.3 [[GH-28679](https://github.com/hashicorp/nomad/issues/28679)]
+* cli: Fixed a bug in the  command that could panic the CLI on invalid inputs [[GH-28630](https://github.com/hashicorp/nomad/issues/28630)]
+* cli: Fixed a bug where additional capabilities could be added to the CSI  command output when the  flag was used that were not supported by the plugin [[GH-28626](https://github.com/hashicorp/nomad/issues/28626)]
+* client: Fixed incorrect CPU fingerprinting of Apple M4 chips [[GH-28627](https://github.com/hashicorp/nomad/issues/28627)]
+* scheduler: prevent extraneous canary allocation creation
+* ui: Fixed a bug where the CPU utilization graph for allocations and tasks that reserve CPU with  showed 0% and 0 MHz Total [[GH-28569](https://github.com/hashicorp/nomad/issues/28569)]
+
 ## 1.10.17 Enterprise (September 18, 2026)
 
 IMPROVEMENTS:
