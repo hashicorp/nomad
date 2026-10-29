@@ -55,9 +55,9 @@ var (
 )
 
 func (h *cpuPartsHook) Prerun(_ *taskenv.TaskEnv) error {
-	return h.partitions.Reserve(h.reservations)
+	return h.partitions.Reserve(h.allocID, h.reservations)
 }
 
 func (h *cpuPartsHook) Postrun() error {
-	return h.partitions.Release(h.reservations)
+	return h.partitions.Release(h.allocID)
 }

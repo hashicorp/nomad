@@ -8,11 +8,18 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 )
 
-// A Partition is used to track reserved vs. shared cpu cores.
+// A Partition is used to track reserved vs. shared cpu cores. Reservations
+// are tracked per allocation, identified by allocation ID, so that the cores
+// of one allocation are only returned to the shared pool once no other
+// allocation holds them.
 type Partition interface {
-	Restore(*idset.Set[hw.CoreID])
-	Reserve(*idset.Set[hw.CoreID]) error
-	Release(*idset.Set[hw.CoreID]) error
+	// Restore records the cores held by an allocation that was already
+	// running when the client started, without touching the cgroups.
+	Restore(allocID string, cores *idset.Set[hw.CoreID])
+	// Reserve records the cores held by an allocation and updates the cgroups.
+	Reserve(allocID string, cores *idset.Set[hw.CoreID]) error
+	// Release forgets the cores held by an allocation and updates the cgroups.
+	Release(allocID string) error
 }
 
 // SharePartition is the name of the cgroup containing cgroups for tasks
