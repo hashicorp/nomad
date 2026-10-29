@@ -59,6 +59,7 @@ import (
 	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
@@ -484,6 +485,14 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		MinUGID: cfg.Users.MinDynamicUser,
 		MaxUGID: cfg.Users.MaxDynamicUser,
 	})
+
+	// Task sockets can only be labeled for confined tasks when the host has a
+	// container SELinux policy.
+	if cfg.SELinux.TaskSocketsLabeled() {
+		if _, err := users.TaskSocketLabel(); err != nil {
+			c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
+		}
+	}
 
 	// Create the cpu core partition manager
 	c.partitions = cgroupslib.GetPartition(c.logger.Named("partitions"),

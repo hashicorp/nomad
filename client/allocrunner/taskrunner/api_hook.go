@@ -35,6 +35,9 @@ type apiHook struct {
 	srv         config.APIListenerRegistrar
 	logger      hclog.Logger
 
+	// selinuxLabel creates the socket with the container SELinux type.
+	selinuxLabel bool
+
 	// Lock listener as it is updated from multiple hooks.
 	lock sync.Mutex
 
@@ -42,10 +45,11 @@ type apiHook struct {
 	ln net.Listener
 }
 
-func newAPIHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, logger hclog.Logger) *apiHook {
+func newAPIHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, logger hclog.Logger, selinuxLabel bool) *apiHook {
 	h := &apiHook{
-		shutdownCtx: shutdownCtx,
-		srv:         srv,
+		shutdownCtx:  shutdownCtx,
+		srv:          srv,
+		selinuxLabel: selinuxLabel,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -65,7 +69,7 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 	}
 
 	udsPath := apiSocketPath(req.TaskDir)
-	udsln, err := users.SocketFileFor(h.logger, udsPath, req.Task.User)
+	udsln, err := users.SocketFileFor(h.logger, udsPath, req.Task.User, h.selinuxLabel)
 	if err != nil {
 		// Soft-fail and let the task fail if it requires the task api.
 		h.logger.Warn("error creating task api socket", "path", udsPath, "error", err)

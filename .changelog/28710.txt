@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Added the `client.selinux.label_task_sockets` option to create the Consul and Task API sockets with the container SELinux type, so SELinux-confined tasks can use them without `label=disable`
+```

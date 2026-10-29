@@ -59,7 +59,7 @@ func TestWriteFileFor_Windows(t *testing.T) {
 func TestSocketFileFor_Windows(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "api.sock")
 
-	ln, err := SocketFileFor(testlog.HCLogger(t), path, "Administrator")
+	ln, err := SocketFileFor(testlog.HCLogger(t), path, "Administrator", false)
 	must.NoError(t, err)
 	must.NotNil(t, ln)
 	defer ln.Close()

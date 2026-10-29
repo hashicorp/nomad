@@ -98,6 +98,7 @@ var basicConfig = &Config{
 		BridgeNetworkName:       "custom_bridge_name",
 		BridgeNetworkSubnet:     "custom_bridge_subnet",
 		BridgeNetworkSubnetIPv6: "custom_bridge_subnet_ipv6",
+		SELinux:                 &config.SELinuxConfig{LabelTaskSockets: new(true)},
 		Fingerprinters: []*client.Fingerprint{
 			{
 				Name:             "env_aws",

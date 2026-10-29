@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -63,6 +64,7 @@ func newConsulGRPCSocketHook(
 	allocDir allocdir.Interface,
 	configs map[string]*config.ConsulConfig,
 	nodeAttrs map[string]string,
+	selinuxLabel bool,
 ) *consulGRPCSocketHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
@@ -91,6 +93,7 @@ func newConsulGRPCSocketHook(
 			allocDir,
 			configs[clusterName],
 			consulGRPCPort,
+			selinuxLabel,
 		)
 	}
 
@@ -196,6 +199,9 @@ type grpcSocketProxy struct {
 	// specify a gRPC config address.
 	consulGRPCFallbackPort string
 
+	// selinuxLabel creates the socket with the container SELinux type.
+	selinuxLabel bool
+
 	ctx     context.Context
 	cancel  func()
 	doneCh  chan struct{}
@@ -207,6 +213,7 @@ func newGRPCSocketProxy(
 	allocDir allocdir.Interface,
 	config *config.ConsulConfig,
 	consulGRPCFallbackPort string,
+	selinuxLabel bool,
 ) *grpcSocketProxy {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -214,6 +221,7 @@ func newGRPCSocketProxy(
 		allocDir:               allocDir,
 		config:                 config,
 		consulGRPCFallbackPort: consulGRPCFallbackPort,
+		selinuxLabel:           selinuxLabel,
 		ctx:                    ctx,
 		cancel:                 cancel,
 		doneCh:                 make(chan struct{}),
@@ -285,7 +293,7 @@ func (p *grpcSocketProxy) run() error {
 		}
 	}
 
-	listener, err := net.Listen("unix", hostGRPCSocketPath)
+	listener, err := users.ListenTaskSocket(hostGRPCSocketPath, p.selinuxLabel)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
 	}

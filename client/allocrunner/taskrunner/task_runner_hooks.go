@@ -103,7 +103,7 @@ func (tr *TaskRunner) initHooks() {
 		newArtifactHook(tr, tr.getter, hookLogger),
 		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, tr.clientConfig.PublishAllocationMetrics, hookLogger),
 		newDeviceHook(tr.devicemanager, hookLogger),
-		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
+		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger, tr.clientConfig.SELinux.TaskSocketsLabeled()),
 		newWranglerHook(tr.wranglers, task.Name, alloc.ID, task.UsesCores(), hookLogger),
 	}...)
 

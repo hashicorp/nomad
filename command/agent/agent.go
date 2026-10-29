@@ -1155,6 +1155,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Drain = drainConfig
 
 	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
+	conf.SELinux = clientconfig.SELinuxConfigFromAgent(agentConfig.Client.SELinux)
 
 	// Iterate the fingerprinter configs and populate the client mapping. The
 	// validation function returns a suitable error that can be returned without

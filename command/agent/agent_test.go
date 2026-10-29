@@ -817,6 +817,21 @@ func TestConvertClientConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "selinux task socket labels default",
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.False(t, cc.SELinux.TaskSocketsLabeled())
+			},
+		},
+		{
+			name: "selinux task socket labels enabled",
+			modConfig: func(c *Config) {
+				c.Client.SELinux = &config.SELinuxConfig{LabelTaskSockets: new(true)}
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.True(t, cc.SELinux.TaskSocketsLabeled())
+			},
+		},
+		{
 			name: "rpc dial timeout default",
 			assert: func(t *testing.T, cc *clientconfig.Config) {
 				must.Eq(t, 10*time.Second, cc.RPCDialTimeout)

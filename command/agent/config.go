@@ -446,6 +446,9 @@ type ClientConfig struct {
 	// Users is used to configure parameters around operating system users.
 	Users *config.UsersConfig `hcl:"users"`
 
+	// SELinux configures how the client works with SELinux.
+	SELinux *config.SELinuxConfig `hcl:"selinux"`
+
 	// NodeMaxAllocs sets the maximum number of allocations per node
 	// Defaults to 0 and ignored if unset.
 	NodeMaxAllocs int `hcl:"node_max_allocs"`
@@ -485,6 +488,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.Artifact = c.Artifact.Copy()
 	nc.Drain = c.Drain.Copy()
 	nc.Users = c.Users.Copy()
+	nc.SELinux = c.SELinux.Copy()
 	nc.Fingerprinters = helper.CopySlice(c.Fingerprinters)
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
@@ -3006,6 +3010,7 @@ func (c *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	result.Artifact = c.Artifact.Merge(b.Artifact)
 	result.Drain = c.Drain.Merge(b.Drain)
 	result.Users = c.Users.Merge(b.Users)
+	result.SELinux = c.SELinux.Merge(b.SELinux)
 
 	if b.NodeMaxAllocs != 0 {
 		result.NodeMaxAllocs = b.NodeMaxAllocs

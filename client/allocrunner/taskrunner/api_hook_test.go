@@ -47,7 +47,7 @@ func TestAPIHook_SoftFail(t *testing.T) {
 	ctx := context.Background()
 	srv := testAPIListenerRegistrar{}
 	logger := testlog.HCLogger(t)
-	h := newAPIHook(ctx, srv, logger)
+	h := newAPIHook(ctx, srv, logger, false)
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{}, // needs to be non-nil for Task.User lookup
@@ -107,7 +107,7 @@ func TestAPIHook_Ok(t *testing.T) {
 
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	h := newAPIHook(ctx, srv, logger)
+	h := newAPIHook(ctx, srv, logger, false)
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{
