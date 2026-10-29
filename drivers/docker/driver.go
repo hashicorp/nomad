@@ -2014,16 +2014,39 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 		_ = resp.CloseWrite()
 	}()
 
+	// Docker sends the HTTP 101 upgrade response before ContainerExecStart is
+	// called, so an ExecInspect immediately after ExecAttach may return
+	// Running=false with Pid=0 before the process has started. The moby client
+	// maps a null exit code to 0, making this pre-start state indistinguishable
+	// from an exit-0 completion. Retry briefly to let the process start.
+	// See https://github.com/hashicorp/nomad/issues/28671
+	const (
+		execStartupRetries      = 10
+		execStartupRetryInterval = 5 * time.Millisecond
+	)
 	exitCode := 999
+	startupRetries := 0
 	for {
 		inspect, err := client.ExecInspect(ctx, exec.ID, mclient.ExecInspectOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to inspect exec: %v", err)
 		}
 
-		running := inspect.Running
-		if running {
+		if inspect.Running {
+			startupRetries = execStartupRetries // process started; disable startup guard
 			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		// If PID is still 0 and the process has not been seen running yet,
+		// we may be in the pre-start window. Retry up to execStartupRetries times.
+		if inspect.Pid == 0 && startupRetries < execStartupRetries {
+			startupRetries++
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(execStartupRetryInterval):
+			}
 			continue
 		}
 
