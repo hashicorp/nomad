@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -51,6 +51,7 @@ func newConsulHTTPSocketHook(
 	alloc *structs.Allocation,
 	allocDir allocdir.Interface,
 	configs map[string]*config.ConsulConfig,
+	selinuxLabel bool,
 ) *consulHTTPSockHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
@@ -67,6 +68,7 @@ func newConsulHTTPSocketHook(
 			logger,
 			allocDir,
 			configs[clusterName],
+			selinuxLabel,
 		)
 	}
 
@@ -165,6 +167,9 @@ type httpSocketProxy struct {
 	allocDir allocdir.Interface
 	config   *config.ConsulConfig
 
+	// selinuxLabel creates the socket with the container SELinux type.
+	selinuxLabel bool
+
 	ctx     context.Context
 	cancel  func()
 	doneCh  chan struct{}
@@ -175,15 +180,17 @@ func newHTTPSocketProxy(
 	logger hclog.Logger,
 	allocDir allocdir.Interface,
 	config *config.ConsulConfig,
+	selinuxLabel bool,
 ) *httpSocketProxy {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &httpSocketProxy{
-		logger:   logger,
-		allocDir: allocDir,
-		config:   config,
-		ctx:      ctx,
-		cancel:   cancel,
-		doneCh:   make(chan struct{}),
+		logger:       logger,
+		allocDir:     allocDir,
+		config:       config,
+		selinuxLabel: selinuxLabel,
+		ctx:          ctx,
+		cancel:       cancel,
+		doneCh:       make(chan struct{}),
 	}
 }
 
@@ -223,7 +230,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 		return err
 	}
 
-	listener, err := net.Listen("unix", hostHTTPSockPath)
+	listener, err := users.ListenTaskSocket(hostHTTPSockPath, p.selinuxLabel)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
 	}

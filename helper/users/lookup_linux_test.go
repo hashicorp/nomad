@@ -85,7 +85,7 @@ func TestSocketFileFor_Linux(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "api.sock")
 
 	logger := testlog.HCLogger(t)
-	ln, err := SocketFileFor(logger, path, "nobody")
+	ln, err := SocketFileFor(logger, path, "nobody", false)
 	must.NoError(t, err)
 	must.NotNil(t, ln)
 	t.Cleanup(func() {

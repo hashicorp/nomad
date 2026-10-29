@@ -130,15 +130,16 @@ func writeFileFor(root *os.Root, path string, contents []byte, username string) 
 
 // SocketFileFor creates a unix domain socket file on the specified path and,
 // if possible, makes it usable by only the specified user. Failing that it
-// will leave the socket open to all users. Non-fatal errors are logged.
+// will leave the socket open to all users. Non-fatal errors are logged. With
+// selinuxLabel set, confined containers can connect to it (see ListenTaskSocket).
 //
 // See WriteFileFor if writing a regular file.
-func SocketFileFor(logger hclog.Logger, path, username string) (net.Listener, error) {
+func SocketFileFor(logger hclog.Logger, path, username string, selinuxLabel bool) (net.Listener, error) {
 	if err := os.RemoveAll(path); err != nil {
 		logger.Warn("error removing socket", "path", path, "error", err)
 	}
 
-	udsln, err := net.Listen("unix", path)
+	udsln, err := ListenTaskSocket(path, selinuxLabel)
 	if err != nil {
 		return nil, err
 	}
