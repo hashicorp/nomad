@@ -41,6 +41,7 @@ func (o *OperatorSchedulerSetConfig) AutocompleteFlags() complete.Flags {
 			"-scheduler-algorithm": complete.PredictSet(
 				string(api.SchedulerAlgorithmBinpack),
 				string(api.SchedulerAlgorithmSpread),
+				string(api.SchedulerAlgorithmSpreadCPUOnly),
 			),
 			"-memory-oversubscription":           complete.PredictSet("true", "false"),
 			"-reject-job-registration":           complete.PredictSet("true", "false"),

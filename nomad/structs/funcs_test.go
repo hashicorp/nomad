@@ -669,10 +669,11 @@ func TestScoreFitBinPack(t *testing.T) {
 	}
 
 	cases := []struct {
-		name         string
-		flattened    AllocatedTaskResources
-		binPackScore float64
-		spreadScore  float64
+		name           string
+		flattened      AllocatedTaskResources
+		binPackScore   float64
+		spreadScore    float64
+		spreadCPUScore float64
 	}{
 		{
 			name: "almost filled node, but with just enough hole",
@@ -680,8 +681,9 @@ func TestScoreFitBinPack(t *testing.T) {
 				Cpu:    AllocatedCpuResources{CpuShares: 2048},
 				Memory: AllocatedMemoryResources{MemoryMB: 4096},
 			},
-			binPackScore: 18,
-			spreadScore:  0,
+			binPackScore:   18,
+			spreadScore:    0,
+			spreadCPUScore: 0,
 		},
 		{
 			name: "unutilized node",
@@ -689,17 +691,39 @@ func TestScoreFitBinPack(t *testing.T) {
 				Cpu:    AllocatedCpuResources{CpuShares: 0},
 				Memory: AllocatedMemoryResources{MemoryMB: 0},
 			},
-			binPackScore: 0,
-			spreadScore:  18,
+			binPackScore:   0,
+			spreadScore:    18,
+			spreadCPUScore: 18,
 		},
 		{
-			name: "mid-case scnario",
+			name: "mid-case scenario",
 			flattened: AllocatedTaskResources{
 				Cpu:    AllocatedCpuResources{CpuShares: 1024},
 				Memory: AllocatedMemoryResources{MemoryMB: 2048},
 			},
-			binPackScore: 13.675,
-			spreadScore:  4.325,
+			binPackScore:   13.675,
+			spreadScore:    4.325,
+			spreadCPUScore: 4.325,
+		},
+		{
+			name: "mid-cpu min-mem scenario",
+			flattened: AllocatedTaskResources{
+				Cpu:    AllocatedCpuResources{CpuShares: 1024},
+				Memory: AllocatedMemoryResources{MemoryMB: 1024},
+			},
+			binPackScore:   11.214,
+			spreadScore:    6.785,
+			spreadCPUScore: 4.325, // same as mid-case for cpu
+		},
+		{
+			name: "min-cpu mid-mem scenario",
+			flattened: AllocatedTaskResources{
+				Cpu:    AllocatedCpuResources{CpuShares: 512},
+				Memory: AllocatedMemoryResources{MemoryMB: 2048},
+			},
+			binPackScore:   11.214,
+			spreadScore:    6.785,
+			spreadCPUScore: 9.246, // higher because more cpu free
 		},
 	}
 
@@ -712,6 +736,9 @@ func TestScoreFitBinPack(t *testing.T) {
 
 			spreadScore := ScoreFitSpread(node, util)
 			require.InDelta(t, c.spreadScore, spreadScore, 0.001, "spread score")
+
+			spreadCPUScore := ScoreFitSpreadCPUOnly(node, util)
+			require.InDelta(t, c.spreadCPUScore, spreadCPUScore, 0.001, "spread_cpu score")
 
 			require.InDelta(t, 18, binPackScore+spreadScore, 0.001, "score sum")
 		})
