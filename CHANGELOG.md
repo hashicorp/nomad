@@ -1,3 +1,17 @@
+## 2.1.1 (October 29, 2026)
+
+SECURITY:
+
+* client: Harden file creation for log files and dispatch payloads [[GH-28605](https://github.com/hashicorp/nomad/issues/28605)]
+* client: Refuse to migrate task directories that have been symlinked [[GH-28605](https://github.com/hashicorp/nomad/issues/28605)]
+* security: Fixed a bug where the Prefix Search API allowed enumerating IDs for jobs, deployments, allocs, evals, scaling policies, and volume from disallowed namespaces [[GH-28597](https://github.com/hashicorp/nomad/issues/28597)]
+* security: Fixed a bug where the Read Dynamic Host Volume API allowed reading host volume metadata from disallowed namespaces [[GH-28597](https://github.com/hashicorp/nomad/issues/28597)]
+* security: Fixed a bug where the Read Scaling Policy API allowed reading a policy from disallowed namespaces [[GH-28597](https://github.com/hashicorp/nomad/issues/28597)]
+
+BUG FIXES:
+
+* batch queues: fixes an issue with the constraint timeout immediately timing out [[GH-28687](https://github.com/hashicorp/nomad/issues/28687)]
+
 ## 2.1.0 (October 28, 2026)
 
 FEATURES:
