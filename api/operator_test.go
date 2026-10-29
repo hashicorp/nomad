@@ -53,33 +53,41 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	c, s := makeClient(t, nil, nil)
 	defer s.Stop()
 
-	newSchedulerConfig := SchedulerConfiguration{
-		SchedulerAlgorithm: SchedulerAlgorithmSpread,
-		PreemptionConfig: PreemptionConfig{
-			SystemSchedulerEnabled:   true,
-			SysBatchSchedulerEnabled: true,
-			BatchSchedulerEnabled:    true,
-			ServiceSchedulerEnabled:  true,
-		},
-		MemoryOversubscriptionEnabled: true,
-		RejectJobRegistration:         true,
-		PauseEvalBroker:               true,
-		NodeLimitForFeasibilityChecks: 123,
+	algos := []SchedulerAlgorithm{
+		SchedulerAlgorithmBinpack,
+		SchedulerAlgorithmSpread,
+		SchedulerAlgorithmSpreadCPUOnly,
 	}
 
-	schedulerConfigUpdateResp, _, err := c.Operator().SchedulerSetConfiguration(&newSchedulerConfig, nil)
-	must.NoError(t, err)
-	must.True(t, schedulerConfigUpdateResp.Updated)
+	for _, algo := range algos {
+		newSchedulerConfig := SchedulerConfiguration{
+			SchedulerAlgorithm: algo,
+			PreemptionConfig: PreemptionConfig{
+				SystemSchedulerEnabled:   true,
+				SysBatchSchedulerEnabled: true,
+				BatchSchedulerEnabled:    true,
+				ServiceSchedulerEnabled:  true,
+			},
+			MemoryOversubscriptionEnabled: true,
+			RejectJobRegistration:         true,
+			PauseEvalBroker:               true,
+			NodeLimitForFeasibilityChecks: 123,
+		}
 
-	// We can't exactly predict the query meta responses, so we test fields individually.
-	schedulerConfig, _, err := c.Operator().SchedulerGetConfiguration(nil)
-	must.NoError(t, err)
-	must.Eq(t, SchedulerAlgorithmSpread, schedulerConfig.SchedulerConfig.SchedulerAlgorithm)
-	must.True(t, schedulerConfig.SchedulerConfig.PauseEvalBroker)
-	must.True(t, schedulerConfig.SchedulerConfig.RejectJobRegistration)
-	must.True(t, schedulerConfig.SchedulerConfig.MemoryOversubscriptionEnabled)
-	must.Eq(t, schedulerConfig.SchedulerConfig.PreemptionConfig, newSchedulerConfig.PreemptionConfig)
-	must.Eq(t, schedulerConfig.SchedulerConfig.NodeLimitForFeasibilityChecks, newSchedulerConfig.NodeLimitForFeasibilityChecks)
+		schedulerConfigUpdateResp, _, err := c.Operator().SchedulerSetConfiguration(&newSchedulerConfig, nil)
+		must.NoError(t, err)
+		must.True(t, schedulerConfigUpdateResp.Updated)
+
+		// We can't exactly predict the query meta responses, so we test fields individually.
+		schedulerConfig, _, err := c.Operator().SchedulerGetConfiguration(nil)
+		must.NoError(t, err)
+		must.Eq(t, algo, schedulerConfig.SchedulerConfig.SchedulerAlgorithm)
+		must.True(t, schedulerConfig.SchedulerConfig.PauseEvalBroker)
+		must.True(t, schedulerConfig.SchedulerConfig.RejectJobRegistration)
+		must.True(t, schedulerConfig.SchedulerConfig.MemoryOversubscriptionEnabled)
+		must.Eq(t, schedulerConfig.SchedulerConfig.PreemptionConfig, newSchedulerConfig.PreemptionConfig)
+		must.Eq(t, schedulerConfig.SchedulerConfig.NodeLimitForFeasibilityChecks, newSchedulerConfig.NodeLimitForFeasibilityChecks)
+	}
 }
 
 func TestOperator_AutopilotState(t *testing.T) {
