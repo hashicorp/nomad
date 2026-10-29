@@ -774,6 +774,40 @@ func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image
 	return nil
 }
 
+// addGeneratedFileMount mounts a file the driver generates for the task, such
+// as /etc/hosts or /etc/resolv.conf. The mounts API cannot relabel, so when an
+// SELinux label is configured the file is a bind like the alloc, local and
+// secrets dirs and gets the same label.
+func (d *Driver) addGeneratedFileMount(hostConfig *containerapi.HostConfig, m *drivers.MountConfig) {
+	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
+		hostConfig.Binds = append(hostConfig.Binds, mountConfigBind(m, selinuxLabel))
+		return
+	}
+	hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
+		Target:   m.TaskPath,
+		Source:   m.HostPath,
+		Type:     "bind",
+		ReadOnly: m.Readonly,
+		BindOptions: &mount.BindOptions{
+			Propagation: mount.Propagation(m.PropagationMode),
+		},
+	})
+}
+
+// mountConfigBind returns m as a "src:dst:opts" bind with the SELinux label
+// appended to its options.
+func mountConfigBind(m *drivers.MountConfig, selinuxLabel string) string {
+	var opts []string
+	if m.Readonly {
+		opts = append(opts, "ro")
+	}
+	if m.PropagationMode != "" {
+		opts = append(opts, m.PropagationMode)
+	}
+	opts = append(opts, selinuxLabel)
+	return fmt.Sprintf("%s:%s:%s", m.HostPath, m.TaskPath, strings.Join(opts, ","))
+}
+
 func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
 	taskLocalBindVolume := driverConfig.VolumeDriver == ""
 	if !d.config.Volumes.Enabled && !taskLocalBindVolume {
@@ -1308,15 +1342,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			// erase the extra_hosts field if we have a mount so we don't get
 			// conflicting options error from dockerd
 			driverConfig.ExtraHosts = nil
-			hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-				Target:   etcHostMount.TaskPath,
-				Source:   etcHostMount.HostPath,
-				Type:     "bind",
-				ReadOnly: etcHostMount.Readonly,
-				BindOptions: &mount.BindOptions{
-					Propagation: mount.Propagation(etcHostMount.PropagationMode),
-				},
-			})
+			d.addGeneratedFileMount(hostConfig, etcHostMount)
 		}
 	}
 
@@ -1328,15 +1354,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		if err != nil {
 			return c, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
 		}
-		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-			Target:   dnsMount.TaskPath,
-			Source:   dnsMount.HostPath,
-			Type:     "bind",
-			ReadOnly: dnsMount.Readonly,
-			BindOptions: &mount.BindOptions{
-				Propagation: mount.Propagation(dnsMount.PropagationMode),
-			},
-		})
+		d.addGeneratedFileMount(hostConfig, dnsMount)
 	} else {
 		if len(driverConfig.DNSSearchDomains) > 0 {
 			hostConfig.DNSSearch = driverConfig.DNSSearchDomains
