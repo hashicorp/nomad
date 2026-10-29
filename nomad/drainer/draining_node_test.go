@@ -89,6 +89,22 @@ func TestDrainingNode_Table(t *testing.T) {
 			},
 		},
 		{
+			name:      "ServiceDesiredStopClientRunning",
+			isDone:    false,
+			remaining: 0,
+			running:   1,
+			setup: func(t *testing.T, dn *drainingNode) {
+				alloc := mock.Alloc()
+				alloc.NodeID = dn.node.ID
+				require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+
+				alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, []*structs.Allocation{alloc}))
+			},
+		},
+		{
 			name:      "System",
 			isDone:    true,
 			remaining: 1,
