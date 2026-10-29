@@ -1,0 +1,3 @@
+```release-note:bug
+batch queues: fixes an issue with the constraint timeout immediately timing out
+```
