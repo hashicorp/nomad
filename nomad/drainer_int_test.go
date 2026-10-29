@@ -306,6 +306,104 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 	waitForNodeDrainComplete(t, store, n1.ID, nil, 3, "")
 }
 
+// TestDrainer_DesiredStopClientRunning_NoDeadline asserts that a drain with no
+// deadline completes when an alloc that was already desired-stop but still
+// running on the client when the drain started becomes client-terminal.
+func TestDrainer_DesiredStopClientRunning_NoDeadline(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanupSrv := TestServer(t, nil)
+	defer cleanupSrv()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
+	store := srv.State()
+
+	// Create a node
+	n1 := mock.Node()
+	nodeReg := &structs.NodeRegisterRequest{
+		Node:         n1,
+		WriteRequest: structs.WriteRequest{Region: "global"},
+	}
+	var nodeResp structs.NodeUpdateResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.Register", nodeReg, &nodeResp))
+
+	// Create a job that runs on it
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	req := &structs.JobRegisterRequest{
+		Job: job,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var resp structs.JobRegisterResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
+	must.Positive(t, resp.Index)
+
+	// Wait for the allocation to be placed and mark it running on the client
+	waitForPlacedAllocs(t, store, n1.ID, 1)
+	allocs, err := store.AllocsByNode(nil, n1.ID)
+	must.NoError(t, err)
+	alloc := allocs[0].Copy()
+	alloc.ClientStatus = structs.AllocClientStatusRunning
+	allocReq := &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{alloc},
+		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: n1.SecretID},
+	}
+	var allocResp structs.GenericResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocReq, &allocResp))
+
+	// Stop the job so the alloc is desired-stop but still running
+	stopReq := &structs.JobDeregisterRequest{
+		JobID: job.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    "global",
+			Namespace: job.Namespace,
+		},
+	}
+	var stopResp structs.JobDeregisterResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Deregister", stopReq, &stopResp))
+	allocs = waitForAllocsStop(t, store, n1.ID, nil)
+	must.Len(t, 1, allocs)
+	must.Eq(t, structs.AllocClientStatusRunning, allocs[0].ClientStatus)
+
+	// Drain the node with no deadline
+	drainReq := &structs.NodeUpdateDrainRequest{
+		NodeID:        n1.ID,
+		DrainStrategy: &structs.DrainStrategy{},
+		WriteRequest:  structs.WriteRequest{Region: "global"},
+	}
+	var drainResp structs.NodeDrainUpdateResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateDrain", drainReq, &drainResp))
+
+	// Wait for the node to be tracked; the drain must still be active
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			_, ok := srv.nodeDrainer.TrackedNodes()[n1.ID]
+			return ok
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(50*time.Millisecond),
+	))
+	node, err := store.NodeByID(nil, n1.ID)
+	must.NoError(t, err)
+	must.NotNil(t, node.DrainStrategy)
+
+	// Mark the alloc complete on the client
+	alloc = allocs[0].Copy()
+	alloc.ClientStatus = structs.AllocClientStatusComplete
+	allocReq = &structs.AllocUpdateRequest{
+		Alloc:        []*structs.Allocation{alloc},
+		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: n1.SecretID},
+	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocReq, &allocResp))
+
+	// Wait for the node drain to be marked complete with the events we expect
+	waitForNodeDrainComplete(t, store, n1.ID, nil, 3, "")
+}
+
 func TestDrainer_AllTypes_Deadline_NoGCNode(t *testing.T) {
 	ci.Parallel(t)
 
