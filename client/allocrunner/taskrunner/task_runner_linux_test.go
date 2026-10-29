@@ -1153,6 +1153,45 @@ func TestTaskRunner_Restart_ShutdownDelay(t *testing.T) {
 		func(ev, want *structs.TaskEvent) bool { return ev.Type == want.Type })
 }
 
+// TestTaskRunner_Restart_ShutdownDelay_CtxExpires asserts a restart still kills
+// the task when the caller's ctx expires during shutdown_delay. check_restart
+// restarts tasks with a 10s ctx, so a task with a longer shutdown_delay must
+// not be left running in the pending state.
+func TestTaskRunner_Restart_ShutdownDelay_CtxExpires(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	tg := alloc.Job.TaskGroups[0]
+	tg.RestartPolicy.Delay = 10 * time.Millisecond
+	task := tg.Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]any{
+		"run_for": "1000s",
+	}
+	task.ShutdownDelay = 500 * time.Duration(testutil.TestMultiplier()) * time.Millisecond
+
+	tr, _, cleanup := runTestTaskRunner(t, alloc, task.Name)
+	t.Cleanup(cleanup)
+
+	testWaitForTaskToStart(t, tr)
+
+	// Expire the ctx well before shutdown_delay elapses.
+	ctx, cancel := context.WithTimeout(context.Background(), task.ShutdownDelay/5)
+	t.Cleanup(cancel)
+	must.NoError(t, tr.Restart(ctx, structs.NewTaskEvent(structs.TaskRestartSignal), true))
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			ts := tr.TaskState()
+			return ts.State == structs.TaskStateRunning && ts.Restarts == 1
+		}),
+		wait.Timeout(5*task.ShutdownDelay),
+		wait.Gap(10*time.Millisecond),
+	), must.Func(func() string {
+		return fmt.Sprintf("task was not restarted: %s", pretty.Sprint(tr.TaskState()))
+	}))
+}
+
 // TestTaskRunner_NoShutdownDelay asserts services are removed from
 // Consul and tasks are killed without waiting for ${shutdown_delay}
 // when the alloc has the NoShutdownDelay transition flag set.

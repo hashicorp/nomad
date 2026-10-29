@@ -14,7 +14,7 @@ import (
 
 // Restart restarts a task that is already running. Returns an error if the
 // task is not running. Blocks until existing task exits or passed-in context
-// is canceled.
+// is canceled; canceling ctx does not cut the task's shutdown_delay short.
 func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
 	tr.logger.Trace("Restart requested", "failure", failure, "event", event.GoString())
 
@@ -33,7 +33,8 @@ func (tr *TaskRunner) Restart(ctx context.Context, event *structs.TaskEvent, fai
 
 // ForceRestart restarts a task that is already running or reruns it if dead.
 // Returns an error if the task is not able to rerun. Blocks until existing
-// task exits or passed-in context is canceled.
+// task exits or passed-in context is canceled; canceling ctx does not cut the
+// task's shutdown_delay short.
 //
 // Callers must restart the AllocRuner taskCoordinator beforehand to make sure
 // the task will be able to run again.
@@ -131,13 +132,12 @@ func (tr *TaskRunner) restartImpl(ctx context.Context, event *structs.TaskEvent,
 				SetDisplayMessage(fmt.Sprintf("Waiting for shutdown_delay of %s before killing the task.", delay))
 			tr.UpdateState(structs.TaskStatePending, ev)
 
+			// Don't select on ctx or waitCh here: waitCh also fires when ctx
+			// expires, and preKill has already deregistered services, so the
+			// task must still be killed.
 			select {
-			case <-waitCh:
-				return nil
 			case <-tr.shutdownDelayCtx.Done():
 			case <-time.After(delay):
-			case <-ctx.Done():
-				return nil
 			}
 		}
 	}
