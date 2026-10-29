@@ -22,7 +22,7 @@ const (
 
 	// pruneInterval is the interval at which we prune objects from the
 	// BlockedEvals tracker
-	pruneInterval = 5 * time.Minute
+	pruneInterval = 1 * time.Minute
 
 	// pruneThreshold is the threshold after which objects will be pruned.
 	pruneThreshold = 15 * time.Minute
@@ -58,6 +58,10 @@ type BlockedEvals struct {
 	// escaped is the set of evaluations that have escaped computed node
 	// classes.
 	escaped map[string]wrappedEval
+
+	// pendingDependencies is the set of evaluations that have been blocked by
+	// the dependencies defined in the job.
+	pendingDependencies map[string]wrappedEval
 
 	// system is the set of system evaluations that failed to start on nodes because of
 	// resource constraints.
@@ -108,9 +112,10 @@ type capacityUpdate struct {
 	nodeID           string
 	nonNodeResources []string
 
-	blockedEval  *structs.Evaluation
-	blockToken   string
-	untrackJobID structs.NamespacedID
+	blockedEval    *structs.Evaluation
+	blockToken     string
+	untrackJobID   structs.NamespacedID
+	unblockedEvals []*structs.Evaluation
 
 	// future will be closed when the operation is done, which allows callers to
 	// block until then if they need to (this is mostly used for tests). The
@@ -128,17 +133,18 @@ type wrappedEval struct {
 // unblocked evals into the passed broker.
 func NewBlockedEvals(evalBroker *EvalBroker, logger hclog.Logger) *BlockedEvals {
 	return &BlockedEvals{
-		logger:           logger.Named("blocked_evals"),
-		evalBroker:       evalBroker,
-		captured:         make(map[string]wrappedEval),
-		escaped:          make(map[string]wrappedEval),
-		system:           newSystemEvals(),
-		jobs:             make(map[structs.NamespacedID]string),
-		unblockIndexes:   make(map[string]unblockEvent),
-		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
-		duplicateCh:      make(chan struct{}, 1),
-		stopCh:           make(chan struct{}),
-		stats:            NewBlockedStats(),
+		logger:              logger.Named("blocked_evals"),
+		evalBroker:          evalBroker,
+		captured:            make(map[string]wrappedEval),
+		escaped:             make(map[string]wrappedEval),
+		pendingDependencies: make(map[string]wrappedEval),
+		system:              newSystemEvals(),
+		jobs:                make(map[structs.NamespacedID]string),
+		unblockIndexes:      make(map[string]unblockEvent),
+		capacityChangeCh:    make(chan *capacityUpdate, unblockBuffer),
+		duplicateCh:         make(chan struct{}, 1),
+		stopCh:              make(chan struct{}),
+		stats:               NewBlockedStats(),
 	}
 }
 
@@ -264,6 +270,11 @@ func (b *BlockedEvals) processBlock(eval *structs.Evaluation, token string) {
 	wrapped := wrappedEval{
 		eval:  eval,
 		token: token,
+	}
+
+	if eval.TriggeredBy == structs.EvalTriggerByDependencies {
+		b.pendingDependencies[eval.ID] = wrapped
+		return
 	}
 
 	// If the eval has escaped, meaning computed node classes could not capture
@@ -643,6 +654,27 @@ func (b *BlockedEvals) UnblockNonNodeResources(resources []string, index uint64)
 	return fut
 }
 
+func (b *BlockedEvals) UnblockDependency(unblockedEvals []*structs.Evaluation) chan struct{} {
+	fut := make(chan struct{})
+
+	b.flushLock.RLock()
+	defer b.flushLock.RUnlock()
+	if !b.enabled {
+		close(fut)
+		return fut
+	}
+	// Capture chan in flushlock as Flush overwrites it
+	ch := b.capacityChangeCh
+	done := b.stopCh
+
+	select {
+	case <-done:
+	case ch <- &capacityUpdate{unblockedEvals: unblockedEvals, future: fut}:
+	}
+
+	return fut
+}
+
 // watchCapacity is a long lived function that watches for capacity changes in
 // nodes and unblocks the correct set of evals.
 func (b *BlockedEvals) watchCapacity(
@@ -665,13 +697,15 @@ func (b *BlockedEvals) watchCapacity(
 				continue
 			}
 
-			b.unblock(update.computedClass, update.quotaChange, update.nodeID, update.nonNodeResources)
+			b.unblock(update.computedClass, update.quotaChange, update.nodeID,
+				update.nonNodeResources, update.unblockedEvals...)
 			close(update.future)
 		}
 	}
 }
 
-func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []string) {
+func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []string,
+	unblockedEvals ...*structs.Evaluation) {
 
 	// Protect against the case of a flush.
 	b.flushLock.RLock()
@@ -708,6 +742,15 @@ func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []
 				delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 			}
 		}
+	}
+
+	if len(unblockedEvals) > 0 {
+		for id, wrapped := range b.pendingDependencies {
+			unblocked[wrapped.eval] = wrapped.token
+			delete(b.pendingDependencies, id)
+			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
+		}
+
 	}
 
 	if quota == "" && computedClass == "" {
@@ -914,9 +957,11 @@ func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 		case <-stopCh:
 			return
 		case t := <-ticker.C:
+			b.logger.Debug(" YYYyyyyyyyyyyyyyyyy \n")
 			cutoff := t.UTC().Add(-1 * pruneThreshold)
 			b.pruneUnblockIndexes(cutoff)
 			b.pruneStats(cutoff)
+			b.prunePendingDependencies()
 		}
 	}
 }
@@ -937,4 +982,21 @@ func (b *BlockedEvals) pruneUnblockIndexes(cutoff time.Time) {
 // pruneStats is used to prune any zero value stats that are excessively old.
 func (b *BlockedEvals) pruneStats(cutoff time.Time) {
 	b.stats.prune(cutoff)
+}
+
+// pruneUnblockIndexes is used to prune any tracked entry that is excessively
+// old. This protects against unbounded growth of the map.
+func (b *BlockedEvals) prunePendingDependencies() {
+	oldEvals := []*structs.Evaluation{}
+
+	b.l.RLock()
+	for _, wrapedEval := range b.pendingDependencies {
+		if time.Now().UnixNano() > wrapedEval.eval.BlockingTimeout {
+			b.logger.Debug("evalution timeout", "eval", wrapedEval.eval.ID, "job", wrapedEval.eval.JobID)
+			oldEvals = append(oldEvals, wrapedEval.eval)
+		}
+	}
+	b.l.RUnlock()
+
+	b.UnblockDependency(oldEvals)
 }

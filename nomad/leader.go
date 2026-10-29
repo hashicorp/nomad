@@ -496,6 +496,15 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
+	// Repopulate the dependency coordinator state. This is done both when
+	//  starting up or when a leader fail over happens.
+	evals, err := s.fsm.State().Evals(nil, false)
+	if err != nil {
+		s.logger.Error("failed to repopulate dependency coordinator state", "error", err)
+		return err
+	}
+	s.dependencyCoordinator.Reload(s.fsm.State(), evals)
+
 	// If ACLs are enabled, the leader needs to start a number of long-lived
 	// routines. Exactly which routines, depends on whether this leader is
 	// running within the authoritative region or not.
@@ -1148,6 +1157,13 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 // provided. Will return nil if the evaluation has been orphaned and no longer
 // needs a follow-up
 func (s *Server) createFailedFollowup(eval *structs.Evaluation) *structs.Evaluation {
+
+	// If this is an evaluation that was waiting on dependencies
+	// and reached its timeout, there is no need to follow up.
+	if eval.TriggeredBy == structs.EvalTriggerByDependencies {
+		return nil
+	}
+
 	// we don't want to create failed follow-up evals if the evaluation's job
 	// has been GC'd
 	job, err := s.State().JobByID(nil, eval.Namespace, eval.JobID)
