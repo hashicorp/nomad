@@ -24,7 +24,10 @@ Usage: nomad queue jobs [options]
 
   View the current status of workloads queued in a batch job queue.
 
-  When ACLs are enabled, this command requires a token with the 'list-jobs' capability. If multiple jobs in the queue are in different namespaces, the output will be filtered to only include jobs in namespaces the token has permissions for.
+  When ACLs are enabled, this command requires a token with the 'list-jobs'
+  capability. If multiple jobs in the queue are in different namespaces,
+  the output will be filtered to only include jobs in namespaces the token
+  has permissions for.
 
 General Options:
 
@@ -36,7 +39,8 @@ Jobs Options:
     The node pool queue to query. This is a required flag.
 
   -per-page
-    The maximum number of workloads to return per page. If not specified, or set to 0, all results are returned.
+    The maximum number of workloads to return per page. If not specified,
+    or set to 0, all results are returned.
 
   -page-token
     Where to start pagination
