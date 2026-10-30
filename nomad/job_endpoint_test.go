@@ -5352,6 +5352,92 @@ func TestJobEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_ListJobs_NamespacePagination is a regression test for a
+// pagination bug affecting namespaces that share a prefix but differ by a '-',
+// for example "team" and "team-a". The NamespaceID pagination token is
+// "<namespace>.<id>". Comparing those tokens as whole strings ordered
+// "team-a.*" before "team.*" (because '.' (0x2E) > '-' (0x2D)), which disagrees
+// with the state store's (Namespace, ID) iteration order, where "team" sorts
+// before "team-a". That mismatch made jobs in "team" duplicate across pages
+// while jobs in "team-a" became unreachable, and the cursor could repeat a page
+// forever. Comparing the token field-by-field (namespace, then id) fixes it.
+func TestJobEndpoint_ListJobs_NamespacePagination(t *testing.T) {
+	ci.Parallel(t)
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.fsm.State()
+	must.NoError(t, state.UpsertNamespaces(999, []*structs.Namespace{
+		{Name: "team"}, {Name: "team-a"},
+	}))
+
+	// Three jobs in each namespace. The state store iterates the (Namespace, ID)
+	// index in order, so all "team" jobs precede all "team-a" jobs.
+	type nsID struct{ namespace, id string }
+	want := []nsID{}
+	index := uint64(1000)
+	for _, ns := range []string{"team", "team-a"} {
+		for _, id := range []string{"j1", "j2", "j3"} {
+			job := mock.Job()
+			job.ID = id
+			job.Name = id
+			job.Namespace = ns
+			job.CreateIndex = index
+			must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+			want = append(want, nsID{ns, id})
+			index++
+		}
+	}
+
+	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
+		mock.NamespacePolicy("*", "read", nil)).SecretID
+
+	// Walk every page with a small page size, following NextToken, collecting
+	// each (namespace, id). A correct walk visits all six jobs exactly once and
+	// terminates; the pre-fix bug duplicated "team" jobs, never returned
+	// "team-a" jobs, and repeated a token forever (caught by the page guard).
+	seen := map[nsID]int{}
+	total := 0
+	nextToken := ""
+	for page := 0; ; page++ {
+		if page > 10 {
+			t.Fatalf("pagination did not terminate after %d pages (stall); seen=%v", page, seen)
+		}
+
+		req := &structs.JobListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				PerPage:   2,
+				NextToken: nextToken,
+			},
+		}
+		req.AuthToken = aclToken
+		var resp structs.JobListResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.List", req, &resp))
+
+		for _, job := range resp.Jobs {
+			seen[nsID{job.Namespace, job.ID}]++
+			total++
+		}
+
+		nextToken = resp.QueryMeta.NextToken
+		if nextToken == "" {
+			break
+		}
+	}
+
+	// Every job returned exactly once: none missing, none duplicated.
+	must.Eq(t, len(want), total,
+		must.Sprint("expected each job exactly once across all pages (no duplicates, no missing)"))
+	for _, w := range want {
+		must.Eq(t, 1, seen[w],
+			must.Sprintf("job %s/%s should appear exactly once, saw %d", w.namespace, w.id, seen[w]))
+	}
+}
+
 func TestJobEndpoint_Allocations(t *testing.T) {
 	ci.Parallel(t)
 
