@@ -1,0 +1,3 @@
+```release-note:bug
+drain: Fixed a bug where a node drain with no deadline never completed when an allocation was desired-stop but still running on the client when the drain started
+```
