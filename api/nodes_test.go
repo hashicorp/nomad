@@ -283,6 +283,123 @@ func TestNodes_ToggleDrain(t *testing.T) {
 	must.Eq(t, NodeSchedulingEligible, out.SchedulingEligibility)
 }
 
+func TestNodes_DurationAwareDrainEvent(t *testing.T) {
+	testutil.Parallel(t)
+	// Event payloads flatten the embedded DrainSpec fields. Decoding must
+	// populate the embedded struct rather than leaving its fields at zero.
+	event := &Event{Payload: map[string]any{
+		"Node": map[string]any{
+			"DrainStrategy": map[string]any{
+				"Deadline":         int64(10 * time.Minute),
+				"IgnoreSystemJobs": true,
+				"DurationAware":    true,
+				"BackfillBuffer":   int64(45 * time.Second),
+			},
+		},
+	}}
+	node, err := event.Node()
+	must.NoError(t, err)
+	must.NotNil(t, node.DrainStrategy)
+	must.Eq(t, DrainSpec{
+		Deadline:         10 * time.Minute,
+		IgnoreSystemJobs: true,
+		DurationAware:    true,
+		BackfillBuffer:   45 * time.Second,
+	}, node.DrainStrategy.DrainSpec)
+}
+
+func TestNodes_DurationAwareDrain(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodeID := oneNodeFromNodeList(t, c.Nodes()).ID
+	spec := &DrainSpec{
+		Deadline:       10 * time.Minute,
+		DurationAware:  true,
+		BackfillBuffer: 45 * time.Second,
+	}
+	resp, err := c.Nodes().UpdateDrainOpts(nodeID, &DrainOptions{DrainSpec: spec}, nil)
+	must.NoError(t, err)
+	assertWriteMeta(t, &resp.WriteMeta)
+
+	// An empty node may finish draining immediately. The event retains the
+	// committed strategy, allowing both fields to be checked without a race.
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	events, err := c.EventStream().Stream(ctx, map[Topic][]string{TopicNode: {nodeID}}, 0, nil)
+	must.NoError(t, err)
+	for {
+		select {
+		case batch, ok := <-events:
+			must.True(t, ok)
+			must.NoError(t, batch.Err)
+			for _, event := range batch.Events {
+				node, err := event.Node()
+				must.NoError(t, err)
+				if node.DrainStrategy == nil {
+					continue
+				}
+				must.Eq(t, *spec, node.DrainStrategy.DrainSpec)
+				must.Eq(t, NodeSchedulingIneligible, node.SchedulingEligibility)
+				return
+			}
+		case <-ctx.Done():
+			must.Unreachable(t, must.Sprint("duration-aware drain event was not received"))
+		}
+	}
+}
+
+func TestNodes_DurationAwareDrainValidation(t *testing.T) {
+	testutil.Parallel(t)
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodeID := oneNodeFromNodeList(t, c.Nodes()).ID
+	for _, tc := range []struct {
+		name string
+		spec DrainSpec
+		err  string
+	}{
+		{
+			name: "zero deadline",
+			spec: DrainSpec{DurationAware: true},
+			err:  "duration-aware drains require a positive deadline",
+		},
+		{
+			name: "negative deadline",
+			spec: DrainSpec{DurationAware: true, Deadline: -time.Second},
+			err:  "duration-aware drains require a positive deadline",
+		},
+		{
+			name: "negative buffer",
+			spec: DrainSpec{DurationAware: true, Deadline: time.Minute, BackfillBuffer: -time.Second},
+			err:  "backfill buffer must be at least 1s",
+		},
+		{
+			name: "subsecond buffer",
+			spec: DrainSpec{DurationAware: true, Deadline: time.Minute, BackfillBuffer: 500 * time.Millisecond},
+			err:  "backfill buffer must be at least 1s",
+		},
+		{
+			name: "buffer without duration awareness",
+			spec: DrainSpec{Deadline: time.Minute, BackfillBuffer: time.Second},
+			err:  "backfill buffer requires a duration-aware drain",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := c.Nodes().UpdateDrain(nodeID, &tc.spec, false, nil)
+			must.ErrorContains(t, err, tc.err)
+			node, _, err := c.Nodes().Info(nodeID, nil)
+			must.NoError(t, err)
+			must.Nil(t, node.DrainStrategy)
+			must.Eq(t, NodeSchedulingEligible, node.SchedulingEligibility)
+		})
+	}
+}
+
 func TestNodes_ToggleEligibility(t *testing.T) {
 	testutil.Parallel(t)
 
@@ -527,6 +644,18 @@ func TestNodes_DrainStrategy_Equal(t *testing.T) {
 	must.NotEqual(t, d, o)
 
 	o.IgnoreSystemJobs = true
+	must.Equal(t, d, o)
+
+	// DurationAware
+	d.DurationAware = true
+	must.NotEqual(t, d, o)
+	o.DurationAware = true
+	must.Equal(t, d, o)
+
+	// BackfillBuffer
+	d.BackfillBuffer = 45 * time.Second
+	must.NotEqual(t, d, o)
+	o.BackfillBuffer = d.BackfillBuffer
 	must.Equal(t, d, o)
 }
 

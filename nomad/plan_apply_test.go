@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/shoenig/test/must"
@@ -894,7 +895,7 @@ func TestPlanApply_EvalNodePlan_Simple(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -925,7 +926,7 @@ func TestPlanApply_EvalNodePlan_NodeNotReady(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -955,7 +956,7 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -964,6 +965,90 @@ func TestPlanApply_EvalNodePlan_NodeDrain(t *testing.T) {
 	}
 	if reason == "" {
 		t.Fatalf("bad")
+	}
+}
+
+func TestPlanApply_EvalNodePlan_DurationAwareDrainBackfillBuffer(t *testing.T) {
+	ci.Parallel(t)
+	scheduledAt := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+	for _, jobType := range []string{structs.JobTypeBatch, structs.JobTypeSysBatch} {
+		t.Run(jobType, func(t *testing.T) {
+			for _, tc := range []struct {
+				name    string
+				elapsed time.Duration
+				accept  bool
+			}{
+				{name: "before buffer", accept: true},
+				{name: "runtime enters buffer", elapsed: 30 * time.Second, accept: true},
+				{name: "shutdown reaches drain deadline", elapsed: 40 * time.Second, accept: true},
+				{name: "shutdown exceeds drain deadline", elapsed: 41 * time.Second, accept: false},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					appliedAt := scheduledAt.Add(tc.elapsed)
+					state := testStateStore(t)
+					node := mock.Node()
+					node.SchedulingEligibility = structs.NodeSchedulingIneligible
+					node.DrainStrategy = &structs.DrainStrategy{
+						DrainSpec: structs.DrainSpec{
+							Deadline:       2 * time.Minute,
+							DurationAware:  true,
+							BackfillBuffer: 30 * time.Second,
+						},
+						ForceDeadline: scheduledAt.Add(2 * time.Minute),
+					}
+					must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+					snap, err := state.Snapshot()
+					must.NoError(t, err)
+
+					job := mock.BatchJob()
+					job.Type = jobType
+					tg := job.TaskGroups[0]
+					tg.MaxRunDuration = new(70 * time.Second)
+					tg.Tasks[0].KillTimeout = 10 * time.Second
+					alloc := mock.MinAllocForJob(job)
+					alloc.NodeID = node.ID
+					plan := &structs.Plan{
+						Job: job,
+						JobInfo: &structs.PlanJobTuple{
+							Namespace: job.Namespace,
+							ID:        job.ID,
+						},
+						NodeAllocation: map[string][]*structs.Allocation{
+							node.ID: {alloc},
+						},
+					}
+
+					// The scheduler enforces the buffer: this job fits when first
+					// scheduled, but cannot be scheduled at the later time (appliedAt).
+					ctx := feasible.NewEvalContext(nil, state, plan, testlog.HCLogger(t))
+					checker := feasible.NewDrainChecker(ctx)
+					checker.SetJob(job)
+					checker.SetTaskGroup(tg, nil, scheduledAt)
+					must.True(t, checker.Feasible(node))
+					checker.SetTaskGroup(tg, nil, appliedAt)
+					must.Eq(t, tc.elapsed == 0, checker.Feasible(node))
+
+					if tc.elapsed > 0 {
+						bufferStarts := node.DrainStrategy.ForceDeadline.Add(-node.DrainStrategy.BackfillBuffer)
+						runtimeEnds := appliedAt.Add(*tg.MaxRunDuration)
+						must.True(t, runtimeEnds.After(bufferStarts))
+						must.True(t, runtimeEnds.Before(node.DrainStrategy.ForceDeadline))
+					}
+
+					// Plan application tolerates scheduling delay or clock skew,
+					// but runtime plus shutdown must not exceed the drain deadline.
+					fit, reason, err := evaluateNodePlan(snap, plan, node.ID, func() time.Time { return appliedAt })
+					must.NoError(t, err)
+					must.Eq(t, tc.accept, fit)
+					if tc.accept {
+						must.Eq(t, "", reason)
+					} else {
+						must.Eq(t, "allocation exceeds node drain time budget", reason)
+					}
+				})
+			}
+		})
 	}
 }
 
@@ -984,7 +1069,7 @@ func TestPlanApply_EvalNodePlan_NodeNotExist(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, nodeID)
+	fit, reason, err := evaluateNodePlan(snap, plan, nodeID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1024,7 +1109,7 @@ func TestPlanApply_EvalNodePlan_NodeFull(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1088,7 +1173,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Device(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	require.NoError(err)
 	require.False(fit)
 	require.Equal("device oversubscribed", reason)
@@ -1116,7 +1201,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1152,7 +1237,7 @@ func TestPlanApply_EvalNodePlan_UpdateExisting_Ineligible(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1193,7 +1278,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_Evict(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1229,7 +1314,7 @@ func TestPlanApply_EvalNodePlan_NodeFull_AllocEvict(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1267,7 +1352,7 @@ func TestPlanApply_EvalNodePlan_NodeDown_EvictOnly(t *testing.T) {
 		},
 	}
 
-	fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+	fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1350,7 +1435,7 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 				NodeAllocation: tc.nodeAllocs,
 			}
 
-			fit, reason, err := evaluateNodePlan(snap, plan, node.ID)
+			fit, reason, err := evaluateNodePlan(snap, plan, node.ID, time.Now)
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedFit, fit)
 			require.Equal(t, tc.expectedReason, reason)
