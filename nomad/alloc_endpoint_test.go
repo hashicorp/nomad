@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -165,6 +166,7 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 		prefix       string
 		nextToken    string
 		pageSize     int32
+		reverse      bool
 		filter       string
 		expIDs       []string
 		expNextToken string
@@ -279,6 +281,52 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 				"bbbb1111-3350-4b4b-d185-0e1992ed43e9",
 			},
 		},
+		{
+			name:         "test14 reverse same index",
+			pageSize:     2,
+			reverse:      true,
+			nextToken:    "1010.00000333-3350-4b4b-d185-0e1992ed43e9",
+			expNextToken: "1009.00000111-3350-4b4b-d185-0e1992ed43e9",
+			expIDs: []string{
+				"00000333-3350-4b4b-d185-0e1992ed43e9",
+				"00000222-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:         "test15 reverse missing index with filter",
+			pageSize:     2,
+			reverse:      true,
+			filter:       `TaskGroup == "bar"`,
+			nextToken:    "1011.e9522802-0cd8-4b1d-9c9e-ab3d97938371",
+			expNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expIDs: []string{
+				"aaaaaaff-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaadd-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:         "test16 all namespaces cursor",
+			namespace:    structs.AllNamespacesSentinel,
+			pageSize:     2,
+			nextToken:    "1001.aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			expNextToken: "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expIDs: []string{
+				"aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
+		{
+			name:         "test17 all namespaces reverse cursor",
+			namespace:    structs.AllNamespacesSentinel,
+			pageSize:     2,
+			reverse:      true,
+			nextToken:    "1003.aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+			expNextToken: "1001.aaaaaa22-3350-4b4b-d185-0e1992ed43e9",
+			expIDs: []string{
+				"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9",
+				"aaaaaa33-3350-4b4b-d185-0e1992ed43e9",
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -289,6 +337,7 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 					Namespace: tc.namespace,
 					Prefix:    tc.prefix,
 					PerPage:   tc.pageSize,
+					Reverse:   tc.reverse,
 					NextToken: tc.nextToken,
 					Filter:    tc.filter,
 				},
@@ -314,6 +363,77 @@ func TestAllocEndpoint_List_PaginationFiltering(t *testing.T) {
 			require.Equal(t, tc.expNextToken, resp.QueryMeta.NextToken)
 		})
 	}
+}
+
+func TestAllocEndpoint_List_NullToken(t *testing.T) {
+	ci.Parallel(t)
+	srv, cleanup := TestServer(t, nil)
+	defer cleanup()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	for _, prefix := range []string{"", "aa"} {
+		t.Run("prefix="+prefix, func(t *testing.T) {
+			req := &structs.AllocListRequest{QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: structs.DefaultNamespace,
+				Prefix:    prefix,
+				NextToken: "1000.id\x00",
+			}}
+			var resp structs.AllocListResponse
+			err := msgpackrpc.CallWithCodec(codec, "Alloc.List", req, &resp)
+			require.Error(t, err)
+			code, message, ok := structs.CodeFromRPCCodedErr(err)
+			require.True(t, ok)
+			require.Equal(t, 400, code)
+			require.Contains(t, message, "next_token must not contain null bytes")
+		})
+	}
+}
+
+func TestAllocEndpoint_List_PaginationUpdates(t *testing.T) {
+	ci.Parallel(t)
+	srv, cleanup := TestServer(t, nil)
+	defer cleanup()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+	state := srv.fsm.State()
+	template := mock.Alloc()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, template.Job))
+	allocs := make([]*structs.Allocation, 4)
+	for i := range allocs {
+		allocs[i] = template.CopySkipJob()
+		allocs[i].ID = uuid.Generate()
+		if i < 3 {
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, uint64(1000+i), allocs[i:i+1]))
+		}
+	}
+
+	req := &structs.AllocListRequest{QueryOptions: structs.QueryOptions{
+		Region: "global", Namespace: structs.DefaultNamespace, PerPage: 1,
+	}}
+	var first structs.AllocListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", req, &first))
+	require.Len(t, first.Allocations, 1)
+	require.Equal(t, allocs[0].ID, first.Allocations[0].ID)
+	require.Equal(t, fmt.Sprintf("1001.%s", allocs[1].ID), first.NextToken)
+
+	// Modify an already-returned allocation, delete the cursor allocation,
+	// and create a later allocation between page requests.
+	updated := allocs[0].CopySkipJob()
+	updated.Name = "updated"
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{updated}))
+	must.NoError(t, state.DeleteEval(1004, nil, []string{allocs[1].ID}, false))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, allocs[3:]))
+
+	req.NextToken = first.NextToken
+	req.PerPage = 2
+	var second structs.AllocListResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Alloc.List", req, &second))
+	require.Len(t, second.Allocations, 2)
+	require.Equal(t, allocs[2].ID, second.Allocations[0].ID)
+	require.Equal(t, allocs[3].ID, second.Allocations[1].ID)
+	require.Empty(t, second.NextToken)
 }
 
 func TestAllocEndpoint_List_order(t *testing.T) {
@@ -631,6 +751,8 @@ func TestAllocEndpoint_List_Blocking(t *testing.T) {
 	})
 
 	req.MinQueryIndex = 3
+	req.NextToken = fmt.Sprintf("3.%s", alloc.ID)
+	req.PerPage = 1
 	start = time.Now()
 	var resp2 structs.AllocListResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Alloc.List", req, &resp2); err != nil {
