@@ -24,7 +24,10 @@ Usage: nomad queue status [options]
 
   View the current status of a batch job queue.
 
-  When ACLs are enabled, this command requires a token with the 'list-jobs' capability. If multiple jobs in the queue are in different namespaces, the output will be filtered to only include jobs in namespaces the token has permissions for.
+  When ACLs are enabled, this command requires a token with the 'list-jobs'
+  capability. If multiple jobs in the queue are in different namespaces,
+  the output will be filtered to only include jobs in namespaces the token
+  has permissions for.
 
 General Options:
 
