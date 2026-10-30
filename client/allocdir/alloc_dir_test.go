@@ -17,6 +17,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -205,6 +206,60 @@ func TestAllocDir_Snapshot(t *testing.T) {
 	must.SliceLen(t, 2, links)
 }
 
+func TestAllocDir_SnapshotSymlinksAndSpecialFiles(t *testing.T) {
+	ci.Parallel(t)
+
+	tmp := t.TempDir()
+	d := NewAllocDir(testlog.HCLogger(t), tmp, tmp, "test")
+	defer d.Destroy()
+	must.NoError(t, d.Build())
+
+	dataDir := filepath.Join(d.SharedDir, SharedDataDir)
+	outsidePath := filepath.Join(tmp, "outside")
+	must.NoError(t, os.WriteFile(outsidePath, []byte("outside"), 0o600))
+	must.NoError(t, os.Symlink(outsidePath, filepath.Join(dataDir, "outside-link")))
+	must.NoError(t, syscall.Mkfifo(filepath.Join(dataDir, "fifo"), 0o600))
+
+	type snapshotResult struct {
+		archive bytes.Buffer
+		err     error
+	}
+	result := make(chan snapshotResult, 1)
+	go func() {
+		var snapshot snapshotResult
+		snapshot.err = d.Snapshot(&snapshot.archive)
+		result <- snapshot
+	}()
+
+	var snapshot snapshotResult
+	select {
+	case snapshot = <-result:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Snapshot blocked while archiving a FIFO")
+	}
+	must.NoError(t, snapshot.err)
+
+	entries := make(map[string]*tar.Header)
+	tr := tar.NewReader(&snapshot.archive)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		must.NoError(t, err)
+		entries[hdr.Name] = hdr
+	}
+
+	linkHeader, ok := entries[filepath.Join(SharedAllocName, SharedDataDir, "outside-link")]
+	must.True(t, ok)
+	must.Eq(t, byte(tar.TypeSymlink), linkHeader.Typeflag)
+	must.Eq(t, outsidePath, linkHeader.Linkname)
+
+	fifoHeader, ok := entries[filepath.Join(SharedAllocName, SharedDataDir, "fifo")]
+	must.True(t, ok)
+	must.Eq(t, byte(tar.TypeFifo), fifoHeader.Typeflag)
+}
+
 func TestAllocDir_Move(t *testing.T) {
 	ci.Parallel(t)
 
@@ -250,6 +305,47 @@ func TestAllocDir_Move(t *testing.T) {
 	fi, err = os.Stat(filepath.Join(d2.TaskDirs[t1.Name].LocalDir, file2))
 	must.NoError(t, err)
 	must.NotNil(t, fi)
+}
+
+// TestAllocDir_MoveSymlinkRejects verifies that Move refuses to relocate a
+// symlinked task local directory, preventing a malicious task from planting a
+// symlink that could be followed by subsequent permission drops (chmod/chown)
+// during TaskDir.Build, which would modify the symlink target on the host.
+func TestAllocDir_MoveSymlinkRejects(t *testing.T) {
+	ci.Parallel(t)
+
+	tmp1 := t.TempDir()
+	tmp2 := t.TempDir()
+
+	// Create two alloc dirs
+	d1 := NewAllocDir(testlog.HCLogger(t), tmp1, tmp1, "test")
+	must.NoError(t, d1.Build())
+	defer d1.Destroy()
+
+	d2 := NewAllocDir(testlog.HCLogger(t), tmp2, tmp2, "test")
+	must.NoError(t, d2.Build())
+	defer d2.Destroy()
+
+	// Build task dir in d1 so that the local dir exists
+	td1 := d1.NewTaskDir(t1)
+	must.NoError(t, td1.Build(fsisolation.None, nil, "nobody"))
+
+	// Replace the local dir with a symlink pointing outside the alloc dir
+	target := t.TempDir()
+	must.NoError(t, os.Remove(td1.LocalDir))
+	must.NoError(t, os.Symlink(target, td1.LocalDir))
+
+	// Create but don't build second task dir to mimic alloc/task runner
+	// behavior (AllocDir.Move() is called pre-TaskDir.Build).
+	d2.NewTaskDir(t1)
+
+	// Move should refuse to relocate the symlink
+	err := d2.Move(d1, []*structs.Task{t1})
+	must.Error(t, err)
+
+	// Ensure the symlink was not relocated into the new alloc dir
+	_, statErr := os.Lstat(filepath.Join(d2.TaskDirs[t1.Name].LocalDir))
+	must.True(t, os.IsNotExist(statErr))
 }
 
 func TestAllocDir_EscapeChecking(t *testing.T) {

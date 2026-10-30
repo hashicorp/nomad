@@ -4,10 +4,11 @@
 package taskrunner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -54,6 +55,7 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	mErr := multierror.Error{}
 
 	tokens := h.hookResources.GetConsulTokens()
+	var root *os.Root
 
 	// Write tokens to tasks' secret dirs
 	for _, t := range tokens {
@@ -73,8 +75,16 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 				continue
 			}
 
-			tokenPath := filepath.Join(h.tokenDir, consulTokenFilename)
-			if err := os.WriteFile(tokenPath, []byte(token.SecretID), consulTokenFilePerms); err != nil {
+			if root == nil {
+				var err error
+				root, err = os.OpenRoot(h.tokenDir)
+				if err != nil {
+					return err
+				}
+				defer root.Close()
+			}
+			err := writeConsulTokenViaRoot(root, consulTokenFilename, token.SecretID)
+			if err != nil {
 				mErr.Errors = append(mErr.Errors, fmt.Errorf("failed to write Consul SI token: %w", err))
 			}
 
@@ -88,4 +98,15 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+func writeConsulTokenViaRoot(root *os.Root, fileName, token string) error {
+	f, err := root.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, consulTokenFilePerms)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, bytes.NewReader([]byte(token)))
+	return err
 }

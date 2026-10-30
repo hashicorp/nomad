@@ -10,16 +10,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shirou/gopsutil/v3/process"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,10 +35,14 @@ func TestTaskRunner_LogmonHook_StartCrashStop(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	dir := t.TempDir()
+	allocDir := t.TempDir()
+	logDir := filepath.Join(allocDir, "logs")
+	must.NoError(t, os.Mkdir(logDir, 0755))
 
-	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
-	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, logDir)
+	runner := &TaskRunner{
+		logmonHookConfig: hookConf,
+		taskDir:          &allocdir.TaskDir{AllocDir: allocDir}}
 	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
 	req := interfaces.TaskPrestartRequest{
@@ -97,10 +104,14 @@ func TestTaskRunner_LogmonHook_ShutdownMidStart(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	dir := t.TempDir()
+	allocDir := t.TempDir()
+	logDir := filepath.Join(allocDir, "logs")
+	must.NoError(t, os.Mkdir(logDir, 0755))
 
-	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, dir)
-	runner := &TaskRunner{logmonHookConfig: hookConf}
+	hookConf := newLogMonHookConfig(task.Name, task.LogConfig, logDir)
+	runner := &TaskRunner{
+		logmonHookConfig: hookConf,
+		taskDir:          &allocdir.TaskDir{AllocDir: allocDir}}
 	hook := newLogMonHook(runner, testlog.HCLogger(t))
 
 	req := interfaces.TaskPrestartRequest{

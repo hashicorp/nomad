@@ -177,6 +177,12 @@ func TestJobDiff(t *testing.T) {
 						Old:  "foo",
 						New:  "",
 					},
+					// {
+					// 	Type: DiffTypeDeleted,
+					// 	Name: "Placed",
+					// 	Old:  "false",
+					// 	New:  "",
+					// },
 					{
 						Type: DiffTypeDeleted,
 						Name: "Priority",

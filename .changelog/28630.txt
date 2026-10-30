@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a bug in the `var put` command that could panic the CLI on invalid inputs
+```

@@ -1701,6 +1701,9 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		// Create and upsert a job which has a completed eval and 2 running
 		// allocations associated.
 		inputJob.Status = structs.JobStatusRunning
+		if inputJob.Type == structs.JobTypeBatch {
+			inputJob.Placed = true
+		}
 
 		mockEval1 := mock.Eval()
 		mockEval1.JobID = inputJob.ID
@@ -1816,7 +1819,9 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 	}
 
 	for _, job := range []*structs.Job{mock.Job(), mock.BatchJob(), mock.SystemBatchJob()} {
-		testFn(job)
+		t.Run(job.ID, func(t *testing.T) {
+			testFn(job)
+		})
 	}
 }
 

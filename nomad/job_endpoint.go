@@ -829,6 +829,10 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	// priority even if the job was.
 	now := time.Now().UnixNano()
 
+	// During job deregistration, the original job register eval may be sitting
+	// in a batch queue. If so, we cancel it here so it can be GC'd.
+	j.srv.batchQueueMgr.Dequeue(job)
+
 	// If the job is periodic or parameterized, we don't create an eval.
 	if !(job.IsPeriodic() || job.IsParameterized()) {
 
@@ -850,7 +854,7 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 			ID:          uuid.Generate(),
 			Namespace:   args.RequestNamespace(),
 			Priority:    priority,
-			Type:        structs.JobTypeService,
+			Type:        job.Type,
 			TriggeredBy: structs.EvalTriggerJobDeregister,
 			JobID:       args.JobID,
 			Status:      structs.EvalStatusPending,

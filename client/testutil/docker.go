@@ -4,24 +4,13 @@
 package testutil
 
 import (
-	"runtime"
 	"testing"
 
-	"github.com/hashicorp/nomad/testutil"
 	docker "github.com/moby/moby/client"
 )
 
 // DockerIsConnected checks to see if a docker daemon is available (local or remote)
 func DockerIsConnected(t *testing.T) bool {
-	// We have docker on travis so we should try to test
-	if testutil.IsTravis() {
-		// Travis supports Docker on Linux only; MacOS setup does not support Docker
-		return runtime.GOOS == "linux"
-	}
-
-	if testutil.IsAppVeyor() {
-		return runtime.GOOS == "windows"
-	}
 
 	client, err := docker.New(docker.FromEnv, docker.WithAPIVersionNegotiation())
 	if err != nil {

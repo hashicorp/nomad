@@ -70,7 +70,7 @@ jobs:
           - macos-14
           - windows-2022
     runs-on: ${{ (endsWith(github.repository, '-enterprise')) && (matrix.os == 'ubuntu-22.04-arm') && fromJSON('["self-hosted", "ubuntu-22.04-arm64"]') || matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0

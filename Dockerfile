@@ -7,9 +7,9 @@ FROM alpine@sha256:4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de31
 
 RUN apk add --no-cache tzdata
 
-# docker.io/library/busybox:1.36.0
+# docker.io/library/busybox:1.38.0
 # When pinning use the multi-arch manifest list, `docker buildx imagetools inspect ...`
-FROM docker.io/library/busybox@sha256:9e2bbca079387d7965c3a9cee6d0c53f4f4e63ff7637877a83c4c05f2a666112 AS release
+FROM docker.io/library/busybox@sha256:fd7dc98638c8e305f4dc34e979f1c0fdfdcaeb0fbf8fcff77ae834b6da3d7e6e AS release
 
 ARG PRODUCT_NAME=nomad
 ARG PRODUCT_VERSION

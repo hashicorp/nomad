@@ -163,44 +163,46 @@ func (c *PluginStatusCommand) csiFormatPlugin(plug *api.CSIPlugin) (string, erro
 func (c *PluginStatusCommand) formatControllerCaps(controllers map[string]*api.CSIInfo) string {
 	caps := []string{}
 	for _, controller := range controllers {
-		switch info := controller.ControllerInfo; {
-		case info.SupportsCreateDelete:
+
+		if controller.ControllerInfo == nil {
+			continue
+		}
+
+		if controller.ControllerInfo.SupportsCreateDelete {
 			caps = append(caps, "CREATE_DELETE_VOLUME")
-			fallthrough
-		case info.SupportsAttachDetach:
+		}
+		if controller.ControllerInfo.SupportsAttachDetach {
 			caps = append(caps, "CONTROLLER_ATTACH_DETACH")
-			fallthrough
-		case info.SupportsListVolumes:
+		}
+		if controller.ControllerInfo.SupportsListVolumes {
 			caps = append(caps, "LIST_VOLUMES")
-			fallthrough
-		case info.SupportsGetCapacity:
+		}
+		if controller.ControllerInfo.SupportsGetCapacity {
 			caps = append(caps, "GET_CAPACITY")
-			fallthrough
-		case info.SupportsCreateDeleteSnapshot:
+		}
+		if controller.ControllerInfo.SupportsCreateDeleteSnapshot {
 			caps = append(caps, "CREATE_DELETE_SNAPSHOT")
-			fallthrough
-		case info.SupportsListSnapshots:
+		}
+		if controller.ControllerInfo.SupportsListSnapshots {
 			caps = append(caps, "LIST_SNAPSHOTS")
-			fallthrough
-		case info.SupportsClone:
+		}
+		if controller.ControllerInfo.SupportsClone {
 			caps = append(caps, "CLONE_VOLUME")
-			fallthrough
-		case info.SupportsReadOnlyAttach:
+		}
+		if controller.ControllerInfo.SupportsReadOnlyAttach {
 			caps = append(caps, "ATTACH_READONLY")
-			fallthrough
-		case info.SupportsExpand:
+		}
+		if controller.ControllerInfo.SupportsExpand {
 			caps = append(caps, "EXPAND_VOLUME")
-			fallthrough
-		case info.SupportsListVolumesAttachedNodes:
+		}
+		if controller.ControllerInfo.SupportsListVolumesAttachedNodes {
 			caps = append(caps, "LIST_VOLUMES_PUBLISHED_NODES")
-			fallthrough
-		case info.SupportsCondition:
+		}
+		if controller.ControllerInfo.SupportsCondition {
 			caps = append(caps, "VOLUME_CONDITION")
-			fallthrough
-		case info.SupportsGet:
+		}
+		if controller.ControllerInfo.SupportsGet {
 			caps = append(caps, "GET_VOLUME")
-			fallthrough
-		default:
 		}
 		break
 	}
@@ -219,20 +221,22 @@ func (c *PluginStatusCommand) formatNodeCaps(nodes map[string]*api.CSIInfo) stri
 		if node.RequiresTopologies {
 			caps = append(caps, "VOLUME_ACCESSIBILITY_CONSTRAINTS")
 		}
-		switch info := node.NodeInfo; {
-		case info.RequiresNodeStageVolume:
+
+		if node.NodeInfo == nil {
+			continue
+		}
+
+		if node.NodeInfo.RequiresNodeStageVolume {
 			caps = append(caps, "STAGE_UNSTAGE_VOLUME")
-			fallthrough
-		case info.SupportsStats:
+		}
+		if node.NodeInfo.SupportsStats {
 			caps = append(caps, "GET_VOLUME_STATS")
-			fallthrough
-		case info.SupportsExpand:
+		}
+		if node.NodeInfo.SupportsExpand {
 			caps = append(caps, "EXPAND_VOLUME")
-			fallthrough
-		case info.SupportsCondition:
+		}
+		if node.NodeInfo.SupportsCondition {
 			caps = append(caps, "VOLUME_CONDITION")
-			fallthrough
-		default:
 		}
 		break
 	}

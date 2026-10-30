@@ -1,0 +1,51 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package passthrough
+
+import (
+	"context"
+
+	"github.com/hashicorp/nomad/nomad/queues/queue"
+	"github.com/hashicorp/nomad/nomad/structs"
+)
+
+type PassthroughQueue struct {
+	// evalBroker is the injected broker for passing an evaluation
+	// on to be scheduled by Nomad
+	evalBroker queue.Broker
+}
+
+func NewPassthroughQueue(b queue.Broker) *PassthroughQueue {
+	return &PassthroughQueue{
+		evalBroker: b,
+	}
+}
+
+func (p *PassthroughQueue) Type() structs.BatchQueueType {
+	return structs.BatchQueueTypePassthrough
+}
+
+// Restore is no-op here, because the eval broker will already have done it for non-pending evals
+func (p *PassthroughQueue) Restore(_ *structs.Evaluation, _ *structs.Job) error { return nil }
+
+// Start is a noop for the passthrough implementation
+func (p *PassthroughQueue) Start(context.Context) {}
+
+func (p *PassthroughQueue) Stop() {}
+
+func (p *PassthroughQueue) Enqueue(e *structs.Evaluation, _ *structs.Job) { p.evalBroker.Enqueue(e) }
+
+func (p *PassthroughQueue) Dequeue(structs.NamespacedID) {}
+
+func (p *PassthroughQueue) Jobs(structs.SortOrder) *queue.WorkloadIter {
+	return &queue.WorkloadIter{}
+}
+
+func (p *PassthroughQueue) Status() structs.QueueStatusResponse {
+	return structs.QueueStatusResponse{Type: structs.BatchQueueTypePassthrough}
+}
+
+func (p *PassthroughQueue) Len() int {
+	return 0
+}

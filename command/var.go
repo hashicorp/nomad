@@ -242,7 +242,7 @@ func (b *KVBuilder) add(raw string) error {
 			}
 
 			value = string(contents)
-		} else if value[0] == '\\' && value[1] == '@' {
+		} else if len(value) > 1 && value[0] == '\\' && value[1] == '@' {
 			value = value[1:]
 		} else if value == "-" {
 			if b.Stdin == nil {

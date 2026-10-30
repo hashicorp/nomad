@@ -34,6 +34,16 @@ var (
 // dropDirPermissions gives full access to a directory to all users and sets
 // the owner to nobody.
 func dropDirPermissions(path string, desired os.FileMode) error {
+	// Refuse to operate on symlinks to prevent modifying permissions on an
+	// arbitrary host directory after allocdir migration
+	fileInfo, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("Lstat(%v) failed: %w", path, err)
+	}
+	if fileInfo.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to drop permissions on symlink: %q", path)
+	}
+
 	if err := os.Chmod(path, desired|fileMode777); err != nil {
 		return fmt.Errorf("Chmod(%v) failed: %w", path, err)
 	}

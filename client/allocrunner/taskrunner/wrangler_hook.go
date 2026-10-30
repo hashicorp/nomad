@@ -54,5 +54,10 @@ func (wh *wranglerHook) Prestart(_ context.Context, request *ifs.TaskPrestartReq
 
 func (wh *wranglerHook) Stop(_ context.Context, request *ifs.TaskStopRequest, _ *ifs.TaskStopResponse) error {
 	wh.log.Trace("stopping client process mangagement", "task", wh.task)
-	return wh.wranglers.Destroy(wh.task)
+
+	// Only log process cleanup errors
+	if err := wh.wranglers.Destroy(wh.task); err != nil {
+		wh.log.Warn("error cleaning up task processes; potential process leak", "error", err)
+	}
+	return nil
 }

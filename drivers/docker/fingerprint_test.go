@@ -21,7 +21,7 @@ var (
 // TestDockerDriver_FingerprintHealth asserts that docker reports healthy
 // whenever Docker is supported.
 //
-// In Linux CI and AppVeyor Windows environment, it should be enabled.
+// In Linux CI and Windows environments, it should be enabled.
 func TestDockerDriver_FingerprintHealth(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)

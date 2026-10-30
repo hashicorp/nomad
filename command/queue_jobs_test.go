@@ -1,0 +1,118 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package command
+
+import (
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
+)
+
+func TestQueueJobsCommand_Implements(t *testing.T) {
+	ci.Parallel(t)
+	var _ cli.Command = &QueueJobsCommand{}
+}
+
+func TestQueueJobsCommand_printDynamicQueueFormatted(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueJobsCommand{Meta: Meta{Ui: ui}}
+
+	testResp := []api.DynamicPriorityWorkload{
+		{
+			JobID:            "123",
+			Tenant:           "testTenant1",
+			Status:           "queued",
+			Position:         1,
+			AdjustedPriority: 10,
+			BasePriority:     10,
+			FairshareAdjustment: 10,
+			AgeAdjustment:    5,
+			CpuAdjustment:    5,
+			MemoryAdjustment: 5,
+			CreatedAt:        time.Now().UnixNano(),
+		},
+	}
+	cmd.printDynamicQueueFormatted(testResp)
+
+	expect := "Batch Queue Workloads\n" +
+		"JobID  Tenant       Status  Adjusted Priority  Base Priority  Position  Fairshare  Age  Cpu  Memory  CreatedAt\n" +
+		"123    testTenant1  queued  10                 10             1         10         5    5    5       " + fmt.Sprintf("%v\n", formatUnixNanoTime(testResp[0].CreatedAt))
+
+	must.Eq(t, expect, ui.OutputWriter.String())
+}
+
+func TestQueueJobsCommand_printDynamicQueueJSON(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueJobsCommand{Meta: Meta{Ui: ui}}
+
+	testResp := []api.DynamicPriorityWorkload{
+		{
+			JobID:            "123",
+			Tenant:           "testTenant1",
+			Status:           "queued",
+			Position:         1,
+			AdjustedPriority: 10,
+			BasePriority:     10,
+			FairshareAdjustment: 10,
+			AgeAdjustment:    5,
+			CpuAdjustment:    5,
+			MemoryAdjustment: 5,
+			CreatedAt:        time.Now().UnixNano(),
+		},
+	}
+	cmd.printDynamicQueueJSON(testResp)
+
+	expect := `[{"JobID":"123","Tenant":"testTenant1","Status":"queued","Position":1,"AdjustedPriority":10,"BasePriority":10,"FairshareAdjustment":10,"AgeAdjustment":5,"CpuAdjustment":5,"MemoryAdjustment":5,"CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `}]` + "\n"
+
+	must.Eq(t, expect, ui.OutputWriter.String())
+}
+
+func TestQueueJobsCommand_printQueueFormatted(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueJobsCommand{Meta: Meta{Ui: ui}}
+
+	testResp := []api.Workload{
+		{
+			JobID:     "123",
+			Position:  1,
+			Status:    "queued",
+			CreatedAt: time.Now().UnixNano(),
+		},
+	}
+	cmd.printQueueFormatted(testResp)
+
+	expect := "Batch Queue Workloads\n" +
+		"JobID  Status  Position  CreatedAt\n" +
+		fmt.Sprintf("123    queued  1         %v\n", formatUnixNanoTime(testResp[0].CreatedAt))
+
+	must.Eq(t, expect, ui.OutputWriter.String())
+}
+
+func TestQueueJobsCommand_printQueueJSON(t *testing.T) {
+	ci.Parallel(t)
+	ui := cli.NewMockUi()
+	cmd := &QueueJobsCommand{Meta: Meta{Ui: ui}}
+
+	testResp := []api.Workload{
+		{
+			JobID:     "123",
+			Position:  1,
+			Status:    "queued",
+			CreatedAt: time.Now().UnixNano(),
+		},
+	}
+	cmd.printQueueJSON(testResp)
+
+	expect := `[{"JobID":"123","Position":1,"Status":"queued","CreatedAt":` + fmt.Sprintf("%d", testResp[0].CreatedAt) + `}]` + "\n"
+
+	must.Eq(t, expect, ui.OutputWriter.String())
+}

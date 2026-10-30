@@ -148,9 +148,9 @@ deps:  ## Install build and development dependencies
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	go install github.com/hashicorp/go-hclog/hclogvet@e4c86b4cdbc417b598e03d5e4344ddff3419aea1
+	go install github.com/hashicorp/go-hclog/hclogvet@79474c91fa80d15ecfd45b488979f2c16882781b
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -303,7 +303,7 @@ dev-debug: ## Build for the current platform with debug symbols and no optimizat
 	@rm -f $(BIN)/nomad
 	@echo "==> Done"
 	@echo "==> Building debug binary..."
-	@go build \
+	go build \
 	    -gcflags "all=-N -l" \
 		-ldflags "$(GO_LDFLAGS)" \
 		-tags "$(GO_TAGS) $(NOMAD_UI_TAG)" \

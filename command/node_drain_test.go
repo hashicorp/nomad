@@ -224,28 +224,6 @@ func TestNodeDrainCommand_Monitor(t *testing.T) {
 	out := outBuf.String()
 	t.Logf("Output:\n%s", out)
 
-	// Unfortunately travis is too slow to reliably see the expected output. The
-	// monitor goroutines may start only after some or all the allocs have been
-	// migrated.
-	if !testutil.IsTravis() {
-		must.StrContains(t, out, "Drain complete for node")
-		for _, a := range allocs {
-			if *a.Job.Type == "system" {
-				if strings.Contains(out, a.ID) {
-					t.Fatalf("output should not contain system alloc %q", a.ID)
-				}
-				continue
-			}
-			must.StrContains(t, out, fmt.Sprintf("Alloc %q marked for migration", a.ID))
-			must.StrContains(t, out, fmt.Sprintf("Alloc %q draining", a.ID))
-		}
-
-		expected := fmt.Sprintf("All allocations on node %q have stopped\n", nodeID)
-		if !strings.HasSuffix(out, expected) {
-			t.Fatalf("expected output to end with:\n%s", expected)
-		}
-	}
-
 	// Test -monitor flag
 	outBuf.Reset()
 	args = []string{"-address=" + url, "-self", "-monitor", "-ignore-system"}

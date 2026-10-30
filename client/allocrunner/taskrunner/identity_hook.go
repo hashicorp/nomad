@@ -6,7 +6,6 @@ package taskrunner
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -218,12 +217,14 @@ func (h *identityHook) setDefaultToken() error {
 
 	// Handle file writing
 	if id := h.task.Identity; id != nil && id.File {
-		// Write token as owner readable only
-		tokenPath := filepath.Join(h.taskDir.SecretsDir, wiTokenFile)
+
+		rootPath := h.taskDir.SecretsDir
+		tokenFileName := wiTokenFile
 		if id.Filepath != "" {
-			tokenPath = filepath.Join(h.taskDir.Dir, id.Filepath)
+			rootPath = h.taskDir.Dir
+			tokenFileName = id.Filepath
 		}
-		if err := users.WriteFileFor(tokenPath, []byte(token), h.task.User); err != nil {
+		if err := users.WriteFileFor(rootPath, tokenFileName, []byte(token), h.task.User); err != nil {
 			return fmt.Errorf("failed to write nomad token: %w", err)
 		}
 	}
@@ -239,11 +240,13 @@ func (h *identityHook) setAltToken(widspec *structs.WorkloadIdentity, rawJWT str
 	}
 
 	if widspec.File {
-		tokenPath := filepath.Join(h.taskDir.SecretsDir, fmt.Sprintf("nomad_%s.jwt", widspec.Name))
+		rootPath := h.taskDir.SecretsDir
+		tokenFileName := fmt.Sprintf("nomad_%s.jwt", widspec.Name)
 		if widspec.Filepath != "" {
-			tokenPath = filepath.Join(h.taskDir.Dir, widspec.Filepath)
+			rootPath = h.taskDir.Dir
+			tokenFileName = widspec.Filepath
 		}
-		if err := users.WriteFileFor(tokenPath, []byte(rawJWT), h.task.User); err != nil {
+		if err := users.WriteFileFor(rootPath, tokenFileName, []byte(rawJWT), h.task.User); err != nil {
 			return fmt.Errorf("failed to write token for identity %q: %w", widspec.Name, err)
 		}
 	}

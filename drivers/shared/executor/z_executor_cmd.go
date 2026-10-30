@@ -6,6 +6,7 @@ package executor
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -30,7 +31,7 @@ func init() {
 			os.Exit(1)
 		}
 
-		f, err := os.OpenFile(executorConfig.LogFile, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+		f, err := openLogFile(&executorConfig)
 		if err != nil {
 			hclog.L().Error(err.Error())
 			os.Exit(1)
@@ -56,4 +57,23 @@ func init() {
 
 		os.Exit(0)
 	}
+}
+
+func openLogFile(cfg *ExecutorConfig) (*os.File, error) {
+	if cfg.LogFile == os.DevNull {
+		return os.OpenFile(os.DevNull, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+	}
+
+	root, err := os.OpenRoot(cfg.AllocDir)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = root.Close()
+	}()
+	rel, err := filepath.Rel(cfg.AllocDir, cfg.LogFile)
+	if err != nil {
+		return nil, err
+	}
+	return root.OpenFile(rel, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 }

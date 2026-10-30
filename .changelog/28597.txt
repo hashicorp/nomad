@@ -1,0 +1,11 @@
+```release-note:security
+security: Fixed a bug where the Read Scaling Policy API allowed reading a policy from disallowed namespaces
+```
+
+```release-note:security
+security: Fixed a bug where the Read Dynamic Host Volume API allowed reading host volume metadata from disallowed namespaces
+```
+
+```release-note:security
+security: Fixed a bug where the Prefix Search API allowed enumerating IDs for jobs, deployments, allocs, evals, scaling policies, and volume from disallowed namespaces
+```

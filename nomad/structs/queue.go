@@ -1,0 +1,104 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package structs
+
+type QueueWorkload interface {
+	GetID() string
+	GetCreateIndex() uint64
+	GetNamespace() string
+}
+
+type SortOrder string
+
+const (
+	SortByPriority SortOrder = "priority"
+	SortDefault    SortOrder = "default"
+)
+
+type DynamicPriorityWorkload struct {
+	JobID               string
+	Tenant              string
+	Namespace           string
+	Position            int
+	Status              string
+	AdjustedPriority    int
+	BasePriority        int
+	FairshareAdjustment int
+	AgeAdjustment       int
+	CpuAdjustment       int
+	MemoryAdjustment    int
+	CreatedAt           int64
+	CreateIndex         uint64
+}
+
+func (w *DynamicPriorityWorkload) GetID() string {
+	return w.JobID
+}
+
+func (w *DynamicPriorityWorkload) GetCreateIndex() uint64 {
+	return w.CreateIndex
+}
+
+func (w *DynamicPriorityWorkload) GetNamespace() string {
+	return w.Namespace
+}
+
+type DynamicPriorityTenant struct {
+	TenantID        string
+	PercentageUsed  int
+	TenantFairshare map[string]float64
+	TotalFairshare  map[string]float64
+}
+
+type Workload struct {
+	JobID       string
+	Namespace   string
+	Position    int
+	Status      string
+	CreatedAt   int64
+	CreateIndex uint64
+}
+
+func (w *Workload) GetID() string {
+	return w.JobID
+}
+
+func (w *Workload) GetCreateIndex() uint64 {
+	return w.CreateIndex
+}
+
+func (w *Workload) GetNamespace() string {
+	return w.Namespace
+}
+
+type QueueStatusRequest struct {
+	NodePool string `json:"node_pool,omitempty"`
+	QueryOptions
+}
+
+type QueueStatusResponse struct {
+	Type BatchQueueType
+
+	// Status contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The actual type is based on the "Type" parameter.
+	Status any
+	QueryMeta
+}
+
+type QueueJobsRequest struct {
+	Sort     SortOrder `json:"sort,omitempty"`
+	NodePool string    `json:"node_pool,omitempty"`
+	QueryOptions
+}
+
+type QueueJobsResponse struct {
+	Type BatchQueueType
+
+	// Workloads contains data about a specific queue
+	// that is important to a consumer of this API.
+	// The actual type is based on the "Type" parameter.
+	Workloads any
+	QueryMeta
+}

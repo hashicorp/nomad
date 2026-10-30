@@ -445,7 +445,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 
 	index := uint64(1001)
 
-	token := mock.CreatePolicyAndToken(t, store, index, "volume-manager",
+	appToken := mock.CreatePolicyAndToken(t, store, index, "app",
 		`namespace "apps" { capabilities = ["host-volume-register"] }
 	     node { policy = "read" }`).SecretID
 
@@ -453,6 +453,11 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 	otherToken := mock.CreatePolicyAndToken(t, store, index, "other",
 		`namespace "foo" { capabilities = ["host-volume-read"] }
          node { policy = "read" }`).SecretID
+
+	index++
+	anyToken := mock.CreatePolicyAndToken(t, store, index, "volume-manager",
+		`namespace "*" { capabilities = ["host-volume-register"] }
+	     node { policy = "read" }`).SecretID
 
 	index++
 	ns1 := "apps"
@@ -540,7 +545,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: ns1,
-					AuthToken: token,
+					AuthToken: appToken,
 				},
 			},
 			expectVolIDs: []string{vol1.ID, vol2.ID},
@@ -551,10 +556,32 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: structs.AllNamespacesSentinel,
-					AuthToken: token,
+					AuthToken: anyToken,
 				},
 			},
 			expectVolIDs: []string{vol1.ID, vol2.ID, vol3.ID, vol4.ID},
+		},
+		{
+			name: "wildcard namespace filtered by token",
+			req: &structs.HostVolumeListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    srv.Region(),
+					Namespace: structs.AllNamespacesSentinel,
+					AuthToken: appToken,
+				},
+			},
+			expectVolIDs: []string{vol1.ID, vol2.ID},
+		},
+		{
+			name: "wildcard namespace with wrong token policy",
+			req: &structs.HostVolumeListRequest{
+				QueryOptions: structs.QueryOptions{
+					Region:    srv.Region(),
+					Namespace: structs.AllNamespacesSentinel,
+					AuthToken: otherToken,
+				},
+			},
+			expectVolIDs: []string{},
 		},
 		{
 			name: "query by prefix",
@@ -562,7 +589,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: ns1,
-					AuthToken: token,
+					AuthToken: appToken,
 					Prefix:    "foobar",
 				},
 			},
@@ -575,10 +602,22 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: structs.AllNamespacesSentinel,
-					AuthToken: token,
+					AuthToken: anyToken,
 				},
 			},
 			expectVolIDs: []string{vol2.ID, vol4.ID},
+		},
+		{
+			name: "query by node filtered by token",
+			req: &structs.HostVolumeListRequest{
+				NodeID: node1.ID,
+				QueryOptions: structs.QueryOptions{
+					Region:    srv.Region(),
+					Namespace: structs.AllNamespacesSentinel,
+					AuthToken: appToken,
+				},
+			},
+			expectVolIDs: []string{vol2.ID},
 		},
 		{
 			name: "query by node pool",
@@ -587,7 +626,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: structs.AllNamespacesSentinel,
-					AuthToken: token,
+					AuthToken: anyToken,
 				},
 			},
 			expectVolIDs: []string{vol3.ID},
@@ -600,7 +639,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: structs.AllNamespacesSentinel,
-					AuthToken: token,
+					AuthToken: appToken,
 				},
 			},
 			expectVolIDs: []string{},
@@ -629,7 +668,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:    srv.Region(),
 				Namespace: ns1,
-				AuthToken: token,
+				AuthToken: appToken,
 			},
 		}
 		var getResp structs.HostVolumeGetResponse
@@ -653,7 +692,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 			QueryOptions: structs.QueryOptions{
 				Region:        srv.Region(),
 				Namespace:     ns1,
-				AuthToken:     token,
+				AuthToken:     appToken,
 				MinQueryIndex: getResp.Index,
 			},
 		}

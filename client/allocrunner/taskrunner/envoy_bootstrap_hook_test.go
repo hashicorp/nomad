@@ -66,10 +66,17 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 		t.Skip("test only works as non-root")
 	}
 
+	openRoot := func(t *testing.T, dir string) *os.Root {
+		root, err := os.OpenRoot(dir)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = root.Close() })
+		return root
+	}
+
 	t.Run("file does not exist", func(t *testing.T) {
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
 			logger: testlog.HCLogger(t), node: mock.Node()})
-		cfg, err := h.maybeLoadSIToken("task1", "/does/not/exist")
+		cfg, err := h.maybeLoadSIToken("task1", openRoot(t, t.TempDir()))
 		require.NoError(t, err) // absence of token is not an error
 		require.Equal(t, "", cfg)
 	})
@@ -80,7 +87,7 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
 			logger: testlog.HCLogger(t), node: mock.Node()})
-		cfg, err := h.maybeLoadSIToken("task1", f)
+		cfg, err := h.maybeLoadSIToken("task1", openRoot(t, f))
 		require.NoError(t, err)
 		require.Equal(t, token, cfg)
 	})
@@ -91,7 +98,7 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 
 		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
 			logger: testlog.HCLogger(t), node: mock.Node()})
-		cfg, err := h.maybeLoadSIToken("task1", f)
+		cfg, err := h.maybeLoadSIToken("task1", openRoot(t, f))
 		require.Error(t, err)
 		require.False(t, os.IsNotExist(err))
 		require.Equal(t, "", cfg)
