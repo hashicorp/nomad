@@ -394,6 +394,9 @@ type Config struct {
 	// Uesrs configuration from the agent's config file.
 	Users *UsersConfig
 
+	// SELinux configures how the client works with SELinux.
+	SELinux *SELinuxConfig
+
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
 
@@ -933,6 +936,7 @@ func (c *Config) Copy() *Config {
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
 	nc.Users = c.Users.Copy()
+	nc.SELinux = c.SELinux.Copy()
 	return &nc
 }
 
