@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where the generated /etc/hosts and /etc/resolv.conf were not readable by SELinux-confined tasks when `volumes.selinuxlabel` is set
+```
