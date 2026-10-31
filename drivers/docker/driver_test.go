@@ -7,12 +7,15 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -3015,6 +3018,40 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 	// assert volume error is recoverable
 	_, err := driver.Impl().(*Driver).createContainer(fakeDockerClient{}, createContainerOptions{
 		Config: &containerapi.Config{}}, cfg.Image)
+	must.True(t, structs.IsRecoverable(err))
+}
+
+func TestDockerDriver_StartContainer_InternalError(t *testing.T) {
+	ci.Parallel(t)
+
+	var startAttempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/containers/78728c28/start") {
+			startAttempts.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"message":"hcs::CreateComputeSystem 78728c28: Incorrect function."}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("[]"))
+	}))
+	defer server.Close()
+
+	driver := dockerDriverHarness(t, map[string]any{
+		"endpoint": server.URL,
+		"gc": map[string]any{
+			"image":       false,
+			"image_delay": "1s",
+		},
+	})
+
+	err := driver.Impl().(*Driver).startContainer(mclient.ContainerInspectResult{
+		Container: containerapi.InspectResponse{ID: "78728c28"},
+	})
+	must.Error(t, err)
+	must.Eq(t, 6, startAttempts.Load())
 	must.True(t, structs.IsRecoverable(err))
 }
 
