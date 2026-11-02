@@ -1532,6 +1532,67 @@ func TestDockerDriver_CreateContainerConfig_Mounts(t *testing.T) {
 	}, cc.Host.Binds)
 }
 
+func TestDockerDriver_CreateContainerConfig_GeneratedFiles(t *testing.T) {
+	ci.Parallel(t)
+	testutil.RequireLinux(t)
+
+	cases := []struct {
+		name         string
+		selinuxLabel string
+	}{
+		{name: "without selinuxlabel"},
+		{name: "with selinuxlabel", selinuxLabel: "z"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			task, cfg, _ := dockerTask(t)
+			// the hosts and resolv.conf files are written into the alloc dir
+			task.AllocDir = t.TempDir()
+			task.NetworkIsolation = &drivers.NetworkIsolationSpec{
+				Mode: drivers.NetIsolationModeGroup,
+				HostsConfig: &drivers.HostsConfig{
+					Hostname: "example",
+					Address:  "192.168.0.10",
+				},
+			}
+			task.DNS = &drivers.DNSConfig{Servers: []string{"192.168.0.1"}}
+			taskDir := task.TaskDir()
+			must.NoError(t, os.MkdirAll(taskDir.Dir, 0o755))
+			must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
+			dh := dockerDriverHarness(t, nil)
+			driver := dh.Impl().(*Driver)
+			driver.config.Volumes.SelinuxLabel = tc.selinuxLabel
+
+			cc, err := driver.createContainerConfig(task, cfg, "org/repo:0.1")
+			must.NoError(t, err)
+
+			hostsFile := filepath.Join(task.AllocDir, "hosts")
+			resolvFile := filepath.Join(taskDir.Dir, "resolv.conf")
+			if tc.selinuxLabel == "" {
+				must.Eq(t, []string{
+					taskDir.SharedAllocDir + ":/alloc",
+					taskDir.LocalDir + ":/local",
+					taskDir.SecretsDir + ":/secrets",
+					taskDir.LogDir + ":/alloc/logs:ro",
+					hostsFile + ":/etc/hosts:private",
+					resolvFile + ":/etc/resolv.conf:ro,private",
+				}, cc.Host.Binds)
+			} else {
+				must.Eq(t, []string{
+					taskDir.SharedAllocDir + ":/alloc:z",
+					taskDir.LocalDir + ":/local:z",
+					taskDir.SecretsDir + ":/secrets:z",
+					taskDir.LogDir + ":/alloc/logs:ro,z",
+					hostsFile + ":/etc/hosts:private,z",
+					resolvFile + ":/etc/resolv.conf:ro,private,z",
+				}, cc.Host.Binds)
+			}
+			must.SliceEmpty(t, cc.Host.Mounts)
+		})
+	}
+}
+
 func TestDockerDriver_CreateContainerConfig_Mounts_Windows(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireWindows(t)
