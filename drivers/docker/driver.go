@@ -774,29 +774,44 @@ func (d *Driver) convertAllocPathsForWindowsLCOW(task *drivers.TaskConfig, image
 	return nil
 }
 
+// bind returns a "src:dst[:opts]" bind for hostConfig.Binds, with the
+// configured SELinux label appended to opts.
+func (d *Driver) bind(src, dst string, opts ...string) string {
+	if selinuxLabel := d.config.Volumes.SelinuxLabel; selinuxLabel != "" {
+		opts = append(opts, selinuxLabel)
+	}
+	if len(opts) == 0 {
+		return src + ":" + dst
+	}
+	return src + ":" + dst + ":" + strings.Join(opts, ",")
+}
+
+// generatedFileBind returns the bind config for a file the driver generates
+// for the task, such as /etc/hosts or /etc/resolv.conf. It is a bind rather
+// than a mount because the mounts API cannot relabel the file for SELinux.
+func (d *Driver) generatedFileBind(m *drivers.MountConfig) string {
+	var opts []string
+	if m.Readonly {
+		opts = append(opts, "ro")
+	}
+	if m.PropagationMode != "" {
+		opts = append(opts, m.PropagationMode)
+	}
+	return d.bind(m.HostPath, m.TaskPath, opts...)
+}
+
 func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConfig) ([]string, error) {
 	taskLocalBindVolume := driverConfig.VolumeDriver == ""
 	if !d.config.Volumes.Enabled && !taskLocalBindVolume {
 		return nil, fmt.Errorf("volumes are not enabled; cannot use volume driver %q", driverConfig.VolumeDriver)
 	}
 
-	allocDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir])
-	taskLocalBind := fmt.Sprintf("%s:%s", task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir])
-	secretDirBind := fmt.Sprintf("%s:%s", task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir])
-	selinuxLabel := d.config.Volumes.SelinuxLabel
-
-	binds := []string{allocDirBind, taskLocalBind, secretDirBind}
-
-	logsROFlag := "ro"
-	if selinuxLabel != "" {
-		// Apply SELinux Label to each built-in bind
-		for i := range binds {
-			binds[i] = fmt.Sprintf("%s:%s", binds[i], selinuxLabel)
-		}
-		logsROFlag = "ro," + selinuxLabel
+	binds := []string{
+		d.bind(task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir]),
+		d.bind(task.TaskDir().LocalDir, task.Env[taskenv.TaskLocalDir]),
+		d.bind(task.TaskDir().SecretsDir, task.Env[taskenv.SecretsDir]),
+		d.bind(task.TaskDir().SharedAllocDir+"/logs", task.Env[taskenv.AllocDir]+"/logs", "ro"),
 	}
-	allocLogsDirBind := fmt.Sprintf("%s/logs:%s/logs:%s", task.TaskDir().SharedAllocDir, task.Env[taskenv.AllocDir], logsROFlag)
-	binds = append(binds, allocLogsDirBind)
 
 	for _, userbind := range driverConfig.Volumes {
 		// This assumes host OS = docker container OS.
@@ -825,19 +840,11 @@ func (d *Driver) containerBinds(task *drivers.TaskConfig, driverConfig *TaskConf
 			}
 		}
 
-		bind := src + ":" + dst
-		opts := mode
-		if opts != "" {
-			if selinuxLabel != "" {
-				opts += "," + selinuxLabel
-			}
-		} else {
-			opts = selinuxLabel
+		var opts []string
+		if mode != "" {
+			opts = append(opts, mode)
 		}
-		if opts != "" {
-			bind += ":" + opts
-		}
-		binds = append(binds, bind)
+		binds = append(binds, d.bind(src, dst, opts...))
 	}
 
 	return binds, nil
@@ -1308,15 +1315,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 			// erase the extra_hosts field if we have a mount so we don't get
 			// conflicting options error from dockerd
 			driverConfig.ExtraHosts = nil
-			hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-				Target:   etcHostMount.TaskPath,
-				Source:   etcHostMount.HostPath,
-				Type:     "bind",
-				ReadOnly: etcHostMount.Readonly,
-				BindOptions: &mount.BindOptions{
-					Propagation: mount.Propagation(etcHostMount.PropagationMode),
-				},
-			})
+			hostConfig.Binds = append(hostConfig.Binds, d.generatedFileBind(etcHostMount))
 		}
 	}
 
@@ -1328,15 +1327,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		if err != nil {
 			return c, fmt.Errorf("failed to build mount for resolv.conf: %v", err)
 		}
-		hostConfig.Mounts = append(hostConfig.Mounts, mount.Mount{
-			Target:   dnsMount.TaskPath,
-			Source:   dnsMount.HostPath,
-			Type:     "bind",
-			ReadOnly: dnsMount.Readonly,
-			BindOptions: &mount.BindOptions{
-				Propagation: mount.Propagation(dnsMount.PropagationMode),
-			},
-		})
+		hostConfig.Binds = append(hostConfig.Binds, d.generatedFileBind(dnsMount))
 	} else {
 		if len(driverConfig.DNSSearchDomains) > 0 {
 			hostConfig.DNSSearch = driverConfig.DNSSearchDomains
