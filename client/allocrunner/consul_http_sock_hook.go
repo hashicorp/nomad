@@ -44,6 +44,10 @@ type consulHTTPSockHook struct {
 	lock    sync.Mutex
 	alloc   *structs.Allocation
 	proxies map[string]*httpSocketProxy
+
+	// socketLabeler decides whether the sockets are created with the
+	// container SELinux type.
+	socketLabeler *taskSocketLabeler
 }
 
 func newConsulHTTPSocketHook(
@@ -51,7 +55,7 @@ func newConsulHTTPSocketHook(
 	alloc *structs.Allocation,
 	allocDir allocdir.Interface,
 	configs map[string]*config.ConsulConfig,
-	selinuxLabel bool,
+	socketLabeler *taskSocketLabeler,
 ) *consulHTTPSockHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
@@ -68,14 +72,14 @@ func newConsulHTTPSocketHook(
 			logger,
 			allocDir,
 			configs[clusterName],
-			selinuxLabel,
 		)
 	}
 
 	return &consulHTTPSockHook{
-		alloc:   alloc,
-		proxies: proxies,
-		logger:  logger.Named(consulHTTPSocketHookName),
+		alloc:         alloc,
+		proxies:       proxies,
+		socketLabeler: socketLabeler,
+		logger:        logger.Named(consulHTTPSocketHookName),
 	}
 }
 
@@ -116,9 +120,10 @@ func (h *consulHTTPSockHook) Prerun(_ *taskenv.TaskEnv) error {
 		return nil
 	}
 
+	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc); err != nil {
+		if err := proxy.run(h.alloc, selinuxLabel); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -138,9 +143,10 @@ func (h *consulHTTPSockHook) Update(req *interfaces.RunnerUpdateRequest) error {
 		return fmt.Errorf("cannot update alloc to Connect in-place")
 	}
 
+	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc); err != nil {
+		if err := proxy.run(h.alloc, selinuxLabel); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -167,9 +173,6 @@ type httpSocketProxy struct {
 	allocDir allocdir.Interface
 	config   *config.ConsulConfig
 
-	// selinuxLabel creates the socket with the container SELinux type.
-	selinuxLabel bool
-
 	ctx     context.Context
 	cancel  func()
 	doneCh  chan struct{}
@@ -180,24 +183,24 @@ func newHTTPSocketProxy(
 	logger hclog.Logger,
 	allocDir allocdir.Interface,
 	config *config.ConsulConfig,
-	selinuxLabel bool,
 ) *httpSocketProxy {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &httpSocketProxy{
-		logger:       logger,
-		allocDir:     allocDir,
-		config:       config,
-		selinuxLabel: selinuxLabel,
-		ctx:          ctx,
-		cancel:       cancel,
-		doneCh:       make(chan struct{}),
+		logger:   logger,
+		allocDir: allocDir,
+		config:   config,
+		ctx:      ctx,
+		cancel:   cancel,
+		doneCh:   make(chan struct{}),
 	}
 }
 
 // run the httpSocketProxy for the given allocation.
 //
+// selinuxLabel creates the socket with the container SELinux type.
+//
 // Assumes locking done by the calling alloc runner.
-func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
+func (p *httpSocketProxy) run(alloc *structs.Allocation, selinuxLabel bool) error {
 	// Only run once.
 	if p.runOnce {
 		return nil
@@ -230,7 +233,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 		return err
 	}
 
-	listener, err := users.ListenTaskSocket(hostHTTPSockPath, p.selinuxLabel)
+	listener, err := users.ListenTaskSocket(hostHTTPSockPath, selinuxLabel)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
 	}

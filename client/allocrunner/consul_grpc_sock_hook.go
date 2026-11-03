@@ -56,6 +56,10 @@ type consulGRPCSocketHook struct {
 	mu      sync.Mutex
 	alloc   *structs.Allocation
 	proxies map[string]*grpcSocketProxy
+
+	// socketLabeler decides whether the sockets are created with the
+	// container SELinux type.
+	socketLabeler *taskSocketLabeler
 }
 
 func newConsulGRPCSocketHook(
@@ -64,7 +68,7 @@ func newConsulGRPCSocketHook(
 	allocDir allocdir.Interface,
 	configs map[string]*config.ConsulConfig,
 	nodeAttrs map[string]string,
-	selinuxLabel bool,
+	socketLabeler *taskSocketLabeler,
 ) *consulGRPCSocketHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
@@ -93,14 +97,14 @@ func newConsulGRPCSocketHook(
 			allocDir,
 			configs[clusterName],
 			consulGRPCPort,
-			selinuxLabel,
 		)
 	}
 
 	return &consulGRPCSocketHook{
-		alloc:   alloc,
-		proxies: proxies,
-		logger:  logger.Named(consulGRPCSockHookName),
+		alloc:         alloc,
+		proxies:       proxies,
+		socketLabeler: socketLabeler,
+		logger:        logger.Named(consulGRPCSockHookName),
 	}
 }
 
@@ -142,9 +146,10 @@ func (h *consulGRPCSocketHook) Prerun(_ *taskenv.TaskEnv) error {
 		return nil
 	}
 
+	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(); err != nil {
+		if err := proxy.run(selinuxLabel); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -166,9 +171,10 @@ func (h *consulGRPCSocketHook) Update(req *interfaces.RunnerUpdateRequest) error
 		return fmt.Errorf("cannot update alloc to Connect in-place")
 	}
 
+	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(); err != nil {
+		if err := proxy.run(selinuxLabel); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -199,9 +205,6 @@ type grpcSocketProxy struct {
 	// specify a gRPC config address.
 	consulGRPCFallbackPort string
 
-	// selinuxLabel creates the socket with the container SELinux type.
-	selinuxLabel bool
-
 	ctx     context.Context
 	cancel  func()
 	doneCh  chan struct{}
@@ -213,7 +216,6 @@ func newGRPCSocketProxy(
 	allocDir allocdir.Interface,
 	config *config.ConsulConfig,
 	consulGRPCFallbackPort string,
-	selinuxLabel bool,
 ) *grpcSocketProxy {
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -221,7 +223,6 @@ func newGRPCSocketProxy(
 		allocDir:               allocDir,
 		config:                 config,
 		consulGRPCFallbackPort: consulGRPCFallbackPort,
-		selinuxLabel:           selinuxLabel,
 		ctx:                    ctx,
 		cancel:                 cancel,
 		doneCh:                 make(chan struct{}),
@@ -232,8 +233,10 @@ func newGRPCSocketProxy(
 // run socket proxy if allocation requires it, it isn't already running, and it
 // hasn't been told to stop.
 //
+// selinuxLabel creates the socket with the container SELinux type.
+//
 // NOT safe for concurrent use.
-func (p *grpcSocketProxy) run() error {
+func (p *grpcSocketProxy) run(selinuxLabel bool) error {
 	// Only run once.
 	if p.runOnce {
 		return nil
@@ -293,7 +296,7 @@ func (p *grpcSocketProxy) run() error {
 		}
 	}
 
-	listener, err := users.ListenTaskSocket(hostGRPCSocketPath, p.selinuxLabel)
+	listener, err := users.ListenTaskSocket(hostGRPCSocketPath, selinuxLabel)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
 	}

@@ -108,6 +108,10 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
 
+	// The Consul socket hooks decide in Prerun whether to label their
+	// sockets, once the task runners and their drivers exist.
+	socketLabeler := newTaskSocketLabeler(hookLogger, config.SELinux.TaskSocketsLabeled(), ar)
+
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
@@ -138,9 +142,9 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			shutdownDelayCtx:  ar.shutdownDelayCtx,
 		}),
 		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir,
-			config.GetConsulConfigs(ar.logger), config.Node.Attributes, config.SELinux.TaskSocketsLabeled()),
+			config.GetConsulConfigs(ar.logger), config.Node.Attributes, socketLabeler),
 		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir,
-			config.GetConsulConfigs(ar.logger), config.SELinux.TaskSocketsLabeled()),
+			config.GetConsulConfigs(ar.logger), socketLabeler),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
 		newChecksHook(hookLogger, alloc, ar.checkStore, ar),
 	}

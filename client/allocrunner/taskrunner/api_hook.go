@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
 // apiHook exposes the Task API. The Task API allows task's to access the Nomad
@@ -35,8 +36,12 @@ type apiHook struct {
 	srv         config.APIListenerRegistrar
 	logger      hclog.Logger
 
-	// selinuxLabel creates the socket with the container SELinux type.
+	// selinuxLabel is the client.selinux.label_task_sockets option. The
+	// socket is only labeled when the task's driver also needs it.
 	selinuxLabel bool
+
+	// driverCapabilities returns the capabilities of the task's driver.
+	driverCapabilities func() (*drivers.Capabilities, error)
 
 	// Lock listener as it is updated from multiple hooks.
 	lock sync.Mutex
@@ -45,11 +50,18 @@ type apiHook struct {
 	ln net.Listener
 }
 
-func newAPIHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, logger hclog.Logger, selinuxLabel bool) *apiHook {
+func newAPIHook(
+	shutdownCtx context.Context,
+	srv config.APIListenerRegistrar,
+	logger hclog.Logger,
+	selinuxLabel bool,
+	driverCapabilities func() (*drivers.Capabilities, error),
+) *apiHook {
 	h := &apiHook{
-		shutdownCtx:  shutdownCtx,
-		srv:          srv,
-		selinuxLabel: selinuxLabel,
+		shutdownCtx:        shutdownCtx,
+		srv:                srv,
+		selinuxLabel:       selinuxLabel,
+		driverCapabilities: driverCapabilities,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -57,6 +69,20 @@ func newAPIHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, lo
 
 func (*apiHook) Name() string {
 	return "api"
+}
+
+// labelSocket reports whether the task API socket is created with the
+// container SELinux type: the option is set and the task's driver needs it.
+func (h *apiHook) labelSocket() bool {
+	if !h.selinuxLabel || h.driverCapabilities == nil {
+		return false
+	}
+	caps, err := h.driverCapabilities()
+	if err != nil {
+		h.logger.Warn("unable to get task driver capabilities, task api socket will not be labeled", "error", err)
+		return false
+	}
+	return DriverNeedsLabeledSockets(caps)
 }
 
 func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -69,7 +95,7 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 	}
 
 	udsPath := apiSocketPath(req.TaskDir)
-	udsln, err := users.SocketFileFor(h.logger, udsPath, req.Task.User, h.selinuxLabel)
+	udsln, err := users.SocketFileFor(h.logger, udsPath, req.Task.User, h.labelSocket())
 	if err != nil {
 		// Soft-fail and let the task fail if it requires the task api.
 		h.logger.Warn("error creating task api socket", "path", udsPath, "error", err)

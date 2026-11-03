@@ -11,6 +11,8 @@ import "github.com/hashicorp/nomad/helper/pointer"
 type SELinuxConfig struct {
 	// LabelTaskSockets creates the unix sockets tasks connect to with the
 	// container SELinux type, so tasks in confined containers can use them.
+	// It only applies to tasks whose driver uses image based filesystem
+	// isolation, such as Docker and podman.
 	LabelTaskSockets *bool `hcl:"label_task_sockets"`
 }
 
@@ -39,8 +41,8 @@ func (s *SELinuxConfig) Merge(o *SELinuxConfig) *SELinuxConfig {
 	}
 }
 
-// TaskSocketsLabeled reports whether task sockets are created with the
-// container SELinux type.
+// TaskSocketsLabeled reports whether the option to create task sockets with the
+// container SELinux type is set.
 func (s *SELinuxConfig) TaskSocketsLabeled() bool {
 	return s != nil && s.LabelTaskSockets != nil && *s.LabelTaskSockets
 }
