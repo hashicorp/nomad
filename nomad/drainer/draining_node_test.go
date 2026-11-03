@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -96,12 +97,12 @@ func TestDrainingNode_Table(t *testing.T) {
 			setup: func(t *testing.T, dn *drainingNode) {
 				alloc := mock.Alloc()
 				alloc.NodeID = dn.node.ID
-				require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+				must.NoError(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
+				must.NoError(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
 
 				alloc.DesiredStatus = structs.AllocDesiredStatusStop
 				alloc.ClientStatus = structs.AllocClientStatusRunning
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, []*structs.Allocation{alloc}))
+				must.NoError(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, []*structs.Allocation{alloc}))
 			},
 		},
 		{
