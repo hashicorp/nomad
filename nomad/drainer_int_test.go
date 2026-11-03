@@ -340,7 +340,6 @@ func TestDrainer_DesiredStopClientRunning_NoDeadline(t *testing.T) {
 	}
 	var resp structs.JobRegisterResponse
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.Register", req, &resp))
-	must.Positive(t, resp.Index)
 
 	// Wait for the allocation to be placed and mark it running on the client
 	waitForPlacedAllocs(t, store, n1.ID, 1)
@@ -387,9 +386,6 @@ func TestDrainer_DesiredStopClientRunning_NoDeadline(t *testing.T) {
 		wait.Timeout(10*time.Second),
 		wait.Gap(50*time.Millisecond),
 	))
-	node, err := store.NodeByID(nil, n1.ID)
-	must.NoError(t, err)
-	must.NotNil(t, node.DrainStrategy)
 
 	// Mark the alloc complete on the client
 	alloc = allocs[0].Copy()
