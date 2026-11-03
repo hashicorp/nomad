@@ -447,7 +447,7 @@ type ClientConfig struct {
 	Users *config.UsersConfig `hcl:"users"`
 
 	// SELinux configures how the client works with SELinux.
-	SELinux *config.SELinuxConfig `hcl:"selinux"`
+	SELinux *client.SELinuxConfig `hcl:"selinux"`
 
 	// NodeMaxAllocs sets the maximum number of allocations per node
 	// Defaults to 0 and ignored if unset.

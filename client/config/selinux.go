@@ -3,35 +3,44 @@
 
 package config
 
-import sconfig "github.com/hashicorp/nomad/nomad/structs/config"
+import "github.com/hashicorp/nomad/helper/pointer"
 
-// SELinuxConfig configures how the client works with SELinux.
+// SELinuxConfig configures how the client works with SELinux. The agent parses
+// the client.selinux block into it and hands a copy to the client, like
+// ClientTemplateConfig.
 type SELinuxConfig struct {
 	// LabelTaskSockets creates the unix sockets tasks connect to with the
 	// container SELinux type, so tasks in confined containers can use them.
-	LabelTaskSockets bool
+	LabelTaskSockets *bool `hcl:"label_task_sockets"`
 }
 
-func SELinuxConfigFromAgent(c *sconfig.SELinuxConfig) *SELinuxConfig {
-	if c == nil || c.LabelTaskSockets == nil {
-		return &SELinuxConfig{}
-	}
-	return &SELinuxConfig{
-		LabelTaskSockets: *c.LabelTaskSockets,
-	}
-}
-
+// Copy returns a deep copy of the SELinux configuration.
 func (s *SELinuxConfig) Copy() *SELinuxConfig {
 	if s == nil {
 		return nil
 	}
 	return &SELinuxConfig{
-		LabelTaskSockets: s.LabelTaskSockets,
+		LabelTaskSockets: pointer.Copy(s.LabelTaskSockets),
+	}
+}
+
+// Merge returns a new SELinux configuration where non-nil fields in the
+// argument have higher precedence.
+func (s *SELinuxConfig) Merge(o *SELinuxConfig) *SELinuxConfig {
+	switch {
+	case s == nil:
+		return o.Copy()
+	case o == nil:
+		return s.Copy()
+	default:
+		return &SELinuxConfig{
+			LabelTaskSockets: pointer.Merge(s.LabelTaskSockets, o.LabelTaskSockets),
+		}
 	}
 }
 
 // TaskSocketsLabeled reports whether task sockets are created with the
 // container SELinux type.
 func (s *SELinuxConfig) TaskSocketsLabeled() bool {
-	return s != nil && s.LabelTaskSockets
+	return s != nil && s.LabelTaskSockets != nil && *s.LabelTaskSockets
 }

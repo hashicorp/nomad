@@ -825,7 +825,7 @@ func TestConvertClientConfig(t *testing.T) {
 		{
 			name: "selinux task socket labels enabled",
 			modConfig: func(c *Config) {
-				c.Client.SELinux = &config.SELinuxConfig{LabelTaskSockets: new(true)}
+				c.Client.SELinux = &clientconfig.SELinuxConfig{LabelTaskSockets: new(true)}
 			},
 			assert: func(t *testing.T, cc *clientconfig.Config) {
 				must.True(t, cc.SELinux.TaskSocketsLabeled())

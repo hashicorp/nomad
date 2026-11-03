@@ -68,3 +68,13 @@ func TestSELinuxConfig_Merge(t *testing.T) {
 		})
 	}
 }
+
+func TestSELinuxConfig_TaskSocketsLabeled(t *testing.T) {
+	ci.Parallel(t)
+
+	var unset *SELinuxConfig
+	must.False(t, unset.TaskSocketsLabeled())
+	must.False(t, (&SELinuxConfig{}).TaskSocketsLabeled())
+	must.False(t, (&SELinuxConfig{LabelTaskSockets: new(false)}).TaskSocketsLabeled())
+	must.True(t, (&SELinuxConfig{LabelTaskSockets: new(true)}).TaskSocketsLabeled())
+}
