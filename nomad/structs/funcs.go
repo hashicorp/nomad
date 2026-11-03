@@ -139,11 +139,11 @@ func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
 // If the netIdx is provided, it is assumed that the client has already
 // ensured there are no collisions. If checkDevices is set to true, we check if
 // there is a device oversubscription.
-func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
+func AllocsFit(node *Node, allocWithCmp AllocResourceCache, netIdx *NetworkIndex, checkDevices bool) (bool, string, *BaseComparableResource, error) {
 	// Compute the allocs' utilization from zero
-	used := new(ComparableResources)
+	used := &BaseComparableResource{}
 	if node.NodeMaxAllocs != 0 {
-		if node.NodeMaxAllocs < len(allocs) {
+		if node.NodeMaxAllocs < len(allocWithCmp) {
 			return false, "max allocation exceeded", used, fmt.Errorf("plan exceeds max allocation")
 		}
 	}
@@ -153,18 +153,25 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	hostVolumeClaims := map[string]int{}
 	exclusiveHostVolumeClaims := []string{}
 
+	allocs := make([]*Allocation, len(allocWithCmp))
+	idx := 0
+
 	// For each alloc, add the resources
-	for _, alloc := range allocs {
+	for _, a := range allocWithCmp {
+
+		allocs[idx] = a.Alloc
+		idx++
+
 		// Do not consider the resource impact of terminal allocations
-		if alloc.ClientTerminalStatus() {
+		if a.Alloc.ClientTerminalStatus() {
 			continue
 		}
 
-		cr := alloc.AllocatedResources.Comparable()
-		used.Add(cr)
+		// Comparable makes a deep copy, so we can merge it with used.
+		used.Add(a.Resource)
 
 		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
-		for _, core := range cr.Flattened.Cpu.ReservedCores {
+		for _, core := range a.Resource.ReservedCores {
 			if _, ok := reservedCores[core]; ok {
 				coreOverlap = true
 			} else {
@@ -173,8 +180,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		}
 
 		// Job will be nil in the scheduler, where we're not performing this check anyways
-		if checkDevices && alloc.Job != nil {
-			group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		if checkDevices && a.Alloc.Job != nil {
+			group := a.Alloc.Job.LookupTaskGroup(a.Alloc.TaskGroup)
 			for _, volReq := range group.Volumes {
 				hostVolumeClaims[volReq.Source]++
 				if volReq.AccessMode ==
@@ -191,8 +198,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 
 	// Check that the node resources (after subtracting reserved) are a
 	// super set of those that are being allocated
-	available := node.NodeResources.Comparable()
-	available.Subtract(node.ReservedResources.Comparable())
+	available := node.NodeResources.BaseComparable()
+	available.Subtract(node.ReservedResources.BaseComparable())
 	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
@@ -231,21 +238,21 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	return true, "", used, nil
 }
 
-func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, freePctRam float64) {
-	reserved := node.ReservedResources.Comparable()
-	res := node.NodeResources.Comparable()
+func computeFreePercentage(node *Node, util *BaseComparableResource) (freePctCpu, freePctRam float64) {
+	reserved := node.ReservedResources.BaseComparable()
+	res := node.NodeResources.BaseComparable()
 
 	// Determine the node availability
-	nodeCpu := float64(res.Flattened.Cpu.CpuShares)
-	nodeMem := float64(res.Flattened.Memory.MemoryMB)
+	nodeCpu := float64(res.CpuShares)
+	nodeMem := float64(res.MemoryMB)
 	if reserved != nil {
-		nodeCpu -= float64(reserved.Flattened.Cpu.CpuShares)
-		nodeMem -= float64(reserved.Flattened.Memory.MemoryMB)
+		nodeCpu -= float64(reserved.CpuShares)
+		nodeMem -= float64(reserved.MemoryMB)
 	}
 
 	// Compute the free percentage
-	freePctCpu = 1 - (float64(util.Flattened.Cpu.CpuShares) / nodeCpu)
-	freePctRam = 1 - (float64(util.Flattened.Memory.MemoryMB) / nodeMem)
+	freePctCpu = 1 - (float64(util.CpuShares) / nodeCpu)
+	freePctRam = 1 - (float64(util.MemoryMB) / nodeMem)
 	return freePctCpu, freePctRam
 }
 
@@ -254,7 +261,7 @@ func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, f
 //
 // It's the BestFit v3 on the Google work published here:
 // http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
-func ScoreFitBinPack(node *Node, util *ComparableResources) float64 {
+func ScoreFitBinPack(node *Node, util *BaseComparableResource) float64 {
 	freePctCpu, freePctRam := computeFreePercentage(node, util)
 
 	// Total will be "maximized" the smaller the value is.
@@ -281,7 +288,7 @@ func ScoreFitBinPack(node *Node, util *ComparableResources) float64 {
 //
 // This is equivalent to Worst Fit of
 // http://www.columbia.edu/~cs2035/courses/ieor4405.S13/datacenter_scheduling.ppt
-func ScoreFitSpread(node *Node, util *ComparableResources) float64 {
+func ScoreFitSpread(node *Node, util *BaseComparableResource) float64 {
 	freePctCpu, freePctRam := computeFreePercentage(node, util)
 	total := math.Pow(10, freePctCpu) + math.Pow(10, freePctRam)
 	score := total - 2
