@@ -71,11 +71,6 @@ type AllocPlaceResult struct {
 	reschedule    bool
 	lost          bool
 
-	// orphanedMigration is set when the placement fills the slot of an
-	// allocation that was stopped for migration without being replaced (see
-	// filterOrphanedMigrations). previousAlloc is that allocation.
-	orphanedMigration bool
-
 	downgradeNonCanary bool
 	minJobVersion      uint64
 }

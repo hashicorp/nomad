@@ -60,6 +60,10 @@ func (set allocSet) filterServerTerminalAllocs() (remaining allocSet) {
 // scheduling time does not undo the stop either. The allocation is then
 // server-terminal with no NextAllocation, and the next reconcile only sees an
 // empty slot.
+//
+// The migrate transition stays set on allocations stopped for other reasons,
+// such as a scale-down, which prefers stopping migrating allocations, so the
+// stop's description is what identifies a migration.
 func (set allocSet) filterOrphanedMigrations() allocSet {
 	orphaned := make(allocSet)
 	for id, alloc := range set {
@@ -68,6 +72,7 @@ func (set allocSet) filterOrphanedMigrations() allocSet {
 			continue
 		}
 		if alloc.DesiredStatus != structs.AllocDesiredStatusStop ||
+			alloc.DesiredDescription != sstructs.StatusAllocMigrating ||
 			!alloc.DesiredTransition.ShouldMigrate() ||
 			alloc.NextAllocation != "" ||
 			alloc.DeploymentStatus.IsCanary() {

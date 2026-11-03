@@ -540,21 +540,6 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	result.Stop = append(result.Stop, replacementsAllocsToStop...)
 	result.Place = append(result.Place, replacements...)
 
-	// While canaries await promotion, placeAllocs only replaces lost and
-	// rescheduled allocations, so a migration whose replacement was never
-	// placed would leave its slot empty until the deployment is promoted.
-	// Replace it as the migration would have: computePlacements marks these
-	// placements downgradeNonCanary, so they restore the stable job version
-	// and do not advance the deployment.
-	if !deploymentPlaceReady && isCanarying {
-		for _, p := range place {
-			if p.orphanedMigration {
-				result.Place = append(result.Place, p)
-				result.DesiredTGUpdates[group].Place++
-			}
-		}
-	}
-
 	if deploymentPlaceReady {
 		result.DestructiveUpdate = a.computeDestructiveUpdates(destructive, underProvisionedBy, result.DesiredTGUpdates[group], tg)
 	} else {
@@ -562,6 +547,24 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	}
 
 	a.computeMigrations(migrate, isCanarying, tg, result)
+
+	// While the deployment blocks placements (canaries awaiting promotion,
+	// paused or failed), placeAllocs only replaces lost and rescheduled
+	// allocations, so a migration whose replacement was never placed would
+	// leave its slot empty. Replace it as computeMigrations would have; while
+	// canarying, computePlacements marks these placements downgradeNonCanary,
+	// so they restore the stable job version and do not advance the
+	// deployment. They follow the migrations so that capping placements at the
+	// group count drops a refill, which stays orphaned for a later evaluation,
+	// rather than the replacement of an allocation stopped in this plan.
+	if !deploymentPlaceReady {
+		for _, p := range place {
+			if p.orphanedMigration {
+				result.Place = append(result.Place, p)
+				result.DesiredTGUpdates[group].Place++
+			}
+		}
+	}
 	result.Deployment = a.createDeployment(
 		tg.Name, tg.Update, existingDeployment, dstate, all, destructive, int(result.DesiredTGUpdates[group].InPlaceUpdate))
 
@@ -941,7 +944,7 @@ func linkOrphanedMigrations(place []AllocPlaceResult, orphaned allocSet) {
 		for j, orphan := range remaining {
 			if orphan.Name == place[i].name {
 				link(i, orphan)
-				remaining = append(remaining[:j], remaining[j+1:]...)
+				remaining = slices.Delete(remaining, j, j+1)
 				paired = true
 				break
 			}
