@@ -487,9 +487,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	})
 
 	// Task sockets can only be labeled for confined tasks when the host has a
-	// container SELinux policy.
+	// container SELinux policy. Start the labeler now so a failure is logged at
+	// start, not hidden behind the first task socket.
 	if cfg.SELinux.TaskSocketsLabeled() {
-		if _, err := users.TaskSocketLabel(); err != nil {
+		if err := users.StartTaskSocketLabeler(); err != nil {
 			c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
 		}
 	}

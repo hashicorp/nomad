@@ -13,6 +13,11 @@ func ListenTaskSocket(path string, _ bool) (net.Listener, error) {
 	return net.Listen("unix", path)
 }
 
+// StartTaskSocketLabeler does nothing, as SELinux only exists on Linux.
+func StartTaskSocketLabeler() error {
+	return nil
+}
+
 // TaskSocketLabel returns an empty label, as SELinux only exists on Linux.
 func TaskSocketLabel() (string, error) {
 	return "", nil

@@ -26,49 +26,21 @@ func ListenTaskSocket(path string, selinuxLabel bool) (net.Listener, error) {
 	if !selinuxLabel {
 		return net.Listen("unix", path)
 	}
-	socketLabel, err := TaskSocketLabel()
-	if err != nil || socketLabel == "" {
-		// The client warns at start when the label cannot be found.
+	l, err := labeledSocketListener()
+	if err != nil || l == nil {
+		// The client warns at start when StartTaskSocketLabeler fails.
 		return net.Listen("unix", path)
 	}
-	return listenLabeled(path, socketLabel)
+	return l.listen(path)
 }
 
-type listenResult struct {
-	ln  net.Listener
-	err error
-}
-
-// listenLabeled creates the socket on a goroutine locked to its thread, because
-// the socket creation label is a per-thread attribute. A thread whose label
-// could not be reset stays locked to the goroutine and exits with it, so no
-// other socket is created with the label.
-func listenLabeled(path, socketLabel string) (net.Listener, error) {
-	result := make(chan listenResult, 1)
-	go func() {
-		runtime.LockOSThread()
-		ln, reset, err := listenWithSocketLabel(path, socketLabel)
-		if reset {
-			runtime.UnlockOSThread()
-		}
-		result <- listenResult{ln: ln, err: err}
-	}()
-	r := <-result
-	return r.ln, r.err
-}
-
-// listenWithSocketLabel creates the socket with socketLabel on the calling
-// thread, which the caller must have locked, and resets the thread's socket
-// creation label. It reports whether the thread is left without the label.
-func listenWithSocketLabel(path, socketLabel string) (net.Listener, bool, error) {
-	if err := selinux.SetSocketLabel(socketLabel); err != nil {
-		return nil, true, fmt.Errorf("unable to set SELinux label %q for socket: %w", socketLabel, err)
-	}
-	ln, err := net.Listen("unix", path)
-	if err != nil {
-		err = fmt.Errorf("unable to listen with SELinux label %q: %w", socketLabel, err)
-	}
-	return ln, selinux.SetSocketLabel("") == nil, err
+// StartTaskSocketLabeler starts the thread that creates labeled task sockets.
+// The client calls it at start, so a label that cannot be found or set is
+// reported then instead of when the first task socket falls back to a plain
+// socket. It returns nil when SELinux is disabled.
+func StartTaskSocketLabeler() error {
+	_, err := labeledSocketListener()
+	return err
 }
 
 // taskSocketLabel looks up the label once. The label comes from the host's
@@ -105,4 +77,74 @@ func findTaskSocketLabel() (string, error) {
 		ctx["level"] = "s0"
 	}
 	return ctx.Get(), nil
+}
+
+// labeledSocketListener starts the socketLabeler once, from
+// StartTaskSocketLabeler at client start or else from the first labeled socket.
+// It returns nil without an error when SELinux is disabled.
+var labeledSocketListener = sync.OnceValues(startSocketLabeler)
+
+// socketLabeler creates sockets with the task socket label. The socket creation
+// label is a per-thread attribute, so all labeled sockets are created by one
+// goroutine that stays locked to its thread for the life of the agent, with
+// the label set once. No other goroutine runs on that thread, so no other
+// socket is created with the label.
+type socketLabeler struct {
+	requests chan listenRequest
+}
+
+type listenRequest struct {
+	path   string
+	result chan<- listenResult
+}
+
+type listenResult struct {
+	ln  net.Listener
+	err error
+}
+
+// startSocketLabeler starts the labeler goroutine and waits until it has set
+// the label on its thread, so that a label the kernel rejects is returned here.
+func startSocketLabeler() (*socketLabeler, error) {
+	socketLabel, err := TaskSocketLabel()
+	if err != nil || socketLabel == "" {
+		return nil, err
+	}
+
+	l := &socketLabeler{requests: make(chan listenRequest)}
+	started := make(chan error, 1)
+	go l.run(socketLabel, started)
+	if err := <-started; err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
+// run locks the goroutine to its thread and never unlocks it. If the label
+// cannot be set, the goroutine exits while still locked, so the runtime
+// discards the thread instead of reusing it.
+func (l *socketLabeler) run(socketLabel string, started chan<- error) {
+	runtime.LockOSThread()
+	if err := selinux.SetSocketLabel(socketLabel); err != nil {
+		started <- fmt.Errorf("unable to set SELinux label %q for sockets: %w", socketLabel, err)
+		return
+	}
+	started <- nil
+
+	for req := range l.requests {
+		ln, err := net.Listen("unix", req.path)
+		if err != nil {
+			err = fmt.Errorf("unable to listen with SELinux label %q: %w", socketLabel, err)
+		}
+		req.result <- listenResult{ln: ln, err: err}
+	}
+}
+
+// listen asks the labeler goroutine to create the socket at path and waits for
+// the result. It is safe for concurrent use.
+func (l *socketLabeler) listen(path string) (net.Listener, error) {
+	result := make(chan listenResult, 1)
+	l.requests <- listenRequest{path: path, result: result}
+	r := <-result
+	return r.ln, r.err
 }

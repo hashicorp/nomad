@@ -6,10 +6,12 @@
 package users
 
 import (
+	"fmt"
 	"net"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/opencontainers/selinux/go-selinux"
@@ -42,22 +44,35 @@ func TestListenTaskSocket_SELinuxLabelOff(t *testing.T) {
 	must.Eq(t, process, socketLabel(t, ln))
 }
 
-func TestListenWithSocketLabel_ResetsThread(t *testing.T) {
-	socketLabel, err := TaskSocketLabel()
-	if err != nil || socketLabel == "" {
+func TestListenTaskSocket_SELinuxLabelConcurrent(t *testing.T) {
+	expected, err := TaskSocketLabel()
+	if err != nil || expected == "" {
 		t.Skip("SELinux is disabled or has no container policy")
 	}
+	must.NoError(t, StartTaskSocketLabeler())
 
-	// Stay on one thread so the check below sees the thread the socket was
-	// created on.
+	// Sockets requested from many goroutines at once are all created with the
+	// label by the one locked thread.
+	dir := t.TempDir()
+	lns := make([]net.Listener, 8)
+	errs := make([]error, len(lns))
+	var wg sync.WaitGroup
+	for i := range lns {
+		wg.Go(func() {
+			lns[i], errs[i] = ListenTaskSocket(filepath.Join(dir, fmt.Sprintf("%d.sock", i)), true)
+		})
+	}
+	wg.Wait()
+
+	for i, ln := range lns {
+		must.NoError(t, errs[i])
+		t.Cleanup(func() { _ = ln.Close() })
+		must.Eq(t, expected, socketLabel(t, ln))
+	}
+
+	// The calling thread never has a socket creation label set.
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-
-	ln, reset, err := listenWithSocketLabel(filepath.Join(t.TempDir(), "test.sock"), socketLabel)
-	must.NoError(t, err)
-	t.Cleanup(func() { _ = ln.Close() })
-	must.True(t, reset)
-
 	current, err := selinux.SocketLabel()
 	must.NoError(t, err)
 	must.Eq(t, "", current)
