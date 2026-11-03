@@ -71,20 +71,21 @@ func listenWithSocketLabel(path, socketLabel string) (net.Listener, bool, error)
 	return ln, selinux.SetSocketLabel("") == nil, err
 }
 
-var (
-	taskSocketLabelLock sync.Mutex
-	taskSocketLabel     string
-)
+// taskSocketLabel looks up the label once. The label comes from the host's
+// SELinux policy, not from the agent's configuration, so it does not change
+// when the configuration is reloaded.
+var taskSocketLabel = sync.OnceValues(findTaskSocketLabel)
 
 // TaskSocketLabel returns the SELinux label task sockets are created with: the
 // container process type from the host's container contexts, at level s0 when
 // the policy has levels. It returns an empty label when SELinux is disabled.
 func TaskSocketLabel() (string, error) {
-	taskSocketLabelLock.Lock()
-	defer taskSocketLabelLock.Unlock()
+	return taskSocketLabel()
+}
 
-	if taskSocketLabel != "" || !selinux.GetEnabled() {
-		return taskSocketLabel, nil
+func findTaskSocketLabel() (string, error) {
+	if !selinux.GetEnabled() {
+		return "", nil
 	}
 
 	processLabel, _, err := label.InitLabels(nil)
@@ -103,6 +104,5 @@ func TaskSocketLabel() (string, error) {
 	if ctx["level"] != "" {
 		ctx["level"] = "s0"
 	}
-	taskSocketLabel = ctx.Get()
-	return taskSocketLabel, nil
+	return ctx.Get(), nil
 }
