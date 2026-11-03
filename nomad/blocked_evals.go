@@ -957,7 +957,6 @@ func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 		case <-stopCh:
 			return
 		case t := <-ticker.C:
-			b.logger.Debug(" YYYyyyyyyyyyyyyyyyy \n")
 			cutoff := t.UTC().Add(-1 * pruneThreshold)
 			b.pruneUnblockIndexes(cutoff)
 			b.pruneStats(cutoff)
