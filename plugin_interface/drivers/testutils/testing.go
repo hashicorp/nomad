@@ -1,0 +1,155 @@
+// Copyright IBM Corp. 2015, 2025
+// SPDX-License-Identifier: MPL-2.0
+
+package testutils
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	hclog "github.com/hashicorp/go-hclog"
+	plugin "github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/nomad/plugin-interface/base"
+	"github.com/hashicorp/nomad/plugin-interface/drivers"
+	"github.com/hashicorp/nomad/plugin-interface/shared/hclspec"
+	"github.com/shoenig/test/must"
+)
+
+type DriverHarness struct {
+	drivers.DriverPlugin
+	client *plugin.GRPCClient
+	server *plugin.GRPCServer
+	t      *testing.T
+	logger hclog.Logger
+	impl   drivers.DriverPlugin
+	cgroup string
+}
+
+func (h *DriverHarness) Impl() drivers.DriverPlugin {
+	return h.impl
+}
+func NewDriverHarness(t *testing.T, d drivers.DriverPlugin) *DriverHarness {
+	logger := hclog.New(hclog.DefaultOptions)
+	pd := drivers.NewDriverPlugin(d, logger)
+
+	client, server := plugin.TestPluginGRPCConn(t,
+		true,
+		map[string]plugin.Plugin{
+			base.PluginTypeDriver: pd,
+			base.PluginTypeBase:   &base.PluginBase{Impl: d},
+		},
+	)
+
+	raw, err := client.Dispense(base.PluginTypeDriver)
+	must.NoError(t, err)
+
+	dClient := raw.(drivers.DriverPlugin)
+	return &DriverHarness{
+		client:       client,
+		server:       server,
+		DriverPlugin: dClient,
+		logger:       logger,
+		t:            t,
+		impl:         d,
+	}
+}
+
+func (h *DriverHarness) Kill() {
+	_ = h.client.Close()
+	h.server.Stop()
+}
+
+// WaitUntilStarted will block until the task for the given ID is in the running
+// state or the timeout is reached
+func (h *DriverHarness) WaitUntilStarted(taskID string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var lastState drivers.TaskState
+	for {
+		status, err := h.InspectTask(taskID)
+		if err != nil {
+			return err
+		}
+		if status.State == drivers.TaskStateRunning {
+			return nil
+		}
+		lastState = status.State
+		if time.Now().After(deadline) {
+			return fmt.Errorf("task never transitioned to running, currently '%s'", lastState)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+// MockDriver is used for testing.
+// Each function can be set as a closure to make assertions about how data
+// is passed through the base plugin layer.
+type MockDriver struct {
+	base.MockPlugin
+	TaskConfigSchemaF  func() (*hclspec.Spec, error)
+	FingerprintF       func(context.Context) (<-chan *drivers.Fingerprint, error)
+	CapabilitiesF      func() (*drivers.Capabilities, error)
+	RecoverTaskF       func(*drivers.TaskHandle) error
+	StartTaskF         func(*drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error)
+	WaitTaskF          func(context.Context, string) (<-chan *drivers.ExitResult, error)
+	StopTaskF          func(string, time.Duration, string) error
+	DestroyTaskF       func(string, bool) error
+	InspectTaskF       func(string) (*drivers.TaskStatus, error)
+	TaskStatsF         func(context.Context, string, time.Duration) (<-chan *drivers.TaskResourceUsage, error)
+	TaskEventsF        func(context.Context) (<-chan *drivers.TaskEvent, error)
+	SignalTaskF        func(string, string) error
+	ExecTaskF          func(string, []string, time.Duration) (*drivers.ExecTaskResult, error)
+	ExecTaskStreamingF func(context.Context, string, *drivers.ExecOptions) (*drivers.ExitResult, error)
+	MockNetworkManager
+}
+
+type MockNetworkManager struct {
+	CreateNetworkF  func(string, *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error)
+	DestroyNetworkF func(string, *drivers.NetworkIsolationSpec) error
+}
+
+func (m *MockNetworkManager) CreateNetwork(allocID string, req *drivers.NetworkCreateRequest) (*drivers.NetworkIsolationSpec, bool, error) {
+	return m.CreateNetworkF(allocID, req)
+}
+func (m *MockNetworkManager) DestroyNetwork(id string, spec *drivers.NetworkIsolationSpec) error {
+	return m.DestroyNetworkF(id, spec)
+}
+
+func (d *MockDriver) TaskConfigSchema() (*hclspec.Spec, error) { return d.TaskConfigSchemaF() }
+func (d *MockDriver) Fingerprint(ctx context.Context) (<-chan *drivers.Fingerprint, error) {
+	return d.FingerprintF(ctx)
+}
+func (d *MockDriver) Capabilities() (*drivers.Capabilities, error) { return d.CapabilitiesF() }
+func (d *MockDriver) RecoverTask(h *drivers.TaskHandle) error      { return d.RecoverTaskF(h) }
+func (d *MockDriver) StartTask(c *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
+	return d.StartTaskF(c)
+}
+func (d *MockDriver) WaitTask(ctx context.Context, id string) (<-chan *drivers.ExitResult, error) {
+	return d.WaitTaskF(ctx, id)
+}
+func (d *MockDriver) StopTask(taskID string, timeout time.Duration, signal string) error {
+	return d.StopTaskF(taskID, timeout, signal)
+}
+func (d *MockDriver) DestroyTask(taskID string, force bool) error {
+	return d.DestroyTaskF(taskID, force)
+}
+func (d *MockDriver) InspectTask(taskID string) (*drivers.TaskStatus, error) {
+	return d.InspectTaskF(taskID)
+}
+func (d *MockDriver) TaskStats(ctx context.Context, taskID string, i time.Duration) (<-chan *drivers.TaskResourceUsage, error) {
+	return d.TaskStatsF(ctx, taskID, i)
+}
+func (d *MockDriver) TaskEvents(ctx context.Context) (<-chan *drivers.TaskEvent, error) {
+	return d.TaskEventsF(ctx)
+}
+func (d *MockDriver) SignalTask(taskID string, signal string) error {
+	return d.SignalTaskF(taskID, signal)
+}
+func (d *MockDriver) ExecTask(taskID string, cmd []string, timeout time.Duration) (*drivers.ExecTaskResult, error) {
+	return d.ExecTaskF(taskID, cmd, timeout)
+}
+
+func (d *MockDriver) ExecTaskStreaming(ctx context.Context, taskID string, execOpts *drivers.ExecOptions) (*drivers.ExitResult, error) {
+	return d.ExecTaskStreamingF(ctx, taskID, execOpts)
+}
