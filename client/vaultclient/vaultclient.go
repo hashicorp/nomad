@@ -156,7 +156,7 @@ func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginReques
 		},
 	)
 	if err != nil {
-		return "", false, 0, fmt.Errorf("failed to login with JWT: %v", err)
+		return "", false, 0, wrapMaybeRecoverableErr(fmt.Errorf("failed to login with JWT: %w", err))
 	}
 	if s == nil {
 		return "", false, 0, errors.New("JWT login returned an empty secret")
@@ -181,7 +181,7 @@ func (c *vaultClient) Renew(ctx context.Context, token string, lease int) (durat
 
 	res, err := cc.Auth().Token().RenewSelfWithContext(ctx, lease)
 	if err != nil {
-		return 0, wrapRenewErr(err)
+		return 0, wrapMaybeRecoverableErr(err)
 	}
 
 	duration = time.Duration(res.Auth.LeaseDuration * int(time.Second))
@@ -189,7 +189,7 @@ func (c *vaultClient) Renew(ctx context.Context, token string, lease int) (durat
 	return duration, nil
 }
 
-func wrapRenewErr(err error) error {
+func wrapMaybeRecoverableErr(err error) error {
 	errMsg := err.Error()
 	if strings.Contains(errMsg, "no namespace") ||
 		strings.Contains(errMsg, "cannot renew a token across namespaces") ||
