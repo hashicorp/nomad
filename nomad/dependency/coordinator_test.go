@@ -250,7 +250,7 @@ func TestCoordinator_UnblockedDependencies(t *testing.T) {
 	blockedEval.JobID = blockedJob.ID
 	blockedEval.Namespace = blockedJob.Namespace
 	blockedEval.Status = structs.EvalStatusBlocked
-	blockedEval.TriggeredBy = structs.EvalTriggeredDeps
+	blockedEval.TriggeredBy = structs.EvalTriggerByDependencies
 	must.NoError(t, stateStore.UpsertEvals(structs.MsgTypeTestSetup, 3, []*structs.Evaluation{blockedEval}))
 
 	evals, err := coord.UnblockedDependencies(stateStore, depJob.ID)

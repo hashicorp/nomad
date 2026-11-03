@@ -120,7 +120,7 @@ type DependencyCoordinator interface {
 	Reload(state *state.StateStore, evals memdb.ResultIterator)
 	CreatesCircularDependency(j *structs.Job) bool
 	AddDependency(state *state.StateStore, job *structs.Job) error
-	UnblockedDependencies(state *state.StateStore, bkingJobID string) ([]*structs.Evaluation, error)
+	UnblockedDependencies(state *state.StateStore, bkingJobID, namespace string) ([]*structs.Evaluation, error)
 }
 
 // Server is Nomad server which manages the job queues,

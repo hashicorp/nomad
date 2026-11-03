@@ -600,7 +600,9 @@ func (s *StateStore) Deployments(ws memdb.WatchSet, sort SortOption) (memdb.Resu
 		return nil, err
 	}
 
-	ws.Add(it.WatchCh())
+	if ws != nil {
+		ws.Add(it.WatchCh())
+	}
 
 	return it, nil
 }
@@ -2581,6 +2583,48 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 	return memdb.NewFilterIterator(iter, filter), nil
 }
 
+// DependenciesByJobID returns jobs in pending state whose dependency list
+// includes the provided job ID.
+func (s *StateStore) JobsByBlockingJobID(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	filter := func(raw interface{}) bool {
+		job, ok := raw.(*structs.Job)
+		if !ok {
+			return true
+		}
+
+		if namespace != structs.AllNamespacesSentinel && job.Namespace != namespace {
+			return true
+		}
+
+		if job.Status != structs.JobStatusPending {
+			return true
+		}
+
+		if job.Dependencies == nil || len(job.Dependencies.Jobs) == 0 {
+			return true
+		}
+
+		for _, dep := range job.Dependencies.Jobs {
+			if dep != nil && dep.Name == id {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return memdb.NewFilterIterator(iter, filter), nil
+}
+
 // JobsByPool returns an iterator over all jobs in a given node pool.
 func (s *StateStore) JobsByPool(ws memdb.WatchSet, pool string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
@@ -4012,6 +4056,41 @@ func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memd
 	ws.Add(it.WatchCh())
 
 	return it, nil
+}
+
+// EvalByJobIDAndEvalStatus returns the newest evaluation in the given namespace
+// and job ID that matches the requested evaluation status.
+func (s *StateStore) EvalByJobIDAndEvalStatus(ws memdb.WatchSet, namespace, jobID, evalStatus string) (*structs.Evaluation, error) {
+	txn := s.db.ReadTxn()
+
+	// Use the compound "job" index (namespace, jobID, status) with a prefix
+	// scan on namespace+jobID, then pick the newest eval matching evalStatus.
+	it, err := txn.Get("evals", "job", namespace, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	if ws != nil {
+		ws.Add(it.WatchCh())
+	}
+
+	var newest *structs.Evaluation
+	for raw := it.Next(); raw != nil; raw = it.Next() {
+		eval, ok := raw.(*structs.Evaluation)
+		if !ok {
+			continue
+		}
+
+		if eval.Status != evalStatus {
+			continue
+		}
+
+		if newest == nil || eval.CreateTime > newest.CreateTime {
+			newest = eval
+		}
+	}
+
+	return newest, nil
 }
 
 func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {

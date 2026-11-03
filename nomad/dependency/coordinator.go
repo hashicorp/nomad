@@ -8,7 +8,6 @@ package dependency
 import (
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -35,13 +34,7 @@ type loopDetector interface {
 }
 
 type Coordinator struct {
-	logger        hclog.Logger
-	lDependencies sync.RWMutex
-
-	// The value of the dependencies per blockingJob could be an array, but it
-	// is a map to avoid storing duplicated jobs.
-	dependencies map[blockingJobID]map[blockedJobID]*structs.Job
-
+	logger       hclog.Logger
 	loopDetector loopDetector
 }
 
@@ -53,39 +46,8 @@ type Coordinator struct {
 func NewCoordinator(logger hclog.Logger, loopDetector loopDetector) *Coordinator {
 	return &Coordinator{
 		logger:       logger.Named("dependency-coordinator"),
-		dependencies: make(map[blockingJobID]map[blockedJobID]*structs.Job),
 		loopDetector: loopDetector,
 	}
-}
-
-func (c *Coordinator) removeBlockingJob(jID blockingJobID) error {
-	c.lDependencies.Lock()
-	defer c.lDependencies.Unlock()
-	delete(c.dependencies, jID)
-
-	return nil
-}
-
-func (c *Coordinator) removeBlockedJob(blkingJobID blockingJobID, bledJobID blockedJobID) error {
-	c.lDependencies.Lock()
-	defer c.lDependencies.Unlock()
-
-	// If the blocked job itself is blocking other jobs it can't be removed
-	// from the loop detector, but it can be removed from the list of
-	// blocked jobs for the job that is blocking it.
-	if err := c.loopDetector.RemoveNode(bledJobID); err != nil {
-		if errors.Is(err, loop_detection.ErrNodeIsDependency) {
-			c.logger.Info("dependencies are blocked by job ", "job", bledJobID)
-			return nil
-		}
-
-		c.logger.Error("failed to remove dependency", "error", err)
-		return err
-	}
-
-	delete(c.dependencies[blkingJobID], bledJobID)
-
-	return nil
 }
 
 func (c *Coordinator) AddDependency(state *state.StateStore, blockedJob *structs.Job) error {
@@ -110,67 +72,56 @@ func (c *Coordinator) AddDependency(state *state.StateStore, blockedJob *structs
 		return err
 	}
 
-	c.lDependencies.Lock()
-	for _, blingJobID := range blockingJobsIDs {
-		if _, ok := c.dependencies[blingJobID][blockedJob.ID]; ok {
-			c.logger.Warn("dependency for job overwritten", "jobID", blockedJob.ID)
-		}
-
-		if c.dependencies[blingJobID] == nil {
-			c.dependencies[blingJobID] = make(map[blockedJobID]*structs.Job)
-		}
-
-		c.dependencies[blingJobID][blockedJob.ID] = blockedJob
-	}
-	c.lDependencies.Unlock()
-
 	return nil
 }
 
-func (c *Coordinator) UnblockedDependencies(state *state.StateStore, bkingJobID string) ([]*structs.Evaluation, error) {
+func (c *Coordinator) UnblockedDependencies(state *state.StateStore, bkingJobID, namespace string) ([]*structs.Evaluation, error) {
 	evalsToUnblock := []*structs.Evaluation{}
 
-	
-	/* 	c.lDependencies.RLock()
-	   	blockedJobs := c.dependencies[bkingJobID]
-	   	c.lDependencies.RUnlock()
+	blockedJobsIter, err := state.JobsByBlockingJobID(nil, namespace, bkingJobID)
+	if err != nil {
+		return evalsToUnblock, fmt.Errorf("unable to get dependent jobs for job %s, %w", bkingJobID, err)
 
-	   	for _, blockedJob := range blockedJobs {
-	   		blockers, err := VerifyDependencies(state, blockedJob)
-	   		if err != nil {
-	   			return evalsToUnblock, err
-	   		}
+	}
 
-	   		if len(blockers) > 0 {
-	   			return evalsToUnblock, nil
-	   		}
+	for jobI := blockedJobsIter.Next(); jobI != nil; jobI = blockedJobsIter.Next() {
+		job := jobI.(*structs.Job)
 
-	   		c.logger.Debug("dependency ready, unblocking job", "job", blockedJob.ID)
+		blockers, err := VerifyDependencies(state, job)
+		if err != nil {
+			return evalsToUnblock, err
+		}
 
-	   		if err := c.removeBlockedJob(bkingJobID, blockedJob.ID); err != nil {
-	   			c.logger.Error("unable to unblock dependencies for job ", "jobID", blockedJob)
-	   			continue
-	   		}
+		if len(blockers) > 0 {
+			return evalsToUnblock, nil
+		}
 
-	   		blockedJobEvals, err := state.EvalsByJob(nil, blockedJob.Namespace, blockedJob.ID)
-	   		if err != nil {
-	   			c.logger.Error("unable to look up evaluations for blocked job", "jobID", blockedJob)
-	   			continue
-	   		}
+		// If the blocked job itself is blocking other jobs it can't be removed
+		// from the loop detector, but it can be removed from the list of
+		// blocked jobs for the job that is blocking it.
+		if err := c.loopDetector.RemoveNode(job.ID); err != nil {
+			if errors.Is(err, loop_detection.ErrNodeIsDependency) {
+				c.logger.Info("dependencies are blocked by job ", "job", job.ID)
+				continue
+			}
 
-	   		for _, e := range blockedJobEvals {
-	   			if e.Status == structs.EvalStatusBlocked && e.TriggeredBy == structs.EvalTriggerByDependencies {
-	   				evalsToUnblock = append(evalsToUnblock, e)
-	   			}
-	   		}
+			c.logger.Error("failed to remove dependency", "error", err)
+			continue
+		}
 
-	   	}
+		blockedJobEval, err := state.EvalByJobIDAndEvalStatus(nil, job.Namespace,
+			job.ID, structs.EvalStatusBlocked)
+		if err != nil {
+			c.logger.Error("unable to look up evaluations for blocked job", "jobID", job)
+			continue
+		}
 
-	   	if len(blockedJobs) == 0 {
-	   		if err := c.removeBlockingJob(bkingJobID); err != nil {
-	   			c.logger.Error("unable to stop monitoring job for blocked dependencies", "jobID", bkingJobID)
-	   		}
-	   	} */
+		if blockedJobEval == nil {
+			continue
+		}
+		c.logger.Debug("dependency ready, unblocking job", "job", job.ID)
+		evalsToUnblock = append(evalsToUnblock, blockedJobEval)
+	}
 
 	return evalsToUnblock, nil
 }

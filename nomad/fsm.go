@@ -29,7 +29,7 @@ import (
 type DependencyVerifier interface {
 	CreatesCircularDependency(j *structs.Job) bool
 	AddDependency(state *state.StateStore, job *structs.Job) error
-	UnblockedDependencies(state *state.StateStore, bkingJobID string) ([]*structs.Evaluation, error)
+	UnblockedDependencies(state *state.StateStore, bkingJobID, namespace string) ([]*structs.Evaluation, error)
 }
 
 // SnapshotType is prefixed to a record in the FSM snapshot
@@ -1108,7 +1108,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 			n.blockedEvals.UnblockNode(node.ID)
 		}
 
-		evals, err := n.dependencyCoordinator.UnblockedDependencies(n.State(), alloc.JobID)
+		evals, err := n.dependencyCoordinator.UnblockedDependencies(n.State(), alloc.JobID, alloc.Namespace)
 		if err != nil {
 			n.logger.Error("looking up eval associated with alloc failed", "alloc_id", alloc.ID, "error", err)
 			return err
