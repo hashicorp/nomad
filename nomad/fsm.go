@@ -1108,7 +1108,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 			n.blockedEvals.UnblockNode(node.ID)
 		}
 
-		evals, err := n.dependencyCoordinator.UnblockedDependencies(n.State(), alloc.JobID, alloc.Namespace)
+		evals, err := n.dependencyCoordinator.UnblockedDependencies(n.State(), alloc.JobID, req.RequestNamespace())
 		if err != nil {
 			n.logger.Error("looking up eval associated with alloc failed", "alloc_id", alloc.ID, "error", err)
 			return err

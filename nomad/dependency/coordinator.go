@@ -130,18 +130,18 @@ type Storage interface {
 	AllocsByJob(ws memdb.WatchSet, namespace, jobID string, anyCreateIndex bool) ([]*structs.Allocation, error)
 }
 
-func VerifyDependencies(state Storage, blockedJobs *structs.Job) ([]string, error) {
+func VerifyDependencies(state Storage, blockedJob *structs.Job) ([]string, error) {
 
-	if blockedJobs.Dependencies == nil {
+	if blockedJob.Dependencies == nil {
 		return []string{}, nil
 	}
 
-	numDeps := len(blockedJobs.Dependencies.Jobs)
+	numDeps := len(blockedJob.Dependencies.Jobs)
 
 	djNames := make([]string, 0, numDeps)
 	djs := make(map[string][]*structs.Allocation, numDeps)
 
-	for _, depJob := range blockedJobs.Dependencies.Jobs {
+	for _, depJob := range blockedJob.Dependencies.Jobs {
 		if depJob == nil || depJob.Name == "" {
 			continue
 		}
@@ -150,7 +150,7 @@ func VerifyDependencies(state Storage, blockedJobs *structs.Job) ([]string, erro
 			continue
 		}
 
-		dependantAllocs, err := state.AllocsByJob(nil, blockedJobs.Namespace, depJob.Name, true)
+		dependantAllocs, err := state.AllocsByJob(nil, blockedJob.Namespace, depJob.Name, true)
 		if err != nil {
 			return []string{}, fmt.Errorf("unable to get alloc for dependency check: %w", err)
 		}
@@ -162,7 +162,7 @@ func VerifyDependencies(state Storage, blockedJobs *structs.Job) ([]string, erro
 		djNames = append(djNames, depJob.Name)
 	}
 
-	return verifyDependencies(blockedJobs, djs)
+	return verifyDependencies(blockedJob, djs)
 }
 
 func verifyDependencies(dependantJob *structs.Job, jobsAllocs map[string][]*structs.Allocation) ([]string, error) {

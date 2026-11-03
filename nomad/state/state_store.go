@@ -4065,7 +4065,7 @@ func (s *StateStore) EvalByJobIDAndEvalStatus(ws memdb.WatchSet, namespace, jobI
 
 	// Use the compound "job" index (namespace, jobID, status) with a prefix
 	// scan on namespace+jobID, then pick the newest eval matching evalStatus.
-	it, err := txn.Get("evals", "job", namespace, jobID)
+	it, err := txn.Get("evals", "job_prefix", namespace, jobID)
 	if err != nil {
 		return nil, err
 	}
