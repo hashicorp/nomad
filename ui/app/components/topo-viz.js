@@ -26,6 +26,7 @@ export default class TopoViz extends Component {
   @tracked viewportColumns = 2;
 
   @tracked highlightAllocation = null;
+  @tracked highlightReserved = null;
   @tracked tooltipProps = {};
 
   @styleStringProperty('tooltipProps') tooltipStyle;
@@ -192,6 +193,17 @@ export default class TopoViz extends Component {
   @action showTooltip(allocation, element) {
     const bbox = element.getBoundingClientRect();
     this.highlightAllocation = allocation;
+    this.highlightReserved = null;
+    this.tooltipProps = {
+      left: window.scrollX + bbox.left + bbox.width / 2,
+      top: window.scrollY + bbox.top,
+    };
+  }
+
+  @action showReservedTooltip(reserved, element) {
+    const bbox = element.getBoundingClientRect();
+    this.highlightReserved = reserved;
+    this.highlightAllocation = null;
     this.tooltipProps = {
       left: window.scrollX + bbox.left + bbox.width / 2,
       top: window.scrollY + bbox.top,
@@ -200,6 +212,7 @@ export default class TopoViz extends Component {
 
   @action hideTooltip() {
     this.highlightAllocation = null;
+    this.highlightReserved = null;
   }
 
   @action
