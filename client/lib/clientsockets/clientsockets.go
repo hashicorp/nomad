@@ -41,16 +41,16 @@ func Confined(mode fsisolation.Mode) bool {
 	return mode == fsisolation.Image
 }
 
-// Configure selects how sockets for confined tasks are created. The client
-// calls it at start, before fingerprinting, and again from Reload. With label
-// false, or when SELinux is disabled, confined tasks get plain sockets. With
-// label true the container process label is looked up from the host policy and
-// a goroutine locked to its thread is started with that label set, so every
-// socket it creates carries the label.
+// Configure selects how sockets for confined tasks are created in later calls
+// to ListenTaskSocket or SocketFileFor. With label=false, or when SELinux is
+// disabled, confined tasks get plain sockets. With label=true the container
+// process label is looked up from the host policy and a goroutine locked to its
+// thread is started with that label set, so every socket it creates carries the
+// label. On error we fall back to unconfined sockets.
 //
-// On error plain sockets are used and the error is returned; the caller logs
-// it. A later call applies the new value. Sockets already created keep the
-// label they were created with.
+// The client calls this once at start, before fingerprinting, and again from
+// Reload. On reload sockets already created keep the label they were created
+// with.
 func Configure(label bool) error {
 	configureMu.Lock()
 	defer configureMu.Unlock()
