@@ -56,23 +56,6 @@ import (
 )
 
 var (
-	dockerTransientErrs = []string{
-		"Client.Timeout exceeded while awaiting headers",
-		"EOF",
-		"API error (500)",
-	}
-
-	// recoverableErrTimeouts returns a recoverable error if the error was due
-	// to timeouts
-	recoverableErrTimeouts = func(err error) error {
-		r := false
-		if strings.Contains(err.Error(), "Client.Timeout exceeded while awaiting headers") ||
-			strings.Contains(err.Error(), "EOF") {
-			r = true
-		}
-		return nstructs.NewRecoverableError(err, r)
-	}
-
 	// taskHandleVersion is the version of task handle which this driver sets
 	// and understands how to decode driver state
 	taskHandleVersion = 1
@@ -512,6 +495,9 @@ func (d *Driver) createContainer(client createContainerClient, config createCont
 	var backoff time.Duration
 
 CREATE:
+	if err := d.ctx.Err(); err != nil {
+		return nil, err
+	}
 	_, createErr := client.ContainerCreate(d.ctx, mclient.ContainerCreateOptions{
 		Name:             config.Name,
 		Config:           config.Config,
@@ -529,6 +515,10 @@ CREATE:
 	d.logger.Debug("failed to create container", "container_name",
 		config.Name, "image_name", image, "image_id", config.Config.Image,
 		"attempt", attempted+1, "error", createErr)
+
+	if err := d.ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	// Volume management tools like Portworx may not have detached a volume
 	// from a previous node before Nomad started a task replacement task.
@@ -558,7 +548,7 @@ CREATE:
 			_, err = client.ContainerRemove(d.ctx, container.Container.ID, mclient.ContainerRemoveOptions{Force: true})
 			if err != nil {
 				d.logger.Error("failed to purge container", "container_id", container.Container.ID)
-				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %s", container.Container.ID, err))
+				return nil, recoverableErrTimeouts(fmt.Errorf("Failed to purge container %s: %w", container.Container.ID, err))
 			} else {
 				d.logger.Info("purged container", "container_id", container.Container.ID)
 			}
@@ -567,7 +557,11 @@ CREATE:
 		if attempted < d.config.ContainerExistsAttempts {
 			attempted++
 			backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
-			time.Sleep(backoff)
+			select {
+			case <-d.ctx.Done():
+				return nil, d.ctx.Err()
+			case <-time.After(backoff):
+			}
 			goto CREATE
 		}
 
@@ -575,11 +569,18 @@ CREATE:
 		// There is still a very small chance this is possible even with the
 		// coordinator so retry.
 		return nil, nstructs.NewRecoverableError(createErr, true)
-	} else if isDockerTransientError(createErr) && attempted < 5 {
-		attempted++
-		backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
-		time.Sleep(backoff)
-		goto CREATE
+	} else if isDockerTransientError(createErr) {
+		if attempted < 5 {
+			attempted++
+			backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
+			select {
+			case <-d.ctx.Done():
+				return nil, d.ctx.Err()
+			case <-time.After(backoff):
+			}
+			goto CREATE
+		}
+		return nil, nstructs.NewRecoverableError(createErr, true)
 	}
 
 	return nil, recoverableErrTimeouts(createErr)
@@ -597,6 +598,9 @@ func (d *Driver) startContainer(c mclient.ContainerInspectResult) error {
 	var backoff time.Duration
 
 START:
+	if err := d.ctx.Err(); err != nil {
+		return err
+	}
 	_, startErr := dockerClient.ContainerStart(d.ctx, c.Container.ID, mclient.ContainerStartOptions{})
 	if startErr == nil || errdefs.IsConflict(startErr) {
 		return nil
@@ -604,11 +608,19 @@ START:
 
 	d.logger.Debug("failed to start container", "container_id", c.Container.ID, "attempt", attempted+1, "error", startErr)
 
+	if err := d.ctx.Err(); err != nil {
+		return err
+	}
+
 	if isDockerTransientError(startErr) {
 		if attempted < 5 {
 			attempted++
 			backoff = helper.Backoff(50*time.Millisecond, time.Minute, attempted)
-			time.Sleep(backoff)
+			select {
+			case <-d.ctx.Done():
+				return d.ctx.Err()
+			case <-time.After(backoff):
+			}
 			goto START
 		}
 		return nstructs.NewRecoverableError(startErr, true)
@@ -1693,7 +1705,7 @@ func (d *Driver) containerByName(name string) (*mclient.ContainerInspectResult, 
 		d.logger.Error("failed to query list of containers matching name",
 			"container_name", name)
 		return nil, recoverableErrTimeouts(
-			fmt.Errorf("Failed to query list of containers: %s", err))
+			fmt.Errorf("Failed to query list of containers: %w", err))
 	}
 
 	// container names with a / pre-pended to the Nomad generated container names
@@ -2150,19 +2162,36 @@ func sliceMergeUlimit(ulimitsRaw map[string]string) ([]*containerapi.Ulimit, err
 	return ulimits, nil
 }
 
-func isDockerTransientError(err error) bool {
-	if err == nil {
+func isDockerTransportError(err error) bool {
+	if err == nil || errors.Is(err, context.Canceled) {
 		return false
 	}
 
-	errMsg := err.Error()
-	for _, te := range dockerTransientErrs {
-		if strings.Contains(errMsg, te) {
-			return true
-		}
+	if errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
 	}
 
-	return false
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
+}
+
+// recoverableErrTimeouts marks transport timeouts and interrupted responses as
+// recoverable.
+func recoverableErrTimeouts(err error) error {
+	return nstructs.NewRecoverableError(err, isDockerTransportError(err))
+}
+
+func isDockerTransientError(err error) bool {
+	if err == nil || errors.Is(err, context.Canceled) {
+		// note: this intentionally short-circuits the same in
+		// isDockerTransportError so we don't pick up "internal canceled" errors
+		// as IsInternal and therefore transient
+		return false
+	}
+	return errdefs.IsInternal(err) ||
+		errdefs.IsUnavailable(err) ||
+		isDockerTransportError(err)
 }
 
 func stopWithZeroTimeout() mclient.ContainerStopOptions {
