@@ -5,14 +5,21 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"math/rand"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -3077,6 +3084,156 @@ func TestDockerDriver_VolumeError(t *testing.T) {
 	_, err := driver.Impl().(*Driver).createContainer(fakeDockerClient{}, createContainerOptions{
 		Config: &containerapi.Config{}}, cfg.Image)
 	must.True(t, structs.IsRecoverable(err))
+}
+
+func TestDockerDriver_TransientErrors(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, tc := range []struct {
+		name      string
+		err       error
+		transport bool
+		transient bool
+	}{
+		{name: "nil"},
+		{name: "eof", err: io.EOF, transport: true, transient: true},
+		{name: "unexpected eof", err: io.ErrUnexpectedEOF, transport: true, transient: true},
+		{name: "deadline", err: context.DeadlineExceeded, transport: true, transient: true},
+		{name: "http timeout", err: &url.Error{Op: "Post", URL: "http://docker", Err: &net.DNSError{IsTimeout: true}}, transport: true, transient: true},
+		{name: "internal", err: errdefs.ErrInternal, transient: true},
+		{name: "unavailable", err: errdefs.ErrUnavailable, transient: true},
+		{name: "canceled", err: context.Canceled},
+		{name: "internal canceled", err: errors.Join(errdefs.ErrInternal, context.Canceled)},
+		{name: "eof message", err: errors.New("invalid configuration: EOF")},
+		{name: "timeout message", err: errors.New("Client.Timeout exceeded while awaiting headers")},
+		{name: "network failure", err: &net.DNSError{IsNotFound: true}},
+		{name: "invalid argument", err: errdefs.ErrInvalidArgument},
+		{name: "not implemented", err: errdefs.ErrNotImplemented},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.err
+			if err != nil {
+				err = fmt.Errorf("docker request failed: %w", err)
+			}
+			must.Eq(t, tc.transport, isDockerTransportError(err))
+			must.Eq(t, tc.transient, isDockerTransientError(err))
+			if err != nil {
+				must.Eq(t, tc.transport, structs.IsRecoverable(recoverableErrTimeouts(err)))
+			}
+		})
+	}
+}
+
+func TestDockerDriver_ContainerTransientError(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, operation := range []string{"create", "start"} {
+		for _, tc := range []struct {
+			name        string
+			status      int
+			recoverable bool
+		}{
+			{name: "internal", status: http.StatusInternalServerError, recoverable: true},
+			{name: "unavailable", status: http.StatusServiceUnavailable, recoverable: true},
+			{name: "invalid argument", status: http.StatusBadRequest},
+			{name: "not implemented", status: http.StatusNotImplemented},
+		} {
+			t.Run(operation+"/"+tc.name, func(t *testing.T) {
+				ci.Parallel(t)
+
+				var attempts atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					if strings.HasSuffix(r.URL.Path, "/containers/create") ||
+						strings.HasSuffix(r.URL.Path, "/containers/78728c28/start") {
+						attempts.Add(1)
+						w.WriteHeader(tc.status)
+						_, _ = w.Write([]byte(`{"message":"container operation failed"}`))
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte("[]"))
+				}))
+				t.Cleanup(func() { server.Close() })
+
+				harness := dockerDriverHarness(t, map[string]any{
+					"endpoint": server.URL,
+					"gc": map[string]any{
+						"image":       false,
+						"image_delay": "1s",
+					},
+				})
+				driver := harness.Impl().(*Driver)
+				dockerClient, err := driver.getDockerClient()
+				must.NoError(t, err)
+				if operation == "create" {
+					cfg := newTaskConfig(busyboxLongRunningCmd)
+					_, err = driver.createContainer(dockerClient, createContainerOptions{
+						Config: &containerapi.Config{Image: cfg.Image},
+					}, cfg.Image)
+				} else {
+					err = driver.startContainer(mclient.ContainerInspectResult{
+						Container: containerapi.InspectResponse{ID: "78728c28"},
+					})
+				}
+				must.Error(t, err)
+				must.Eq(t, tc.recoverable, structs.IsRecoverable(err))
+				expectedAttempts := int32(1)
+				if tc.recoverable {
+					expectedAttempts = 6
+				}
+				must.Eq(t, expectedAttempts, attempts.Load())
+			})
+		}
+	}
+}
+
+func TestDockerDriver_ContainerRetryCanceled(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, operation := range []string{"create", "start"} {
+		t.Run(operation, func(t *testing.T) {
+			ci.Parallel(t)
+
+			ctx, cancel := context.WithCancel(t.Context())
+			t.Cleanup(cancel)
+			var attempts atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if strings.HasSuffix(r.URL.Path, "/containers/create") ||
+					strings.HasSuffix(r.URL.Path, "/containers/78728c28/start") {
+					attempts.Add(1)
+					time.AfterFunc(10*time.Millisecond, cancel)
+					w.WriteHeader(http.StatusInternalServerError)
+					_, _ = w.Write([]byte(`{"message":"container operation failed"}`))
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("[]"))
+			}))
+			t.Cleanup(func() { server.Close() })
+
+			driver := NewDockerDriver(ctx, testlog.HCLogger(t)).(*Driver)
+			driver.config.Endpoint = server.URL
+			dockerClient, err := driver.getDockerClient()
+			must.NoError(t, err)
+			t.Cleanup(func() { dockerClient.Close() })
+
+			if operation == "create" {
+				cfg := newTaskConfig(busyboxLongRunningCmd)
+				_, err = driver.createContainer(dockerClient, createContainerOptions{
+					Config: &containerapi.Config{Image: cfg.Image},
+				}, cfg.Image)
+			} else {
+				err = driver.startContainer(mclient.ContainerInspectResult{
+					Container: containerapi.InspectResponse{ID: "78728c28"},
+				})
+			}
+			must.True(t, errors.Is(err, context.Canceled))
+			must.False(t, structs.IsRecoverable(err))
+			must.Eq(t, 1, attempts.Load())
+		})
+	}
 }
 
 func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
