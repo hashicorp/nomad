@@ -2755,6 +2755,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Meta: map[string]string{
 			"foo": "bar",
 		},
+		Env: map[string]string{
+			"JOB_ENV": "job",
+		},
 		Multiregion: &api.Multiregion{
 			Strategy: &api.MultiregionStrategy{
 				MaxParallel: new(2),
@@ -2836,6 +2839,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				MaxRunDuration: new(10 * time.Second),
 				Meta: map[string]string{
 					"key": "value",
+				},
+				Env: map[string]string{
+					"GROUP_ENV": "group",
 				},
 				Consul: &api.Consul{
 					Namespace: "team-foo",
@@ -3193,6 +3199,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		Meta: map[string]string{
 			"foo": "bar",
 		},
+		Env: map[string]string{
+			"JOB_ENV": "job",
+		},
 		Multiregion: &structs.Multiregion{
 			Strategy: &structs.MultiregionStrategy{
 				MaxParallel: 2,
@@ -3278,6 +3287,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				MaxRunDuration: new(10 * time.Second),
 				Meta: map[string]string{
 					"key": "value",
+				},
+				Env: map[string]string{
+					"GROUP_ENV": "group",
 				},
 				Consul: &structs.Consul{
 					Namespace: "team-foo",

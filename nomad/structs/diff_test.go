@@ -312,6 +312,37 @@ func TestJobDiff(t *testing.T) {
 			},
 		},
 		{
+			// Env diff
+			Old: &Job{
+				Env: map[string]string{
+					"FOO": "foo",
+					"BAR": "bar",
+				},
+			},
+			New: &Job{
+				Env: map[string]string{
+					"BAR": "baz",
+				},
+			},
+			Expected: &JobDiff{
+				Type: DiffTypeEdited,
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Env[BAR]",
+						Old:  "bar",
+						New:  "baz",
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "Env[FOO]",
+						Old:  "foo",
+						New:  "",
+					},
+				},
+			},
+		},
+		{
 			// Datacenter diff both added and removed
 			Old: &Job{
 				Datacenters: []string{"foo", "bar"},
@@ -1882,6 +1913,34 @@ func TestTaskGroupDiff(t *testing.T) {
 						Name: "Meta[foo]",
 						Old:  "bar",
 						New:  "baz",
+					},
+				},
+			},
+		},
+		{
+			TestCase: "Env diff",
+			Old: &TaskGroup{
+				Name: "foo",
+				Env: map[string]string{
+					"FOO": "foo",
+				},
+			},
+			New: &TaskGroup{
+				Name: "foo",
+				Env: map[string]string{
+					"FOO": "foo",
+					"BAR": "bar",
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Name: "foo",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Env[BAR]",
+						Old:  "",
+						New:  "bar",
 					},
 				},
 			},
