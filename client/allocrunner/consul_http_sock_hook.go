@@ -45,8 +45,8 @@ type consulHTTPSockHook struct {
 	alloc   *structs.Allocation
 	proxies map[string]*httpSocketProxy
 
-	// socketLabeler decides whether the sockets are created with the
-	// container SELinux type.
+	// socketLabeler reports whether a task in the group runs as a confined
+	// container, so the sockets may need the container SELinux type.
 	socketLabeler *taskSocketLabeler
 }
 
@@ -120,10 +120,10 @@ func (h *consulHTTPSockHook) Prerun(_ *taskenv.TaskEnv) error {
 		return nil
 	}
 
-	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
+	confined := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc, selinuxLabel); err != nil {
+		if err := proxy.run(h.alloc, confined); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -143,10 +143,10 @@ func (h *consulHTTPSockHook) Update(req *interfaces.RunnerUpdateRequest) error {
 		return fmt.Errorf("cannot update alloc to Connect in-place")
 	}
 
-	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
+	confined := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc, selinuxLabel); err != nil {
+		if err := proxy.run(h.alloc, confined); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -197,10 +197,11 @@ func newHTTPSocketProxy(
 
 // run the httpSocketProxy for the given allocation.
 //
-// selinuxLabel creates the socket with the container SELinux type.
+// confined reports that a task in the group runs as a confined container, so
+// the socket may need the container SELinux type.
 //
 // Assumes locking done by the calling alloc runner.
-func (p *httpSocketProxy) run(alloc *structs.Allocation, selinuxLabel bool) error {
+func (p *httpSocketProxy) run(alloc *structs.Allocation, confined bool) error {
 	// Only run once.
 	if p.runOnce {
 		return nil
@@ -233,7 +234,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation, selinuxLabel bool) erro
 		return err
 	}
 
-	listener, err := clientsockets.ListenTaskSocket(hostHTTPSockPath, selinuxLabel)
+	listener, err := clientsockets.ListenTaskSocket(hostHTTPSockPath, confined)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
 	}

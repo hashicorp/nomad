@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"io/fs"
 	"net"
 	"os"
@@ -21,6 +22,8 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/shoenig/test/must"
 )
 
@@ -47,7 +50,7 @@ func TestAPIHook_SoftFail(t *testing.T) {
 	ctx := context.Background()
 	srv := testAPIListenerRegistrar{}
 	logger := testlog.HCLogger(t)
-	h := newAPIHook(ctx, srv, logger, false, nil)
+	h := newAPIHook(ctx, srv, logger, nil)
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{}, // needs to be non-nil for Task.User lookup
@@ -107,7 +110,7 @@ func TestAPIHook_Ok(t *testing.T) {
 
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	h := newAPIHook(ctx, srv, logger, false, nil)
+	h := newAPIHook(ctx, srv, logger, nil)
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{
@@ -169,4 +172,46 @@ func TestAPIHook_Ok(t *testing.T) {
 	// File should be gone
 	_, err = net.Dial("unix", sockDst)
 	must.Error(t, err)
+}
+
+func TestAPIHook_Confined(t *testing.T) {
+	ci.Parallel(t)
+
+	capsFor := func(mode fsisolation.Mode) func() (*drivers.Capabilities, error) {
+		return func() (*drivers.Capabilities, error) {
+			return &drivers.Capabilities{FSIsolation: mode}, nil
+		}
+	}
+
+	cases := []struct {
+		name string
+		caps func() (*drivers.Capabilities, error)
+		exp  bool
+	}{
+		{name: "image driver", caps: capsFor(fsisolation.Image), exp: true},
+		{name: "chroot driver", caps: capsFor(fsisolation.Chroot), exp: false},
+		{name: "no isolation driver", caps: capsFor(fsisolation.None), exp: false},
+		{name: "no capabilities func", caps: nil, exp: false},
+		{
+			name: "nil capabilities",
+			caps: func() (*drivers.Capabilities, error) {
+				return nil, nil
+			},
+			exp: false,
+		},
+		{
+			name: "capabilities error",
+			caps: func() (*drivers.Capabilities, error) {
+				return nil, errors.New("driver not found")
+			},
+			exp: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newAPIHook(context.Background(), testAPIListenerRegistrar{}, testlog.HCLogger(t), tc.caps)
+			must.Eq(t, tc.exp, h.confined())
+		})
+	}
 }

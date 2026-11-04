@@ -36,10 +36,6 @@ type apiHook struct {
 	srv         config.APIListenerRegistrar
 	logger      hclog.Logger
 
-	// selinuxLabel is the client.selinux.label_task_sockets option. The
-	// socket is only labeled when the task's driver also needs it.
-	selinuxLabel bool
-
 	// driverCapabilities returns the capabilities of the task's driver.
 	driverCapabilities func() (*drivers.Capabilities, error)
 
@@ -54,13 +50,11 @@ func newAPIHook(
 	shutdownCtx context.Context,
 	srv config.APIListenerRegistrar,
 	logger hclog.Logger,
-	selinuxLabel bool,
 	driverCapabilities func() (*drivers.Capabilities, error),
 ) *apiHook {
 	h := &apiHook{
 		shutdownCtx:        shutdownCtx,
 		srv:                srv,
-		selinuxLabel:       selinuxLabel,
 		driverCapabilities: driverCapabilities,
 	}
 	h.logger = logger.Named(h.Name())
@@ -71,10 +65,10 @@ func (*apiHook) Name() string {
 	return "api"
 }
 
-// labelSocket reports whether the task API socket is created with the
-// container SELinux type: the option is set and the task's driver needs it.
-func (h *apiHook) labelSocket() bool {
-	if !h.selinuxLabel || h.driverCapabilities == nil {
+// confined reports whether the task's driver runs it as a confined container,
+// which may need the task API socket created with the container SELinux type.
+func (h *apiHook) confined() bool {
+	if h.driverCapabilities == nil {
 		return false
 	}
 	caps, err := h.driverCapabilities()
@@ -82,7 +76,7 @@ func (h *apiHook) labelSocket() bool {
 		h.logger.Warn("unable to get task driver capabilities, task api socket will not be labeled", "error", err)
 		return false
 	}
-	return DriverNeedsLabeledSockets(caps)
+	return caps != nil && clientsockets.Confined(caps.FSIsolation)
 }
 
 func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -95,7 +89,7 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 	}
 
 	udsPath := apiSocketPath(req.TaskDir)
-	udsln, err := clientsockets.SocketFileFor(h.logger, udsPath, req.Task.User, h.labelSocket())
+	udsln, err := clientsockets.SocketFileFor(h.logger, udsPath, req.Task.User, h.confined())
 	if err != nil {
 		// Soft-fail and let the task fail if it requires the task api.
 		h.logger.Warn("error creating task api socket", "path", udsPath, "error", err)

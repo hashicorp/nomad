@@ -108,9 +108,9 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
 
-	// The Consul socket hooks decide in Prerun whether to label their
-	// sockets, once the task runners and their drivers exist.
-	socketLabeler := newTaskSocketLabeler(hookLogger, config.SELinux.TaskSocketsLabeled(), ar)
+	// The Consul socket hooks decide in Prerun whether their sockets are for
+	// confined tasks, once the task runners and their drivers exist.
+	socketLabeler := newTaskSocketLabeler(hookLogger, ar)
 
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),

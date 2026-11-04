@@ -40,43 +40,31 @@ func TestTaskSocketLabeler_LabelForAlloc(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		enabled bool
 		drivers testTaskDrivers
 		exp     bool
 	}{
 		{
-			name:    "option off",
-			enabled: false,
-			drivers: testTaskDrivers{mainTask: fsisolation.Image, "sidecar": fsisolation.Image},
-			exp:     false,
-		},
-		{
 			name:    "all image drivers",
-			enabled: true,
 			drivers: testTaskDrivers{mainTask: fsisolation.Image, "sidecar": fsisolation.Image},
 			exp:     true,
 		},
 		{
 			name:    "one image driver",
-			enabled: true,
 			drivers: testTaskDrivers{mainTask: fsisolation.None, "sidecar": fsisolation.Image},
 			exp:     true,
 		},
 		{
 			name:    "no image drivers",
-			enabled: true,
 			drivers: testTaskDrivers{mainTask: fsisolation.None, "sidecar": fsisolation.Chroot},
 			exp:     false,
 		},
 		{
 			name:    "missing driver is skipped",
-			enabled: true,
 			drivers: testTaskDrivers{"sidecar": fsisolation.Image},
 			exp:     true,
 		},
 		{
 			name:    "no drivers",
-			enabled: true,
 			drivers: testTaskDrivers{},
 			exp:     false,
 		},
@@ -84,7 +72,7 @@ func TestTaskSocketLabeler_LabelForAlloc(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			l := newTaskSocketLabeler(testlog.HCLogger(t), tc.enabled, tc.drivers)
+			l := newTaskSocketLabeler(testlog.HCLogger(t), tc.drivers)
 			must.Eq(t, tc.exp, l.labelForAlloc(alloc))
 		})
 	}
@@ -96,9 +84,9 @@ func TestTaskSocketLabeler_Nil(t *testing.T) {
 	var l *taskSocketLabeler
 	must.False(t, l.labelForAlloc(mock.Alloc()))
 
-	// An alloc whose task group is missing is never labeled.
+	// An alloc whose task group is missing has no confined task.
 	alloc := mock.Alloc()
 	alloc.TaskGroup = "missing"
-	l = newTaskSocketLabeler(testlog.HCLogger(t), true, testTaskDrivers{})
+	l = newTaskSocketLabeler(testlog.HCLogger(t), testTaskDrivers{})
 	must.False(t, l.labelForAlloc(alloc))
 }

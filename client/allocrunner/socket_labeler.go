@@ -5,7 +5,7 @@ package allocrunner
 
 import (
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
+	"github.com/hashicorp/nomad/client/lib/clientsockets"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
@@ -18,28 +18,23 @@ type taskDriverCapabilities interface {
 
 var _ taskDriverCapabilities = (*allocRunner)(nil)
 
-// taskSocketLabeler decides whether the alloc-level sockets that tasks connect
-// to are created with the container SELinux type. A nil labeler never labels.
+// taskSocketLabeler reports whether an alloc has a task that runs as a
+// confined container, for the alloc-level sockets its tasks share. A nil
+// labeler reports none.
 type taskSocketLabeler struct {
 	logger  hclog.Logger
 	drivers taskDriverCapabilities
 }
 
-// newTaskSocketLabeler returns nil when the client.selinux.label_task_sockets
-// option is not set.
-func newTaskSocketLabeler(logger hclog.Logger, enabled bool, taskDrivers taskDriverCapabilities) *taskSocketLabeler {
-	if !enabled {
-		return nil
-	}
+func newTaskSocketLabeler(logger hclog.Logger, taskDrivers taskDriverCapabilities) *taskSocketLabeler {
 	return &taskSocketLabeler{logger: logger, drivers: taskDrivers}
 }
 
-// labelForAlloc reports whether the alloc's shared sockets should be labeled.
-// They are shared by every task in the group, so they are labeled when any task
-// uses a driver that needs it. It must only be called after the task runners
-// exist, such as from a Prerun hook: the hooks are built before the task
-// runners, so from a constructor every task is "not found" and nothing would be
-// labeled.
+// labelForAlloc reports whether any task in the alloc's group runs as a
+// confined container. The sockets are shared by the whole group, so one such
+// task is enough. Call it only once the task runners exist, as from a Prerun
+// hook: the hooks are built before the task runners, and until then every task
+// is "not found".
 func (l *taskSocketLabeler) labelForAlloc(alloc *structs.Allocation) bool {
 	if l == nil {
 		return false
@@ -54,7 +49,7 @@ func (l *taskSocketLabeler) labelForAlloc(alloc *structs.Allocation) bool {
 			l.logger.Warn("unable to get task driver capabilities", "task", task.Name, "error", err)
 			continue
 		}
-		if taskrunner.DriverNeedsLabeledSockets(caps) {
+		if caps != nil && clientsockets.Confined(caps.FSIsolation) {
 			return true
 		}
 	}

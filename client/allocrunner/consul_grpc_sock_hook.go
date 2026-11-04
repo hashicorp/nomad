@@ -57,8 +57,8 @@ type consulGRPCSocketHook struct {
 	alloc   *structs.Allocation
 	proxies map[string]*grpcSocketProxy
 
-	// socketLabeler decides whether the sockets are created with the
-	// container SELinux type.
+	// socketLabeler reports whether a task in the group runs as a confined
+	// container, so the sockets may need the container SELinux type.
 	socketLabeler *taskSocketLabeler
 }
 
@@ -146,10 +146,10 @@ func (h *consulGRPCSocketHook) Prerun(_ *taskenv.TaskEnv) error {
 		return nil
 	}
 
-	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
+	confined := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(selinuxLabel); err != nil {
+		if err := proxy.run(confined); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -171,10 +171,10 @@ func (h *consulGRPCSocketHook) Update(req *interfaces.RunnerUpdateRequest) error
 		return fmt.Errorf("cannot update alloc to Connect in-place")
 	}
 
-	selinuxLabel := h.socketLabeler.labelForAlloc(h.alloc)
+	confined := h.socketLabeler.labelForAlloc(h.alloc)
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(selinuxLabel); err != nil {
+		if err := proxy.run(confined); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -233,10 +233,11 @@ func newGRPCSocketProxy(
 // run socket proxy if allocation requires it, it isn't already running, and it
 // hasn't been told to stop.
 //
-// selinuxLabel creates the socket with the container SELinux type.
+// confined reports that a task in the group runs as a confined container, so
+// the socket may need the container SELinux type.
 //
 // NOT safe for concurrent use.
-func (p *grpcSocketProxy) run(selinuxLabel bool) error {
+func (p *grpcSocketProxy) run(confined bool) error {
 	// Only run once.
 	if p.runOnce {
 		return nil
@@ -296,7 +297,7 @@ func (p *grpcSocketProxy) run(selinuxLabel bool) error {
 		}
 	}
 
-	listener, err := clientsockets.ListenTaskSocket(hostGRPCSocketPath, selinuxLabel)
+	listener, err := clientsockets.ListenTaskSocket(hostGRPCSocketPath, confined)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
 	}
