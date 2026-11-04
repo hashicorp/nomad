@@ -18,8 +18,8 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/lib/clientsockets"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -233,7 +233,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation, selinuxLabel bool) erro
 		return err
 	}
 
-	listener, err := users.ListenTaskSocket(hostHTTPSockPath, selinuxLabel)
+	listener, err := clientsockets.ListenTaskSocket(hostHTTPSockPath, selinuxLabel)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
 	}

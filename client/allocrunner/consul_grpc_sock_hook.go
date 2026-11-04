@@ -21,8 +21,8 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/lib/clientsockets"
 	"github.com/hashicorp/nomad/client/taskenv"
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -296,7 +296,7 @@ func (p *grpcSocketProxy) run(selinuxLabel bool) error {
 		}
 	}
 
-	listener, err := users.ListenTaskSocket(hostGRPCSocketPath, selinuxLabel)
+	listener, err := clientsockets.ListenTaskSocket(hostGRPCSocketPath, selinuxLabel)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
 	}

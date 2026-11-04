@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/client/lib/clientsockets"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
@@ -95,7 +95,7 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 	}
 
 	udsPath := apiSocketPath(req.TaskDir)
-	udsln, err := users.SocketFileFor(h.logger, udsPath, req.Task.User, h.labelSocket())
+	udsln, err := clientsockets.SocketFileFor(h.logger, udsPath, req.Task.User, h.labelSocket())
 	if err != nil {
 		// Soft-fail and let the task fail if it requires the task api.
 		h.logger.Warn("error creating task api socket", "path", udsPath, "error", err)

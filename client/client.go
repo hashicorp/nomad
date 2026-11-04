@@ -37,6 +37,7 @@ import (
 	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/clientsockets"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager"
@@ -59,7 +60,6 @@ import (
 	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/users/dynamic"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
@@ -490,7 +490,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// container SELinux policy. Start the labeler now so a failure is logged at
 	// start, not hidden behind the first task socket.
 	if cfg.SELinux.TaskSocketsLabeled() {
-		if err := users.StartTaskSocketLabeler(); err != nil {
+		if err := clientsockets.StartTaskSocketLabeler(); err != nil {
 			c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
 		}
 	}

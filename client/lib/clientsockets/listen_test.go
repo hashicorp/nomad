@@ -3,7 +3,7 @@
 
 //go:build !windows
 
-package users
+package clientsockets
 
 import (
 	"net"
