@@ -486,13 +486,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		MaxUGID: cfg.Users.MaxDynamicUser,
 	})
 
-	// Task sockets can only be labeled for confined tasks when the host has a
-	// container SELinux policy. Start the labeler now so a failure is logged at
-	// start, not hidden behind the first task socket.
-	if cfg.SELinux.TaskSocketsLabeled() {
-		if err := clientsockets.StartTaskSocketLabeler(); err != nil {
-			c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
-		}
+	// Decide now how sockets for confined tasks are created, so a failure is
+	// logged at start rather than hidden behind the first task socket.
+	if err := clientsockets.Configure(cfg.SELinux.TaskSocketsLabeled()); err != nil {
+		c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
 	}
 
 	// Create the cpu core partition manager
