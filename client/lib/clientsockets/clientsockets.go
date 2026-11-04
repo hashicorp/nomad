@@ -166,8 +166,7 @@ func setSocketOwner(path, username string) error {
 // s0 when the policy has levels. It returns an empty label when SELinux is
 // disabled, which it always is on platforms other than Linux. go-selinux reads
 // the container contexts once per process, so a changed container type, as from
-// a container-selinux update, takes effect only after an agent restart. Whether
-// sockets are labeled follows every Configure call.
+// a container-selinux update, takes effect only after an agent restart.
 func findTaskSocketLabel() (string, error) {
 	if !selinux.GetEnabled() {
 		return "", nil
