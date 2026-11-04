@@ -463,6 +463,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		RPC:        c,
 	})
 
+	// Decide now how sockets for confined tasks are created, so the selinux
+	// fingerprinter can report it and a failure is logged at start rather than
+	// hidden behind the first task socket.
+	if err := clientsockets.Configure(cfg.SELinux.TaskSocketsLabeled()); err != nil {
+		c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
+	}
+
 	c.fingerprintManager = NewFingerprintManager(
 		cfg.PluginSingletonLoader,
 		c.GetConfig,
@@ -485,12 +492,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		MinUGID: cfg.Users.MinDynamicUser,
 		MaxUGID: cfg.Users.MaxDynamicUser,
 	})
-
-	// Decide now how sockets for confined tasks are created, so a failure is
-	// logged at start rather than hidden behind the first task socket.
-	if err := clientsockets.Configure(cfg.SELinux.TaskSocketsLabeled()); err != nil {
-		c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
-	}
 
 	// Create the cpu core partition manager
 	c.partitions = cgroupslib.GetPartition(c.logger.Named("partitions"),
@@ -857,6 +858,12 @@ func (c *Client) Reload(newConfig *config.Config) error {
 		if err := c.reloadTLSConnections(newConfig.TLSConfig); err != nil {
 			return err
 		}
+	}
+
+	// Apply the reloaded client.selinux.label_task_sockets value. The selinux
+	// fingerprinter re-runs below and reports the new state.
+	if err := clientsockets.Configure(newConfig.SELinux.TaskSocketsLabeled()); err != nil {
+		c.logger.Warn("client.selinux.label_task_sockets is set but task sockets will not be labeled", "error", err)
 	}
 
 	c.fingerprintManager.Reload()
