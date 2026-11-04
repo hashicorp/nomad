@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	selinuxLabelTaskSocketsKey = "nomad.selinux.label_task_sockets"
+	selinuxLabelTaskSocketsKey = "selinux.label_task_sockets"
 )
 
 // SELinuxFingerprint reports whether the client creates the sockets of confined
