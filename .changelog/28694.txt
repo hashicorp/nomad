@@ -1,0 +1,3 @@
+```release-note:bug
+core: Ensure autopilot sees all servers to prevent flapping raft membership
+```
