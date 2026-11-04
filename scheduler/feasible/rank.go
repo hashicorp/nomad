@@ -196,12 +196,14 @@ func (iter *BinPackIterator) SetTaskGroup(taskGroup *structs.TaskGroup) {
 
 func (iter *BinPackIterator) SetSchedulerConfiguration(schedConfig *structs.SchedulerConfiguration) {
 	// Set scoring function.
-	algorithm := schedConfig.EffectiveSchedulerAlgorithm()
-	scoreFn := structs.ScoreFitBinPack
-	if algorithm == structs.SchedulerAlgorithmSpread {
-		scoreFn = structs.ScoreFitSpread
+	switch schedConfig.EffectiveSchedulerAlgorithm() {
+	case structs.SchedulerAlgorithmSpread:
+		iter.scoreFit = structs.ScoreFitSpread
+	case structs.SchedulerAlgorithmSpreadCPUOnly:
+		iter.scoreFit = structs.ScoreFitSpreadCPUOnly
+	default:
+		iter.scoreFit = structs.ScoreFitBinPack
 	}
-	iter.scoreFit = scoreFn
 
 	// Set memory oversubscription.
 	iter.memoryOversubscription = schedConfig != nil && schedConfig.MemoryOversubscriptionEnabled
