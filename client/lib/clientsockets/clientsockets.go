@@ -1,10 +1,7 @@
 // Copyright IBM Corp. 2015, 2026
 // SPDX-License-Identifier: BUSL-1.1
 
-// Package clientsockets creates the unix sockets that tasks connect to: the
-// Task API socket and the Consul HTTP and gRPC sockets. With SELinux, Configure
-// can make the sockets of confined tasks carry the container SELinux type so
-// that confined containers may connect to them.
+// Package clientsockets creates the unix sockets that tasks connect to
 package clientsockets
 
 import (
