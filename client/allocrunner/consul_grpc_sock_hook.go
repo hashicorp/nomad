@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 const (
@@ -297,7 +298,11 @@ func (p *grpcSocketProxy) run(confined bool) error {
 		}
 	}
 
-	listener, err := clientsockets.ListenTaskSocket(hostGRPCSocketPath, confined)
+	var isolation []fsisolation.Mode
+	if confined {
+		isolation = append(isolation, fsisolation.Image)
+	}
+	listener, err := clientsockets.ListenTaskSocket(hostGRPCSocketPath, isolation...)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
 	}

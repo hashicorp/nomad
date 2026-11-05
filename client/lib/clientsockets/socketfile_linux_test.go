@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/shoenig/test/must"
 )
 
@@ -24,7 +25,7 @@ func TestSocketFileFor_Linux(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "api.sock")
 
 	logger := testlog.HCLogger(t)
-	ln, err := SocketFileFor(logger, path, "nobody", false)
+	ln, err := SocketFileFor(logger, path, "nobody", fsisolation.None)
 	must.NoError(t, err)
 	must.NotNil(t, ln)
 	t.Cleanup(func() {

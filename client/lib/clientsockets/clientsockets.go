@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -29,13 +30,19 @@ var labeler atomic.Pointer[socketLabeler]
 // parallel tests and Reload may overlap with start.
 var configureMu sync.Mutex
 
-// Confined reports whether tasks with this filesystem isolation run as
+// needsLabel reports whether tasks with this filesystem isolation run as
 // confined containers, whose sockets need the container SELinux type when
 // labeling is on. Only image isolation (Docker, podman, containerd) does; exec,
 // raw_exec, java and qemu run tasks in the agent's own domain, which can
 // already connect to the agent's sockets.
-func Confined(mode fsisolation.Mode) bool {
+func needsLabel(mode fsisolation.Mode) bool {
 	return mode == fsisolation.Image
+}
+
+// anyNeedsLabel reports whether any of the modes needs a labeled socket. A
+// socket shared by several tasks is labeled when one of them needs it.
+func anyNeedsLabel(modes []fsisolation.Mode) bool {
+	return slices.ContainsFunc(modes, needsLabel)
 }
 
 // Configure selects how sockets for confined tasks are created in later calls
@@ -91,29 +98,31 @@ func Fingerprint() (string, bool) {
 	return "", false
 }
 
-// ListenTaskSocket creates the unix socket at path. If confined is true (see
-// Confined) and Configure enabled labeling, the labeler creates it. Otherwise
-// it is a plain net.Listen.
-func ListenTaskSocket(path string, confined bool) (net.Listener, error) {
-	if l := labeler.Load(); confined && l != nil {
+// ListenTaskSocket creates the unix socket at path for the tasks that will
+// connect to it, given their filesystem isolation modes. When Configure
+// enabled labeling and any of the modes is image isolation, the socket is
+// created with the container SELinux type; with no modes, or none that need
+// it, it is a plain net.Listen.
+func ListenTaskSocket(path string, isolation ...fsisolation.Mode) (net.Listener, error) {
+	if l := labeler.Load(); l != nil && anyNeedsLabel(isolation) {
 		return l.listen(path)
 	}
 	return net.Listen("unix", path)
 }
 
-// SocketFileFor creates the unix socket at path with ListenTaskSocket, which
-// also defines confined, and makes it usable only by username. Where that is
-// not possible, as on Windows or with an agent that is not root, it makes the
-// socket usable by all users instead, so the task can still connect. Non-fatal
-// errors are logged.
+// SocketFileFor creates the unix socket at path with ListenTaskSocket for a
+// task with the given filesystem isolation, and makes it usable only by
+// username. Where that is not possible, as on Windows or with an agent that is
+// not root, it makes the socket usable by all users instead, so the task can
+// still connect. Non-fatal errors are logged.
 //
 // See users.WriteFileFor if writing a regular file.
-func SocketFileFor(logger hclog.Logger, path, username string, confined bool) (net.Listener, error) {
+func SocketFileFor(logger hclog.Logger, path, username string, isolation fsisolation.Mode) (net.Listener, error) {
 	if err := os.RemoveAll(path); err != nil {
 		logger.Warn("error removing socket", "path", path, "error", err)
 	}
 
-	udsln, err := ListenTaskSocket(path, confined)
+	udsln, err := ListenTaskSocket(path, isolation)
 	if err != nil {
 		return nil, err
 	}

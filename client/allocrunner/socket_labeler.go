@@ -5,9 +5,9 @@ package allocrunner
 
 import (
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/nomad/client/lib/clientsockets"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 // taskDriverCapabilities looks up the driver capabilities of an alloc's tasks.
@@ -49,7 +49,7 @@ func (l *taskSocketLabeler) labelForAlloc(alloc *structs.Allocation) bool {
 			l.logger.Warn("unable to get task driver capabilities", "task", task.Name, "error", err)
 			continue
 		}
-		if caps != nil && clientsockets.Confined(caps.FSIsolation) {
+		if caps != nil && caps.FSIsolation == fsisolation.Image {
 			return true
 		}
 	}

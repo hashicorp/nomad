@@ -15,14 +15,22 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestConfined(t *testing.T) {
+func TestNeedsLabel(t *testing.T) {
 	ci.Parallel(t)
 
-	must.True(t, Confined(fsisolation.Image))
-	must.False(t, Confined(fsisolation.None))
-	must.False(t, Confined(fsisolation.Chroot))
-	must.False(t, Confined(fsisolation.Unveil))
-	must.False(t, Confined(""))
+	must.True(t, needsLabel(fsisolation.Image))
+	must.False(t, needsLabel(fsisolation.None))
+	must.False(t, needsLabel(fsisolation.Chroot))
+	must.False(t, needsLabel(fsisolation.Unveil))
+	must.False(t, needsLabel(""))
+}
+
+func TestAnyNeedsLabel(t *testing.T) {
+	ci.Parallel(t)
+
+	must.False(t, anyNeedsLabel(nil))
+	must.False(t, anyNeedsLabel([]fsisolation.Mode{fsisolation.None, fsisolation.Chroot}))
+	must.True(t, anyNeedsLabel([]fsisolation.Mode{fsisolation.None, fsisolation.Image}))
 }
 
 // The tests below change the labeling state of the process, so they do not run
@@ -38,7 +46,7 @@ func TestConfigure_Off(t *testing.T) {
 
 	// Sockets for confined tasks are plain sockets that accept connections.
 	path := filepath.Join(t.TempDir(), "test.sock")
-	ln, err := ListenTaskSocket(path, true)
+	ln, err := ListenTaskSocket(path, fsisolation.Image)
 	must.NoError(t, err)
 	t.Cleanup(func() { _ = ln.Close() })
 

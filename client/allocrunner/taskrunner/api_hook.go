@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/lib/clientsockets"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 // apiHook exposes the Task API. The Task API allows task's to access the Nomad
@@ -36,8 +36,9 @@ type apiHook struct {
 	srv         config.APIListenerRegistrar
 	logger      hclog.Logger
 
-	// driverCapabilities returns the capabilities of the task's driver.
-	driverCapabilities func() (*drivers.Capabilities, error)
+	// isolation is the filesystem isolation of the task's driver, for the
+	// socket's creation.
+	isolation fsisolation.Mode
 
 	// Lock listener as it is updated from multiple hooks.
 	lock sync.Mutex
@@ -50,12 +51,12 @@ func newAPIHook(
 	shutdownCtx context.Context,
 	srv config.APIListenerRegistrar,
 	logger hclog.Logger,
-	driverCapabilities func() (*drivers.Capabilities, error),
+	isolation fsisolation.Mode,
 ) *apiHook {
 	h := &apiHook{
-		shutdownCtx:        shutdownCtx,
-		srv:                srv,
-		driverCapabilities: driverCapabilities,
+		shutdownCtx: shutdownCtx,
+		srv:         srv,
+		isolation:   isolation,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -63,20 +64,6 @@ func newAPIHook(
 
 func (*apiHook) Name() string {
 	return "api"
-}
-
-// confined reports whether the task's driver runs it as a confined container,
-// which may need the task API socket created with the container SELinux type.
-func (h *apiHook) confined() bool {
-	if h.driverCapabilities == nil {
-		return false
-	}
-	caps, err := h.driverCapabilities()
-	if err != nil {
-		h.logger.Warn("unable to get task driver capabilities, task api socket will not be labeled", "error", err)
-		return false
-	}
-	return caps != nil && clientsockets.Confined(caps.FSIsolation)
 }
 
 func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
@@ -89,7 +76,7 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 	}
 
 	udsPath := apiSocketPath(req.TaskDir)
-	udsln, err := clientsockets.SocketFileFor(h.logger, udsPath, req.Task.User, h.confined())
+	udsln, err := clientsockets.SocketFileFor(h.logger, udsPath, req.Task.User, h.isolation)
 	if err != nil {
 		// Soft-fail and let the task fail if it requires the task api.
 		h.logger.Warn("error creating task api socket", "path", udsPath, "error", err)

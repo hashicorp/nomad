@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/shoenig/test/must"
 	"golang.org/x/sys/unix"
@@ -28,7 +29,16 @@ func TestListenTaskSocket_SELinuxLabel(t *testing.T) {
 
 	// The listening socket carries the container type, not the type of the
 	// process that created it.
-	ln := listenTaskSocket(t, true)
+	ln := listenTaskSocket(t, fsisolation.Image)
+	must.Eq(t, expected, socketLabel(t, ln))
+}
+
+func TestListenTaskSocket_SELinuxLabelAnyTask(t *testing.T) {
+	expected := requireLabeling(t)
+
+	// A socket shared by several tasks is labeled when one of them is
+	// confined.
+	ln := listenTaskSocket(t, fsisolation.None, fsisolation.Image)
 	must.Eq(t, expected, socketLabel(t, ln))
 }
 
@@ -37,7 +47,7 @@ func TestListenTaskSocket_SELinuxLabelOff(t *testing.T) {
 
 	// A socket for a task that is not confined keeps the label of the process
 	// that created it.
-	ln := listenTaskSocket(t, false)
+	ln := listenTaskSocket(t, fsisolation.None)
 	process, err := selinux.CurrentLabel()
 	must.NoError(t, err)
 	must.Eq(t, process, socketLabel(t, ln))
@@ -54,7 +64,7 @@ func TestListenTaskSocket_SELinuxLabelConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := range lns {
 		wg.Go(func() {
-			lns[i], errs[i] = ListenTaskSocket(filepath.Join(dir, fmt.Sprintf("%d.sock", i)), true)
+			lns[i], errs[i] = ListenTaskSocket(filepath.Join(dir, fmt.Sprintf("%d.sock", i)), fsisolation.Image)
 		})
 	}
 	wg.Wait()
@@ -81,7 +91,7 @@ func TestConfigure_Twice(t *testing.T) {
 	must.NoError(t, Configure(true))
 	must.True(t, first == labeler.Load())
 
-	ln := listenTaskSocket(t, true)
+	ln := listenTaskSocket(t, fsisolation.Image)
 	must.Eq(t, expected, socketLabel(t, ln))
 }
 
@@ -105,7 +115,7 @@ func TestConfigure_Toggle(t *testing.T) {
 				done <- listenResult{err: err}
 				return
 			}
-			ln, err := ListenTaskSocket(filepath.Join(dir, name), true)
+			ln, err := ListenTaskSocket(filepath.Join(dir, name), fsisolation.Image)
 			done <- listenResult{ln: ln, err: err}
 		}()
 		select {
@@ -168,9 +178,9 @@ func requireLabeling(t *testing.T) string {
 	return label
 }
 
-func listenTaskSocket(t *testing.T, confined bool) net.Listener {
+func listenTaskSocket(t *testing.T, isolation ...fsisolation.Mode) net.Listener {
 	t.Helper()
-	ln, err := ListenTaskSocket(filepath.Join(t.TempDir(), "test.sock"), confined)
+	ln, err := ListenTaskSocket(filepath.Join(t.TempDir(), "test.sock"), isolation...)
 	must.NoError(t, err)
 	t.Cleanup(func() { _ = ln.Close() })
 	return ln
