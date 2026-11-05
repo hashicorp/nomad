@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed the OOM counter being absent from allocation metrics before the first OOM event
+```
