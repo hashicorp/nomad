@@ -33,8 +33,9 @@ func newHCLDecoder() *gohcl.Decoder {
 	decoder.RegisterExpressionDecoder(reflect.TypeFor[*time.Duration](), decodeDuration)
 
 	// custom nomad types
-	decoder.RegisterBlockDecoder(reflect.TypeFor[api.Affinity](), decodeAffinity)
-	decoder.RegisterBlockDecoder(reflect.TypeFor[api.Constraint](), decodeConstraint)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Affinity{}), decodeAffinity)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.Constraint{}), decodeConstraint)
+	decoder.RegisterBlockDecoder(reflect.TypeOf(api.JobDependencies{}), decodeDependency)
 
 	return decoder
 }
@@ -260,7 +261,47 @@ func decodeConstraint(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnost
 	return diags
 }
 
-func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnostics {
+var dependencySpec = hcldec.ObjectSpec{
+	"job":    &hcldec.AttrSpec{Name: "job", Type: cty.String, Required: true},
+	"output": &hcldec.AttrSpec{Name: "output", Type: cty.String, Required: false},
+	"name":   &hcldec.AttrSpec{Name: "name", Type: cty.String, Required: false},
+}
+
+func decodeDependency(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
+	d := val.(*api.JobDependencies)
+
+	var diags hcl.Diagnostics
+
+	// First decode to get timeout as string
+	type tempDependency struct {
+		Timeout string               `hcl:"timeout,optional"`
+		Jobs    []*api.JobDependency `hcl:"job,block"`
+	}
+
+	temp := &tempDependency{}
+	moreDiags := gohcl.DecodeBody(body, ctx, temp)
+	diags = append(diags, moreDiags...)
+
+	// Convert timeout string to *time.Duration
+	if temp.Timeout != "" {
+		if duration, err := time.ParseDuration(temp.Timeout); err == nil {
+			d.Timeout = &duration
+		} else {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid timeout duration",
+				Detail:   fmt.Sprintf("Failed to parse timeout: %v", err),
+			})
+		}
+	}
+
+	// Copy other fields
+	d.Jobs = temp.Jobs
+
+	return diags
+}
+
+func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	tg := val.(*api.TaskGroup)
 
 	var diags hcl.Diagnostics

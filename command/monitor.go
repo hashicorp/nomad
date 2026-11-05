@@ -340,7 +340,11 @@ func formatAllocMetrics(
 	var out string
 
 	if metrics.NodesEvaluated == 0 {
-		out += fmt.Sprintf("%s* No nodes were eligible for evaluation\n", prefix)
+		if len(metrics.BlockedDependencies) > 0 {
+			out += fmt.Sprintf("%s* Job blocked by: %s\n", prefix, strings.Join(metrics.BlockedDependencies, ", "))
+		} else {
+			out += fmt.Sprintf("%s* No nodes were eligible for evaluation\n", prefix)
+		}
 	}
 
 	// Print a helpful message if the user has asked for a DC that has no
