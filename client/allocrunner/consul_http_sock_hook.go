@@ -46,9 +46,9 @@ type consulHTTPSockHook struct {
 	alloc   *structs.Allocation
 	proxies map[string]*httpSocketProxy
 
-	// socketLabeler reports whether a task in the group runs as a confined
-	// container, so the sockets may need the container SELinux type.
-	socketLabeler *taskSocketLabeler
+	// drivers looks up the driver capabilities of the tasks that use the
+	// socket.
+	drivers taskDriverCapabilities
 }
 
 func newConsulHTTPSocketHook(
@@ -56,7 +56,7 @@ func newConsulHTTPSocketHook(
 	alloc *structs.Allocation,
 	allocDir allocdir.Interface,
 	configs map[string]*config.ConsulConfig,
-	socketLabeler *taskSocketLabeler,
+	drivers taskDriverCapabilities,
 ) *consulHTTPSockHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
@@ -77,10 +77,10 @@ func newConsulHTTPSocketHook(
 	}
 
 	return &consulHTTPSockHook{
-		alloc:         alloc,
-		proxies:       proxies,
-		socketLabeler: socketLabeler,
-		logger:        logger.Named(consulHTTPSocketHookName),
+		alloc:   alloc,
+		proxies: proxies,
+		drivers: drivers,
+		logger:  logger.Named(consulHTTPSocketHookName),
 	}
 }
 
@@ -113,6 +113,18 @@ func (h *consulHTTPSockHook) shouldRun() bool {
 	return false
 }
 
+// usesConsulHTTPSocket reports whether tasks of this kind connect to the Consul
+// HTTP socket. The connect native hook gives it to connect native tasks.
+func usesConsulHTTPSocket(kind structs.TaskKind) bool {
+	return kind.IsConnectNative()
+}
+
+// isolationModes returns the filesystem isolation modes of the tasks that use
+// the socket. Requires the lock to be held.
+func (h *consulHTTPSockHook) isolationModes() []fsisolation.Mode {
+	return taskIsolationModes(h.logger, h.drivers, h.alloc, usesConsulHTTPSocket)
+}
+
 func (h *consulHTTPSockHook) Prerun(_ *taskenv.TaskEnv) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
@@ -121,10 +133,10 @@ func (h *consulHTTPSockHook) Prerun(_ *taskenv.TaskEnv) error {
 		return nil
 	}
 
-	confined := h.socketLabeler.labelForAlloc(h.alloc)
+	isolation := h.isolationModes()
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc, confined); err != nil {
+		if err := proxy.run(h.alloc, isolation...); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -144,10 +156,10 @@ func (h *consulHTTPSockHook) Update(req *interfaces.RunnerUpdateRequest) error {
 		return fmt.Errorf("cannot update alloc to Connect in-place")
 	}
 
-	confined := h.socketLabeler.labelForAlloc(h.alloc)
+	isolation := h.isolationModes()
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc, confined); err != nil {
+		if err := proxy.run(h.alloc, isolation...); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -198,11 +210,11 @@ func newHTTPSocketProxy(
 
 // run the httpSocketProxy for the given allocation.
 //
-// confined reports that a task in the group runs as a confined container, so
-// the socket may need the container SELinux type.
+// isolation holds the filesystem isolation modes of the tasks that use the
+// socket.
 //
 // Assumes locking done by the calling alloc runner.
-func (p *httpSocketProxy) run(alloc *structs.Allocation, confined bool) error {
+func (p *httpSocketProxy) run(alloc *structs.Allocation, isolation ...fsisolation.Mode) error {
 	// Only run once.
 	if p.runOnce {
 		return nil
@@ -235,10 +247,6 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation, confined bool) error {
 		return err
 	}
 
-	var isolation []fsisolation.Mode
-	if confined {
-		isolation = append(isolation, fsisolation.Image)
-	}
 	listener, err := clientsockets.ListenTaskSocket(hostHTTPSockPath, isolation...)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul HTTP endpoint: %w", err)
