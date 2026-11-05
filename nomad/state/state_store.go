@@ -2583,7 +2583,7 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 	return memdb.NewFilterIterator(iter, filter), nil
 }
 
-// DependenciesByJobID returns jobs in pending state whose dependency list
+// JobsByBlockingJobID returns jobs in pending state whose dependency list
 // includes the provided job ID.
 func (s *StateStore) JobsByBlockingJobID(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
