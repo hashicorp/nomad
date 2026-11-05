@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Preserve literal ampersands and angle brackets in task logs
+```
