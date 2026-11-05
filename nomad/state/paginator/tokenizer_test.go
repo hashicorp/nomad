@@ -112,6 +112,22 @@ func TestCreateIndexAndIDTokenizer(t *testing.T) {
 			expectedToken: "102.aaa-bbb-ccc",
 			expectedCmp:   1,
 		},
+		{
+			// a target missing the ID is compared directly as a string
+			name:          "index-only target",
+			obj:           newMockCreateIndexObject(12, "aaa-bbb-ccc"),
+			target:        "12",
+			expectedToken: "12.aaa-bbb-ccc",
+			expectedCmp:   1,
+		},
+		{
+			// a non-integer index is compared directly as a string
+			name:          "malformed index",
+			obj:           newMockCreateIndexObject(12, "aaa-bbb-ccc"),
+			target:        "zz.aaa-bbb-ccc",
+			expectedToken: "12.aaa-bbb-ccc",
+			expectedCmp:   -1,
+		},
 	}
 
 	for _, tc := range cases {
@@ -237,6 +253,14 @@ func TestModifyIndexAndNamespaceIDTokenizer(t *testing.T) {
 			expectedToken: "12.default.aaa",
 			expectedCmp:   -1,
 		},
+		{
+			// a non-integer index degrades to first-page behavior
+			name:          "malformed index",
+			obj:           newMockModifyIndexObject(12, "default", "aaa"),
+			target:        "zz.default.aaa",
+			expectedToken: "12.default.aaa",
+			expectedCmp:   0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -248,6 +272,111 @@ func TestModifyIndexAndNamespaceIDTokenizer(t *testing.T) {
 		})
 	}
 }
+
+func TestNamespaceIDTokenizer(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name          string
+		obj           *mockNamespaceIDObject
+		target        string
+		expectedToken string
+		expectedCmp   int
+	}{
+		{
+			name:          "less namespace",
+			obj:           newMockNamespaceIDObject("aaa", "x"),
+			target:        "bbb.x",
+			expectedToken: "aaa.x",
+			expectedCmp:   -1,
+		},
+		{
+			name:          "greater namespace",
+			obj:           newMockNamespaceIDObject("bbb", "x"),
+			target:        "aaa.x",
+			expectedToken: "bbb.x",
+			expectedCmp:   1,
+		},
+		{
+			name:          "equal namespace, less id",
+			obj:           newMockNamespaceIDObject("team", "aaa"),
+			target:        "team.bbb",
+			expectedToken: "team.aaa",
+			expectedCmp:   -1,
+		},
+		{
+			name:          "equal namespace, greater id",
+			obj:           newMockNamespaceIDObject("team", "ccc"),
+			target:        "team.bbb",
+			expectedToken: "team.ccc",
+			expectedCmp:   1,
+		},
+		{
+			name:          "equal namespace and id",
+			obj:           newMockNamespaceIDObject("team", "aaa"),
+			target:        "team.aaa",
+			expectedToken: "team.aaa",
+			expectedCmp:   0,
+		},
+		{
+			// regression: namespaces "team" and "team-a" must order
+			// field-by-field so "team" sorts before "team-a" (matching memdb's
+			// NUL-separated (Namespace, ID) key order). A whole-string compare
+			// of the joined token would reverse them, because '.' > '-', which
+			// is the bug this fixes (a "team-a" namespace could shadow "team"
+			// and break pagination).
+			name:          "dash namespace ordering (less)",
+			obj:           newMockNamespaceIDObject("team", "z"),
+			target:        "team-a.a",
+			expectedToken: "team.z",
+			expectedCmp:   -1,
+		},
+		{
+			name:          "dash namespace ordering (greater)",
+			obj:           newMockNamespaceIDObject("team-a", "a"),
+			target:        "team.z",
+			expectedToken: "team-a.a",
+			expectedCmp:   1,
+		},
+		{
+			// id may contain '.'; it's the remainder after the first split.
+			name:          "id with dots",
+			obj:           newMockNamespaceIDObject("default", "a.b.c"),
+			target:        "default.a.b.c",
+			expectedToken: "default.a.b.c",
+			expectedCmp:   0,
+		},
+		{
+			// truncated single-segment target: compare namespace only.
+			name:          "namespace-only target (equal)",
+			obj:           newMockNamespaceIDObject("team", "aaa"),
+			target:        "team",
+			expectedToken: "team.aaa",
+			expectedCmp:   0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fn := NamespaceIDTokenizer[*mockNamespaceIDObject](tc.target)
+			actualToken, actualCmp := fn(tc.obj)
+			must.Eq(t, tc.expectedToken, actualToken)
+			must.Eq(t, tc.expectedCmp, actualCmp)
+		})
+	}
+}
+
+func newMockNamespaceIDObject(namespace, id string) *mockNamespaceIDObject {
+	return &mockNamespaceIDObject{namespace: namespace, id: id}
+}
+
+type mockNamespaceIDObject struct {
+	namespace string
+	id        string
+}
+
+func (m *mockNamespaceIDObject) GetNamespace() string { return m.namespace }
+func (m *mockNamespaceIDObject) GetID() string        { return m.id }
 
 func newMockModifyIndexObject(modifyIndex uint64, namespace, id string) *mockModifyIndexObject {
 	return &mockModifyIndexObject{
