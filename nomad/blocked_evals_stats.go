@@ -132,12 +132,6 @@ func (b *BlockedStats) unblockImpl(eval *structs.Evaluation, escaped bool) {
 	}
 }
 
-func (b *BlockedStats) decrementEscaped() {
-	b.lock.Lock()
-	defer b.lock.Unlock()
-	b.TotalEscaped--
-}
-
 // prune deletes any key zero metric values older than the cutoff.
 func (b *BlockedStats) prune(cutoff time.Time) {
 	b.lock.Lock()

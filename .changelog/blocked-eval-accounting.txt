@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed blocked evaluation metrics drifting after system evaluations are unblocked or escaped evaluations are replaced
+```

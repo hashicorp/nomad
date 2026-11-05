@@ -654,6 +654,146 @@ func TestBlockedEvals_UnblockNode(t *testing.T) {
 	must.MapLen(t, 0, stats.BlockedResources.ByJob)
 }
 
+func TestBlockedEvals_SystemUnblockStats(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, tc := range []struct {
+		name    string
+		unblock func(*BlockedEvals)
+	}{
+		{
+			name: "node",
+			unblock: func(b *BlockedEvals) {
+				<-b.UnblockNode("foo")
+			},
+		},
+		{
+			name: "class",
+			unblock: func(b *BlockedEvals) {
+				<-b.Unblock("v1:123", 1000)
+			},
+		},
+		{
+			name: "untrack",
+			unblock: func(b *BlockedEvals) {
+				<-b.Untrack("job", structs.DefaultNamespace)
+			},
+		},
+		{
+			name: "failed",
+			unblock: func(b *BlockedEvals) {
+				b.UnblockFailed()
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ci.Parallel(t)
+			blocked, _ := testBlockedEvals(t)
+			t.Cleanup(func() { blocked.SetEnabled(false) })
+
+			e := mock.BlockedEval()
+			e.JobID = "job"
+			e.Type = structs.JobTypeSystem
+			e.NodeID = "foo"
+			e.ClassEligibility = map[string]bool{"v1:123": true}
+			e.TriggeredBy = structs.EvalTriggerMaxPlans
+			<-blocked.Block(e)
+			must.Eq(t, 1, blocked.Stats().TotalBlocked)
+
+			tc.unblock(blocked)
+			must.Eq(t, 0, blocked.Stats().TotalBlocked)
+			must.MapEmpty(t, blocked.captured)
+			must.MapEmpty(t, blocked.jobs)
+			must.MapEmpty(t, blocked.system.evals)
+
+			// Later capacity updates must not unblock the same eval again.
+			<-blocked.UnblockNode(e.NodeID)
+			<-blocked.Unblock("v1:123", 1001)
+			<-blocked.Untrack(e.JobID, e.Namespace)
+			must.Eq(t, 0, blocked.Stats().TotalBlocked)
+			blocked.pruneStats(time.Now().UTC())
+			must.MapEmpty(t, blocked.Stats().BlockedResources.ByJob)
+		})
+	}
+}
+
+func TestBlockedEvals_SystemDuplicateStats(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, escaped := range []bool{false, true} {
+		t.Run(fmt.Sprintf("replacement_escaped_%t", escaped), func(t *testing.T) {
+			ci.Parallel(t)
+			blocked, _ := testBlockedEvals(t)
+			t.Cleanup(func() { blocked.SetEnabled(false) })
+
+			e := mock.BlockedEval()
+			e.Type = structs.JobTypeSystem
+			e.NodeID = "foo"
+			e.CreateIndex = 100
+			<-blocked.Block(e)
+
+			e2 := e.Copy()
+			e2.ID = "replacement"
+			e2.NodeID = "bar"
+			e2.CreateIndex++
+			e2.EscapedComputedClass = escaped
+			<-blocked.Block(e2)
+			must.Eq(t, 1, blocked.Stats().TotalBlocked)
+
+			// The replaced eval must not be unblocked by its old node.
+			<-blocked.UnblockNode(e.NodeID)
+			must.Eq(t, 1, blocked.Stats().TotalBlocked)
+			<-blocked.Untrack(e2.JobID, e2.Namespace)
+			must.Eq(t, 0, blocked.Stats().TotalBlocked)
+			must.Eq(t, 0, blocked.Stats().TotalEscaped)
+		})
+	}
+}
+
+func TestBlockedEvals_EscapedDuplicateStats(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, escaped := range []bool{false, true} {
+		t.Run(fmt.Sprintf("replacement_escaped_%t", escaped), func(t *testing.T) {
+			ci.Parallel(t)
+			blocked, _ := testBlockedEvals(t)
+			t.Cleanup(func() { blocked.SetEnabled(false) })
+
+			e := mock.BlockedEval()
+			e.EscapedComputedClass = true
+			e.QuotaLimitReached = "quota"
+			e.CreateIndex = 100
+			<-blocked.Block(e)
+
+			e2 := e.Copy()
+			e2.ID = "replacement"
+			e2.CreateIndex++
+			e2.EscapedComputedClass = escaped
+			<-blocked.Block(e2)
+
+			stats := blocked.Stats()
+			must.Eq(t, 1, stats.TotalBlocked)
+			must.Eq(t, 1, stats.TotalQuotaLimit)
+			if escaped {
+				must.Eq(t, 1, stats.TotalEscaped)
+			} else {
+				must.Eq(t, 0, stats.TotalEscaped)
+			}
+			resources := stats.BlockedResources.ByJob[structs.NewNamespacedID(e.JobID, e.Namespace)]
+			must.Eq(t, 100, resources.CPU)
+			must.Eq(t, 1024, resources.MemoryMB)
+
+			<-blocked.Untrack(e.JobID, e.Namespace)
+			stats = blocked.Stats()
+			must.Eq(t, 0, stats.TotalBlocked)
+			must.Eq(t, 0, stats.TotalEscaped)
+			must.Eq(t, 0, stats.TotalQuotaLimit)
+			blocked.pruneStats(time.Now().UTC())
+			must.MapEmpty(t, blocked.Stats().BlockedResources.ByJob)
+		})
+	}
+}
+
 func TestBlockedEvals_UnblockNonNodeResource(t *testing.T) {
 	ci.Parallel(t)
 

@@ -306,6 +306,7 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCa
 	if ok {
 		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
 			delete(b.captured, existingID)
+			b.system.Remove(existingW.eval)
 			dup = existingW.eval
 			b.stats.Unblock(dup, false)
 		} else {
@@ -323,7 +324,7 @@ func (b *BlockedEvals) processBlockJobDuplicate(eval *structs.Evaluation) (newCa
 
 		if latestEvalIndex(existingW.eval) <= latestEvalIndex(eval) {
 			delete(b.escaped, existingID)
-			b.stats.decrementEscaped()
+			b.stats.Unblock(existingW.eval, true)
 			dup = existingW.eval
 		} else {
 			dup = eval
@@ -452,8 +453,10 @@ func (b *BlockedEvals) untrackImpl(nsID structs.NamespacedID) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
-	if evals, ok := b.system.JobEvals(nsID); ok {
+	if evals, _ := b.system.JobEvals(nsID); len(evals) > 0 {
+		delete(b.jobs, nsID)
 		for _, e := range evals {
+			delete(b.captured, e.ID)
 			b.system.Remove(e)
 			b.stats.Unblock(e, false)
 		}
@@ -738,6 +741,7 @@ func (b *BlockedEvals) unblock(computedClass, quota, nodeID string, resources []
 		unblocked[wrapped.eval] = wrapped.token
 		delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 		delete(b.captured, id)
+		b.system.Remove(wrapped.eval)
 	}
 
 SKIP_TO_NODE:
@@ -745,6 +749,8 @@ SKIP_TO_NODE:
 		evals, _ := b.system.NodeEvals(nodeID)
 		for eval, token := range evals {
 			b.system.Remove(eval)
+			delete(b.captured, eval.ID)
+			delete(b.jobs, structs.NewNamespacedID(eval.JobID, eval.Namespace))
 			unblocked[eval] = token
 		}
 	}
@@ -785,6 +791,7 @@ func (b *BlockedEvals) UnblockFailed() {
 		if wrapped.eval.TriggeredBy == structs.EvalTriggerMaxPlans {
 			unblocked[wrapped.eval] = wrapped.token
 			delete(b.captured, id)
+			b.system.Remove(wrapped.eval)
 			delete(b.jobs, structs.NewNamespacedID(wrapped.eval.JobID, wrapped.eval.Namespace))
 		}
 	}
