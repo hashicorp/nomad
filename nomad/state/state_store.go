@@ -2555,7 +2555,7 @@ func (s *StateStore) filterJobsWithActiveDependents(txn *memdb.Txn, ws memdb.Wat
 		}
 	}
 
-	return func(raw interface{}) bool {
+	return func(raw any) bool {
 		job := raw.(*structs.Job)
 
 		_, hasActiveDependents := dependees[job.Namespace][job.Name]
@@ -2595,7 +2595,7 @@ func (s *StateStore) JobsByBlockingJobID(ws memdb.WatchSet, namespace, id string
 
 	ws.Add(iter.WatchCh())
 
-	filter := func(raw interface{}) bool {
+	filter := func(raw any) bool {
 		job, ok := raw.(*structs.Job)
 		if !ok {
 			return true

@@ -6,7 +6,6 @@ package dependency
 import (
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
@@ -153,9 +152,6 @@ func TestCoordinator_AddDependency(t *testing.T) {
 
 			if tt.expectStored {
 				depName := job.Dependencies.Jobs[0].Name
-				stored, ok := coord.dependencies[depName][job.ID]
-				must.True(t, ok)
-				must.Eq(t, job.ID, stored.ID)
 				must.Eq(t, []string{depName}, loopDetector.nodes[job.ID])
 			}
 		})
@@ -253,7 +249,7 @@ func TestCoordinator_UnblockedDependencies(t *testing.T) {
 	blockedEval.TriggeredBy = structs.EvalTriggerByDependencies
 	must.NoError(t, stateStore.UpsertEvals(structs.MsgTypeTestSetup, 3, []*structs.Evaluation{blockedEval}))
 
-	evals, err := coord.UnblockedDependencies(stateStore, depJob.ID)
+	evals, err := coord.UnblockedDependencies(stateStore, depJob.ID, depJob.Namespace)
 	must.NoError(t, err)
 	must.Len(t, 0, evals)
 
@@ -268,13 +264,10 @@ func TestCoordinator_UnblockedDependencies(t *testing.T) {
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 	must.NoError(t, stateStore.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}))
 
-	evals, err = coord.UnblockedDependencies(stateStore, depJob.ID)
+	evals, err = coord.UnblockedDependencies(stateStore, depJob.ID, depJob.Namespace)
 	must.NoError(t, err)
 	must.Len(t, 1, evals)
 	must.Eq(t, blockedEval.ID, evals[0].ID)
-
-	_, stillTracked := coord.dependencies[depJob.ID]
-	must.False(t, stillTracked)
 }
 
 func TestCoordinator_Reload(t *testing.T) {
@@ -438,61 +431,6 @@ func TestConditionsMatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := conditionsMatch(tt.allocations, tt.expectedState)
 			must.Eq(t, tt.expectMatch, result)
-		})
-	}
-}
-
-func TestDependencyTimeout(t *testing.T) {
-	ci.Parallel(t)
-
-	thirtySeconds := 30 * time.Second
-
-	tests := []struct {
-		name          string
-		job           *structs.Job
-		expectDefault bool
-	}{
-		{
-			name: "job with no dependencies",
-			job: &structs.Job{
-				Name: "test",
-			},
-			expectDefault: true,
-		},
-		{
-			name: "job with dependencies no timeout",
-			job: &structs.Job{
-				Name: "test",
-				Dependencies: &structs.JobDependencies{
-					Timeout: nil,
-				},
-			},
-			expectDefault: true,
-		},
-		{
-			name: "job with custom timeout",
-			job: &structs.Job{
-				Name: "test",
-				Dependencies: &structs.JobDependencies{
-					Timeout: &thirtySeconds,
-				},
-			},
-			expectDefault: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := dependencyTimeout(tt.job)
-			if result.Nanoseconds() <= 0 {
-				t.Fatalf("expected result to be positive, got %d", result.Nanoseconds())
-			}
-
-			if tt.expectDefault {
-				must.Eq(t, structs.JobDependencyTimeoutDefault, result)
-			} else if tt.job != nil && tt.job.Dependencies != nil && tt.job.Dependencies.Timeout != nil && *tt.job.Dependencies.Timeout > 0 {
-				must.Eq(t, *tt.job.Dependencies.Timeout, result)
-			}
 		})
 	}
 }

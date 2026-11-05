@@ -8,7 +8,6 @@ package dependency
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
@@ -233,15 +232,6 @@ func conditionsMatch(allocs []*structs.Allocation, expectedState string) bool {
 	}
 
 	return result
-}
-
-func dependencyTimeout(job *structs.Job) time.Duration {
-	timeout := structs.JobDependencyTimeoutDefault
-	if job != nil && job.Dependencies != nil && job.Dependencies.Timeout != nil && *job.Dependencies.Timeout > 0 {
-		timeout = *job.Dependencies.Timeout
-	}
-
-	return timeout
 }
 
 func (c *Coordinator) Reload(state *state.StateStore, evals memdb.ResultIterator) {

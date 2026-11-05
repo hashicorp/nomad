@@ -4691,7 +4691,7 @@ func TestConversion_ApiDependencyToStructs(t *testing.T) {
 		}
 
 		out := ApiDependencyToStructs(in)
-		must.Eq(t, 10*time.Minute, out.Timeout)
+		must.Eq(t, 10*time.Minute, *out.Timeout)
 		must.Eq(t, []*structs.JobDependency{{Name: "service-123", Status: "completed"}}, out.Jobs)
 	})
 }
