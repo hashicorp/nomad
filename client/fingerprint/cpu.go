@@ -130,19 +130,16 @@ func (*CPUFingerprint) nodes(count int) string {
 
 func (f *CPUFingerprint) setCoreCount(response *FingerprintResponse, top *numalib.Topology) {
 	total := top.NumCores()
+	response.AddAttribute("cpu.numcores", f.cores(total))
+	f.logger.Debug("detected CPU core count", "cores", total)
+
 	performance := top.NumPCores()
 	efficiency := top.NumECores()
-	switch {
-	case efficiency > 0:
+	if efficiency > 0 {
 		response.AddAttribute("cpu.numcores.efficiency", f.cores(efficiency))
 		response.AddAttribute("cpu.numcores.performance", f.cores(performance))
-		response.AddAttribute("cpu.numcores", f.cores(total))
 		f.logger.Debug("detected CPU efficiency core count", "cores", efficiency)
 		f.logger.Debug("detected CPU performance core count", "cores", performance)
-		f.logger.Debug("detected CPU core count", "cores", total)
-	default:
-		response.AddAttribute("cpu.numcores", f.cores(total))
-		f.logger.Debug("detected CPU core count", "cores", total)
 	}
 }
 
