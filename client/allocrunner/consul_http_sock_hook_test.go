@@ -15,9 +15,23 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+// TestConsulHTTPSocketHook_IsolationModes asserts that the HTTP socket is
+// created for the connect native tasks in the group, and that a task whose
+// driver cannot be looked up is skipped.
+func TestConsulHTTPSocketHook_IsolationModes(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.ConnectNativeAlloc("bridge")
+	taskDrivers := setConnectTasks(alloc)
+	h := newConsulHTTPSocketHook(testlog.HCLogger(t), alloc, nil, nil, taskDrivers)
+
+	must.Eq(t, []fsisolation.Mode{fsisolation.Chroot}, h.isolationModes())
+}
 
 func TestConsulSocketHook_PrerunPostrun_Ok(t *testing.T) {
 	ci.Parallel(t)
@@ -38,7 +52,7 @@ func TestConsulSocketHook_PrerunPostrun_Ok(t *testing.T) {
 	defer cleanupDir()
 
 	// start unix socket proxy
-	h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs)
+	h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs, testTaskDrivers{})
 	require.NoError(t, h.Prerun(nil))
 
 	httpSocket := filepath.Join(allocDir.AllocDir, allocdir.AllocHTTPSocket)
@@ -111,7 +125,7 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 
 	{
 		// an alloc without a connect native task should not return an error
-		h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs)
+		h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs, testTaskDrivers{})
 		must.NoError(t, h.Prerun(nil))
 
 		// postrun should be a noop
@@ -121,7 +135,7 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 	{
 		// an alloc with a native task should return an error when consul is not
 		// configured
-		h := newConsulHTTPSocketHook(logger, connectNativeAlloc, allocDir, consulConfigs)
+		h := newConsulHTTPSocketHook(logger, connectNativeAlloc, allocDir, consulConfigs, testTaskDrivers{})
 		must.ErrorContains(t, h.Prerun(nil), "consul address must be set on nomad client")
 
 		// Postrun should be a noop
