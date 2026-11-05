@@ -180,6 +180,21 @@ module('Unit | Util | Log', function (hooks) {
     );
   });
 
+  test('task log output escapes HTML entities and angle brackets', function (assert) {
+    const log = Log.create(makeMocks(''));
+    log.set(
+      'tail',
+      'https://nomad.service:4646/v1/nodes?namespace=prod&region=global&resources=true &copy &para <nil>',
+    );
+    log.set('logPointer', 'tail');
+
+    assert.strictEqual(
+      String(log.get('output')),
+      'https://nomad.service:4646/v1/nodes?namespace=prod&amp;region=global&amp;resources=true &amp;copy &amp;para &lt;nil&gt;',
+      'raw task log text is safe to render without interpreting HTML entities or tags',
+    );
+  });
+
   test('stop stops the log streamer', async function (assert) {
     const log = Log.create(makeMocks(''));
 

@@ -58,7 +58,10 @@ class Log extends EmberObject.extend(Evented) {
   @computed('logPointer', 'head', 'tail')
   get output() {
     let logs = this.logPointer === 'head' ? this.head : this.tail;
-    logs = logs.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    logs = logs
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
     let colouredLogs = Anser.ansiToHtml(logs);
     return htmlSafe(colouredLogs);
   }
