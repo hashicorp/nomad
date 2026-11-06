@@ -1123,6 +1123,7 @@ type Job struct {
 	Reschedule       *ReschedulePolicy       `hcl:"reschedule,block"`
 	Migrate          *MigrateStrategy        `hcl:"migrate,block"`
 	Meta             map[string]string       `hcl:"meta,block"`
+	Env              map[string]string       `hcl:"env,block"`
 	UI               *JobUIConfig            `hcl:"ui,block"`
 
 	/* Fields set by server, not sourced from job config file */

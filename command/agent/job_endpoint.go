@@ -1141,6 +1141,7 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		NodePool:       *job.NodePool,
 		Payload:        job.Payload,
 		Meta:           job.Meta,
+		Env:            job.Env,
 		VaultNamespace: *job.VaultNamespace,
 		Version:        *job.Version,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
@@ -1228,6 +1229,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	tg.Name = *taskGroup.Name
 	tg.Count = *taskGroup.Count
 	tg.Meta = taskGroup.Meta
+	tg.Env = taskGroup.Env
 	tg.Constraints = ApiConstraintsToStructs(taskGroup.Constraints)
 	tg.Affinities = ApiAffinitiesToStructs(taskGroup.Affinities)
 	tg.Networks = ApiNetworkResourceToStructs(taskGroup.Networks)

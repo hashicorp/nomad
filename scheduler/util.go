@@ -221,8 +221,10 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		if !helper.OpaqueMapsEqual(at.Config, bt.Config) {
 			return difference("task config", at.Config, bt.Config)
 		}
-		if !maps.Equal(at.Env, bt.Env) {
-			return difference("task env", at.Env, bt.Env)
+		envA := jobA.CombinedTaskEnv(taskGroup, at.Name)
+		envB := jobB.CombinedTaskEnv(taskGroup, bt.Name)
+		if !maps.Equal(envA, envB) {
+			return difference("task env", envA, envB)
 		}
 		if !slices.EqualFunc(at.Artifacts, bt.Artifacts, func(a, b *structs.TaskArtifact) bool { return a.Equal(b) }) {
 			return difference("task artifacts", at.Artifacts, bt.Artifacts)
