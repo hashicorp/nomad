@@ -418,7 +418,8 @@ type Builder struct {
 	envvars map[string]string
 
 	// templateEnv are env vars set from templates
-	templateEnv map[string]string
+	templateEnv     map[string]string
+	onceTemplateEnv map[string]string
 
 	// hostEnv are environment variables filtered from the host
 	hostEnv map[string]string
@@ -671,7 +672,9 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 		}
 	}
 
-	// Copy template env vars as they override task env vars
+	// Copy template env vars as they override task env vars. Watched values
+	// take precedence over once-only values with the same key.
+	maps.Copy(envMap, b.onceTemplateEnv)
 	maps.Copy(envMap, b.templateEnv)
 
 	// Clean keys (see #2405)
@@ -1107,9 +1110,13 @@ func (b *Builder) SetHostEnvvars(filter []string) *Builder {
 	return b
 }
 
-func (b *Builder) SetTemplateEnv(m map[string]string) *Builder {
+func (b *Builder) SetTemplateEnv(m map[string]string, once bool) *Builder {
 	b.mu.Lock()
-	b.templateEnv = m
+	if once {
+		b.onceTemplateEnv = m
+	} else {
+		b.templateEnv = m
+	}
 	b.mu.Unlock()
 	return b
 }
