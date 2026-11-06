@@ -277,7 +277,7 @@ func (tm *TaskTemplateManager) Run() {
 				SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
 		return
 	}
-	tm.config.EnvBuilder.SetTemplateEnv(envMap)
+	tm.config.EnvBuilder.SetTemplateEnv(envMap, tm.config.OnceModeEnabled())
 
 	// Unblock the task
 	close(tm.config.UnblockCh)
@@ -502,7 +502,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 					SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
 			return
 		}
-		tm.config.EnvBuilder.SetTemplateEnv(envMap)
+		tm.config.EnvBuilder.SetTemplateEnv(envMap, tm.config.OnceModeEnabled())
 
 		for _, tmpl := range tmpls {
 			switch tmpl.ChangeMode {
