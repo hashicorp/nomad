@@ -102,26 +102,75 @@ func (m *memoryNodeMatcher) Matches(instanceID string, device *structs.NodeDevic
 
 // createOffer takes a device request and returns an assignment as well as a
 // score for the assignment. If no assignment is possible, an error is
-// returned explaining why.
-func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.RequestedDevice) (out *structs.AllocatedDeviceResource, score float64, err error) {
+// returned explaining why. The returned sumMatchedAffinityWeights is the sum
+// of affinity weights that matched, and totalAffinityWeight is the sum of
+// absolute values of all affinity weights considered (for normalization).
+func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.RequestedDevice) (out *structs.AllocatedDeviceResource, sumMatchedAffinityWeights float64, totalAffinityWeight float64, err error) {
 	// Try to hot path
 	if len(d.Devices) == 0 {
-		return nil, 0.0, fmt.Errorf("no devices available")
-	}
-	if ask.Count == 0 {
-		return nil, 0.0, fmt.Errorf("invalid request of zero devices")
+		return nil, 0.0, 0.0, fmt.Errorf("no devices available")
 	}
 
+	// Handle first_available selection
+	if len(ask.FirstAvailable) > 0 {
+		return d.createOfferFirstAvailable(mem, ask)
+	}
+
+	if ask.Count == 0 {
+		return nil, 0.0, 0.0, fmt.Errorf("invalid request of zero devices")
+	}
+
+	return d.createOfferWithParams(mem, ask.ID(), ask.Count, ask.Constraints, ask.Affinities)
+}
+
+// createOfferFirstAvailable tries each option in the FirstAvailable list in order,
+// returning the first successful offer.
+func (d *deviceAllocator) createOfferFirstAvailable(mem *memoryNodeMatcher, ask *structs.RequestedDevice) (out *structs.AllocatedDeviceResource, sumMatchedAffinityWeights float64, totalAffinityWeight float64, err error) {
+	var lastErr error
+
+	for _, opt := range ask.FirstAvailable {
+		if opt.Count == 0 {
+			continue
+		}
+
+		// Combine base constraints with option-specific constraints
+		combinedConstraints := make(structs.Constraints, 0, len(ask.Constraints)+len(opt.Constraints))
+		combinedConstraints = append(combinedConstraints, ask.Constraints...)
+		combinedConstraints = append(combinedConstraints, opt.Constraints...)
+
+		offer, matchedWeights, totalWeight, offerErr := d.createOfferWithParams(mem, ask.ID(), opt.Count, combinedConstraints, ask.Affinities)
+		if offer != nil {
+			return offer, matchedWeights, totalWeight, nil
+		}
+		lastErr = offerErr
+	}
+
+	// None of the options could be satisfied
+	if lastErr != nil {
+		return nil, 0.0, 0.0, fmt.Errorf("no first_available option could be satisfied: %v", lastErr)
+	}
+	return nil, 0.0, 0.0, fmt.Errorf("no first_available options defined")
+}
+
+// createOfferWithParams is the core offer creation logic that can be used for both
+// standard requests and first_available options.
+func (d *deviceAllocator) createOfferWithParams(mem *memoryNodeMatcher, deviceID *structs.DeviceIdTuple, count uint64, constraints structs.Constraints, affinities structs.Affinities) (out *structs.AllocatedDeviceResource, sumMatchedAffinityWeights float64, totalAffinityWeight float64, err error) {
 	// Hold the current best offer
 	var offer *structs.AllocatedDeviceResource
 	var offerScore float64
 	var matchedWeights float64
 
+	// Calculate the total weight of all affinities (for normalization purposes)
+	var totalWeight float64
+	for _, a := range affinities {
+		totalWeight += math.Abs(float64(a.Weight))
+	}
+
 	// Determine the devices that are feasible based on availability and
 	// constraints
 	for id, devInst := range d.Devices {
-		// Check if the device works
-		if !nodeDeviceMatches(d.ctx, devInst.Device, ask) {
+		// Check if the device works (name/type match and constraints)
+		if !d.deviceMatchesWithConstraints(devInst.Device, deviceID, constraints) {
 			continue
 		}
 
@@ -134,18 +183,18 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 			if !mem.Matches(instanceID, devInst.Device) {
 				continue
 			}
-			if d.deviceIDMatchesConstraint(instanceID, ask.Constraints, devInst.Device) {
+			if d.deviceIDMatchesConstraint(instanceID, constraints, devInst.Device) {
 				assignable = append(assignable, instanceID)
 			}
 
 			// Don't assign more than the ask
-			if len(assignable) == int(ask.Count) {
+			if len(assignable) == int(count) {
 				break
 			}
 		}
 
 		// This device doesn't have enough instances
-		if len(assignable) < int(ask.Count) {
+		if len(assignable) < int(count) {
 			continue
 		}
 
@@ -155,14 +204,11 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 		// Track the sum of matched affinity weights in a separate variable
 		// We return this if this device had the best score compared to other devices considered
 		var sumMatchedWeights float64
-		if l := len(ask.Affinities); l != 0 {
-			totalWeight := 0.0
-			for _, a := range ask.Affinities {
+		if len(affinities) != 0 {
+			for _, a := range affinities {
 				// Resolve the targets
 				lVal, lOk := resolveDeviceTarget(a.LTarget, devInst.Device)
 				rVal, rOk := resolveDeviceTarget(a.RTarget, devInst.Device)
-
-				totalWeight += math.Abs(float64(a.Weight))
 
 				// Check if satisfied
 				if !checkAttributeAffinity(d.ctx, a.Operand, lVal, rVal, lOk, rOk) {
@@ -173,7 +219,9 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 			}
 
 			// normalize
-			choiceScore /= totalWeight
+			if totalWeight > 0 {
+				choiceScore /= totalWeight
+			}
 		}
 
 		// Only use the device if it is a higher score than we have already seen
@@ -198,10 +246,33 @@ func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.Reque
 
 	// Failed to find a match
 	if offer == nil {
-		return nil, 0.0, fmt.Errorf("no devices match request")
+		return nil, 0.0, 0.0, fmt.Errorf("no devices match request")
 	}
 
-	return offer, matchedWeights, nil
+	return offer, matchedWeights, totalWeight, nil
+}
+
+// deviceMatchesWithConstraints checks if a device matches the given device ID
+// and constraints. This is used for offer creation where we have explicit
+// parameters rather than a full RequestedDevice.
+func (d *deviceAllocator) deviceMatchesWithConstraints(device *structs.NodeDeviceResource, deviceID *structs.DeviceIdTuple, constraints structs.Constraints) bool {
+	if !device.ID().Matches(deviceID) {
+		return false
+	}
+
+	// Check constraints
+	for _, c := range constraints {
+		// Resolve the targets
+		lVal, lOk := resolveDeviceTarget(c.LTarget, device)
+		rVal, rOk := resolveDeviceTarget(c.RTarget, device)
+
+		// Check if satisfied
+		if !checkAttributeConstraint(d.ctx, c.Operand, lVal, rVal, lOk, rOk) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // deviceIDMatchesConstraint checks a device instance ID against the constraints
