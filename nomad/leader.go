@@ -1098,7 +1098,22 @@ func (s *Server) reapFailedEvaluations(stopCh chan struct{}) {
 			// Scan for a failed evaluation
 			eval, token, err := s.evalBroker.Dequeue([]string{failedQueue}, time.Second)
 			if err != nil {
-				return
+				// The eval broker can be disabled while this server
+				// remains the leader, for example when the operator
+				// pauses it via the scheduler configuration. Dequeue
+				// returns an error in that case, but the broker may be
+				// re-enabled at any time, so keep retrying instead of
+				// exiting: exiting here leaves failed evaluations
+				// unreaped until the next leader election. The retry
+				// still respects stopCh, so losing leadership still
+				// stops this goroutine promptly.
+				s.logger.Debug("failed to dequeue failed eval, retrying", "error", err)
+				select {
+				case <-stopCh:
+					return
+				case <-time.After(time.Second):
+				}
+				continue
 			}
 			if eval == nil {
 				continue
