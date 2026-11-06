@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed preemption calculations mutating node network resources and accumulating duplicate port entries
+```
