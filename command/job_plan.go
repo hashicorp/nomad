@@ -245,7 +245,7 @@ func (c *JobPlanCommand) Run(args []string) int {
 			return 255
 		}
 		c.Ui.Output(out)
-		return getExitCode(resp)
+		return getExitCode(job, resp)
 	}
 
 	runArgs := strings.Builder{}
@@ -305,7 +305,7 @@ func (c *JobPlanCommand) multiregionPlan(client *api.Client, job *api.Job, opts 
 		}
 		c.Ui.Output(out)
 		for _, resp := range plans {
-			regionExitCode := getExitCode(resp)
+			regionExitCode := getExitCode(job, resp)
 			if regionExitCode > exitCode {
 				exitCode = regionExitCode
 			}
@@ -347,7 +347,7 @@ func (c *JobPlanCommand) outputPlannedJob(job *api.Job, resp *api.JobPlanRespons
 		c.addPreemptions(resp)
 	}
 
-	return getExitCode(resp)
+	return getExitCode(job, resp)
 }
 
 // addPreemptions shows details about preempted allocations
@@ -413,12 +413,27 @@ type namespaceIdPair struct {
 // getExitCode returns 0:
 // * 0: No allocations created or destroyed.
 // * 1: Allocations created or destroyed.
-func getExitCode(resp *api.JobPlanResponse) int {
-	if resp.Diff.Type == "None" {
+func getExitCode(job *api.Job, resp *api.JobPlanResponse) int {
+	// Periodic and parameterized parent jobs never run allocations directly.
+	// The plan RPC runs the scheduler unconditionally, so their dry-run reports
+	// a placement for a hypothetical child launch even when the spec is
+	// unchanged (#2012). For these jobs the exit code must reflect only whether
+	// the spec changed.
+	if job.IsPeriodic() || job.IsParameterized() {
+		if resp.Diff == nil || resp.Diff.Type == "None" {
+			return 0
+		}
+		return 1
+	}
+
+	if resp.Annotations == nil {
 		return 0
 	}
 
-	// Check for changes
+	// A regular job whose spec is unchanged (diff "None") can still require
+	// allocations to be created or destroyed, for example a system job with an
+	// allocation stopped individually (#20502), so do not short-circuit on the
+	// diff type here.
 	for _, d := range resp.Annotations.DesiredTGUpdates {
 		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate+d.Canary > 0 {
 			return 1
