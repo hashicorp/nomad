@@ -71,7 +71,7 @@ func TestStaticIterator_SetNodes(t *testing.T) {
 
 }
 
-func TestRandomIterator(t *testing.T) {
+func TestShuffleNodes(t *testing.T) {
 	ci.Parallel(t)
 
 	_, ctx := MockContext(t)
@@ -82,13 +82,10 @@ func TestRandomIterator(t *testing.T) {
 
 	nc := make([]*structs.Node, len(nodes))
 	copy(nc, nodes)
-	rand := NewRandomIterator(ctx, nc)
-
-	out := collectFeasible(rand)
-	if len(out) != len(nodes) {
-		t.Fatalf("missing nodes")
-	}
-	must.NotEq(t, nodes, out)
+	idx, _ := ctx.State().LatestIndex()
+	ShuffleNodes(ctx.Plan(), idx, nc)
+	must.SliceContainsAll(t, nodes, nc)
+	must.NotEq(t, nodes, nc)
 
 }
 

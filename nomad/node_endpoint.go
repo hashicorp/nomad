@@ -919,6 +919,11 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	if args.NodeEvent != nil {
 		return fmt.Errorf("node event must not be set")
 	}
+	if args.DrainStrategy != nil {
+		if err := args.DrainStrategy.DrainSpec.Validate(); err != nil {
+			return err
+		}
+	}
 
 	// The AuthenticatedIdentity is unexported so won't be written via
 	// Raft. Record the identity string so it can be written to LastDrain

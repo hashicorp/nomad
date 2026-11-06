@@ -476,6 +476,10 @@ func formatDrain(n *api.Node) string {
 		if n.DrainStrategy.IgnoreSystemJobs {
 			b.WriteString("; ignoring system jobs")
 		}
+		if n.DrainStrategy.DurationAware {
+			fmt.Fprintf(b, "; duration-aware %s",
+				formatTime(n.DrainStrategy.ForceDeadline.Add(-1*n.DrainStrategy.BackfillBuffer)))
+		}
 		return b.String()
 	}
 

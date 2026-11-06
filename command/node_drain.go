@@ -67,6 +67,19 @@ Node Drain Options:
     No deadline allows the allocations to drain off the node without being force
     stopped after a certain deadline.
 
+  -duration-aware
+    Allow batch and sysbatch allocations to be placed on draining nodes as long
+    as their max run duration and shutdown duration is within the drain's
+    deadline.
+
+  -backfill-buffer <duration>
+    Extra time beyond max run duration scheduler's reserve when determining
+    whether an allocation will exit before a drain deadline. A buffer is
+    necessary because max run duration is only calculated after an allocation
+    is placed, so the scheduler uses an earlier time when determining fit. The
+    buffer must also account for clock skew between servers.
+    The default is 30 seconds.
+
   -ignore-system
     Ignore system allows the drain to complete without stopping system job
     allocations. By default system jobs are stopped last.
@@ -105,6 +118,8 @@ func (c *NodeDrainCommand) AutocompleteFlags() complete.Flags {
 			"-detach":          complete.PredictNothing,
 			"-force":           complete.PredictNothing,
 			"-no-deadline":     complete.PredictNothing,
+			"-duration-aware":  complete.PredictNothing,
+			"-backfill-buffer": complete.PredictNothing,
 			"-ignore-system":   complete.PredictNothing,
 			"-keep-ineligible": complete.PredictNothing,
 			"-m":               complete.PredictNothing,
@@ -135,8 +150,9 @@ func (c *NodeDrainCommand) Name() string { return "node drain" }
 func (c *NodeDrainCommand) Run(args []string) int {
 	var enable, disable, detach, force,
 		noDeadline, ignoreSystem, keepIneligible,
-		self, autoYes, monitor bool
+		self, autoYes, monitor, durationAware bool
 	var deadline, message string
+	var backfillBuffer time.Duration
 	var metaVars flaghelper.StringFlag
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -147,6 +163,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&force, "force", false, "Force immediate drain")
 	flags.BoolVar(&noDeadline, "no-deadline", false, "Drain node with no deadline")
+	flags.BoolVar(&durationAware, "duration-aware", false, "Allow bounded batch job backfill during drain")
+	flags.DurationVar(&backfillBuffer, "backfill-buffer", 0, "Additional time between allocs max run and drain deadline")
 	flags.BoolVar(&ignoreSystem, "ignore-system", false, "Do not drain system job allocations from the node")
 	flags.BoolVar(&keepIneligible, "keep-ineligible", false, "Do not update the nodes scheduling eligibility")
 	flags.BoolVar(&self, "self", false, "")
@@ -182,7 +200,7 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	}
 
 	// Validate a compatible set of flags were set
-	if disable && (deadline != "" || force || noDeadline || ignoreSystem) {
+	if disable && (deadline != "" || force || noDeadline || ignoreSystem || durationAware || backfillBuffer != 0) {
 		c.Ui.Error("-disable can't be combined with flags configuring drain strategy")
 		c.Ui.Error(commandErrorText(c))
 		return 1
@@ -195,6 +213,14 @@ func (c *NodeDrainCommand) Run(args []string) int {
 	if force && noDeadline {
 		c.Ui.Error("-force and -no-deadline are mutually exclusive")
 		c.Ui.Error(commandErrorText(c))
+		return 1
+	}
+	if durationAware && (!enable || force || noDeadline) {
+		c.Ui.Error("-duration-aware requires -enable and a positive deadline")
+		return 1
+	}
+	if backfillBuffer < 0 || (backfillBuffer != 0 && !durationAware) {
+		c.Ui.Error("-backfill-buffer must be non-negative and requires -duration-aware")
 		return 1
 	}
 
@@ -312,6 +338,8 @@ func (c *NodeDrainCommand) Run(args []string) int {
 		spec = &api.DrainSpec{
 			Deadline:         d,
 			IgnoreSystemJobs: ignoreSystem,
+			DurationAware:    durationAware,
+			BackfillBuffer:   backfillBuffer,
 		}
 	}
 

@@ -4,6 +4,8 @@
 package nomad
 
 import (
+	"time"
+
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -106,7 +108,7 @@ func (p *EvaluatePool) run(stopCh chan struct{}) {
 	for {
 		select {
 		case req := <-p.req:
-			fit, reason, err := evaluateNodePlan(req.snap, req.plan, req.nodeID)
+			fit, reason, err := evaluateNodePlan(req.snap, req.plan, req.nodeID, time.Now)
 			p.res <- evaluateResult{req.nodeID, fit, reason, err}
 
 		case <-stopCh:
