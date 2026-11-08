@@ -249,7 +249,7 @@ func queryClientNode(c *Client, alloc *Allocation, reqPath string, q *QueryOptio
 //
 // The return value is a channel that will emit StreamFrames as they are read.
 // The chan will be closed when follow=false and the end of the file is
-// reached.
+// reached, or when follow=true and the allocation has finished.
 //
 // Unexpected (non-EOF) errors will be sent on the error chan.
 //
