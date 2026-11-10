@@ -4,6 +4,7 @@
 package command
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -60,6 +61,40 @@ func TestNamespaceApplyCommand_Good(t *testing.T) {
 	namespaces, _, err := client.Namespaces().List(nil)
 	must.NoError(t, err)
 	must.SliceLen(t, 2, namespaces)
+}
+
+func TestNamespaceApplyCommand_Stdin(t *testing.T) {
+	// Not parallel: the test replaces os.Stdin.
+
+	// The stdin marker must not be stat'ed as a file, so make sure there is
+	// no file named "-" in the working directory.
+	_, err := os.Stat("-")
+	must.True(t, os.IsNotExist(err))
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+
+	fakeStdin, err := os.CreateTemp(t.TempDir(), "nomad-namespace-spec")
+	must.NoError(t, err)
+	defer fakeStdin.Close()
+	_, err = fakeStdin.WriteString(`name = "stdin-example"` + "\n")
+	must.NoError(t, err)
+	_, err = fakeStdin.Seek(0, 0)
+	must.NoError(t, err)
+
+	oldStdin := os.Stdin
+	os.Stdin = fakeStdin
+	defer func() { os.Stdin = oldStdin }()
+
+	ui := cli.NewMockUi()
+	cmd := &NamespaceApplyCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{"-address=" + url, "-"})
+	must.Zero(t, code, must.Sprint(ui.ErrorWriter.String()))
+
+	ns, _, err := client.Namespaces().Info("stdin-example", nil)
+	must.NoError(t, err)
+	must.Eq(t, "stdin-example", ns.Name)
 }
 
 func TestNamespaceApplyCommand_parseNamesapceSpec(t *testing.T) {

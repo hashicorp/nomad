@@ -119,7 +119,10 @@ func (c *NamespaceApplyCommand) Run(args []string) int {
 		return 1
 	}
 
-	if fi, err := os.Stat(file); (file == "-" || err == nil) && !fi.IsDir() {
+	// Read the specification from stdin or a regular file. The stdin marker
+	// is checked first because os.Stat("-") usually fails and returns a nil
+	// FileInfo.
+	if fi, err := os.Stat(file); file == "-" || (err == nil && !fi.IsDir()) {
 		if quota != nil || description != nil {
 			c.Ui.Warn("Flags are ignored when a file is specified!")
 		}
