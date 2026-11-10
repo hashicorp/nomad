@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: Emit metric every time max_run_duration is enforced
+```
