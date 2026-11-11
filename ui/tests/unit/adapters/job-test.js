@@ -722,6 +722,96 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.deepEqual(request.method, 'POST');
   });
 
+  test('update normalizes top-level Job wrapper to prevent double-nesting', async function (assert) {
+    const job = await this.initializeWithJob();
+    job.set('_newDefinitionJSON', {
+      Job: {
+        ID: job.plainId,
+        Datacenters: ['dc1'],
+      },
+    });
+
+    await this.subject().update(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    const payload = JSON.parse(request.requestBody);
+
+    assert.deepEqual(
+      payload.Job,
+      {
+        ID: job.plainId,
+        Datacenters: ['dc1'],
+      },
+      'Sends unwrapped Job payload without double nesting',
+    );
+  });
+
+  test('update sends unwrapped Job definition cleanly', async function (assert) {
+    const job = await this.initializeWithJob();
+    job.set('_newDefinitionJSON', {
+      ID: job.plainId,
+      Datacenters: ['dc1'],
+    });
+
+    await this.subject().update(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    const payload = JSON.parse(request.requestBody);
+
+    assert.deepEqual(
+      payload.Job,
+      {
+        ID: job.plainId,
+        Datacenters: ['dc1'],
+      },
+      'Sends clean Job payload',
+    );
+  });
+
+  test('run normalizes top-level Job wrapper', async function (assert) {
+    const job = await this.initializeWithJob();
+    job.set('_newDefinitionJSON', {
+      Job: {
+        ID: job.plainId,
+      },
+    });
+
+    await this.subject().run(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    const payload = JSON.parse(request.requestBody);
+
+    assert.deepEqual(
+      payload.Job,
+      {
+        ID: job.plainId,
+      },
+      'Sends unwrapped Job payload for run',
+    );
+  });
+
+  test('plan normalizes top-level Job wrapper', async function (assert) {
+    const job = await this.initializeWithJob();
+    job.set('_newDefinitionJSON', {
+      Job: {
+        ID: job.plainId,
+      },
+    });
+
+    await this.subject().plan(job);
+
+    const request = this.server.pretender.handledRequests[0];
+    const payload = JSON.parse(request.requestBody);
+
+    assert.deepEqual(
+      payload.Job,
+      {
+        ID: job.plainId,
+      },
+      'Sends unwrapped Job payload for plan',
+    );
+  });
+
   test('scale requests include the activeRegion', async function (assert) {
     const region = 'region-2';
     const job = await this.initializeWithJob({ region });

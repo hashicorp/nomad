@@ -348,6 +348,75 @@ module('Unit | Model | job', function (hooks) {
       assert.deepEqual(result, '{"name": "Tomster"}', 'Returns the JSON input');
     });
 
+    test('it unwraps top-level Job wrapper in JSON submissions', async function (assert) {
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.set(
+        '_newDefinition',
+        '{"Job": {"ID": "foo", "Name": "foo", "Datacenters": ["dc1"]}}',
+      );
+
+      const setIdByPayloadSpy = sinon.spy(model, 'setIdByPayload');
+
+      await model.parse();
+
+      assert.deepEqual(
+        model.get('_newDefinitionJSON'),
+        { ID: 'foo', Name: 'foo', Datacenters: ['dc1'] },
+        'Sets _newDefinitionJSON to unwrapped job object',
+      );
+      assert.ok(
+        setIdByPayloadSpy.calledWith({
+          ID: 'foo',
+          Name: 'foo',
+          Datacenters: ['dc1'],
+        }),
+        'setIdByPayload is called with the unwrapped JSON',
+      );
+      assert.strictEqual(model.plainId, 'foo', 'Extracts ID correctly');
+    });
+
+    test('it extracts ID when wrapped JSON contains only ID', async function (assert) {
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.set('_newDefinition', '{"Job": {"ID": "foo"}}');
+
+      await model.parse();
+
+      assert.deepEqual(
+        model.get('_newDefinitionJSON'),
+        { ID: 'foo' },
+        'Sets _newDefinitionJSON to unwrapped job',
+      );
+      assert.strictEqual(
+        model.plainId,
+        'foo',
+        'Extracts ID from wrapped payload',
+      );
+    });
+
+    test('it extracts ID from unwrapped JSON with ID property', async function (assert) {
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.set('_newDefinition', '{"ID": "foo"}');
+
+      await model.parse();
+
+      assert.deepEqual(
+        model.get('_newDefinitionJSON'),
+        { ID: 'foo' },
+        'Sets _newDefinitionJSON correctly',
+      );
+      assert.strictEqual(
+        model.plainId,
+        'foo',
+        'Extracts ID from unwrapped payload',
+      );
+    });
+
     test('it dispatches a POST request to the /parse endpoint (eagerly assumes HCL specification) if JSON parse method errors', async function (assert) {
       const store = this.owner.lookup('service:store');
       const model = store.createRecord('job');
@@ -368,6 +437,34 @@ module('Unit | Model | job', function (hooks) {
         model.get('_newDefinitionJSON'),
         'invalidJSON',
         '_newDefinitionJSON is set',
+      );
+    });
+  });
+
+  module('#setIdByPayload', function () {
+    test('extracts ID from payload with ID property', function (assert) {
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.setIdByPayload({ ID: 'custom-id', Namespace: 'ops' });
+
+      assert.strictEqual(model.plainId, 'custom-id');
+      assert.strictEqual(
+        model.get('_idBeforeSaving'),
+        JSON.stringify(['custom-id', 'ops']),
+      );
+    });
+
+    test('extracts ID from payload with wrapped Job object', function (assert) {
+      const store = this.owner.lookup('service:store');
+      const model = store.createRecord('job');
+
+      model.setIdByPayload({ Job: { ID: 'wrapped-id' } });
+
+      assert.strictEqual(model.plainId, 'wrapped-id');
+      assert.strictEqual(
+        model.get('_idBeforeSaving'),
+        JSON.stringify(['wrapped-id', 'default']),
       );
     });
   });

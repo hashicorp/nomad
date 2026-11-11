@@ -13,6 +13,7 @@ import RSVP from 'rsvp';
 import { assert } from '@ember/debug';
 import classic from 'ember-classic-decorator';
 import { jobAllocStatuses } from '../utils/allocation-client-statuses';
+import unwrapJob from 'nomad-ui/utils/unwrap-job';
 
 const JOB_TYPES = ['service', 'batch', 'system', 'sysbatch'];
 
@@ -699,11 +700,12 @@ export default class Job extends Model {
     try {
       // If the definition is already JSON then it doesn't need to be parsed.
       const json = JSON.parse(definition);
-      this.set('_newDefinitionJSON', json);
+      const unwrapped = unwrapJob(json);
+      this.set('_newDefinitionJSON', unwrapped);
 
       // You can't set the ID of a record that already exists
       if (this.isNew) {
-        this.setIdByPayload(json);
+        this.setIdByPayload(unwrapped);
       }
 
       promise = RSVP.resolve(definition);
@@ -715,8 +717,9 @@ export default class Job extends Model {
         .adapterFor('job')
         .parse(this._newDefinition, variables)
         .then((response) => {
-          this.set('_newDefinitionJSON', response);
-          this.setIdByPayload(response);
+          const unwrapped = unwrapJob(response);
+          this.set('_newDefinitionJSON', unwrapped);
+          this.setIdByPayload(unwrapped);
         });
     }
 
@@ -734,8 +737,9 @@ export default class Job extends Model {
   }
 
   setIdByPayload(payload) {
-    const namespace = payload.Namespace || 'default';
-    const id = payload.Name;
+    const unwrapped = unwrapJob(payload) || {};
+    const namespace = unwrapped.Namespace || unwrapped.namespace || 'default';
+    const id = unwrapped.ID || unwrapped.Name || unwrapped.id || unwrapped.name;
 
     this.set('plainId', id);
     this.set('_idBeforeSaving', JSON.stringify([id, namespace]));

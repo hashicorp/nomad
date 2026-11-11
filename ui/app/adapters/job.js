@@ -5,6 +5,7 @@
 
 import WatchableNamespaceIDs from './watchable-namespace-ids';
 import addToPath from 'nomad-ui/utils/add-to-path';
+import unwrapJob from 'nomad-ui/utils/unwrap-job';
 import { base64EncodeString } from 'nomad-ui/utils/encode';
 import classic from 'ember-classic-decorator';
 import { service } from '@ember/service';
@@ -108,7 +109,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     return this.ajax(url, 'POST', {
       data: {
-        Job: job.get('_newDefinitionJSON'),
+        Job: unwrapJob(job.get('_newDefinitionJSON')),
         Diff: true,
       },
     }).then((json) => {
@@ -138,7 +139,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     return this.ajax(this.urlForCreateRecord('job'), 'POST', {
       data: {
-        Job: job.get('_newDefinitionJSON'),
+        Job: unwrapJob(job.get('_newDefinitionJSON')),
         Submission,
       },
     });
@@ -164,7 +165,7 @@ export default class JobAdapter extends WatchableNamespaceIDs {
 
     return this.ajax(this.urlForUpdateRecord(jobId, 'job'), 'POST', {
       data: {
-        Job: job.get('_newDefinitionJSON'),
+        Job: unwrapJob(job.get('_newDefinitionJSON')),
         Submission,
       },
     });

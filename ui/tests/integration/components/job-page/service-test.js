@@ -128,6 +128,114 @@ module('Integration | Component | job-page/service', function (hooks) {
     await settled();
   });
 
+  test('Starting a job whose saved submission contains a top-level Job wrapper succeeds without double-nesting', async function (assert) {
+    this.token.fetchSelfTokenAndPolicies.perform();
+
+    const mirageJob = makeMirageJob(this.server, {
+      status: 'dead',
+      withPreviousStableVersion: true,
+      stopped: true,
+    });
+
+    this.server.pretender.get('/v1/job/:id/submission', (request) => {
+      return [
+        200,
+        { 'Content-Type': 'application/json' },
+        JSON.stringify({
+          Source: JSON.stringify({
+            Job: {
+              ID: request.params.id,
+              Name: request.params.id,
+              Type: 'service',
+            },
+          }),
+          Format: 'json',
+        }),
+      ];
+    });
+
+    await this.store.findAll('job');
+
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
+
+    await startJob();
+    await expectStartRequest(assert, this.server, job);
+    await settled();
+
+    const updateRequest = this.server.pretender.handledRequests
+      .filterBy('method', 'POST')
+      .find((req) => req.url.includes(`/v1/job/${mirageJob.id}`));
+
+    assert.ok(updateRequest, 'Update request was sent');
+    const requestBody = JSON.parse(updateRequest.requestBody);
+    assert.strictEqual(
+      requestBody.Job.ID,
+      mirageJob.id,
+      'Job ID is extracted and present at top level of Job payload',
+    );
+    assert.notOk(
+      requestBody.Job.Job,
+      'Job payload does not contain double Job wrapper',
+    );
+    assert.strictEqual(job.status, 'running', 'Job status is set to running');
+  });
+
+  test('Starting a job whose saved submission is unwrapped JSON succeeds', async function (assert) {
+    this.token.fetchSelfTokenAndPolicies.perform();
+
+    const mirageJob = makeMirageJob(this.server, {
+      status: 'dead',
+      withPreviousStableVersion: true,
+      stopped: true,
+    });
+
+    this.server.pretender.get('/v1/job/:id/submission', (request) => {
+      return [
+        200,
+        { 'Content-Type': 'application/json' },
+        JSON.stringify({
+          Source: JSON.stringify({
+            ID: request.params.id,
+            Name: request.params.id,
+            Type: 'service',
+          }),
+          Format: 'json',
+        }),
+      ];
+    });
+
+    await this.store.findAll('job');
+
+    const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+
+    this.setProperties(commonProperties(job));
+    await render(commonTemplate);
+
+    await startJob();
+    await expectStartRequest(assert, this.server, job);
+    await settled();
+
+    const updateRequest = this.server.pretender.handledRequests
+      .filterBy('method', 'POST')
+      .find((req) => req.url.includes(`/v1/job/${mirageJob.id}`));
+
+    assert.ok(updateRequest, 'Update request was sent');
+    const requestBody = JSON.parse(updateRequest.requestBody);
+    assert.strictEqual(
+      requestBody.Job.ID,
+      mirageJob.id,
+      'Job ID is present at top level of Job payload',
+    );
+    assert.notOk(
+      requestBody.Job.Job,
+      'Job payload does not contain double Job wrapper',
+    );
+    assert.strictEqual(job.status, 'running', 'Job status is set to running');
+  });
+
   test('Starting a job without proper permissions disables the button', async function (assert) {
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 

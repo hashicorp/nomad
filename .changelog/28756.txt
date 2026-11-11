@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed an issue where restarting stopped jobs failed when saved JSON submissions contained a top-level Job wrapper
+```
