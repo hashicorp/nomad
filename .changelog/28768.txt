@@ -1,0 +1,3 @@
+```release-note:bug
+release: Fixed a bug where RPM package upgrades did not restart the Nomad agent because the postremove script only handled the Debian-style `upgrade` argument
+```
