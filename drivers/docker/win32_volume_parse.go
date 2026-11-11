@@ -34,7 +34,14 @@ const (
 	// rxHostDir is the first option of a source
 	rxHostDir = `(?:\\\\\?\\)?[a-z]:[\\/](?:[^\\/:*?"<>|\r\n]+[\\/]?)*`
 	// rxName is the second option of a source
-	rxName = `[^\\/:*?"<>|\r\n]+\/?.*`
+	//
+	// The trailing part after the optional slash must not contain a colon:
+	// otherwise the greedy `.*` would swallow the destination's drive
+	// letter, e.g. "local:c:/app/" would parse as source "local:c" and
+	// destination "/app/" instead of source "local" and destination
+	// "c:/app/". A colon can never legitimately appear inside a source
+	// name, since it is the source/destination separator.
+	rxName = `[^\\/:*?"<>|\r\n]+\/?[^:]*`
 
 	// RXReservedNames are reserved names not possible on Windows
 	rxReservedNames = `(con)|(prn)|(nul)|(aux)|(com[1-9])|(lpt[1-9])`
