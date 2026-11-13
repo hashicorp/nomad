@@ -1,0 +1,3 @@
+```release-note:bug
+core: Fixed a bug where pagination of namespaced objects (jobs, variables, volumes, service registrations, and others using the Namespace+ID cursor) could duplicate or skip results when one namespace name was a prefix of another that differed by a dash, such as "team" and "team-a"
+```
