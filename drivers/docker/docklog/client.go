@@ -33,7 +33,11 @@ func (c *dockerLoggerClient) Start(opts *StartOpts) error {
 
 // Stop proxies the Stop client side func to the protobuf interface
 func (c *dockerLoggerClient) Stop() error {
+	// Bounded so a hung plugin cannot hold the task's exit.
+	ctx, cancel := context.WithTimeout(context.Background(), stopRPCTimeout)
+	defer cancel()
+
 	req := &proto.StopRequest{}
-	_, err := c.client.Stop(context.Background(), req)
+	_, err := c.client.Stop(ctx, req)
 	return err
 }

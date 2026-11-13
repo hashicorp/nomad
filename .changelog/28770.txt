@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where the last log lines of a task could be lost when it exited, and where a failed log request crashed the log collector
+```

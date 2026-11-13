@@ -6,11 +6,17 @@ package docklog
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"runtime"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -328,4 +334,213 @@ func TestIsLoggingTerminalError(t *testing.T) {
 	for _, err := range nonTerminalErrs {
 		must.False(t, isLoggingTerminalError(err), must.Sprintf("error should be terminal: %v", err))
 	}
+}
+
+type fakeDockerLogsAPI struct {
+	stream  func(w http.ResponseWriter, gone <-chan struct{})
+	running bool
+
+	// failLogsCalls fails the first n log requests.
+	failLogsCalls int32
+	logsCalls     atomic.Int32
+	// gone makes inspect return 404.
+	gone bool
+}
+
+func (f *fakeDockerLogsAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch {
+	case strings.HasSuffix(r.URL.Path, "/logs"):
+		if f.logsCalls.Add(1) <= f.failLogsCalls {
+			http.Error(w, `{"message":"daemon hiccup"}`, http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.docker.multiplexed-stream")
+		w.WriteHeader(http.StatusOK)
+		f.stream(w, r.Context().Done())
+	case strings.HasSuffix(r.URL.Path, "/json"):
+		if f.gone {
+			http.Error(w, `{"message":"no such container"}`, http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"Id":"c1","State":{"Running":%t}}`, f.running)
+	case strings.HasSuffix(r.URL.Path, "/_ping"):
+		w.WriteHeader(http.StatusOK)
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func writeStderrFrames(w http.ResponseWriter, lines ...string) {
+	for _, line := range lines {
+		payload := []byte(line + "\n")
+		header := []byte{2, 0, 0, 0, 0, 0, 0, 0}
+		binary.BigEndian.PutUint32(header[4:], uint32(len(payload)))
+		w.Write(header)
+		w.Write(payload)
+	}
+	w.(http.Flusher).Flush()
+}
+
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func (*lockedBuffer) Close() error { return nil }
+
+func startFakeLogger(t *testing.T, api *fakeDockerLogsAPI) (*dockerLogger, *lockedBuffer) {
+	t.Helper()
+	srv := httptest.NewServer(api)
+	t.Cleanup(srv.Close)
+
+	stderr := &lockedBuffer{}
+	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
+	dl.stdout = &lockedBuffer{}
+	dl.stderr = stderr
+	must.NoError(t, dl.Start(&StartOpts{
+		Endpoint:    strings.Replace(srv.URL, "http://", "tcp://", 1),
+		ContainerID: "c1",
+	}))
+	return dl, stderr
+}
+
+func TestDockerLogger_StopReadsTheLastLines(t *testing.T) {
+	ci.Parallel(t)
+
+	release := make(chan struct{})
+	api := &fakeDockerLogsAPI{running: false}
+	api.stream = func(w http.ResponseWriter, gone <-chan struct{}) {
+		writeStderrFrames(w, "line 1", "line 2", "line 3", "line 4")
+		select {
+		case <-release:
+			writeStderrFrames(w, "line 5", "line 6", "line 7", "line 8")
+		case <-gone:
+		}
+	}
+	dl, stderr := startFakeLogger(t, api)
+
+	testutil.WaitForResult(func() (bool, error) {
+		if n := strings.Count(stderr.String(), "\n"); n < 4 {
+			return false, fmt.Errorf("want the first 4 lines before stopping, got %d", n)
+		}
+		return true, nil
+	}, func(err error) { must.NoError(t, err) })
+
+	stopped := make(chan error, 1)
+	go func() { stopped <- dl.Stop() }()
+	close(release)
+
+	select {
+	case err := <-stopped:
+		must.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop did not return")
+	}
+	must.Eq(t, 8, strings.Count(stderr.String(), "\n"), must.Sprintf("stderr:\n%s", stderr.String()))
+}
+
+func TestDockerLogger_StopDoesNotWaitForARunningContainer(t *testing.T) {
+	ci.Parallel(t)
+
+	api := &fakeDockerLogsAPI{running: true}
+	api.stream = func(w http.ResponseWriter, gone <-chan struct{}) {
+		writeStderrFrames(w, "still running")
+		<-gone
+	}
+	dl, stderr := startFakeLogger(t, api)
+	dl.stopIdleTimeout = 200 * time.Millisecond
+
+	testutil.WaitForResult(func() (bool, error) {
+		return strings.Contains(stderr.String(), "still running"), fmt.Errorf("no line yet")
+	}, func(err error) { must.NoError(t, err) })
+
+	start := time.Now()
+	must.NoError(t, dl.Stop())
+	elapsed := time.Since(start)
+	must.GreaterEq(t, 200*time.Millisecond, elapsed, must.Sprint("Stop returned before the idle bound"))
+	must.Less(t, 2*time.Second, elapsed, must.Sprint("Stop waited past the idle bound"))
+
+	select {
+	case <-dl.doneCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the stream goroutine did not end after Stop cancelled it")
+	}
+}
+
+func TestDockerLogger_LogsErrorIsRetried(t *testing.T) {
+	ci.Parallel(t)
+
+	api := &fakeDockerLogsAPI{running: false, failLogsCalls: 1}
+	api.stream = func(w http.ResponseWriter, _ <-chan struct{}) {
+		writeStderrFrames(w, "after retry")
+	}
+	dl, stderr := startFakeLogger(t, api)
+
+	testutil.WaitForResultUntil(5*time.Second, func() (bool, error) {
+		return strings.Contains(stderr.String(), "after retry"), fmt.Errorf("no line after the retry, %d log requests", api.logsCalls.Load())
+	}, func(err error) { must.NoError(t, err) })
+
+	must.NoError(t, dl.Stop())
+	must.Eq(t, int32(2), api.logsCalls.Load())
+}
+
+func TestDockerLogger_StopsWhenTheContainerIsGone(t *testing.T) {
+	ci.Parallel(t)
+
+	api := &fakeDockerLogsAPI{gone: true}
+	api.stream = func(w http.ResponseWriter, _ <-chan struct{}) {
+		writeStderrFrames(w, "last line")
+	}
+	dl, stderr := startFakeLogger(t, api)
+
+	select {
+	case <-dl.doneCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the logger kept running after the container was gone")
+	}
+
+	start := time.Now()
+	must.NoError(t, dl.Stop())
+	must.Less(t, time.Second, time.Since(start))
+	must.StrContains(t, stderr.String(), "last line")
+	must.Eq(t, int32(1), api.logsCalls.Load())
+}
+
+func TestDockerLogger_StopWaitsWhileTheStreamDelivers(t *testing.T) {
+	ci.Parallel(t)
+
+	const lines = 8
+	api := &fakeDockerLogsAPI{running: false}
+	api.stream = func(w http.ResponseWriter, gone <-chan struct{}) {
+		for i := 1; i <= lines; i++ {
+			writeStderrFrames(w, fmt.Sprintf("line %d", i))
+			select {
+			case <-time.After(150 * time.Millisecond):
+			case <-gone:
+				return
+			}
+		}
+	}
+	dl, stderr := startFakeLogger(t, api)
+	dl.stopIdleTimeout = 400 * time.Millisecond
+
+	testutil.WaitForResult(func() (bool, error) {
+		return strings.Contains(stderr.String(), "line 1"), fmt.Errorf("no line yet")
+	}, func(err error) { must.NoError(t, err) })
+
+	must.NoError(t, dl.Stop())
+	must.Eq(t, lines, strings.Count(stderr.String(), "\n"), must.Sprintf("stderr:\n%s", stderr.String()))
 }
