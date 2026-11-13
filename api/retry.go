@@ -96,7 +96,7 @@ func (c *Client) retryPut(ctx context.Context, endpoint string, in, out any, q *
 // (500s+) or the call being rate limited (429), this function checks if the
 // statusCode is between the errors worth retrying.
 func isCallRetriable(statusCode int) bool {
-	return statusCode > http.StatusInternalServerError &&
+	return statusCode >= http.StatusInternalServerError &&
 		statusCode < http.StatusNetworkAuthenticationRequired ||
 		statusCode == http.StatusTooManyRequests
 }
