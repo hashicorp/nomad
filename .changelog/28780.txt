@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug where HTTP 500 responses were not retried by the retrying API client used for Variables locks
+```
