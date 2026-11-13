@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where mixing positive and negative node affinity weights squashed the affinity score range
+```
