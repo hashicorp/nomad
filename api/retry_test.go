@@ -122,3 +122,64 @@ func Test_RetryPut_capped_base_too_big(t *testing.T) {
 		must.Greater(t, cm.config.retryOptions.maxBackoffDelay, mh.callsCounter[2].Sub(mh.callsCounter[1]))
 	})
 }
+
+func Test_isCallRetriable(t *testing.T) {
+	cases := []struct {
+		name       string
+		statusCode int
+		expect     bool
+	}{
+		{"too many requests", http.StatusTooManyRequests, true},
+		{"internal server error", http.StatusInternalServerError, true},
+		{"not implemented", http.StatusNotImplemented, true},
+		{"bad gateway", http.StatusBadGateway, true},
+		{"service unavailable", http.StatusServiceUnavailable, true},
+		{"network authentication required", http.StatusNetworkAuthenticationRequired, false},
+		{"bad request", http.StatusBadRequest, false},
+		{"not found", http.StatusNotFound, false},
+		{"ok", http.StatusOK, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expect, isCallRetriable(tc.statusCode))
+		})
+	}
+}
+
+// internalErrorHandler always responds with HTTP 500 and counts the calls it
+// receives, so we can assert that those responses are retried.
+type internalErrorHandler struct {
+	callsCounter []time.Time
+}
+
+func (ih *internalErrorHandler) Handle(rw http.ResponseWriter, req *http.Request) {
+	ih.callsCounter = append(ih.callsCounter, time.Now())
+	http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+
+func Test_RetryPut_retries_internal_server_error(t *testing.T) {
+	ih := &internalErrorHandler{
+		callsCounter: []time.Time{},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(ih.Handle))
+	t.Cleanup(server.Close)
+
+	cm, err := NewClient(&Config{
+		Address: server.URL,
+		retryOptions: &retryOptions{
+			delayBase:       10 * time.Millisecond,
+			maxRetries:      3,
+			maxBackoffDelay: 100 * time.Millisecond,
+		},
+	})
+	must.NoError(t, err)
+
+	md, err := cm.retryPut(context.TODO(), "/endpoint", nil, nil, &WriteOptions{})
+	must.Error(t, err)
+	must.Nil(t, md)
+
+	// maxRetries+1 attempts are expected because HTTP 500 is retriable.
+	must.Len(t, 4, ih.callsCounter)
+}
