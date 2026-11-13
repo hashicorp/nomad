@@ -1,0 +1,3 @@
+```release-note:bug
+client: fix alloc dir cleanup leaving `alloc/logs` bind mounts behind when a log file is held open by another mount namespace
+```
