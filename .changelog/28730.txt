@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug where allocations stopped by a node drain were not replaced while a deployment was paused, failed, or had canaries awaiting promotion
+```

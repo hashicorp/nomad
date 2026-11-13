@@ -50,6 +50,39 @@ func (set allocSet) filterServerTerminalAllocs() (remaining allocSet) {
 	return
 }
 
+// filterOrphanedMigrations returns the non-canary service allocations that
+// were stopped for migration but never replaced.
+//
+// A migration stops the old allocation and places its replacement in the same
+// plan, but the stop can be committed without the placement: the plan applier
+// commits per node, so it can apply the stop on the draining node while
+// rejecting the placement on the target node, and a placement that fails at
+// scheduling time does not undo the stop either. The allocation is then
+// server-terminal with no NextAllocation, and the next reconcile only sees an
+// empty slot.
+//
+// The migrate transition stays set on allocations stopped for other reasons,
+// such as a scale-down, which prefers stopping migrating allocations, so the
+// stop's description is what identifies a migration.
+func (set allocSet) filterOrphanedMigrations() allocSet {
+	orphaned := make(allocSet)
+	for id, alloc := range set {
+		if alloc.Job == nil || alloc.Job.Type == structs.JobTypeBatch {
+			// batch migrations are handled by filterByRescheduleable
+			continue
+		}
+		if alloc.DesiredStatus != structs.AllocDesiredStatusStop ||
+			alloc.DesiredDescription != sstructs.StatusAllocMigrating ||
+			!alloc.DesiredTransition.ShouldMigrate() ||
+			alloc.NextAllocation != "" ||
+			alloc.DeploymentStatus.IsCanary() {
+			continue
+		}
+		orphaned[id] = alloc
+	}
+	return orphaned
+}
+
 // filterByTerminal returns a new allocSet without any terminal allocations.
 func (set allocSet) filterByTerminal() (nonTerminal allocSet) {
 	nonTerminal = make(allocSet)
