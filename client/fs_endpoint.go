@@ -24,6 +24,7 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -457,7 +458,7 @@ func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	// Start streaming
 	go func() {
 		if err := f.logsImpl(ctx, req.Follow, req.PlainText,
-			req.Offset, req.Origin, req.Task, req.LogType, fs, frames); err != nil {
+			req.Offset, req.Origin, req.Task, req.LogType, fs, frames, allocFinished(ctx, ar)); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -538,12 +539,50 @@ OUTER:
 	}
 }
 
-// logsImpl is used to stream the logs of a the given task. Output is sent on
+// allocFinished returns a channel that is closed once the allocation is
+// terminal and its alloc runner has exited, so its tasks will write no more
+// logs.
+func allocFinished(ctx context.Context, ar interfaces.AllocRunner) <-chan struct{} {
+	doneCh := make(chan struct{})
+
+	go func() {
+		select {
+		case <-ar.WaitCh():
+		case <-ctx.Done():
+			return
+		}
+
+		// WaitCh is also closed when the agent shuts down and leaves the tasks
+		// running, so it isn't enough to know the alloc has finished.
+		listener := ar.Listener()
+		defer listener.Close()
+
+		for {
+			select {
+			case alloc, ok := <-listener.Ch():
+				if !ok {
+					return
+				}
+				if alloc.ClientTerminalStatus() {
+					close(doneCh)
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return doneCh
+}
+
+// logsImpl is used to stream the logs of the given task. Output is sent on
 // the passed frames channel and the method will return on EOF if follow is not
-// true otherwise when the context is cancelled or on an error.
+// true or once allocDoneCh is closed and the last log file has been read,
+// otherwise when the context is cancelled or on an error.
 func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset int64,
 	origin, task, logType string,
-	fs allocdir.AllocDirFS, frames chan<- *sframer.StreamFrame) error {
+	fs allocdir.AllocDirFS, frames chan<- *sframer.StreamFrame, allocDoneCh <-chan struct{}) error {
 
 	// Create the framer
 	framer := sframer.NewStreamFramer(frames, streamHeartbeatRate, streamBatchWindow, streamFrameSize)
@@ -604,7 +643,7 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 			cancelAfterFirstEof = true
 			exitAfter = true
 		} else {
-			eofCancelCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1)
+			eofCancelCh = blockUntilNextLog(ctx, fs, logPath, task, logType, idx+1, allocDoneCh)
 		}
 
 		p := filepath.Join(logPath, logEntry.Name)
@@ -634,6 +673,26 @@ func (f *FileSystem) logsImpl(ctx context.Context, follow, plain bool, offset in
 
 		if exitAfter {
 			return nil
+		}
+
+		// A finished alloc writes no more logs, so there is nothing to follow
+		// past the last log file.
+		select {
+		case <-allocDoneCh:
+			entries, err := fs.List(logPath)
+			if err != nil {
+				return fmt.Errorf("failed to list entries: %v", err)
+			}
+
+			_, lastIdx, _, err := findClosest(entries, math.MaxInt64, 0, task, logType)
+			if err != nil {
+				return err
+			}
+
+			if idx >= lastIdx {
+				return nil
+			}
+		default:
 		}
 
 		// defensively check to make sure StreamFramer hasn't stopped
@@ -799,8 +858,8 @@ OUTER:
 }
 
 // blockUntilNextLog returns a channel that will have data sent when the next
-// log index or anything greater is created.
-func blockUntilNextLog(ctx context.Context, fs allocdir.AllocDirFS, logPath, task, logType string, nextIndex int64) chan error {
+// log index or anything greater is created, or when allocDoneCh is closed.
+func blockUntilNextLog(ctx context.Context, fs allocdir.AllocDirFS, logPath, task, logType string, nextIndex int64, allocDoneCh <-chan struct{}) chan error {
 	nextPath := filepath.Join(logPath, fmt.Sprintf("%s.%s.%d", task, logType, nextIndex))
 	next := make(chan error, 1)
 
@@ -823,6 +882,10 @@ func blockUntilNextLog(ctx context.Context, fs allocdir.AllocDirFS, logPath, tas
 				return
 			case err := <-eofCancelCh:
 				next <- err
+				close(next)
+				return
+			case <-allocDoneCh:
+				next <- nil
 				close(next)
 				return
 			case <-scanCh:

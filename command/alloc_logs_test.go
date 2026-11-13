@@ -4,12 +4,15 @@
 package command
 
 import (
+	"bytes"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
 )
@@ -66,6 +69,42 @@ func TestLogsCommand_Fails(t *testing.T) {
 
 	out = ui.ErrorWriter.String()
 	must.StrContains(t, out, "No allocation(s) with prefix or id")
+}
+
+func TestLogsCommand_Follow_AllocComplete(t *testing.T) {
+	ci.Parallel(t)
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+	waitForNodes(t, client)
+
+	job := testJob("follow-complete")
+	job.TaskGroups[0].Tasks[0].Config["stdout_string"] = "hello\n"
+	resp, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+	must.Zero(t, waitForSuccess(cli.NewMockUi(), client, fullId, t, resp.EvalID))
+
+	allocs, _, err := client.Jobs().Allocations("follow-complete", false, nil)
+	must.NoError(t, err)
+	must.Len(t, 1, allocs)
+	waitForAllocRunning(t, client, allocs[0].ID)
+
+	// Follow both log streams, which is the default with no other flags.
+	var stdout, stderr bytes.Buffer
+	ui := &cli.BasicUi{Writer: &stdout, ErrorWriter: &stderr}
+	cmd := &AllocLogsCommand{Meta: Meta{Ui: ui}}
+
+	codeCh := make(chan int, 1)
+	go func() {
+		codeCh <- cmd.Run([]string{"-address=" + url, "-f", allocs[0].ID})
+	}()
+
+	select {
+	case code := <-codeCh:
+		must.Zero(t, code, must.Sprint(stderr.String()))
+		must.StrContains(t, stdout.String(), "hello")
+	case <-time.After(30 * time.Second * time.Duration(testutil.TestMultiplier())):
+		t.Fatal("command did not exit after the allocation completed")
+	}
 }
 
 func TestLogsCommand_AutocompleteArgs(t *testing.T) {

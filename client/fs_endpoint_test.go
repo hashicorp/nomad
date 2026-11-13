@@ -1536,6 +1536,146 @@ OUTER:
 	}
 }
 
+func TestFS_logsImpl_Follow_AllocDone(t *testing.T) {
+	ci.Parallel(t)
+
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	ad := tempAllocDir(t)
+	must.NoError(t, ad.Build())
+	defer ad.Destroy()
+
+	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+	must.NoError(t, os.MkdirAll(logDir, 0777))
+
+	task := "foo"
+	logType := "stdout"
+	lastFile := filepath.Join(logDir, fmt.Sprintf("%s.%s.1", task, logType))
+	must.NoError(t, os.WriteFile(filepath.Join(logDir, fmt.Sprintf("%s.%s.0", task, logType)), []byte("01"), 0777))
+	must.NoError(t, os.WriteFile(lastFile, []byte("23"), 0777))
+
+	frames := make(chan *sframer.StreamFrame, 4)
+	allocDoneCh := make(chan struct{})
+	errCh := make(chan error, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second*time.Duration(testutil.TestMultiplier()))
+	defer cancel()
+	go func() {
+		errCh <- c.endpoints.FileSystem.logsImpl(ctx, true, false, 0,
+			OriginStart, task, logType, ad, frames, allocDoneCh)
+	}()
+
+	// Read until logsImpl closes the framer, which is the end of the stream.
+	var received []byte
+	for frame := range frames {
+		received = append(received, frame.Data...)
+
+		// Output written just before the alloc finishes must not be dropped.
+		if string(received) == "0123" {
+			f, err := os.OpenFile(lastFile, os.O_APPEND|os.O_WRONLY, 0600)
+			must.NoError(t, err)
+			_, err = f.WriteString("4")
+			must.NoError(t, err)
+			must.NoError(t, f.Close())
+			close(allocDoneCh)
+		}
+	}
+
+	must.NoError(t, <-errCh)
+	must.NoError(t, ctx.Err())
+	must.Eq(t, "01234", string(received))
+}
+
+func TestFS_logsImpl_Follow_AllocAlreadyDone(t *testing.T) {
+	ci.Parallel(t)
+
+	c, cleanup := TestClient(t, nil)
+	defer cleanup()
+
+	ad := tempAllocDir(t)
+	must.NoError(t, ad.Build())
+	defer ad.Destroy()
+
+	logDir := filepath.Join(ad.SharedDir, allocdir.LogDirName)
+	must.NoError(t, os.MkdirAll(logDir, 0777))
+
+	task := "foo"
+	logType := "stdout"
+	must.NoError(t, os.WriteFile(filepath.Join(logDir, fmt.Sprintf("%s.%s.0", task, logType)), []byte("01"), 0777))
+	must.NoError(t, os.WriteFile(filepath.Join(logDir, fmt.Sprintf("%s.%s.1", task, logType)), []byte("23"), 0777))
+
+	frames := make(chan *sframer.StreamFrame, 4)
+	allocDoneCh := make(chan struct{})
+	close(allocDoneCh)
+	errCh := make(chan error, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second*time.Duration(testutil.TestMultiplier()))
+	defer cancel()
+	go func() {
+		errCh <- c.endpoints.FileSystem.logsImpl(ctx, true, false, 0,
+			OriginStart, task, logType, ad, frames, allocDoneCh)
+	}()
+
+	var received []byte
+	for frame := range frames {
+		received = append(received, frame.Data...)
+	}
+
+	must.NoError(t, <-errCh)
+	must.NoError(t, ctx.Err())
+	must.Eq(t, "0123", string(received))
+}
+
+// finishedAllocRunner stubs the only alloc runner methods allocFinished uses.
+type finishedAllocRunner struct {
+	*emptyAllocRunner
+	waitCh      chan struct{}
+	broadcaster *cstructs.AllocBroadcaster
+}
+
+func (ar *finishedAllocRunner) WaitCh() <-chan struct{} { return ar.waitCh }
+
+func (ar *finishedAllocRunner) Listener() *cstructs.AllocListener {
+	return ar.broadcaster.Listen()
+}
+
+func TestFS_allocFinished(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name         string
+		clientStatus string
+		expectDone   bool
+	}{
+		{name: "complete", clientStatus: structs.AllocClientStatusComplete, expectDone: true},
+		{name: "failed", clientStatus: structs.AllocClientStatusFailed, expectDone: true},
+		{name: "agent shutdown", clientStatus: structs.AllocClientStatusRunning, expectDone: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ar := &finishedAllocRunner{
+				waitCh:      make(chan struct{}),
+				broadcaster: cstructs.NewAllocBroadcaster(testlog.HCLogger(t)),
+			}
+
+			doneCh := allocFinished(t.Context(), ar)
+
+			must.NoError(t, ar.broadcaster.Send(&structs.Allocation{ClientStatus: tc.clientStatus}))
+			close(ar.waitCh)
+			ar.broadcaster.Close()
+
+			select {
+			case <-doneCh:
+				must.True(t, tc.expectDone)
+			case <-time.After(500 * time.Millisecond * time.Duration(testutil.TestMultiplier())):
+				must.False(t, tc.expectDone)
+			}
+		})
+	}
+}
+
 func TestFS_findClosest(t *testing.T) {
 	task := "foo"
 	entries := []*cstructs.AllocFileInfo{
@@ -2074,7 +2214,7 @@ func TestFS_logsImpl_NoFollow(t *testing.T) {
 
 	if err := c.endpoints.FileSystem.logsImpl(
 		ctx, false, false, 0,
-		OriginStart, task, logType, ad, frames); err != nil {
+		OriginStart, task, logType, ad, frames, nil); err != nil {
 		t.Fatalf("logsImpl failed: %v", err)
 	}
 
@@ -2164,7 +2304,7 @@ func TestFS_logsImpl_Follow(t *testing.T) {
 	// Start streaming logs
 	go c.endpoints.FileSystem.logsImpl(
 		context.Background(), true, false, 0,
-		OriginStart, task, logType, ad, frames)
+		OriginStart, task, logType, ad, frames, nil)
 
 	select {
 	case <-firstResultCh:
