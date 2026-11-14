@@ -17,7 +17,7 @@
   <LinkTo
     @route={{this.route}}
     @models={{this.models}}
-    class="breadcrumb-link"
+    class="breadcrumb-link {{unless @crumb.title 'is-plain'}}"
     data-test-breadcrumb={{this.route}}
   >
     {{#if @crumb.title}}
