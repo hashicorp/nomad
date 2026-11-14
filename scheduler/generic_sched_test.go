@@ -4391,6 +4391,89 @@ func TestServiceSched_NodeDrain(t *testing.T) {
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
+func TestGenericScheduler_DurationAwareDrainDisabledRestoresScheduling(t *testing.T) {
+	ci.Parallel(t)
+	for _, tc := range []struct {
+		name    string
+		job     func() *structs.Job
+		factory sstructs.Factory
+	}{
+		{name: "service", job: mock.Job, factory: NewServiceScheduler},
+		{name: "long-running batch", job: mock.BatchJob, factory: NewBatchScheduler},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := tests.NewHarness(t)
+			now := time.Now()
+			node := mock.Node()
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+			drain := &structs.DrainStrategy{
+				DrainSpec: structs.DrainSpec{
+					Deadline:       10 * time.Minute,
+					DurationAware:  true,
+					BackfillBuffer: time.Minute,
+				},
+				StartedAt:     now,
+				ForceDeadline: now.Add(10 * time.Minute),
+			}
+			must.NoError(t, h.State.UpdateNodeDrain(structs.MsgTypeTestSetup, h.NextIndex(),
+				node.ID, drain, false, now.Unix(), nil, nil, ""))
+
+			job := tc.job()
+			tg := job.TaskGroups[0]
+			tg.Count = 1
+			if job.Type == structs.JobTypeBatch {
+				tg.MaxRunDuration = new(time.Hour)
+			}
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+			eval := &structs.Evaluation{
+				ID:          uuid.Generate(),
+				Namespace:   job.Namespace,
+				Priority:    job.Priority,
+				Type:        job.Type,
+				TriggeredBy: structs.EvalTriggerJobRegister,
+				JobID:       job.ID,
+				Status:      structs.EvalStatusPending,
+			}
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+			must.NoError(t, h.Process(tc.factory, eval))
+			allocs, err := h.State.AllocsByJob(memdb.NewWatchSet(), job.Namespace, job.ID, false)
+			must.NoError(t, err)
+			must.Len(t, 0, allocs)
+			must.Len(t, 1, h.Evals)
+			must.MapLen(t, 1, h.Evals[0].FailedTGAllocs)
+
+			// Cancel the ongoing drain and restore scheduling eligibility through
+			// the same state transition used by a node drain disable request.
+			must.NoError(t, h.State.UpdateNodeDrain(structs.MsgTypeTestSetup, h.NextIndex(),
+				node.ID, nil, true, now.Unix(), nil, nil, ""))
+			restored, err := h.State.NodeByID(memdb.NewWatchSet(), node.ID)
+			must.NoError(t, err)
+			must.Nil(t, restored.DrainStrategy)
+			must.Eq(t, structs.NodeSchedulingEligible, restored.SchedulingEligibility)
+			must.Eq(t, structs.DrainStatusCanceled, restored.LastDrain.Status)
+
+			// Re-evaluate the same job after the node update. The old drain
+			// deadline and buffer must no longer restrict either workload type.
+			eval = eval.Copy()
+			eval.ID = uuid.Generate()
+			eval.TriggeredBy = structs.EvalTriggerNodeUpdate
+			eval.NodeID = node.ID
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+			must.NoError(t, h.Process(tc.factory, eval))
+			allocs, err = h.State.AllocsByJob(memdb.NewWatchSet(), job.Namespace, job.ID, false)
+			must.NoError(t, err)
+			must.Len(t, 1, allocs)
+			must.Eq(t, node.ID, allocs[0].NodeID)
+			if job.Type == structs.JobTypeBatch {
+				must.Eq(t, time.Hour, *allocs[0].Job.TaskGroups[0].MaxRunDuration)
+			}
+			must.Len(t, 2, h.Evals)
+			must.Eq(t, structs.EvalStatusComplete, h.Evals[1].Status)
+			must.MapLen(t, 0, h.Evals[1].FailedTGAllocs)
+		})
+	}
+}
+
 func TestServiceSched_NodeDrain_Down(t *testing.T) {
 	ci.Parallel(t)
 
