@@ -4467,6 +4467,10 @@ type Job struct {
 	// job. This is opaque to Nomad.
 	Meta map[string]string
 
+	// Env is a set of environment variables shared by every task in the
+	// job. Group and task env take precedence over it.
+	Env map[string]string
+
 	// ConsulNamespace is the Consul namespace
 	ConsulNamespace string
 
@@ -4659,6 +4663,10 @@ func (j *Job) Canonicalize() {
 		j.Meta = nil
 	}
 
+	if len(j.Env) == 0 {
+		j.Env = nil
+	}
+
 	if len(j.Constraints) == 0 {
 		j.Constraints = nil
 	}
@@ -4722,6 +4730,7 @@ func (j *Job) Copy() *Job {
 
 	nj.Periodic = j.Periodic.Copy()
 	nj.Meta = maps.Clone(j.Meta)
+	nj.Env = maps.Clone(j.Env)
 	nj.ParameterizedJob = j.ParameterizedJob.Copy()
 	return nj
 }
@@ -5032,6 +5041,36 @@ func (j *Job) CombinedTaskMeta(groupName, taskName string) map[string]string {
 	}
 
 	return meta
+}
+
+// CombinedTaskEnv takes a TaskGroup and Task name and returns the combined
+// environment variables for the task. When joining Job, Group and Task Env,
+// the precedence is by deepest scope (Task > Group > Job).
+func (j *Job) CombinedTaskEnv(groupName, taskName string) map[string]string {
+	group := j.LookupTaskGroup(groupName)
+	if group == nil {
+		return maps.Clone(j.Env)
+	}
+
+	task := group.LookupTask(taskName)
+	if len(group.Env) == 0 && len(j.Env) == 0 {
+		if task == nil {
+			return nil
+		}
+		return maps.Clone(task.Env)
+	}
+
+	env := make(map[string]string, len(j.Env)+len(group.Env))
+	maps.Copy(env, j.Env)
+	maps.Copy(env, group.Env)
+	if task != nil {
+		maps.Copy(env, task.Env)
+	}
+	if len(env) == 0 {
+		return nil
+	}
+
+	return env
 }
 
 // Stopped returns if a job is stopped.
@@ -6901,6 +6940,11 @@ type TaskGroup struct {
 	// task group. This is opaque to Nomad.
 	Meta map[string]string
 
+	// Env is a set of environment variables shared by every task in the
+	// group. It takes precedence over job env, and task env takes precedence
+	// over it.
+	Env map[string]string
+
 	// ReschedulePolicy is used to configure how the scheduler should
 	// retry failed allocations.
 	ReschedulePolicy *ReschedulePolicy
@@ -6993,6 +7037,7 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 	}
 
 	ntg.Meta = maps.Clone(ntg.Meta)
+	ntg.Env = maps.Clone(ntg.Env)
 
 	if tg.EphemeralDisk != nil {
 		ntg.EphemeralDisk = tg.EphemeralDisk.Copy()
@@ -7022,6 +7067,10 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 	// problems since we use reflect DeepEquals.
 	if len(tg.Meta) == 0 {
 		tg.Meta = nil
+	}
+
+	if len(tg.Env) == 0 {
+		tg.Env = nil
 	}
 
 	if len(tg.Constraints) == 0 {

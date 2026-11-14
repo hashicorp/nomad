@@ -268,7 +268,7 @@ func (t *TaskEnv) WithTask(alloc *structs.Allocation, task *structs.Task) *TaskE
 		newT.EnvMap[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
 	}
 
-	maps.Copy(newT.EnvMap, task.Env)
+	maps.Copy(newT.EnvMap, alloc.Job.CombinedTaskEnv(alloc.TaskGroup, task.Name))
 	newT.EnvMap[TaskName] = task.Name
 	return newT
 }
@@ -808,7 +808,18 @@ func (b *Builder) setAlloc(alloc *structs.Allocation) *Builder {
 		b.taskMeta[fmt.Sprintf("%s%s", MetaPrefix, k)] = v
 	}
 
+	// Add env shared by the job and group. Task env set in setTask takes
+	// precedence, followed by group env, then job env.
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+	if tg != nil {
+		for _, shared := range []map[string]string{tg.Env, alloc.Job.Env} {
+			for k, v := range shared {
+				if _, ok := b.envvars[k]; !ok {
+					b.envvars[k] = v
+				}
+			}
+		}
+	}
 
 	b.otherPorts = make(map[string]string, len(tg.Tasks)*2)
 

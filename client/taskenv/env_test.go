@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -602,6 +603,48 @@ func TestEnvironment_Envvars(t *testing.T) {
 			t.Fatalf("expected %s=%q but found %q", k, v, actV)
 		}
 	}
+}
+
+// TestEnvironment_JobAndGroupEnvvars asserts env set on the job and group is
+// shared by tasks, with task env taking precedence over group env, and group
+// env over job env.
+func TestEnvironment_JobAndGroupEnvvars(t *testing.T) {
+	ci.Parallel(t)
+
+	n := mock.Node()
+	a := mock.Alloc()
+	a.Job.Env = map[string]string{
+		"JOB":        "job",
+		"GROUP":      "job",
+		"TASK":       "job",
+		"JOB_INTERP": "${NOMAD_JOB_NAME}",
+	}
+	a.Job.TaskGroups[0].Env = map[string]string{
+		"GROUP":        "group",
+		"TASK":         "group",
+		"GROUP_INTERP": "${node.unique.id}",
+	}
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Env = map[string]string{"TASK": "task"}
+
+	act := NewBuilder(n, a, task, "global").Build().All()
+	must.Eq(t, "job", act["JOB"])
+	must.Eq(t, "group", act["GROUP"])
+	must.Eq(t, "task", act["TASK"])
+	must.Eq(t, a.Job.Name, act["JOB_INTERP"])
+	must.Eq(t, n.ID, act["GROUP_INTERP"])
+
+	// The task's own env is not modified
+	must.Eq(t, map[string]string{"TASK": "task"}, task.Env)
+
+	// WithTask applies the same precedence
+	other := task.Copy()
+	other.Name = "other"
+	other.Env = nil
+	withTask := NewBuilder(n, a, nil, "global").Build().WithTask(a, other).Map()
+	must.Eq(t, "job", withTask["JOB"])
+	must.Eq(t, "group", withTask["GROUP"])
+	must.Eq(t, "group", withTask["TASK"])
 }
 
 // TestEnvironment_HookVars asserts hook env vars are LWW and deletes of later

@@ -4836,6 +4836,77 @@ func TestJob_CombinedTaskMeta(t *testing.T) {
 
 }
 
+func TestJob_CombinedTaskEnv(t *testing.T) {
+	ci.Parallel(t)
+
+	j := &Job{
+		Env: map[string]string{
+			"JOB":   "job",
+			"GROUP": "job",
+			"TASK":  "job",
+		},
+		TaskGroups: []*TaskGroup{
+			{
+				Name: "group",
+				Env: map[string]string{
+					"GROUP": "group",
+					"TASK":  "group",
+				},
+				Tasks: []*Task{
+					{
+						Name: "task",
+						Env:  map[string]string{"TASK": "task"},
+					},
+					{Name: "no-env"},
+				},
+			},
+			{
+				Name:  "other",
+				Tasks: []*Task{{Name: "task"}},
+			},
+		},
+	}
+
+	must.Eq(t, map[string]string{"JOB": "job", "GROUP": "group", "TASK": "task"},
+		j.CombinedTaskEnv("group", "task"))
+	must.Eq(t, map[string]string{"JOB": "job", "GROUP": "group", "TASK": "group"},
+		j.CombinedTaskEnv("group", "no-env"))
+	must.Eq(t, map[string]string{"JOB": "job", "GROUP": "job", "TASK": "job"},
+		j.CombinedTaskEnv("other", "task"))
+	must.Eq(t, map[string]string{"JOB": "job", "GROUP": "job", "TASK": "job"},
+		j.CombinedTaskEnv("", "task"))
+
+	// The result must be a copy
+	j.CombinedTaskEnv("group", "task")["TASK"] = "mutated"
+	must.Eq(t, "task", j.TaskGroups[0].Tasks[0].Env["TASK"])
+
+	// Without job or group env, only the task env is returned
+	j.Env = nil
+	j.TaskGroups[0].Env = nil
+	must.Eq(t, map[string]string{"TASK": "task"}, j.CombinedTaskEnv("group", "task"))
+	must.Nil(t, j.CombinedTaskEnv("group", "no-env"))
+}
+
+func TestJob_Env_CopyAndCanonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	j := MockJob()
+	j.Env = map[string]string{"JOB": "job"}
+	j.TaskGroups[0].Env = map[string]string{"GROUP": "group"}
+
+	c := j.Copy()
+	c.Env["JOB"] = "changed"
+	c.TaskGroups[0].Env["GROUP"] = "changed"
+	must.Eq(t, "job", j.Env["JOB"])
+	must.Eq(t, "group", j.TaskGroups[0].Env["GROUP"])
+
+	j.Env = map[string]string{}
+	j.TaskGroups[0].Env = map[string]string{}
+	j.Canonicalize()
+	must.Nil(t, j.Env)
+	must.Nil(t, j.TaskGroups[0].Env)
+}
+
 func TestPeriodicConfig_EnabledInvalid(t *testing.T) {
 	ci.Parallel(t)
 

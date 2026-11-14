@@ -282,6 +282,8 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 
 		metaAttr, body, mdiags := decodeAsAttribute(body, ctx, "meta")
 		diags = append(diags, mdiags...)
+		envAttr, body, mdiags := decodeAsAttribute(body, ctx, "env")
+		diags = append(diags, mdiags...)
 
 		extra, remain, mdiags := body.PartialContent(&hcl.BodySchema{
 			Blocks: []hcl.BlockHeaderSchema{
@@ -297,6 +299,9 @@ func (c *jobConfig) decodeJob(content *hcl.BodyContent, ctx *hcl.EvalContext) hc
 
 		if metaAttr != nil {
 			c.Job.Meta = metaAttr
+		}
+		if envAttr != nil {
+			c.Job.Env = envAttr
 		}
 	}
 
