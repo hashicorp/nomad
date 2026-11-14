@@ -12,6 +12,15 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+func TestPaginator_NullToken(t *testing.T) {
+	ci.Parallel(t)
+	token := "10.id\x00"
+	p, err := NewPaginator(newTestIterator(nil), structs.QueryOptions{NextToken: token}, nil,
+		IDTokenizer[*mockObject](token), func(obj *mockObject) (string, error) { return obj.id, nil })
+	must.Nil(t, p)
+	must.ErrorContains(t, err, "next_token must not contain null bytes")
+}
+
 func TestPaginator(t *testing.T) {
 	ci.Parallel(t)
 	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"}
