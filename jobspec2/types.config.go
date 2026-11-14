@@ -150,7 +150,8 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 
 	var foundVault *hcl.Block
 	for _, b := range content.Blocks {
-		if b.Type == vaultLabel {
+		switch b.Type {
+		case vaultLabel:
 			if foundVault != nil {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -169,14 +170,15 @@ func (c *jobConfig) decodeTopLevelExtras(content *hcl.BodyContent, ctx *hcl.Eval
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, v)...)
 			c.Vault = v
 
-		} else if b.Type == taskLabel {
+		case taskLabel:
 			t := &api.Task{}
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, t)...)
 			if len(b.Labels) == 1 {
 				t.Name = b.Labels[0]
 				c.Tasks = append(c.Tasks, t)
 			}
-		} else if b.Type == secretLabel {
+
+		case secretLabel:
 			t := &api.Secret{}
 			diags = append(diags, hclDecoder.DecodeBody(b.Body, ctx, t)...)
 			if len(b.Labels) == 1 {

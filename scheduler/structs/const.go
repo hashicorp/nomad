@@ -51,4 +51,9 @@ const (
 	// up evals for allocations that be should be stopped after its disconnect
 	// timeout has passed.
 	DescDisconnectTimeoutFollowupEval = "created for delayed disconnect timeout"
+
+	// DescBlockedEvalDependencies is the description used for blocked evals
+	// that are a result of failing to place all allocations due to unmet
+	// dependencies.
+	DescBlockedEvalDependencies = "created due to placement unmet dependencies"
 )
