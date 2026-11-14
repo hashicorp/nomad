@@ -156,7 +156,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	return nil
 }
 
-// stream is is used to stream the contents of file in an allocation's
+// stream is used to stream the contents of file in an allocation's
 // directory.
 func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "file_system", "stream"}, time.Now())
@@ -339,7 +339,7 @@ OUTER:
 	}
 }
 
-// logs is is used to stream a task's logs.
+// logs is used to stream a task's logs.
 func (f *FileSystem) logs(conn io.ReadWriteCloser) {
 	defer metrics.MeasureSince([]string{"client", "file_system", "logs"}, time.Now())
 	defer conn.Close()

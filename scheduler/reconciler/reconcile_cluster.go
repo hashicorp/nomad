@@ -1651,7 +1651,7 @@ func (a *AllocReconciler) computeDisconnecting(
 }
 
 // appendUnknownDisconnectingUpdates returns a new allocSet of allocations with
-// updates to mark the FollowupEvalID and and the unknown ClientStatus and
+// updates to mark the FollowupEvalID and the unknown ClientStatus and
 // AllocState.
 func appendUnknownDisconnectingUpdates(disconnecting allocSet,
 	allocIDToFollowupEvalID map[string]string) allocSet {

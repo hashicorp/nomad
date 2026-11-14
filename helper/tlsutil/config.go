@@ -271,7 +271,7 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// OutgoingTLSWrapper returns a a Wrapper based on the OutgoingTLS
+// OutgoingTLSWrapper returns a Wrapper based on the OutgoingTLS
 // configuration. If hostname verification is on, the wrapper
 // will properly generate the dynamic server name for verification.
 func (c *Config) OutgoingTLSWrapper() (RegionWrapper, error) {
