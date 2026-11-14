@@ -73,7 +73,7 @@ func (m *memoryNodeMatcher) Matches(instanceID string, device *structs.NodeDevic
 	}
 
 	// if the device is not listed in the numa block of the task resources then
-	// we do not care about what node is is on
+	// we do not care about what node it is on
 	if !m.devices.Contains(device.ID().String()) {
 		return true
 	}

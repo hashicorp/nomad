@@ -93,7 +93,7 @@ make apply_full
 >
 > Also note: When ACLs are being bootstrapped, you may see "No cluster
 > leader" in the output several times while the ACL bootstrap script
-> polls the cluster to start and and elect a leader.
+> polls the cluster to start and elect a leader.
 
 ## Configuration
 

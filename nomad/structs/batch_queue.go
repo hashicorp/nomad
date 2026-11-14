@@ -138,7 +138,7 @@ type JobSizeConfig struct {
 }
 
 // DynamicQueueConfig configures a dynamic priority queue for a node pool.
-// Refer to to api.DynamicQueueConfig for detailed doc comments.
+// Refer to api.DynamicQueueConfig for detailed doc comments.
 type DynamicQueueConfig struct {
 	CalcInterval    time.Duration
 	TenantFairshare TenantFairshareConfig
