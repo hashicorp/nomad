@@ -61,6 +61,22 @@ func TestParseVolumeSpec_Windows(t *testing.T) {
 			"",
 		},
 		{
+			// #28760: a forward-slash destination must not let the source
+			// swallow the drive letter ("local:c" / "/app/").
+			"relative path with forward slash destination",
+			`local:c:/app/`,
+			`local`,
+			`c:/app/`,
+			"",
+		},
+		{
+			"named source with forward slash destination",
+			`myvol:c:/data`,
+			`myvol`,
+			`c:/data`,
+			"",
+		},
+		{
 			"named pipe",
 			`//./pipe/named_pipe://./pipe/named_pipe`,
 			`\\.\pipe\named_pipe`,
