@@ -350,7 +350,9 @@ func TestMaxRunDurationHook_Prerun_PreservesDeadlineAfterClientRestart(t *testin
 // initial Prerun before any tasks have started. The deadline is determined
 // purely from CreateTime, so task state is never required.
 func TestMaxRunDurationHook_Prerun_ArmsTimerWithoutTaskStates(t *testing.T) {
-	ci.Parallel(t)
+	inMemorySink := metrics.NewInmemSink(10*time.Millisecond, 50*time.Millisecond)
+	_, err := metrics.NewGlobal(metrics.DefaultConfig("nomad_test"), inMemorySink)
+	must.NoError(t, err)
 
 	alloc := mock.BatchAlloc()
 	maxRunDuration := 50 * time.Millisecond
@@ -362,7 +364,7 @@ func TestMaxRunDurationHook_Prerun_ArmsTimerWithoutTaskStates(t *testing.T) {
 	onTimeout, deadlines := newTestMaxRunDurationHookCallback()
 	hook := newTestMaxRunDurationHook(alloc, nil, onTimeout)
 
-	err := hook.Prerun((*taskenv.TaskEnv)(nil))
+	err = hook.Prerun((*taskenv.TaskEnv)(nil))
 	must.NoError(t, err)
 
 	select {
@@ -371,11 +373,17 @@ func TestMaxRunDurationHook_Prerun_ArmsTimerWithoutTaskStates(t *testing.T) {
 	case <-time.After(500 * time.Millisecond):
 		t.Fatal("timed out waiting for max_run_duration deadline")
 	}
+
+	data := inMemorySink.Data()
+	for key, counter := range data[len(data)-1].Counters {
+		if key != "client.allocs.max_run_duration.enforced" {
+			continue
+		}
+		must.Eq(t, 1, counter.Count)
+	}
 }
 
 func TestMaxRunDurationHook_EmitMetrics(t *testing.T) {
-	ci.Parallel(t)
-
 	inMemorySink := metrics.NewInmemSink(10*time.Millisecond, 50*time.Millisecond)
 	_, err := metrics.NewGlobal(metrics.DefaultConfig("nomad_test"), inMemorySink)
 	must.NoError(t, err)

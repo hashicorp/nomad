@@ -1113,6 +1113,9 @@ func (ar *allocRunner) EnforceMaxRunDurationTimeout(deadline time.Time) {
 	ar.state.ClientDescription = structs.AllocTimeoutReasonMaxRunDuration
 	ar.stateLock.Unlock()
 
+	metrics.IncrCounterWithLabels(
+		[]string{"client", "allocs", "max_run_duration", "enforced"}, 1, ar.clientBaseLabels)
+
 	ar.logger.Debug("allocation exceeded max_run_duration, killing tasks", "deadline", deadline)
 	ar.killTasks()
 }
