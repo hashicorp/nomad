@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/nomad/api v0.0.0-20260814142628-f3fe893c53d2
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/shoenig/test v1.13.2
-	github.com/zclconf/go-cty v1.19.0
+	github.com/zclconf/go-cty v1.20.0
 	github.com/zclconf/go-cty-yaml v1.2.0
 )
 
