@@ -750,6 +750,62 @@ func TestLeader_ReapFailedEval(t *testing.T) {
 	must.LessEq(t, srv.config.EvalFailedFollowupDelayRange, followup.Wait)
 }
 
+// TestLeader_ReapFailedEval_AfterBrokerPause ensures failed evaluations keep
+// being reaped after the eval broker is paused and unpaused while this server
+// remains the leader. Pausing disables the broker, which makes Dequeue return
+// an error; the reaper must survive that and resume once the broker is
+// re-enabled, instead of exiting until the next leader election.
+func TestLeader_ReapFailedEval_AfterBrokerPause(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+		c.EvalDeliveryLimit = 1
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, srv.RPC)
+	store := srv.fsm.State()
+
+	// Pause the eval broker, as the operator would via the scheduler
+	// configuration.
+	srv.handleEvalBrokerStateChange(&structs.SchedulerConfiguration{PauseEvalBroker: true})
+	must.False(t, srv.evalBroker.Enabled())
+
+	// Give the reaper time to observe the disabled broker. On unmodified
+	// code it exits here, on the first Dequeue error.
+	time.Sleep(3 * time.Second)
+
+	// Unpause the broker and restore evals, mirroring the operator endpoint.
+	if srv.handleEvalBrokerStateChange(&structs.SchedulerConfiguration{PauseEvalBroker: false}) {
+		must.NoError(t, srv.restoreEvals())
+	}
+	must.True(t, srv.evalBroker.Enabled())
+
+	// Drive an eval to the delivery limit after the unpause.
+	eval := mock.Eval()
+	srv.evalBroker.Enqueue(eval)
+
+	out, token, err := srv.evalBroker.Dequeue(defaultSched, time.Second)
+	must.NoError(t, err)
+	srv.evalBroker.Nack(out.ID, token)
+
+	// Wait for the reaper to mark it failed. On unmodified code the reaper
+	// exited while the broker was paused, so this times out.
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			out, err = store.EvalByID(nil, eval.ID)
+			must.NoError(t, err)
+			if out == nil {
+				return errors.New("no eval update")
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+	))
+
+	must.Eq(t, structs.EvalStatusFailed, out.Status)
+}
+
 func TestLeader_ReapDuplicateEval(t *testing.T) {
 	ci.Parallel(t)
 

@@ -1,0 +1,3 @@
+```release-note:bug
+nomad: Fixed failed evaluations not being reaped after the eval broker is paused and unpaused
+```
