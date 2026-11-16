@@ -121,6 +121,11 @@
           "foo": "bar"
         }
       ],
+      "selinux": [
+        {
+          "label_task_sockets": true
+        }
+      ],
       "reserved": [
         {
           "cpu": 10,

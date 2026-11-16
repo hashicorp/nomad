@@ -99,6 +99,10 @@ client {
   no_host_uuid             = false
   disable_remote_exec      = true
 
+  selinux {
+    label_task_sockets = true
+  }
+
   host_volume "tmp" {
     path = "/tmp"
   }

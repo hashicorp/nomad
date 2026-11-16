@@ -21,9 +21,11 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/lib/clientsockets"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 const (
@@ -55,6 +57,10 @@ type consulGRPCSocketHook struct {
 	mu      sync.Mutex
 	alloc   *structs.Allocation
 	proxies map[string]*grpcSocketProxy
+
+	// drivers looks up the driver capabilities of the tasks that use the
+	// socket.
+	drivers taskDriverCapabilities
 }
 
 func newConsulGRPCSocketHook(
@@ -63,6 +69,7 @@ func newConsulGRPCSocketHook(
 	allocDir allocdir.Interface,
 	configs map[string]*config.ConsulConfig,
 	nodeAttrs map[string]string,
+	drivers taskDriverCapabilities,
 ) *consulGRPCSocketHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
@@ -97,6 +104,7 @@ func newConsulGRPCSocketHook(
 	return &consulGRPCSocketHook{
 		alloc:   alloc,
 		proxies: proxies,
+		drivers: drivers,
 		logger:  logger.Named(consulGRPCSockHookName),
 	}
 }
@@ -131,6 +139,19 @@ func (h *consulGRPCSocketHook) shouldRun() bool {
 	return false
 }
 
+// usesConsulGRPCSocket reports whether tasks of this kind connect to the Consul
+// gRPC socket. The Envoy bootstrap hook gives it to connect proxies and
+// gateways.
+func usesConsulGRPCSocket(kind structs.TaskKind) bool {
+	return kind.IsConnectProxy() || kind.IsAnyConnectGateway()
+}
+
+// isolationModes returns the filesystem isolation modes of the tasks that use
+// the socket. Requires the mutex to be held.
+func (h *consulGRPCSocketHook) isolationModes() []fsisolation.Mode {
+	return taskIsolationModes(h.logger, h.drivers, h.alloc, usesConsulGRPCSocket)
+}
+
 func (h *consulGRPCSocketHook) Prerun(_ *taskenv.TaskEnv) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -139,9 +160,10 @@ func (h *consulGRPCSocketHook) Prerun(_ *taskenv.TaskEnv) error {
 		return nil
 	}
 
+	isolation := h.isolationModes()
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(); err != nil {
+		if err := proxy.run(isolation...); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -163,9 +185,10 @@ func (h *consulGRPCSocketHook) Update(req *interfaces.RunnerUpdateRequest) error
 		return fmt.Errorf("cannot update alloc to Connect in-place")
 	}
 
+	isolation := h.isolationModes()
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(); err != nil {
+		if err := proxy.run(isolation...); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -224,8 +247,11 @@ func newGRPCSocketProxy(
 // run socket proxy if allocation requires it, it isn't already running, and it
 // hasn't been told to stop.
 //
+// isolation holds the filesystem isolation modes of the tasks that use the
+// socket.
+//
 // NOT safe for concurrent use.
-func (p *grpcSocketProxy) run() error {
+func (p *grpcSocketProxy) run(isolation ...fsisolation.Mode) error {
 	// Only run once.
 	if p.runOnce {
 		return nil
@@ -285,7 +311,7 @@ func (p *grpcSocketProxy) run() error {
 		}
 	}
 
-	listener, err := net.Listen("unix", hostGRPCSocketPath)
+	listener, err := clientsockets.ListenTaskSocket(hostGRPCSocketPath, isolation...)
 	if err != nil {
 		return fmt.Errorf("unable to create unix socket for Consul gRPC endpoint: %v", err)
 	}

@@ -1,0 +1,48 @@
+// Copyright IBM Corp. 2015, 2026
+// SPDX-License-Identifier: BUSL-1.1
+
+package config
+
+import "github.com/hashicorp/nomad/helper/pointer"
+
+// SELinuxConfig configures how the client works with SELinux. The agent parses
+// the client.selinux block into it and hands a copy to the client, like
+// ClientTemplateConfig.
+type SELinuxConfig struct {
+	// LabelTaskSockets creates the unix sockets tasks connect to with the
+	// container SELinux type, so tasks in confined containers can use them.
+	// It only applies to tasks whose driver uses image based filesystem
+	// isolation, such as Docker and podman.
+	LabelTaskSockets *bool `hcl:"label_task_sockets"`
+}
+
+// Copy returns a deep copy of the SELinux configuration.
+func (s *SELinuxConfig) Copy() *SELinuxConfig {
+	if s == nil {
+		return nil
+	}
+	return &SELinuxConfig{
+		LabelTaskSockets: pointer.Copy(s.LabelTaskSockets),
+	}
+}
+
+// Merge returns a new SELinux configuration where non-nil fields in the
+// argument have higher precedence.
+func (s *SELinuxConfig) Merge(o *SELinuxConfig) *SELinuxConfig {
+	switch {
+	case s == nil:
+		return o.Copy()
+	case o == nil:
+		return s.Copy()
+	default:
+		return &SELinuxConfig{
+			LabelTaskSockets: pointer.Merge(s.LabelTaskSockets, o.LabelTaskSockets),
+		}
+	}
+}
+
+// TaskSocketsLabeled reports whether the option to create task sockets with the
+// container SELinux type is set.
+func (s *SELinuxConfig) TaskSocketsLabeled() bool {
+	return s != nil && s.LabelTaskSockets != nil && *s.LabelTaskSockets
+}

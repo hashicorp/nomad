@@ -16,7 +16,8 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/helper/users"
+	"github.com/hashicorp/nomad/client/lib/clientsockets"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 // apiHook exposes the Task API. The Task API allows task's to access the Nomad
@@ -35,6 +36,10 @@ type apiHook struct {
 	srv         config.APIListenerRegistrar
 	logger      hclog.Logger
 
+	// isolation is the filesystem isolation of the task's driver, for the
+	// socket's creation.
+	isolation fsisolation.Mode
+
 	// Lock listener as it is updated from multiple hooks.
 	lock sync.Mutex
 
@@ -42,10 +47,16 @@ type apiHook struct {
 	ln net.Listener
 }
 
-func newAPIHook(shutdownCtx context.Context, srv config.APIListenerRegistrar, logger hclog.Logger) *apiHook {
+func newAPIHook(
+	shutdownCtx context.Context,
+	srv config.APIListenerRegistrar,
+	logger hclog.Logger,
+	isolation fsisolation.Mode,
+) *apiHook {
 	h := &apiHook{
 		shutdownCtx: shutdownCtx,
 		srv:         srv,
+		isolation:   isolation,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -65,7 +76,7 @@ func (h *apiHook) Prestart(_ context.Context, req *interfaces.TaskPrestartReques
 	}
 
 	udsPath := apiSocketPath(req.TaskDir)
-	udsln, err := users.SocketFileFor(h.logger, udsPath, req.Task.User)
+	udsln, err := clientsockets.SocketFileFor(h.logger, udsPath, req.Task.User, h.isolation)
 	if err != nil {
 		// Soft-fail and let the task fail if it requires the task api.
 		h.logger.Warn("error creating task api socket", "path", udsPath, "error", err)
