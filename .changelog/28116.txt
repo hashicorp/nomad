@@ -1,0 +1,3 @@
+```release-note:improvement
+client: add `/v1/client/allocations/prometheus-sd` HTTP endpoint exposing running allocations as Prometheus HTTP SD target groups for per-node metrics scraping
+```
