@@ -277,6 +277,8 @@ func TestTemplateHook_Prestart_Vault(t *testing.T) {
 }
 
 func TestTemplateHook_Update(t *testing.T) {
+	ci.Parallel(t)
+
 	logger := testlog.HCLogger(t)
 	tmpDir := t.TempDir()
 
@@ -300,11 +302,13 @@ func TestTemplateHook_Update(t *testing.T) {
 		templates: []*structs.Template{
 			{
 				DestPath:     filepath.Join(tmpDir, "foo1.txt"),
-				EmbeddedTmpl: "foo1",
+				EmbeddedTmpl: "WATCHED_VALUE={{ env \"WATCHED_INPUT\" }}\nSHARED_VALUE=watched\n{{ if env \"REMOVED_INPUT\" }}REMOVED_VALUE=old\n{{ end }}",
+				Envvars:      true,
 			},
 			{
 				DestPath:     filepath.Join(tmpDir, "foo2.txt"),
-				EmbeddedTmpl: "foo2",
+				EmbeddedTmpl: "ONCE_VALUE=once\nSHARED_VALUE=once\n",
+				Envvars:      true,
 				Once:         true,
 			},
 		},
@@ -317,9 +321,15 @@ func TestTemplateHook_Update(t *testing.T) {
 		Task:    task,
 		TaskDir: &allocdir.TaskDir{Dir: tmpDir},
 	}
+	t.Cleanup(func() { must.NoError(t, hook.Stop(context.TODO(), nil, nil)) })
 
 	// sets the templateManager used in update
+	envBuilder.SetHookEnv("test", map[string]string{"WATCHED_INPUT": "watched", "REMOVED_INPUT": "present"})
 	must.NoError(t, hook.Prestart(context.TODO(), req, nil))
+	must.Eq(t, "once", envBuilder.Build().Map()["ONCE_VALUE"])
+	must.Eq(t, "watched", envBuilder.Build().Map()["WATCHED_VALUE"])
+	must.Eq(t, "watched", envBuilder.Build().Map()["SHARED_VALUE"])
+	must.Eq(t, "old", envBuilder.Build().Map()["REMOVED_VALUE"])
 
 	// deleted rendered templates
 	os.RemoveAll(filepath.Join(tmpDir, "foo1.txt"))
@@ -330,6 +340,7 @@ func TestTemplateHook_Update(t *testing.T) {
 		VaultToken: "a new token!",
 	}
 
+	envBuilder.SetHookEnv("test", map[string]string{"WATCHED_INPUT": "updated"})
 	must.NoError(t, hook.Update(context.TODO(), updateReq, nil))
 
 	// only templates with once = false should be rendered
@@ -337,6 +348,19 @@ func TestTemplateHook_Update(t *testing.T) {
 	must.NoError(t, err)
 	_, err = os.Stat(filepath.Join(tmpDir, "foo2.txt"))
 	must.Error(t, err)
+	must.Eq(t, "once", envBuilder.Build().Map()["ONCE_VALUE"])
+	must.Eq(t, "updated", envBuilder.Build().Map()["WATCHED_VALUE"])
+	must.Eq(t, "watched", envBuilder.Build().Map()["SHARED_VALUE"])
+	must.MapNotContainsKey(t, envBuilder.Build().Map(), "REMOVED_VALUE")
+
+	for _, renderOnRestart := range []bool{false, true} {
+		hook.config.renderOnTaskRestart = renderOnRestart
+		must.NoError(t, hook.Prestart(context.TODO(), req, nil))
+		must.Eq(t, "once", envBuilder.Build().Map()["ONCE_VALUE"])
+		must.Eq(t, "updated", envBuilder.Build().Map()["WATCHED_VALUE"])
+		must.Eq(t, "watched", envBuilder.Build().Map()["SHARED_VALUE"])
+		must.MapNotContainsKey(t, envBuilder.Build().Map(), "REMOVED_VALUE")
+	}
 }
 
 // TestTemplateHook_RestoreChangeModeScript exercises change_mode=script
