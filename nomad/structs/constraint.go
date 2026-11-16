@@ -25,6 +25,7 @@ var (
 		"${attr.",
 		"${device.",
 		"${meta.",
+		"${device.attr.",
 	}
 )
 
