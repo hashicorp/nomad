@@ -68,9 +68,9 @@ Logs Specific Options:
 
   -f
     Causes the output to not stop when the end of the logs are reached, but
-    rather to wait for additional output. When supplied with no other flags
-    except optionally "-job" and "-task", both stdout and stderr logs will be
-    followed.
+    rather to wait for additional output. The command exits once the allocation
+    is finished. When supplied with no other flags except optionally "-job" and
+    "-task", both stdout and stderr logs will be followed.
 
   -tail
     Show the logs contents with offsets relative to the end of the logs. If no
@@ -350,8 +350,8 @@ func (l *AllocLogsCommand) followFile(client *api.Client, alloc *api.Allocation,
 }
 
 // tailMultipleFiles will follow both stdout and stderr log files of the passed
-// allocation. Each stream will be output to the users console via stout and
-// stderr until the user cancels it.
+// allocation. Each stream will be output to the users console via stdout and
+// stderr until the user cancels it or both streams end.
 func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allocation) error {
 
 	// Use a single cancel channel for both log streams, so we only have to
@@ -401,24 +401,30 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 	// therefore should result in this command exiting. Otherwise, we would
 	// just be printing a single stream, which might be hard to notice for the
 	// user.
-	for {
+	for stdoutFrames != nil || stderrFrames != nil {
 		select {
 		case <-signalCh:
 			return nil
 		case stdoutErr := <-stdoutErrCh:
 			return fmt.Errorf("received an error from stdout log stream: %v", stdoutErr)
-		case stdoutFrame := <-stdoutFrames:
-			if stdoutFrame != nil {
+		case stdoutFrame, ok := <-stdoutFrames:
+			if !ok {
+				stdoutFrames = nil
+			} else if stdoutFrame != nil {
 				logUI.Output(string(stdoutFrame.Data))
 			}
 		case stderrErr := <-stderrErrCh:
 			return fmt.Errorf("received an error from stderr log stream: %v", stderrErr)
-		case stderrFrame := <-stderrFrames:
-			if stderrFrame != nil {
+		case stderrFrame, ok := <-stderrFrames:
+			if !ok {
+				stderrFrames = nil
+			} else if stderrFrame != nil {
 				logUI.Warn(string(stderrFrame.Data))
 			}
 		}
 	}
+
+	return nil
 }
 
 func lookupAllocTask(alloc *api.Allocation) (string, error) {
