@@ -189,10 +189,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		return false, "cores", used, nil
 	}
 
-	// Check that the node resources (after subtracting reserved) are a
-	// super set of those that are being allocated
-	available := node.NodeResources.Comparable()
-	available.Subtract(node.ReservedResources.Comparable())
+	// Check that the node resources are a super set of those that are being allocated
+	available := node.Comparable()
 	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
@@ -232,20 +230,12 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 }
 
 func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, freePctRam float64) {
-	reserved := node.ReservedResources.Comparable()
-	res := node.NodeResources.Comparable()
-
 	// Determine the node availability
-	nodeCpu := float64(res.Flattened.Cpu.CpuShares)
-	nodeMem := float64(res.Flattened.Memory.MemoryMB)
-	if reserved != nil {
-		nodeCpu -= float64(reserved.Flattened.Cpu.CpuShares)
-		nodeMem -= float64(reserved.Flattened.Memory.MemoryMB)
-	}
+	available := node.Comparable()
 
 	// Compute the free percentage
-	freePctCpu = 1 - (float64(util.Flattened.Cpu.CpuShares) / nodeCpu)
-	freePctRam = 1 - (float64(util.Flattened.Memory.MemoryMB) / nodeMem)
+	freePctCpu = 1 - (float64(util.Flattened.Cpu.CpuShares) / float64(available.Flattened.Cpu.CpuShares))
+	freePctRam = 1 - (float64(util.Flattened.Memory.MemoryMB) / float64(available.Flattened.Memory.MemoryMB))
 	return freePctCpu, freePctRam
 }
 
