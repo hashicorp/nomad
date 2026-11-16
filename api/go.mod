@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/cronexpr v1.1.3
 	github.com/hashicorp/go-cleanhttp v0.5.2
-	github.com/hashicorp/go-rootcerts v1.0.2
+	github.com/hashicorp/go-rootcerts v1.1.0
 	github.com/shoenig/test v1.13.2
 )
 
