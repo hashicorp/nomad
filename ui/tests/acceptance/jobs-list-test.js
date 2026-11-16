@@ -8,6 +8,7 @@ import {
   currentURL,
   settled,
   click,
+  triggerEvent,
   triggerKeyEvent,
   typeIn,
   visit,
@@ -41,6 +42,7 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('it passes an accessibility audit', async function (assert) {
     await JobsList.visit();
+    assert.dom('[data-test-run-job]').doesNotHaveAttribute('disabled');
     await a11yAudit({
       include: [['#ember-testing-container']],
       exclude: [['[disabled]']],
@@ -110,6 +112,9 @@ module('Acceptance | jobs list', function (hooks) {
 
   test('the new job button transitions to the new job page', async function (assert) {
     await JobsList.visit();
+    assert.dom('[data-test-run-job]').hasTagName('a');
+    assert.dom('[data-test-run-job]').hasText('Run Job');
+    assert.dom('[data-test-run-job]').hasAttribute('href', '/ui/jobs/run');
     await JobsList.runJobButton.click();
 
     assert.deepEqual(currentURL(), '/jobs/run');
@@ -120,7 +125,33 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit();
 
-    assert.ok(JobsList.runJobButton.isDisabled);
+    assert.dom('[data-test-run-job]').hasTagName('button');
+    assert.dom('[data-test-run-job]').isDisabled();
+    assert.dom('[data-test-run-job]').doesNotHaveAttribute('href');
+    assert
+      .dom('[data-test-run-job]')
+      .hasAttribute('title', 'You don’t have permission to run jobs');
+
+    const keyboard = this.owner.lookup('service:keyboard');
+    assert.notOk(
+      keyboard.keyCommands.find((command) => command.label === 'Run Job')
+        .action,
+      'The Run Job shortcut has no action without permission',
+    );
+    triggerEvent('.page-layout', 'keydown', { key: 'r' });
+    triggerEvent('.page-layout', 'keydown', { key: 'u' });
+    await triggerEvent('.page-layout', 'keydown', { key: 'n' });
+    assert.strictEqual(currentURL(), '/jobs');
+  });
+
+  test('the Run Job keyboard shortcut navigates when permitted', async function (assert) {
+    await JobsList.visit();
+
+    triggerEvent('.page-layout', 'keydown', { key: 'r' });
+    triggerEvent('.page-layout', 'keydown', { key: 'u' });
+    await triggerEvent('.page-layout', 'keydown', { key: 'n' });
+
+    assert.strictEqual(currentURL(), '/jobs/run');
   });
 
   test('the anonymous policy is fetched to check whether to show the job run button', async function (assert) {
