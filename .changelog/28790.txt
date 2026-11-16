@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: job list now shows pass/fail counts for child batch/periodic jobs and active state for periodic jobs
+```
