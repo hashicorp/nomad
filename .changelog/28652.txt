@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed insufficient color contrast in the Region selector and improved navigation breadcrumb readability
+```

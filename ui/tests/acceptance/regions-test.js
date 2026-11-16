@@ -62,6 +62,10 @@ module('Acceptance | regions (only one)', function (hooks) {
       'Region: some-region',
       'Single region name is shown',
     );
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
   });
 
   test('pages do not include the region query param', async function (assert) {
@@ -112,6 +116,15 @@ module('Acceptance | regions (many)', function (hooks) {
     this.server.create('allocation');
     this.server.create('region', { id: 'global' });
     this.server.create('region', { id: 'region-2' });
+  });
+
+  test('it passes an accessibility audit', async function (assert) {
+    await JobsList.visit();
+    await a11yAudit({
+      include: [['#ember-testing-container']],
+      exclude: [['[disabled]']],
+    });
+    assert.ok(true, 'no a11y errors found');
   });
 
   test('the region switcher is rendered in the nav bar and the region is in the page title', async function (assert) {
