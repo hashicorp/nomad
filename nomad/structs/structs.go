@@ -1904,6 +1904,20 @@ type DrainSpec struct {
 	// IgnoreSystemJobs allows systems jobs to remain on the node even though it
 	// has been marked for draining.
 	IgnoreSystemJobs bool
+
+	// DurationAware permits bounded batch allocs on draining nodes with a
+	// deadline.
+	DurationAware bool
+
+	// BackfillBuffer is extra headroom beyond runtime and declared shutdown
+	// delays.
+	//
+	// Since MaxRunDuration's deadline is determined on the Client after
+	// placement, the BackfillBuffer must allow for the time spent in the
+	// scheduling pipeline through placement.
+	//
+	// Default is DefaultBackfillBuffer.
+	BackfillBuffer time.Duration
 }
 
 // DrainStrategy describes a Node's drain behavior.
@@ -1966,6 +1980,10 @@ func (d *DrainStrategy) Equal(o *DrainStrategy) bool {
 	} else if d.Deadline != o.Deadline {
 		return false
 	} else if d.IgnoreSystemJobs != o.IgnoreSystemJobs {
+		return false
+	} else if d.DurationAware != o.DurationAware {
+		return false
+	} else if d.BackfillBuffer != o.BackfillBuffer {
 		return false
 	}
 

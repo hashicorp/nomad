@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
@@ -20,7 +21,7 @@ import (
 
 // readyNodesInDCsAndPool returns all the ready nodes in the given datacenters
 // and pool, and a mapping of each data center to the count of ready nodes.
-func readyNodesInDCsAndPool(state sstructs.State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
+func readyNodesInDCsAndPool(state sstructs.State, dcs []string, pool string, allowBackfill bool) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
 	// Index the DCs
 	dcMap := make(map[string]int)
 
@@ -28,6 +29,10 @@ func readyNodesInDCsAndPool(state sstructs.State, dcs []string, pool string) ([]
 	ws := memdb.NewWatchSet()
 	var out []*structs.Node
 	notReady := map[string]struct{}{}
+
+	// Only used for determine duration-aware drain availability which has
+	// a buffer to account for clock skew.
+	now := time.Now()
 
 	var iter memdb.ResultIterator
 	var err error
@@ -48,7 +53,7 @@ func readyNodesInDCsAndPool(state sstructs.State, dcs []string, pool string) ([]
 
 		// Filter on datacenter and status
 		node := raw.(*structs.Node)
-		if !node.Ready() {
+		if !node.Ready() && !(allowBackfill && node.BackfillOpen(now)) {
 			notReady[node.ID] = struct{}{}
 			continue
 		}
@@ -839,16 +844,28 @@ func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID str
 			return false, true, nil
 		}
 
+		// If the node is duration-aware draining, ensure the alloc
+		// still fits.
+		if node.DrainStrategy != nil && node.DrainStrategy.DurationAware {
+			if !node.CanBackfill(newJob, newTG, time.Unix(0, existing.CreateTime)) {
+				return false, true, nil
+			}
+		}
+
 		// max_run_duration-only updates. This field does not affect placement
 		// or allocated resources, so we can update the alloc in place without
 		// re-running feasibility.
+		// Must come *after* duration-aware drain check above.
 		if existingTG := existing.Job.LookupTaskGroup(newTG.Name); existingTG != nil {
 			oldMax, oldOK := existing.MaxRunDuration()
 			newAlloc := existing.Copy()
 			newAlloc.EvalID = evalID
 			newAlloc.Job = nil
 
+			newAlloc.Job = newJob // use new job when calculating max run duration
 			newMax, newOK := newAlloc.MaxRunDuration()
+			newAlloc.Job = nil // use the plan's job when it is applied
+
 			if oldOK != newOK || oldMax != newMax {
 				return false, false, newAlloc
 			}

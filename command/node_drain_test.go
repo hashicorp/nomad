@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
@@ -95,6 +97,141 @@ func TestNodeDrainCommand_Detach(t *testing.T) {
 	node, _, err := client.Nodes().Info(nodeID, nil)
 	must.NoError(t, err)
 	must.NotNil(t, node.DrainStrategy)
+}
+
+func TestNodeDrainCommand_DurationAware(t *testing.T) {
+	ci.Parallel(t)
+	server, client, url := testServer(t, false, nil)
+	defer server.Shutdown()
+	state := server.Agent.Server().State()
+	node := mock.Node()
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+
+	// A non-terminal allocation without a real client keeps the drain active
+	// long enough to inspect the strategy returned by the API.
+	job := mock.BatchJob()
+	job.TaskGroups[0].Count = 1
+	alloc := mock.MinAllocForJob(job)
+	alloc.NodeID = node.ID
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}))
+
+	for _, tc := range []struct {
+		name   string
+		flag   string
+		buffer time.Duration
+		err    string
+	}{
+		{name: "explicit buffer", flag: "45s", buffer: 45 * time.Second},
+		{name: "default buffer"},
+		{name: "minimum buffer", flag: "1s", buffer: time.Second},
+		{name: "subsecond buffer rejected by server", flag: "500ms", err: "backfill buffer must be at least 1s"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.err != "" {
+				_, err := client.Nodes().UpdateDrain(node.ID, &api.DrainSpec{
+					Deadline:       10 * time.Minute,
+					DurationAware:  true,
+					BackfillBuffer: time.Second,
+				}, false, nil)
+				must.NoError(t, err)
+			}
+			ui := cli.NewMockUi()
+			cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}
+			args := []string{"-address=" + url, "-enable", "-detach", "-duration-aware", "-deadline=10m"}
+			if tc.flag != "" {
+				args = append(args, "-backfill-buffer="+tc.flag)
+			}
+			args = append(args, node.ID)
+			code := cmd.Run(args)
+			if tc.err != "" {
+				must.Eq(t, 1, code)
+				must.StrContains(t, ui.ErrorWriter.String(), tc.err)
+			} else {
+				must.Zero(t, code, must.Sprint(ui.ErrorWriter.String()))
+				must.StrContains(t, ui.OutputWriter.String(), "drain strategy set")
+			}
+			out, _, err := client.Nodes().Info(node.ID, nil)
+			must.NoError(t, err)
+			must.NotNil(t, out.DrainStrategy)
+			must.True(t, out.DrainStrategy.DurationAware)
+			must.Eq(t, 10*time.Minute, out.DrainStrategy.Deadline)
+			if tc.err == "" {
+				must.Eq(t, tc.buffer, out.DrainStrategy.BackfillBuffer)
+			} else {
+				// Rejection must preserve the previously accepted strategy.
+				must.Eq(t, time.Second, out.DrainStrategy.BackfillBuffer)
+			}
+			stored, err := state.NodeByID(nil, node.ID)
+			must.NoError(t, err)
+			must.True(t, stored.DrainStrategy.DurationAware)
+			must.Eq(t, out.DrainStrategy.BackfillBuffer, stored.DrainStrategy.BackfillBuffer)
+		})
+	}
+}
+
+func TestNodeDrainCommand_DurationAwareValidation(t *testing.T) {
+	ci.Parallel(t)
+	for _, tc := range []struct {
+		name string
+		args []string
+		err  string
+	}{
+		{
+			name: "force drain",
+			args: []string{"-enable", "-duration-aware", "-force"},
+			err:  "-duration-aware requires -enable and a positive deadline",
+		},
+		{
+			name: "no deadline",
+			args: []string{"-enable", "-duration-aware", "-no-deadline"},
+			err:  "-duration-aware requires -enable and a positive deadline",
+		},
+		{
+			name: "duration-aware on disable",
+			args: []string{"-disable", "-duration-aware"},
+			err:  "-disable can't be combined with flags configuring drain strategy",
+		},
+		{
+			name: "buffer on disable",
+			args: []string{"-disable", "-backfill-buffer=30s"},
+			err:  "-disable can't be combined with flags configuring drain strategy",
+		},
+		{
+			name: "zero deadline",
+			args: []string{"-enable", "-duration-aware", "-deadline=0s"},
+			err:  "A positive drain duration must be given",
+		},
+		{
+			name: "negative deadline",
+			args: []string{"-enable", "-duration-aware", "-deadline=-1s"},
+			err:  "A positive drain duration must be given",
+		},
+		{
+			name: "negative buffer",
+			args: []string{"-enable", "-duration-aware", "-backfill-buffer=-1s"},
+			err:  "-backfill-buffer must be non-negative and requires -duration-aware",
+		},
+		{
+			name: "buffer without duration awareness",
+			args: []string{"-enable", "-backfill-buffer=30s"},
+			err:  "-backfill-buffer must be non-negative and requires -duration-aware",
+		},
+		{
+			name: "malformed buffer",
+			args: []string{"-enable", "-duration-aware", "-backfill-buffer=invalid"},
+			err:  "invalid value",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &NodeDrainCommand{Meta: Meta{Ui: ui}}
+			args := append([]string{"-address=http://127.0.0.1:1"}, tc.args...)
+			args = append(args, "12345678-abcd-efab-cdef-123456789abc")
+			must.Eq(t, 1, cmd.Run(args))
+			must.StrContains(t, ui.ErrorWriter.String(), tc.err)
+		})
+	}
 }
 
 func TestNodeDrainCommand_Monitor(t *testing.T) {

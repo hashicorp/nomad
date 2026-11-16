@@ -137,6 +137,8 @@ func (s *HTTPServer) nodeToggleDrain(resp http.ResponseWriter, req *http.Request
 			DrainSpec: structs.DrainSpec{
 				Deadline:         drainRequest.DrainSpec.Deadline,
 				IgnoreSystemJobs: drainRequest.DrainSpec.IgnoreSystemJobs,
+				DurationAware:    drainRequest.DrainSpec.DurationAware,
+				BackfillBuffer:   drainRequest.DrainSpec.BackfillBuffer,
 			},
 		}
 	}
