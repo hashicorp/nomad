@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fixed a panic in `nomad namespace apply` when reading the namespace specification from stdin
+```
