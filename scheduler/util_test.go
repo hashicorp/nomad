@@ -321,6 +321,25 @@ func TestTasksUpdated(t *testing.T) {
 	j18.Meta["j18_test"] = "roll_baby_roll"
 	must.True(t, tasksUpdated(j1, j18, name).modified)
 
+	// Change group env
+	jGroupEnv := mock.Job()
+	jGroupEnv.TaskGroups[0].Env = map[string]string{"SHARED": "group"}
+	must.True(t, tasksUpdated(j1, jGroupEnv, name).modified)
+
+	// Change job env
+	jJobEnv := mock.Job()
+	jJobEnv.Env = map[string]string{"SHARED": "job"}
+	must.True(t, tasksUpdated(j1, jJobEnv, name).modified)
+
+	// Moving an env var between levels without changing its value is not an update
+	jEnvMoved := mock.Job()
+	for k, v := range jEnvMoved.TaskGroups[0].Tasks[0].Env {
+		jEnvMoved.Env = map[string]string{k: v}
+		delete(jEnvMoved.TaskGroups[0].Tasks[0].Env, k)
+		break
+	}
+	must.False(t, tasksUpdated(j1, jEnvMoved, name).modified)
+
 	// Change network mode
 	j19 := mock.Job()
 	j19.TaskGroups[0].Networks[0].Mode = "bridge"

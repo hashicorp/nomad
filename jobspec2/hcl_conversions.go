@@ -267,6 +267,8 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnosti
 
 	metaAttr, body, moreDiags := decodeAsAttribute(body, ctx, "meta")
 	diags = append(diags, moreDiags...)
+	envAttr, body, moreDiags := decodeAsAttribute(body, ctx, "env")
+	diags = append(diags, moreDiags...)
 
 	tgExtra := struct {
 		Vault   *api.Vault    `hcl:"vault,block"`
@@ -302,6 +304,9 @@ func decodeTaskGroup(body hcl.Body, ctx *hcl.EvalContext, val any) hcl.Diagnosti
 
 	if metaAttr != nil {
 		tg.Meta = metaAttr
+	}
+	if envAttr != nil {
+		tg.Env = envAttr
 	}
 
 	if tgExtra.Vault != nil {

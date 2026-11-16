@@ -505,6 +505,7 @@ type TaskGroup struct {
 	Migrate          *MigrateStrategy          `hcl:"migrate,block"`
 	Networks         []*NetworkResource        `hcl:"network,block"`
 	Meta             map[string]string         `hcl:"meta,block"`
+	Env              map[string]string         `hcl:"env,block"`
 	Services         []*Service                `hcl:"service,block"`
 	ShutdownDelay    *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
 	MaxRunDuration   *time.Duration            `mapstructure:"max_run_duration" hcl:"max_run_duration,optional"`

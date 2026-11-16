@@ -1049,6 +1049,54 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 
 }
 
+func TestParse_Env_Alternatives(t *testing.T) {
+	t.Parallel()
+
+	hcl := ` job "example" {
+  group "group" {
+    task "task" {
+      driver = "config"
+      config {}
+
+      env {
+        SOURCE = "task"
+      }
+    }
+
+    env {
+      SOURCE = "group"
+      GROUP  = "group"
+    }
+  }
+
+  env {
+    SOURCE = "job"
+    JOB    = "job"
+  }
+}
+`
+
+	asBlock, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hcl),
+	})
+	must.NoError(t, err)
+
+	hclAsAttr := strings.ReplaceAll(hcl, "env {", "env = {")
+	must.Eq(t, 3, strings.Count(hclAsAttr, "env = {"))
+
+	asAttr, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hclAsAttr),
+	})
+	must.NoError(t, err)
+
+	must.Eq(t, asBlock, asAttr)
+	must.Eq(t, map[string]string{"SOURCE": "job", "JOB": "job"}, asBlock.Env)
+	must.Eq(t, map[string]string{"SOURCE": "group", "GROUP": "group"}, asBlock.TaskGroups[0].Env)
+	must.Eq(t, map[string]string{"SOURCE": "task"}, asBlock.TaskGroups[0].Tasks[0].Env)
+}
+
 func TestParse_Constraint_Alternatives(t *testing.T) {
 	t.Parallel()
 

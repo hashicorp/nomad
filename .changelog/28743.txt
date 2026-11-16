@@ -1,0 +1,3 @@
+```release-note:improvement
+jobspec: Added `env` block at the job and group level, shared by all tasks in the job or group
+```
