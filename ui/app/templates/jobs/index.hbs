@@ -241,6 +241,33 @@
                     @size="large"
                   />
                 {{/if}}
+                {{! Pass/fail counts — shown only when no more children will be dispatched }}
+                {{#unless B.data.isPeriodicActive}}
+                  {{#if B.data.childJobPassed}}
+                    {{#if B.data.childJobFailed}}
+                      <Hds::Badge
+                        data-test-child-job-passed-failed
+                        @text="{{B.data.childJobPassed}} passed · {{B.data.childJobFailed}} failed"
+                        @color="critical"
+                        @size="large"
+                      />
+                    {{else}}
+                      <Hds::Badge
+                        data-test-child-job-passed-failed
+                        @text="{{B.data.childJobPassed}} passed"
+                        @color="success"
+                        @size="large"
+                      />
+                    {{/if}}
+                  {{else if B.data.childJobFailed}}
+                    <Hds::Badge
+                      data-test-child-job-passed-failed
+                      @text="{{B.data.childJobFailed}} failed"
+                      @color="critical"
+                      @size="large"
+                    />
+                  {{/if}}
+                {{/unless}}
               {{else}}
                 <Hds::Badge
                   @text="{{capitalize B.data.aggregateAllocStatus.label}}"
