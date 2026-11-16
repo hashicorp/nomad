@@ -5653,6 +5653,14 @@ func TestNode_List_PaginationFiltering(t *testing.T) {
 			},
 		},
 		{
+			name:              "pagination with missing cursor and filter",
+			pageSize:          1,
+			nextToken:         "aaaaaa44-3350-4b4b-d185-0e1992ed43e9",
+			filter:            `Status == "down"`,
+			expectedNextToken: "aaaaaabb-3350-4b4b-d185-0e1992ed43e9",
+			expectedIDs:       []string{"aaaaaaaa-3350-4b4b-d185-0e1992ed43e9"},
+		},
+		{
 			name:   "filter no pagination",
 			filter: `Datacenter == "dc3"`,
 			expectedIDs: []string{

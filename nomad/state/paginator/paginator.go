@@ -6,6 +6,7 @@ package paginator
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -35,8 +36,7 @@ type Paginator[T, TStub any] struct {
 }
 
 // NewPaginator returns a new Paginator. Any error creating the paginator is
-// due to bad user filter input, RPC functions should therefore return a 400
-// error code along with an appropriate message.
+// due to bad user input. RPC functions should therefore return a 400 error.
 func NewPaginator[T, TStub any](
 	iter Iterator,
 	opts structs.QueryOptions,
@@ -44,6 +44,11 @@ func NewPaginator[T, TStub any](
 	tokenizer Tokenizer[T],
 	stubFn func(T) (TStub, error),
 ) (*Paginator[T, TStub], error) {
+
+	// Null bytes are seperators in indexes and never valid from users
+	if strings.ContainsRune(opts.NextToken, '\x00') {
+		return nil, errors.New("next_token must not contain null bytes")
+	}
 
 	p := &Paginator[T, TStub]{
 		iter:           iter,

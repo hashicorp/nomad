@@ -79,11 +79,8 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
 					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix, sort)
 					tokenizer = paginator.IDTokenizer[*structs.Allocation](args.NextToken)
-				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, sort)
-					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Allocation](args.NextToken)
 				} else {
-					iter, err = state.Allocs(ws, sort)
+					iter, err = state.AllocsFrom(ws, namespace, args.NextToken, sort)
 					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Allocation](args.NextToken)
 				}
 				if err != nil {
