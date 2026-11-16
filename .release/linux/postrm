@@ -4,7 +4,10 @@ if [ "$1" = "purge" ]; then
   userdel nomad
 fi
 
-if [ "$1" == "upgrade" ] && [ -d /run/systemd/system ]; then
+# Debian postrm is called with "upgrade" during an upgrade; RPM %postun
+# receives the numeric argument "1" when the old package is removed as
+# part of an upgrade ("0" on a plain erase, where no restart is wanted).
+if { [ "$1" = "upgrade" ] || [ "$1" = "1" ]; } && [ -d /run/systemd/system ]; then
   systemctl --system daemon-reload >/dev/null || true
   systemctl restart nomad >/dev/null || true
 fi
