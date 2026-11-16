@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/kr/pretty"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -7626,4 +7627,242 @@ func TestReconciler_ScaleDown_ClientTerminal_Service_ActiveDeployment(t *testing
 	for _, stop := range r.Stop {
 		must.Eq(t, stop.Alloc.ID, allocs[2].ID)
 	}
+}
+
+// TestReconciler_OrphanedMigration covers a migration whose stop was committed
+// without its replacement: the plan applier rejected the placement on the
+// target node, or the placement failed at scheduling time. While the
+// deployment blocks placements (canaries awaiting promotion, paused or failed)
+// the empty slot must still be refilled, at the stable job version while
+// canarying, chained to the stopped allocation.
+func TestReconciler_OrphanedMigration(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name        string
+		promoted    bool   // the deployment has been promoted
+		noCanary    bool   // the job has no canary update strategy
+		status      string // deployment status; a deployment exists if set or canarying
+		orphans     int    // old allocs stopped for migration
+		replaced    bool   // the orphans already have a NextAllocation
+		noMigrate   bool   // the orphans were stopped without a migrate transition
+		notNeeded   bool   // the orphans were stopped as not needed, e.g. scale-down
+		renamed     bool   // the orphan's name is not the free slot's name
+		expectPlace int
+	}{
+		{name: "pending canary refills orphan", orphans: 1, expectPlace: 1},
+		{name: "pending canary refills two orphans", orphans: 2, expectPlace: 2},
+		{name: "pending canary pairs orphan by name order", orphans: 1, renamed: true, expectPlace: 1},
+		{name: "pending canary ignores replaced migration", orphans: 1, replaced: true},
+		{name: "pending canary ignores stop without migrate", orphans: 1, noMigrate: true},
+		{name: "pending canary ignores stop not for migration", orphans: 1, notNeeded: true},
+		{name: "paused canary deployment refills orphan", status: structs.DeploymentStatusPaused, orphans: 1, expectPlace: 1},
+		{name: "paused deployment refills orphan", noCanary: true, status: structs.DeploymentStatusPaused, orphans: 1, expectPlace: 1},
+		{name: "failed deployment refills orphan", noCanary: true, status: structs.DeploymentStatusFailed, orphans: 1, expectPlace: 1},
+		{name: "promoted deployment chains orphan", promoted: true, orphans: 1, expectPlace: 1},
+		{name: "no canary chains orphan", noCanary: true, orphans: 1, expectPlace: 1},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			pending := !tc.promoted && !tc.noCanary
+
+			job := mock.Job()
+			job.Version = 1
+			tg := job.TaskGroups[0]
+			tg.Count = 10
+			desiredCanaries := 1
+			if tc.noCanary {
+				desiredCanaries = 0
+			}
+			tg.Update = &structs.UpdateStrategy{
+				Canary:          desiredCanaries,
+				MaxParallel:     1,
+				HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+				MinHealthyTime:  10 * time.Second,
+				HealthyDeadline: 10 * time.Minute,
+			}
+			oldJob := job.Copy()
+			oldJob.Version = 0
+
+			var d *structs.Deployment
+			if !tc.noCanary || tc.status != "" {
+				d = structs.NewDeployment(job, 50, time.Now().UnixNano())
+				if tc.status != "" {
+					d.Status = tc.status
+				}
+				d.TaskGroups[tg.Name] = &structs.DeploymentState{
+					Promoted:        tc.promoted,
+					DesiredTotal:    10,
+					DesiredCanaries: desiredCanaries,
+					PlacedAllocs:    1,
+				}
+			}
+
+			var allocs []*structs.Allocation
+			for i := range 10 {
+				alloc := mock.Alloc()
+				alloc.Job = oldJob
+				alloc.JobID = job.ID
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(job.ID, tg.Name, uint(i))
+				alloc.TaskGroup = tg.Name
+				alloc.ClientStatus = structs.AllocClientStatusRunning
+				allocs = append(allocs, alloc)
+			}
+
+			handled := map[string]AllocUpdateType{}
+			if pending {
+				canary := mock.Alloc()
+				canary.Job = job
+				canary.JobID = job.ID
+				canary.NodeID = uuid.Generate()
+				canary.Name = structs.AllocName(job.ID, tg.Name, 0)
+				canary.TaskGroup = tg.Name
+				canary.DeploymentID = d.ID
+				canary.ClientStatus = structs.AllocClientStatusRunning
+				canary.DeploymentStatus = &structs.AllocDeploymentStatus{Canary: true}
+				d.TaskGroups[tg.Name].PlacedCanaries = []string{canary.ID}
+				allocs = append(allocs, canary)
+				handled[canary.ID] = allocUpdateFnIgnore
+			}
+
+			// The last allocs were on a drained node: the scheduler's stop was
+			// committed, their replacements were not.
+			n := mock.DrainNode()
+			orphans := map[string]*structs.Allocation{}
+			for i := 10 - tc.orphans; i < 10; i++ {
+				alloc := allocs[i]
+				alloc.NodeID = n.ID
+				alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				alloc.DesiredDescription = sstructs.StatusAllocMigrating
+				if tc.notNeeded {
+					alloc.DesiredDescription = sstructs.StatusAllocNotNeeded
+				}
+				alloc.ClientStatus = structs.AllocClientStatusComplete
+				if !tc.noMigrate {
+					alloc.DesiredTransition.Migrate = new(true)
+				}
+				if tc.replaced {
+					alloc.NextAllocation = uuid.Generate()
+				}
+				if tc.renamed {
+					alloc.Name = structs.AllocName(job.ID, tg.Name, uint(tg.Count+i))
+				}
+				orphans[alloc.ID] = alloc
+			}
+
+			r := NewAllocReconciler(testlog.HCLogger(t),
+				allocUpdateFnMock(handled, allocUpdateFnIgnore),
+				ReconcilerState{
+					JobID:             job.ID,
+					Job:               job,
+					DeploymentCurrent: d,
+					ExistingAllocs:    allocs,
+					EvalPriority:      50,
+				},
+				ClusterState{
+					TaintedNodes: map[string]*structs.Node{n.ID: n},
+					Now:          time.Now().UTC(),
+				}).Compute()
+
+			must.Len(t, tc.expectPlace, r.Place)
+			must.Eq(t, uint64(tc.expectPlace), r.DesiredTGUpdates[tg.Name].Place)
+			must.SliceEmpty(t, r.Stop)
+
+			for _, p := range r.Place {
+				prev := p.PreviousAllocation()
+				must.NotNil(t, prev)
+				must.MapContainsKey(t, orphans, prev.ID)
+				if tc.renamed {
+					// the placement keeps the free slot's name
+					must.Eq(t, structs.AllocName(job.ID, tg.Name, uint(tg.Count-tc.orphans)), p.Name())
+				} else {
+					must.Eq(t, prev.Name, p.Name())
+				}
+				must.Eq(t, prev.Job.Version, p.MinJobVersion())
+				must.Eq(t, pending, p.DowngradeNonCanary())
+				must.False(t, p.Canary())
+			}
+		})
+	}
+}
+
+// TestReconciler_OrphanedMigration_PlaceCap asserts that when placements are
+// capped at the group count, refills of orphaned migrations are dropped before
+// the replacements of allocations migrated in the same plan, which would
+// otherwise become orphaned themselves.
+func TestReconciler_OrphanedMigration_PlaceCap(t *testing.T) {
+	ci.Parallel(t)
+
+	job := mock.Job()
+	job.Version = 1
+	tg := job.TaskGroups[0]
+	tg.Count = 3
+	tg.Update = &structs.UpdateStrategy{
+		Canary:          2,
+		MaxParallel:     1,
+		HealthCheck:     structs.UpdateStrategyHealthCheck_Checks,
+		MinHealthyTime:  10 * time.Second,
+		HealthyDeadline: 10 * time.Minute,
+	}
+	oldJob := job.Copy()
+	oldJob.Version = 0
+
+	n := mock.DrainNode()
+	var allocs []*structs.Allocation
+	for i := range 3 {
+		alloc := mock.Alloc()
+		alloc.Job = oldJob
+		alloc.JobID = job.ID
+		alloc.NodeID = uuid.Generate()
+		alloc.Name = structs.AllocName(job.ID, tg.Name, uint(i))
+		alloc.TaskGroup = tg.Name
+		alloc.ClientStatus = structs.AllocClientStatusRunning
+		allocs = append(allocs, alloc)
+	}
+
+	// allocs[1] is being migrated off the draining node in this plan.
+	migrating := allocs[1]
+	migrating.NodeID = n.ID
+	migrating.DesiredTransition.Migrate = new(true)
+
+	// allocs[2] was migrated earlier without being replaced.
+	orphan := allocs[2]
+	orphan.NodeID = n.ID
+	orphan.DesiredStatus = structs.AllocDesiredStatusStop
+	orphan.DesiredDescription = sstructs.StatusAllocMigrating
+	orphan.ClientStatus = structs.AllocClientStatusComplete
+	orphan.DesiredTransition.Migrate = new(true)
+
+	r := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnDestructive,
+		ReconcilerState{
+			JobID:          job.ID,
+			Job:            job,
+			ExistingAllocs: allocs,
+			EvalPriority:   50,
+		},
+		ClusterState{
+			TaintedNodes: map[string]*structs.Node{n.ID: n},
+			Now:          time.Now().UTC(),
+		}).Compute()
+
+	// two canaries plus the migration fill the group count; the refill waits
+	must.Len(t, tg.Count, r.Place)
+	var canaries int
+	var migrationPlaced bool
+	for _, p := range r.Place {
+		if p.Canary() {
+			canaries++
+		}
+		if prev := p.PreviousAllocation(); prev != nil {
+			must.Eq(t, migrating.ID, prev.ID)
+			migrationPlaced = true
+		}
+	}
+	must.Eq(t, 2, canaries)
+	must.True(t, migrationPlaced)
+
+	must.Len(t, 1, r.Stop)
+	must.Eq(t, migrating.ID, r.Stop[0].Alloc.ID)
 }
