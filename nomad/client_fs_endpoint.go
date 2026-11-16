@@ -219,7 +219,7 @@ func (f *FileSystem) Stat(args *cstructs.FsStatRequest, reply *cstructs.FsStatRe
 	return NodeRpc(state.Session, "FileSystem.Stat", args, reply)
 }
 
-// stream is is used to stream the contents of file in an allocation's
+// stream is used to stream the contents of file in an allocation's
 // directory.
 func (f *FileSystem) stream(conn io.ReadWriteCloser) {
 	defer conn.Close()

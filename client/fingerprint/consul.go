@@ -225,7 +225,7 @@ func (cfs *consulState) initialize(cfg *config.ConsulConfig, logger hclog.Logger
 }
 
 func (cfs *consulState) query(logger hclog.Logger) agentconsul.Self {
-	// We'll try to detect consul by making a query to to the agent's self API.
+	// We'll try to detect consul by making a query to the agent's self API.
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := cfs.client.Agent().Self()
 	if err != nil {
