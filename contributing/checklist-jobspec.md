@@ -43,15 +43,15 @@ required in the original `jobspec` package.
 
 Find Nomad product docs in the `web-unified-docs` repo. Refer to the
 [`web-unified-docs` contributor
-guide](https://github.com/hashicorp/web-unified-docs/docs/contribute.md) for
+guide](https://github.com/hashicorp/web-unified-docs/blob/main/CONTRIBUTING.md) for
 instructions. If you need help with docs, [create an issue in the web-unified
 docs repo](https://github.com/hashicorp/web-unified-docs/issues). On the Issue
 form, choose "Nomad" as the product so that your issue is assigned to the
 nomad-docs team.
 
-* [ ] Jobspec entry https://developer.hashicorp.com/nomad/docs/job-specification/index.html
-* [ ] Job JSON API entry https://developer.hashicorp.com/nomad/api/json-jobs.html
-* [ ] Sample Response output in API https://developer.hashicorp.com/nomad/api/jobs.html
+* [ ] Jobspec entry https://developer.hashicorp.com/nomad/docs/job-specification
+* [ ] Job JSON API entry https://developer.hashicorp.com/nomad/api-docs/json-jobs
+* [ ] Sample Response output in API https://developer.hashicorp.com/nomad/api-docs/jobs
 * [ ] Consider if your change needs a user guide.
 
 ## JSON Encoding
