@@ -304,12 +304,12 @@ func (w *deploymentWatcher) autoPromoteDeployment(allocs []*structs.AllocListStu
 		// Find the health status of each canary
 		for _, c := range dstate.PlacedCanaries {
 			for _, a := range allocs {
-				if c == a.ID && a.DeploymentStatus.IsHealthy() {
+				if c == a.ID && !a.TerminalStatus() && a.DeploymentStatus.IsHealthy() {
 					healthyCanaries += 1
 				}
 			}
 		}
-		if healthyCanaries != dstate.DesiredCanaries {
+		if healthyCanaries < dstate.DesiredCanaries {
 			return nil
 		}
 	}

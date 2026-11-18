@@ -929,6 +929,22 @@ func (a *AllocListStub) RescheduleEligible(reschedulePolicy *ReschedulePolicy, f
 	return a.RescheduleTracker.RescheduleEligible(reschedulePolicy, failTime)
 }
 
+// TerminalStatus returns if the desired or actual status is terminal and
+// will no longer transition.
+func (a *AllocListStub) TerminalStatus() bool {
+	return a.ServerTerminalStatus() || a.ClientTerminalStatus()
+}
+
+// ServerTerminalStatus returns true if the desired state of the allocation is terminal
+func (a *AllocListStub) ServerTerminalStatus() bool {
+	switch a.DesiredStatus {
+	case AllocDesiredStatusStop, AllocDesiredStatusEvict:
+		return true
+	default:
+		return false
+	}
+}
+
 // ClientTerminalStatus returns if the client status is terminal and will no longer transition
 func (a *AllocListStub) ClientTerminalStatus() bool {
 	return slices.Contains(terminalAllocationStatuses, a.ClientStatus)
