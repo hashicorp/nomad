@@ -12,6 +12,7 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { restartableTask, timeout } from 'ember-concurrency';
 import { macroCondition, isTesting } from '@embroider/macros';
+import codesForError from 'nomad-ui/utils/codes-for-error';
 
 @classic
 export default class IndexController extends Controller.extend(
@@ -20,6 +21,7 @@ export default class IndexController extends Controller.extend(
   @service store;
   @service system;
   @service watchList;
+  @service notifications;
 
   queryParams = [
     {
@@ -83,9 +85,28 @@ export default class IndexController extends Controller.extend(
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.log('error fetching job ids', e);
+          throw e;
         }
         return;
       });
+  }
+
+  /**
+   * Let the user know that there was difficulty fetching child jobs, but don't
+   * overload their screen with notifications.
+   * @param {Error} e
+   */
+  notifyFetchError(e) {
+    const errorDetails = /** @type {any} */ (e).errors;
+    const errors = errorDetails?.toArray?.() || errorDetails || [];
+    const firstError = errors[0] || {};
+    this.notifications.add({
+      title: 'Error fetching child jobs',
+      message: `The backend returned an error with status ${firstError.status} while fetching child jobs`,
+      color: 'critical',
+      sticky: true,
+      preventDuplicates: true,
+    });
   }
 
   @tracked childJobs = [];
@@ -109,17 +130,26 @@ export default class IndexController extends Controller.extend(
         `child-jobs-for-${id}-${namespace}`,
       );
 
-      const childJobs = yield this.childJobsQuery(params);
-      if (childJobs) {
-        if (childJobs.meta.index) {
-          this.watchList.setIndexFor(
-            `child-jobs-for-${id}-${namespace}`,
-            childJobs.meta.index,
-          );
+      try {
+        const childJobs = yield this.childJobsQuery(params);
+        if (childJobs) {
+          if (childJobs.meta.index) {
+            this.watchList.setIndexFor(
+              `child-jobs-for-${id}-${namespace}`,
+              childJobs.meta.index,
+            );
+          }
+          this.childJobs = childJobs;
         }
-        this.childJobs = childJobs;
-        yield timeout(throttle);
+      } catch (e) {
+        this.notifyFetchError(e);
+        // Retrying a forbidden query cannot succeed until the token or its
+        // policies change, so stop the watch instead of polling until teardown.
+        if (codesForError(e).includes('403')) {
+          break;
+        }
       }
+      yield timeout(throttle);
       if (macroCondition(isTesting())) {
         break;
       }

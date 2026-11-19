@@ -199,6 +199,45 @@ moduleForJob(
       assert.notOk(JobDetail.jobsHeader.hasPriority);
       assert.notOk(JobDetail.jobsHeader.hasType);
     },
+
+    'a forbidden child jobs query stops the watch instead of retrying in a tight loop':
+      async function (job, assert) {
+        const controller = this.owner.lookup('controller:jobs.job.index');
+        const statusesRequestsBefore =
+          this.server.pretender.handledRequests.filter((request) =>
+            request.url.startsWith('/v1/jobs/statuses'),
+          ).length;
+
+        this.server.pretender.get('/v1/jobs/statuses', () => [
+          403,
+          {},
+          'Permission denied',
+        ]);
+
+        await controller.watchChildJobs.perform(
+          { id: job.name, namespace: job.namespace || 'default' },
+          0,
+        );
+        await settled();
+
+        const newStatusesRequests =
+          this.server.pretender.handledRequests.filter((request) =>
+            request.url.startsWith('/v1/jobs/statuses'),
+          ).length - statusesRequestsBefore;
+
+        assert.strictEqual(
+          newStatusesRequests,
+          1,
+          'a forbidden child jobs query issues a single bounded request',
+        );
+        assert.notOk(
+          controller.watchChildJobs.isRunning,
+          'the child jobs watch stops on an authorization failure',
+        );
+        assert
+          .dom('.flash-message.alert-critical')
+          .exists('a toast surfaces the fetch error');
+      },
   },
 );
 
