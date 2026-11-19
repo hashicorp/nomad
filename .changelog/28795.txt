@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fix the child jobs watch flooding `/v1/jobs/statuses` with retries after a query error
+```
