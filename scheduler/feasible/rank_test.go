@@ -2686,7 +2686,7 @@ func TestNodeAffinityIterator(t *testing.T) {
 	})
 
 	t.Run("mixed sign weights preserve full range", func(t *testing.T) {
-		// Regression for #11130: an anti-affinity targeting an unrelated node
+		// an anti-affinity targeting an unrelated node
 		// must not shrink a matching node's affinity score. With a +100 and a
 		// -100 affinity on different datacenters, a node matching only the +100
 		// should score the full 1.0 and a node matching only the -100 should

@@ -973,7 +973,6 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", 0)
 		return option
 	}
-	// TODO(preetha): we should calculate normalized weights once and reuse it here
 	// Normalize by the larger of the total positive and total negative weight
 	// rather than the sum of all absolute weights. Using the sum would let an
 	// anti-affinity on one node shrink the score of a node that only matches a
