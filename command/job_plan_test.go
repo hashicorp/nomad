@@ -378,7 +378,7 @@ func TestPlanCommand_getExitCode(t *testing.T) {
 			want: 0,
 		},
 		{
-			// #20502: a job whose spec is unchanged (diff "None") can still
+			// A job whose spec is unchanged (diff "None") can still
 			// require a placement, e.g. a system job with an allocation stopped
 			// individually. `job run` places it, so `job plan` must exit 1.
 			name: "regular job unchanged but placement required",
@@ -394,10 +394,10 @@ func TestPlanCommand_getExitCode(t *testing.T) {
 			want: 1,
 		},
 		{
-			// #2012: an unchanged periodic parent's dry-run always reports a
-			// hypothetical child placement, so its exit code must reflect only
-			// whether the spec changed.
-			name: "periodic job unchanged with spurious placement",
+			// An unchanged periodic parent's dry-run can report a hypothetical
+			// child placement, so its exit code must reflect only whether the
+			// spec changed.
+			name: "periodic job unchanged with hypothetical child placement",
 			job:  &api.Job{Periodic: &api.PeriodicConfig{}},
 			resp: &api.JobPlanResponse{
 				Diff: &api.JobDiff{Type: "None"},

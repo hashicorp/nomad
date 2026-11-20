@@ -414,11 +414,10 @@ type namespaceIdPair struct {
 // * 0: No allocations created or destroyed.
 // * 1: Allocations created or destroyed.
 func getExitCode(job *api.Job, resp *api.JobPlanResponse) int {
-	// Periodic and parameterized parent jobs never run allocations directly.
-	// The plan RPC runs the scheduler unconditionally, so their dry-run reports
-	// a placement for a hypothetical child launch even when the spec is
-	// unchanged (#2012). For these jobs the exit code must reflect only whether
-	// the spec changed.
+	// Periodic and parameterized parent jobs don't have their own allocations.
+	// The plan RPC still runs them through the scheduler and reports a
+	// placement if available. For these jobs the exit code must reflect only
+	// whether the spec changed.
 	if job.IsPeriodic() || job.IsParameterized() {
 		if resp.Diff == nil || resp.Diff.Type == "None" {
 			return 0
@@ -430,10 +429,6 @@ func getExitCode(job *api.Job, resp *api.JobPlanResponse) int {
 		return 0
 	}
 
-	// A regular job whose spec is unchanged (diff "None") can still require
-	// allocations to be created or destroyed, for example a system job with an
-	// allocation stopped individually (#20502), so do not short-circuit on the
-	// diff type here.
 	for _, d := range resp.Annotations.DesiredTGUpdates {
 		if d.Stop+d.Place+d.Migrate+d.DestructiveUpdate+d.Canary > 0 {
 			return 1
