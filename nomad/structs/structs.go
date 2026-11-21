@@ -1987,7 +1987,7 @@ type DrainMetadata struct {
 	// if it exists
 	StartedAt time.Time
 
-	// UpdatedAt is the time that that this struct was most recently updated, either via API action
+	// UpdatedAt is the time that this struct was most recently updated, either via API action
 	// or drain completion
 	UpdatedAt time.Time
 
