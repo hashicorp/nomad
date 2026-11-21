@@ -17,7 +17,7 @@ a way that is convenient, reliable, and debuggable.
 
 The simplest example, where we expect a cluster with a leader and at least one
 Linux client in a ready state. The test case will submit the `sleep.hcl` job,
-wait for the deployment to become succesfull (or fail / timeout), then cleanup
+wait for the deployment to become successful (or fail / timeout), then cleanup
 the job.
 
 ```go
