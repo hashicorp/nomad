@@ -6490,7 +6490,7 @@ func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
 	return stub
 }
 
-// GetScalingPolicies returns a slice of all scaling scaling policies for this job
+// GetScalingPolicies returns a slice of all scaling policies for this job
 func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 	ret := make([]*ScalingPolicy, 0)
 
