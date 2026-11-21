@@ -156,7 +156,7 @@ func (s *Server) monitorLeadership() {
 				// During this time, this server may have received
 				// Raft transitions that haven't been applied to the FSM
 				// yet.
-				// Ensure that that FSM caught up and eval queues are refreshed
+				// Ensure that FSM caught up and eval queues are refreshed
 				s.logger.Warn("cluster leadership lost and gained leadership immediately.  Could indicate network issues, memory paging, or high CPU load.")
 
 				leaderStep(false)

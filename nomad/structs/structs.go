@@ -1987,7 +1987,7 @@ type DrainMetadata struct {
 	// if it exists
 	StartedAt time.Time
 
-	// UpdatedAt is the time that that this struct was most recently updated, either via API action
+	// UpdatedAt is the time that this struct was most recently updated, either via API action
 	// or drain completion
 	UpdatedAt time.Time
 
@@ -6490,7 +6490,7 @@ func (p *ScalingPolicy) Stub() *ScalingPolicyListStub {
 	return stub
 }
 
-// GetScalingPolicies returns a slice of all scaling scaling policies for this job
+// GetScalingPolicies returns a slice of all scaling policies for this job
 func (j *Job) GetScalingPolicies() []*ScalingPolicy {
 	ret := make([]*ScalingPolicy, 0)
 
