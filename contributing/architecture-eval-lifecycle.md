@@ -105,7 +105,7 @@ steps:
 * Feasibility Check: For each Allocation it needs, the scheduler iterates over
   Nodes until it finds up to 2 Nodes that match the Allocation's resource requirements
   and constraints.
-  * Note: for system jobs or jobs with with `spread` blocks, the scheduler has
+  * Note: for system jobs or jobs with `spread` blocks, the scheduler has
     to check all Nodes.
 * Scoring: For each feasible node, the scheduler ranks them and picks the one
   with the highest score.
