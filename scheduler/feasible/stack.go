@@ -48,7 +48,7 @@ type SelectOptions struct {
 type GenericStack struct {
 	batch  bool
 	ctx    Context
-	source *DrainPriorityIterator
+	source *StaticIterator
 
 	wrappedChecks        *FeasibilityWrapper
 	quota                FeasibleIterator
@@ -409,10 +409,8 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 		ctx:   ctx,
 	}
 
-	// Create the source iterator. We randomize the order we visit nodes
-	// to reduce collisions between schedulers and to do a basic load
-	// balancing across eligible nodes, but consider draining capacity first.
-	s.source = NewDrainPriorityIterator(ctx)
+	// Create the source iterator. Shuffling occurs in GenericStack.SetNodes.
+	s.source = NewStaticIterator(ctx, nil)
 
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
@@ -497,11 +495,8 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Add the preemption options scoring iterator
 	preemptionScorer := NewPreemptionScoringIterator(ctx, s.spread)
 
-	// Strongly prefer eligible backfill over a tighter fit on ordinary nodes.
-	drainAffinity := NewDrainAffinityIterator(ctx, preemptionScorer, s.drain)
-
 	// Normalizes scores by averaging them across various scorers
-	s.scoreNorm = NewScoreNormalizationIterator(ctx, drainAffinity)
+	s.scoreNorm = NewScoreNormalizationIterator(ctx, preemptionScorer)
 
 	// Apply a limit function. This is to avoid scanning *every* possible node.
 	s.limit = NewLimitIterator(ctx, s.scoreNorm, 2, skipScoreThreshold, maxSkip)

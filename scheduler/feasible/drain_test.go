@@ -225,184 +225,42 @@ func TestGenericStack_DurationAwareDrainDisablesPreemption(t *testing.T) {
 	}
 }
 
-func TestGenericStack_DrainAffinity(t *testing.T) {
+// Drain feasibility must apply independently of the resource scoring algorithm.
+func TestGenericStack_DrainFeasibility(t *testing.T) {
 	ci.Parallel(t)
 
-	for _, tc := range []struct {
-		name     string
-		mutate   func(*structs.Node, *structs.Job)
-		backfill bool
-	}{
-		{name: "small workload prefers backfill over perfect binpack", backfill: true},
-		{
-			name: "backfill outweighs explicit node anti-affinity",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				j.Affinities = []*structs.Affinity{{
-					LTarget: "${node.unique.id}",
-					RTarget: n.ID,
-					Operand: "=",
-					Weight:  -100,
-				}}
-			},
-			backfill: true,
-		},
-		{
-			name: "runtime exceeds drain deadline",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				j.TaskGroups[0].MaxRunDuration = new(20 * time.Minute)
-			},
-		},
-		{
-			name: "buffer consumes remaining budget",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				n.DrainStrategy.BackfillBuffer = 10 * time.Minute
-			},
-		},
-		{
-			name: "shutdown exceeds remaining budget",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				j.TaskGroups[0].Tasks[0].KillTimeout = 10 * time.Minute
-			},
-		},
-		{
-			name: "unbounded batch job",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				j.TaskGroups[0].MaxRunDuration = nil
-			},
-		},
-		{
-			name: "service job",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				j.Type = structs.JobTypeService
-			},
-		},
-		{
-			name: "ordinary drain",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				n.DrainStrategy.DurationAware = false
-			},
-		},
-		{
-			name: "draining node lacks resources",
-			mutate: func(n *structs.Node, j *structs.Job) {
-				n.ReservedResources.Cpu.CpuShares = n.NodeResources.Cpu.CpuShares
-			},
-		},
+	for _, algorithm := range []structs.SchedulerAlgorithm{
+		structs.SchedulerAlgorithmBinpack,
+		structs.SchedulerAlgorithmSpread,
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(string(algorithm), func(t *testing.T) {
 			_, ctx := MockContext(t)
 			job := mock.BatchJob()
 			tg := job.TaskGroups[0]
 			tg.MaxRunDuration = new(time.Minute)
-
-			draining := mock.Node()
-			draining.DrainStrategy = &structs.DrainStrategy{
-				DrainSpec: structs.DrainSpec{
-					DurationAware:  true,
-					BackfillBuffer: time.Minute,
-				},
+			node := mock.Node()
+			node.DrainStrategy = &structs.DrainStrategy{
+				DrainSpec:     structs.DrainSpec{DurationAware: true},
 				ForceDeadline: time.Now().Add(10 * time.Minute),
 			}
-			if tc.mutate != nil {
-				tc.mutate(draining, job)
-			}
-
-			// One lightly loaded draining node competes with many ordinary nodes
-			// that would be perfectly packed by this small task group.
-			nodes := []*structs.Node{draining}
-			for range 32 {
-				n := mock.Node()
-				n.ReservedResources.Cpu.CpuShares = n.NodeResources.Cpu.CpuShares - 100
-				n.ReservedResources.Memory.MemoryMB = n.NodeResources.Memory.MemoryMB - 100
-				nodes = append(nodes, n)
-			}
-			stack := NewGenericStack(job.Type == structs.JobTypeBatch, ctx)
-			stack.SetNodes(nodes)
+			stack := NewGenericStack(true, ctx)
+			stack.SetSchedulerConfiguration(&structs.SchedulerConfiguration{
+				SchedulerAlgorithm: algorithm,
+			})
+			stack.SetNodes([]*structs.Node{node})
 			stack.SetJob(job)
 
-			// Repeated selection must keep considering the draining node even
-			// as the ordinary candidate iterator advances between placements.
-			for range 4 {
-				option := stack.Select(tg, &SelectOptions{})
-				must.NotNil(t, option)
-				if tc.backfill {
-					must.Eq(t, draining.ID, option.Node.ID)
-					must.True(t, option.FinalScore > 1)
-				} else {
-					must.True(t, option.Node.DrainStrategy == nil)
-				}
-			}
+			option := stack.Select(tg, &SelectOptions{})
+			must.NotNil(t, option)
+			must.Eq(t, node.ID, option.Node.ID)
+			must.Zero(t, ctx.Metrics().NodesFiltered)
+
+			// Recheck the same node after its time budget no longer fits;
+			// drain feasibility must not be cached by node class.
+			node.DrainStrategy.ForceDeadline = time.Now().Add(30 * time.Second)
+			must.Nil(t, stack.Select(tg, &SelectOptions{}))
+			must.Eq(t, map[string]int{"node drain time budget": 1},
+				ctx.Metrics().ConstraintFiltered)
 		})
 	}
-}
-
-func TestDrainAffinityIterator_TimeBudget(t *testing.T) {
-	ci.Parallel(t)
-	_, ctx := MockContext(t)
-	now := time.Now()
-	job := mock.BatchJob()
-	tg := job.TaskGroups[0]
-	tg.MaxRunDuration = new(time.Minute)
-
-	// At the exact runtime + shutdown + buffer boundary there is no backfill
-	// affinity. A node with additional headroom should beat a perfect binpack.
-	boundary := mock.Node()
-	boundary.DrainStrategy = &structs.DrainStrategy{
-		DrainSpec: structs.DrainSpec{
-			DurationAware:  true,
-			BackfillBuffer: time.Minute,
-		},
-		ForceDeadline: now.Add(*tg.MaxRunDuration + tg.MaxShutdown() + time.Minute),
-	}
-	eligible := boundary.Copy()
-	eligible.DrainStrategy.ForceDeadline = eligible.DrainStrategy.ForceDeadline.Add(time.Second)
-	ordinary := mock.Node()
-	source := NewStaticRankIterator(ctx, []*RankedNode{
-		{Node: boundary, Scores: []float64{1}},
-		{Node: eligible, Scores: []float64{0}},
-		{Node: ordinary, Scores: []float64{1}},
-	})
-	drain := NewDrainChecker(ctx)
-	drain.SetJob(job)
-	drain.SetTaskGroup(tg, nil, now)
-	iter := NewScoreNormalizationIterator(ctx, NewDrainAffinityIterator(ctx, source, drain))
-	options := collectRanked(iter)
-	must.Eq(t, 1.0, options[0].FinalScore)
-	must.True(t, options[1].FinalScore > options[0].FinalScore)
-	must.Eq(t, 1.0, options[2].FinalScore)
-}
-
-func TestDrainPriorityIterator_RotatesDrainingCandidates(t *testing.T) {
-	ci.Parallel(t)
-	_, ctx := MockContext(t)
-	draining := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
-	for _, node := range draining {
-		node.DrainStrategy = &structs.DrainStrategy{
-			DrainSpec: structs.DrainSpec{DurationAware: true},
-		}
-	}
-	regular := []*structs.Node{mock.Node(), mock.Node()}
-	iter := NewDrainPriorityIterator(ctx)
-	iter.SetNodes([]*structs.Node{
-		regular[0], draining[0], draining[1], regular[1], draining[2],
-	})
-
-	// Power-of-two samples rotate through the draining partition, including
-	// wrapping around, rather than restarting at its first two nodes.
-	for _, sample := range [][]*structs.Node{
-		{draining[0], draining[1]},
-		{draining[2], draining[0]},
-		{draining[1], draining[2]},
-	} {
-		iter.Reset()
-		must.Eq(t, sample[0], iter.Next())
-		must.Eq(t, sample[1], iter.Next())
-	}
-
-	// Each full scan still visits every node exactly once, with draining
-	// candidates first and the original order preserved within each partition.
-	iter.Reset()
-	must.Eq(t, []*structs.Node{
-		draining[0], draining[1], draining[2], regular[0], regular[1],
-	}, collectFeasible(iter))
 }
