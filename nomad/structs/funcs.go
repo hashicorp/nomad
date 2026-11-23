@@ -294,6 +294,17 @@ func ScoreFitSpread(node *Node, util *ComparableResources) float64 {
 	return score
 }
 
+// ScoreFitSpreadCPUOnly computes a fit score to achieve spread behavior across
+// available cpu ignoring memory.
+// Score is in [0, 18]
+//
+// This is equivalent to ScoreFitSpread with the memory component removed.
+func ScoreFitSpreadCPUOnly(node *Node, util *ComparableResources) float64 {
+	freePctCpu, _ := computeFreePercentage(node, util)
+	score := 2 * (math.Pow(10, freePctCpu) - 1)
+	return max(0, min(18, score))
+}
+
 func CopySliceConstraints(s []*Constraint) []*Constraint {
 	l := len(s)
 	if l == 0 {

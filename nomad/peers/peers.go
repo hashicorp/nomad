@@ -245,21 +245,36 @@ func (p *PeerCache) RegionNames() []string {
 
 // RegionPeers returns the list of known alive peers in the given region. If the
 // region is not known or has no alive peers, an empty list is returned.
+//
+// Use in places like federated rpc routing which only uses live servers.
 func (p *PeerCache) RegionPeers(region string) []*Parts {
 	p.peersLock.RLock()
 	defer p.peersLock.RUnlock()
+	return listPeers(region, p.alivePeers)
+}
 
-	numPeers := len(p.alivePeers[region])
+// RegionPeersAll returns the list of peers in the given region. If the
+// region is not known or has no peers, an empty list is returned.
+//
+// Use in places like Autopilot which take into account Leaving peers.
+func (p *PeerCache) RegionPeersAll(region string) []*Parts {
+	p.peersLock.RLock()
+	defer p.peersLock.RUnlock()
+	return listPeers(region, p.allPeers)
+}
+
+func listPeers(region string, globalPeers map[string][]*Parts) []*Parts {
+	numPeers := len(globalPeers[region])
 	if numPeers == 0 {
 		return nil
 	}
 
-	peers := make([]*Parts, 0, numPeers)
+	localPeers := make([]*Parts, 0, numPeers)
 
-	for _, peer := range p.alivePeers[region] {
-		peers = append(peers, peer.Copy())
+	for _, peer := range globalPeers[region] {
+		localPeers = append(localPeers, peer.Copy())
 	}
-	return peers
+	return localPeers
 }
 
 // UpdatePeerSet adds or updates the given parts in the cache. This should be

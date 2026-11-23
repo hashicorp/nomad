@@ -1,0 +1,3 @@
+```release-note:improvement
+core: Add spread_cpu scoring algorithm which only scores based on cpu, ignoring memory
+```

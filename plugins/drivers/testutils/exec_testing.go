@@ -32,6 +32,7 @@ func ExecTaskStreamingConformanceTests(t *testing.T, driver *DriverHarness, task
 	}
 
 	TestExecTaskStreamingBasicResponses(t, driver, taskID)
+	TestExecTaskStreamingShortLived(t, driver, taskID)
 	TestExecFSIsolation(t, driver, taskID)
 }
 
@@ -143,6 +144,20 @@ func TestExecTaskStreamingBasicResponses(t *testing.T, driver *DriverHarness, ta
 				must.Eq(t, "", result.stderr)
 			default:
 				t.Fatal("unexpected type")
+			}
+		})
+	}
+}
+
+// TestExecTaskStreamingShortLived tries to detect that we handle any race
+// conditions in streaming responses for third-party APIs that report success
+// (exit 0) before the exec'd process actually starts
+func TestExecTaskStreamingShortLived(t *testing.T, driver *DriverHarness, taskID string) {
+	for _, tty := range []bool{false, true} {
+		t.Run(fmt.Sprintf("short-lived: tty=%t", tty), func(t *testing.T) {
+			for i := range 100 {
+				result := execTask(t, driver, taskID, "exit 43", tty, "")
+				must.Eq(t, 43, result.exitCode, must.Sprintf("iteration %d", i))
 			}
 		})
 	}

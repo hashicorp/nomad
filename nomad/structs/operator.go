@@ -210,6 +210,11 @@ const (
 	// allocations as evenly as possible over the available hardware.
 	SchedulerAlgorithmSpread SchedulerAlgorithm = "spread"
 
+	// SchedulerAlgorithmSpreadCPUOnly indicates that the scheduler should spread
+	// allocations as evenly as possible over the available hardware based on cpu
+	// allocation (ignoring memory).
+	SchedulerAlgorithmSpreadCPUOnly SchedulerAlgorithm = "spread_cpu"
+
 	// DefaultNodeLimitForFeasibilityChecks is the default value of
 	// NodeLimitForFeasibilityChecks if not specified
 	DefaultNodeLimitForFeasibilityChecks = 100
@@ -305,7 +310,7 @@ func (s *SchedulerConfiguration) Validate() error {
 	}
 
 	switch s.SchedulerAlgorithm {
-	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread:
+	case "", SchedulerAlgorithmBinpack, SchedulerAlgorithmSpread, SchedulerAlgorithmSpreadCPUOnly:
 	default:
 		return fmt.Errorf("invalid scheduler algorithm: %v", s.SchedulerAlgorithm)
 	}
