@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/go-jose/go-jose/v3/jwt"
+	jwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"

@@ -21,7 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	wrapping "github.com/hashicorp/go-kms-wrapping/v2"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
@@ -758,20 +759,18 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 	must.NoError(t, err)
 	keyID := keyset.rootKey.Meta.KeyID
 
-	// the go-jose library rightfully doesn't acccept alg=none, so we'll forge a
-	// JWT with alg=none and some attempted claims
+	// The go-jose library rightfully doesn't accept alg=none, so forge JWTs
+	// with unsupported algorithms to exercise key-ID and signature validation.
 
 	bodyData, err := json.Marshal(claims)
 	must.NoError(t, err)
-	body := make([]byte, base64.StdEncoding.EncodedLen(len(bodyData)))
-	base64.StdEncoding.Encode(body, bodyData)
+	body := base64.RawURLEncoding.EncodeToString(bodyData)
 
 	// Try without a key ID
-	headerData := []byte(`{"alg":"none","typ":"JWT"}`)
-	header := make([]byte, base64.StdEncoding.EncodedLen(len(headerData)))
-	base64.StdEncoding.Encode(header, headerData)
+	headerData := []byte(`{"alg":"RS256","typ":"JWT"}`)
+	header := base64.RawURLEncoding.EncodeToString(headerData)
 
-	badJWT := fmt.Sprintf("%s.%s.", string(header), string(body))
+	badJWT := fmt.Sprintf("%s.%s.", header, body)
 
 	got, err := e.VerifyClaim(badJWT)
 	must.Error(t, err)
@@ -780,14 +779,13 @@ func TestEncrypter_SignVerify_AlgNone(t *testing.T) {
 
 	// Try with a valid key ID
 	headerData = []byte(fmt.Sprintf(`{"alg":"none","kid":"%s","typ":"JWT"}`, keyID))
-	header = make([]byte, base64.StdEncoding.EncodedLen(len(headerData)))
-	base64.StdEncoding.Encode(header, headerData)
+	header = base64.RawURLEncoding.EncodeToString(headerData)
 
-	badJWT = fmt.Sprintf("%s.%s.", string(header), string(body))
+	badJWT = fmt.Sprintf("%s.%s.", header, body)
 
 	got, err = e.VerifyClaim(badJWT)
 	must.Error(t, err)
-	must.ErrorContains(t, err, "invalid signature")
+	must.ErrorContains(t, err, "failed to parse signed token")
 	must.Nil(t, got)
 }
 
@@ -858,7 +856,7 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, oldRootKey.Meta.KeyID, oldKeyID)
 
-	oldJWT, err := jwt.ParseSigned(oldRawJWT)
+	oldJWT, err := jwt.ParseSigned(oldRawJWT, []jose.SignatureAlgorithm{jose.RS256, jose.EdDSA})
 	must.NoError(t, err)
 
 	foundKeyID := false
@@ -896,7 +894,7 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 	must.NotEq(t, oldRootKey.Meta.KeyID, newKeyID)
 	must.Eq(t, rotateResp.Key.KeyID, newKeyID)
 
-	newJWT, err := jwt.ParseSigned(newRawJWT)
+	newJWT, err := jwt.ParseSigned(newRawJWT, []jose.SignatureAlgorithm{jose.RS256, jose.EdDSA})
 	must.NoError(t, err)
 
 	foundKeyID = false
