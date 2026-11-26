@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/posener/complete"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -118,8 +118,8 @@ func (f *FormatCommand) Run(args []string) int {
 	f.checkSuccess = true
 	f.parser = hclparse.NewParser()
 
-	color := terminal.IsTerminal(int(os.Stderr.Fd()))
-	w, _, err := terminal.GetSize(int(os.Stdout.Fd()))
+	color := term.IsTerminal(int(os.Stderr.Fd()))
+	w, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		w = 80
 	}
