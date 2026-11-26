@@ -75,7 +75,7 @@ func TestLogmon_Start_restartWhileWriterOpen(t *testing.T) {
 	}
 	line[len(line)-1] = '\n'
 	const lines = 1024 // 256 KiB
-	for i := 0; i < lines; i++ {
+	for range lines {
 		_, err = newErr.Write(line)
 		must.NoError(t, err)
 	}

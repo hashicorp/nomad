@@ -229,11 +229,21 @@ func TestLogmon_Start_restart(t *testing.T) {
 	})
 	must.True(t, impl.tl.IsRunning())
 
-	// Close stderr, as when the task exits. Logmon keeps running and
-	// waits for the next writer instead of stopping.
+	// Close stderr, as when the task exits.
 	must.NoError(t, stderr.Close())
-	time.Sleep(100 * time.Millisecond)
-	must.True(t, impl.tl.IsRunning())
+	if runtime.GOOS == "windows" {
+		// A named pipe reports a closed client as a read error, which
+		// stops the copy loop until Start is called again.
+		testutil.WaitForResult(func() (bool, error) {
+			return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
+		}, func(err error) {
+			must.NoError(t, err)
+		})
+	} else {
+		// On unix logmon keeps running and waits for the next writer.
+		time.Sleep(100 * time.Millisecond)
+		must.True(t, impl.tl.IsRunning())
+	}
 
 	// Start logmon again and assert that it can receive logs again
 	must.NoError(t, lm.Start(cfg))
