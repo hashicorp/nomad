@@ -44,6 +44,7 @@ var (
 		"plugins_cni":         NewPluginsCNIFingerprint,
 		"host_volume_plugins": NewPluginsHostVolumeFingerprint,
 		"secrets_plugins":     NewPluginsSecretsFingerprint,
+		"selinux":             NewSELinuxFingerprint,
 		"signal":              NewSignalFingerprint,
 		"storage":             NewStorageFingerprint,
 		"vault":               NewVaultFingerprint,

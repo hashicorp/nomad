@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/shoenig/test/must"
 )
 
@@ -47,7 +48,7 @@ func TestAPIHook_SoftFail(t *testing.T) {
 	ctx := context.Background()
 	srv := testAPIListenerRegistrar{}
 	logger := testlog.HCLogger(t)
-	h := newAPIHook(ctx, srv, logger)
+	h := newAPIHook(ctx, srv, logger, fsisolation.None)
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{}, // needs to be non-nil for Task.User lookup
@@ -107,7 +108,7 @@ func TestAPIHook_Ok(t *testing.T) {
 
 	ctx := context.Background()
 	logger := testlog.HCLogger(t)
-	h := newAPIHook(ctx, srv, logger)
+	h := newAPIHook(ctx, srv, logger, fsisolation.None)
 
 	req := &interfaces.TaskPrestartRequest{
 		Task: &structs.Task{
