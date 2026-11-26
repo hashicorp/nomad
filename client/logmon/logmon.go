@@ -180,8 +180,16 @@ type logRotatorWrapper struct {
 	hasFinishedCopied chan struct{}
 	logger            hclog.Logger
 
+	// readerLock guards processOutReader, which is replaced each time a
+	// new writer generation opens the fifo.
+	readerLock       sync.Mutex
 	processOutReader io.ReadCloser
 	openCompleted    chan struct{}
+
+	// closing is closed by Close to stop the copy loop from opening the
+	// fifo again once the current writer generation is drained.
+	closing   chan struct{}
+	closeOnce sync.Once
 }
 
 // isRunning will return true until the reader is closed
@@ -221,6 +229,7 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 		rotatorWriter:     rotator,
 		hasFinishedCopied: make(chan struct{}),
 		openCompleted:     make(chan struct{}),
+		closing:           make(chan struct{}),
 		logger:            logger,
 	}
 
@@ -230,29 +239,69 @@ func newLogRotatorWrapper(path string, logger hclog.Logger, rotator io.WriteClos
 
 // start starts a goroutine that copies from the pipe into the rotator. This is
 // called by the constructor and not the user of the wrapper.
+//
+// The copy continues across writer generations. When every writer has closed
+// the fifo the reader sees EOF and opens the fifo again before closing the
+// previous read side, so the fifo always has a reader. A task restarted while
+// the previous process still held the write side keeps its output collected
+// instead of filling the pipe buffer. The loop ends on a read error or after
+// Close.
 func (l *logRotatorWrapper) start(openFn func() (io.ReadCloser, error)) {
 	go func() {
 		defer close(l.hasFinishedCopied)
 
-		reader, err := openFn()
-		if err != nil {
-			l.logger.Warn("failed to open fifo", "error", err)
-			return
-		}
-		l.processOutReader = reader
-		close(l.openCompleted)
+		var openOnce sync.Once
+		markOpened := func() { openOnce.Do(func() { close(l.openCompleted) }) }
+		defer markOpened()
 
-		_, err = io.Copy(l.rotatorWriter, reader)
-		if err != nil {
-			l.logger.Warn("failed to read from log fifo", "error", err)
-			// Close reader to propagate io error across pipe.
-			// Note that this may block until the process exits on
-			// Windows due to
-			// https://github.com/PowerShell/PowerShell/issues/4254
-			// or similar issues. Since this is already running in
-			// a goroutine its safe to block until the process is
-			// force-killed.
-			reader.Close()
+		var prev io.ReadCloser
+		defer func() {
+			if prev != nil {
+				prev.Close()
+			}
+		}()
+
+		for {
+			reader, err := openFn()
+			if prev != nil {
+				// A writer that connected after the EOF is attached to
+				// the same pipe, so closing the old read side is safe
+				// only now that a new one is open.
+				prev.Close()
+				prev = nil
+			}
+			if err != nil {
+				l.logger.Warn("failed to open fifo", "error", err)
+				return
+			}
+			l.readerLock.Lock()
+			l.processOutReader = reader
+			l.readerLock.Unlock()
+			markOpened()
+
+			_, err = io.Copy(l.rotatorWriter, reader)
+
+			select {
+			case <-l.closing:
+				// Close may close the read side under us; that error is
+				// expected.
+				reader.Close()
+				return
+			default:
+			}
+			if err != nil {
+				l.logger.Warn("failed to read from log fifo", "error", err)
+				// Close reader to propagate io error across pipe.
+				// Note that this may block until the process exits on
+				// Windows due to
+				// https://github.com/PowerShell/PowerShell/issues/4254
+				// or similar issues. Since this is already running in
+				// a goroutine its safe to block until the process is
+				// force-killed.
+				reader.Close()
+				return
+			}
+			prev = reader
 		}
 	}()
 }
@@ -260,10 +309,27 @@ func (l *logRotatorWrapper) start(openFn func() (io.ReadCloser, error)) {
 // Close closes the rotator and the process writer to ensure that the Wait
 // command exits.
 func (l *logRotatorWrapper) Close() {
-	// Wait up to the close tolerance before we force close
-	select {
-	case <-l.hasFinishedCopied:
-	case <-time.After(processOutputCloseTolerance):
+	l.closeOnce.Do(func() { close(l.closing) })
+
+	// Give the process up to the close tolerance to close its side, so its
+	// remaining output is copied. If the copy loop is waiting in open for a
+	// writer that will not come, open and discard a writer to release it.
+	unblock := time.NewTimer(100 * time.Millisecond)
+	defer unblock.Stop()
+	deadline := time.NewTimer(processOutputCloseTolerance)
+	defer deadline.Stop()
+wait:
+	for {
+		select {
+		case <-l.hasFinishedCopied:
+			break wait
+		case <-unblock.C:
+			if f, _ := fifo.OpenWriter(l.fifoPath); f != nil {
+				f.Close()
+			}
+		case <-deadline.C:
+			break wait
+		}
 	}
 
 	// Closing the read side of a pipe may block on Windows if the process
@@ -279,8 +345,11 @@ func (l *logRotatorWrapper) Close() {
 		// and then request will be interrupted and file will be closed on process shutdown
 		<-l.openCompleted
 
-		if l.processOutReader != nil {
-			err := l.processOutReader.Close()
+		l.readerLock.Lock()
+		reader := l.processOutReader
+		l.readerLock.Unlock()
+		if reader != nil {
+			err := reader.Close()
 			if err != nil && !strings.Contains(err.Error(), "file already closed") {
 				l.logger.Warn("error closing read-side of process output pipe", "error", err)
 			}
