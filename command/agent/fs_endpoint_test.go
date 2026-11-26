@@ -572,13 +572,14 @@ func TestHTTP_FS_Logs_Follow(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	httpTest(t, nil, func(s *TestAgent) {
-		a := mockFSAlloc(s.client.NodeID(), nil)
-		addAllocToClient(s, a, terminalClientAlloc)
+		a := mockFSAlloc(s.client.NodeID(), map[string]any{
+			"run_for":       "30s",
+			"stdout_string": defaultLoggerMockDriverStdout,
+		})
+		addAllocToClient(s, a, runningClientAlloc)
 
-		offset := 4
-		expectation := defaultLoggerMockDriverStdout[len(defaultLoggerMockDriverStdout)-offset:]
-		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&offset=%d&origin=end&plain=true&follow=true",
-			a.ID, offset)
+		expectation := defaultLoggerMockDriverStdout
+		path := fmt.Sprintf("/v1/client/fs/logs/%s?type=stdout&task=web&plain=true&follow=true", a.ID)
 
 		req, err := http.NewRequest(http.MethodGet, path, nil)
 		require.Nil(err)
