@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/fifo"
@@ -136,15 +137,10 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 	})
 	must.True(t, impl.tl.IsRunning())
 
-	// Close stdout and assert that logmon no longer writes to the file
+	// Close the writers, as when the task exits. Logmon keeps the fifos
+	// open for the next writer generation.
 	must.NoError(t, stdout.Close())
 	must.NoError(t, stderr.Close())
-
-	testutil.WaitForResult(func() (bool, error) {
-		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
-	}, func(err error) {
-		must.NoError(t, err)
-	})
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
 	must.NoError(t, err)
@@ -153,16 +149,6 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 
 	_, err = stdout.Write([]byte("te"))
 	must.NoError(t, err)
-
-	testutil.WaitForResult(func() (bool, error) {
-		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
-		if err != nil {
-			return false, err
-		}
-		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
-	}, func(err error) {
-		must.NoError(t, err)
-	})
 
 	// Start logmon again and assert that it appended to the file
 	must.NoError(t, lm.Start(cfg))
@@ -243,15 +229,21 @@ func TestLogmon_Start_restart(t *testing.T) {
 	})
 	must.True(t, impl.tl.IsRunning())
 
-	// Close stderr and assert that logmon no longer writes to the file
-	// Keep stdout open to ensure that IsRunning requires both
+	// Close stderr, as when the task exits.
 	must.NoError(t, stderr.Close())
-
-	testutil.WaitForResult(func() (bool, error) {
-		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
-	}, func(err error) {
-		must.NoError(t, err)
-	})
+	if runtime.GOOS == "windows" {
+		// A named pipe reports a closed client as a read error, which
+		// stops the copy loop until Start is called again.
+		testutil.WaitForResult(func() (bool, error) {
+			return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
+		}, func(err error) {
+			must.NoError(t, err)
+		})
+	} else {
+		// On unix logmon keeps running and waits for the next writer.
+		time.Sleep(100 * time.Millisecond)
+		must.True(t, impl.tl.IsRunning())
+	}
 
 	// Start logmon again and assert that it can receive logs again
 	must.NoError(t, lm.Start(cfg))

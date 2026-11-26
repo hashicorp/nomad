@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where a task restarted while its previous process still held its stdout or stderr could block on write because logmon stopped reading the log pipe
+```
