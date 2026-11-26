@@ -391,6 +391,10 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// that the task group no longer exists
 	tg := a.jobState.Job.LookupTaskGroup(group)
 
+	// Find migrations whose stop was committed without their replacement
+	// before server-terminal allocations are filtered out.
+	orphaned := all.filterOrphanedMigrations()
+
 	all = all.filterServerTerminalAllocs()
 
 	// If the task group is nil or scaled-to-zero, then the task group has been
@@ -521,6 +525,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	var place []AllocPlaceResult
 	if len(lostLater) == 0 {
 		place = computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
+		linkOrphanedMigrations(place, orphaned)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -542,6 +547,24 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	}
 
 	a.computeMigrations(migrate, isCanarying, tg, result)
+
+	// While the deployment blocks placements (canaries awaiting promotion,
+	// paused or failed), placeAllocs only replaces lost and rescheduled
+	// allocations, so a migration whose replacement was never placed would
+	// leave its slot empty. Replace it as computeMigrations would have; while
+	// canarying, computePlacements marks these placements downgradeNonCanary,
+	// so they restore the stable job version and do not advance the
+	// deployment. They follow the migrations so that capping placements at the
+	// group count drops a refill, which stays orphaned for a later evaluation,
+	// rather than the replacement of an allocation stopped in this plan.
+	if !deploymentPlaceReady {
+		for _, p := range place {
+			if p.orphanedMigration {
+				result.Place = append(result.Place, p)
+				result.DesiredTGUpdates[group].Place++
+			}
+		}
+	}
 	result.Deployment = a.createDeployment(
 		tg.Name, tg.Update, existingDeployment, dstate, all, destructive, int(result.DesiredTGUpdates[group].InPlaceUpdate))
 
@@ -888,6 +911,54 @@ func computePlacements(group *structs.TaskGroup,
 	}
 
 	return place
+}
+
+// linkOrphanedMigrations pairs orphaned migrations (see
+// filterOrphanedMigrations) with the placements that fill empty slots, so each
+// replacement chains to the allocation it replaces. The chain sets the
+// orphan's NextAllocation, so it is not considered again. Placements keep the
+// names chosen by computePlacements; an orphan is paired with the placement of
+// the same name where there is one.
+func linkOrphanedMigrations(place []AllocPlaceResult, orphaned allocSet) {
+	if len(orphaned) == 0 {
+		return
+	}
+
+	var open []int // indexes of placements that fill an empty slot
+	for i, p := range place {
+		if p.previousAlloc == nil && !p.reschedule && !p.lost && !p.canary {
+			open = append(open, i)
+		}
+	}
+
+	link := func(i int, orphan *structs.Allocation) {
+		place[i].previousAlloc = orphan
+		place[i].orphanedMigration = true
+		place[i].minJobVersion = orphan.Job.Version
+	}
+
+	remaining := orphaned.nameOrder()
+	var unpaired []int
+	for _, i := range open {
+		paired := false
+		for j, orphan := range remaining {
+			if orphan.Name == place[i].name {
+				link(i, orphan)
+				remaining = slices.Delete(remaining, j, j+1)
+				paired = true
+				break
+			}
+		}
+		if !paired {
+			unpaired = append(unpaired, i)
+		}
+	}
+	for k, i := range unpaired {
+		if k >= len(remaining) {
+			break
+		}
+		link(i, remaining[k])
+	}
 }
 
 // placeAllocs either applies the placements calculated by computePlacements,
