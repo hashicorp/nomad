@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -600,6 +601,49 @@ func TestEnvironment_Envvars(t *testing.T) {
 		}
 		if v != actV {
 			t.Fatalf("expected %s=%q but found %q", k, v, actV)
+		}
+	}
+}
+
+func TestEnvironment_TemplateVars(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, onceFirst := range []bool{false, true} {
+		for _, empty := range []map[string]string{nil, {}} {
+			t.Run(fmt.Sprintf("once_first=%t/nil=%t", onceFirst, empty == nil), func(t *testing.T) {
+				builder := NewEmptyBuilder()
+				once := map[string]string{"once": "value", "shared": "once"}
+				watch := map[string]string{"watch": "value", "shared": "watch", "removed": "old"}
+				if onceFirst {
+					builder.SetTemplateEnv(once, true)
+					builder.SetTemplateEnv(watch, false)
+				} else {
+					builder.SetTemplateEnv(watch, false)
+					builder.SetTemplateEnv(once, true)
+				}
+
+				env := builder.Build().Map()
+				must.Eq(t, "value", env["once"])
+				must.Eq(t, "value", env["watch"])
+				must.Eq(t, "watch", env["shared"])
+
+				builder.SetTemplateEnv(map[string]string{"watch": "updated"}, false)
+				env = builder.Build().Map()
+				must.Eq(t, "value", env["once"])
+				must.Eq(t, "updated", env["watch"])
+				must.Eq(t, "once", env["shared"])
+				must.MapNotContainsKey(t, env, "removed")
+
+				builder.SetTemplateEnv(empty, false)
+				env = builder.Build().Map()
+				must.Eq(t, "value", env["once"])
+				must.MapNotContainsKey(t, env, "watch")
+
+				builder.SetTemplateEnv(empty, true)
+				env = builder.Build().Map()
+				must.MapNotContainsKey(t, env, "once")
+				must.MapNotContainsKey(t, env, "shared")
+			})
 		}
 	}
 }

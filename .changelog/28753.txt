@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed lost task environment variables when mixing once and watched templates
+```
