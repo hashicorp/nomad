@@ -32,6 +32,7 @@ export default class Job extends Model {
   @attr('date') submitTime;
   @attr('string') nodePool; // Jobs are related to Node Pools either directly or via its Namespace, but no relationship.
   @attr('boolean') stopped;
+  @attr('boolean') isPeriodicActive;
   @attr() ui;
 
   @attr('number') groupCountSum;
@@ -56,6 +57,10 @@ export default class Job extends Model {
   @attr() latestDeploymentSummary;
 
   @attr() childStatuses;
+  // Number of dead child jobs whose allocs all completed successfully.
+  @attr('number', { defaultValue: 0 }) childJobPassed;
+  // Number of dead child jobs that had at least one failed/lost alloc.
+  @attr('number', { defaultValue: 0 }) childJobFailed;
 
   get childStatusBreakdown() {
     // child statuses is something like ['dead', 'dead', 'complete', 'running', 'running', 'dead'].

@@ -102,12 +102,23 @@ type JobStatusesJob struct {
 	GroupCountSum int
 	// ChildStatuses contains the statuses of child (batch) jobs
 	ChildStatuses []string
+	// ChildJobPassed is the number of dead child jobs whose allocations all
+	// completed successfully (no failed/lost allocs).
+	ChildJobPassed int
+	// ChildJobFailed is the number of dead child jobs that had at least one
+	// failed or lost allocation.
+	ChildJobFailed int
 	// ParentID is set on child (batch) jobs, specifying the parent job ID
 	ParentID         string
 	LatestDeployment *JobStatusesLatestDeployment
 	Stop             bool // has the job been manually stopped?
 	IsPack           bool // is pack metadata present?
 	Status           string
+	// IsPeriodicActive is true when the job is a periodic job that is still
+	// actively scheduling new child jobs (not stopped, not exhausted).
+	// False when the job is stopped, or is parameterized rather than periodic.
+	// Used by the UI to distinguish "between firings" from "truly done".
+	IsPeriodicActive bool
 }
 
 // JobStatusesAlloc contains a subset of Allocation info.
