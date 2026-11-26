@@ -6,8 +6,10 @@
 package allocdir
 
 import (
+	"bufio"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 
@@ -97,4 +99,72 @@ func TestMountSecretsDirs_RemountsAfterUnmount(t *testing.T) {
 
 	_, err = isMount(td.PrivateDir)
 	must.NoError(t, err)
+}
+
+// isMountPoint reports whether path is a mount point in the current mount
+// namespace according to /proc/self/mountinfo.
+func isMountPoint(t *testing.T, path string) bool {
+	f, err := os.Open("/proc/self/mountinfo")
+	must.NoError(t, err)
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		fields := strings.Fields(scanner.Text())
+		if len(fields) > 4 && fields[4] == path {
+			return true
+		}
+	}
+	return false
+}
+
+// TestTaskDirUnmount_BusyBindMount verifies that Unmount lazily detaches the
+// shared alloc bind mounts when they are busy because a file is held open,
+// e.g. by a process in another mount namespace, and still removes the task's
+// shared alloc dir. Regression test for
+// https://github.com/hashicorp/nomad/issues/28769
+func TestTaskDirUnmount_BusyBindMount(t *testing.T) {
+	ci.Parallel(t)
+
+	if unix.Geteuid() != 0 {
+		t.Skip("must be run as root")
+	}
+
+	tmp := t.TempDir()
+	logger := testlog.HCLogger(t)
+	d := NewAllocDir(logger, tmp, tmp, "test-alloc")
+	defer d.Destroy()
+
+	task := &structs.Task{
+		Name:      "web",
+		Resources: &structs.Resources{DiskMB: 2},
+	}
+	must.NoError(t, d.Build())
+	td := d.NewTaskDir(task)
+
+	// Recreate the bind mounts Build() sets up for chroot isolation:
+	// <task>/alloc -> <alloc>/alloc and <task>/alloc/logs -> <alloc>/alloc/logs.
+	must.NoError(t, os.WriteFile(filepath.Join(td.LogDir, "web.stdout.0"), []byte("log data"), 0o644))
+	must.NoError(t, linkDir(td.SharedAllocDir, td.SharedTaskDir, false))
+	logsDir := filepath.Join(td.SharedTaskDir, "logs")
+	must.NoError(t, linkDir(td.LogDir, logsDir, true))
+
+	// Holding a log file open through the bind mount makes a regular unmount
+	// fail with EBUSY, the same way a file held open via a propagated mount in
+	// another mount namespace does.
+	f, err := os.Open(filepath.Join(logsDir, "web.stdout.0"))
+	must.NoError(t, err)
+	t.Cleanup(func() { f.Close() })
+
+	must.ErrorIs(t, unix.Unmount(logsDir, 0), unix.EBUSY)
+	must.ErrorIs(t, unix.Unmount(td.SharedTaskDir, 0), unix.EBUSY)
+
+	// Unmount must detach the busy mounts and remove the shared alloc dir
+	// instead of leaving them behind.
+	must.NoError(t, td.Unmount())
+
+	must.False(t, isMountPoint(t, logsDir))
+	must.False(t, isMountPoint(t, td.SharedTaskDir))
+	_, err = os.Stat(td.SharedTaskDir)
+	must.ErrorIs(t, err, os.ErrNotExist)
 }

@@ -50,12 +50,18 @@ func mountDir(old, next string, uid, gid int, mode os.FileMode) error {
 
 // unlinkDir unmounts a bind mounted directory as Linux doesn't support
 // hardlinking directories. If the dir is already unmounted no error is
-// returned.
+// returned. A busy mount is lazily detached so that cleanup can proceed; the
+// mount is released once the last reference to it is dropped.
 func unlinkDir(dir string) error {
-	if err := syscall.Unmount(dir, 0); err != nil {
-		if err != syscall.EINVAL {
-			return err
-		}
+	err := syscall.Unmount(dir, 0)
+	if err == syscall.EBUSY {
+		// A process in another mount namespace can hold files open under
+		// dir, which fails a regular unmount with EBUSY. Fall back to a
+		// lazy unmount so the mount point can still be removed.
+		err = unix.Unmount(dir, unix.MNT_DETACH)
+	}
+	if err != nil && err != syscall.EINVAL {
+		return err
 	}
 	return nil
 }
