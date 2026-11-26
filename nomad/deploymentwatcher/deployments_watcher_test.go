@@ -661,6 +661,92 @@ func TestWatcher_AutoPromoteDeployment_UnhealthyCanaries(t *testing.T) {
 	must.False(t, b1.DeploymentStatus.Canary)
 }
 
+// TestWatcher_AutoPromoteDeployment_ReplacedCanary asserts that a deployment
+// auto-promotes when both a replaced canary and its replacement are healthy,
+// whether the replaced canary is set to stop or is on a disconnected node.
+func TestWatcher_AutoPromoteDeployment_ReplacedCanary(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name          string
+		desiredStatus string
+		clientStatus  string
+	}{
+		{
+			name:          "stopped by drain",
+			desiredStatus: structs.AllocDesiredStatusStop,
+			clientStatus:  structs.AllocClientStatusRunning,
+		},
+		{
+			name:          "on disconnected node",
+			desiredStatus: structs.AllocDesiredStatusRun,
+			clientStatus:  structs.AllocClientStatusUnknown,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w, m := defaultTestDeploymentWatcher(t)
+
+			canaryUpd := structs.DefaultUpdateStrategy.Copy()
+			canaryUpd.AutoPromote = true
+			canaryUpd.Canary = 1
+
+			j := mock.Job()
+			j.TaskGroups[0].Update = canaryUpd
+
+			d := mock.Deployment()
+			d.JobID = j.ID
+			d.TaskGroups = map[string]*structs.DeploymentState{
+				"web": {
+					AutoPromote:     canaryUpd.AutoPromote,
+					DesiredTotal:    1,
+					DesiredCanaries: 1,
+				},
+			}
+
+			canaryAlloc := func() *structs.Allocation {
+				a := mock.Alloc()
+				a.Job = j
+				a.JobID = j.ID
+				a.DeploymentID = d.ID
+				a.ClientStatus = structs.AllocClientStatusRunning
+				a.DeploymentStatus = &structs.AllocDeploymentStatus{
+					Canary:  true,
+					Healthy: new(true),
+				}
+				return a
+			}
+
+			original := canaryAlloc()
+			original.DesiredStatus = tc.desiredStatus
+			original.ClientStatus = tc.clientStatus
+
+			replacement := canaryAlloc()
+
+			d.TaskGroups["web"].PlacedCanaries = []string{original.ID, replacement.ID}
+			must.NoError(t, m.state.UpsertJob(structs.MsgTypeTestSetup, m.nextIndex(), nil, j))
+			must.NoError(t, m.state.UpsertDeployment(m.nextIndex(), d))
+			must.NoError(t, m.state.UpsertAllocs(structs.MsgTypeTestSetup, m.nextIndex(),
+				[]*structs.Allocation{original, replacement}))
+
+			w.SetEnabled(true, m.state)
+
+			must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
+				d, err := m.state.DeploymentByID(nil, d.ID)
+				if err != nil {
+					return err
+				}
+				if !d.TaskGroups["web"].Promoted {
+					return fmt.Errorf("expected task group to be promoted")
+				}
+				return nil
+			}),
+				wait.Gap(10*time.Millisecond), wait.Timeout(time.Second)))
+		})
+	}
+}
+
 // Test pausing a deployment that is running
 func TestWatcher_PauseDeployment_Pause_Running(t *testing.T) {
 	ci.Parallel(t)
