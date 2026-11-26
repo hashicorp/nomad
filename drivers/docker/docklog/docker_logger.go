@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/errdefs"
@@ -56,10 +57,16 @@ type StartOpts struct {
 // NewDockerLogger returns an implementation of the DockerLogger interface
 func NewDockerLogger(logger hclog.Logger) DockerLogger {
 	return &dockerLogger{
-		logger: logger,
-		doneCh: make(chan any),
+		logger:          logger,
+		doneCh:          make(chan any),
+		stopIdleTimeout: defaultStopIdleTimeout,
 	}
 }
+
+const defaultStopIdleTimeout = 2 * time.Second
+
+// stopRPCTimeout is long because Stop reads a delivering stream to its end.
+const stopRPCTimeout = time.Minute
 
 // dockerLogger implements the DockerLogger interface
 type dockerLogger struct {
@@ -71,6 +78,10 @@ type dockerLogger struct {
 
 	cancelCtx context.CancelFunc
 	doneCh    chan any
+
+	// read counts streamed bytes so Stop can tell when the stream goes quiet.
+	read            atomic.Int64
+	stopIdleTimeout time.Duration
 }
 
 // Start log monitoring
@@ -112,20 +123,29 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 			} else if isLoggingTerminalError(err) {
 				d.logger.Error("log streaming ended with terminal error", "error", err)
 				return
+			} else if errdefs.IsNotFound(err) {
+				d.logger.Debug("container is gone, nothing more to stream")
+				return
 			} else if err != nil {
 				backoff = nextBackoff(backoff)
 				d.logger.Error("log streaming ended with error", "error", err, "retry_in", backoff)
 
-				time.Sleep(time.Duration(backoff) * time.Second)
+				select {
+				case <-time.After(time.Duration(backoff) * time.Second):
+				case <-ctx.Done():
+					return
+				}
+				continue
 			}
 			defer logs.Close()
 
 			// attempt to check if the container uses a TTY. if it does, there is no
 			// multiplexing or headers in the log stream
+			stream := &countingReader{Reader: logs, n: &d.read}
 			if opts.TTY {
-				_, err = io.Copy(stdout, logs)
+				_, err = io.Copy(stdout, stream)
 			} else {
-				_, err = stdcopy.StdCopy(stdout, stderr, logs)
+				_, err = stdcopy.StdCopy(stdout, stderr, stream)
 			}
 			if err != nil && err != io.EOF {
 				d.logger.Error("log streaming ended with error", "error", err)
@@ -136,9 +156,10 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 			container, err := client.ContainerInspect(ctx, opts.ContainerID, mclient.ContainerInspectOptions{})
 			if err != nil {
-				if !errdefs.IsNotFound(err) {
-					return
+				if errdefs.IsNotFound(err) {
+					d.logger.Debug("container is gone, nothing more to stream")
 				}
+				return
 			} else if !container.Container.State.Running {
 				return
 			}
@@ -191,9 +212,10 @@ func (d *dockerLogger) openStreams(ctx context.Context, opts *StartOpts) (stdout
 	return stdoutF, stderrF, nil
 }
 
-// Stop log monitoring
+// Stop log monitoring once the stream ends or goes quiet. See #6931
 func (d *dockerLogger) Stop() error {
 	if d.cancelCtx != nil {
+		d.waitWhileDelivering()
 		d.cancelCtx()
 	}
 
@@ -208,6 +230,34 @@ func (d *dockerLogger) Stop() error {
 		stderr.Close()
 	}
 	return nil
+}
+
+func (d *dockerLogger) waitWhileDelivering() {
+	last := d.read.Load()
+	for {
+		select {
+		case <-d.doneCh:
+			return
+		case <-time.After(d.stopIdleTimeout):
+			if n := d.read.Load(); n != last {
+				last = n
+				continue
+			}
+			d.logger.Info("log stream went quiet without ending, cancelling it", "idle", d.stopIdleTimeout)
+			return
+		}
+	}
+}
+
+type countingReader struct {
+	io.Reader
+	n *atomic.Int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.n.Add(int64(n))
+	return n, err
 }
 
 func (d *dockerLogger) getDockerClient(opts *StartOpts) (*client.Client, error) {

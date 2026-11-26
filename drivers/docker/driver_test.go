@@ -301,6 +301,51 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	}
 }
 
+func TestDockerDriver_Start_LogsComplete(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	const lines = 5000
+	taskCfg := newTaskConfig([]string{"sh", "-c", fmt.Sprintf("seq 1 %d", lines)})
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "logs-complete",
+		AllocID:   uuid.Generate(),
+		Resources: basicResources,
+	}
+	must.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+	d := dockerDriverHarness(t, nil)
+	cleanup := d.MkAllocDir(task, true)
+	defer cleanup()
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
+
+	_, _, err := d.StartTask(task)
+	must.NoError(t, err)
+	defer d.DestroyTask(task.ID, true)
+
+	waitCh, err := d.WaitTask(context.Background(), task.ID)
+	must.NoError(t, err)
+	select {
+	case res := <-waitCh:
+		must.Zero(t, res.ExitCode)
+	case <-time.After(time.Duration(tu.TestMultiplier()*30) * time.Second):
+		t.Fatal("task did not exit")
+	}
+
+	stdout := filepath.Join(task.TaskDir().LogDir, "logs-complete.stdout.0")
+	tu.WaitForResult(func() (bool, error) {
+		b, err := os.ReadFile(stdout)
+		if err != nil {
+			return false, err
+		}
+		if n := strings.Count(string(b), "\n"); n != lines {
+			return false, fmt.Errorf("stdout has %d of %d lines", n, lines)
+		}
+		return true, nil
+	}, func(err error) { must.NoError(t, err) })
+}
+
 func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)

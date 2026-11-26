@@ -279,8 +279,6 @@ func (h *taskHandle) dockerCgroup() string {
 }
 
 func (h *taskHandle) run() {
-	defer h.shutdownLogger()
-
 	h.startCpusetFixer()
 
 	var werr error
@@ -339,6 +337,9 @@ func (h *taskHandle) run() {
 			h.logger.Error("error stopping container", "error", err)
 		}
 	}
+
+	// Stop the logger first: the container may be removed once the result is set.
+	h.shutdownLogger()
 
 	// Set the result
 	h.exitResultLock.Lock()

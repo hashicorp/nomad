@@ -464,11 +464,11 @@ CREATE:
 
 	if err := handle.SetDriverState(h.buildState()); err != nil {
 		d.logger.Error("error encoding container occurred after startup, terminating container", "container_id", container.Container.ID, "error", err)
+		_, _ = dockerClient.ContainerRemove(d.ctx, container.Container.ID, mclient.ContainerRemoveOptions{Force: true})
 		if collectingLogs {
 			dlogger.Stop()
 			pluginClient.Kill()
 		}
-		_, _ = dockerClient.ContainerRemove(d.ctx, container.Container.ID, mclient.ContainerRemoveOptions{Force: true})
 		return nil, nil, err
 	}
 
