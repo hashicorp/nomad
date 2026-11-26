@@ -70,7 +70,7 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 		return fmt.Errorf("unable to lookup user's group membership: %v", err)
 	}
 
-	gids := make([]uint32, len(gidStrings))
+	gids := make([]uint32, 0, len(gidStrings))
 	for _, gidString := range gidStrings {
 		u, err := strconv.ParseUint(gidString, 10, 32)
 		if err != nil {
