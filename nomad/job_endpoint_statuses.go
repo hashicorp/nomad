@@ -212,6 +212,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		LatestDeployment: nil,
 		Stop:             job.Stop,
 		Status:           job.Status,
+		IsPeriodicActive: job.IsPeriodicActive(),
 	}
 
 	_, jsj.IsPack = job.Meta["pack.name"]
@@ -229,6 +230,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		if err != nil {
 			return jsj, highestIdx, err
 		}
+
 		for {
 			child := children.Next()
 			if child == nil {
@@ -243,7 +245,33 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 				highestIdx = j.ModifyIndex
 			}
 			jsj.ChildStatuses = append(jsj.ChildStatuses, j.Status)
+
+			// For dead (terminal) child jobs, check their allocs to determine
+			// whether the run passed (all allocs complete) or failed (any
+			// alloc failed/lost). Running/pending children are not yet terminal
+			// so they don't contribute to either counter.
+			if j.Status != structs.JobStatusDead {
+				continue
+			}
+			childAllocs, err := store.AllocsByJob(ws, j.Namespace, j.ID, false)
+			if err != nil {
+				return jsj, highestIdx, err
+			}
+			childFailed := false
+			for _, a := range childAllocs {
+				if a.ClientStatus == structs.AllocClientStatusFailed ||
+					a.ClientStatus == structs.AllocClientStatusLost {
+					childFailed = true
+					break
+				}
+			}
+			if childFailed {
+				jsj.ChildJobFailed++
+			} else {
+				jsj.ChildJobPassed++
+			}
 		}
+
 		// no allocs or deployments for parameterized/period jobs,
 		// so we're done here.
 		return jsj, highestIdx, err
