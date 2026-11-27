@@ -40,6 +40,7 @@ type SelectOptions struct {
 	Preempt                 bool
 	AllocName               string
 	AllocationHostVolumeIDs []string
+	ExistingAllocation      *structs.Allocation
 }
 
 // GenericStack is the Stack used for the Generic scheduler. It is
@@ -62,6 +63,7 @@ type GenericStack struct {
 	taskGroupCSIVolumes  *CSIVolumeChecker
 	taskGroupNetwork     *NetworkChecker
 	taskGroupSecrets     *SecretsProviderChecker
+	drain                *DrainChecker
 
 	distinctHostsConstraint       *DistinctHostsIterator
 	distinctPropertyConstraint    *DistinctPropertyIterator
@@ -119,6 +121,7 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 	s.ctx.Eligibility().SetJob(job)
 	s.taskGroupCSIVolumes.SetNamespace(job.Namespace)
 	s.taskGroupCSIVolumes.SetJobID(job.ID)
+	s.drain.SetJob(job)
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetJob(job)
@@ -159,6 +162,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	tgConstr := TaskGroupConstraints(tg)
 
 	// Update the parameters of iterators
+	s.drain.SetTaskGroup(tg, options.ExistingAllocation, start)
 	s.taskGroupDrivers.SetDrivers(tgConstr.Drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.Constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
@@ -205,8 +209,8 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	return option
 }
 
-// SystemStack is the Stack used for the System scheduler. It is designed to
-// attempt to make placements on all nodes.
+// SystemStack is the Stack used for the System and Sysbatch schedulers. It is
+// designed to attempt to make placements on all feasible nodes.
 type SystemStack struct {
 	ctx    Context
 	source *StaticIterator
@@ -223,6 +227,7 @@ type SystemStack struct {
 	taskGroupCSIVolumes  *CSIVolumeChecker
 	taskGroupNetwork     *NetworkChecker
 	taskGroupSecrets     *SecretsProviderChecker
+	drain                *DrainChecker
 
 	distinctPropertyConstraint *DistinctPropertyIterator
 	binPack                    *BinPackIterator
@@ -266,6 +271,9 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	// Filter on task group secrets
 	s.taskGroupSecrets = NewSecretsProviderChecker(ctx, nil)
 
+	// Filter on duration-aware drains
+	s.drain = NewDrainChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
@@ -279,6 +287,7 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 		s.taskGroupSecrets,
 	}
 	avail := []FeasibilityChecker{
+		s.drain,
 		s.taskGroupHostVolumes,
 		s.taskGroupCSIVolumes,
 	}
@@ -337,6 +346,7 @@ func (s *SystemStack) SetJob(job *structs.Job) {
 	s.ctx.Eligibility().SetJob(job)
 	s.taskGroupCSIVolumes.SetNamespace(job.Namespace)
 	s.taskGroupCSIVolumes.SetJobID(job.ID)
+	s.drain.job = job
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetJob(job)
@@ -377,6 +387,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.wrappedChecks.SetTaskGroup(tg.Name)
 	s.distinctPropertyConstraint.SetTaskGroup(tg)
 	s.binPack.SetTaskGroup(tg)
+	s.drain.SetTaskGroup(tg, options.ExistingAllocation, start)
 
 	if contextual, ok := s.quota.(ContextualIterator); ok {
 		contextual.SetTaskGroup(tg)
@@ -398,10 +409,8 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 		ctx:   ctx,
 	}
 
-	// Create the source iterator. We randomize the order we visit nodes
-	// to reduce collisions between schedulers and to do a basic load
-	// balancing across eligible nodes.
-	s.source = NewRandomIterator(ctx, nil)
+	// Create the source iterator. Shuffling occurs in GenericStack.SetNodes.
+	s.source = NewStaticIterator(ctx, nil)
 
 	// Attach the job constraints. The job is filled in later.
 	s.jobConstraint = NewConstraintChecker(ctx, nil)
@@ -427,6 +436,9 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	// Filter on task group secrets
 	s.taskGroupSecrets = NewSecretsProviderChecker(ctx, nil)
 
+	// Filter on duration-aware drains
+	s.drain = NewDrainChecker(ctx)
+
 	// Create the feasibility wrapper which wraps all feasibility checks in
 	// which feasibility checking can be skipped if the computed node class has
 	// previously been marked as eligible or ineligible. Generally this will be
@@ -440,6 +452,7 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 		s.taskGroupSecrets,
 	}
 	avail := []FeasibilityChecker{
+		s.drain,
 		s.taskGroupHostVolumes,
 		s.taskGroupCSIVolumes,
 	}
