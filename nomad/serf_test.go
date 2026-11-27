@@ -273,7 +273,7 @@ func TestNomad_BootstrapExpect(t *testing.T) {
 	testutil.WaitForResult(func() (bool, error) {
 		// Retry join to reduce flakiness
 		if _, err := s4.Join(addresses); err != nil {
-			return false, fmt.Errorf("failed to to join addresses: %v", err)
+			return false, fmt.Errorf("failed to join addresses: %v", err)
 		}
 		p4, _ := s4.numPeers()
 		if p4 != 4 {

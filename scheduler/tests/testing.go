@@ -116,7 +116,7 @@ func CreateAlloc(id string, job *structs.Job, resource *structs.Resources) *stru
 	return CreateAllocInner(id, job, resource, nil, nil)
 }
 
-// CreateAllocWithTaskgroupNetwork is is helper method to create allocation with
+// CreateAllocWithTaskgroupNetwork is a helper method to create allocation with
 // network at the task group level
 func CreateAllocWithTaskgroupNetwork(id string, job *structs.Job, resource *structs.Resources, tgNet *structs.NetworkResource) *structs.Allocation {
 	return CreateAllocInner(id, job, resource, nil, tgNet)

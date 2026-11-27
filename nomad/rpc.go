@@ -118,7 +118,7 @@ type RPCContext struct {
 	// TLS marks whether the RPC is over a TLS based connection
 	TLS bool
 
-	// VerifiedChains is is the Verified certificates presented by the incoming
+	// VerifiedChains is the Verified certificates presented by the incoming
 	// connection.
 	VerifiedChains [][]*x509.Certificate
 
