@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -103,7 +103,7 @@ func (m *MockWIDSigner) SignIdentities(_ uint64, req []*structs.WorkloadIdentity
 		if err != nil {
 			return nil, fmt.Errorf("error creating signer: %w", err)
 		}
-		token, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
+		token, err := jwt.Signed(sig).Claims(claims).Serialize()
 		if err != nil {
 			return nil, fmt.Errorf("error signing: %w", err)
 		}

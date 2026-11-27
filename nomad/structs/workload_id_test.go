@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	jwt "github.com/go-jose/go-jose/v3/jwt"
+	jwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"

@@ -7,7 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -42,7 +43,7 @@ func (n *NodeIdentity) Get(args *structs.NodeIdentityGetReq, resp *structs.NodeI
 	// into a map. This is done to avoid exposing the key material of the signed
 	// JWT token, but still results in all the claims which is perfect for
 	// debugging and introspection purposes.
-	parsedJWT, err := jwt.ParseSigned(identityToken)
+	parsedJWT, err := jwt.ParseSigned(identityToken, []jose.SignatureAlgorithm{jose.RS256, jose.EdDSA})
 	if err != nil {
 		return fmt.Errorf("failed to parsed signed token: %w", err)
 	}

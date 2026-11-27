@@ -15,7 +15,8 @@ import (
 	"text/template"
 	"time"
 
-	josejwt "github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	josejwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -235,7 +236,7 @@ func TestVaultClient_DerivesAndRenewsToken(t *testing.T) {
 	must.Nil(t, err)
 	must.Eq(t, 72*60*60*time.Second, renewedLease)
 
-	jwt, err := josejwt.ParseSigned(jwtStr)
+	jwt, err := josejwt.ParseSigned(jwtStr, []jose.SignatureAlgorithm{jose.RS256, jose.EdDSA})
 	must.NoError(t, err)
 
 	claims := make(map[string]any)

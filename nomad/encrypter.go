@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/go-hclog"
 	kms "github.com/hashicorp/go-kms-wrapping/v2"
 	"github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2"
@@ -345,7 +345,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		}
 	}
 
-	raw, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
+	raw, err := jwt.Signed(sig).Claims(claims).Serialize()
 	if err != nil {
 		return "", "", err
 	}
@@ -357,7 +357,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 // it before returning the claim.
 func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, error) {
 
-	token, err := jwt.ParseSigned(tokenString)
+	token, err := jwt.ParseSigned(tokenString, []jose.SignatureAlgorithm{jose.RS256, jose.EdDSA})
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse signed token: %w", err)
 	}
