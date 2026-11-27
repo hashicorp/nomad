@@ -58,7 +58,7 @@ Prefer adding a new message to changing any existing RPC messages.
 
 Find Nomad product docs in the `web-unified-docs` repo. Refer to the
 [`web-unified-docs` contributor
-guide](https://github.com/hashicorp/web-unified-docs/docs/contribute.md) for
+guide](https://github.com/hashicorp/web-unified-docs/blob/main/CONTRIBUTING.md) for
 instructions. If you need help with docs, [create an issue in the web-unified
 docs repo](https://github.com/hashicorp/web-unified-docs/issues). On the Issue
 form, choose "Nomad" as the product so that your issue is assigned to the
