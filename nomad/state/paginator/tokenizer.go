@@ -5,7 +5,6 @@ package paginator
 
 import (
 	"cmp"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -16,62 +15,99 @@ import (
 // seeking. Implementations should close over the token we're seeking.
 type Tokenizer[T any] func(item T) (string, int)
 
-// NamespaceIDTokenizer returns a tokenizer by Namespace and ID.
+// tokenField is one component of a pagination token, compared numerically
+// (12 before 102) or as a string.
+type tokenField struct {
+	str       string
+	num       uint64
+	isNumeric bool
+}
+
+// stringField builds a lexicographically-compared token component.
+func stringField(s string) tokenField { return tokenField{str: s} }
+
+// numericField builds a numerically-compared token component.
+func numericField(n uint64) tokenField { return tokenField{num: n, isNumeric: true} }
+
+// tokenAndCompare joins fields into a '.'-separated token and compares it to
+// target field by field, which matches memdb's compound index order. Comparing
+// the joined strings does not: '.' > '-' puts "team-a.x" before "team.x".
+// Only the last field may contain '.'. Missing target segments compare equal,
+// and a non-integer numeric segment returns ok == false.
+func tokenAndCompare(fields []tokenField, target string) (token string, c int, ok bool) {
+	parts := make([]string, len(fields))
+	for i, f := range fields {
+		if f.isNumeric {
+			parts[i] = strconv.FormatUint(f.num, 10)
+		} else {
+			parts[i] = f.str
+		}
+	}
+	token = strings.Join(parts, ".")
+
+	segments := strings.SplitN(target, ".", len(fields))
+
+	for i, f := range fields {
+		// Legacy or truncated target: the remaining fields compare equal.
+		if i >= len(segments) {
+			return token, 0, true
+		}
+
+		if f.isNumeric {
+			targetNum, err := strconv.ParseUint(segments[i], 10, 64)
+			if err != nil {
+				return token, 0, false
+			}
+			c = cmp.Compare(f.num, targetNum)
+		} else {
+			c = cmp.Compare(f.str, segments[i])
+		}
+		if c != 0 {
+			return token, c, true
+		}
+	}
+
+	return token, 0, true
+}
+
+// NamespaceIDTokenizer returns a tokenizer by Namespace and ID. Namespace
+// cannot contain '.', so it is always the first token segment.
 func NamespaceIDTokenizer[T namespaceIDGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
-		ns := item.GetNamespace()
-		id := item.GetID()
-
-		// Use a character that is not part of validNamespaceName as separator to
-		// avoid accidentally generating collisions.
-		// For example, namespace `a` and job `b-c` would collide with namespace
-		// `a-b` and job `c` into the same token `a-b-c`, since `-` is an allowed
-		// character in namespace.
-		token := fmt.Sprintf("%s.%s", ns, id)
-		return token, cmp.Compare(token, target)
+		// String fields only, so the target can't be malformed.
+		token, c, _ := tokenAndCompare([]tokenField{
+			stringField(item.GetNamespace()),
+			stringField(item.GetID()),
+		}, target)
+		return token, c
 	}
 }
 
 // IDTokenizer returns a tokenizer by ID.
 func IDTokenizer[T idGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
-		id := item.GetID()
-		return id, cmp.Compare(id, target)
+		// String fields only, so the target can't be malformed.
+		token, c, _ := tokenAndCompare([]tokenField{
+			stringField(item.GetID()),
+		}, target)
+		return token, c
 	}
 }
 
-// CreateIndexAndIDTokenizer returns a tokenizer by CreateIndex and ID.
+// CreateIndexAndIDTokenizer returns a tokenizer by CreateIndex and ID. The
+// index compares numerically and the ID as a string.
 func CreateIndexAndIDTokenizer[T idAndCreateIndexGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
-		index := item.GetCreateIndex()
-		id := item.GetID()
-		token := fmt.Sprintf("%d.%s", index, id)
+		token, c, ok := tokenAndCompare([]tokenField{
+			numericField(item.GetCreateIndex()),
+			stringField(item.GetID()),
+		}, target)
 
-		// Split the target to extract the create index and the ID values.
-		targetParts := strings.SplitN(target, ".", 2)
-		// If the target wasn't composed of both parts, directly compare.
-		if len(targetParts) < 2 {
+		// No ID or a non-integer index: compare as strings, as before.
+		if !ok || !strings.Contains(target, ".") {
 			return token, cmp.Compare(token, target)
 		}
-
-		// Convert the create index to an integer for comparison. This
-		// prevents a lexigraphical comparison of the create index which
-		// can cause unexpected results when comparing index values like
-		// '12' and '102'. If the index cannot be converted to an integer,
-		// fall back to direct comparison.
-		targetIndex, err := strconv.Atoi(targetParts[0])
-		if err != nil {
-			return token, cmp.Compare(token, target)
-		}
-
-		indexCmp := cmp.Compare(index, uint64(targetIndex))
-		if indexCmp != 0 {
-			return token, indexCmp
-		}
-
-		// If the index values are equivalent use the ID values
-		// as the comparison.
-		return token, cmp.Compare(id, targetParts[1])
+		return token, c
 	}
 }
 
@@ -83,44 +119,18 @@ func CreateIndexAndIDTokenizer[T idAndCreateIndexGetter](target string) Tokenize
 // then the (Namespace, ID) primary key.
 func ModifyIndexAndNamespaceIDTokenizer[T modifyIndexAndNamespaceIDGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
-		index := item.GetModifyIndex()
-		ns := item.GetNamespace()
-		id := item.GetID()
-		token := fmt.Sprintf("%d.%s.%s", index, ns, id)
+		token, c, ok := tokenAndCompare([]tokenField{
+			numericField(item.GetModifyIndex()),
+			stringField(item.GetNamespace()),
+			stringField(item.GetID()),
+		}, target)
 
-		// Namespace cannot contain '.', so the index and namespace are the first
-		// two segments; the ID (which may contain '.') is the remainder.
-		parts := strings.SplitN(target, ".", 3)
-
-		// Parse the index numerically so values like 12 and 102 compare
-		// correctly rather than lexicographically. A target whose first segment
-		// isn't an integer is malformed -- only reachable from a hand-crafted
-		// token, since real next_tokens are empty or start with an index -- so
-		// degrade to first-page behavior: returning 0 ("matched") makes the
-		// paginator skip nothing and start from the beginning, matching the
-		// previous ModifyIndex-only tokenizer.
-		targetIndex, err := strconv.ParseUint(parts[0], 10, 64)
-		if err != nil {
+		// Non-integer index, only from a hand-crafted token: return 0 so paging
+		// starts from the beginning, as the old ModifyIndex-only tokenizer did.
+		if !ok {
 			return token, 0
 		}
-		if c := cmp.Compare(index, targetIndex); c != 0 {
-			return token, c
-		}
-
-		// Indexes are equal; break the tie by namespace then ID. A target with
-		// fewer segments (e.g. a legacy bare-integer token from before this
-		// tiebreaker existed, seen during a rolling upgrade) compares only the
-		// segments it has, degrading to the previous index-only behavior.
-		if len(parts) < 2 {
-			return token, 0
-		}
-		if c := cmp.Compare(ns, parts[1]); c != 0 {
-			return token, c
-		}
-		if len(parts) < 3 {
-			return token, 0
-		}
-		return token, cmp.Compare(id, parts[2])
+		return token, c
 	}
 }
 

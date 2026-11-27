@@ -5352,6 +5352,81 @@ func TestJobEndpoint_ListJobs_PaginationFiltering(t *testing.T) {
 	}
 }
 
+// TestJobEndpoint_ListJobs_NamespacePagination pages Job.List across "team"
+// and "team-a", which a whole-string token compare ordered wrong.
+func TestJobEndpoint_ListJobs_NamespacePagination(t *testing.T) {
+	ci.Parallel(t)
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	state := s1.fsm.State()
+	must.NoError(t, state.UpsertNamespaces(999, []*structs.Namespace{
+		{Name: "team"}, {Name: "team-a"},
+	}))
+
+	// Three jobs per namespace; memdb returns every "team" job before "team-a".
+	type nsID struct{ namespace, id string }
+	want := []nsID{}
+	index := uint64(1000)
+	for _, ns := range []string{"team", "team-a"} {
+		for _, id := range []string{"j1", "j2", "j3"} {
+			job := mock.Job()
+			job.ID = id
+			job.Name = id
+			job.Namespace = ns
+			job.CreateIndex = index
+			must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+			want = append(want, nsID{ns, id})
+			index++
+		}
+	}
+
+	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
+		mock.NamespacePolicy("*", "read", nil)).SecretID
+
+	// Follow NextToken to the end; the page cap catches a token that repeats.
+	seen := map[nsID]int{}
+	total := 0
+	nextToken := ""
+	for page := 0; ; page++ {
+		if page > 10 {
+			t.Fatalf("pagination did not terminate after %d pages (stall); seen=%v", page, seen)
+		}
+
+		req := &structs.JobListRequest{
+			QueryOptions: structs.QueryOptions{
+				Region:    "global",
+				Namespace: "*",
+				PerPage:   2,
+				NextToken: nextToken,
+			},
+		}
+		req.AuthToken = aclToken
+		var resp structs.JobListResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Job.List", req, &resp))
+
+		for _, job := range resp.Jobs {
+			seen[nsID{job.Namespace, job.ID}]++
+			total++
+		}
+
+		nextToken = resp.QueryMeta.NextToken
+		if nextToken == "" {
+			break
+		}
+	}
+
+	// Every job returned exactly once: none missing, none duplicated.
+	must.Eq(t, len(want), total,
+		must.Sprint("expected each job exactly once across all pages (no duplicates, no missing)"))
+	for _, w := range want {
+		must.Eq(t, 1, seen[w],
+			must.Sprintf("job %s/%s should appear exactly once, saw %d", w.namespace, w.id, seen[w]))
+	}
+}
+
 func TestJobEndpoint_Allocations(t *testing.T) {
 	ci.Parallel(t)
 
