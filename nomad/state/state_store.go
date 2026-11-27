@@ -600,7 +600,9 @@ func (s *StateStore) Deployments(ws memdb.WatchSet, sort SortOption) (memdb.Resu
 		return nil, err
 	}
 
-	ws.Add(it.WatchCh())
+	if ws != nil {
+		ws.Add(it.WatchCh())
+	}
 
 	return it, nil
 }
@@ -2521,6 +2523,46 @@ func (s *StateStore) JobsByScheduler(ws memdb.WatchSet, schedulerType string) (m
 	return iter, nil
 }
 
+// filterJobsWithActiveDependents excludes jobs that are depended upon
+// by at least one pending or running job.
+func (s *StateStore) filterJobsWithActiveDependents(txn *memdb.Txn, ws memdb.WatchSet) (memdb.FilterFunc, error) {
+	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	if ws != nil {
+		ws.Add(iter.WatchCh())
+	}
+
+	dependees := make(map[string]map[string]struct{})
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		job := raw.(*structs.Job)
+
+		if job.Dependencies == nil ||
+			(job.Status != structs.JobStatusPending &&
+				job.Status != structs.JobStatusRunning) {
+			continue
+		}
+
+		for _, dep := range job.Dependencies.Jobs {
+			if dependees[job.Namespace] == nil {
+				dependees[job.Namespace] = make(map[string]struct{})
+			}
+
+			dependees[job.Namespace][dep.Name] = struct{}{}
+		}
+	}
+
+	return func(raw any) bool {
+		job := raw.(*structs.Job)
+
+		_, hasActiveDependents := dependees[job.Namespace][job.Name]
+		return hasActiveDependents
+	}, nil
+}
+
 // JobsByGC returns an iterator over all jobs eligible or ineligible for garbage
 // collection.
 func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator, error) {
@@ -2533,7 +2575,54 @@ func (s *StateStore) JobsByGC(ws memdb.WatchSet, gc bool) (memdb.ResultIterator,
 
 	ws.Add(iter.WatchCh())
 
-	return iter, nil
+	filter, err := s.filterJobsWithActiveDependents(txn.Txn, ws)
+	if err != nil {
+		return nil, err
+	}
+
+	return memdb.NewFilterIterator(iter, filter), nil
+}
+
+// JobsByBlockingJobID returns jobs in pending state whose dependency list
+// includes the provided job ID.
+func (s *StateStore) JobsByBlockingJobID(ws memdb.WatchSet, namespace, id string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("jobs", "id")
+	if err != nil {
+		return nil, err
+	}
+
+	ws.Add(iter.WatchCh())
+
+	filter := func(raw any) bool {
+		job, ok := raw.(*structs.Job)
+		if !ok {
+			return true
+		}
+
+		if namespace != structs.AllNamespacesSentinel && job.Namespace != namespace {
+			return true
+		}
+
+		if job.Status != structs.JobStatusPending {
+			return true
+		}
+
+		if job.Dependencies == nil || len(job.Dependencies.Jobs) == 0 {
+			return true
+		}
+
+		for _, dep := range job.Dependencies.Jobs {
+			if dep != nil && dep.Name == id {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	return memdb.NewFilterIterator(iter, filter), nil
 }
 
 // JobsByPool returns an iterator over all jobs in a given node pool.
@@ -3967,6 +4056,41 @@ func (s *StateStore) EvalsByNamespace(ws memdb.WatchSet, namespace string) (memd
 	ws.Add(it.WatchCh())
 
 	return it, nil
+}
+
+// EvalByJobIDAndEvalStatus returns the newest evaluation in the given namespace
+// and job ID that matches the requested evaluation status.
+func (s *StateStore) EvalByJobIDAndEvalStatus(ws memdb.WatchSet, namespace, jobID, evalStatus string) (*structs.Evaluation, error) {
+	txn := s.db.ReadTxn()
+
+	// Use the compound "job" index (namespace, jobID, status) with a prefix
+	// scan on namespace+jobID, then pick the newest eval matching evalStatus.
+	it, err := txn.Get("evals", "job_prefix", namespace, jobID)
+	if err != nil {
+		return nil, err
+	}
+
+	if ws != nil {
+		ws.Add(it.WatchCh())
+	}
+
+	var newest *structs.Evaluation
+	for raw := it.Next(); raw != nil; raw = it.Next() {
+		eval, ok := raw.(*structs.Evaluation)
+		if !ok {
+			continue
+		}
+
+		if eval.Status != evalStatus {
+			continue
+		}
+
+		if newest == nil || eval.CreateTime > newest.CreateTime {
+			newest = eval
+		}
+	}
+
+	return newest, nil
 }
 
 func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string, sort SortOption) (memdb.ResultIterator, error) {

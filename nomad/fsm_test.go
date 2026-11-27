@@ -54,19 +54,34 @@ func testStateStore(t *testing.T) *state.StateStore {
 	return state.TestStateStore(t)
 }
 
+type mockDependencyVerifier struct{}
+
+func (mdc *mockDependencyVerifier) CreatesCircularDependency(j *structs.Job) bool {
+	return false
+}
+
+func (mdc *mockDependencyVerifier) AddDependency(state *state.StateStore, job *structs.Job) error {
+	return nil
+}
+
+func (mdc *mockDependencyVerifier) UnblockedDependencies(state *state.StateStore, bkingJobID, namespace string) ([]*structs.Evaluation, error) {
+	return []*structs.Evaluation{}, nil
+}
+
 func testFSM(t *testing.T) *nomadFSM {
 	broker := testBroker(t, 0)
 	dispatcher, _ := testPeriodicDispatcher(t)
 	logger := testlog.HCLogger(t)
 	fsmConfig := &FSMConfig{
-		EvalBroker:         broker,
-		Periodic:           dispatcher,
-		Blocked:            NewBlockedEvals(broker, logger),
-		Logger:             logger,
-		Region:             "global",
-		EnableEventBroker:  true,
-		EventBufferSize:    100,
-		JobTrackedVersions: structs.JobDefaultTrackedVersions,
+		EvalBroker:            broker,
+		Periodic:              dispatcher,
+		Blocked:               NewBlockedEvals(broker, logger),
+		Logger:                logger,
+		Region:                "global",
+		EnableEventBroker:     true,
+		EventBufferSize:       100,
+		JobTrackedVersions:    structs.JobDefaultTrackedVersions,
+		DependencyCoordinator: &mockDependencyVerifier{},
 	}
 	fsm, err := NewFSM(fsmConfig)
 	if err != nil {
