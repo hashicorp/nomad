@@ -602,6 +602,11 @@ func (d *FsDevice) stats(ctx context.Context, stats chan *device.StatsResponse, 
 // collectDynamicStats returns the size, modify_time, and time at which the dynamic
 // device file is eligible for deletion
 func (d *FsDevice) collectDynamicStats() (*device.DeviceGroupStats, error) {
+	// Hold the lock for the whole pass: the loop reads DeviceFiles, which
+	// Reserve writes concurrently, and deletes the expired entries.
+	d.dynamicFileInfo.FileLock.Lock()
+	defer d.dynamicFileInfo.FileLock.Unlock()
+
 	l := len(d.devices)
 	group := &device.DeviceGroupStats{
 		Vendor:        vendor,
@@ -653,9 +658,6 @@ func (d *FsDevice) collectDynamicStats() (*device.DeviceGroupStats, error) {
 
 		now := time.Now()
 		if now.After(deletionTime) {
-			d.dynamicFileInfo.FileLock.Lock()
-			defer d.dynamicFileInfo.FileLock.Unlock()
-
 			root, err := os.OpenRoot(d.deviceDir)
 			if err != nil {
 				d.logger.Error("deletion failed", "error", err.Error())
